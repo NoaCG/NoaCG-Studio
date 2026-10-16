@@ -1,0 +1,20 @@
+UTC 2026-10-16T12:50:06Z
+tmpfs on /sys/fs/cgroup type tmpfs (rw,relatime,mode=755)
+cgroup on /sys/fs/cgroup/cpu type cgroup (rw,relatime,cpu)
+cgroup on /sys/fs/cgroup/cpuacct type cgroup (rw,relatime,cpuacct)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,relatime,cpuset)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,relatime,memory)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,relatime,devices)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,relatime,freezer)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,relatime,blkio)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,relatime,pids)
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,relatime,name=systemd)
+cgroup2 on /sys/fs/cgroup/unified type cgroup2 (rw,relatime)
+/sys/fs/cgroup/memory limit=9223372036854771712 usage=2477936640 max_usage=3507191808
+/sys/fs/cgroup/memory/process_api limit=9223372036854771712 usage=2637508608 max_usage=3506245632
+/sys/fs/cgroup/memory/process_api/01a144c0-be23-76f5-9c15-20e71437bb13 limit=9223372036854771712 usage=1464733696 max_usage=2331791360
+/sys/fs/cgroup/memory/process_api/01a144c0-be23-76f5-9c15-20e71437bb13/claude-code-bash limit=14343688192 usage=1003130880 max_usage=1871925248
+cpu.cfs_quota_us=-1 cpuset=0-3
+npx playwright: Version 1.61.1
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+NAME="Ubuntu"

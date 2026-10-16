@@ -1,0 +1,220 @@
+{"changedPaths":4,"checks":["check:contract-freshness","check:contract-citations","check:client-secrets","check:client-neutral","check:copy","check:preview-serialization"],"tests":["scripts/configured-verdict.test.mjs"]}
+
+> noacg-studio@0.1.0 check:contract-freshness
+> node scripts/check-contract-freshness.mjs
+
+[measured] 964 contract files
+Contract freshness OK: 964 contract file(s), every referenced script, doc and path exists.
+
+> noacg-studio@0.1.0 check:contract-citations
+> node scripts/check-contract-citations.mjs
+
+[measured] 562 rule ids in contracts/rules
+[measured] 4473 text files scanned for citations
+Contract citations OK: 4473 file(s), every cited rule id and contract section exists.
+
+> noacg-studio@0.1.0 check:client-secrets
+> node scripts/check-client-secrets.mjs
+
+[measured] 3812 source files scanned
+Client secret scan OK (src, e2e, scripts, docs).
+
+> noacg-studio@0.1.0 check:client-neutral
+> node scripts/check-client-neutral.mjs
+
+[measured] 253 user-readable source files scanned
+Client-neutral copy - SPX may be named as a TARGET, never as the product's own vocabulary
+
+PASS - no client name is doing a general concept's job.
+
+> noacg-studio@0.1.0 check:copy
+> node scripts/check-copy.mjs
+
+[measured] 923 source files scanned
+[measured] 494 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+
+> noacg-studio@0.1.0 check:preview-serialization
+> node scripts/check-preview-serialization.mjs
+
+[measured] 1360 source files scanned
+[measured] 31 module-scope names in files that interpolate a toString()
+[check:preview-serialization] ok - every serialized helper goes through serializeHelper
+
+[gates] node --test over 1 file(s)
+TAP version 13
+# Subtest: a clean full run is green
+ok 1 - a clean full run is green
+  ---
+  duration_ms: 5.173394
+  type: 'test'
+  ...
+# Subtest: THE SILENT-GREEN CASE: everything skipped, exit code 0, must NOT be green
+ok 2 - THE SILENT-GREEN CASE: everything skipped, exit code 0, must NOT be green
+  ---
+  duration_ms: 1.00164
+  type: 'test'
+  ...
+# Subtest: an allowlisted skip is tolerated; an unlisted one beside it still fails
+ok 3 - an allowlisted skip is tolerated; an unlisted one beside it still fails
+  ---
+  duration_ms: 0.65347
+  type: 'test'
+  ...
+# Subtest: an empty allowlist tolerates nothing (the empty-string split trap)
+ok 4 - an empty allowlist tolerates nothing (the empty-string split trap)
+  ---
+  duration_ms: 0.376722
+  type: 'test'
+  ...
+# Subtest: a FLAKE is not green, and IS in the fingerprint
+ok 5 - a FLAKE is not green, and IS in the fingerprint
+  ---
+  duration_ms: 0.801592
+  type: 'test'
+  ...
+# Subtest: two runs failing the same way fingerprint the same; a different set does not
+ok 6 - two runs failing the same way fingerprint the same; a different set does not
+  ---
+  duration_ms: 15.017305
+  type: 'test'
+  ...
+# Subtest: ordering noise cannot change the fingerprint
+ok 7 - ordering noise cannot change the fingerprint
+  ---
+  duration_ms: 0.732134
+  type: 'test'
+  ...
+# Subtest: specs are found however deeply Playwright nests them
+ok 8 - specs are found however deeply Playwright nests them
+  ---
+  duration_ms: 0.30106
+  type: 'test'
+  ...
+# Subtest: a failing spec carries the repo-relative path the rest of the repo keys on
+ok 9 - a failing spec carries the repo-relative path the rest of the repo keys on
+  ---
+  duration_ms: 0.872757
+  type: 'test'
+  ...
+# Subtest: the emitted annotation is what ci-failure-set reads, so the run names the SPEC
+ok 10 - the emitted annotation is what ci-failure-set reads, so the run names the SPEC
+  ---
+  duration_ms: 1.361833
+  type: 'test'
+  ...
+# Subtest: an unknown workspace degrades to no path, never to a wrong one
+ok 11 - an unknown workspace degrades to no path, never to a wrong one
+  ---
+  duration_ms: 0.527718
+  type: 'test'
+  ...
+# Subtest: a run where the stack never came up names NO spec - every spec skipped is not every spec broken
+ok 12 - a run where the stack never came up names NO spec - every spec skipped is not every spec broken
+  ---
+  duration_ms: 0.357318
+  type: 'test'
+  ...
+# Subtest: a spec that failed beside skipped ones is still named
+ok 13 - a spec that failed beside skipped ones is still named
+  ---
+  duration_ms: 0.363684
+  type: 'test'
+  ...
+# Subtest: a clean run names nothing at all
+ok 14 - a clean run names nothing at all
+  ---
+  duration_ms: 0.348854
+  type: 'test'
+  ...
+# Subtest: a flake is named with the transition that made it red, not with its last status
+ok 15 - a flake is named with the transition that made it red, not with its last status
+  ---
+  duration_ms: 0.441235
+  type: 'test'
+  ...
+# Subtest: the expected run refuses a floor that is missing, zero or not a number
+ok 16 - the expected run refuses a floor that is missing, zero or not a number
+  ---
+  duration_ms: 0.88271
+  type: 'test'
+  ...
+# Subtest: the expected run refuses an allowed skip without its reason
+ok 17 - the expected run refuses an allowed skip without its reason
+  ---
+  duration_ms: 0.453455
+  type: 'test'
+  ...
+# Subtest: the committed expected run parses, and names only spec files that exist
+ok 18 - the committed expected run parses, and names only spec files that exist
+  ---
+  duration_ms: 0.695651
+  type: 'test'
+  ...
+# Subtest: with the quarantine, a fail-then-pass is named for entry and the run stays green
+ok 19 - with the quarantine, a fail-then-pass is named for entry and the run stays green
+  ---
+  duration_ms: 0.649555
+  type: 'test'
+  ...
+# Subtest: a failure that failed its retry too stays red, and is not quarantined
+ok 20 - a failure that failed its retry too stays red, and is not quarantined
+  ---
+  duration_ms: 0.430272
+  type: 'test'
+  ...
+# Subtest: a file with one flaky test and one hard failure is red, not quarantined
+ok 21 - a file with one flaky test and one hard failure is red, not quarantined
+  ---
+  duration_ms: 0.337768
+  type: 'test'
+  ...
+# Subtest: a flake in a spec the change edits is the change's, and stays red
+ok 22 - a flake in a spec the change edits is the change's, and stays red
+  ---
+  duration_ms: 0.418411
+  type: 'test'
+  ...
+# Subtest: a flake whose repository path is unknown cannot be quarantined, so it stays red
+ok 23 - a flake whose repository path is unknown cannot be quarantined, so it stays red
+  ---
+  duration_ms: 0.351741
+  type: 'test'
+  ...
+# Subtest: a quarantined spec reds nothing, and its outcome is the status that earns its release
+ok 24 - a quarantined spec reds nothing, and its outcome is the status that earns its release
+  ---
+  duration_ms: 0.923061
+  type: 'test'
+  ...
+# Subtest: a flake in a run that is red for another reason is not quarantined, and stays in the failure set
+ok 25 - a flake in a run that is red for another reason is not quarantined, and stays in the failure set
+  ---
+  duration_ms: 0.418741
+  type: 'test'
+  ...
+# Subtest: a quarantined spec the change edits is judged like any other, as the planner keeps it blocking
+ok 26 - a quarantined spec the change edits is judged like any other, as the planner keeps it blocking
+  ---
+  duration_ms: 0.294147
+  type: 'test'
+  ...
+# Subtest: red is counted by each test's own outcome, so an excused spec cannot hide another's failure
+ok 27 - red is counted by each test's own outcome, so an excused spec cannot hide another's failure
+  ---
+  duration_ms: 0.334951
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 259.001749
+[gates] 1 test file(s) ran 27 test(s)
+[cloud-measure] 7.91s; aggregate sampled RSS 266.8 MiB; /tmp/claude-pr1292-gates.json

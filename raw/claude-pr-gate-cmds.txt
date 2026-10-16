@@ -1,0 +1,4 @@
+node scripts/cloud-measure.mjs --seconds 300 --out /tmp/claude-pr1278-gates.json -- node scripts/cloud-measure-gates.mjs /tmp/claude-pr1278-paths.json > /tmp/claude-pr1278-gates.log 2>&1
+node scripts/cloud-measure.mjs --seconds 300 --out /tmp/claude-pr1287-gates.json -- node scripts/cloud-measure-gates.mjs /tmp/claude-pr1287-paths.json > /tmp/claude-pr1287-gates.log 2>&1
+node scripts/cloud-measure.mjs --seconds 300 --out /tmp/claude-pr1292-gates.json -- node scripts/cloud-measure-gates.mjs /tmp/claude-pr1292-paths.json > /tmp/claude-pr1292-gates.log 2>&1
+node scripts/cloud-measure.mjs --seconds 300 --out /tmp/claude-pr1293-gates.json -- node scripts/cloud-measure-gates.mjs /tmp/claude-pr1293-paths.json > /tmp/claude-pr1293-gates.log 2>&1

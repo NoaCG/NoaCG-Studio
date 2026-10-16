@@ -1,0 +1,18 @@
+{
+ "id": "j-0004",
+ "kind": "sweep",
+ "command": "PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-pr1299-w4-workers4-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-pr1299-w4-workers4.json -- node node_modules/@playwright/test/cli.js test e2e/downloads.spec.ts --workers=4 --reporter=json --global-timeout=1100000",
+ "checkout": "/home/user/NoaCG-Studio/.claude/worktrees/measure",
+ "branch": "scratch/claude-measure-82880f-wt",
+ "after": [],
+ "capMinutes": 21,
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1792156665797,
+ "state": "done",
+ "startedAt": 1792156666143,
+ "finishedAt": 1792156676539,
+ "exitCode": 0,
+ "pid": 6447,
+ "logPath": "/home/user/NoaCG-Studio/.git/noacg-jobs/logs/j-0004.log"
+}

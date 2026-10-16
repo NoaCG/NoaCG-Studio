@@ -1,0 +1,16 @@
+=== j-0004 PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-pr1299-w4-workers4-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-pr1299-w4-workers4.json -- node node_modules/@playwright/test/cli.js test e2e/downloads.spec.ts --workers=4 --reporter=json --global-timeout=1100000
+=== cwd /home/user/NoaCG-Studio/.claude/worktrees/measure
+[e2e] 6 workers - 15252 MB free (the measured maximum)
+
+Running 8 tests using 4 workers
+
+[1/8] [chromium] › e2e/downloads.spec.ts:139:1 › a Bridge release whose exe carries its version is the one offered, with its own checksum
+[2/8] [chromium] › e2e/downloads.spec.ts:80:1 › the landing names both tools and links each download where it is introduced, plus its nav and footer
+[3/8] [chromium] › e2e/downloads.spec.ts:156:1 › with neither API answering the page still downloads the newest Bridge and reads "latest"
+[4/8] [chromium] › e2e/downloads.spec.ts:100:1 › each card resolves its own channel: the newest bridge-v* exe, and npm latest for the CLI
+[5/8] [chromium] › e2e/downloads.spec.ts:167:1 › the Bridge card says which browsers work, and what to do about one that keeps asking
+[6/8] [chromium] › e2e/downloads.spec.ts:189:1 › the SVG examples sit under the two tools and their zip is served from /downloads
+[7/8] [chromium] › e2e/downloads.spec.ts:223:1 › the top bar is the landing top bar, with Downloads as the current page
+[8/8] [chromium] › e2e/downloads.spec.ts:237:1 › the CLI card leads with one short prompt that copies whole and reads at every width
+  8 passed (9.4s)
+[cloud-measure] 10.30s; aggregate sampled RSS 3187.5 MiB; /tmp/claude-v2-pr1299-w4-workers4.json

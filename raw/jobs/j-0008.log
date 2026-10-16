@@ -1,0 +1,1405 @@
+=== j-0008 PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-full-shard1-w4-workers6-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-full-shard1-w4-workers6.json -- node node_modules/@playwright/test/cli.js test e2e/adapt-first.spec.ts e2e/bench.spec.ts e2e/downloads.spec.ts e2e/editor-base-edits.spec.ts e2e/editor-model-proposals.spec.ts e2e/editor-transforms.spec.ts e2e/feedback.spec.ts e2e/images.spec.ts e2e/import-canvas.spec.ts e2e/import-stretch.spec.ts e2e/library.spec.ts e2e/multi-select.spec.ts e2e/output-first-paint.spec.ts e2e/production-data.spec.ts e2e/project.spec.ts e2e/publish-drift.spec.ts e2e/rundown-history-storage.spec.ts e2e/snap-recovery.spec.ts e2e/specialist-lower-thirds.spec.ts e2e/spike-instruments.spec.ts e2e/template-escaping.spec.ts --workers=6 --reporter=json --global-timeout=1100000
+=== cwd /home/user/NoaCG-Studio/.claude/worktrees/measure
+[e2e] 6 workers - 15205 MB free (the measured maximum)
+
+Running 204 tests using 6 workers
+
+[1/204] [chromium] › e2e/adapt-first.spec.ts:121:1 › a brief becomes a customized graphic adapted from a proven design
+[2/204] [chromium] › e2e/bench.spec.ts:71:3 › runtime bench detection fixtures › an opaque panel painted over text trips bench-occluded
+[3/204] [chromium] › e2e/adapt-first.spec.ts:273:1 › an off-catalog brief keeps the full catalog listing, so the create route is untouched
+[4/204] [chromium] › e2e/adapt-first.spec.ts:217:1 › the shortlist is shown, and picking another design rebuilds on it for free
+[5/204] [chromium] › e2e/bench.spec.ts:83:3 › runtime bench detection fixtures › a tint and a gradient scrim over text do NOT trip bench-occluded
+[6/204] [chromium] › e2e/bench.spec.ts:32:3 › runtime bench detection fixtures › a coincident same-text layer (karaoke wipe) is allowed; a misaligned one is not
+[7/204] [chromium] › e2e/bench.spec.ts:97:3 › runtime bench detection fixtures › text escaping the canvas trips bench-overflow
+[8/204] [chromium] › e2e/bench.spec.ts:111:3 › runtime bench detection fixtures › a fixed box that clips doubled text trips bench-stress (and passes with defaults)
+[9/204] [chromium] › e2e/bench.spec.ts:16:3 › runtime bench detection fixtures › two overlapping text elements trip bench-overlap
+[10/204] [chromium] › e2e/bench.spec.ts:147:3 › runtime bench detection fixtures › a clip-path that cuts text mid-line trips bench-overflow
+[11/204] [chromium] › e2e/bench.spec.ts:170:3 › runtime bench detection fixtures › text spilling past its own painted panel warns, without being clipped or off-canvas
+[12/204] [chromium] › e2e/bench.spec.ts:180:3 › runtime bench detection fixtures › the same panel sized to its content does not warn - the twin that keeps the check honest
+[13/204] [chromium] › e2e/bench.spec.ts:187:3 › runtime bench detection fixtures › a scrim painted by a pseudo-element counts as the surface
+[14/204] [chromium] › e2e/bench.spec.ts:207:3 › runtime bench detection fixtures › a glass panel counts as the surface however faint its tint
+[15/204] [chromium] › e2e/bench.spec.ts:219:3 › runtime bench detection fixtures › text over bare video is silent here - that is the legibility floor's question, not this one
+[16/204] [chromium] › e2e/bench.spec.ts:242:3 › runtime bench detection fixtures › a mask that cuts its line off is reported as the cut, not as text past the panel
+[17/204] [chromium] › e2e/bench.spec.ts:250:3 › runtime bench detection fixtures › a block line whose words overflow its own box is cut too; one parked outside the mask is not
+[18/204] [chromium] › e2e/bench.spec.ts:263:3 › runtime bench detection fixtures › tracked caps hanging their last letter-spacing past the mask are not a cut
+[19/204] [chromium] › e2e/bench.spec.ts:273:3 › runtime bench detection fixtures › no untouched neutral scaffold cuts its text at a mask or runs it past its panel (#770, #928)
+[20/204] [chromium] › e2e/bench.spec.ts:301:3 › runtime bench detection fixtures › the catalog designs that cut a long name at a mask now wrap it (#928)
+[21/204] [chromium] › e2e/bench.spec.ts:323:3 › runtime bench detection fixtures › a clip-path the text fits inside does not trip bench-overflow
+[22/204] [chromium] › e2e/bench.spec.ts:330:3 › runtime bench detection fixtures › text inside a sheared bar's bbox but outside the shear trips bench-overflow
+[23/204] [chromium] › e2e/bench.spec.ts:341:3 › runtime bench detection fixtures › an angled polygon clip that cuts text trips bench-overflow
+[24/204] [chromium] › e2e/bench.spec.ts:351:3 › runtime bench detection fixtures › a graphic that never hides on stop trips bench-hidden
+[25/204] [chromium] › e2e/bench.spec.ts:377:3 › runtime bench detection fixtures › the house editability contract is enforced by default and waivable for imports
+[26/204] [chromium] › e2e/bench.spec.ts:364:3 › runtime bench detection fixtures › update() that ignores a field trips bench-binding
+[27/204] [chromium] › e2e/bench.spec.ts:399:3 › design adjustments › an aggressively adjusted grounded assembly still passes the bench
+[28/204] [chromium] › e2e/downloads.spec.ts:80:1 › the landing names both tools and links each download where it is introduced, plus its nav and footer
+[29/204] [chromium] › e2e/downloads.spec.ts:100:1 › each card resolves its own channel: the newest bridge-v* exe, and npm latest for the CLI
+[30/204] [chromium] › e2e/downloads.spec.ts:139:1 › a Bridge release whose exe carries its version is the one offered, with its own checksum
+[31/204] [chromium] › e2e/downloads.spec.ts:156:1 › with neither API answering the page still downloads the newest Bridge and reads "latest"
+[32/204] [chromium] › e2e/downloads.spec.ts:167:1 › the Bridge card says which browsers work, and what to do about one that keeps asking
+[33/204] [chromium] › e2e/downloads.spec.ts:189:1 › the SVG examples sit under the two tools and their zip is served from /downloads
+[34/204] [chromium] › e2e/downloads.spec.ts:223:1 › the top bar is the landing top bar, with Downloads as the current page
+[35/204] [chromium] › e2e/downloads.spec.ts:237:1 › the CLI card leads with one short prompt that copies whole and reads at every width
+[36/204] [chromium] › e2e/editor-base-edits.spec.ts:62:1 › B04 basic artwork text and appearance controls are available
+[37/204] [chromium] › e2e/editor-base-edits.spec.ts:69:1 › B04 basic opacity preserves motion and survives history and reopening
+[38/204] [chromium] › e2e/editor-base-edits.spec.ts:94:40 › B04 artwork content, appearance and structure on catalog
+[39/204] [chromium] › e2e/editor-base-edits.spec.ts:94:40 › B04 artwork content, appearance and structure on svg
+[40/204] [chromium] › e2e/editor-base-edits.spec.ts:144:1 › B02 multi-object drag, marquee and cancel share one undo transaction
+[41/204] [chromium] › e2e/editor-base-edits.spec.ts:177:1 › B04 solid fill and reference-sensitive refusal preserve source atomically
+[42/204] [chromium] › e2e/editor-base-edits.spec.ts:197:1 › B04 duplicate retains CSS cascade and delete removes rules before an ID can be reused
+[43/204] [chromium] › e2e/editor-base-edits.spec.ts:219:1 › B03 multi-object SVG drag maps the same screen delta through different parents
+[44/204] [chromium] › e2e/editor-base-edits.spec.ts:237:1 › D03 flow offset preserves siblings, exact motion, cancellation, atomic history and saved source
+[45/204] [chromium] › e2e/editor-base-edits.spec.ts:262:1 › D03 SVG parent inverse mapping and numeric/canvas agreement
+[46/204] [chromium] › e2e/editor-base-edits.spec.ts:286:1 › D03 base layout and an existing animation channel remain independent
+[47/204] [chromium] › e2e/editor-base-edits.spec.ts:313:1 › B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition
+[48/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: Hairline
+[49/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: House Quiz
+[50/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: House Countdown
+[51/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: Illustrator
+[52/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: Stretch
+[53/204] [chromium] › e2e/editor-base-edits.spec.ts:411:1 › B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular refusal
+[54/204] [chromium] › e2e/editor-base-edits.spec.ts:443:40 › B04 edited catalog survives save/reopen and SPX/CasparCG/OGraf export
+[55/204] [chromium] › e2e/editor-base-edits.spec.ts:443:40 › B04 edited svg survives save/reopen and SPX/CasparCG/OGraf export
+[56/204] [chromium] › e2e/editor-base-edits.spec.ts:547:1 › B04 point text and canceled creation; base scale agrees with handles at zoom
+[57/204] [chromium] › e2e/editor-base-edits.spec.ts:572:1 › B01 optional Finish Edit consumes final catalog result and creates no production
+[58/204] [chromium] › e2e/editor-base-edits.spec.ts:584:1 › B01 direct production remains primary
+[59/204] [chromium] › e2e/editor-base-edits.spec.ts:593:1 › B03 base scaling preserves an animated catalog line through reload
+[60/204] [chromium] › e2e/editor-base-edits.spec.ts:606:1 › D03 refuses competing flow constraints and independent transforms without rewriting source
+[61/204] [chromium] › e2e/editor-base-edits.spec.ts:620:1 › B03 refuses conflicting animated scale ownership without changing motion
+[62/204] [chromium] › e2e/editor-model-proposals.spec.ts:30:1 › grounded review does not write before Apply; one undo and acknowledged preview
+[63/204] [chromium] › e2e/editor-model-proposals.spec.ts:49:1 › Cancel during response and review preserves manual work; a newer request owns its reply
+[64/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses unknown command atomically
+[65/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses uninspected target atomically
+[66/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses late invalid operation atomically
+[67/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses malformed values atomically
+[68/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human source interleaving
+[69/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human selection interleaving
+[70/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human sample interleaving
+  1) [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses uninspected target atomically ─
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:69:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-refuses-uninspected-target-atomically-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-refuses-uninspected-target-atomically-chromium/error-context.md
+
+
+  2) [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses late invalid operation atomically 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:69:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-ref-64db9-nvalid-operation-atomically-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-ref-64db9-nvalid-operation-atomically-chromium/error-context.md
+
+
+[71/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human gesture interleaving
+[72/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human playhead interleaving
+[73/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human assets interleaving
+[74/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human history interleaving
+[75/204] [chromium] › e2e/editor-model-proposals.spec.ts:93:1 › delayed response refuses changed context and disappears on document remount
+[76/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › rate_limited retains manual editing
+  3) [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human gesture interleaving 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:76:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-App-284dc--human-gesture-interleaving-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-App-284dc--human-gesture-interleaving-chromium/error-context.md
+
+
+  4) [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human assets interleaving 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:76:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-App-0c801-s-human-assets-interleaving-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-App-0c801-s-human-assets-interleaving-chromium/error-context.md
+
+
+  5) [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human playhead interleaving 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:76:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-App-7975b-human-playhead-interleaving-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-App-7975b-human-playhead-interleaving-chromium/error-context.md
+
+
+[77/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › provider_rejected retains manual editing
+[78/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › network retains manual editing
+[79/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › unavailable retains manual editing
+[80/204] [chromium] › e2e/editor-model-proposals.spec.ts:116:1 › cancelled reply stays quiet while a newer request is still loading
+[81/204] [chromium] › e2e/editor-model-proposals.spec.ts:134:1 › empty explanation has no Apply action and cannot write
+[82/204] [chromium] › e2e/editor-model-proposals.spec.ts:143:1 › unconfigured assistant leaves offline authoring available
+  6) [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › provider_rejected retains manual editing 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:108:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-pro-b8b17-cted-retains-manual-editing-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-pro-b8b17-cted-retains-manual-editing-chromium/error-context.md
+
+
+  7) [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › unavailable retains manual editing ───
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:108:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-unavailable-retains-manual-editing-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-unavailable-retains-manual-editing-chromium/error-context.md
+
+
+  8) [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › network retains manual editing ───────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:108:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-network-retains-manual-editing-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-network-retains-manual-editing-chromium/error-context.md
+
+
+  9) [chromium] › e2e/editor-model-proposals.spec.ts:116:1 › cancelled reply stays quiet while a newer request is still loading 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:122:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-can-f8681-er-request-is-still-loading-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-can-f8681-er-request-is-still-loading-chromium/error-context.md
+
+
+  10) [chromium] › e2e/editor-model-proposals.spec.ts:134:1 › empty explanation has no Apply action and cannot write 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:136:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-emp-12d08-ply-action-and-cannot-write-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-emp-12d08-ply-action-and-cannot-write-chromium/error-context.md
+
+
+  11) [chromium] › e2e/editor-model-proposals.spec.ts:143:1 › unconfigured assistant leaves offline authoring available 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+      143 | test('unconfigured assistant leaves offline authoring available', async ({ page }) => {
+      144 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [], keyStorageAvailable: false } }));
+    > 145 |   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+          |                                                                                                                     ^
+      146 |   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+      147 |   await expect(page.getByText('Configure AI in New graphic → AI settings. Manual editing is available.', { exact: true })).toBeVisible();
+      148 |   await expect(page.getByRole('button', { name: 'Propose edits', exact: true })).toBeDisabled();
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:145:117
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-unc-ff9b2-offline-authoring-available-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-unc-ff9b2-offline-authoring-available-chromium/error-context.md
+
+
+[83/204] [chromium] › e2e/editor-model-proposals.spec.ts:155:1 › review describes the dimensions actually used by point text and shapes
+[84/204] [chromium] › e2e/editor-transforms.spec.ts:122:1 › no catalog layer refuses as another channel: its bar moves and trims and its Position Y keys
+[85/204] [chromium] › e2e/editor-transforms.spec.ts:185:1 › Clean Steps: Position Y reads a row's yPercent, and the field and a canvas drag key it at the playhead
+[86/204] [chromium] › e2e/editor-transforms.spec.ts:283:1 › House Question: #f1 shows and moves the motion stored under .audience-question
+[87/204] [chromium] › e2e/editor-transforms.spec.ts:240:1 › Frosted Panel: Scale handles key the box's scale track, linked Scale agrees, and one axis refuses
+[88/204] [chromium] › e2e/editor-transforms.spec.ts:313:1 › refusals: a raw transform, a selector naming several layers or two naming one, autoAlpha bars; autoAlpha keys
+  12) [chromium] › e2e/editor-model-proposals.spec.ts:155:1 › review describes the dimensions actually used by point text and shapes 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+       7 |   await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+       8 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    >  9 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      10 |   await page.evaluate(async () => {
+      11 |     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
+      12 |   });
+        at setup (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:9:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-model-proposals.spec.ts:161:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-model-proposals-rev-60a4a-ed-by-point-text-and-shapes-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-model-proposals-rev-60a4a-ed-by-point-text-and-shapes-chromium/error-context.md
+
+
+  13) [chromium] › e2e/editor-transforms.spec.ts:240:1 › Frosted Panel: Scale handles key the box's scale track, linked Scale agrees, and one axis refuses 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+      20 | async function open(page: Page) {
+      21 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    > 22 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      23 | }
+      24 | async function catalog(page: Page, id: string): Promise<Template> {
+      25 |   return page.evaluate(async id => (await import('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
+        at open (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:22:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:241:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-transforms-Frosted--a9841-agrees-and-one-axis-refuses-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-transforms-Frosted--a9841-agrees-and-one-axis-refuses-chromium/error-context.md
+
+
+[89/204] [chromium] › e2e/editor-transforms.spec.ts:388:1 › Clean Steps: a row's bar across a Step flag, trim, key move, key ease, Add Step and Set Out are one undo each and reopen
+  14) [chromium] › e2e/editor-transforms.spec.ts:185:1 › Clean Steps: Position Y reads a row's yPercent, and the field and a canvas drag key it at the playhead 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+      20 | async function open(page: Page) {
+      21 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    > 22 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      23 | }
+      24 | async function catalog(page: Page, id: string): Promise<Template> {
+      25 |   return page.evaluate(async id => (await import('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
+        at open (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:22:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:187:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-transforms-Clean-St-2a9ac-drag-key-it-at-the-playhead-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-transforms-Clean-St-2a9ac-drag-key-it-at-the-playhead-chromium/error-context.md
+
+
+  15) [chromium] › e2e/editor-transforms.spec.ts:283:1 › House Question: #f1 shows and moves the motion stored under .audience-question 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+      20 | async function open(page: Page) {
+      21 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    > 22 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      23 | }
+      24 | async function catalog(page: Page, id: string): Promise<Template> {
+      25 |   return page.evaluate(async id => (await import('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
+        at open (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:22:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:284:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-transforms-House-Qu-0beee-red-under-audience-question-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-transforms-House-Qu-0beee-red-under-audience-question-chromium/error-context.md
+
+
+  16) [chromium] › e2e/editor-transforms.spec.ts:313:1 › refusals: a raw transform, a selector naming several layers or two naming one, autoAlpha bars; autoAlpha keys 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+      20 | async function open(page: Page) {
+      21 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    > 22 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      23 | }
+      24 | async function catalog(page: Page, id: string): Promise<Template> {
+      25 |   return page.evaluate(async id => (await import('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
+        at open (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:22:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:314:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-transforms-refusals-6879a-toAlpha-bars-autoAlpha-keys-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-transforms-refusals-6879a-toAlpha-bars-autoAlpha-keys-chromium/error-context.md
+
+
+[chromium] › e2e/editor-transforms.spec.ts:122:1 › no catalog layer refuses as another channel: its bar moves and trims and its Position Y keys
+{
+ "blocked": 354,
+ "designs": 129,
+ "channel": [],
+ "applied": {
+  "move": 330,
+  "trim": 354,
+  "key": 354
+ },
+ "refused": {
+  "move: <layer> scale would move past the end of Out. No keys changed.": 24
+ },
+ "keyFailures": []
+}
+
+[90/204] [chromium] › e2e/feedback.spec.ts:26:3 › feedback, offline › no feedback entry point exists with no backend configured
+[91/204] [chromium] › e2e/editor-transforms.spec.ts:440:1 › the edited Clean Steps plays in the simulator and SPX as the editor samples it
+[92/204] [chromium] › e2e/feedback.spec.ts:37:3 › feedback, offline › the absence is the gate, not an empty topbar
+[93/204] [chromium] › e2e/images.spec.ts:59:1 › data panel: the add-field types are the broadcast set, and an unanswerable add is refused
+[94/204] [chromium] › e2e/feedback.spec.ts:47:3 › feedback, offline › the wizard and Home grow no feedback door offline either
+[95/204] [chromium] › e2e/images.spec.ts:79:1 › end credits: uploading a logo through the Logo field puts it in the end block
+[96/204] [chromium] › e2e/images.spec.ts:94:1 › an oversized logo is shrunk to the frame at the door, and a small one is left alone
+[97/204] [chromium] › e2e/images.spec.ts:167:1 › corner bug: the logo field replaces the placeholder mark
+[98/204] [chromium] › e2e/images.spec.ts:180:1 › export: the zip is [project]/[project].html with images under [project]/images/
+[99/204] [chromium] › e2e/import-canvas.spec.ts:99:1 › import graphic: scaling the design scales the artwork and its fields together
+  17) [chromium] › e2e/editor-transforms.spec.ts:440:1 › the edited Clean Steps plays in the simulator and SPX as the editor samples it 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('editor-foundation')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('editor-foundation')
+
+
+      20 | async function open(page: Page) {
+      21 |   await page.goto('/app?editor=foundation#/editor-foundation');
+    > 22 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+         |                                                       ^
+      23 | }
+      24 | async function catalog(page: Page, id: string): Promise<Template> {
+      25 |   return page.evaluate(async id => (await import('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
+        at open (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:22:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:441:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-transforms-the-edit-27358-PX-as-the-editor-samples-it-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-transforms-the-edit-27358-PX-as-the-editor-samples-it-chromium/error-context.md
+
+
+[100/204] [chromium] › e2e/import-canvas.spec.ts:164:1 › import graphic: dragging visible text moves the TEXT, not the artwork under it
+[101/204] [chromium] › e2e/import-canvas.spec.ts:204:1 › import graphic: unlocking the artwork gives it back its own layer gestures
+[102/204] [chromium] › e2e/import-canvas.spec.ts:228:1 › canvas: holding Space pans the view and moves nothing in the document
+[103/204] [chromium] › e2e/import-canvas.spec.ts:185:1 › import graphic: the locked artwork never captures a drag — bare artwork moves the graphic
+[104/204] [chromium] › e2e/import-canvas.spec.ts:255:1 › canvas: an armed Space-pan does not also play the graphic
+[105/204] [chromium] › e2e/import-canvas.spec.ts:285:1 › canvas: Space follows the ACTIVE SURFACE - timeline plays even over the stage
+[106/204] [chromium] › e2e/import-canvas.spec.ts:314:1 › canvas: Space only pans over the stage, and never while typing
+[107/204] [chromium] › e2e/import-canvas.spec.ts:333:1 › canvas: the cursor names the gesture in progress, not one that is merely possible
+[108/204] [chromium] › e2e/import-canvas.spec.ts:437:1 › import graphic: centred baked text seeds a CENTRED field on the same centre line
+[109/204] [chromium] › e2e/import-canvas.spec.ts:459:1 › import graphic: left-set baked text seeds a LEFT-anchored field on its left edge
+[110/204] [chromium] › e2e/import-canvas.spec.ts:473:1 › import graphic: a JPEG or WebP design imports exactly like a PNG
+[111/204] [chromium] › e2e/import-canvas.spec.ts:509:1 › import graphic: a scaled design still previews, validates, and exports
+[112/204] [chromium] › e2e/import-canvas.spec.ts:550:1 › import graphic: the seed recovers the size and position of REAL typeset text
+  18) [chromium] › e2e/import-canvas.spec.ts:459:1 › import graphic: left-set baked text seeds a LEFT-anchored field on its left edge 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.wz-modal')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.wz-modal')
+
+
+      372 | async function dropCard(page: Page, buffer: Buffer) {
+      373 |   await page.goto('/app');
+    > 374 |   await expect(page.locator('.wz-modal')).toBeVisible();
+          |                                           ^
+      375 |   await page.locator('[data-entry="import-graphic"]').click();
+      376 |   await page.locator('.wz-drop input[type="file"]').setInputFiles({
+      377 |     name: 'card.png',
+        at dropCard (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-canvas.spec.ts:374:43)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-canvas.spec.ts:460:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/import-canvas-import-graph-1738a-ored-field-on-its-left-edge-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/import-canvas-import-graph-1738a-ored-field-on-its-left-edge-chromium/error-context.md
+
+
+[113/204] [chromium] › e2e/import-canvas.spec.ts:722:1 › import graphic: each marked region seeds its own field
+[114/204] [chromium] › e2e/import-canvas.spec.ts:644:1 › canvas: any part can be locked from the Inspector, and the rotate handle is not a hand
+  19) [chromium] › e2e/import-canvas.spec.ts:473:1 › import graphic: a JPEG or WebP design imports exactly like a PNG 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.wz-modal')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.wz-modal')
+
+
+      473 | test('import graphic: a JPEG or WebP design imports exactly like a PNG', async ({ page }) => {
+      474 |   await page.goto('/app');
+    > 475 |   await expect(page.locator('.wz-modal')).toBeVisible();
+          |                                           ^
+      476 |
+      477 |   // Encode the fixture in the browser, so these are real JPEG/WebP bytes, not a PNG wearing
+      478 |   // another MIME type — the point is that the pipeline decodes the format, not that it
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-canvas.spec.ts:475:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/import-canvas-import-graph-907d8--imports-exactly-like-a-PNG-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/import-canvas-import-graph-907d8--imports-exactly-like-a-PNG-chromium/error-context.md
+
+
+  20) [chromium] › e2e/import-canvas.spec.ts:509:1 › import graphic: a scaled design still previews, validates, and exports 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.wz-modal')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.wz-modal')
+
+
+      22 | async function dropDesign(page: Page, file = { name: 'lower-third.png', mimeType: 'image/png' }) {
+      23 |   await page.goto('/app');
+    > 24 |   await expect(page.locator('.wz-modal')).toBeVisible();
+         |                                           ^
+      25 |   await page.locator('[data-entry="import-graphic"]').click();
+      26 |   await page.locator('.wz-drop input[type="file"]').setInputFiles({
+      27 |     ...file,
+        at dropDesign (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-canvas.spec.ts:24:43)
+        at createImported (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-canvas.spec.ts:49:3)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-canvas.spec.ts:510:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/import-canvas-import-graph-10fc7-views-validates-and-exports-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/import-canvas-import-graph-10fc7-views-validates-and-exports-chromium/error-context.md
+
+
+  21) [chromium] › e2e/editor-transforms.spec.ts:388:1 › Clean Steps: a row's bar across a Step flag, trim, key move, key ease, Add Step and Set Out are one undo each and reopen 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('foundation-canvas')
+    Expected: "false"
+    Received: "true"
+    Timeout:  7000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 7000ms
+      - waiting for getByTestId('foundation-canvas')
+        - locator resolved to <div tabindex="0" data-request="0" data-tool="select" class="ef-viewport" data-pending="true" data-generation="0" data-pose-cue="arriving" data-testid="foundation-canvas" aria-label="Canvas selection and pan">…</div>
+        - unexpected value "true"
+
+
+      44 | async function data(page: Page) { return dataOf(page, (await source(page)).js); }
+      45 | async function ready(page: Page) {
+    > 46 |   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
+         |                                                       ^
+      47 |   await expect.poll(() => page.evaluate(async () => {
+      48 |     const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+      49 |     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
+        at ready (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:46:55)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/editor-transforms.spec.ts:435:63
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-transforms-Clean-St-2008f-re-one-undo-each-and-reopen-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-transforms-Clean-St-2008f-re-one-undo-each-and-reopen-chromium/error-context.md
+
+
+[115/204] [chromium] › e2e/import-stretch.spec.ts:126:1 › stretch: picking it writes the 9-slice into the created code, and the guides parse back
+[116/204] [chromium] › e2e/import-canvas.spec.ts:744:1 › import graphic: one region holding two lines seeds a field per line
+[117/204] [chromium] › e2e/import-canvas.spec.ts:784:1 › import graphic: a region marked over a graphic seeds text that FITS it
+[118/204] [chromium] › e2e/import-stretch.spec.ts:145:1 › stretch: the SPX folder package carries the 9-slice with subfolder-correct refs
+[119/204] [chromium] › e2e/import-stretch.spec.ts:176:1 › stretch: a long value grows the design at full type size, and a short one springs back
+[120/204] [chromium] › e2e/import-canvas.spec.ts:824:1 › canvas: Escape disarms the text tool WITHOUT throwing away the selection
+  22) [chromium] › e2e/import-stretch.spec.ts:145:1 › stretch: the SPX folder package carries the 9-slice with subfolder-correct refs 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.wz-modal')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.wz-modal')
+
+
+      30 | async function dropCard(page: Page) {
+      31 |   await page.goto('/app');
+    > 32 |   await expect(page.locator('.wz-modal')).toBeVisible();
+         |                                           ^
+      33 |   await page.locator('[data-entry="import-graphic"]').click();
+      34 |   await page.locator('.wz-drop input[type="file"]').setInputFiles({
+      35 |     name: 'card.png',
+        at dropCard (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-stretch.spec.ts:32:43)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-stretch.spec.ts:146:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/import-stretch-stretch-the-2a6e3-with-subfolder-correct-refs-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/import-stretch-stretch-the-2a6e3-with-subfolder-correct-refs-chromium/error-context.md
+
+
+[121/204] [chromium] › e2e/import-stretch.spec.ts:223:1 › stretch: dragging a guide lands in the created code
+[122/204] [chromium] › e2e/import-stretch.spec.ts:239:1 › fixed default: no stretch markers, and a long value shrinks its text instead
+[123/204] [chromium] › e2e/library.spec.ts:41:1 › save names the graphic; the status stays honest through edits and reopen
+  23) [chromium] › e2e/import-stretch.spec.ts:176:1 › stretch: a long value grows the design at full type size, and a short one springs back 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.wz-modal')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.wz-modal')
+
+
+      30 | async function dropCard(page: Page) {
+      31 |   await page.goto('/app');
+    > 32 |   await expect(page.locator('.wz-modal')).toBeVisible();
+         |                                           ^
+      33 |   await page.locator('[data-entry="import-graphic"]').click();
+      34 |   await page.locator('.wz-drop input[type="file"]').setInputFiles({
+      35 |     name: 'card.png',
+        at dropCard (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-stretch.spec.ts:32:43)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/import-stretch.spec.ts:177:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/import-stretch-stretch-a-l-2c60e-nd-a-short-one-springs-back-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/import-stretch-stretch-a-l-2c60e-nd-a-short-one-springs-back-chromium/error-context.md
+
+
+[124/204] [chromium] › e2e/library.spec.ts:97:1 › Home lists the library; Back walks the history; an old package link lands on Home
+[125/204] [chromium] › e2e/library.spec.ts:127:1 › a first-ever visit is offered creation, not a door to an empty Home
+[126/204] [chromium] › e2e/library.spec.ts:136:1 › the wizard leads with the Home card once there is saved work, and it lands on Home
+[127/204] [chromium] › e2e/library.spec.ts:154:1 › the wizard header carries its own Home door
+[128/204] [chromium] › e2e/import-stretch.spec.ts:209:1 › stretch: growth caps inside the frame edge, then the text-fit shrink answers the rest
+[129/204] [chromium] › e2e/library.spec.ts:67:1 › save dialog: a text-selection drag that ends on the backdrop never closes it
+[130/204] [chromium] › e2e/library.spec.ts:171:1 › opening another graphic with unsaved changes asks first; Discard proceeds
+[131/204] [chromium] › e2e/library.spec.ts:194:1 › a graphic row opens from its NAME, the same door a production row offers
+[132/204] [chromium] › e2e/library.spec.ts:211:1 › a saved graphic's control panel: entries create, play with the active entry, persist
+[133/204] [chromium] › e2e/library.spec.ts:249:1 › the control panel says what an ENTRY is, and pools the graphic into a production from there
+[134/204] [chromium] › e2e/library.spec.ts:278:1 › switching entries re-settles the SAME preview document instead of reloading it
+[135/204] [chromium] › e2e/library.spec.ts:317:1 › the control panel reports the state and greys an event the machine would drop
+[136/204] [chromium] › e2e/library.spec.ts:348:1 › the control panel shows the graphic at rest before any take, and says how to get Home
+[137/204] [chromium] › e2e/library.spec.ts:403:1 › a Home card shows the real graphic, parked at its settled on-air state
+[138/204] [chromium] › e2e/library.spec.ts:436:1 › a Home card frames on the GRAPHIC, at both card sizes, without cropping it
+[139/204] [chromium] › e2e/library.spec.ts:498:1 › phone width: every row action is reachable, the text stays two lines, the nav scrolls
+[140/204] [chromium] › e2e/library.spec.ts:551:1 › video and graphics stay separate but connected: #/video, back to graphics, never trapped
+[141/204] [chromium] › e2e/library.spec.ts:563:1 › looks: capture the current look in Home, apply it to another graphic, survive reload
+[142/204] [chromium] › e2e/library.spec.ts:604:1 › a look carries SHAPE, and never grafts a token onto a design that reads none
+[143/204] [chromium] › e2e/library.spec.ts:652:1 › the save dialog is sized by its content, not by the wizard it borrows styling from
+[144/204] [chromium] › e2e/library.spec.ts:665:1 › the list view is a real table: headings over their own columns, and the toggle sticks
+[145/204] [chromium] › e2e/library.spec.ts:719:1 › the Graphics header is one row, and the type chips and sort narrow and reorder it
+[146/204] [chromium] › e2e/multi-select.spec.ts:36:1 › shift-click builds a multi-selection synced across canvas, timeline, and Inspector
+[147/204] [chromium] › e2e/multi-select.spec.ts:77:1 › preview zoom: the buttons scale the viewport, and a click still hits the right element
+[148/204] [chromium] › e2e/multi-select.spec.ts:101:1 › timeline labels shift-click into the same multi-selection
+[149/204] [chromium] › e2e/multi-select.spec.ts:112:1 › a drag on empty canvas lassos the parts it touches — no code, no history
+[150/204] [chromium] › e2e/multi-select.spec.ts:148:1 › canvas: a selected layer shows scale + rotate handles that key at the playhead
+[151/204] [chromium] › e2e/output-first-paint.spec.ts:124:3 › the /output shell on load › paints nothing at all from navigation until a cue is taken
+[152/204] [chromium] › e2e/output-first-paint.spec.ts:146:3 › the /output shell on load › a graphic taken off air keeps running, and shows nothing while it does
+  24) [chromium] › e2e/output-first-paint.spec.ts:124:3 › the /output shell on load › paints nothing at all from navigation until a cue is taken 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 10
+    Received:   7
+
+      135 |     const lit = frames.filter((f) => f.covered > 0);
+      136 |     expect(lit, `frames with anything on them: ${JSON.stringify(lit.slice(0, 5))}`).toEqual([]);
+    > 137 |     expect(frames.length).toBeGreaterThan(10);
+          |                           ^
+      138 |
+      139 |     // …and the capture can see a graphic, so the emptiness above is the page's, not the test's.
+      140 |     await page.evaluate(() => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply('lt0', { t: 'play' }));
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/output-first-paint.spec.ts:137:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/output-first-paint-the-out-9c9d4-gation-until-a-cue-is-taken-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/output-first-paint-the-out-9c9d4-gation-until-a-cue-is-taken-chromium/error-context.md
+
+
+[153/204] [chromium] › e2e/output-first-paint.spec.ts:217:3 › the /output shell on load › a graphic frame is invisible until its own document has loaded
+[154/204] [chromium] › e2e/production-data.spec.ts:24:1 › a quiz bank authored on the Data tab loads into the cue, airs only on Take, and survives a reload
+[155/204] [chromium] › e2e/production-data.spec.ts:111:1 › a table whose columns match nothing offers no load control, and columns can be added and renamed
+[156/204] [chromium] › e2e/production-data.spec.ts:149:1 › a teams table loads one team into the side the operator picked, and leaves the other alone
+[157/204] [chromium] › e2e/production-data.spec.ts:199:1 › a graphic with no sides never grows a side picker, and the quiz binding is untouched
+[158/204] [chromium] › e2e/output-first-paint.spec.ts:185:3 › the /output shell on load › a replay that ends with the graphic off leaves the output clean when it comes back
+[159/204] [chromium] › e2e/production-data.spec.ts:219:1 › a graphic on air survives a Data-workspace round trip
+[160/204] [chromium] › e2e/production-data.spec.ts:258:1 › a quiz bank imported from CSV loads into a cue and airs — the Phase 2 walk from a file
+[161/204] [chromium] › e2e/production-data.spec.ts:304:1 › the downloaded template is a file the importer accepts, with the columns a cue can bind
+[162/204] [chromium] › e2e/production-data.spec.ts:339:1 › an imported table whose columns match no field says so rather than looking successful
+[163/204] [chromium] › e2e/production-data.spec.ts:356:1 › a file that is not a table is refused with a reason
+[164/204] [chromium] › e2e/production-data.spec.ts:369:1 › the empty workspace carries the doors and names the columns that would bind
+[165/204] [chromium] › e2e/production-data.spec.ts:425:1 › a bound field takes the LIVE value on air, and an old cue cannot re-air a stale one
+[166/204] [chromium] › e2e/production-data.spec.ts:499:1 › the seed is the reset target, and unbinding hands the field back to the cue
+[167/204] [chromium] › e2e/production-data.spec.ts:538:1 › an unpublished production offers no data key, because it has none
+[168/204] [chromium] › e2e/production-data.spec.ts:554:1 › nested trees, arrays and a missing path each behave as the contract says
+[169/204] [chromium] › e2e/production-data.spec.ts:604:1 › one value moves every graphic bound to it, and only the graphics bound to it
+  25) [chromium] › e2e/production-data.spec.ts:304:1 › the downloaded template is a file the importer accepts, with the columns a cue can bind 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('production-data')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('production-data')
+
+
+       at _workspace.ts:37
+
+      35 |   const [workspace] = await Promise.all([page.context().waitForEvent('page'), door.click()]);
+      36 |   await workspace.waitForLoadState('domcontentloaded');
+    > 37 |   await expect(workspace.getByTestId(`production-${tab}`)).toBeVisible();
+         |                                                            ^
+      38 |   return workspace;
+      39 | }
+      40 |
+        at openWorkspace (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/_workspace.ts:37:60)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/production-data.spec.ts:312:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-the-downlo-4a590--the-columns-a-cue-can-bind-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-the-downlo-4a590--the-columns-a-cue-can-bind-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/production-data-the-downlo-4a590--the-columns-a-cue-can-bind-chromium/error-context.md
+
+
+  26) [chromium] › e2e/production-data.spec.ts:24:1 › a quiz bank authored on the Data tab loads into the cue, airs only on Take, and survives a reload 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.pd-dataset tbody tr')
+    Expected: 2
+    Received: 0
+    Timeout:  7000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 7000ms
+      - waiting for locator('.pd-dataset tbody tr')
+        16 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      81 |   await data.reload();
+      82 |   await expect(page.getByTestId('production-page')).toBeVisible();
+    > 83 |   await expect(data.locator('.pd-dataset tbody tr')).toHaveCount(2);
+         |                                                      ^
+      84 |   await expect(data.locator('.pd-dataset tbody tr').nth(1).locator('td input').first()).toHaveValue(
+      85 |     'Which ocean is the largest?',
+      86 |   );
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/production-data.spec.ts:83:54
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-a-quiz-ban-9f011--Take-and-survives-a-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-a-quiz-ban-9f011--Take-and-survives-a-reload-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/production-data-a-quiz-ban-9f011--Take-and-survives-a-reload-chromium/error-context.md
+
+
+[170/204] [chromium] › e2e/production-data.spec.ts:626:1 › production data is scoped to its production, never shared between two
+[171/204] [chromium] › e2e/production-data.spec.ts:655:1 › SPACE on the Data tab cannot put a graphic on air
+[172/204] [chromium] › e2e/production-data.spec.ts:712:1 › the playout column stays hidden behind the Data workspace, rundown included
+[173/204] [chromium] › e2e/production-data.spec.ts:749:1 › a ± press on a bound field moves the shared value, and every graphic bound to it follows
+[174/204] [chromium] › e2e/production-data.spec.ts:809:1 › an adjust on a bound field patches the tree, and the event still fires
+[175/204] [chromium] › e2e/production-data.spec.ts:858:1 › Bind all by title binds every unambiguous title in one press, and leaves the ambiguous one bound-empty with a reason
+[176/204] [chromium] › e2e/production-data.spec.ts:1021:1 › typing a value costs ONE persist for the whole edit, not one per character
+[177/204] [chromium] › e2e/production-data.spec.ts:1045:1 › an operator who types and walks away still has the value persisted
+  27) [chromium] › e2e/production-data.spec.ts:538:1 › an unpublished production offers no data key, because it has none 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('production-data')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('production-data')
+
+
+       at _workspace.ts:37
+
+      35 |   const [workspace] = await Promise.all([page.context().waitForEvent('page'), door.click()]);
+      36 |   await workspace.waitForLoadState('domcontentloaded');
+    > 37 |   await expect(workspace.getByTestId(`production-${tab}`)).toBeVisible();
+         |                                                            ^
+      38 |   return workspace;
+      39 | }
+      40 |
+        at openWorkspace (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/_workspace.ts:37:60)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/production-data.spec.ts:541:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-an-unpubli-73488-ata-key-because-it-has-none-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-an-unpubli-73488-ata-key-because-it-has-none-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/production-data-an-unpubli-73488-ata-key-because-it-has-none-chromium/error-context.md
+
+
+  28) [chromium] › e2e/production-data.spec.ts:604:1 › one value moves every graphic bound to it, and only the graphics bound to it 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('production-data')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('production-data')
+
+
+       at _workspace.ts:37
+
+      35 |   const [workspace] = await Promise.all([page.context().waitForEvent('page'), door.click()]);
+      36 |   await workspace.waitForLoadState('domcontentloaded');
+    > 37 |   await expect(workspace.getByTestId(`production-${tab}`)).toBeVisible();
+         |                                                            ^
+      38 |   return workspace;
+      39 | }
+      40 |
+        at openWorkspace (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/_workspace.ts:37:60)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/production-data.spec.ts:607:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-one-value--f094e-ly-the-graphics-bound-to-it-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-one-value--f094e-ly-the-graphics-bound-to-it-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/production-data-one-value--f094e-ly-the-graphics-bound-to-it-chromium/error-context.md
+
+
+[178/204] [chromium] › e2e/production-data.spec.ts:1065:1 › a refresh arriving mid-word never overwrites the box under the cursor
+[179/204] [chromium] › e2e/project.spec.ts:29:1 › project autosave: the working graphic survives a reload
+[180/204] [chromium] › e2e/project.spec.ts:74:1 › the wizard door is on every /app surface, beside Home
+[181/204] [chromium] › e2e/project.spec.ts:171:1 › the wizard mounts the same door: a guarded start-over mid-walk, the inert current page on Entry
+[182/204] [chromium] › e2e/publish-drift.spec.ts:15:1 › only graphics read from this browser's own library are compared, and a library edit moves exactly that one
+[183/204] [chromium] › e2e/rundown-history-storage.spec.ts:21:1 › operation receipts keep a failed put distinct from a newer successful put
+[184/204] [chromium] › e2e/rundown-history-storage.spec.ts:47:1 › a captured authoring operation retains every receipt including a reentrant write
+  29) [chromium] › e2e/project.spec.ts:171:1 › the wizard mounts the same door: a guarded start-over mid-walk, the inert current page on Entry 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('wz-new-graphic')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('wz-new-graphic')
+
+
+      175 |   await page.goto('/app#/new');
+      176 |   const door = page.getByTestId('wz-new-graphic');
+    > 177 |   await expect(door).toBeVisible();
+          |                      ^
+      178 |   const beforeDoor = await page.evaluate(
+      179 |     () =>
+      180 |       document
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/project.spec.ts:177:22
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/project-the-wizard-mounts--363a4-inert-current-page-on-Entry-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/project-the-wizard-mounts--363a4-inert-current-page-on-Entry-chromium/error-context.md
+
+
+[185/204] [chromium] › e2e/rundown-history-storage.spec.ts:89:1 › two refused writes roll back to the database, and a refused inverse is retryable
+[186/204] [chromium] › e2e/rundown-history-storage.spec.ts:69:1 › conditional inverse reads the actual database and refuses a stale mirror
+  30) [chromium] › e2e/rundown-history-storage.spec.ts:21:1 › operation receipts keep a failed put distinct from a newer successful put 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('home-page')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('home-page')
+
+
+       5 | async function seed(page: Page) {
+       6 |   await page.goto('/app#/home');
+    >  7 |   await expect(page.getByTestId('home-page')).toBeVisible();
+         |                                               ^
+       8 |   const ids = await page.evaluate(async () => {
+       9 |     const m = await import('/src/model/shows.ts');
+      10 |     const { variantsFor } = await import('/src/templates/catalog.ts');
+        at seed (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:7:47)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:22:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/rundown-history-storage-op-d15b6-from-a-newer-successful-put-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/rundown-history-storage-op-d15b6-from-a-newer-successful-put-chromium/error-context.md
+
+
+  31) [chromium] › e2e/rundown-history-storage.spec.ts:47:1 › a captured authoring operation retains every receipt including a reentrant write 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('home-page')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('home-page')
+
+
+       5 | async function seed(page: Page) {
+       6 |   await page.goto('/app#/home');
+    >  7 |   await expect(page.getByTestId('home-page')).toBeVisible();
+         |                                               ^
+       8 |   const ids = await page.evaluate(async () => {
+       9 |     const m = await import('/src/model/shows.ts');
+      10 |     const { variantsFor } = await import('/src/templates/catalog.ts');
+        at seed (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:7:47)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:48:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/rundown-history-storage-a--2a9d8-including-a-reentrant-write-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/rundown-history-storage-a--2a9d8-including-a-reentrant-write-chromium/error-context.md
+
+
+[187/204] [chromium] › e2e/rundown-history-storage.spec.ts:116:1 › inverse preserves another production and unrelated latest metadata
+  32) [chromium] › e2e/production-data.spec.ts:1065:1 › a refresh arriving mid-word never overwrites the box under the cursor 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('production-data')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('production-data')
+
+
+       at _workspace.ts:37
+
+      35 |   const [workspace] = await Promise.all([page.context().waitForEvent('page'), door.click()]);
+      36 |   await workspace.waitForLoadState('domcontentloaded');
+    > 37 |   await expect(workspace.getByTestId(`production-${tab}`)).toBeVisible();
+         |                                                            ^
+      38 |   return workspace;
+      39 | }
+      40 |
+        at openWorkspace (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/_workspace.ts:37:60)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/production-data.spec.ts:1080:19
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-a-refresh--41a74-es-the-box-under-the-cursor-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/production-data-a-refresh--41a74-es-the-box-under-the-cursor-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/production-data-a-refresh--41a74-es-the-box-under-the-cursor-chromium/error-context.md
+
+
+[188/204] [chromium] › e2e/rundown-history-storage.spec.ts:132:1 › newer pending write cancels an inverse during its database read
+[189/204] [chromium] › e2e/snap-recovery.spec.ts:98:1 › snapping into a live state never changes what the data fields decided to show
+[190/204] [chromium] › e2e/rundown-history-storage.spec.ts:155:1 › inverse refuses changed session and localStorage fallback
+  33) [chromium] › e2e/rundown-history-storage.spec.ts:69:1 › conditional inverse reads the actual database and refuses a stale mirror 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('home-page')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('home-page')
+
+
+       5 | async function seed(page: Page) {
+       6 |   await page.goto('/app#/home');
+    >  7 |   await expect(page.getByTestId('home-page')).toBeVisible();
+         |                                               ^
+       8 |   const ids = await page.evaluate(async () => {
+       9 |     const m = await import('/src/model/shows.ts');
+      10 |     const { variantsFor } = await import('/src/templates/catalog.ts');
+        at seed (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:7:47)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:70:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/rundown-history-storage-co-0a879--and-refuses-a-stale-mirror-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/rundown-history-storage-co-0a879--and-refuses-a-stale-mirror-chromium/error-context.md
+
+
+[191/204] [chromium] › e2e/specialist-lower-thirds.spec.ts:19:1 › a two-person strap gives each person independent fields
+  34) [chromium] › e2e/rundown-history-storage.spec.ts:116:1 › inverse preserves another production and unrelated latest metadata 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('home-page')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('home-page')
+
+
+       5 | async function seed(page: Page) {
+       6 |   await page.goto('/app#/home');
+    >  7 |   await expect(page.getByTestId('home-page')).toBeVisible();
+         |                                               ^
+       8 |   const ids = await page.evaluate(async () => {
+       9 |     const m = await import('/src/model/shows.ts');
+      10 |     const { variantsFor } = await import('/src/templates/catalog.ts');
+        at seed (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:7:47)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:117:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/rundown-history-storage-in-78caf-d-unrelated-latest-metadata-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/rundown-history-storage-in-78caf-d-unrelated-latest-metadata-chromium/error-context.md
+
+
+  35) [chromium] › e2e/rundown-history-storage.spec.ts:132:1 › newer pending write cancels an inverse during its database read 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('home-page')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('home-page')
+
+
+       5 | async function seed(page: Page) {
+       6 |   await page.goto('/app#/home');
+    >  7 |   await expect(page.getByTestId('home-page')).toBeVisible();
+         |                                               ^
+       8 |   const ids = await page.evaluate(async () => {
+       9 |     const m = await import('/src/model/shows.ts');
+      10 |     const { variantsFor } = await import('/src/templates/catalog.ts');
+        at seed (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:7:47)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:133:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/rundown-history-storage-ne-0b222-se-during-its-database-read-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/rundown-history-storage-ne-0b222-se-during-its-database-read-chromium/error-context.md
+
+
+[192/204] [chromium] › e2e/spike-instruments.spec.ts:126:3 › a single-ink mark and a coloured one separate by their ink spread › one ink measures near zero, several measure far above the floor
+  36) [chromium] › e2e/rundown-history-storage.spec.ts:155:1 › inverse refuses changed session and localStorage fallback 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('home-page')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('home-page')
+
+
+       5 | async function seed(page: Page) {
+       6 |   await page.goto('/app#/home');
+    >  7 |   await expect(page.getByTestId('home-page')).toBeVisible();
+         |                                               ^
+       8 |   const ids = await page.evaluate(async () => {
+       9 |     const m = await import('/src/model/shows.ts');
+      10 |     const { variantsFor } = await import('/src/templates/catalog.ts');
+        at seed (/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:7:47)
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/rundown-history-storage.spec.ts:156:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/rundown-history-storage-in-3b0d9-n-and-localStorage-fallback-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/rundown-history-storage-in-3b0d9-n-and-localStorage-fallback-chromium/error-context.md
+
+
+[193/204] [chromium] › e2e/specialist-lower-thirds.spec.ts:64:1 › dropping the role lines degrades by the design's own split rule
+[194/204] [chromium] › e2e/specialist-lower-thirds.spec.ts:96:1 › every specialist design passes the export gate on all targets
+[195/204] [chromium] › e2e/spike-instruments.spec.ts:158:3 › the platform seats a mark against the words, not against empty grid › the seated control is centred on its own content
+[196/204] [chromium] › e2e/spike-instruments.spec.ts:265:3 › a docked mark is measured by its INK, not by the well it sits in › clear space carried as the image's own padding is COUNTED, not swallowed
+[197/204] [chromium] › e2e/spike-instruments.spec.ts:275:3 › a docked mark is measured by its INK, not by the well it sits in › …and a mark that really is crammed is still caught
+[198/204] [chromium] › e2e/spike-instruments.spec.ts:287:3 › a docked mark is measured by its INK, not by the well it sits in › a mark given room by a TALL design is not called crowded for it
+[199/204] [chromium] › e2e/spike-instruments.spec.ts:313:3 › the spacing instrument sees content that escapes its panel › a panel whose content stays inside reports positive padding and no escape
+[200/204] [chromium] › e2e/spike-instruments.spec.ts:326:3 › the spacing instrument sees content that escapes its panel › a line hanging off the panel is named, with its side and its pixels
+[201/204] [chromium] › e2e/spike-instruments.spec.ts:346:3 › the spacing instrument sees content that escapes its panel › the same overflow CLIPPED by a mask is not an escape - it is cut off
+[202/204] [chromium] › e2e/spike-instruments.spec.ts:355:3 › the spacing instrument sees content that escapes its panel › a decorative member bleeding past the edge is recorded, not flagged
+[203/204] [chromium] › e2e/template-escaping.spec.ts:59:1 › no catalog variant lets field text execute as markup
+[204/204] [chromium] › e2e/template-escaping.spec.ts:100:1 › the probe still fires when a runtime skips escaping
+  Slow test file: [chromium] › e2e/snap-recovery.spec.ts (45.3s)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  36 failed
+    [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses uninspected target atomically ──
+    [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses late invalid operation atomically 
+    [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human playhead interleaving 
+    [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human gesture interleaving 
+    [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human assets interleaving 
+    [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › provider_rejected retains manual editing 
+    [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › unavailable retains manual editing ────
+    [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › network retains manual editing ────────
+    [chromium] › e2e/editor-model-proposals.spec.ts:116:1 › cancelled reply stays quiet while a newer request is still loading 
+    [chromium] › e2e/editor-model-proposals.spec.ts:134:1 › empty explanation has no Apply action and cannot write 
+    [chromium] › e2e/editor-model-proposals.spec.ts:143:1 › unconfigured assistant leaves offline authoring available 
+    [chromium] › e2e/editor-model-proposals.spec.ts:155:1 › review describes the dimensions actually used by point text and shapes 
+    [chromium] › e2e/editor-transforms.spec.ts:185:1 › Clean Steps: Position Y reads a row's yPercent, and the field and a canvas drag key it at the playhead 
+    [chromium] › e2e/editor-transforms.spec.ts:240:1 › Frosted Panel: Scale handles key the box's scale track, linked Scale agrees, and one axis refuses 
+    [chromium] › e2e/editor-transforms.spec.ts:283:1 › House Question: #f1 shows and moves the motion stored under .audience-question 
+    [chromium] › e2e/editor-transforms.spec.ts:313:1 › refusals: a raw transform, a selector naming several layers or two naming one, autoAlpha bars; autoAlpha keys 
+    [chromium] › e2e/editor-transforms.spec.ts:388:1 › Clean Steps: a row's bar across a Step flag, trim, key move, key ease, Add Step and Set Out are one undo each and reopen 
+    [chromium] › e2e/editor-transforms.spec.ts:440:1 › the edited Clean Steps plays in the simulator and SPX as the editor samples it 
+    [chromium] › e2e/import-canvas.spec.ts:459:1 › import graphic: left-set baked text seeds a LEFT-anchored field on its left edge 
+    [chromium] › e2e/import-canvas.spec.ts:473:1 › import graphic: a JPEG or WebP design imports exactly like a PNG 
+    [chromium] › e2e/import-canvas.spec.ts:509:1 › import graphic: a scaled design still previews, validates, and exports 
+    [chromium] › e2e/import-stretch.spec.ts:145:1 › stretch: the SPX folder package carries the 9-slice with subfolder-correct refs 
+    [chromium] › e2e/import-stretch.spec.ts:176:1 › stretch: a long value grows the design at full type size, and a short one springs back 
+    [chromium] › e2e/output-first-paint.spec.ts:124:3 › the /output shell on load › paints nothing at all from navigation until a cue is taken 
+    [chromium] › e2e/production-data.spec.ts:24:1 › a quiz bank authored on the Data tab loads into the cue, airs only on Take, and survives a reload 
+    [chromium] › e2e/production-data.spec.ts:304:1 › the downloaded template is a file the importer accepts, with the columns a cue can bind 
+    [chromium] › e2e/production-data.spec.ts:538:1 › an unpublished production offers no data key, because it has none 
+    [chromium] › e2e/production-data.spec.ts:604:1 › one value moves every graphic bound to it, and only the graphics bound to it 
+    [chromium] › e2e/production-data.spec.ts:1065:1 › a refresh arriving mid-word never overwrites the box under the cursor 
+    [chromium] › e2e/project.spec.ts:171:1 › the wizard mounts the same door: a guarded start-over mid-walk, the inert current page on Entry 
+    [chromium] › e2e/rundown-history-storage.spec.ts:21:1 › operation receipts keep a failed put distinct from a newer successful put 
+    [chromium] › e2e/rundown-history-storage.spec.ts:47:1 › a captured authoring operation retains every receipt including a reentrant write 
+    [chromium] › e2e/rundown-history-storage.spec.ts:69:1 › conditional inverse reads the actual database and refuses a stale mirror 
+    [chromium] › e2e/rundown-history-storage.spec.ts:116:1 › inverse preserves another production and unrelated latest metadata 
+    [chromium] › e2e/rundown-history-storage.spec.ts:132:1 › newer pending write cancels an inverse during its database read 
+    [chromium] › e2e/rundown-history-storage.spec.ts:155:1 › inverse refuses changed session and localStorage fallback 
+  48 skipped
+  120 passed (7.3m)
+[cloud-measure] 437.74s; aggregate sampled RSS 7462.9 MiB; /tmp/claude-v2-full-shard1-w4-workers6.json

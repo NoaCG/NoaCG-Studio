@@ -1,0 +1,19 @@
+{
+ "id": "j-0006",
+ "kind": "sweep",
+ "command": "PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-full-shard2-w4-workers4-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-full-shard2-w4-workers4.json -- node node_modules/@playwright/test/cli.js test e2e/admin.spec.ts e2e/ai-consent.spec.ts e2e/ai-panel.spec.ts e2e/asset-workflow.spec.ts e2e/comments.spec.ts e2e/control.spec.ts e2e/editor-canvas-short-height.spec.ts e2e/editor-transform-qualification.spec.ts e2e/foreign-ograf-sandbox.spec.ts e2e/google-fonts.spec.ts e2e/graphic-types.spec.ts e2e/live-field-change.spec.ts e2e/local-relay.spec.ts e2e/playout-folders.spec.ts e2e/production-audience.spec.ts e2e/quiz-pilot.spec.ts e2e/render.spec.ts e2e/state-machine.spec.ts e2e/wizard-draft-guard.spec.ts e2e/wizard-finish.spec.ts --workers=4 --reporter=json --global-timeout=1100000",
+ "checkout": "/home/user/NoaCG-Studio/.claude/worktrees/measure",
+ "branch": "scratch/claude-measure-82880f-wt",
+ "after": [],
+ "capMinutes": 21,
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1792157120709,
+ "state": "failed",
+ "startedAt": 1792157124635,
+ "finishedAt": 1792157633481,
+ "exitCode": 1,
+ "pid": 14579,
+ "logPath": "/home/user/NoaCG-Studio/.git/noacg-jobs/logs/j-0006.log",
+ "giveUpReason": "auto-merge refused it (exit 1) - read the log for which check said no"
+}

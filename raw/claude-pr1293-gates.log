@@ -1,0 +1,37 @@
+{"changedPaths":2,"checks":["check:contract-freshness","check:contract-citations","check:docs-index","check:client-secrets","check:copy"],"tests":[]}
+
+> noacg-studio@0.1.0 check:contract-freshness
+> node scripts/check-contract-freshness.mjs
+
+[measured] 964 contract files
+Contract freshness OK: 964 contract file(s), every referenced script, doc and path exists.
+
+> noacg-studio@0.1.0 check:contract-citations
+> node scripts/check-contract-citations.mjs
+
+[measured] 562 rule ids in contracts/rules
+[measured] 4473 text files scanned for citations
+Contract citations OK: 4473 file(s), every cited rule id and contract section exists.
+
+> noacg-studio@0.1.0 check:docs-index
+> node scripts/check-docs-index.mjs
+
+[measured] 154 top-level docs
+[measured] 157 docs/README.md index rows
+check-docs-index: OK - all 154 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).
+
+> noacg-studio@0.1.0 check:client-secrets
+> node scripts/check-client-secrets.mjs
+
+[measured] 3812 source files scanned
+Client secret scan OK (src, e2e, scripts, docs).
+
+> noacg-studio@0.1.0 check:copy
+> node scripts/check-copy.mjs
+
+[measured] 923 source files scanned
+[measured] 494 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+[cloud-measure] 6.47s; aggregate sampled RSS 239.8 MiB; /tmp/claude-pr1293-gates.json

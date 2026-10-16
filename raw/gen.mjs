@@ -1,0 +1,11 @@
+import {readFileSync} from 'node:fs';
+const cohort = process.argv[2];
+const workers = Number(process.argv[3]);
+const data = JSON.parse(readFileSync('docs/work-specs/cloud-execution/evidence/codex-measurements.json'));
+const run = data.runs.find(r => r.label === cohort);
+if (!run) throw Error(`Missing cohort ${cohort}`);
+const specs = run.receipt.command.filter(a => /^e2e\/[\w/.-]+\.spec\.ts$/.test(a));
+if (!specs.length) throw Error('No explicit spec paths');
+const label = `claude-${cohort}-workers${workers}`;
+const command = `PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/${label}-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/${label}.json -- node node_modules/@playwright/test/cli.js test ${specs.join(' ')} --workers=${workers} --reporter=json --global-timeout=1100000`;
+console.log(`node scripts/jobs.mjs add '${command}' --kind sweep --cap 21`);

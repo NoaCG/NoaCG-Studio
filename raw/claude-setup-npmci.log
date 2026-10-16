@@ -1,0 +1,42 @@
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'noacg-studio@0.1.0',
+npm warn EBADENGINE   required: { node: '24.x' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+
+> noacg-studio@0.1.0 postinstall
+> node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+
+5232
+[video-fonts] wrote 263669 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+[player-host] npm ci
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'noacg-player-host@0.1.0',
+npm warn EBADENGINE   required: { node: '24.x' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+
+added 27 packages, and audited 28 packages in 3s
+
+9 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+[player-host] npm run build
+
+> noacg-player-host@0.1.0 build
+> vite build
+
+vite v8.1.4 building client environment for production...
+[2Ktransforming...✓ 21 modules transformed.
+rendering chunks...
+computing gzip size...
+../public/player-host/index.html                  0.79 kB │ gzip:   0.45 kB
+../public/player-host/assets/index-CUQtVJHC.js  461.17 kB │ gzip: 145.37 kB
+
+✓ built in 555ms
+[player-host] built into public/player-host/ (single self-contained page)
+
+added 395 packages in 15s
+exit=0 secs=15

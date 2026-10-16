@@ -1,0 +1,2 @@
+j-0003 failed (exit 1)
+  output: node scripts/jobs.mjs log j-0003

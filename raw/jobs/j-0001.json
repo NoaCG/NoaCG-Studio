@@ -1,0 +1,19 @@
+{
+ "id": "j-0001",
+ "kind": "sweep",
+ "command": "PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-pr1278-w4-workers4-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-pr1278-w4-workers4.json -- node node_modules/@playwright/test/cli.js test e2e/agent-access.spec.ts e2e/auth.spec.ts e2e/docs.spec.ts e2e/downloads.spec.ts e2e/landing.spec.ts e2e/public-chrome-baseline.spec.ts e2e/sync.spec.ts --workers=4 --reporter=json --global-timeout=1100000",
+ "checkout": "/home/user/NoaCG-Studio/.claude/worktrees/measure",
+ "branch": "scratch/claude-measure-82880f-wt",
+ "after": [],
+ "capMinutes": 21,
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1792155450502,
+ "state": "failed",
+ "startedAt": 1792155451158,
+ "finishedAt": 1792155512465,
+ "exitCode": 1,
+ "pid": 19884,
+ "logPath": "/home/user/NoaCG-Studio/.git/noacg-jobs/logs/j-0001.log",
+ "giveUpReason": "auto-merge refused it (exit 1) - read the log for which check said no"
+}

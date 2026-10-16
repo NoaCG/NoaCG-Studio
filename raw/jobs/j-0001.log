@@ -1,0 +1,1096 @@
+=== j-0001 PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-pr1278-w4-workers4-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-pr1278-w4-workers4.json -- node node_modules/@playwright/test/cli.js test e2e/agent-access.spec.ts e2e/auth.spec.ts e2e/docs.spec.ts e2e/downloads.spec.ts e2e/landing.spec.ts e2e/public-chrome-baseline.spec.ts e2e/sync.spec.ts --workers=4 --reporter=json --global-timeout=1100000
+=== cwd /home/user/NoaCG-Studio/.claude/worktrees/measure
+[e2e] 6 workers - 15216 MB free (the measured maximum)
+
+Running 78 tests using 4 workers
+
+[1/78] [chromium] › e2e/agent-access.spec.ts:35:1 › a malformed request is refused before anything else - no port, no challenge, no code
+[2/78] [chromium] › e2e/agent-access.spec.ts:69:1 › offline: Settings carries no Agent access list, and the two API routes refuse honestly
+[3/78] [chromium] › e2e/agent-access.spec.ts:21:1 › offline: the consent page says there is no account backend, and grows no auth UI
+[4/78] [chromium] › e2e/auth.spec.ts:26:1 › sign-up: a reply with a session is signed in, and only a reply without one waits on an email
+[5/78] [chromium] › e2e/auth.spec.ts:38:1 › offline / no-backend: the app loads with no auth UI at all
+[6/78] [chromium] › e2e/auth.spec.ts:55:1 › offline / no-backend: the production page grows no auth UI and says why publishing is off
+[7/78] [chromium] › e2e/auth.spec.ts:81:1 › offline / no-backend: the recovery route is inert and lands you in the studio
+[8/78] [chromium] › e2e/auth.spec.ts:98:1 › offline / no-backend: Settings grows no Account section, and a session-expiry event is inert
+[9/78] [chromium] › e2e/auth.spec.ts:119:1 › offline / no-backend: the save dialog names no account and no other computer
+[10/78] [chromium] › e2e/auth.spec.ts:140:1 › offline / no-backend: a production grows no team door, on its page or on its card
+[11/78] [chromium] › e2e/auth.spec.ts:180:1 › offline / no-backend: a join-team link opens no dialog and lands on Home
+[12/78] [chromium] › e2e/docs.spec.ts:34:1 › /docs serves the static docs home, not the app
+[13/78] [chromium] › e2e/docs.spec.ts:44:1 › the top bar is the landing top bar, with a readable button
+[14/78] [chromium] › e2e/docs.spec.ts:56:1 › every section-nav link points at a section that exists
+[15/78] [chromium] › e2e/docs.spec.ts:81:1 › the section nav opens on five topics and unfolds the one being read
+[16/78] [chromium] › e2e/docs.spec.ts:106:1 › on a phone the nav above the text stays five topics and unfolds only on a tap
+[17/78] [chromium] › e2e/docs.spec.ts:152:5 › a deep link lands on its heading at 1366 wide, with smooth scrolling
+[18/78] [chromium] › e2e/docs.spec.ts:152:5 › a deep link lands on its heading at 1366 wide, without smooth scrolling
+[19/78] [chromium] › e2e/docs.spec.ts:152:5 › a deep link lands on its heading at 390 wide, with smooth scrolling
+[20/78] [chromium] › e2e/docs.spec.ts:152:5 › a deep link lands on its heading at 390 wide, without smooth scrolling
+[21/78] [chromium] › e2e/docs.spec.ts:171:1 › every docs screenshot reserves its height before it loads
+[22/78] [chromium] › e2e/docs.spec.ts:197:3 › without JavaScript › every nav link shows, so nothing hides behind the module
+[23/78] [chromium] › e2e/docs.spec.ts:210:1 › the graphics topic has one page per type, each with its file, layers and names
+[24/78] [chromium] › e2e/docs.spec.ts:300:1 › an example link downloads the file rather than opening it
+[25/78] [chromium] › e2e/docs.spec.ts:309:1 › the four guides carry their load-bearing content
+[26/78] [chromium] › e2e/docs.spec.ts:353:1 › the package chooser names every export target, and the live route first
+[27/78] [chromium] › e2e/docs.spec.ts:376:1 › the artwork guide carries the three facts a picture brings with it
+[28/78] [chromium] › e2e/docs.spec.ts:404:1 › the import walk keeps its steps, its two surprises and its handoffs
+[29/78] [chromium] › e2e/docs.spec.ts:432:1 › the teams guide sends people down the route that exists, and says which one does not
+[30/78] [chromium] › e2e/docs.spec.ts:490:1 › the worked example carries one show a reader can copy exactly
+[31/78] [chromium] › e2e/docs.spec.ts:545:1 › every docs screenshot loads at the size the page reserved for it
+[32/78] [chromium] › e2e/docs.spec.ts:578:1 › every command block is one copy-paste, with a copy button
+[33/78] [chromium] › e2e/docs.spec.ts:603:1 › the agent guide offers both install routes, and they are the real ones
+[34/78] [chromium] › e2e/docs.spec.ts:631:1 › Getting started points a coding-agent owner at the CLI
+[35/78] [chromium] › e2e/docs.spec.ts:676:1 › the docs page prints as it reads, in ink rather than in white
+[36/78] [chromium] › e2e/docs.spec.ts:707:1 › the docs page routes back into the product
+[37/78] [chromium] › e2e/downloads.spec.ts:80:1 › the landing names both tools and links each download where it is introduced, plus its nav and footer
+[38/78] [chromium] › e2e/downloads.spec.ts:100:1 › each card resolves its own channel: the newest bridge-v* exe, and npm latest for the CLI
+[39/78] [chromium] › e2e/downloads.spec.ts:139:1 › a Bridge release whose exe carries its version is the one offered, with its own checksum
+[40/78] [chromium] › e2e/downloads.spec.ts:156:1 › with neither API answering the page still downloads the newest Bridge and reads "latest"
+[41/78] [chromium] › e2e/downloads.spec.ts:167:1 › the Bridge card says which browsers work, and what to do about one that keeps asking
+[42/78] [chromium] › e2e/downloads.spec.ts:189:1 › the SVG examples sit under the two tools and their zip is served from /downloads
+[43/78] [chromium] › e2e/downloads.spec.ts:223:1 › the top bar is the landing top bar, with Downloads as the current page
+[44/78] [chromium] › e2e/downloads.spec.ts:237:1 › the CLI card leads with one short prompt that copies whole and reads at every width
+[45/78] [chromium] › e2e/landing.spec.ts:29:1 › root shows the landing page, not the editor
+[46/78] [chromium] › e2e/landing.spec.ts:54:1 › the editor lives at /app (clean URL, dev parity with production)
+[47/78] [chromium] › e2e/landing.spec.ts:59:1 › the landing CTA opens the wizard even for a visitor with work in progress
+[48/78] [chromium] › e2e/landing.spec.ts:75:1 › the landing reads create first, then play or export
+[49/78] [chromium] › e2e/landing.spec.ts:148:1 › the pages and anchors the landing links to exist
+[50/78] [chromium] › e2e/landing.spec.ts:171:3 › every public page fits 320px without scrolling sideways
+[51/78] [chromium] › e2e/landing.spec.ts:171:3 › every public page fits 375px without scrolling sideways
+[52/78] [chromium] › e2e/landing.spec.ts:171:3 › every public page fits 860px without scrolling sideways
+[53/78] [chromium] › e2e/landing.spec.ts:171:3 › every public page fits 1280px without scrolling sideways
+[54/78] [chromium] › e2e/landing.spec.ts:185:1 › the OBS capture shows whole on a desktop and closes in on a phone
+[55/78] [chromium] › e2e/landing.spec.ts:211:3 › What's new and the roadmap are on the landing, linked, generated and fit the screen at 1280px
+[56/78] [chromium] › e2e/landing.spec.ts:211:3 › What's new and the roadmap are on the landing, linked, generated and fit the screen at 390px
+[57/78] [chromium] › e2e/landing.spec.ts:274:1 › old root share links redirect into the app with their query intact
+[58/78] [chromium] › e2e/landing.spec.ts:287:1 › a password-reset link that lands on the landing page is forwarded into the app
+[59/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › index chrome at desktop
+[60/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › ograf chrome at desktop
+[61/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › privacy chrome at desktop
+[62/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › terms chrome at desktop
+  1) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › index chrome at desktop ────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      1939 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: index-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(index-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 1939 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 1939 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: index-header-desktop (image/png) ────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/index-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-index-chrome-at-desktop-chromium/index-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-index-chrome-at-desktop-chromium/index-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-index-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-index-chrome-at-desktop-chromium/error-context.md
+
+
+  2) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › privacy chrome at desktop ──────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      1807 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: privacy-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(privacy-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 1807 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 1807 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: privacy-header-desktop (image/png) ──────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/privacy-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-privacy-chrome-at-desktop-chromium/privacy-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-privacy-chrome-at-desktop-chromium/privacy-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-privacy-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-privacy-chrome-at-desktop-chromium/error-context.md
+
+
+  3) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › terms chrome at desktop ────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      1816 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: terms-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(terms-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 1816 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 1816 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: terms-header-desktop (image/png) ────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/terms-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-terms-chrome-at-desktop-chromium/terms-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-terms-chrome-at-desktop-chromium/terms-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-terms-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-terms-chrome-at-desktop-chromium/error-context.md
+
+
+  4) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › ograf chrome at desktop ────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      1290 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: ograf-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(ograf-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 1290 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 1290 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: ograf-header-desktop (image/png) ────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/ograf-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-ograf-chrome-at-desktop-chromium/ograf-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-ograf-chrome-at-desktop-chromium/ograf-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-ograf-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-ograf-chrome-at-desktop-chromium/error-context.md
+
+
+[63/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › docs chrome at desktop
+[64/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › roadmap chrome at desktop
+[65/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › downloads chrome at desktop
+[66/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › whats-new chrome at desktop
+  5) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › whats-new chrome at desktop ────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      2006 pixels (ratio 0.03 of all image pixels) are different.
+
+      Snapshot: whats-new-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(whats-new-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 2006 pixels (ratio 0.03 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 2006 pixels (ratio 0.03 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: whats-new-header-desktop (image/png) ────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/whats-new-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-whats-new-chrome-at-desktop-chromium/whats-new-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-whats-new-chrome-at-desktop-chromium/whats-new-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-whats-new-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-whats-new-chrome-at-desktop-chromium/error-context.md
+
+
+  6) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › roadmap chrome at desktop ──────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      1984 pixels (ratio 0.03 of all image pixels) are different.
+
+      Snapshot: roadmap-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(roadmap-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 1984 pixels (ratio 0.03 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 1984 pixels (ratio 0.03 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: roadmap-header-desktop (image/png) ──────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/roadmap-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-roadmap-chrome-at-desktop-chromium/roadmap-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-roadmap-chrome-at-desktop-chromium/roadmap-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-roadmap-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-roadmap-chrome-at-desktop-chromium/error-context.md
+
+
+  7) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › downloads chrome at desktop ────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      2035 pixels (ratio 0.03 of all image pixels) are different.
+
+      Snapshot: downloads-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(downloads-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 2035 pixels (ratio 0.03 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 2035 pixels (ratio 0.03 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: downloads-header-desktop (image/png) ────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/downloads-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-downloads-chrome-at-desktop-chromium/downloads-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-downloads-chrome-at-desktop-chromium/downloads-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-downloads-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-downloads-chrome-at-desktop-chromium/error-context.md
+
+
+  8) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › docs chrome at desktop ─────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      2013 pixels (ratio 0.03 of all image pixels) are different.
+
+      Snapshot: docs-header-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(docs-header-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 2013 pixels (ratio 0.03 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 2013 pixels (ratio 0.03 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: docs-header-desktop (image/png) ─────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/docs-header-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-docs-chrome-at-desktop-chromium/docs-header-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-docs-chrome-at-desktop-chromium/docs-header-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-docs-chrome-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-docs-chrome-at-desktop-chromium/error-context.md
+
+
+[67/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › index chrome at phone
+[68/78] [chromium] › e2e/public-chrome-baseline.spec.ts:65:3 › ograf page at desktop
+[69/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › ograf chrome at phone
+[70/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › privacy chrome at phone
+  9) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › index chrome at phone ──────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      539 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: index-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(index-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 539 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 539 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: index-header-phone (image/png) ──────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/index-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-index-chrome-at-phone-chromium/index-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-index-chrome-at-phone-chromium/index-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-index-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-index-chrome-at-phone-chromium/error-context.md
+
+
+  10) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › privacy chrome at phone ───────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      599 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: privacy-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(privacy-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 599 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 599 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: privacy-header-phone (image/png) ────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/privacy-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-privacy-chrome-at-phone-chromium/privacy-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-privacy-chrome-at-phone-chromium/privacy-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-privacy-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-privacy-chrome-at-phone-chromium/error-context.md
+
+
+  11) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › ograf chrome at phone ─────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      501 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: ograf-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(ograf-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 501 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 501 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: ograf-header-phone (image/png) ──────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/ograf-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-ograf-chrome-at-phone-chromium/ograf-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-ograf-chrome-at-phone-chromium/ograf-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-ograf-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-ograf-chrome-at-phone-chromium/error-context.md
+
+
+[71/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › terms chrome at phone
+  12) [chromium] › e2e/public-chrome-baseline.spec.ts:65:3 › ograf page at desktop ─────────────────
+
+    Error: expect(page).toHaveScreenshot(expected) failed
+
+      2409 pixels (ratio 0.01 of all image pixels) are different.
+
+      Snapshot: ograf-desktop.png
+
+    Call log:
+      - Expect "toHaveScreenshot(ograf-desktop.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - 2409 pixels (ratio 0.01 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - captured a stable screenshot
+      - 2409 pixels (ratio 0.01 of all image pixels) are different.
+
+
+      67 |     skipUnrecorded(testInfo, shot);
+      68 |     await open(page, '/ograf', size);
+    > 69 |     await expect(page).toHaveScreenshot(shot, { mask: [page.locator('.preview iframe')] });
+         |                        ^
+      70 |   });
+      71 | }
+      72 |
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:69:24
+
+    attachment #1: ograf-desktop (image/png) ───────────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/ograf-desktop-chromium-linux.png
+    Received: test-results/public-chrome-baseline-ograf-page-at-desktop-chromium/ograf-desktop-actual.png
+    Diff:     test-results/public-chrome-baseline-ograf-page-at-desktop-chromium/ograf-desktop-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-ograf-page-at-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-ograf-page-at-desktop-chromium/error-context.md
+
+
+[72/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › docs chrome at phone
+[73/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › downloads chrome at phone
+  13) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › terms chrome at phone ─────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      580 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: terms-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(terms-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 580 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 580 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: terms-header-phone (image/png) ──────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/terms-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-terms-chrome-at-phone-chromium/terms-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-terms-chrome-at-phone-chromium/terms-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-terms-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-terms-chrome-at-phone-chromium/error-context.md
+
+
+[74/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › whats-new chrome at phone
+  14) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › downloads chrome at phone ─────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      545 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: downloads-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(downloads-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 545 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 545 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: downloads-header-phone (image/png) ──────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/downloads-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-downloads-chrome-at-phone-chromium/downloads-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-downloads-chrome-at-phone-chromium/downloads-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-downloads-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-downloads-chrome-at-phone-chromium/error-context.md
+
+
+  15) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › docs chrome at phone ──────────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      563 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: docs-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(docs-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 563 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 563 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: docs-header-phone (image/png) ───────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/docs-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-docs-chrome-at-phone-chromium/docs-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-docs-chrome-at-phone-chromium/docs-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-docs-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-docs-chrome-at-phone-chromium/error-context.md
+
+
+[75/78] [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › roadmap chrome at phone
+  16) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › whats-new chrome at phone ─────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      547 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: whats-new-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(whats-new-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 547 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 547 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: whats-new-header-phone (image/png) ──────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/whats-new-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-whats-new-chrome-at-phone-chromium/whats-new-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-whats-new-chrome-at-phone-chromium/whats-new-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-whats-new-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-whats-new-chrome-at-phone-chromium/error-context.md
+
+
+[76/78] [chromium] › e2e/public-chrome-baseline.spec.ts:65:3 › ograf page at phone
+  17) [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › roadmap chrome at phone ───────────────
+
+    Error: expect(locator).toHaveScreenshot(expected) failed
+
+    Locator: locator('header.top')
+      546 pixels (ratio 0.02 of all image pixels) are different.
+
+      Snapshot: roadmap-header-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(roadmap-header-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - 546 pixels (ratio 0.02 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - waiting for locator('header.top')
+        - locator resolved to <header class="top">…</header>
+      - taking element screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - attempting scroll into view action
+        - waiting for element to be stable
+      - captured a stable screenshot
+      - 546 pixels (ratio 0.02 of all image pixels) are different.
+
+
+      57 |       skipUnrecorded(testInfo, header, footer);
+      58 |       await open(page, path, size);
+    > 59 |       await expect(page.locator('header.top')).toHaveScreenshot(header);
+         |                                                ^
+      60 |       await snapToWholePixel(page.locator('footer.site'));
+      61 |       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
+      62 |     });
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:59:48
+
+    attachment #1: roadmap-header-phone (image/png) ────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/roadmap-header-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-roadmap-chrome-at-phone-chromium/roadmap-header-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-roadmap-chrome-at-phone-chromium/roadmap-header-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-roadmap-chrome-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-roadmap-chrome-at-phone-chromium/error-context.md
+
+
+[77/78] [chromium] › e2e/sync.spec.ts:14:1 › sync engine: reconcile + runSync behave correctly
+[78/78] [chromium] › e2e/sync.spec.ts:322:1 › asset externalization: round-trips through a Storage stub
+  18) [chromium] › e2e/public-chrome-baseline.spec.ts:65:3 › ograf page at phone ───────────────────
+
+    Error: expect(page).toHaveScreenshot(expected) failed
+
+      1358 pixels (ratio 0.01 of all image pixels) are different.
+
+      Snapshot: ograf-phone.png
+
+    Call log:
+      - Expect "toHaveScreenshot(ograf-phone.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - 1358 pixels (ratio 0.01 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - captured a stable screenshot
+      - 1358 pixels (ratio 0.01 of all image pixels) are different.
+
+
+      67 |     skipUnrecorded(testInfo, shot);
+      68 |     await open(page, '/ograf', size);
+    > 69 |     await expect(page).toHaveScreenshot(shot, { mask: [page.locator('.preview iframe')] });
+         |                        ^
+      70 |   });
+      71 | }
+      72 |
+        at /home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/public-chrome-baseline.spec.ts:69:24
+
+    attachment #1: ograf-phone (image/png) ─────────────────────────────────────────────────────────
+    Expected: e2e/public-chrome-baseline.spec.ts-snapshots/ograf-phone-chromium-linux.png
+    Received: test-results/public-chrome-baseline-ograf-page-at-phone-chromium/ograf-phone-actual.png
+    Diff:     test-results/public-chrome-baseline-ograf-page-at-phone-chromium/ograf-phone-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/public-chrome-baseline-ograf-page-at-phone-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/public-chrome-baseline-ograf-page-at-phone-chromium/error-context.md
+
+
+  18 failed
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › index chrome at desktop ─────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › ograf chrome at desktop ─────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › privacy chrome at desktop ───────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › terms chrome at desktop ─────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › docs chrome at desktop ──────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › downloads chrome at desktop ─────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › whats-new chrome at desktop ─────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › roadmap chrome at desktop ───────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:65:3 › ograf page at desktop ───────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › index chrome at phone ───────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › ograf chrome at phone ───────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › privacy chrome at phone ─────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › terms chrome at phone ───────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › docs chrome at phone ────────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › downloads chrome at phone ───────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › whats-new chrome at phone ───────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:54:5 › roadmap chrome at phone ─────────────────
+    [chromium] › e2e/public-chrome-baseline.spec.ts:65:3 › ograf page at phone ─────────────────────
+  1 skipped
+  59 passed (1.0m)
+[cloud-measure] 61.20s; aggregate sampled RSS 3932.7 MiB; /tmp/claude-v2-pr1278-w4-workers4.json

@@ -1,0 +1,382 @@
+{
+  "config": {
+    "argv": [
+      "/opt/node22/bin/node",
+      "/home/user/NoaCG-Studio/.claude/worktrees/measure/node_modules/@playwright/test/cli.js",
+      "test",
+      "e2e/downloads.spec.ts",
+      "--workers=4",
+      "--reporter=json",
+      "--global-timeout=1100000"
+    ],
+    "configFile": "/home/user/NoaCG-Studio/.claude/worktrees/measure/playwright.config.ts",
+    "rootDir": "/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": "/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e/_offline-guard.ts",
+    "globalTeardown": null,
+    "globalTimeout": 1100000,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 4
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/user/NoaCG-Studio/.claude/worktrees/measure/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/user/NoaCG-Studio/.claude/worktrees/measure/e2e",
+        "testIgnore": [
+          "**/configured/**",
+          "**/catalog/**"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 10,
+      "threshold": 45000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 4,
+    "webServer": {
+      "command": "npm run dev -- --host 127.0.0.1 --port 5232 --strictPort",
+      "url": "http://127.0.0.1:5232",
+      "reuseExistingServer": true,
+      "timeout": 60000,
+      "env": {
+        "VITE_PREVIEW_DEBOUNCE_MS": "50",
+        "VITE_SUPABASE_URL": "",
+        "VITE_SUPABASE_ANON_KEY": "",
+        "VITE_RENDER_API": "1",
+        "VITE_AI_PROVIDER": "",
+        "VITE_AI_MODEL": "",
+        "VITE_AI_PROXY_URL": "",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": "",
+        "GOOGLE_API_KEY": "",
+        "GEMINI_API_KEY": "",
+        "AI_GATEWAY_API_KEY": "",
+        "VERCEL_OIDC_TOKEN": "",
+        "HF_TOKEN": "",
+        "HUGGINGFACE_TOKEN": "",
+        "HUGGINGFACE_API_KEY": "",
+        "AI_KEY_ENCRYPTION_SECRET": "",
+        "AI_PRO_ENABLED": ""
+      }
+    }
+  },
+  "suites": [
+    {
+      "title": "downloads.spec.ts",
+      "file": "downloads.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "the landing names both tools and links each download where it is introduced, plus its nav and footer",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1515,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:54.369Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-dbfd0800ca5062d9b871",
+          "file": "downloads.spec.ts",
+          "line": 80,
+          "column": 1
+        },
+        {
+          "title": "each card resolves its own channel: the newest bridge-v* exe, and npm latest for the CLI",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1138,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:54.377Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-7a52648299467cecf32d",
+          "file": "downloads.spec.ts",
+          "line": 100,
+          "column": 1
+        },
+        {
+          "title": "a Bridge release whose exe carries its version is the one offered, with its own checksum",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 2,
+                  "status": "passed",
+                  "duration": 921,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:54.488Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-b582ca68be05d475157d",
+          "file": "downloads.spec.ts",
+          "line": 139,
+          "column": 1
+        },
+        {
+          "title": "with neither API answering the page still downloads the newest Bridge and reads \"latest\"",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 3,
+                  "status": "passed",
+                  "duration": 788,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:54.475Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-68157b843e2ba3c7792a",
+          "file": "downloads.spec.ts",
+          "line": 156,
+          "column": 1
+        },
+        {
+          "title": "the Bridge card says which browsers work, and what to do about one that keeps asking",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 3,
+                  "status": "passed",
+                  "duration": 1106,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:55.618Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-154c3992c89081ad519c",
+          "file": "downloads.spec.ts",
+          "line": 167,
+          "column": 1
+        },
+        {
+          "title": "the SVG examples sit under the two tools and their zip is served from /downloads",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 2,
+                  "status": "passed",
+                  "duration": 1450,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:55.682Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-07dff94920a32972b6dd",
+          "file": "downloads.spec.ts",
+          "line": 189,
+          "column": 1
+        },
+        {
+          "title": "the top bar is the landing top bar, with Downloads as the current page",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 771,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:55.705Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-a4a6d84777b1832c3f7b",
+          "file": "downloads.spec.ts",
+          "line": 223,
+          "column": 1
+        },
+        {
+          "title": "the CLI card leads with one short prompt that copies whole and reads at every width",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1238,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T12:58:56.129Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6e21fe7132a631b5f5c4-64fe4c61dfebd1b8fde0",
+          "file": "downloads.spec.ts",
+          "line": 237,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-16T12:58:47.787Z",
+    "duration": 9737.786,
+    "expected": 8,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

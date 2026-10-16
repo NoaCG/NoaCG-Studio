@@ -1,0 +1,524 @@
+{"changedPaths":19,"checks":["check:contract-freshness","check:contract-citations","check:skill","check:copy","check:landed-ref","check:toolkit"],"tests":["scripts/agent-prompt.test.mjs","scripts/harness-bench.test.mjs","scripts/toolkit-distribution.test.mjs"]}
+
+> noacg-studio@0.1.0 check:contract-freshness
+> node scripts/check-contract-freshness.mjs
+
+[measured] 964 contract files
+Contract freshness OK: 964 contract file(s), every referenced script, doc and path exists.
+
+> noacg-studio@0.1.0 check:contract-citations
+> node scripts/check-contract-citations.mjs
+
+[measured] 562 rule ids in contracts/rules
+[measured] 4473 text files scanned for citations
+Contract citations OK: 4473 file(s), every cited rule id and contract section exists.
+
+> noacg-studio@0.1.0 check:skill
+> node cli/scripts/build-skill.mjs --check
+
+[measured] 30 generated files
+build-skill --check OK: 30 generated files match the source (noacg v0.12.2).
+
+> noacg-studio@0.1.0 check:copy
+> node scripts/check-copy.mjs
+
+[measured] 923 source files scanned
+[measured] 494 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+
+> noacg-studio@0.1.0 check:landed-ref
+> node scripts/check-landed-ref.mjs
+
+[measured] 455 scripts scanned for a bare local `main` revision
+check-landed-ref: OK - 455 script(s) scanned, 4 deliberate use(s) of the bare local ref, 0 stale reads.
+
+> noacg-studio@0.1.0 check:toolkit
+> node scripts/check-toolkit-distribution.mjs
+
+[measured] 78 distribution files validated across independent packages
+Toolkit 0.12.2: Claude main/MCP, Codex main/local MCP and repository validate.
+
+[gates] node --test over 3 file(s)
+TAP version 13
+# Subtest: the prompt is at most 80 words and runs the reviewed CLI version through npx
+ok 1 - the prompt is at most 80 words and runs the reviewed CLI version through npx
+  ---
+  duration_ms: 2.601042
+  type: 'test'
+  ...
+# Subtest: the prompt connects before the brief and asks for every graphic in the library
+ok 2 - the prompt connects before the brief and asks for every graphic in the library
+  ---
+  duration_ms: 1.773327
+  type: 'test'
+  ...
+# Subtest: Downloads and the docs each render the one prompt, and carry no copy of their own
+ok 3 - Downloads and the docs each render the one prompt, and carry no copy of their own
+  ---
+  duration_ms: 1.642857
+  type: 'test'
+  ...
+# Subtest: on Downloads the prompt leads the CLI card, the requirements beside it and the plugin after it
+ok 4 - on Downloads the prompt leads the CLI card, the requirements beside it and the plugin after it
+  ---
+  duration_ms: 0.406312
+  type: 'test'
+  ...
+# Subtest: the rendered block is a wrapping prompt whose markup carries the exact text
+ok 5 - the rendered block is a wrapping prompt whose markup carries the exact text
+  ---
+  duration_ms: 0.345139
+  type: 'test'
+  ...
+# Subtest: the wall refuses a session when what is left, less the overshoot margin, cannot cover its budget
+ok 6 - the wall refuses a session when what is left, less the overshoot margin, cannot cover its budget
+  ---
+  duration_ms: 3.059466
+  type: 'test'
+  ...
+# Subtest: a phase ceiling is a wall inside the run's: H3 stops at its $10 whatever the ledger has left
+ok 7 - a phase ceiling is a wall inside the run's: H3 stops at its $10 whatever the ledger has left
+  ---
+  duration_ms: 0.426614
+  type: 'test'
+  ...
+# Subtest: a session's trace measures its cold start, turns, images and largest request at list prices
+ok 8 - a session's trace measures its cold start, turns, images and largest request at list prices
+  ---
+  duration_ms: 2.829674
+  type: 'test'
+  ...
+# Subtest: H3's proofs: the planted defect validates clean, and the packages environment adds only the published CLI
+ok 9 - H3's proofs: the planted defect validates clean, and the packages environment adds only the published CLI
+  ---
+  duration_ms: 0.936316
+  type: 'test'
+  ...
+# Subtest: an entry the credit did not fund carries no cost, and a credit session names its session
+ok 10 - an entry the credit did not fund carries no cost, and a credit session names its session
+  ---
+  duration_ms: 1.285032
+  type: 'test'
+  ...
+# Subtest: the committed ledger reads: no credit before H3, H3 within its $10, and H0 completed
+ok 11 - the committed ledger reads: no credit before H3, H3 within its $10, and H0 completed
+  ---
+  duration_ms: 1.005727
+  type: 'test'
+  ...
+# Subtest: --build refuses a $0 phase, a completed one, tuning before the exam is reserved, and anything not a phase
+ok 12 - --build refuses a $0 phase, a completed one, tuning before the exam is reserved, and anything not a phase
+  ---
+  duration_ms: 0.83675
+  type: 'test'
+  ...
+# Subtest: the exam reserve is 5.2's arithmetic, and the wall holds it from every phase but the exam's
+ok 13 - the exam reserve is 5.2's arithmetic, and the wall holds it from every phase but the exam's
+  ---
+  duration_ms: 1.916909
+  type: 'test'
+  ...
+# Subtest: --reserve names every term, records the reserve beside the entries, and writes nothing when the exam no longer fits
+ok 14 - --reserve names every term, records the reserve beside the entries, and writes nothing when the exam no longer fits
+  ---
+  duration_ms: 1.39219
+  type: 'test'
+  ...
+# Subtest: the committed ledger holds the exam reserve the wall reads, and H4 closed at $0 with no session
+ok 15 - the committed ledger holds the exam reserve the wall reads, and H4 closed at $0 with no session
+  ---
+  duration_ms: 1.610449
+  type: 'test'
+  ...
+# Subtest: the fake arm and the stubbed managed-agents arm deliver through record, shape check, capture and ledger at $0
+ok 16 - the fake arm and the stubbed managed-agents arm deliver through record, shape check, capture and ledger at $0
+  ---
+  duration_ms: 88.649121
+  type: 'test'
+  ...
+# Subtest: a session paused at its budget hands in its last record as not ready; a refusal hands in nothing
+ok 17 - a session paused at its budget hands in its last record as not ready; a refusal hands in nothing
+  ---
+  duration_ms: 21.124633
+  type: 'test'
+  ...
+# Subtest: --adopt collects a session a stopped run left working, and creates none
+ok 18 - --adopt collects a session a stopped run left working, and creates none
+  ---
+  duration_ms: 6.19357
+  type: 'test'
+  ...
+# Subtest: a short ledger starts nothing: the session is refused before it is created, and the refusal is recorded
+ok 19 - a short ledger starts nothing: the session is refused before it is created, and the refusal is recorded
+  ---
+  duration_ms: 0.578309
+  type: 'test'
+  ...
+# Subtest: a session that fails after it was created is still stopped, read, deleted and named in the ledger
+ok 20 - a session that fails after it was created is still stopped, read, deleted and named in the ledger
+  ---
+  duration_ms: 15.521775
+  type: 'test'
+  ...
+# Subtest: a resumed --build runs only what the ledger does not already hold for that phase
+ok 21 - a resumed --build runs only what the ledger does not already hold for that phase
+  ---
+  duration_ms: 0.64151
+  type: 'test'
+  ...
+# Subtest: a delivered version that is not the one last reviewed, or a missing action, is caught
+ok 22 - a delivered version that is not the one last reviewed, or a missing action, is caught
+  ---
+  duration_ms: 0.690691
+  type: 'test'
+  ...
+# Subtest: a stress value keyed by what the field is reaches that field in any field order
+ok 23 - a stress value keyed by what the field is reaches that field in any field order
+  ---
+  duration_ms: 1.245878
+  type: 'test'
+  ...
+# Subtest: the archived reference arm re-captures an August cell at $0 through the shared half
+ok 24 - the archived reference arm re-captures an August cell at $0 through the shared half
+  ---
+  duration_ms: 4.220487
+  type: 'test'
+  ...
+# Subtest: the gallery shows opaque ids, never an arm, and keeps the key beside it
+ok 25 - the gallery shows opaque ids, never an arm, and keeps the key beside it
+  ---
+  duration_ms: 25.107536
+  type: 'test'
+  ...
+# Subtest: a subscription child's environment is built from scratch and carries no key
+ok 26 - a subscription child's environment is built from scratch and carries no key
+  ---
+  duration_ms: 1.142862
+  type: 'test'
+  ...
+# Subtest: nothing starts unless claude auth status in that environment reports the OAuth token
+ok 27 - nothing starts unless claude auth status in that environment reports the OAuth token
+  ---
+  duration_ms: 13.465469
+  type: 'test'
+  ...
+# Subtest: the reference arm runs claude -p outside the repository, on the subscription, with the plugin and the shimmed CLI
+ok 28 - the reference arm runs claude -p outside the repository, on the subscription, with the plugin and the shimmed CLI
+  ---
+  duration_ms: 4.251088
+  type: 'test'
+  ...
+# Subtest: the committed judge is frozen on a pinned model id, and a judge whose files changed is refused
+ok 29 - the committed judge is frozen on a pinned model id, and a judge whose files changed is refused
+  ---
+  duration_ms: 2.925448
+  type: 'test'
+  ...
+# Subtest: a judgement is claude -p with the frozen prompt as its system prompt, Read only and the rubric schema
+ok 30 - a judgement is claude -p with the frozen prompt as its system prompt, Read only and the rubric schema
+  ---
+  duration_ms: 1.008864
+  type: 'test'
+  ...
+# Subtest: a pair is judged in both orders, and a preference that flips with the order is a tie
+ok 31 - a pair is judged in both orders, and a preference that flips with the order is a tie
+  ---
+  duration_ms: 22.317286
+  type: 'test'
+  ...
+# Subtest: the exam's judge runner refuses a judge whose hash differs, before any judgement starts
+ok 32 - the exam's judge runner refuses a judge whose hash differs, before any judgement starts
+  ---
+  duration_ms: 1.899268
+  type: 'test'
+  ...
+# Subtest: the calibration split is reproducible from its seed, held back by brief, and scored against fixed thresholds
+ok 33 - the calibration split is reproducible from its seed, held back by brief, and scored against fixed thresholds
+  ---
+  duration_ms: 6.525314
+  type: 'test'
+  ...
+# Subtest: the exam briefs are sealed: the committed file has the seal's shape, and a wrong passphrase gets nothing
+ok 34 - the exam briefs are sealed: the committed file has the seal's shape, and a wrong passphrase gets nothing
+  ---
+  duration_ms: 266.742349
+  type: 'test'
+  ...
+# Subtest: the sealed briefs decrypt to the committed hash, where the private passphrase is on this machine
+ok 35 - the sealed briefs decrypt to the committed hash, where the private passphrase is on this machine # SKIP no docs/private/harness-exam/passphrase.txt in the main checkout here (CI): the shape and the refusal above are what can be checked
+  ---
+  duration_ms: 12.795795
+  type: 'test'
+  ...
+# Subtest: no tuning run can reach an exam brief: the runner reads the tuning set only
+ok 36 - no tuning run can reach an exam brief: the runner reads the tuning set only
+  ---
+  duration_ms: 1.304781
+  type: 'test'
+  ...
+# Subtest: the container's system prompt is plumbing within 25 lines, on an agent with the web off
+ok 37 - the container's system prompt is plumbing within 25 lines, on an agent with the web off
+  ---
+  duration_ms: 1.909918
+  type: 'test'
+  ...
+# Subtest: a subagent file the agent lists is synced first and pinned by version (D4, as H6 ran the critic)
+ok 38 - a subagent file the agent lists is synced first and pinned by version (D4, as H6 ran the critic)
+  ---
+  duration_ms: 2.940821
+  type: 'test'
+  ...
+# Subtest: a critic thread is measured apart: its events kept, its usage and largest request beside the session
+ok 39 - a critic thread is measured apart: its events kept, its usage and largest request beside the session
+  ---
+  duration_ms: 1.279527
+  type: 'test'
+  ...
+# Subtest: the sync clears a multiagent block the definition dropped, and its plan sees what the server kept
+ok 40 - the sync clears a multiagent block the definition dropped, and its plan sees what the server kept
+  ---
+  duration_ms: 116.417011
+  type: 'test'
+  ...
+# Subtest: a run deletes the CLI uploads a stopped run left, and only those
+ok 41 - a run deletes the CLI uploads a stopped run left, and only those
+  ---
+  duration_ms: 0.679048
+  type: 'test'
+  ...
+# Subtest: --agent-version names an earlier synced version, as the round's control
+ok 42 - --agent-version names an earlier synced version, as the round's control
+  ---
+  duration_ms: 0.501571
+  type: 'test'
+  ...
+# Subtest: the Skills API bundle is the skill's own bytes under one top folder
+ok 43 - the Skills API bundle is the skill's own bytes under one top folder
+  ---
+  duration_ms: 93.127818
+  type: 'test'
+  ...
+# Subtest: the bench is frozen from the close of tuning to the close of the exam
+ok 44 - the bench is frozen from the close of tuning to the close of the exam
+  ---
+  duration_ms: 0.468679
+  type: 'test'
+  ...
+# Subtest: a cli/skill another plan changed after tuning: the exam runs the lock's skill and names what changed it
+ok 45 - a cli/skill another plan changed after tuning: the exam runs the lock's skill and names what changed it
+  ---
+  duration_ms: 2.285311
+  type: 'test'
+  ...
+# Subtest: the lock's skill is found in git: the newest commit holding its bytes, and the commits since that changed them
+ok 46 - the lock's skill is found in git: the newest commit holding its bytes, and the commits since that changed them
+  ---
+  duration_ms: 236.10414
+  type: 'test'
+  ...
+# Subtest: the reference arm's plugin is the checkout's with the pinned skill, copied as build-skill copies it
+ok 47 - the reference arm's plugin is the checkout's with the pinned skill, copied as build-skill copies it
+  ---
+  duration_ms: 11.760697
+  type: 'test'
+  ...
+# Subtest: while the exam is pending the sync plans the lock's skill and refuses to change the bench
+ok 48 - while the exam is pending the sync plans the lock's skill and refuses to change the bench
+  ---
+  duration_ms: 1.663989
+  type: 'test'
+  ...
+# Subtest: the sealed briefs open only in the exam, verified against the committed hash first
+ok 49 - the sealed briefs open only in the exam, verified against the committed hash first
+  ---
+  duration_ms: 339.396017
+  type: 'test'
+  ...
+# Subtest: an exam brief's positional stress is named by its field's label, and lands on that field in any order
+ok 50 - an exam brief's positional stress is named by its field's label, and lands on that field in any order
+  ---
+  duration_ms: 1.810773
+  type: 'test'
+  ...
+# Subtest: the exam's verdict is 4.5 as written: every line, the flip rule, and nothing decided before it is all judged
+ok 51 - the exam's verdict is 4.5 as written: every line, the flip rule, and nothing decided before it is all judged
+  ---
+  duration_ms: 7.486394
+  type: 'test'
+  ...
+#   a.claude-code                            delivered [0s]
+#   b.claude-code                            paused [0s]
+#   b.claude-code: paused by the usage limit until an unknown reset; this lane waits, then runs it again
+#   b.claude-code                            delivered [0s]
+#   a.managed-agents                         delivered [0s]
+#   b.managed-agents                         delivered [0s]
+#   a.claude-code                            delivered [0s]
+# Subtest: a build runs each arm in its own lane, side by side, and a paused reference cell waits and runs again
+ok 52 - a build runs each arm in its own lane, side by side, and a paused reference cell waits and runs again
+  ---
+  duration_ms: 53.338077
+  type: 'test'
+  ...
+# Subtest: a misplaced stress value is moved by hand, and both arms of its brief are captured again
+ok 53 - a misplaced stress value is moved by hand, and both arms of its brief are captured again
+  ---
+  duration_ms: 15.393793
+  type: 'test'
+  ...
+# Subtest: the exam judges only what was handed in, a few judgements at a time
+ok 54 - the exam judges only what was handed in, a few judgements at a time
+  ---
+  duration_ms: 3.487232
+  type: 'test'
+  ...
+# Subtest: every independent ZIP extracts with verified CRCs and canonical bytes
+ok 55 - every independent ZIP extracts with verified CRCs and canonical bytes
+  ---
+  duration_ms: 266.580734
+  type: 'test'
+  ...
+# Subtest: both MCP manifests name every verb the tool has
+ok 56 - both MCP manifests name every verb the tool has
+  ---
+  duration_ms: 1.015206
+  type: 'test'
+  ...
+# Subtest: each host gets an MCP entry it can start: Claude expands its root variable, Codex resolves cwd
+ok 57 - each host gets an MCP entry it can start: Claude expands its root variable, Codex resolves cwd
+  ---
+  duration_ms: 1.145519
+  type: 'test'
+  ...
+# Subtest: output is idempotent, and altered or stray output is refused without deletion
+ok 58 - output is idempotent, and altered or stray output is refused without deletion
+  ---
+  duration_ms: 24.002537
+  type: 'test'
+  ...
+# Subtest: reject missing licence
+ok 59 - reject missing licence
+  ---
+  duration_ms: 0.862994
+  type: 'test'
+  ...
+# Subtest: reject wrong licence
+ok 60 - reject wrong licence
+  ---
+  duration_ms: 0.703049
+  type: 'test'
+  ...
+# Subtest: reject missing reference
+ok 61 - reject missing reference
+  ---
+  duration_ms: 1.019338
+  type: 'test'
+  ...
+# Subtest: reject stale setup pin
+ok 62 - reject stale setup pin
+  ---
+  duration_ms: 1.178634
+  type: 'test'
+  ...
+# Subtest: reject setup without the pin
+ok 63 - reject setup without the pin
+  ---
+  duration_ms: 1.502188
+  type: 'test'
+  ...
+# Subtest: reject floating skill launcher
+ok 64 - reject floating skill launcher
+  ---
+  duration_ms: 4.391652
+  type: 'test'
+  ...
+# Subtest: reject floating install in a reference
+ok 65 - reject floating install in a reference
+  ---
+  duration_ms: 0.923819
+  type: 'test'
+  ...
+# Subtest: reject text limit
+ok 66 - reject text limit
+  ---
+  duration_ms: 0.235001
+  type: 'test'
+  ...
+# Subtest: reject file limit
+ok 67 - reject file limit
+  ---
+  duration_ms: 0.545905
+  type: 'test'
+  ...
+# Subtest: reject binary/LFS pointer
+ok 68 - reject binary/LFS pointer
+  ---
+  duration_ms: 0.514107
+  type: 'test'
+  ...
+# Subtest: reject main accidentally starts MCP
+ok 69 - reject main accidentally starts MCP
+  ---
+  duration_ms: 0.884974
+  type: 'test'
+  ...
+# Subtest: reject manifest outside path
+ok 70 - reject manifest outside path
+  ---
+  duration_ms: 0.832626
+  type: 'test'
+  ...
+# Subtest: reject plugin file count and malformed Codex metadata independently
+ok 71 - reject plugin file count and malformed Codex metadata independently
+  ---
+  duration_ms: 4.37161
+  type: 'test'
+  ...
+# Subtest: reject traversal, Windows devices, attributes, system files and case collisions in parents
+ok 72 - reject traversal, Windows devices, attributes, system files and case collisions in parents
+  ---
+  duration_ms: 0.496185
+  type: 'test'
+  ...
+# Subtest: repository compressed, unpacked and entry boundaries are rejected independently
+ok 73 - repository compressed, unpacked and entry boundaries are rejected independently
+  ---
+  duration_ms: 0.235444
+  type: 'test'
+  ...
+# Subtest: source/generated skill drift is caught before packaging
+ok 74 - source/generated skill drift is caught before packaging
+  ---
+  duration_ms: 15.157684
+  type: 'test'
+  ...
+# Subtest: launcher imports matching install and forwards MCP arguments in one process
+ok 75 - launcher imports matching install and forwards MCP arguments in one process
+  ---
+  duration_ms: 54.701216
+  type: 'test'
+  ...
+# Subtest: launcher never runs an older/newer/unknown installation; it goes to the pinned npx instead
+ok 76 - launcher never runs an older/newer/unknown installation; it goes to the pinned npx instead
+  ---
+  duration_ms: 2443.511379
+  type: 'test'
+  ...
+# Subtest: explicit development override is disclosed; missing override cannot fall through
+ok 77 - explicit development override is disclosed; missing override cannot fall through
+  ---
+  duration_ms: 199.762857
+  type: 'test'
+  ...
+1..77
+# tests 77
+# suites 0
+# pass 76
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 3886.16763
+[gates] 3 test file(s) ran 77 test(s)
+[cloud-measure] 9.95s; aggregate sampled RSS 613.8 MiB; /tmp/claude-pr1287-gates.json

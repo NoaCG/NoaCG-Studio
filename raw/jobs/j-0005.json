@@ -1,0 +1,18 @@
+{
+ "id": "j-0005",
+ "kind": "sweep",
+ "command": "PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-full-shard1-w4-workers4-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-full-shard1-w4-workers4.json -- node node_modules/@playwright/test/cli.js test e2e/adapt-first.spec.ts e2e/bench.spec.ts e2e/downloads.spec.ts e2e/editor-base-edits.spec.ts e2e/editor-model-proposals.spec.ts e2e/editor-transforms.spec.ts e2e/feedback.spec.ts e2e/images.spec.ts e2e/import-canvas.spec.ts e2e/import-stretch.spec.ts e2e/library.spec.ts e2e/multi-select.spec.ts e2e/output-first-paint.spec.ts e2e/production-data.spec.ts e2e/project.spec.ts e2e/publish-drift.spec.ts e2e/rundown-history-storage.spec.ts e2e/snap-recovery.spec.ts e2e/specialist-lower-thirds.spec.ts e2e/spike-instruments.spec.ts e2e/template-escaping.spec.ts --workers=4 --reporter=json --global-timeout=1100000",
+ "checkout": "/home/user/NoaCG-Studio/.claude/worktrees/measure",
+ "branch": "scratch/claude-measure-82880f-wt",
+ "after": [],
+ "capMinutes": 21,
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1792156686249,
+ "state": "done",
+ "startedAt": 1792156691218,
+ "finishedAt": 1792157108291,
+ "exitCode": 0,
+ "pid": 7223,
+ "logPath": "/home/user/NoaCG-Studio/.git/noacg-jobs/logs/j-0005.log"
+}

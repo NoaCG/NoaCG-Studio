@@ -1,0 +1,19 @@
+{
+ "id": "j-0003",
+ "kind": "sweep",
+ "command": "PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-pr1292-w4-workers4-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-pr1292-w4-workers4.json -- node node_modules/@playwright/test/cli.js test e2e/playout-folders.spec.ts e2e/cross-tab.spec.ts e2e/hosted-control.spec.ts e2e/network-resilience.spec.ts e2e/playout-clock.spec.ts e2e/playout-feedback-health.spec.ts e2e/production-views.spec.ts e2e/quiz-pilot.spec.ts e2e/studio-evening-reliability.spec.ts e2e/studio-release-completion.spec.ts e2e/wizard-kit.spec.ts e2e/control-panel-types.spec.ts e2e/playout-nav.spec.ts e2e/playout-rundown-feedback.spec.ts e2e/playout-sequence.spec.ts e2e/productions.spec.ts e2e/playout-cues.spec.ts e2e/production-audience.spec.ts e2e/production-chat-intake.spec.ts e2e/production-persistence.spec.ts e2e/student-rehearsal.spec.ts e2e/agent-made-graphics.spec.ts e2e/library-bulk.spec.ts e2e/playout-rail-width.spec.ts e2e/production-controls.spec.ts e2e/rundown-timing.spec.ts e2e/account-library.spec.ts e2e/import-svg-behaviour.spec.ts e2e/live-actions-first.spec.ts e2e/motion-presets.spec.ts e2e/panel-production-page.spec.ts e2e/playout-drills.spec.ts e2e/production-data.spec.ts e2e/rundown-history.spec.ts e2e/no-old-editor.spec.ts e2e/pack-import.spec.ts e2e/playout-baseline.spec.ts e2e/playout-fixed-panes.spec.ts e2e/publish-output-setup.spec.ts e2e/bridge-connect.spec.ts e2e/storage-full.spec.ts e2e/studio-feedback.spec.ts e2e/auth.spec.ts e2e/library-productions.spec.ts e2e/library.spec.ts e2e/offline.spec.ts e2e/quiz-live-consistency.spec.ts e2e/sync.spec.ts --workers=4 --reporter=json --global-timeout=1100000",
+ "checkout": "/home/user/NoaCG-Studio/.claude/worktrees/measure",
+ "branch": "scratch/claude-measure-82880f-wt",
+ "after": [],
+ "capMinutes": 21,
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1792155544890,
+ "state": "failed",
+ "startedAt": 1792155546903,
+ "finishedAt": 1792156648473,
+ "exitCode": 1,
+ "pid": 22944,
+ "logPath": "/home/user/NoaCG-Studio/.git/noacg-jobs/logs/j-0003.log",
+ "giveUpReason": "auto-merge refused it (exit 1) - read the log for which check said no"
+}

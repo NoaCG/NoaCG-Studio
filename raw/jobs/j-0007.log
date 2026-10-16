@@ -1,0 +1,229 @@
+=== j-0007 PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/claude-v2-full-shard1-w4-workers2-tests.json node scripts/cloud-measure.mjs --seconds 1200 --out /tmp/claude-v2-full-shard1-w4-workers2.json -- node node_modules/@playwright/test/cli.js test e2e/adapt-first.spec.ts e2e/bench.spec.ts e2e/downloads.spec.ts e2e/editor-base-edits.spec.ts e2e/editor-model-proposals.spec.ts e2e/editor-transforms.spec.ts e2e/feedback.spec.ts e2e/images.spec.ts e2e/import-canvas.spec.ts e2e/import-stretch.spec.ts e2e/library.spec.ts e2e/multi-select.spec.ts e2e/output-first-paint.spec.ts e2e/production-data.spec.ts e2e/project.spec.ts e2e/publish-drift.spec.ts e2e/rundown-history-storage.spec.ts e2e/snap-recovery.spec.ts e2e/specialist-lower-thirds.spec.ts e2e/spike-instruments.spec.ts e2e/template-escaping.spec.ts --workers=2 --reporter=json --global-timeout=1100000
+=== cwd /home/user/NoaCG-Studio/.claude/worktrees/measure
+[e2e] 6 workers - 15232 MB free (the measured maximum)
+
+Running 204 tests using 2 workers
+
+[1/204] [chromium] › e2e/adapt-first.spec.ts:217:1 › the shortlist is shown, and picking another design rebuilds on it for free
+[2/204] [chromium] › e2e/adapt-first.spec.ts:121:1 › a brief becomes a customized graphic adapted from a proven design
+[3/204] [chromium] › e2e/adapt-first.spec.ts:273:1 › an off-catalog brief keeps the full catalog listing, so the create route is untouched
+[4/204] [chromium] › e2e/bench.spec.ts:16:3 › runtime bench detection fixtures › two overlapping text elements trip bench-overlap
+[5/204] [chromium] › e2e/bench.spec.ts:32:3 › runtime bench detection fixtures › a coincident same-text layer (karaoke wipe) is allowed; a misaligned one is not
+[6/204] [chromium] › e2e/bench.spec.ts:71:3 › runtime bench detection fixtures › an opaque panel painted over text trips bench-occluded
+[7/204] [chromium] › e2e/bench.spec.ts:83:3 › runtime bench detection fixtures › a tint and a gradient scrim over text do NOT trip bench-occluded
+[8/204] [chromium] › e2e/bench.spec.ts:97:3 › runtime bench detection fixtures › text escaping the canvas trips bench-overflow
+[9/204] [chromium] › e2e/bench.spec.ts:111:3 › runtime bench detection fixtures › a fixed box that clips doubled text trips bench-stress (and passes with defaults)
+[10/204] [chromium] › e2e/bench.spec.ts:147:3 › runtime bench detection fixtures › a clip-path that cuts text mid-line trips bench-overflow
+[11/204] [chromium] › e2e/bench.spec.ts:170:3 › runtime bench detection fixtures › text spilling past its own painted panel warns, without being clipped or off-canvas
+[12/204] [chromium] › e2e/bench.spec.ts:180:3 › runtime bench detection fixtures › the same panel sized to its content does not warn - the twin that keeps the check honest
+[13/204] [chromium] › e2e/bench.spec.ts:187:3 › runtime bench detection fixtures › a scrim painted by a pseudo-element counts as the surface
+[14/204] [chromium] › e2e/bench.spec.ts:207:3 › runtime bench detection fixtures › a glass panel counts as the surface however faint its tint
+[15/204] [chromium] › e2e/bench.spec.ts:219:3 › runtime bench detection fixtures › text over bare video is silent here - that is the legibility floor's question, not this one
+[16/204] [chromium] › e2e/bench.spec.ts:242:3 › runtime bench detection fixtures › a mask that cuts its line off is reported as the cut, not as text past the panel
+[17/204] [chromium] › e2e/bench.spec.ts:250:3 › runtime bench detection fixtures › a block line whose words overflow its own box is cut too; one parked outside the mask is not
+[18/204] [chromium] › e2e/bench.spec.ts:263:3 › runtime bench detection fixtures › tracked caps hanging their last letter-spacing past the mask are not a cut
+[19/204] [chromium] › e2e/bench.spec.ts:273:3 › runtime bench detection fixtures › no untouched neutral scaffold cuts its text at a mask or runs it past its panel (#770, #928)
+[20/204] [chromium] › e2e/bench.spec.ts:301:3 › runtime bench detection fixtures › the catalog designs that cut a long name at a mask now wrap it (#928)
+[21/204] [chromium] › e2e/bench.spec.ts:323:3 › runtime bench detection fixtures › a clip-path the text fits inside does not trip bench-overflow
+[22/204] [chromium] › e2e/bench.spec.ts:330:3 › runtime bench detection fixtures › text inside a sheared bar's bbox but outside the shear trips bench-overflow
+[23/204] [chromium] › e2e/bench.spec.ts:341:3 › runtime bench detection fixtures › an angled polygon clip that cuts text trips bench-overflow
+[24/204] [chromium] › e2e/bench.spec.ts:351:3 › runtime bench detection fixtures › a graphic that never hides on stop trips bench-hidden
+[25/204] [chromium] › e2e/bench.spec.ts:364:3 › runtime bench detection fixtures › update() that ignores a field trips bench-binding
+[26/204] [chromium] › e2e/bench.spec.ts:377:3 › runtime bench detection fixtures › the house editability contract is enforced by default and waivable for imports
+[27/204] [chromium] › e2e/bench.spec.ts:399:3 › design adjustments › an aggressively adjusted grounded assembly still passes the bench
+[28/204] [chromium] › e2e/downloads.spec.ts:80:1 › the landing names both tools and links each download where it is introduced, plus its nav and footer
+[29/204] [chromium] › e2e/downloads.spec.ts:100:1 › each card resolves its own channel: the newest bridge-v* exe, and npm latest for the CLI
+[30/204] [chromium] › e2e/downloads.spec.ts:139:1 › a Bridge release whose exe carries its version is the one offered, with its own checksum
+[31/204] [chromium] › e2e/downloads.spec.ts:156:1 › with neither API answering the page still downloads the newest Bridge and reads "latest"
+[32/204] [chromium] › e2e/downloads.spec.ts:167:1 › the Bridge card says which browsers work, and what to do about one that keeps asking
+[33/204] [chromium] › e2e/downloads.spec.ts:189:1 › the SVG examples sit under the two tools and their zip is served from /downloads
+[34/204] [chromium] › e2e/downloads.spec.ts:223:1 › the top bar is the landing top bar, with Downloads as the current page
+[35/204] [chromium] › e2e/downloads.spec.ts:237:1 › the CLI card leads with one short prompt that copies whole and reads at every width
+[36/204] [chromium] › e2e/editor-base-edits.spec.ts:62:1 › B04 basic artwork text and appearance controls are available
+[37/204] [chromium] › e2e/editor-base-edits.spec.ts:69:1 › B04 basic opacity preserves motion and survives history and reopening
+[38/204] [chromium] › e2e/editor-base-edits.spec.ts:94:40 › B04 artwork content, appearance and structure on catalog
+[39/204] [chromium] › e2e/editor-base-edits.spec.ts:94:40 › B04 artwork content, appearance and structure on svg
+[40/204] [chromium] › e2e/editor-base-edits.spec.ts:144:1 › B02 multi-object drag, marquee and cancel share one undo transaction
+[41/204] [chromium] › e2e/editor-base-edits.spec.ts:177:1 › B04 solid fill and reference-sensitive refusal preserve source atomically
+[42/204] [chromium] › e2e/editor-base-edits.spec.ts:197:1 › B04 duplicate retains CSS cascade and delete removes rules before an ID can be reused
+[43/204] [chromium] › e2e/editor-base-edits.spec.ts:219:1 › B03 multi-object SVG drag maps the same screen delta through different parents
+[44/204] [chromium] › e2e/editor-base-edits.spec.ts:237:1 › D03 flow offset preserves siblings, exact motion, cancellation, atomic history and saved source
+[45/204] [chromium] › e2e/editor-base-edits.spec.ts:262:1 › D03 SVG parent inverse mapping and numeric/canvas agreement
+[46/204] [chromium] › e2e/editor-base-edits.spec.ts:286:1 › D03 base layout and an existing animation channel remain independent
+[47/204] [chromium] › e2e/editor-base-edits.spec.ts:313:1 › B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition
+[48/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: Hairline
+[49/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: House Quiz
+[50/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: House Countdown
+[51/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: Illustrator
+[52/204] [chromium] › e2e/editor-base-edits.spec.ts:370:3 › B01 identical final document through both Finish routes: Stretch
+[53/204] [chromium] › e2e/editor-base-edits.spec.ts:411:1 › B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular refusal
+[54/204] [chromium] › e2e/editor-base-edits.spec.ts:443:40 › B04 edited catalog survives save/reopen and SPX/CasparCG/OGraf export
+[55/204] [chromium] › e2e/editor-base-edits.spec.ts:443:40 › B04 edited svg survives save/reopen and SPX/CasparCG/OGraf export
+[56/204] [chromium] › e2e/editor-base-edits.spec.ts:547:1 › B04 point text and canceled creation; base scale agrees with handles at zoom
+[57/204] [chromium] › e2e/editor-base-edits.spec.ts:572:1 › B01 optional Finish Edit consumes final catalog result and creates no production
+[58/204] [chromium] › e2e/editor-base-edits.spec.ts:584:1 › B01 direct production remains primary
+[59/204] [chromium] › e2e/editor-base-edits.spec.ts:593:1 › B03 base scaling preserves an animated catalog line through reload
+[60/204] [chromium] › e2e/editor-base-edits.spec.ts:606:1 › D03 refuses competing flow constraints and independent transforms without rewriting source
+[61/204] [chromium] › e2e/editor-base-edits.spec.ts:620:1 › B03 refuses conflicting animated scale ownership without changing motion
+[62/204] [chromium] › e2e/editor-model-proposals.spec.ts:30:1 › grounded review does not write before Apply; one undo and acknowledged preview
+[63/204] [chromium] › e2e/editor-model-proposals.spec.ts:49:1 › Cancel during response and review preserves manual work; a newer request owns its reply
+[64/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses unknown command atomically
+[65/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses uninspected target atomically
+[66/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses late invalid operation atomically
+[67/204] [chromium] › e2e/editor-model-proposals.spec.ts:67:13 › refuses malformed values atomically
+[68/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human source interleaving
+[69/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human selection interleaving
+[70/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human sample interleaving
+[71/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human playhead interleaving
+[72/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human history interleaving
+[73/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human gesture interleaving
+[74/204] [chromium] › e2e/editor-model-proposals.spec.ts:74:110 › Apply preserves human assets interleaving
+[75/204] [chromium] › e2e/editor-model-proposals.spec.ts:93:1 › delayed response refuses changed context and disappears on document remount
+[76/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › rate_limited retains manual editing
+[77/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › provider_rejected retains manual editing
+[78/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › unavailable retains manual editing
+[79/204] [chromium] › e2e/editor-model-proposals.spec.ts:106:97 › network retains manual editing
+[80/204] [chromium] › e2e/editor-model-proposals.spec.ts:116:1 › cancelled reply stays quiet while a newer request is still loading
+[81/204] [chromium] › e2e/editor-model-proposals.spec.ts:134:1 › empty explanation has no Apply action and cannot write
+[82/204] [chromium] › e2e/editor-model-proposals.spec.ts:143:1 › unconfigured assistant leaves offline authoring available
+[83/204] [chromium] › e2e/editor-model-proposals.spec.ts:155:1 › review describes the dimensions actually used by point text and shapes
+[84/204] [chromium] › e2e/editor-transforms.spec.ts:122:1 › no catalog layer refuses as another channel: its bar moves and trims and its Position Y keys
+[85/204] [chromium] › e2e/editor-transforms.spec.ts:185:1 › Clean Steps: Position Y reads a row's yPercent, and the field and a canvas drag key it at the playhead
+[chromium] › e2e/editor-transforms.spec.ts:122:1 › no catalog layer refuses as another channel: its bar moves and trims and its Position Y keys
+{
+ "blocked": 354,
+ "designs": 129,
+ "channel": [],
+ "applied": {
+  "move": 330,
+  "trim": 354,
+  "key": 354
+ },
+ "refused": {
+  "move: <layer> scale would move past the end of Out. No keys changed.": 24
+ },
+ "keyFailures": []
+}
+
+[86/204] [chromium] › e2e/editor-transforms.spec.ts:240:1 › Frosted Panel: Scale handles key the box's scale track, linked Scale agrees, and one axis refuses
+[87/204] [chromium] › e2e/editor-transforms.spec.ts:283:1 › House Question: #f1 shows and moves the motion stored under .audience-question
+[88/204] [chromium] › e2e/editor-transforms.spec.ts:313:1 › refusals: a raw transform, a selector naming several layers or two naming one, autoAlpha bars; autoAlpha keys
+[89/204] [chromium] › e2e/editor-transforms.spec.ts:388:1 › Clean Steps: a row's bar across a Step flag, trim, key move, key ease, Add Step and Set Out are one undo each and reopen
+[90/204] [chromium] › e2e/editor-transforms.spec.ts:440:1 › the edited Clean Steps plays in the simulator and SPX as the editor samples it
+[91/204] [chromium] › e2e/feedback.spec.ts:26:3 › feedback, offline › no feedback entry point exists with no backend configured
+[92/204] [chromium] › e2e/feedback.spec.ts:37:3 › feedback, offline › the absence is the gate, not an empty topbar
+[93/204] [chromium] › e2e/feedback.spec.ts:47:3 › feedback, offline › the wizard and Home grow no feedback door offline either
+[94/204] [chromium] › e2e/images.spec.ts:59:1 › data panel: the add-field types are the broadcast set, and an unanswerable add is refused
+[95/204] [chromium] › e2e/images.spec.ts:79:1 › end credits: uploading a logo through the Logo field puts it in the end block
+[96/204] [chromium] › e2e/images.spec.ts:94:1 › an oversized logo is shrunk to the frame at the door, and a small one is left alone
+[97/204] [chromium] › e2e/images.spec.ts:167:1 › corner bug: the logo field replaces the placeholder mark
+[98/204] [chromium] › e2e/images.spec.ts:180:1 › export: the zip is [project]/[project].html with images under [project]/images/
+[99/204] [chromium] › e2e/import-canvas.spec.ts:99:1 › import graphic: scaling the design scales the artwork and its fields together
+[100/204] [chromium] › e2e/import-canvas.spec.ts:164:1 › import graphic: dragging visible text moves the TEXT, not the artwork under it
+[101/204] [chromium] › e2e/import-canvas.spec.ts:185:1 › import graphic: the locked artwork never captures a drag — bare artwork moves the graphic
+[102/204] [chromium] › e2e/import-canvas.spec.ts:204:1 › import graphic: unlocking the artwork gives it back its own layer gestures
+[103/204] [chromium] › e2e/import-canvas.spec.ts:228:1 › canvas: holding Space pans the view and moves nothing in the document
+[104/204] [chromium] › e2e/import-canvas.spec.ts:255:1 › canvas: an armed Space-pan does not also play the graphic
+[105/204] [chromium] › e2e/import-canvas.spec.ts:285:1 › canvas: Space follows the ACTIVE SURFACE - timeline plays even over the stage
+[106/204] [chromium] › e2e/import-canvas.spec.ts:314:1 › canvas: Space only pans over the stage, and never while typing
+[107/204] [chromium] › e2e/import-canvas.spec.ts:333:1 › canvas: the cursor names the gesture in progress, not one that is merely possible
+[108/204] [chromium] › e2e/import-canvas.spec.ts:437:1 › import graphic: centred baked text seeds a CENTRED field on the same centre line
+[109/204] [chromium] › e2e/import-canvas.spec.ts:459:1 › import graphic: left-set baked text seeds a LEFT-anchored field on its left edge
+[110/204] [chromium] › e2e/import-canvas.spec.ts:473:1 › import graphic: a JPEG or WebP design imports exactly like a PNG
+[111/204] [chromium] › e2e/import-canvas.spec.ts:509:1 › import graphic: a scaled design still previews, validates, and exports
+[112/204] [chromium] › e2e/import-canvas.spec.ts:550:1 › import graphic: the seed recovers the size and position of REAL typeset text
+[113/204] [chromium] › e2e/import-canvas.spec.ts:644:1 › canvas: any part can be locked from the Inspector, and the rotate handle is not a hand
+[114/204] [chromium] › e2e/import-canvas.spec.ts:722:1 › import graphic: each marked region seeds its own field
+[115/204] [chromium] › e2e/import-canvas.spec.ts:744:1 › import graphic: one region holding two lines seeds a field per line
+[116/204] [chromium] › e2e/import-canvas.spec.ts:784:1 › import graphic: a region marked over a graphic seeds text that FITS it
+[117/204] [chromium] › e2e/import-canvas.spec.ts:824:1 › canvas: Escape disarms the text tool WITHOUT throwing away the selection
+[118/204] [chromium] › e2e/import-stretch.spec.ts:126:1 › stretch: picking it writes the 9-slice into the created code, and the guides parse back
+[119/204] [chromium] › e2e/import-stretch.spec.ts:145:1 › stretch: the SPX folder package carries the 9-slice with subfolder-correct refs
+[120/204] [chromium] › e2e/import-stretch.spec.ts:176:1 › stretch: a long value grows the design at full type size, and a short one springs back
+[121/204] [chromium] › e2e/import-stretch.spec.ts:209:1 › stretch: growth caps inside the frame edge, then the text-fit shrink answers the rest
+[122/204] [chromium] › e2e/import-stretch.spec.ts:223:1 › stretch: dragging a guide lands in the created code
+[123/204] [chromium] › e2e/import-stretch.spec.ts:239:1 › fixed default: no stretch markers, and a long value shrinks its text instead
+[124/204] [chromium] › e2e/library.spec.ts:41:1 › save names the graphic; the status stays honest through edits and reopen
+[125/204] [chromium] › e2e/library.spec.ts:67:1 › save dialog: a text-selection drag that ends on the backdrop never closes it
+[126/204] [chromium] › e2e/library.spec.ts:97:1 › Home lists the library; Back walks the history; an old package link lands on Home
+[127/204] [chromium] › e2e/library.spec.ts:127:1 › a first-ever visit is offered creation, not a door to an empty Home
+[128/204] [chromium] › e2e/library.spec.ts:136:1 › the wizard leads with the Home card once there is saved work, and it lands on Home
+[129/204] [chromium] › e2e/library.spec.ts:154:1 › the wizard header carries its own Home door
+[130/204] [chromium] › e2e/library.spec.ts:171:1 › opening another graphic with unsaved changes asks first; Discard proceeds
+[131/204] [chromium] › e2e/library.spec.ts:194:1 › a graphic row opens from its NAME, the same door a production row offers
+[132/204] [chromium] › e2e/library.spec.ts:211:1 › a saved graphic's control panel: entries create, play with the active entry, persist
+[133/204] [chromium] › e2e/library.spec.ts:249:1 › the control panel says what an ENTRY is, and pools the graphic into a production from there
+[134/204] [chromium] › e2e/library.spec.ts:278:1 › switching entries re-settles the SAME preview document instead of reloading it
+[135/204] [chromium] › e2e/library.spec.ts:317:1 › the control panel reports the state and greys an event the machine would drop
+[136/204] [chromium] › e2e/library.spec.ts:348:1 › the control panel shows the graphic at rest before any take, and says how to get Home
+[137/204] [chromium] › e2e/library.spec.ts:403:1 › a Home card shows the real graphic, parked at its settled on-air state
+[138/204] [chromium] › e2e/library.spec.ts:436:1 › a Home card frames on the GRAPHIC, at both card sizes, without cropping it
+[139/204] [chromium] › e2e/library.spec.ts:498:1 › phone width: every row action is reachable, the text stays two lines, the nav scrolls
+[140/204] [chromium] › e2e/library.spec.ts:551:1 › video and graphics stay separate but connected: #/video, back to graphics, never trapped
+[141/204] [chromium] › e2e/library.spec.ts:563:1 › looks: capture the current look in Home, apply it to another graphic, survive reload
+[142/204] [chromium] › e2e/library.spec.ts:604:1 › a look carries SHAPE, and never grafts a token onto a design that reads none
+[143/204] [chromium] › e2e/library.spec.ts:652:1 › the save dialog is sized by its content, not by the wizard it borrows styling from
+[144/204] [chromium] › e2e/library.spec.ts:665:1 › the list view is a real table: headings over their own columns, and the toggle sticks
+[145/204] [chromium] › e2e/library.spec.ts:719:1 › the Graphics header is one row, and the type chips and sort narrow and reorder it
+[146/204] [chromium] › e2e/multi-select.spec.ts:36:1 › shift-click builds a multi-selection synced across canvas, timeline, and Inspector
+[147/204] [chromium] › e2e/multi-select.spec.ts:77:1 › preview zoom: the buttons scale the viewport, and a click still hits the right element
+[148/204] [chromium] › e2e/multi-select.spec.ts:101:1 › timeline labels shift-click into the same multi-selection
+[149/204] [chromium] › e2e/multi-select.spec.ts:112:1 › a drag on empty canvas lassos the parts it touches — no code, no history
+[150/204] [chromium] › e2e/multi-select.spec.ts:148:1 › canvas: a selected layer shows scale + rotate handles that key at the playhead
+[151/204] [chromium] › e2e/output-first-paint.spec.ts:124:3 › the /output shell on load › paints nothing at all from navigation until a cue is taken
+[152/204] [chromium] › e2e/output-first-paint.spec.ts:146:3 › the /output shell on load › a graphic taken off air keeps running, and shows nothing while it does
+[153/204] [chromium] › e2e/output-first-paint.spec.ts:185:3 › the /output shell on load › a replay that ends with the graphic off leaves the output clean when it comes back
+[154/204] [chromium] › e2e/output-first-paint.spec.ts:217:3 › the /output shell on load › a graphic frame is invisible until its own document has loaded
+[155/204] [chromium] › e2e/production-data.spec.ts:24:1 › a quiz bank authored on the Data tab loads into the cue, airs only on Take, and survives a reload
+[156/204] [chromium] › e2e/production-data.spec.ts:111:1 › a table whose columns match nothing offers no load control, and columns can be added and renamed
+[157/204] [chromium] › e2e/production-data.spec.ts:149:1 › a teams table loads one team into the side the operator picked, and leaves the other alone
+[158/204] [chromium] › e2e/production-data.spec.ts:199:1 › a graphic with no sides never grows a side picker, and the quiz binding is untouched
+[159/204] [chromium] › e2e/production-data.spec.ts:219:1 › a graphic on air survives a Data-workspace round trip
+[160/204] [chromium] › e2e/production-data.spec.ts:258:1 › a quiz bank imported from CSV loads into a cue and airs — the Phase 2 walk from a file
+[161/204] [chromium] › e2e/production-data.spec.ts:304:1 › the downloaded template is a file the importer accepts, with the columns a cue can bind
+[162/204] [chromium] › e2e/production-data.spec.ts:339:1 › an imported table whose columns match no field says so rather than looking successful
+[163/204] [chromium] › e2e/production-data.spec.ts:356:1 › a file that is not a table is refused with a reason
+[164/204] [chromium] › e2e/production-data.spec.ts:369:1 › the empty workspace carries the doors and names the columns that would bind
+[165/204] [chromium] › e2e/production-data.spec.ts:425:1 › a bound field takes the LIVE value on air, and an old cue cannot re-air a stale one
+[166/204] [chromium] › e2e/production-data.spec.ts:499:1 › the seed is the reset target, and unbinding hands the field back to the cue
+[167/204] [chromium] › e2e/production-data.spec.ts:538:1 › an unpublished production offers no data key, because it has none
+[168/204] [chromium] › e2e/production-data.spec.ts:554:1 › nested trees, arrays and a missing path each behave as the contract says
+[169/204] [chromium] › e2e/production-data.spec.ts:604:1 › one value moves every graphic bound to it, and only the graphics bound to it
+[170/204] [chromium] › e2e/production-data.spec.ts:626:1 › production data is scoped to its production, never shared between two
+[171/204] [chromium] › e2e/production-data.spec.ts:655:1 › SPACE on the Data tab cannot put a graphic on air
+[172/204] [chromium] › e2e/production-data.spec.ts:712:1 › the playout column stays hidden behind the Data workspace, rundown included
+[173/204] [chromium] › e2e/production-data.spec.ts:749:1 › a ± press on a bound field moves the shared value, and every graphic bound to it follows
+[174/204] [chromium] › e2e/production-data.spec.ts:809:1 › an adjust on a bound field patches the tree, and the event still fires
+[175/204] [chromium] › e2e/production-data.spec.ts:858:1 › Bind all by title binds every unambiguous title in one press, and leaves the ambiguous one bound-empty with a reason
+[176/204] [chromium] › e2e/production-data.spec.ts:1021:1 › typing a value costs ONE persist for the whole edit, not one per character
+[177/204] [chromium] › e2e/production-data.spec.ts:1045:1 › an operator who types and walks away still has the value persisted
+[178/204] [chromium] › e2e/production-data.spec.ts:1065:1 › a refresh arriving mid-word never overwrites the box under the cursor
+[179/204] [chromium] › e2e/project.spec.ts:29:1 › project autosave: the working graphic survives a reload
+[180/204] [chromium] › e2e/project.spec.ts:74:1 › the wizard door is on every /app surface, beside Home
+[181/204] [chromium] › e2e/project.spec.ts:171:1 › the wizard mounts the same door: a guarded start-over mid-walk, the inert current page on Entry
+[182/204] [chromium] › e2e/publish-drift.spec.ts:15:1 › only graphics read from this browser's own library are compared, and a library edit moves exactly that one
+[183/204] [chromium] › e2e/rundown-history-storage.spec.ts:21:1 › operation receipts keep a failed put distinct from a newer successful put
+[184/204] [chromium] › e2e/rundown-history-storage.spec.ts:47:1 › a captured authoring operation retains every receipt including a reentrant write
+[185/204] [chromium] › e2e/rundown-history-storage.spec.ts:69:1 › conditional inverse reads the actual database and refuses a stale mirror
+[186/204] [chromium] › e2e/rundown-history-storage.spec.ts:89:1 › two refused writes roll back to the database, and a refused inverse is retryable
+[187/204] [chromium] › e2e/rundown-history-storage.spec.ts:116:1 › inverse preserves another production and unrelated latest metadata
+[188/204] [chromium] › e2e/rundown-history-storage.spec.ts:132:1 › newer pending write cancels an inverse during its database read
+[189/204] [chromium] › e2e/rundown-history-storage.spec.ts:155:1 › inverse refuses changed session and localStorage fallback
+[190/204] [chromium] › e2e/snap-recovery.spec.ts:98:1 › snapping into a live state never changes what the data fields decided to show
+[191/204] [chromium] › e2e/specialist-lower-thirds.spec.ts:19:1 › a two-person strap gives each person independent fields
+[192/204] [chromium] › e2e/specialist-lower-thirds.spec.ts:64:1 › dropping the role lines degrades by the design's own split rule
+[193/204] [chromium] › e2e/specialist-lower-thirds.spec.ts:96:1 › every specialist design passes the export gate on all targets
+[194/204] [chromium] › e2e/spike-instruments.spec.ts:126:3 › a single-ink mark and a coloured one separate by their ink spread › one ink measures near zero, several measure far above the floor
+[195/204] [chromium] › e2e/spike-instruments.spec.ts:158:3 › the platform seats a mark against the words, not against empty grid › the seated control is centred on its own content
+[196/204] [chromium] › e2e/spike-instruments.spec.ts:265:3 › a docked mark is measured by its INK, not by the well it sits in › clear space carried as the image's own padding is COUNTED, not swallowed
+[197/204] [chromium] › e2e/spike-instruments.spec.ts:275:3 › a docked mark is measured by its INK, not by the well it sits in › …and a mark that really is crammed is still caught
+[198/204] [chromium] › e2e/spike-instruments.spec.ts:287:3 › a docked mark is measured by its INK, not by the well it sits in › a mark given room by a TALL design is not called crowded for it
+[199/204] [chromium] › e2e/spike-instruments.spec.ts:313:3 › the spacing instrument sees content that escapes its panel › a panel whose content stays inside reports positive padding and no escape
+[200/204] [chromium] › e2e/spike-instruments.spec.ts:326:3 › the spacing instrument sees content that escapes its panel › a line hanging off the panel is named, with its side and its pixels
+[201/204] [chromium] › e2e/spike-instruments.spec.ts:346:3 › the spacing instrument sees content that escapes its panel › the same overflow CLIPPED by a mask is not an escape - it is cut off
+[202/204] [chromium] › e2e/spike-instruments.spec.ts:355:3 › the spacing instrument sees content that escapes its panel › a decorative member bleeding past the edge is recorded, not flagged
+[203/204] [chromium] › e2e/template-escaping.spec.ts:59:1 › no catalog variant lets field text execute as markup
+[204/204] [chromium] › e2e/template-escaping.spec.ts:100:1 › the probe still fires when a runtime skips escaping
+  51 skipped
+  153 passed (8.3m)
+[cloud-measure] 501.81s; aggregate sampled RSS 3301.5 MiB; /tmp/claude-v2-full-shard1-w4-workers2.json

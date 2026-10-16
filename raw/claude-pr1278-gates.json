@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "startedAt": "2026-10-16T12:56:43.674Z",
+  "revision": "4d55cf52585bb220d8d12d12f42140c76b315cc4",
+  "branch": "scratch/claude-measure-82880f-wt",
+  "dirtyPaths": "",
+  "cwd": "/home/user/NoaCG-Studio/.claude/worktrees/measure",
+  "machine": {
+    "affinityCpus": 4,
+    "quotaCpus": null,
+    "effectiveCpus": null,
+    "hostMemoryBytes": 16874930176,
+    "memoryLimitBytes": null,
+    "cpuMax": null,
+    "memoryMax": null,
+    "cgroup": "9:name=systemd:/\n8:pids:/\n7:blkio:/\n6:freezer:/\n5:devices:/\n4:memory:/process_api/01a144c0-be23-76f5-9c15-20e71437bb13/claude-code-bash\n3:cpuset:/\n2:cpuacct:/\n1:cpu:/\n0::/",
+    "containerLimitsObserved": false,
+    "node": "v22.22.0",
+    "platform": "linux"
+  },
+  "command": [
+    "node",
+    "scripts/cloud-measure-gates.mjs",
+    "/tmp/claude-pr1278-paths.json"
+  ],
+  "boundSeconds": 300,
+  "sampleIntervalMs": 250,
+  "memoryMethod": "descendant-tree-rss-pss",
+  "workers": null,
+  "cgroupMemoryBeforeBytes": null,
+  "samples": 67,
+  "peakProcesses": 6,
+  "aggregatePeakRssBytes": 877649920,
+  "aggregatePeakPssBytes": 628349952,
+  "cgroupSampledPeakBytes": 0,
+  "timedOut": false,
+  "code": 0,
+  "signal": null,
+  "wallSeconds": 16.380487027,
+  "finishedAt": "2026-10-16T12:57:00.093Z",
+  "monitorCpuSeconds": 0.622467
+}

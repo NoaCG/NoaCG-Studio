@@ -1,0 +1,2 @@
+j-0002 done (exit 0)
+  output: node scripts/jobs.mjs log j-0002
