@@ -105,7 +105,10 @@ production data path: the local tree when unpublished, the same server-side patc
 stay on air and no field is blanked.
 
 **Status and Pause on the Playout tab.** One line per source says what it is doing: "Sheet: updated
-4 s ago", "Sheet: paused", or "Sheet: can't read it (not shared) since 20:14" with the fix. Pause
+4 s ago", "Sheet: paused", or "Sheet: can't read it (not shared) since 20:14" with the fix. When no
+read has succeeded for three intervals (15 s), the line turns to a warning, "Sheet: last updated
+40 s ago, values on air may be old", and each connected field in the cue editor carries the same
+mark, until a read succeeds. Pause
 and Resume sit on that line. Published, the status and the pause live on the server, so a reload
 shows the true state and a pause holds with the page closed.
 
@@ -159,12 +162,15 @@ Sheets connect on the production. A graphic that already carries the block keeps
   visible, pausable, writes through the one data path, and only runs where no server can.
 - **D2. Sheet shapes (decided, owner 2026-10-16).** Values sheets first, list sheets later (phase
   5), and the operator picks the shape when connecting; it is never detected silently.
+- **D3. How fresh (decided, owner 2026-10-16).** Target: a Sheet edit is on screen within 10
+  seconds, each source read every 5 seconds. It is verified with real Sheet edits before anything
+  promises it (phase 1 locally, phase 3 published), and the server cost is measured. If the
+  measurements miss it, the plan stops and asks rather than promising less in the UI. Data that
+  is stale shows as stale, and a failed read keeps the last good values. A scoreboard needing
+  faster updates uses the ± controls.
 
 Open, recommendation first:
 
-- **D3. How fresh.** Recommendation: a change in the Sheet is on screen within 10 seconds, read
-  every 5 seconds unless phase 1's measurement forces slower. A scoreboard needing faster updates
-  uses the ± controls.
 - **D4. The four score controls.** Recommendation: once a field is connected, its Live numbers ±
   and Goal buttons change the connected value rather than the cue field (`PRODUCTION_DATA_PLAN.md`
   §2.9, still open), so there is one number with several buttons. Can be split out if it widens
@@ -192,10 +198,11 @@ unconnected and the reason is shown. The cue editor shows each connected field's
 name. Layer: Node test on the matching; the journey above.
 
 ### AC-3: A cell edit reaches the output without a Take
-With a connected graphic on air, editing its cell changes the output within the D3 target; nothing
+With a connected graphic on air, editing its cell changes the output within 10 seconds (D3),
+measured over at least 20 real edits of a real Sheet with the slowest reported, not the average; nothing
 is taken, advanced or removed by the sheet. Unpublished it changes the local program; published it
 changes the published output exactly once. Layer: Node test with a fake clock and fetch for the
-change diff; configured suite for the published path; scenario run on a real Sheet.
+change diff; configured suite for the published path; the timed real-Sheet run in `evidence/`.
 
 ### AC-4: Published, the output keeps following with no operator page open
 With a published production on air, every operator page closed, an edited cell still reaches the
@@ -209,9 +216,10 @@ nothing, publishing moves reading to the server and unpublishing moves it back, 
 once in the Sheet is written once. Layer: Node test on the handover rules; configured suite for
 publish and unpublish.
 
-### AC-6: Failure is visible and safe
+### AC-6: Failure and staleness are visible and safe
 An unshared, deleted or unreachable sheet shows the status line with a plain fix and the time it
-started; the values on air stay as they were. Reading resumes on its own once the sheet answers.
+started; the values on air stay as they were. With no good read for 15 seconds the line and the
+connected fields show the data as stale, and the mark clears on the next good read. Reading resumes on its own once the sheet answers.
 Layer: Node test on the reader's states; journey for the message.
 
 ### AC-7: The operator wins
@@ -247,16 +255,19 @@ air in under five minutes without reading documentation. Layer: scenario run, re
 
 1. **The shared core** (AC-1 reading half, AC-6 states, AC-8): the source contract, the Google
    Sheets kind (link to sheet id and tab, export CSV to values), the diff against the last good
-   read, the reader states, and a test-only second kind. Node tests. Measures how often Google
-   answers one reader before refusing and how soon an edit is visible; records the interval (D3)
-   in Phase notes. No UI.
+   read, the reader states (reading, paused, stale, failing since), and a test-only second kind.
+   Node tests. With a real Sheet, measures edit-to-read time over at least 20 edits and whether
+   Google keeps answering one reader every 5 seconds for an hour; records both in `evidence/` and
+   Phase notes. A miss on D3 stops the plan for the owner. No UI.
 2. **Local productions** (AC-1, AC-2, AC-3 unpublished, AC-5 tabs, AC-7): connect, the browser
    reader under a lock, the status line with Pause, auto-connect by title, the cue editor's source
    and "Connect to…".
 3. **Published productions** (AC-3 published, AC-4, AC-5 handover, AC-6, AC-7 published): the
    server copy of a source and its read state (migration with row security), the scheduled tick
    that runs only while a published source is active, writes through the existing data patch, and
-   the publish and unpublish handover. Measures run cost per active source per hour first.
+   the publish and unpublish handover. First measures the server cost of one active source for
+   an hour (invocations, run time, database load) against the hosting plan's allowances and
+   records it in `evidence/`; then repeats the timed real-Sheet run against the published output.
 4. **One vocabulary** (AC-9), plus the stable Setup item, and D4 if the owner keeps it here.
 5. **List sheets as live tables** (AC-11), on both readers.
 6. **Retire the graphic-level panel and update `/docs`** (AC-10), then the newcomer run (AC-12).

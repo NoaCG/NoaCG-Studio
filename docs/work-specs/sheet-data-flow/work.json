@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "d27c864f554af6241155d9d0de7d53f5bdb803fb2ec17070fabb714cc06b526f",
+  "specSha256": "3c9c50dc16af62933c65085466207653e19cafca85262b5304da95bbbab2c513",
   "authority": {
     "status": "draft",
-    "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" D1, same day: \"Server instead for published productions. A connected Sheet should keep updating the output when the operator closes or reloads the playout page. Browser reading is fine for local, unpublished productions. Feed changes through the existing production data path, with one active reader per source. Show connection status and Pause in playout, and retain the last good values if reading fails. Keep the connector separate from the graphics so other data sources can use the same approach.\" D2, same day: \"Values sheets first, list sheets later, and the operator picks the shape when connecting.\" D3 and D4 await the owner."
+    "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" D1, same day: \"Server instead for published productions. A connected Sheet should keep updating the output when the operator closes or reloads the playout page. Browser reading is fine for local, unpublished productions. Feed changes through the existing production data path, with one active reader per source. Show connection status and Pause in playout, and retain the last good values if reading fails. Keep the connector separate from the graphics so other data sources can use the same approach.\" D2, same day: \"Values sheets first, list sheets later, and the operator picks the shape when connecting.\" D3, same day: \"Yes, target updates appearing within 10 seconds, reading every 5 seconds. Verify this with real Sheet edits before promising it, and measure the server cost. Show when data is stale and keep the last good values if reading fails.\" D4 awaits the owner."
   },
   "review": null
 }
