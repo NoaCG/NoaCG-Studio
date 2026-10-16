@@ -1085,7 +1085,7 @@ export function schedule(jobs, {
       // The owner has been asked whether `away` should go lower still, and the sentence must not
       // be the thing that goes stale when he answers.
       const awayNeedsMb = freeMemFloorFor('away', policy) * cost;
-      const awayWouldStart = presence !== 'away' && budgetedMb >= awayNeedsMb;
+      const awayWouldStart = !cloud && presence !== 'away' && budgetedMb >= awayNeedsMb;
       waiting.push({
         job,
         // BOTH FIGURES, because they answer different questions and only one of them is the

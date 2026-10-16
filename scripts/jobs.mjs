@@ -712,7 +712,7 @@ async function cmdList() {
   // Nothing auto-resets it: this listing is read by agents far more often than by him, and a read
   // that changed scheduling would be a worse surprise than a stale floor.
   const machine = presenceAt(dir);
-  if (machine.state === 'away' && machine.source === 'declared') {
+  if (budget.mode !== 'cloud' && machine.state === 'away' && machine.source === 'declared') {
     console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()}${machine.setBy ? ` (set by ${machine.setBy})` : ''}`
       + ` - the RAM floor is ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB. \`npm run jobs -- presence present\` if you are at it.`);
   }
@@ -720,11 +720,18 @@ async function cmdList() {
   // with the other sessions on the machine - a wait reading "budget 1/1 used" means nothing to a
   // reader who cannot see that it is a weekday morning with three sessions live.
   // Only a modest budget is explained by the sessions: a full one already says why in `budget.why`.
-  const sessionNote = !sessions || budget.mode === 'full' ? ''
+  const sessionNote = !sessions || budget.mode === 'full' || budget.mode === 'cloud' ? ''
     : sessions.known ? `, ${sessions.why}` : `, agent sessions unknown (${sessions.why})`;
-  console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`
-    + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state}, ${machine.source === 'schedule' ? 'by the schedule' : 'declared'})`
-    + `; launch no more sessions or rows under ${(launchFloorFor(machine.state) / 1024).toFixed(1)} GB free`);
+  const worker = executionProfile();
+  if (worker.kind === 'cloud') {
+    console.log(`Schedule: cloud budget, ${budget.slots} suite-equivalent - ${budget.why}; `
+      + `${worker.known ? `${worker.freeMb} MB observed headroom` : 'headroom unknown; cheap targeted gates only'}; `
+      + `${worker.workers} browser worker ceiling; one browser-driving job per VM`);
+  } else {
+    console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`
+      + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state}, ${machine.source === 'schedule' ? 'by the schedule' : 'declared'})`
+      + `; launch no more sessions or rows under ${(launchFloorFor(machine.state) / 1024).toFixed(1)} GB free`);
+  }
 
   if (pending(jobs).length === 0) {
     console.log('Job queue empty.');
