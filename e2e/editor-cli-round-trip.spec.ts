@@ -87,7 +87,8 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   expect(initial.js).not.toContain('{"slug":"riverlight","season":2026}');
   expect(initial.fields.some(f => f.field === 'festival-note')).toBe(false);
   expect(initialInspection.targets.some(t => t.id === 'festival-note')).toBe(false);
-  expect(initial.assets.map(a => a.path).sort()).toEqual(['fonts/inter.woff2', 'images/festival-mark.svg', 'thumbnail.png']);
+  // The package's manifest names thumbnail.png as its preview frame: an output of validate, never a source (#1233).
+  expect(initial.assets.map(a => a.path).sort()).toEqual(['fonts/inter.woff2', 'images/festival-mark.svg']);
   const zip = await JSZip.loadAsync(readFileSync('e2e/fixtures/cli-round-trip/riverlight.zip'));
   for (const asset of initial.assets) expect(asset.data.split(',')[1]).toBe(await zip.file(asset.path)!.async('base64'));
   await seek(page, 1); await text(page, 'f0', 'Elena Marquez');
@@ -143,11 +144,12 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
     expect(await output.locator('#festival-config').textContent()).toBe('{"slug":"riverlight","season":2026}');
     expect(await output.locator('#festival-mark').evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(72);
     for (const asset of initial.assets) {
-      if (target === 'casparcg') {
-        // This target embeds referenced resources in HTML; the unused thumbnail is editor metadata.
-        if (asset.path !== 'thumbnail.png') expect(Buffer.from(files[Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel'))!], 'base64').toString().includes(asset.data), asset.path).toBe(true);
-      } else expect(files[asset.path] === asset.data.split(',')[1], target + ': ' + asset.path).toBe(true);
+      // CasparCG embeds referenced resources in its HTML; the package targets ship them as files.
+      if (target === 'casparcg') expect(Buffer.from(files[Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel'))!], 'base64').toString().includes(asset.data), asset.path).toBe(true);
+      else expect(files[asset.path] === asset.data.split(',')[1], target + ': ' + asset.path).toBe(true);
     }
+    // The imported package's old preview frame does not travel on into an export.
+    expect(files['thumbnail.png'], target + ': thumbnail.png').toBeUndefined();
     await expect.poll(() => output.locator('#f0').evaluate(el => document.fonts.check('700 52px Inter') && getComputedStyle(el).fontFamily.includes('Inter')), { message: target + ' loaded Inter' }).toBe(true);
     await command('stop'); await expect.poll(() => output.locator('.graphic').evaluate(el => getComputedStyle(el).opacity)).toBe('0');
     outputs.push({ target, pose: outputPose }); await output.close();
