@@ -47,14 +47,17 @@ read is the text this branch lands.
 - H (Codex, website and crest): the HJK brief from the baseline (D), which then used the crest
   without a word. Report now: "The blue, white, League Spartan font, and crest come from HJK's
   website. The crest belongs to HJK; you need permission to show it on air." League Spartan is
-  bundled with its OFL text. Pass.
+  bundled with its OFL text. It does not say what it could not use (the site's stylesheet also
+  names other faces), so this is short of the criterion. Partial.
 - G (Codex, local logo): the roller-derby brief with `kallio-rollers-logo.png` in the folder. It
   used the logo and its teal and hot pink, bundled Bebas Neue from Google Fonts with its OFL text,
   showed the scoreboard's buttons and waited for confirmation before saving, then saved both. Its
   final report did not repeat the sources and gave no rights line; for the user's own logo that
   line matters less, but the report is thinner than the skill asks. Partial.
 
-Every bundled font in F, G and H carries its licence text; in the baseline, one run of four did.
+Every font F, G and H added beside NoaCG's own carries its licence text. In the baseline the
+generated `FONT_LICENSES.md` covered the fonts NoaCG ships, and only C added a licence for a
+font of its own.
 
 ## Seen outside the criteria
 

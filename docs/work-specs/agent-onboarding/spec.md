@@ -25,11 +25,13 @@ stands: no house look and no taste rules by default. Taking in the USER'S brand 
    example briefs that show what NoaCG does (a set from a website's brand, operator buttons with a
    logo file, a production from colours and a font), and one line saying the person can paste
    their website, put a logo or pictures in the folder, or name colours and fonts. A person who
-   already gave a brief gets no examples. The three, chosen by the owner on 2026-10-16:
+   already gave a brief gets no examples. The three, chosen by the owner on 2026-10-16 (the
+   third first said "navy and amber", NoaCG's own palette, which the D1 guard keeps out of the
+   default skill; the owner chose purple and coral instead):
    - "A name strap and an opening title for our panel debate, in our brand from https://our-site.org"
    - "A basketball scoreboard with +1/+2/+3 buttons and a game clock; our logo is logo.png in this
      folder"
-   - "A podcast set: guest strap, topic bar and a LIVE bug in navy and amber with Space Grotesk,
+   - "A podcast set: guest strap, topic bar and a LIVE bug in purple and coral with Space Grotesk,
      as a production in show order"
 
    It names the connected account once, as `login` and `whoami` print it, and does not compare
@@ -47,8 +49,10 @@ stands: no house look and no taste rules by default. Taking in the USER'S brand 
    - A font is bundled into `fonts/` only when its licence allows it (an open licence such as the
      OFL most Google Fonts carry, with its licence text); otherwise ask for the files or name a
      close free font.
-   - The final report says what was used, where it came from, what could not be used, and that a
-     logo or crest is someone's trademark the user needs the right to use.
+   - The final report (the one with the links, even after a confirmation turn) says what was
+     used and where each value came from, what could not be used (or that all of it was), and,
+     for a logo or crest that is not plainly the user's own, that it belongs to its owner and
+     the user needs the right to show it on air.
 4. **`validator.md` says what `missing-asset` checks today**: `assets/` and `lottie/` only, as an
    error in `validate` and `save`. A missing `images/` or `fonts/` file is not caught; the skill
    tells the agent to see the logo in the frames. Making the validator check them is a separate

@@ -3,8 +3,7 @@ name: noacg-graphic
 description: >-
   Make, critique or improve a broadcast graphic or show package (lower third, scoreboard,
   ticker, countdown, any on-air graphic) and save it to NoaCG. Use when the user names NoaCG,
-  SPX, CasparCG or OGraf, or wants graphics operated live (Take/Update/Out). Also use when they
-  ask what NoaCG or its plugin can do, or are starting out with it.
+  SPX, CasparCG or OGraf, wants graphics operated live, or asks what NoaCG can do.
 ---
 
 # Make a NoaCG graphic
@@ -39,7 +38,7 @@ these three example briefs, then the line under them, in the user's language:
 
 - "A name strap and an opening title for our panel debate, in our brand from https://our-site.org"
 - "A basketball scoreboard with +1/+2/+3 buttons and a game clock; our logo is logo.png in this folder"
-- "A podcast set: guest strap, topic bar and a LIVE bug in navy and amber with Space Grotesk, as a production in show order"
+- "A podcast set: guest strap, topic bar and a LIVE bug in purple and coral with Space Grotesk, as a production in show order"
 
 "You can paste your website, put a logo or pictures in this folder, or name your colours and
 fonts, and I will use them." A user who already gave a brief gets no examples.
@@ -188,9 +187,11 @@ never invent one they did not give.
 - **A font** is bundled into `fonts/` with `@font-face` only when its licence allows that (an open
   licence such as the OFL most Google Fonts carry, with the licence text copied beside it). A
   commercial font: ask the user for its files and their licence, or use a close free font and say so.
-- **Report it**: in the final report, say which colours, fonts and logo you used and where each
-  came from, what you could not use and why, and that a logo or crest belongs to its owner, so
-  the user needs the right to show it on air.
+- **Report it** in the final report, the one with the links, even when an earlier message said
+  it: the colours, fonts and logo you used and where each came from (a colour the user named is
+  theirs, not the logo's); what you could not use and why, or that you used all of it; and for a
+  logo or crest that is not plainly the user's own, that it belongs to its owner, so the user
+  needs the right to show it on air.
 
 ## Fields and behaviour: build for the operator's show
 
