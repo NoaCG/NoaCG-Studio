@@ -71,6 +71,10 @@ const KNOCKED_OUT_NAME = svg(
   + '<circle cx="300" cy="300" r="250" fill="none" stroke="#FF2E88" stroke-width="30"/>',
 );
 
+/** The badge with its disc at half opacity: the same shape, but the tile shows through the
+ *  plate, so it is no plate. */
+const TRANSLUCENT_BADGE = BADGE.replace('fill="#0B3B3C"/>', 'fill="#0B3B3C" fill-opacity="0.5"/>');
+
 /** Two inks in one piece with no hole, but a cross leaves most of its box open: a shape, not a
  *  plate, so its inks are what meet the tile. */
 const CROSS = svg(
@@ -109,6 +113,7 @@ const CASES = {
   knockoutOnLight: { svgText: KNOCKOUT, tile: '#f5f2ec' },
   blankDiscOnItsTone: { svgText: BLANK_DISC, tile: '#0E4546' },
   knockedOutNameOnItsTone: { svgText: KNOCKED_OUT_NAME, tile: '#0E4546' },
+  translucentBadgeOnTeal: { svgText: TRANSLUCENT_BADGE, tile: '#0FB5AE' },
   crossOnMidGrey: { svgText: CROSS, tile: '#707070' },
   splitTilesOnMidGrey: { svgText: SPLIT_TILES, tile: '#707070' },
 };
@@ -146,4 +151,8 @@ test('a two-ink shape that leaves most of its box open is no plate, and is still
 
 test('two separate pieces are no plate, however much of the box they fill, and are still reported', () => {
   assert.equal(measured.splitTilesOnMidGrey.length, 1, JSON.stringify(measured));
+});
+
+test('a plate the tile shows through is no plate, and is still reported', () => {
+  assert.equal(measured.translucentBadgeOnTeal.length, 1, JSON.stringify(measured));
 });

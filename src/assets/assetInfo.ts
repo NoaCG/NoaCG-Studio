@@ -317,7 +317,9 @@ function isPlate(px: Uint8ClampedArray, w: number, h: number): boolean {
   let solidCount = 0;
   let minX = w, minY = h, maxX = -1, maxY = -1;
   for (let i = 0; i < n; i += 1) {
-    if (px[i * 4 + 3] < INK_ALPHA) continue;
+    // FULLY opaque, as the box-opacity test above counts it: a translucent plate lets the
+    // surface through, and the surface then takes part in every colour the mark shows.
+    if (px[i * 4 + 3] < 255) continue;
     solid[i] = 1;
     solidCount += 1;
     const x = i % w, y = (i - x) / w;
