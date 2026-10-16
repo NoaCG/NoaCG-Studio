@@ -77,3 +77,13 @@ Acceptance additions:
   Back, two sequential exports, saved/cloud/on-air separation and earlier
   cumulative rendered/output receipts. Browser work stays in disposable CI at
   the unchanged 4 GB local floor. A fresh checker follows landing.
+
+## Newer-edit discard repair, 2026-10-16
+
+The second independent check found that an edit accepted during the autosave drain was
+erased without refusal ([#1147](https://github.com/NoaCG/NoaCG-Studio/issues/1147)). Discard
+now compares against the editing context at the click, so either wait refuses with the
+existing stale-edit message and keeps the newer source, session, selection and Undo/Redo.
+Durable-before-live replacement and the final comparison stay. The checker's two cases are
+maintained with their assertions, and each wait has its own case. Both waits were reproduced
+on main first. [Receipt](repair-2/README.md).

@@ -699,6 +699,13 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-16: newer-edit discard repair (#1147)
+
+- Last check's findings: [#1147](https://github.com/NoaCG/NoaCG-Studio/issues/1147). A command edit accepted while Discard drained the pending autosave was discarded without refusal, because `before` was captured after `await commitDurableWrites()`. The original failure was run 38486709664 on probe `39a900183` (`e2e/leave-second-checker.spec.ts:106`, assertion `:135`). Fresh reproduction was run 38798506098 (`fbb83d01`).
+- [Repair receipt](work-specs/editor-leave-reliability/repair-2/README.md): the snapshot is now taken at the Discard click, before both waits. Durable replacement still precedes any live change, and the final comparison stays. Both checker cases (`:91`, `:106`) are maintained with their assertions in `e2e/new-graphic-guard.spec.ts`. One added case per wait proves which write it held. On main, the checker cases and the autosave-wait case fail in CI. The fix passes the complete lifecycle selection: 77 passed, eight unchanged legacy skips. Two references, export and four cumulative/native tasks also pass, with nine browser outputs executing.
+- Next phase must allow for: an edit made during the drain still lets the clean replacement be written. It then refuses and re-persists the newer draft, because the carried `:106` assertion pins that write. A fresh independent check precedes Phase 3. Cloud-status work stays Phase 2.
+- Trap: the checker's linked-SAVE refusal (`leave-checker.spec.ts:24`) arms a one-shot `spx-gfx-graphics` refusal. Once, an unidentified library write consumed it before Save did (run 38958180195), so the app announced it and Save navigated. It passed on main and on the same commit. Pin the refused write to the Save receipt rather than the next put.
+
 ### 2026-10-14: second independent leave-editor check failed
 
 - [Second independent receipt](work-specs/editor-leave-reliability/independent-2/README.md): the unchanged original quota-refusal test now passes, retaining Undo and successful retry. A distinct deterministic challenge loses a newer accepted command edit during the earlier autosave drain, then mounts Home without refusal. The stale snapshot is captured after that wait. [#1147](https://github.com/NoaCG/NoaCG-Studio/issues/1147) records the source boundary, failure and trace. No product code was changed by the checker.
