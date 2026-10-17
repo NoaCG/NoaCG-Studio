@@ -568,21 +568,21 @@ export default function AiStep({
   // composition, shared with the Lite benchmark runners. The safety screen sits INSIDE the
   // injected validator on purpose: the bench executes the result the moment it lands, so a
   // finding has to reach the provider's repair loop rather than a review step the code has
-  // already run past. `imported` is the source for a convert, so a template that already
-  // called fetch() before the AI touched it is not reported as something the AI introduced.
+  // already run past. `source` is the template a result was converted from (creation.ts picks
+  // it per route), so a template that already called fetch() before the AI touched it is not
+  // reported as something the AI introduced.
   // The structured setup adds its own checks on top (requested fields present, fonts used).
   // Every "use it as it is" upload is protected: the as-is screen rides inside the injected
   // validator so a tinted or cropped mark reaches the repair loop, not just the result card.
-  const safeValidate: SpxValidator = productionSpxValidator(
-    imported?.template ?? null,
-    images.map((a) => a.path),
-  );
-  const validate: SpxValidator = withSpecChecks(safeValidate, activeSpec) ?? safeValidate;
+  const validatorFor = (source?: SpxTemplate | null): SpxValidator => {
+    const safe = productionSpxValidator(source, images.map((a) => a.path));
+    return withSpecChecks(safe, activeSpec) ?? safe;
+  };
   // What a run takes from the browser (src/ai/creation.ts); the structural check and the mark
   // probe need a live DOM.
   const creationIo: CreationIO = {
     provider: getAiProvider,
-    validate,
+    validatorFor,
     structuralCheck: benchStructuralIntent,
     probeMark,
     onProgress: setBusy,
@@ -591,7 +591,7 @@ export default function AiStep({
   const showChange = (change: AiTemplateChange) => {
     // The one place every path passes through on its way to the user (`generateRaw` never runs
     // the injected validator), so the safety screen runs here too.
-    const v = screenChange(change, imported?.template);
+    const v = screenChange(change);
     setSummary(change.summary);
     setValidation(v);
     setLastPath(change.path ?? null);
@@ -802,7 +802,7 @@ export default function AiStep({
       setError(null);
       try {
         const change = await refineResult(
-          { result, instruction, level, spec: lastSpec, context: contextFor(), lite: liteActive },
+          { result, instruction, level, spec: lastSpec, context: contextFor(), lite: liteActive, convertedFrom: alternatives[selected]?.convertedFrom },
           creationIo,
         );
         setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));

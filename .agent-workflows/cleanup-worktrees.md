@@ -142,7 +142,7 @@ should run in it.
   while it is detached, but a home that is only safe while it stays detached is one reattachment
   away from being swept.
 - **A worktree some process is in is left exactly as it is.** It is moved aside (to
-  `<git-common-dir>/noacg-cleanup/removing/<pid>/<name>`, where no scanner looks) before it is
+  `<git-common-dir>/noacg-cleanup/removing/<pid>/<slot>/<name>`, where no scanner looks) before it is
   archived or removed, and Windows refuses that rename while any process has its working directory
   or an open file inside; the refusal is reported as "in use", not as a failure, and nothing in it
   is touched. (A plain `git worktree remove` deletes every file first and fails only on the empty

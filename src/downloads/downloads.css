@@ -59,9 +59,16 @@
 .doc-body .dl-card .dl-more a { color: var(--amber); }
 .doc-body .dl-card .dl-note { font-size: 14px; }
 .dl-card pre { margin: 8px 0; }
+/* A card is half the page wide, so an install line is longer than its block at 1440px as well as
+   on a phone. Scrolling it sideways ran its end under the Copy button, out of sight (#1265), and a
+   command a person cannot read in full is one they cannot check before pasting. So it wraps
+   inside its block, the way the prompt above it does (pre.prompt in src/docs/docs.css), clear of
+   the button the block's right padding keeps room for. Wrapping is visual only: the button copies
+   innerText, which holds no soft breaks. */
+.dl-card .cmd pre { white-space: pre-wrap; overflow-wrap: break-word; }
 /* An inline name in a sentence may break anywhere: a policy name such as
    LoopbackNetworkAccessAllowedForUrls is one word wider than a 320px phone's card, and it pushed
-   the whole page sideways. A command block scrolls inside itself instead. */
+   the whole page sideways. */
 .dl-card :not(pre) > code { overflow-wrap: anywhere; }
 
 /* WHICH BROWSER: a two-column table, a verdict pill on the left and one sentence on the right.

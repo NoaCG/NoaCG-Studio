@@ -1,0 +1,459 @@
+{
+ "main": {
+  "checked": "5ccdbbc4471bafbba81a90f58b8335e4fc64ab18",
+  "containsRepair": "c683409351071bb66675baadced88c51df22c3a3 (#1333)",
+  "productTreeSince": "0cf2e0511 (the probe base); 8d48e2c5e..HEAD changes src/export/targets/{ograf,liveos}.ts only",
+  "ci": {
+   "5ccdbbc44 push 38997059058": "in progress at 03:37Z: E2E 1/11 cancelled, retry job running, 10/11 shards and Build green",
+   "0cf2e0511 push 38990305985": "cancelled (superseded)",
+   "8d48e2c5e push 38986504813": "success (descendant of c6834093)"
+  },
+  "postLanding": {
+   "5ccdbbc44 38997059067": "success",
+   "0cf2e0511 38990305892": "success"
+  },
+  "quarantine": {
+   "5ccdbbc44 38997059076": "success",
+   "0cf2e0511 38990305880": "success"
+  },
+  "configuredSuite": {
+   "5ccdbbc44 38997059063": "success",
+   "0cf2e0511 38990305982": "success"
+  }
+ },
+ "ci": [
+  {
+   "run": 38994640363,
+   "sha": "8cf5ce1e1",
+   "conclusion": "failure",
+   "steps": {
+    "original independent leave-checker.spec.ts (unchanged)": "2 passed, 1 failed: :24 linked-save refusal navigated to Graphics with the app-level Could not save notice",
+    "second checker leave-second-checker.spec.ts (unchanged 39a900183)": "4 passed",
+    "same-job rerun, leave-checker.spec.ts": "3 passed",
+    "same-job rerun, second checker :106": "1 passed"
+   },
+   "counted": "product finding (see linked-save-race.json), not a recipe fault"
+  },
+  {
+   "run": 38994642554,
+   "sha": "8cf5ce1e1",
+   "conclusion": "failure",
+   "steps": {
+    "leave-third-checker.spec.ts": "No tests found: the spec was only added in e43703571 (recipe fault, fixed by 38995037370)",
+    "references": "2 passed",
+    "maintained selection (12 files incl. leave-checker, leave-second-checker, project, new-graphic-guard, wizard-draft-guard, library)": "83 passed, 8 skipped, 0 failed",
+    "two-graphic export": "1 passed",
+    "cumulative desktop/laptop/native 125%": "4 passed"
+   },
+   "counted": "recipe fault in step 1 only; later steps counted"
+  },
+  {
+   "run": 38994644646,
+   "sha": "8cf5ce1e1",
+   "conclusion": "success",
+   "steps": {
+    "signed-in localhost account, local Supabase": "1 passed"
+   }
+  },
+  {
+   "run": 38995037370,
+   "sha": "e43703571",
+   "conclusion": "success",
+   "steps": {
+    "leave-third-checker.spec.ts": "10 passed"
+   }
+  },
+  {
+   "run": 38995038980,
+   "sha": "e43703571",
+   "conclusion": "success",
+   "steps": {
+    "pinned references + source hashes": "2 passed"
+   }
+  }
+ ],
+ "local": [
+  {
+   "job": "j-0010",
+   "sha": "0cf2e0511",
+   "cmd": "leave-third-checker.spec.ts (earlier 7-case version)",
+   "result": "7 passed"
+  },
+  {
+   "job": "j-0011",
+   "sha": "0cf2e0511",
+   "cmd": "--grep quota",
+   "result": "2 passed"
+  },
+  {
+   "job": "j-0012",
+   "sha": "0cf2e0511",
+   "cmd": "--grep diagnosis --repeat-each=4",
+   "result": "4 passed, beforeSave library puts 0"
+  },
+  {
+   "job": "j-0013",
+   "sha": "5ccdbbc44",
+   "cmd": "leave-checker.spec.ts --repeat-each=5 --workers=4",
+   "result": "13 passed, 2 failed: :24 navigated after refused save (repeat2); :53 refusal consumed by a background slot write when Home was clicked, app-level notice covered the question (repeat0)"
+  },
+  {
+   "job": "j-0014",
+   "sha": "5ccdbbc44",
+   "cmd": "leave-third-diagnosis.spec.ts --repeat-each=16 --workers=4",
+   "result": "15 passed (1 navigated after refused save), 1 harness error"
+  }
+ ],
+ "receipts": {
+  "thirdChecker": {
+   "linked-replacement-reload.json": {
+    "wait": "replacement",
+    "after": "reload",
+    "heldDirty": false,
+    "ordinaryInput": {
+     "sourceChanged": false,
+     "urlChanged": false,
+     "url": "http://127.0.0.1:5174/app?editor=foundation#/editor-foundation"
+    },
+    "refusedKeptNewer": true,
+    "sameContextHistorySelection": true,
+    "libraryBytesUnchanged": true,
+    "retryRestoredBytes": true,
+    "noRepeatedQuestion": true
+   },
+   "unsaved-text.json": {
+    "kind": "text",
+    "redoBefore": {
+     "undo": 1,
+     "redo": 1
+    },
+    "ordinaryInput": {
+     "sourceChanged": false,
+     "urlChanged": false,
+     "url": "http://127.0.0.1:5174/app?editor=foundation#/editor-foundation"
+    },
+    "refusedKeptNewer": true,
+    "retryCleanDefault": true,
+    "noLibraryRecord": true,
+    "libraryBytes": null,
+    "noRepeatedQuestion": true
+   },
+   "ordinary-discard.json": {
+    "backsBeforeQuestion": 2,
+    "cancelKeptUrlSourceHistory": true,
+    "unsavedCleanDefault": true,
+    "noLibraryRecord": true,
+    "linkedBytesUnchanged": true,
+    "reloadNoQuestion": true
+   },
+   "unsaved-store.json": {
+    "kind": "store",
+    "redoBefore": {
+     "undo": 1,
+     "redo": 1
+    },
+    "ordinaryInput": {
+     "sourceChanged": false,
+     "urlChanged": false,
+     "url": "http://127.0.0.1:5174/app?editor=foundation#/editor-foundation"
+    },
+    "refusedKeptNewer": true,
+    "retryCleanDefault": true,
+    "noLibraryRecord": true,
+    "libraryBytes": null,
+    "noRepeatedQuestion": true
+   },
+   "linked-replacement-redo-retry.json": {
+    "wait": "replacement",
+    "after": "redo-retry",
+    "heldDirty": false,
+    "ordinaryInput": {
+     "sourceChanged": false,
+     "urlChanged": false,
+     "url": "http://127.0.0.1:5174/app?editor=foundation#/editor-foundation"
+    },
+    "refusedKeptNewer": true,
+    "sameContextHistorySelection": true,
+    "libraryBytesUnchanged": true,
+    "retryRestoredBytes": true,
+    "noRepeatedQuestion": true
+   },
+   "quota-replacement.json": {
+    "refused": "replacement",
+    "history": {
+     "undo": 1,
+     "redo": 1
+    },
+    "undoRedoAfterRefusal": true,
+    "reloadKeptDraft": true,
+    "slotBeforeReloadMatchesDraft": true,
+    "retryRestoredSavedBytes": true,
+    "libraryBytesUnchanged": true
+   },
+   "quota-autosave.json": {
+    "refused": "autosave",
+    "history": {
+     "undo": 2,
+     "redo": 0
+    },
+    "undoRedoAfterRefusal": true,
+    "reloadKeptDraft": false,
+    "slotBeforeReloadMatchesDraft": false,
+    "retryRestoredSavedBytes": true,
+    "libraryBytesUnchanged": true
+   },
+   "linked-autosave-reload.json": {
+    "wait": "autosave",
+    "after": "reload",
+    "heldDirty": true,
+    "ordinaryInput": {
+     "sourceChanged": false,
+     "urlChanged": false,
+     "url": "http://127.0.0.1:5174/app?editor=foundation#/editor-foundation"
+    },
+    "refusedKeptNewer": true,
+    "sameContextHistorySelection": true,
+    "libraryBytesUnchanged": true,
+    "retryRestoredBytes": true,
+    "noRepeatedQuestion": true
+   },
+   "linked-autosave-redo-retry.json": {
+    "wait": "autosave",
+    "after": "redo-retry",
+    "heldDirty": true,
+    "ordinaryInput": {
+     "sourceChanged": false,
+     "urlChanged": false,
+     "url": "http://127.0.0.1:5174/app?editor=foundation#/editor-foundation"
+    },
+    "refusedKeptNewer": true,
+    "sameContextHistorySelection": true,
+    "libraryBytesUnchanged": true,
+    "retryRestoredBytes": true,
+    "noRepeatedQuestion": true
+   }
+  },
+  "account": {
+   "backend": "disposable local Supabase",
+   "signedIn": true,
+   "saveConfirmed": true,
+   "cloudMatchesSave": true,
+   "discardKeptCloudRecord": true,
+   "reloadKeptSavedSource": true,
+   "cancelledNamingKeptDraft": true,
+   "neverSavedDiscardAddedNoCloudRecord": true
+  },
+  "studio": {
+   "cancelKept": true,
+   "newDiscarded": true,
+   "savedFileUnchanged": true,
+   "reopened": true,
+   "pin": "3142fc7d",
+   "runtime": "v0.17",
+   "nativePicker": "download/input fallback"
+  },
+  "eyevinn": {
+   "pin": "616841bd949e3a21137579451123f66c292543f0",
+   "switchAutoSaved": true,
+   "cancelDeletion": true,
+   "explicitDeletion": true,
+   "otherTemplatePreserved": true
+  },
+  "cumulative": {
+   "desktop.json": {
+    "label": "desktop",
+    "shape": "#rectangle-1",
+    "duplicate": "#rectangle-1-copy-1",
+    "fields": [
+     "f0",
+     "f1"
+    ],
+    "assets": [
+     "fonts/inter.woff2",
+     "images/festival-mark.svg"
+    ],
+    "outputs": [
+     {
+      "target": "SPX export",
+      "errors": [],
+      "download": "independent_interaction_check_desktop_spx.zip"
+     },
+     {
+      "target": "CasparCG export",
+      "errors": [],
+      "download": "independent_interaction_check_desktop_casparcg.zip"
+     },
+     {
+      "target": "OGraf (EBU) export",
+      "errors": [],
+      "download": "independent_interaction_check_desktop_ograf.zip"
+     }
+    ],
+    "errors": [],
+    "failed": [],
+    "controls": {
+     ".ef-shell": [
+      1920,
+      1080
+     ],
+     ".ef-viewport": [
+      1640,
+      534
+     ],
+     ".ef-timeline": [
+      1920,
+      335
+     ],
+     ".ef-inspector": [
+      280,
+      637
+     ]
+    }
+   },
+   "laptop.json": {
+    "label": "laptop",
+    "shape": "#rectangle-1",
+    "duplicate": "#rectangle-1-copy-1",
+    "fields": [
+     "f0",
+     "f1"
+    ],
+    "assets": [
+     "fonts/inter.woff2",
+     "images/festival-mark.svg"
+    ],
+    "outputs": [
+     {
+      "target": "SPX export",
+      "errors": [],
+      "download": "independent_interaction_check_laptop_spx.zip"
+     },
+     {
+      "target": "CasparCG export",
+      "errors": [],
+      "download": "independent_interaction_check_laptop_casparcg.zip"
+     },
+     {
+      "target": "OGraf (EBU) export",
+      "errors": [],
+      "download": "independent_interaction_check_laptop_ograf.zip"
+     }
+    ],
+    "errors": [],
+    "failed": [],
+    "controls": {
+     ".ef-shell": [
+      1366,
+      768
+     ],
+     ".ef-viewport": [
+      1086,
+      317
+     ],
+     ".ef-timeline": [
+      1366,
+      240
+     ],
+     ".ef-inspector": [
+      280,
+      420
+     ]
+    }
+   },
+   "actual-125.json": {
+    "label": "actual-125",
+    "shape": "#rectangle-1",
+    "duplicate": "#rectangle-1-copy-1",
+    "fields": [
+     "f0",
+     "f1"
+    ],
+    "assets": [
+     "fonts/inter.woff2",
+     "images/festival-mark.svg"
+    ],
+    "outputs": [
+     {
+      "target": "SPX export",
+      "errors": [],
+      "download": "independent_interaction_check_actual_125_spx.zip"
+     },
+     {
+      "target": "CasparCG export",
+      "errors": [],
+      "download": "independent_interaction_check_actual_125_casparcg.zip"
+     },
+     {
+      "target": "OGraf (EBU) export",
+      "errors": [],
+      "download": "independent_interaction_check_actual_125_ograf.zip"
+     }
+    ],
+    "errors": [],
+    "failed": [],
+    "controls": {
+     ".ef-shell": [
+      1093,
+      545
+     ],
+     ".ef-viewport": [
+      813,
+      196
+     ],
+     ".ef-timeline": [
+      1093,
+      180
+     ],
+     ".ef-inspector": [
+      280,
+      269
+     ]
+    }
+   },
+   "native-camera.json": {
+    "zoom": 2,
+    "pan": [
+     31,
+     -13
+    ],
+    "outerWindows": [
+     [
+      1920,
+      1080
+     ],
+     [
+      1366,
+      768
+     ]
+    ],
+    "sourceUnchanged": true,
+    "historyUnchanged": true
+   },
+   "zoom.json": {
+    "zoom": 1.25,
+    "finalZoom": 1.25,
+    "metrics": {
+     "innerWidth": 1093,
+     "innerHeight": 545,
+     "outerWidth": 1366,
+     "outerHeight": 768,
+     "devicePixelRatio": 1.25,
+     "visualScale": 1
+    }
+   },
+   "nested-copy.json": {
+    "a": "#rectangle-1",
+    "b": "#rectangle-2",
+    "c": "#rectangle-3",
+    "inner": "#group-1",
+    "outer": "#group-2",
+    "copy": "#group-2-copy-1",
+    "shiftConstraint": true,
+    "renameOwnsKeys": true,
+    "oneUndo": true,
+    "exactEscape": true,
+    "stableRedo": true
+   }
+  }
+ }
+}

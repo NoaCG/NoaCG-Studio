@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 
-const { SPX_TEXT_JS, spxTextJs, spxTextScript, SPX_TEXT_SCRIPT_ID } = await import('../src/export/spxText.ts');
+const { SPX_TEXT_JS, SPX_TYPED_JS, spxTextJs, spxTextScript, SPX_TEXT_SCRIPT_ID } = await import('../src/export/spxText.ts');
 
 /** SPX 1.4.1's cleanUpString (utils/spx_server_functions.js), verbatim, minus its log line. */
 function cleanUpString(str) {
@@ -24,6 +24,9 @@ function cleanUpString(str) {
   temp2 = temp2.replace(/\\/g, '&#92;');
   return temp2;
 }
+
+/** Each value as SPX hands it over. */
+const escaped = (fields) => Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, cleanUpString(v)]));
 
 /** A page with js/template.js loaded (the contract's setFieldValue and update), then, when asked,
  *  the SPX package's text script after it, as the package's HTML orders them. */
@@ -52,8 +55,7 @@ function page({ withScript = true, script = SPX_TEXT_JS, templateJs } = {}) {
   );
   if (withScript) vm.runInContext(script, context);
   /** What SPX does on Play or Update: escape each value, send the fields as a JSON string. */
-  const spxUpdate = (fields) =>
-    context.update(JSON.stringify(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, cleanUpString(v)]))));
+  const spxUpdate = (fields) => context.update(JSON.stringify(escaped(fields)));
   return { context, el, elements, spxUpdate };
 }
 
@@ -203,3 +205,16 @@ test('the script tag carries the id the import door strips it by', () => {
   assert.doesNotMatch(spxTextJs(['f0']), /=>|\blet\b|\bconst\b|`|\?\./);
 });
 
+/** The rule as the OGraf wrapper runs it (issue #1047): spxTyped(fields, asText, files) on the
+ *  data SPX 1.4 hands load() and updateAction(), already parsed. */
+function spxTyped(fields, asText, files) {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(SPX_TYPED_JS, context);
+  return context.spxTyped(fields, asText, files);
+}
+
+test('an OGraf payload SPX escaped comes back as typed, once only', () => {
+  const typed = { f0: "Anna O'Brien & Sons <live> \"C:\\news\"\nline two", f1: 'AT&amp;T &lt;br&gt; &#039;', f2: './images/Q&A.png' };
+  assert.deepEqual({ ...spxTyped(escaped(typed), true, ['f2']) }, typed);
+});

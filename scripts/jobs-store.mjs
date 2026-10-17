@@ -1993,6 +1993,38 @@ export function requeueDecision(branch, jobs, git = {}) {
 }
 
 /**
+ * Put a pull request GitHub's merge queue dropped back in it, before a requeued landing watches it.
+ * `{ action: 'watch' | 'restored' | 'refuse', message? }`.
+ *
+ * A landing job only WATCHES the pull request (scripts/land-watch.mjs); what queued it was the
+ * auto-merge request `add-merge` turned on. GitHub clears that request when it drops an entry - a
+ * flaky merge_group check is enough - so re-running the watcher alone read "no longer queued for
+ * auto-merge" at once and failed again with the old run's link (#1119, PR 1118 on 2026-10-13).
+ * Turning the request back on is part of re-running the declaration, and it stays one:
+ * `--match-head-commit` holds GitHub to the declared commit, so a pull request that moved is
+ * refused by GitHub rather than merged. Anything already queued, merged or unreadable is left to
+ * the watcher, which answers it as before. `job` is the landing `requeueDecision` returns,
+ * `view(pr)` reads the pull request as land-watch does, and `gh(args)` returns `{ status, out, err }`.
+ */
+export function restoreQueueEntry(job, { view, gh }) {
+  if (!/\bland-watch\.mjs\b/.test(job?.command ?? '')) return { action: 'watch' };
+  const pr = /--pr\s+(\d+)/.exec(job.command)?.[1];
+  const sha = declaredCommitOf(job);
+  if (!pr || !sha) return { action: 'watch' };
+  const now = view(pr);
+  if (now?.state !== 'OPEN' || now.autoMergeRequest || now.mergeQueueEntry) return { action: 'watch' };
+  const res = gh(['pr', 'merge', pr, '--auto', '--match-head-commit', sha]);
+  if (res.status !== 0) {
+    return {
+      action: 'refuse',
+      message: `Pull request #${pr} left the merge queue, and turning auto-merge back on at ${sha.slice(0, 8)} failed: `
+        + `${res.err || res.out || `exit ${res.status}`}`,
+    };
+  }
+  return { action: 'restored', pr };
+}
+
+/**
  * WHY a landing stopped, in the words of the fact that stopped it.
  *
  * Every one of these vanished silently at some point on 2026-08-28: a job killed at its cap

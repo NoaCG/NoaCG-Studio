@@ -89,6 +89,9 @@ export async function compare(opts) {
   const newPlanner = await import(pathToFileURL(join(ROOT, 'scripts/e2e-affected.mjs')).href);
   const { specFilesOnDisk } = await import(pathToFileURL(join(ROOT, 'scripts/e2e-durations.mjs')).href);
   const specsOnDisk = specFilesOnDisk();
+  // The import graphs this checkout's planner reads from disk, handed to both planners: the old one
+  // is a copy in a removed directory, and both should answer about the same tree.
+  const graphs = { devServer: newPlanner.devServerModules(), rawImporters: newPlanner.checkoutRawImporters() };
   const cases = [];
 
   for (const sha of lines(git('rev-list', '--first-parent', '-n', String(opts.landings), opts.old))) {
@@ -117,11 +120,11 @@ export async function compare(opts) {
   for (const c of cases) {
     if (c.missing) continue;
     for (const sprintFocus of [false, true]) {
-      const before = oldPlanner.planFor(c.changed, { sprintFocus, specsOnDisk });
-      const after = newPlanner.planFor(c.changed, { sprintFocus, specsOnDisk });
+      const before = oldPlanner.planFor(c.changed, { sprintFocus, specsOnDisk, ...graphs });
+      const after = newPlanner.planFor(c.changed, { sprintFocus, specsOnDisk, ...graphs });
       if (key(before) !== key(after)) differences.push({ ...c, sprintFocus, before, after });
     }
-    c.plan = newPlanner.planFor(c.changed, { specsOnDisk });
+    c.plan = newPlanner.planFor(c.changed, { specsOnDisk, ...graphs });
   }
   return { cases, differences };
 }

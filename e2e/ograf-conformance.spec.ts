@@ -113,7 +113,9 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
         };
         const max5 = (n: unknown) => String(Math.min(5, parseInt(String(n))));
         const layers = [max5(manifest.v_spx?.playlayer) || '1', max5(manifest.v_spx?.webplayout) || '1'];
-        if (!layers.every((l) => ['1', '2', '3', '4', '5'].includes(l)) || layers[0] !== layers[1] || manifest.v_spx?.out !== 'manual') {
+        // The out mode is the design's own, so SPX times one that leaves by itself (#1012).
+        const out = template.settings.out || 'manual';
+        if (!layers.every((l) => ['1', '2', '3', '4', '5'].includes(l)) || layers[0] !== layers[1] || manifest.v_spx?.out !== out) {
           failures.push(`${template.name} (SPX import): layers ${layers.join('/')}, out ${manifest.v_spx?.out}`);
         }
         for (const field of template.fields) {
@@ -644,6 +646,49 @@ test("one graphic's play or stop leaves the other graphics' animation alone, and
   expect(result.before, 'the quiz had no entrance running - nothing was proven').toBeGreaterThan(0);
   expect(result.after, "another graphic's play or stop killed this graphic's entrance").toBe(result.before);
   expect(result.images, 'a file field\'s package path was resolved against the renderer page').toContain(`${mark.origin}/images/logo.png`);
+});
+
+test('values SPX 1.4.1 escaped reach the graphic as typed, and values from any other host as sent', async ({ page }) => {
+  // Issue #1047: SPX HTML-escapes an OGraf item's values before load() and updateAction(), so
+  // "Anna O'Brien & Sons" aired as "Anna O&#039;Brien &amp; Sons" (docs/SPX_ON_A_REAL_SERVER.md §13).
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const [mark] = await serveCatalogPackages(page, ['Glass Mark']);
+  await spxLikeHost(page, mark.origin, SPX_RENDERER_RULES);
+  // Glass Mark: f0 is its caption, written as text; f1 its logo, a file list. Each value as typed,
+  // then as SPX hands it over (cleanUpString in SPX's utils/spx_server_functions.js).
+  const typed = { f0: "Anna O'Brien & Sons <live> \"C:\\news\"\nline two", f1: './images/Q&A.png' };
+  const loaded = { f0: 'Anna O&#039;Brien &amp; Sons &lt;live&gt; &quot;C:&#92;news&quot;&lt;br&gt;line two', f1: './images/Q&amp;A.png' };
+  // Typed as entities, which SPX escapes again.
+  const updated = { f0: 'AT&amp;T &lt;br&gt; &#039;', f1: './images/Q&A.png' };
+  const updatedSent = { f0: 'AT&amp;amp;T &amp;lt;br&amp;gt; &amp;#039;', f1: './images/Q&amp;A.png' };
+  const result = await page.evaluate(async ({ origin, loaded, updated }) => {
+    type Driver = HTMLElement & { load(p: unknown): Promise<unknown>; updateAction(p: unknown): Promise<unknown> };
+    const mod = await import(`${origin}/graphic.mjs`);
+    customElements.define('spx-text-under-test', mod.default);
+    const read = (el: Driver) => ({
+      caption: graphicBody(el).querySelector('#f0')!.textContent,
+      logo: graphicBody(el).querySelector('#f1')!.getAttribute('src'),
+    });
+    const mount = async (load: Record<string, unknown>) => {
+      const el = document.createElement('spx-text-under-test') as Driver;
+      document.getElementById('div1')!.appendChild(el);
+      await el.load({ renderType: 'realtime', ...load });
+      return el;
+    };
+    // SPX's Play: load with its own rundownData beside the data, then updateAction.
+    const spx = await mount({ data: loaded, rundownData: { ografProps: { id: 'x', version: '1' }, fields: [] } });
+    const afterLoad = read(spx);
+    await spx.updateAction({ data: updated });
+    const afterUpdate = read(spx);
+    // Any other renderer sends no rundownData: what it sends is what the graphic gets.
+    const other = await mount({ data: loaded });
+    return { afterLoad, afterUpdate, other: read(other) };
+  }, { origin: mark.origin, loaded, updated: updatedSent });
+  expect(result.afterLoad).toEqual({ caption: typed.f0, logo: `${mark.origin}/images/Q&A.png` });
+  // Undone once only, so text typed as entities comes back as typed.
+  expect(result.afterUpdate).toEqual({ caption: updated.f0, logo: `${mark.origin}/images/Q&A.png` });
+  expect(result.other).toEqual({ caption: loaded.f0, logo: `${mark.origin}/images/Q&amp;A.png` });
 });
 
 test("SPX 1.4.1's custom-action buttons reach the graphic through the package's handler, on the item's own layer", async ({ page }) => {

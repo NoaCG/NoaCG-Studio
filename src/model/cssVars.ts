@@ -18,7 +18,7 @@ export function toHex(value: string): string | null {
 }
 
 /** #rrggbb for the native color input; rgba()/other values fall back to a neutral swatch.
- *  The AI step's brand-colour rows (wizard/steps/ai/MoreControlPanel) read it. Unlike `toHex`
+ *  The AI step's brand-colour rows (wizard/ai/MoreControlPanel) read it. Unlike `toHex`
  *  it never returns null and does not expand #rgb (that becomes the neutral swatch). */
 export function pickerHex(value: string): string {
   if (/^#[0-9a-f]{6}$/i.test(value)) return value;

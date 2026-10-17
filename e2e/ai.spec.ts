@@ -1162,12 +1162,13 @@ test('a modify keeps the code the user put there themselves', async ({ page }) =
 });
 
 // LATE COMPLETION (docs/work-specs/wizard-ai/spec.md 1.3 A1). A generation the reader walked
-// away from still answers. The step's run holds no reference to the walk it started in, so the
-// answer reaches the shell through `onResult` whether or not the step is still on screen. These
-// two tests RECORD today's behaviour so the run's extraction keeps it; they do not endorse it.
-// Changing it is its own fix with its own regression test.
+// away from still answers, and the answer reaches the shell through `onResult` whether or not
+// the step is still on screen. The shell keeps it only for the walk the generation started in
+// (#1165): the ✕'s rewind ends that walk, so its answer is dropped. Home holds the walk, so an
+// answer after Home still lands in it; the first test RECORDS that as today's behaviour, which
+// is a separate decision.
 
-/** The raw path, one call per generation: the first answers at once, the second waits. */
+/** The raw path, one call per generation: the second waits for its release, the rest answer at once. */
 async function holdSecondAnswer(page: Page): Promise<{ arrived: Promise<void>; release: () => void }> {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: false })),
@@ -1179,7 +1180,7 @@ async function holdSecondAnswer(page: Page): Promise<{ arrived: Promise<void>; r
   let calls = 0;
   await page.route('/api/ai/generate', async (route: Route) => {
     calls += 1;
-    if (calls === 1) return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+    if (calls !== 2) return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
     reached();
     await held;
     // A test that failed before its release lets go as the page closes; nothing is left to answer.
@@ -1232,20 +1233,28 @@ test('late completion: an answer released after Home lands in the held walk, and
   await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 });
 
-test('late completion: an answer released after ✕ rewound the walk comes back when Create with AI is picked again', async ({ page }) => {
+test('late completion: a generation discarded with ✕ stays discarded when its answer arrives', async ({ page }) => {
   const { arrived, release } = await holdSecondAnswer(page);
   await resultThenHeldGeneration(page, arrived);
 
-  // ✕ on a working step rewinds to the front page and clears the result ("discards this draft").
+  // ✕ on a working step rewinds to the front page and discards the draft. Pick Create with AI
+  // again while the discarded generation is still out, then let its answer arrive.
   await page.locator('[data-testid="creation-wizard"] .gallery-close').click();
   await expect(page.locator('[data-entry="ai"]')).toBeVisible();
+  await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   release();
   await expect.poll(() => runsRecorded(page), GENERATED).toBe(2);
 
-  // The wizard stayed open on its front page; picking the AI card again shows the late answer
+  // The answer belongs to the walk ✕ ended, so the new walk shows nothing of it
   // (https://github.com/NoaCG/NoaCG-Studio/issues/1165).
-  await page.locator('[data-entry="ai"]').click();
-  await chooseNoacgAgent(page);
-  await expect(page.locator('.change-preview strong')).toHaveText('Late Slate');
+  await expect(page.locator('.change-preview')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
+
+  // A generation of the new walk still lands.
+  await page.locator('.wz-step textarea').fill('A simple test slate');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Test Slate', GENERATED);
   await expect(page.getByRole('button', { name: 'Next →' })).toBeEnabled();
+  await expect(page.getByText('Late Slate')).toHaveCount(0);
 });

@@ -2,7 +2,7 @@
 //
 // Which provider call runs for which tier, with which checks, and what the result carries back;
 // how a result is refined, fixed or rebuilt on another design; and the talk turn. The step
-// (`components/wizard/steps/AiStep.tsx`) owns the screen: the composer, the thread, the busy
+// (`components/wizard/ai/AiStep.tsx`) owns the screen: the composer, the thread, the busy
 // line, the result card. Everything the browser has to supply comes in through `io` - the
 // provider, the validator the step builds, the structural check and the mark probe (both need a
 // live DOM) and the busy line - so `scripts/ai-creation.test.mjs` runs every route in Node with a
@@ -52,8 +52,13 @@ export type CreationRoute = 'convert' | 'lite' | 'raw' | 'directions' | 'pro';
 /** What the browser supplies. */
 export interface CreationIO {
   provider: (profile?: CreativeAiProfileId) => AIProvider;
-  /** The step's production validator (static rules, the live bench, the safety screen). */
-  validate: SpxValidator;
+  /**
+   * The step's production validator (static rules, the live bench, the safety screen) for a
+   * result converted from `source`: a construct that template already had is the user's, not
+   * the AI's. Every route here passes the result's own source, so an unrelated import sitting
+   * in the step never hides a fresh result's finding (issue #1179).
+   */
+  validatorFor: (source?: SpxTemplate | null) => SpxValidator;
   structuralCheck: StructuralIntentChecker;
   probeMark: (asset: AssetFile) => Promise<MarkProbe | null>;
   /** The busy line: the route's own label first, then every stage the provider announces. */
@@ -132,13 +137,17 @@ export function creationRoute(state: {
  */
 export async function runCreation(input: CreationInput, io: CreationIO): Promise<CreationResult> {
   const { route, brief, context } = input;
-  const options = { validate: io.validate, structuralCheck: io.structuralCheck, onProgress: io.onProgress };
+  const source = route === 'convert' ? input.imported : null;
+  const options = { validate: io.validatorFor(source), structuralCheck: io.structuralCheck, onProgress: io.onProgress };
   // Each route opens the busy line with its own label before the provider is reached.
   switch (route) {
     case 'convert':
       io.onProgress('Converting your template…');
       if (!input.imported) throw new Error('Nothing imported to convert.');
-      return one(await io.provider().convertImport(brief, input.imported, context, options));
+      return one({
+        ...(await io.provider().convertImport(brief, input.imported, context, options)),
+        convertedFrom: input.imported,
+      });
     case 'lite':
       io.onProgress('Creating your graphic…');
       return one(await io.provider('lite').generate(brief, context, { ...options, profile: 'lite' }));
@@ -170,11 +179,13 @@ export function creationError(error: unknown, route: CreationRoute): string {
 /**
  * The verdict a result is shown with. Screened here as well as inside the injected validator,
  * because `generateRaw` (the harness OFF path) validates itself and never runs ours - this is the
- * one place every path passes through on its way to the user. `source` is the imported template
- * of a convert, so a construct it already carried is not reported as the AI's.
+ * one place every path passes through on its way to the user. Only a convert's result is
+ * screened against the template it was converted from (`convertedFrom`), so a construct the
+ * user's file already carried is not reported as the AI's; a fresh result never is, even while
+ * an unrelated import sits in the step (issue #1179).
  */
-export function screenChange(change: AiTemplateChange, source?: SpxTemplate | null): ValidationResult {
-  return mergeSafety(change.validation ?? validateTemplate(change.template), change.template, source);
+export function screenChange(change: AiTemplateChange): ValidationResult {
+  return mergeSafety(change.validation ?? validateTemplate(change.template), change.template, change.convertedFrom);
 }
 
 // ── Once a result stands: refine, fix, rebuild; and the talk ─────────────────────────────
@@ -196,6 +207,9 @@ export interface RefineInput {
   context: GenerateContext;
   /** Lite is active: the refinement runs on the Lite profile. */
   lite: boolean;
+  /** The standing result's `convertedFrom`: a fix of a convert is still checked against, and
+   *  carries, the user's file. */
+  convertedFrom?: SpxTemplate;
 }
 
 /**
@@ -205,14 +219,15 @@ export interface RefineInput {
  * their plain message, without the "Try:" suffix of a whole-result route.
  */
 export async function refineResult(input: RefineInput, io: CreationIO): Promise<AiTemplateChange> {
-  const { result, instruction, level, spec, context, lite } = input;
+  const { result, instruction, level, spec, context, lite, convertedFrom } = input;
   io.onProgress(level === 'spec' ? 'Refining…' : 'Fixing the findings…');
-  return io.provider(lite ? 'lite' : undefined).modify(instruction, result, context, {
-    validate: io.validate,
+  const change = await io.provider(lite ? 'lite' : undefined).modify(instruction, result, context, {
+    validate: io.validatorFor(convertedFrom),
     onProgress: io.onProgress,
     ...(lite ? { profile: 'lite' as const } : {}),
     ...(level === 'spec' && spec ? { spec } : {}),
   });
+  return convertedFrom ? { ...change, convertedFrom } : change;
 }
 
 /**
@@ -242,7 +257,7 @@ export async function rebuildOnChassis(
   current: AiTemplateChange | undefined,
   variantId: string,
   context: GenerateContext,
-  io: Pick<CreationIO, 'validate' | 'onProgress'>,
+  io: Pick<CreationIO, 'validatorFor' | 'onProgress'>,
 ): Promise<AiTemplateChange | null> {
   if (!current?.spec || current.spec.variantId === variantId) return null;
   io.onProgress('Rebuilding on that design…');
@@ -256,7 +271,7 @@ export async function rebuildOnChassis(
     // 'grounded+polish' path onto a template the polish pass never touched, so the card
     // would keep promising "plus a bounded custom flourish" for a flourish that is gone.
     path: 'grounded',
-    validation: demoteSpecFields(await io.validate(template)),
+    validation: demoteSpecFields(await io.validatorFor(current.convertedFrom)(template)),
   };
 }
 
@@ -294,7 +309,8 @@ async function runPro(brief: string, input: ProCreationInput, io: CreationIO): P
   const primaryGraphic = proPackage[0] ?? 'lower-third';
   // Spec-field findings demote to warnings: Pro is a fixed lower-third contract with no
   // repair loop, the grounded-assembly rule (src/ai/spec/specValidate.ts).
-  const proValidate: SpxValidator = async (t) => demoteSpecFields(await io.validate(t));
+  const validate = io.validatorFor();
+  const proValidate: SpxValidator = async (t) => demoteSpecFields(await validate(t));
   // THE USER'S OWN MARK, measured before anything is sent. Two unrelated things read the
   // probe and both need it before the model answers: the brief describes the ink in
   // content-free words, and the composer decides afterwards whether that ink can read on

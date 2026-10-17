@@ -124,8 +124,10 @@ export function cloudQueue({
  * `passing` (passed, or still waiting and will see the stamp), `rerun` (it had failed; re-run),
  * `dispatched` (no pull-request run on `sha`, so ci.yml was asked for one), or `timeout` (the run
  * was still going at the bound, with `Reviewed` red - re-run that job by hand once it finishes).
+ * With `dispatch: false` a missing pull-request run is `none` instead: the landing watcher reads a
+ * red `Reviewed` off some run, and a second whole CI run is not its call to make.
  */
-export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.now, waitMs = RUN_WAIT_MS, pollMs = RUN_POLL_MS }) {
+export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.now, waitMs = RUN_WAIT_MS, pollMs = RUN_POLL_MS, dispatch = true }) {
   const until = now() + waitMs;
   for (;;) {
     // Newest first, so a re-run's newer attempt of the same run is the one read.
@@ -133,6 +135,7 @@ export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.
     if (!Array.isArray(runs)) throw new Error('Actions run list is not an array; no CI run was dispatched.');
     const run = runs[0];
     if (!run) {
+      if (!dispatch) return { outcome: 'none' };
       gh(['workflow', 'run', 'ci.yml', '--ref', branch, '-f', 'require_review=true']);
       return { outcome: 'dispatched' };
     }

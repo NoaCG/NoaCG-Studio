@@ -271,3 +271,36 @@ test('the CLI card leads with one short prompt that copies whole and reads at ev
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   expect(clipboard.trim()).toBe(AGENT_PROMPT);
 });
+
+// THE INSTALL LINES READ IN FULL (#1265). A card is half the page wide, so at 1440px the
+// `/plugin install` line was longer than its block, scrolled sideways, and ran its end under the
+// block's Copy button. Every command block on the page now wraps inside itself, clear of its
+// button, at a desktop, a tablet and a phone width.
+test('no command runs under its Copy button, and none scrolls sideways, at any width', async ({ page }) => {
+  await fakeChannels(page, 'down');
+  await page.goto('/downloads#cli');
+  const plugin = page.locator('.dl-card .cmd', { hasText: '/plugin install noacg' });
+  await expect(plugin.locator('.cmd-copy')).toBeVisible();
+
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fit = await page.evaluate(() => {
+      const clashes: string[] = [];
+      for (const shell of Array.from(document.querySelectorAll<HTMLElement>('.dl-card .cmd'))) {
+        const pre = shell.querySelector('pre');
+        const text = shell.querySelector('pre code')?.getBoundingClientRect();
+        const copy = shell.querySelector('.cmd-copy')?.getBoundingClientRect();
+        if (!pre || !text || !copy) continue;
+        const under = text.left < copy.right && copy.left < text.right && text.top < copy.bottom && copy.top < text.bottom;
+        const scrolls = pre.scrollWidth > pre.clientWidth;
+        if (under || scrolls) clashes.push(`${pre.innerText.slice(0, 40)}${under ? ' runs under its Copy' : ''}${scrolls ? ' scrolls' : ''}`);
+      }
+      return { clashes, page: document.documentElement.scrollWidth - window.innerWidth };
+    });
+    expect(fit, `at ${width}px`).toEqual({ clashes: [], page: 0 });
+  }
+  // The wrap is visual only: the plugin line is still one line of text, so it copies as one command.
+  expect(await plugin.locator('pre').evaluate((pre) => pre.innerText.trim())).toBe(
+    '/plugin install noacg --marketplace NoaCG/NoaCG-Studio',
+  );
+});

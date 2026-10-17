@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -824,6 +824,105 @@ test('the sweep archives and verifies a worktree\'s paid output before removing 
     readFileSync(join(result.archived[0].destination, 'bench-out', 'round.jsonl'), 'utf8'),
     '{"cost":"real"}\n',
   );
+});
+
+test('two worktrees with the same folder name each park at their own path, past a leftover folder', (t) => {
+  const { primary, root } = makeRepo(t);
+  // The parking folder lives in a temp state dir, never this machine's shared one.
+  const stateDir = join(root, 'cleanup-state');
+  const previousStateDir = process.env.NOACG_CLEANUP_STATE_DIR;
+  process.env.NOACG_CLEANUP_STATE_DIR = stateDir;
+  t.after(() => {
+    if (previousStateDir === undefined) delete process.env.NOACG_CLEANUP_STATE_DIR;
+    else process.env.NOACG_CLEANUP_STATE_DIR = previousStateDir;
+  });
+  writeFileSync(join(primary, '.gitignore'), 'bench-out/\n');
+  runGit(primary, 'add', '.gitignore');
+  runGit(primary, 'commit', '-m', 'Ignore bench output');
+  runGit(primary, 'push', 'origin', 'main');
+
+  // Codex gives every worktree the same folder name: `~/.codex/worktrees/<id>/NoaCG-Studio`.
+  const worktrees = ['one', 'two'].map((id) => {
+    const branch = `codex/same-name-${id}`;
+    const path = join(root, 'codex-worktrees', id, 'NoaCG-Studio');
+    runGit(primary, 'worktree', 'add', '-b', branch, path, 'main');
+    commitInWorktree(path, `Work ${id}`);
+    runGit(path, 'push', '-u', 'origin', branch);
+    runGit(primary, 'merge', '--ff-only', branch);
+    runGit(primary, 'push', 'origin', 'main');
+    mkdirSync(join(path, 'bench-out'), { recursive: true });
+    writeFileSync(join(path, 'bench-out', 'round.jsonl'), `{"round":"${id}"}\n`);
+    return { branch, path, id };
+  });
+  const plan = assess(primary);
+  for (const worktree of worktrees) {
+    assert.equal(plan.worktrees.find((entry) => entry.branch === worktree.branch)?.action, 'remove');
+  }
+  const parked = [];
+  let leftover = null;
+  const result = applyPlan(plan, primary, {
+    prunePorts: () => [],
+    reap: noDelegations,
+    // Asked just before the second worktree is moved: by then the first is removed, and its
+    // emptied folder is put back as a process holding it would leave it, still on disk.
+    processes: (path) => {
+      if (parked.length === 1) {
+        leftover = join(parked[0], 'held.txt');
+        mkdirSync(parked[0], { recursive: true });
+        writeFileSync(leftover, 'still held\n');
+      }
+      return nothingRunning(path);
+    },
+    archive: (archivePlan) => {
+      const at = dirname(archivePlan.items[0].source);
+      assert.ok(existsSync(join(at, '.git')), `the worktree is parked whole at ${at}`);
+      parked.push(at);
+      return archiveAndVerify(archivePlan);
+    },
+  });
+
+  assert.ok(leftover, 'the first parked folder was left behind before the second move');
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.removedWorktrees.sort(), worktrees.map((w) => normalize(w.path)).sort());
+  assert.equal(parked.length, 2);
+  assert.notEqual(parked[0], parked[1], 'each worktree parks at its own path');
+  for (const at of parked) {
+    assert.ok(at.startsWith(normalize(stateDir)), `${at} is inside the temp parking folder`);
+    assert.ok(at.endsWith('/NoaCG-Studio'), `${at} keeps the worktree's own name`);
+  }
+  const rounds = result.archived.map((a) => readFileSync(join(a.destination, 'bench-out', 'round.jsonl'), 'utf8'));
+  assert.deepEqual(rounds.sort(), ['{"round":"one"}\n', '{"round":"two"}\n'], 'both outputs survive');
+  assert.equal(readFileSync(leftover, 'utf8'), 'still held\n', 'the leftover folder is left alone');
+});
+
+test('a worktree is never put back into a folder that reappeared at its old path', (t) => {
+  const { primary } = makeRepo(t);
+  writeFileSync(join(primary, '.gitignore'), 'bench-out/\n');
+  runGit(primary, 'add', '.gitignore');
+  runGit(primary, 'commit', '-m', 'Ignore bench output');
+  const worktree = addWorktree(primary, 'reappeared');
+  commitInWorktree(worktree.path);
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
+  runGit(primary, 'merge', '--ff-only', worktree.branch);
+  runGit(primary, 'push', 'origin', 'main');
+  mkdirSync(join(worktree.path, 'bench-out'), { recursive: true });
+  writeFileSync(join(worktree.path, 'bench-out', 'round.jsonl'), '{"cost":"real"}\n');
+
+  const result = applyPlan(assess(primary), primary, {
+    prunePorts: () => [],
+    reap: noDelegations,
+    processes: nothingRunning,
+    archive: () => {
+      mkdirSync(worktree.path); // an app makes a fresh folder where the worktree was
+      return { ok: false, reason: 'the archived copy cannot be read back', destination: null, files: 0, bytes: 0 };
+    },
+  });
+
+  assert.ok(
+    result.errors.some((error) => /could not be moved back from .*exists again/.test(error)),
+    `expected a refused put-back, got ${JSON.stringify(result.errors)}`,
+  );
+  assert.equal(existsSync(join(worktree.path, 'bench-out')), false, 'nothing was nested into the new folder');
 });
 
 test('a failed archive verification leaves the sweep\'s worktree and branch exactly where they were', (t) => {
