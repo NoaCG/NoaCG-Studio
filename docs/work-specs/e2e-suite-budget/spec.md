@@ -195,8 +195,10 @@ None.
 
 ## Test maintenance
 
-None yet. Each entry: date, spec files, behaviours preserved, replacement check, evidence receipt,
-measured saving.
+Each entry: date, spec files, behaviours preserved, replacement check, evidence receipt, measured
+saving.
+
+- 2026-10-17 `e2e/save-transaction.spec.ts`: 78 of its 107 matrix cases moved unchanged (same titles, same assertions, same fault injector) into `e2e/save-transaction-holds.spec.ts`, `-wizard`, `-leave` and `-leave-modal.spec.ts`, with the shared helpers in `e2e/_saveMatrix.ts`; every row of the repair-6 and repair-7 matrices (docs/work-specs/editor-leave-reliability) stays protected by the same case. Replacement check: `npx playwright test --list` over the five files declares exactly the 107 titles the one file declared. Receipt: issue #1405; the file measured 26.7 minutes on one runner in run 39048521384's retry job, above the 20-minute shard cap, so no shard could ever carry it. Measured saving: none - the same 26.7 minutes, split so the packer can place them.
 
 ## Completed maintenance
 

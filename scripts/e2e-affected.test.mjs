@@ -669,9 +669,9 @@ test('shard count follows measured minutes, and the full plan uses thirteen runn
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, [...FAKE_SUITE, 'new.spec.ts']), 7);
   // ...and an entry left behind by a deleted spec is not counted for work nobody will do.
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, ['a.spec.ts', 'b.spec.ts']), 4);
-  // The real suite reaches the measured ceiling: at the slow-runner percentile, twelve bins
+  // The real suite reaches the measured ceiling: at the slow-runner percentile, fourteen bins
   // left the heaviest inside the three-minute margin on the slowest runner measured (MAX_SHARDS).
-  assert.equal(shardsFor({ mode: 'full', specs: [] }), 13);
+  assert.equal(shardsFor({ mode: 'full', specs: [] }), 15);
 
   // A subset is sized by ITS OWN minutes, so a heavy plan gets more runners than a light one.
   assert.equal(shardsFor({ mode: 'subset', specs: ['a.spec.ts', 'b.spec.ts'] }, FAKE_TABLE), 4);

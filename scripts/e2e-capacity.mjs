@@ -64,6 +64,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * start after build, factory and the Vercel wait have mostly finished), so 13-16 from now on.
  * This restores the fit; it is not the long-term answer the suite budget spec asks for
  * (docs/work-specs/e2e-suite-budget/spec.md), which is holding and then cutting the minutes.
+ *
+ * HELD AT 13 when MAX_SHARDS went to 15, later on 2026-10-17 (#1405). The suite is 209.9
+ * table-minutes once the save-transaction matrix is measured (26.7 minutes the table had never
+ * seen: scripts/e2e-affected.mjs MAX_SHARDS), which is 98% of thirteen runners. That reading is
+ * true - the suite grew by a shard and a half in two editor repairs - and the budget spec's
+ * decision 1 is that the shard count may follow the table and the envelope does not. So every
+ * pull request is warned, one that adds measured minutes needs an exception, and the minutes
+ * are cut or the envelope is raised by a decision that cites the twenty-job ceiling, not here.
  */
 export const MAIN_RUNNERS = 13;
 /** Usage above which every pull request is warned. */

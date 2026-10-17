@@ -66,6 +66,11 @@ goes on, once.
 
 ## The matrix (`e2e/save-transaction.spec.ts`)
 
+Since 2026-10-17 the matrix is five files, `e2e/save-transaction*.spec.ts` (#1405; the row map is
+in `e2e/_saveMatrix.ts`). The in-flight leave rows below are `save-transaction-leave.spec.ts` and
+`save-transaction-leave-modal.spec.ts`; the double refusal and the two review cases are in
+`save-transaction.spec.ts` and `save-transaction-leave.spec.ts`.
+
 Repair-6's 54 cases stay. Two of them change, and 53 are added (107 in all).
 
 - **matrix replace: topbar / K, F.** These replaced the document while a topbar Save waited, by

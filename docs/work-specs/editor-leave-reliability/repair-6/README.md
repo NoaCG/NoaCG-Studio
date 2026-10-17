@@ -113,6 +113,10 @@ Back with `window.navigation` removed.
 
 ## The case matrix (`e2e/save-transaction.spec.ts`)
 
+Since 2026-10-17 the matrix is five files, `e2e/save-transaction*.spec.ts`, with the injector and
+the doors in `e2e/_saveMatrix.ts` (which says which rows live where): the 107 cases take 26.7
+minutes on one CI runner, more than a 20-minute shard holds (#1405). Every case kept its title.
+
 Each case fault-injects one write, found by its key and the function names on its put's stack.
 `hold` defers the completion notice, `refuse` throws `QuotaExceededError` once, and `late` keeps
 the transaction open and then aborts it. Each case then asserts the door's own answer, the record
