@@ -6,12 +6,12 @@
     "source": "Owner continuation of #1301 / PR #1307; existing provider schedulers first, confirmed 2026-10-17 in this session"
   },
   "review": {
-    "revision": "df8d14b969addfbf6910a1eb572589656ae108dd",
+    "revision": "82765306fe8b08abfc6fbb22289ad9044a92f3a1",
     "specSha256": "a306939cd87210ce1fc37691acef536da9c149d5dee03f26c27009e62045a358",
     "evidence": [
       {
-        "path": "docs/work-specs/native-recovery/evidence/review.md",
-        "sha256": "3c0a460b279250c9aa4dc733e596e3537c0c31365fbf3b5bde4c5c0d7463afb4"
+        "path": "docs/work-specs/native-recovery/evidence/resumed-review.md",
+        "sha256": "6bd9769d3e41fea3d220d296cf1a6e0eb37cf8860c7b59a6769cb83646f93cd9"
       }
     ],
     "criteria": [
@@ -21,7 +21,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/native-recovery/evidence/qualification.md",
-            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+            "sha256": "bedca5d79f2f3000dd3dcd72744ecd0907e53855156c51947ac376d1d6e09998"
           }
         ]
       },
@@ -31,17 +31,17 @@
         "evidence": [
           {
             "path": "docs/work-specs/native-recovery/evidence/qualification.md",
-            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+            "sha256": "bedca5d79f2f3000dd3dcd72744ecd0907e53855156c51947ac376d1d6e09998"
           }
         ]
       },
       {
         "id": "AC-3",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
             "path": "docs/work-specs/native-recovery/evidence/qualification.md",
-            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+            "sha256": "bedca5d79f2f3000dd3dcd72744ecd0907e53855156c51947ac376d1d6e09998"
           }
         ]
       },
@@ -51,11 +51,11 @@
         "evidence": [
           {
             "path": "docs/work-specs/native-recovery/evidence/context.json",
-            "sha256": "fcbfa8a79a316f17c19d0919aabc90a29cc2e569858c5483a77dbc5ff7b9d540"
+            "sha256": "7c8f0152c7bf766bef51f3abc81edb6012f94422c944056354c6073d5f84f965"
           },
           {
             "path": "docs/work-specs/native-recovery/evidence/qualification.md",
-            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+            "sha256": "bedca5d79f2f3000dd3dcd72744ecd0907e53855156c51947ac376d1d6e09998"
           }
         ]
       }
