@@ -3,7 +3,7 @@
 Research date 2026-10-17. Asked by the owner before anything is built: what the data API does
 today, which source kinds NoaCG should accept and where each enters, and whether the audience is
 just another data source. The draft spec built from this is
-`docs/work-specs/data-sources/spec.md`; its open decisions DS1-DS19 are the owner's.
+`docs/work-specs/data-sources/spec.md`; its open decisions DS1-DS20 are the owner's.
 
 **How the outside facts were read.** The cloud environment's network policy denied the hosts
 (support.google.com, developers.google.com, rssboard.org, dev.twitch.tv, owasp.org), so no page
@@ -372,7 +372,7 @@ switch, which is an operator's choice made per production (`INTERACTIVE_PLAYOUT_
 **Recommended.** Values, lists and tables; each from one source; fields connect by name, by
 themselves or from the field; the data API is the "Another system" source; feeds are read by the
 server; audience sources share the line but write only the inbox. Spelled out in the spec, with
-its nineteen open decisions. A Sheet driving a ticker is also the first experiment
+its twenty open decisions. A Sheet driving a ticker is also the first experiment
 `CLOUD_PLAYOUT.md` §7 named in 2026-08, before scores took over the plan.
 
 **Alternatives considered.**

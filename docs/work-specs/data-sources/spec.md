@@ -88,8 +88,10 @@ submit door, and no writer that reaches values or the command log exists in its 
 **Connecting.** A field connects to a value or a list by name:
 
 - **By itself:** an empty field whose title matches exactly one name connects when the source is
-  added or the graphic is (sheet AC-2). "Ticker items", "Headlines" and "Credits" are field titles
-  in the catalog today, so a list named that way connects with no step at all.
+  added, when the graphic is (sheet AC-2), or when a name first arrives from a source, such as a
+  push carrying a name the production has not seen; on a published production the server makes
+  that connection, so it holds with every page closed. "Ticker items", "Headlines" and "Credits"
+  are field titles in the catalog today, so a list named that way connects with no step at all.
 - **From the field (DS10):** the cue editor's field offers "Connect", listing values for a
   single-line field and lists for a field that takes lines, plus "Paste a Sheet or feed link".
   Pasting there creates the source, names the list after the field and connects it.
@@ -163,8 +165,9 @@ the Audience tab and staged onto a vote board cue by the operator (interactive p
   anything else reaches NoaCG through the data API with a small connector or an automation tool.
 - **DS7. The data API on the data view.** Recommendation: show it as the source "Another system"
   with the address, the key behind Reveal, an example built from this production's names, and
-  "updated N s ago" from the last push; the guide and `DATA_API.md` lead with `/patch` and names,
-  and `/update` moves to a low-level section.
+  "updated N s ago" from the last push; a pushed name connects matching fields when it first
+  arrives; the guide and `DATA_API.md` lead with `/patch` and names, and `/update` moves to a
+  low-level section.
 - **DS8. Pushing to a local production.** Recommendation: no; publishing stays the step, said
   plainly on the card with Publish one press away (as audience A5 for phones).
 - **DS9. Two sources writing one name.** Recommendation: the later write wins (today's rule and
@@ -205,6 +208,11 @@ the Audience tab and staged onto a vote board cue by the operator (interactive p
 - **DS19. A manual change to a list.** A list is one value, so under D4 an operator's edit holds
   only until any row of the source changes, not just the edited line. Recommendation: accept it
   and say so where the list is edited; to keep a fix, edit the Sheet or press Pause.
+- **DS20. Pause on pushed data.** Today nothing in NoaCG can stop a sender: "freeze" means the
+  sender stops writing. Recommendation: Pause on "Another system" makes the server refuse writes
+  from the data key with an answer that says the production paused it, while the operator's own
+  presses still work; nothing sent while paused is kept, and since pushes carry absolute values,
+  the sender's next write after Resume brings it up to date.
 
 ## Risks the research found
 
@@ -253,18 +261,22 @@ fails keeps the last good list and says why, with the time it started. Layer: No
 fixtures; journey against a stub feed; one scenario on a real public feed in `evidence/`.
 
 ### AC-5: Feed reading is safe and polite
-The server fetches only http and https addresses that resolve to public IP addresses, checks
-every redirect the same way, stops at a size and a time cap, returns parsed headlines only, sends
+The server fetches only http and https addresses that resolve to public IP addresses and connects
+to the very address it checked, never looking the name up again, so a name that answers
+differently the second time (DNS rebinding) cannot reach a private address. It checks every
+redirect the same way, stops at a size and a time cap, returns parsed headlines only, sends
 conditional requests, serves one cached read per feed address to every reader, and refuses a
 client or an address over its limit. Every server read of a feed, the published tick's included,
-goes through this fetcher. Layer: Node test with a fake resolver and fetch; configured suite for
-the route.
+goes through this fetcher. Layer: Node test with a fake resolver and fetch, including a name that
+resolves public then private; configured suite for the route.
 
 ### AC-6: The other-system door is visible
 A published production's data view shows the address, the key behind Reveal and a ready example
 built from this production's own names; a push shows "Another system: updated N s ago" within
-5 s; an unpublished production says publishing is the step. Layer: journey for the unpublished
-card; configured suite for a published push.
+5 s; the first push of a new name connects the empty fields titled with it, with every page
+closed; while the source is paused a push moves nothing and its answer says it was paused (DS20);
+an unpublished production says publishing is the step. Layer: journey for the unpublished card;
+configured suite for a published push, a first push into a fresh production, and a paused push.
 
 ### AC-7: Each value says where it came from
 The data view and a connected field name the source of each value's last write; two sources
@@ -308,8 +320,9 @@ adds its notes under this spec's `## Phase notes`. Numbers are the production-pa
     sources with its row security, the scheduled tick for Sheets and for feeds through phase 17's
     fetcher, the publish and unpublish handover, connections that reach the server at once; the
     server cost of one active source for an hour is measured and recorded first.
-19. **The other-system door** (AC-6, AC-7): the "Another system" card, last-received status, the
-    source of each value, and `DATA_API.md` and `/docs` leading with names and `/patch`.
+19. **The other-system door** (AC-6, AC-7): the "Another system" card, last-received status,
+    connecting a name on its first push, Pause enforced by the server (DS20), the source of each
+    value, and `DATA_API.md` and `/docs` leading with names and `/patch`.
 20. **One vocabulary and one shared value** (AC-8 for data sources; sheet AC-7 presses, sheet
     AC-9): the default words, the Advanced disclosure, the stable Setup item for the data view.
 21. **Tables from a Sheet** (sheet AC-11).
@@ -323,7 +336,7 @@ JSON now", a JSON phase follows phase 17 with its own criteria added here first.
 ## Readiness
 
 Before phase 15: phase 14 checked PASS on `main`; the owner has agreed this spec (`work.json`
-authority `agreed`) and answered DS1-DS19; `sheet-data-flow` and `audience-flow` updated to the
+authority `agreed`) and answered DS1-DS20; `sheet-data-flow` and `audience-flow` updated to the
 answers in the same change, with their digests current; `node scripts/work-spec.mjs status`
 reports no problems for all three.
 
