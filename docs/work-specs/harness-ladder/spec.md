@@ -116,10 +116,11 @@ configuration; a miss reports the cost and quality of each rung tried, which is 
   credit. Revert: Fable for the ladder too, or both pair orders in the exam (60 calls).
 - **D9. Money, fixed in L0 before any credit is spent:** the exam reserve $30.00 and the
   confirmation ceiling $8.00 held in the ledger; $7.32 stays unallocated. The exam's session budget
-  `B = round-up(1.5 m)` from the winner's confirmed mean `m` on Managed Agents, at most 130 cents,
-  overshoot `o` 20 cents, `R = 20 (B + o)` at most $30. A winner whose `B` would exceed 130 cents
-  cannot meet the target, and the plan stops before the exam. Revert: a new reservation before the
-  confirmation's first session.
+  `B = min(round-up(1.5 m), 130 cents)` from the winner's confirmed mean `m` on Managed Agents,
+  overshoot `o` 20 cents, so `R = 20 (B + o)` is at most $30. The 130 cents is a session cap, not
+  a test of the winner: whether the winner can meet the target is AC-5's measured cost per usable
+  graphic, and only a failed confirmation stops the plan before the exam. Revert: a new
+  reservation before the confirmation's first session.
 - **D10. The reference arm** for the exam is Claude Code with the published plugin on Opus 5.5 on
   the subscription, as in H8, for the reported comparison.
 
