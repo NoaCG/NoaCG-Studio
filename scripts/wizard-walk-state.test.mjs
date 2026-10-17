@@ -272,6 +272,24 @@ test('Close keeps the walk on Entry and holds it only when the reader left work 
   assert.equal(W.transition(empty, { kind: 'close', left: true, made: null }).held, false, 'nothing in it');
 });
 
+// ── A generation still out ───────────────────────────────────────────────────────────────────
+
+test('an AI answer still out is dropped by exactly the intents that end its walk (#1165)', () => {
+  // The shell aborts the walk's generations in `resetScreen` (CreationWizard.tsx `aiWalk`), so
+  // this policy is what decides where a late answer lands.
+  const walk = { ...W.snapshotWalk(loaded('ai')), made: null };
+  const ends = {
+    rewind: { kind: 'rewind' },
+    fresh: fresh(),
+    restore: { kind: 'restore', walk, live: null },
+    continue: { kind: 'continue' },
+    'close by Home': { kind: 'close', left: true, made: null },
+    'close by a door': { kind: 'close', left: false, made: MADE },
+  };
+  const dropped = Object.entries(ends).filter(([, intent]) => W.transition(loaded('ai'), intent).resetScreen).map(([name]) => name);
+  assert.deepEqual(dropped, ['rewind', 'fresh', 'restore'], 'Home and Continue keep the answer for the held walk');
+});
+
 // ── Has work, snapshot ───────────────────────────────────────────────────────────────────────
 
 test('nothing is work right after a fresh open, in every mode, with or without a production brand', () => {

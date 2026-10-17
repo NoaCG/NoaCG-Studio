@@ -178,6 +178,10 @@ export default function CreationWizard() {
   const onThread = useCallback((thread: AiThread | null) => dispatch({ type: 'ai', thread }), []);
   const [replayKey, setReplayKey] = useState(0);
   const acceptedAiGeneration = useRef<string | null>(null);
+  // A generation answers only into the walk it started in (#1165): an intent that resets the
+  // screen (the ✕'s rewind, a fresh open, a restore) aborts this, so a late answer is dropped.
+  // Home and Continue reset nothing, so an answer after Home still lands in the held walk.
+  const [aiWalk, setAiWalk] = useState(() => new AbortController());
   // ── BACK INTO THE WALK ──
   // The walk the last door closed the wizard on, and the graphic this stretch of wizard made. A
   // REF, not state: it has to survive the closed wizard's null render, and the save reads it
@@ -358,20 +362,16 @@ export default function CreationWizard() {
     resetScreen: () => {
       setStretchDemo(null);
       kitOps.resetScreen();
+      aiWalk.abort();
+      setAiWalk(new AbortController());
     },
-    clearAcceptedAi: () => {
-      acceptedAiGeneration.current = null;
-    },
+    clearAcceptedAi: () => { acceptedAiGeneration.current = null; },
     setResumeAsk,
   });
 
   useEffect(() => {
     if (open || !aiResult?.generationId || acceptedAiGeneration.current === aiResult.generationId) return;
-    void recordLiteOutcome({
-      generationId: aiResult.generationId,
-      action: 'discarded',
-      discardReason: 'closed',
-    }).catch(() => undefined);
+    void recordLiteOutcome({ generationId: aiResult.generationId, action: 'discarded', discardReason: 'closed' }).catch(() => undefined);
   }, [open, aiResult]);
 
   // Escape does what the ✕ does — rewind to the front page from a working step, leave from the
@@ -1050,7 +1050,7 @@ export default function CreationWizard() {
                   onLegibility={(legibility) => patch({ legibility })}
                   brandPalette={brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
-                  onResult={(template, valid, spec, generationId, path, pack) =>
+                  onResult={(template, valid, spec, generationId, path, pack) => aiWalk.signal.aborted ||
                     dispatch({ type: 'ai', result: template ? { template, valid, spec, generationId, path, pack: pack ?? null } : null })}
                   onThread={onThread}
                   onOpenImported={(imported) => {
