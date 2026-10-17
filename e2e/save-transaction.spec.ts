@@ -673,3 +673,56 @@ for (const door of ['first-kept', 'first-named', 'save-as'] as Door[]) {
     await settledClean(page, door, minted.id);
   });
 }
+
+// A Save of a graphic with nothing unsaved, its record write refused while the leave asks: the
+// refusal leaves `dirty` false, and must not read as landed (review on #1397).
+test('matrix in-flight leave: topbar / L refused on a clean graphic, home, then retry', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { before } = await prepare(page, 'topbar');
+  await page.getByTestId('save-graphic').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+  const requested = await source(page);
+  await arm(page, 'L', 'late');
+  await page.getByTestId('save-graphic').click();
+  await releasable(page);
+  await leave(page, 'home');
+  const ask = page.getByTestId('confirm-switch');
+  await expect(ask).toContainText('Saving');
+  await release(page);
+  await expect(ask.locator('.status-bad')).toBeVisible();
+  await expect(ask, 'a refused save read as landed').not.toContainText('is saved');
+  await expect(page.getByTestId('switch-save')).toHaveText('Save & continue');
+  await stayed(page);
+  expect(await errors(page)).toBe(0);
+  await page.getByTestId('switch-save').click();
+  await left(page, 'home');
+  expect(await acted(page), 'the retry wrote the record again').toEqual(['late L']);
+  const record = await saved(page, 'topbar', before);
+  expect(body(record.template)).toEqual(body(requested));
+  await nothingAsks(page, record.id);
+});
+
+// A reload before the first Save: the reservation the slot already holds is the one the mint
+// takes, so the double refusal still relinks (review on #1397).
+test('matrix double refusal after a reload: first-kept / R and K refused, reload, save again', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { before } = await prepare(page, 'first-kept');
+  await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await install(page);
+  await arm(page, 'R', 'refuse');
+  await arm(page, 'K', 'refuse');
+  await press(page, 'first-kept');
+  await expect.poll(() => acted(page)).toEqual(['refuse R', 'refuse K']);
+  await refusedHere(page, 'first-kept');
+  const minted = (await library(page)).find(g => !before.some(b => b.id === g.id))!;
+  const requested = await source(page);
+  await page.evaluate(() => new Promise(r => setTimeout(r, 1000)));
+  await settleDurableWrites(page); await page.reload();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  expect(await link(page), 'the reload found the record by the reservation the slot held before the first reload').toMatchObject({ graphicId: minted.id, dirty: true });
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible();
+  const all = await library(page);
+  expect(all, 'a second record was minted for the same work').toHaveLength(before.length + 1);
+  expect(body(all.find(g => g.id === minted.id)!.template)).toEqual(body(requested));
+  await settledClean(page, 'first-kept', minted.id);
+});

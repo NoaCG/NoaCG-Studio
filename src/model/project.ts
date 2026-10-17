@@ -61,6 +61,12 @@ export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
   if (!reservation || reservation.baseline !== baseline) reservation = { id: uuid(), baseline };
   return reservation.id;
 }
+/** Boot: the slot's persisted reservation is the document's, so a reload before its first Save
+ *  keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
+ *  the mint never takes, and a double refusal after the reload could not relink. */
+export function resumeReservation(id: string, baseline: SpxTemplate | undefined): void {
+  reservation = { id, baseline };
+}
 /** A mint took the reserved id (or found it taken): the document's next mint reserves a fresh one. */
 export function releaseReservation(): void {
   reservation = null;

@@ -176,7 +176,8 @@ function ConfirmSwitchDialog() {
   const graphicId = useTemplateStore((s) => s.saved.graphicId);
   const name = useTemplateStore((s) => s.template.name);
   const inFlight = useSaveUi((s) => s.inFlight);
-  const unsaved = useTemplateStore((s) => hasUnsavedWork(s));
+  // A refused save of an already clean graphic leaves `dirty` false: it is not landed either.
+  const unsaved = useTemplateStore((s) => hasUnsavedWork(s) || s.saved.status === 'failed');
   // Asked while a save was still writing: when it answers, a refusal is shown here, where the
   // user is. Landed, the dialog says so and continues on the user's word, never on its own.
   const overSave = useRef(inFlight);

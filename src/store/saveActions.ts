@@ -395,7 +395,9 @@ export function hasUnsavedWork(state: Pick<EditingContext, 'saved' | 'template' 
  */
 export async function saveBeforeLeave(): Promise<'saved' | 'needs-name' | 'failed'> {
   if (running) await running;
-  return hasUnsavedWork() ? saveCurrentGraphic() : 'saved';
+  // A refused save of a clean graphic leaves `dirty` false, and is retried all the same.
+  const failed = useTemplateStore.getState().saved.status === 'failed';
+  return hasUnsavedWork() || failed ? saveCurrentGraphic() : 'saved';
 }
 
 // ── The save/guard UI store ──────────────────────────────────────────────────────────────────
