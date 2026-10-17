@@ -1273,6 +1273,32 @@
       "notionalUsd": 7.91,
       "outcome": "completed",
       "note": "the ladder judge (D8): Opus 5.5 at high on the exam judge's frozen prompt and rubric, the H2 held-back part, 57 answered claude -p calls on the subscription, no pause, no error: agreement 38 of 41 with no basic-defect FAIL aired, pairwise 16 of 16 with no flip, PASS, so it is frozen as the ladder judge (ladder/judge.lock.json); no credit"
+    },
+    {
+      "at": "2026-10-17T11:35:16.877Z",
+      "listCostCents": 0,
+      "phase": "L0",
+      "stage": "arm-proof",
+      "arm": "subscription",
+      "model": "claude-haiku-5-5",
+      "effort": "high",
+      "funding": "subscription",
+      "brief": "news-lower-third",
+      "kind": "session",
+      "sessionId": "7ddfc10f-4621-452a-a60f-7320b03406b6",
+      "notionalUsd": 0.6008690299999999,
+      "wallSeconds": 315,
+      "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-17T11:39:34.265Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "L0",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "the forced look, the sealed exam, the reservation and the ladder judge (ladder/evidence/phase-L0.md): record --review gates the hand-in; 20 briefs sealed in ladder/exam/; 30.00 held for L4's exam and 8.00 for L3's ceiling; Opus 5.5 passed the held-back calibration and is the ladder judge; the subscription arm delivered one tuning brief on Haiku 5.5 high with all 23 reviewed frames opened. Subscription only, 9.81 notional (brief writer 1.30, judge 7.91, arm proof 0.60); no credit"
     }
   ]
 }
