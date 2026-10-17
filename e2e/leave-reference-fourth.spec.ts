@@ -73,12 +73,16 @@ test('Eyevinn: a refused localStorage save is not shown to the user and the temp
     await create('refused');
     await expect(items).toHaveCount(2);
     const shown = await page.getByText(/Failed to save|not be persisted|storage/i).count();
+    const toast = await page.getByText('Template "refused" created successfully').count();
     const events = await page.evaluate(() => (window as unknown as { refusedEvents: number }).refusedEvents);
     await page.screenshot({ path: test.info().outputPath('eyevinn-refused.png') });
     await page.reload(); await expect(items.first()).toBeVisible();
     const after = await items.evaluateAll(n => n.map(e => (e as HTMLElement).dataset.templateId));
     writeFileSync(test.info().outputPath('eyevinn-refused.json'), JSON.stringify({ pin: '616841bd949e3a21137579451123f66c292543f0', refusedEvents: events,
-      visibleMessage: shown, consoleErrors: errors.length, listedBeforeReload: 2, afterReload: after }, null, 2));
-    expect(events).toBe(1);
+      visibleMessage: shown, successToast: toast, consoleErrors: errors.length, listedBeforeReload: 2, afterReload: after }, null, 2));
+    expect(events).toBe(1); expect(errors.length, 'the refusal is logged').toBe(1);
+    expect(shown, 'Eyevinn shows the refusal to the user').toBe(0);
+    expect(toast, 'Eyevinn reported the refused create as successful').toBe(1);
+    expect(after, 'the refused template survived a reload').toEqual(['kept']);
   } finally { child.kill(); }
 });
