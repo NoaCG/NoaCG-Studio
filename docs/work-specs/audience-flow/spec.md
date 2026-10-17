@@ -4,9 +4,9 @@ Authority: owner, 2026-10-16 (see `work.json`). The decisions under "Owner decis
 on 2026-10-17: the owner took every recommendation. **Still a draft** until the data sources spec
 is agreed after its second opinion; nothing is built before then. Its phases then join
 `/plan-run production-page` as 23 onward, after the page cleanup (1-14) and the data sources
-phases 15-22 (DS16). Parent: `docs/GOALS.md` outcome 5 (the playout dashboard, with its Data and Audience tabs);
-the model it shares with data is `docs/work-specs/data-sources/spec.md` (draft). Built on:
-`docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6 and its audience backend design.
+phases 15-22 (DS16). Parent: `docs/GOALS.md` outcome 5 (the playout dashboard, with its Data and
+Audience tabs); the model it shares with data is `docs/work-specs/data-sources/spec.md` (draft).
+Built on: `docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6 and its audience backend design.
 
 ## Problem
 
