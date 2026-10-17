@@ -83,7 +83,9 @@ function markSaveFailed(before: EditingContext): void {
 async function commitLink(link: Omit<EditingContext['saved'], 'status'>): Promise<string | null> {
   useTemplateStore.getState().setSaved({ ...link, status: 'saving' });
   const linked = useTemplateStore.getState();
-  const failure = await commitSaveWrites(captureDurableWrites('spx-gfx-project', persistLink).receipts);
+  // MUTATION (disposable, fifth check): the link write is made but neither waited for nor claimed.
+  persistLink();
+  const failure: string | null = null;
   // Replaced meanwhile: the slot is the new document's, written after this one, so the record
   // that landed is the whole answer.
   if (replacedSince(linked)) return null;
