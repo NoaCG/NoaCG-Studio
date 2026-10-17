@@ -17,11 +17,6 @@
       "count": 9,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016954460"
     },
-    "e2e/editor-groups.spec.ts": {
-      "since": "2026-10-17",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39015354033"
-    },
     "e2e/import-svg-corpus.spec.ts": {
       "since": "2026-10-17",
       "count": 1,
@@ -64,6 +59,10 @@
     "e2e/editor-foundation.spec.ts": {
       "count": 3,
       "last": "2026-10-14"
+    },
+    "e2e/editor-groups.spec.ts": {
+      "count": 2,
+      "last": "2026-10-17"
     },
     "e2e/editor-images.spec.ts": {
       "count": 2,
