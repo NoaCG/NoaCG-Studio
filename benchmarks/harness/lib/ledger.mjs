@@ -91,10 +91,11 @@ export function setHold(ledger, { phase, kind, cents, setBy, note }) {
   const hold = { phase, kind, cents, setBy, at: new Date().toISOString(), ...(note ? { note } : {}) };
   checkHolds({ holds: [hold] });
   if (phaseCompleted(ledger, phase)) throw new Error(`${phase} is closed: it holds nothing any more`);
-  if (cents < spentCents(ledger, phase)) throw new Error(`${phase} has already spent ${dollars(spentCents(ledger, phase))}, more than a ${dollars(cents)} hold`);
+  const spent = spentCents(ledger, phase);
+  if (cents < spent) throw new Error(`${phase} has already spent ${dollars(spent)}, more than a ${dollars(cents)} hold`);
   // What the phase may still spend is what is left past the spend and every other hold.
   const free = remainingCents(ledger, phase);
-  if (cents - spentCents(ledger, phase) > free) throw new Error(`a ${dollars(cents)} hold for ${phase} does not fit: ${dollars(free)} is left past what is spent and held`);
+  if (cents - spent > free) throw new Error(`a ${dollars(cents)} hold for ${phase} does not fit: ${dollars(free)} is left past what is spent and held`);
   const { entries, holds = [], ...head } = ledger;
   return { ...head, holds: [...holds.filter((h) => h.phase !== phase), hold], entries };
 }
@@ -151,7 +152,7 @@ function reserveHeld(ledger, phase) {
 function heldFor(ledger, phase) {
   const r = ledger.reserve;
   const holds = (ledger.holds ?? []).filter((h) => h.phase !== phase && !phaseCompleted(ledger, h.phase));
-  return [...(reserveHeld(ledger, phase) ? [`${r.phase}'s exam`] : []), ...holds.map((h) => `${h.phase}'s ${h.kind === 'exam' ? 'exam' : 'ceiling'}`)];
+  return [...(reserveHeld(ledger, phase) ? [`${r.phase}'s exam`] : []), ...holds.map((h) => `${h.phase}'s ${h.kind}`)];
 }
 
 /** What the exam reserve and every hold of another phase still keep from `phase`. */

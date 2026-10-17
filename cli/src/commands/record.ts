@@ -57,7 +57,8 @@ export async function runRecord(args: ParsedArgs, out: Out): Promise<number> {
   if (!outFlag) throw new UsageError('record needs --out <record.json>.');
   const file = path.resolve(outFlag);
   if (!/\.json$/i.test(file)) throw new UsageError('--out names the record file, ending in .json; the package zip is written beside it.');
-  const reviewFile = flagString(args, 'review') ? path.resolve(flagString(args, 'review') as string) : null;
+  const reviewFlag = flagString(args, 'review');
+  const reviewFile = reviewFlag ? path.resolve(reviewFlag) : null;
   const refuseReview = (problems: string[], digest?: string) => {
     out.result({ ok: false, reason: 'review', ...(digest ? { digest } : {}), problems });
     for (const p of problems) out.say(`Review: ${p}`);

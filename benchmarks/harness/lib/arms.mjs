@@ -360,22 +360,24 @@ export function lastReviewed(calls) {
   return digest;
 }
 
-export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join(ROOT, 'cli', 'plugin'), timeoutMinutes = 25, run } = {}) {
-  let authChecked = false;
+/**
+ * One `claude -p` session on the owner's subscription, as both subscription-funded arms run it:
+ * in `sessionDir` outside the repository, the CLI on PATH behind the call-keeping shim, the 5.4
+ * environment built from scratch with a fresh home, the subscription checked once before the
+ * first session. `outsideOnly` is the refusal for a session directory inside the repository.
+ */
+function subscriptionSessions({ claude, token, url, run, outsideOnly }) {
   const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
   const envFor = (home, binDir) => subscriptionEnv({ token, home, noacgUrl: url, pathDirs: [binDir, path.dirname(process.execPath), path.dirname(claude), system] });
+  let authChecked = false;
   return {
-    id: 'claude-code',
-    funding: 'subscription',
-    model,
-    /** The subscription's check, made before a build's first session of any arm: a reference arm
-     *  that cannot start must not be found out after the credit arm has spent. */
+    /** The subscription's check, made before a build's first session of any arm: an arm that
+     *  cannot start must not be found out after the credit arm has spent. */
     preflight(dir) {
       return checkSubscriptionAuth({ claude, env: envFor(path.join(dir, 'home'), null), run });
     },
-    async run({ brief, cellDir }) {
-      const sessionDir = path.join(cellDir, 'reference');
-      if (path.resolve(sessionDir).startsWith(ROOT + path.sep)) throw new Error(`the reference session must run outside the repository (${ROOT}), or it loads this repo's instructions`);
+    async session({ sessionDir, prompt, args, timeoutMinutes }) {
+      if (path.resolve(sessionDir).startsWith(ROOT + path.sep)) throw new Error(outsideOnly);
       const work = path.join(sessionDir, 'work');
       const binDir = path.join(sessionDir, 'bin');
       const ledgerFile = path.join(sessionDir, 'calls.jsonl');
@@ -386,30 +388,52 @@ export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join
         checkSubscriptionAuth({ claude, env, ...(run ? { run } : {}) });
         authChecked = true;
       }
-      const prompt = referencePrompt(brief);
       writeFileSync(path.join(sessionDir, 'prompt.md'), prompt);
-      const args = ['--permission-mode', 'acceptEdits', '--allowedTools', 'Bash,Read,Write,Edit,Glob,Grep', '--plugin-dir', pluginDir, '--strict-mcp-config', ...(model ? ['--model', model] : [])];
-      // Not blocking: a build runs the reference beside the credit arm, whose session it polls.
-      const r = await runClaudeAsync({ claude, args, env, cwd: work, input: prompt, timeoutMs: timeoutMinutes * 60_000, ...(run ? { run } : {}) });
+      const base = ['--permission-mode', 'acceptEdits', '--allowedTools', 'Bash,Read,Write,Edit,Glob,Grep'];
+      // Not blocking: a build runs a subscription arm beside the credit arm, whose session it polls.
+      const r = await runClaudeAsync({ claude, args: [...base, ...args], env, cwd: work, input: prompt, timeoutMs: timeoutMinutes * 60_000, ...(run ? { run } : {}) });
       writeFileSync(path.join(sessionDir, 'claude.json'), r.stdout);
       const calls = readShimLedger(ledgerFile);
       const recordFile = path.join(work, 'outputs', 'record.json');
-      const delivered = existsSync(recordFile);
+      const recorded = existsSync(recordFile);
       return {
-        outcome: r.paused ? 'paused' : delivered ? 'delivered' : 'failed',
-        reason: r.paused ? `the subscription's usage limit${r.paused.resetsAt ? `, resets ${r.paused.resetsAt}` : ''}` : delivered ? null : r.timedOut ? 'timed out' : 'no record handed in',
-        resetsAt: r.paused?.resetsAt ?? null,
-        recordFile: delivered ? recordFile : null,
-        zipFile: delivered ? path.join(work, 'outputs', 'record.zip') : null,
-        trace: calls.map((c) => ({ command: `noacg ${c.args.join(' ')}`, code: c.exit, digest: c.digest })),
-        reviewedDigest: lastReviewed(calls),
-        costCents: 0,
+        r,
+        env,
+        recorded,
+        paused: r.paused ? `the subscription's usage limit${r.paused.resetsAt ? `, resets ${r.paused.resetsAt}` : ''}` : null,
+        handedIn: {
+          resetsAt: r.paused?.resetsAt ?? null,
+          recordFile: recorded ? recordFile : null,
+          zipFile: recorded ? path.join(work, 'outputs', 'record.zip') : null,
+          trace: calls.map((c) => ({ command: `noacg ${c.args.join(' ')}`, code: c.exit, digest: c.digest })),
+          reviewedDigest: lastReviewed(calls),
+          costCents: 0,
+          wallSeconds: Math.round(r.ms / 1000),
+          sessionId: r.sessionId,
+          saveAttempts: calls.filter((c) => c.args[0] === 'save' || c.args[0] === 'login').length,
+          cleanup: null,
+        },
+      };
+    },
+  };
+}
+
+export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join(ROOT, 'cli', 'plugin'), timeoutMinutes = 25, run } = {}) {
+  const sessions = subscriptionSessions({ claude, token, url, run, outsideOnly: `the reference session must run outside the repository (${ROOT}), or it loads this repo's instructions` });
+  return {
+    id: 'claude-code',
+    funding: 'subscription',
+    model,
+    preflight: sessions.preflight,
+    async run({ brief, cellDir }) {
+      const args = ['--plugin-dir', pluginDir, '--strict-mcp-config', ...(model ? ['--model', model] : [])];
+      const { r, recorded, paused, handedIn } = await sessions.session({ sessionDir: path.join(cellDir, 'reference'), prompt: referencePrompt(brief), args, timeoutMinutes });
+      return {
+        ...handedIn,
+        outcome: r.paused ? 'paused' : recorded ? 'delivered' : 'failed',
+        reason: paused ?? (recorded ? null : r.timedOut ? 'timed out' : 'no record handed in'),
         notionalUsd: r.notionalUsd ?? null,
-        wallSeconds: Math.round(r.ms / 1000),
-        sessionId: r.sessionId,
         model,
-        saveAttempts: calls.filter((c) => c.args[0] === 'save' || c.args[0] === 'login').length,
-        cleanup: null,
       };
     },
   };
@@ -472,70 +496,34 @@ function closingMessage(r) {
  */
 export function subscriptionArm({ claude, token, model, effort = null, url, pluginDir = path.join(ROOT, 'cli', 'plugin'), timeoutMinutes = 20, run } = {}) {
   if (!model) throw new Error('the subscription arm needs --model, the rung\'s model id');
-  const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
-  const envFor = (home, binDir) => subscriptionEnv({ token, home, noacgUrl: url, pathDirs: [binDir, path.dirname(process.execPath), path.dirname(claude), system] });
-  let authChecked = false;
+  const sessions = subscriptionSessions({ claude, token, url, run, outsideOnly: `a ladder session runs outside the repository (${ROOT}), or it loads this repo's instructions` });
   return {
     id: 'subscription',
     funding: 'subscription',
     model,
     effort,
-    requireReview: true,
-    preflight(dir) {
-      return checkSubscriptionAuth({ claude, env: envFor(path.join(dir, 'home'), null), run });
-    },
+    preflight: sessions.preflight,
     async run({ brief, cellDir }) {
-      const sessionDir = path.join(cellDir, 'session');
-      if (path.resolve(sessionDir).startsWith(ROOT + path.sep)) throw new Error(`a ladder session runs outside the repository (${ROOT}), or it loads this repo's instructions`);
-      const work = path.join(sessionDir, 'work');
-      const binDir = path.join(sessionDir, 'bin');
-      const home = path.join(sessionDir, 'home');
-      const ledgerFile = path.join(sessionDir, 'calls.jsonl');
-      mkdirSync(path.join(work, 'outputs'), { recursive: true });
-      writeShim(binDir, ledgerFile);
-      const env = envFor(home, binDir);
-      if (!authChecked) {
-        checkSubscriptionAuth({ claude, env, ...(run ? { run } : {}) });
-        authChecked = true;
-      }
-      const prompt = ladderPrompt(brief);
-      writeFileSync(path.join(sessionDir, 'prompt.md'), prompt);
-      const args = ['--permission-mode', 'acceptEdits', '--allowedTools', 'Bash,Read,Write,Edit,Glob,Grep', '--disallowedTools', 'WebFetch,WebSearch', '--plugin-dir', pluginDir, '--strict-mcp-config', '--model', model, ...(effort ? ['--effort', effort] : [])];
-      const r = await runClaudeAsync({ claude, args, env, cwd: work, input: prompt, timeoutMs: timeoutMinutes * 60_000, ...(run ? { run } : {}) });
-      writeFileSync(path.join(sessionDir, 'claude.json'), r.stdout);
+      const args = ['--disallowedTools', 'WebFetch,WebSearch', '--plugin-dir', pluginDir, '--strict-mcp-config', '--model', model, ...(effort ? ['--effort', effort] : [])];
+      const { r, env, recorded, paused, handedIn } = await sessions.session({ sessionDir: path.join(cellDir, 'session'), prompt: ladderPrompt(brief), args, timeoutMinutes });
       const transcript = findTranscript(env.CLAUDE_CONFIG_DIR, r.sessionId);
       const transcriptText = transcript ? readFileSync(transcript, 'utf8') : '';
-      const reads = transcriptReads(transcriptText);
       // A session stopped at its limit printed no cost: its transcript's usage at list prices stands in.
       const notionalUsd = r.notionalUsd ?? (transcript ? transcriptUsd(transcriptText, model) : null);
-      const calls = readShimLedger(ledgerFile);
-      const recordFile = path.join(work, 'outputs', 'record.json');
-      const recorded = existsSync(recordFile);
       const said = handInLine(closingMessage(r));
       const outcome = r.paused ? 'paused' : !recorded ? 'failed' : said === 'delivered' && !r.timedOut ? 'delivered' : 'not-ready';
-      const reason = r.paused
-        ? `the subscription's usage limit${r.paused.resetsAt ? `, resets ${r.paused.resetsAt}` : ''}`
-        : r.timedOut ? `stopped at ${timeoutMinutes} minutes` : !recorded ? 'no record handed in' : outcome === 'not-ready' ? (said === 'not-ready' ? 'the session said NOT READY' : 'the session ended without DELIVERED') : null;
+      const reason = paused ?? (r.timedOut ? `stopped at ${timeoutMinutes} minutes` : !recorded ? 'no record handed in' : outcome === 'not-ready' ? (said === 'not-ready' ? 'the session said NOT READY' : 'the session ended without DELIVERED') : null);
       return {
+        ...handedIn,
         outcome,
         reason,
-        resetsAt: r.paused?.resetsAt ?? null,
-        recordFile: recorded ? recordFile : null,
-        zipFile: recorded ? path.join(work, 'outputs', 'record.zip') : null,
-        trace: calls.map((c) => ({ command: `noacg ${c.args.join(' ')}`, code: c.exit, digest: c.digest })),
-        reviewedDigest: lastReviewed(calls),
-        reads,
+        reads: transcriptReads(transcriptText),
         transcript,
-        costCents: 0,
         notionalUsd,
         ...(r.notionalUsd === null && notionalUsd !== null ? { notionalFrom: 'transcript' } : {}),
-        wallSeconds: Math.round(r.ms / 1000),
-        sessionId: r.sessionId,
         model,
         effort,
         turns: r.turns,
-        saveAttempts: calls.filter((c) => c.args[0] === 'save' || c.args[0] === 'login').length,
-        cleanup: null,
       };
     },
   };

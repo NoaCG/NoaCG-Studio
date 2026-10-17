@@ -147,7 +147,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
   }
   // The forced look gates the hand-in (D1): where the run asks for it, a record without a review is
   // a graphic nobody was made to look at, and it is not delivered.
-  if ((arm.requireReview || entry.requireReview) && cell.outcome === 'delivered' && !cell.look?.reviewed) {
+  if (entry.requireReview && cell.outcome === 'delivered' && !cell.look?.reviewed) {
     cell.outcome = 'not-ready';
     cell.reason = 'handed in without a review (record --review)';
   }

@@ -74,12 +74,15 @@ export function ladderBriefs({ root, ledger, phase, ids, tuning, passphraseFile 
     if (!phaseCompleted(ledger, CLOSED_EXAM)) throw new Error(`the ladder briefs come from ${CLOSED_EXAM}'s exam, which is not closed`);
     set = openBriefSet({ root, dir: EXAM_DIR, passphraseFile, folder: 'harness-exam' });
   }
-  return ids.map((id) => set.find((b) => b.id === id && LADDER_SET.includes(id)) ?? tuning.find((b) => b.id === id) ?? fail(`no tuning or ladder brief ${id}`));
+  return ids.map((id) => {
+    const brief = set.find((b) => b.id === id && LADDER_SET.includes(id)) ?? tuning.find((b) => b.id === id);
+    if (!brief) throw new Error(`no tuning or ladder brief ${id}`);
+    return brief;
+  });
 }
 
-function fail(message) {
-  throw new Error(message);
-}
+/** The phases the ladder's own judge judges, in singles (D8); the exam (L4) is the exam judge's. */
+export const LADDER_JUDGED = ['L1', 'L2'];
 
 /**
  * The ladder's judge (D8): Opus 5.5, frozen in its own lock, when its calibration passed (the

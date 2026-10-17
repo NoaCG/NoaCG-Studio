@@ -356,7 +356,7 @@ test('the ladder exam decrypts to its hash and holds section 2\'s mix, no id of 
 test('the seal was committed before any ladder session', () => {
   const at = (() => {
     try {
-      return execFileSync('git', ['log', '--diff-filter=A', '--format=%cI', '--', path.join(LADDER_EXAM_DIR, 'briefs.sealed')], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').pop();
+      return execFileSync('git', ['log', '--diff-filter=A', '--format=%cI', '--', path.join(LADDER_EXAM_DIR, 'briefs.sealed')], { cwd: ROOT, encoding: 'utf8', windowsHide: true }).trim().split('\n').pop();
     } catch {
       return '';
     }

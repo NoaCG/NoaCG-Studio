@@ -93,7 +93,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, holdFor, HOLD_KINDS, isLadder, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, setHold, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
-import { ladderBriefs, ladderJudge, LADDER_SET, refuseLadderBuild } from '../benchmarks/harness/lib/ladder.mjs';
+import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild } from '../benchmarks/harness/lib/ladder.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
@@ -303,7 +303,7 @@ function printLedger(ledger) {
   const s = summary(ledger);
   const reserve = ledger.reserve && !phaseCompleted(ledger, ledger.reserve.phase) ? ledger.reserve : null;
   const holds = (ledger.holds ?? []).filter((h) => !phaseCompleted(ledger, h.phase));
-  const whom = [...(reserve ? [`${reserve.phase}'s exam (${reserveTerms(reserve)}, set by ${reserve.setBy})`] : []), ...holds.map((h) => `${h.phase}'s ${h.kind === 'exam' ? 'exam' : 'ceiling'}`)];
+  const whom = [...(reserve ? [`${reserve.phase}'s exam (${reserveTerms(reserve)}, set by ${reserve.setBy})`] : []), ...holds.map((h) => `${h.phase}'s ${h.kind}`)];
   const held = whom.length ? `, ${dollars(s.heldCents)} held for ${whom.join(' and ')}` : '';
   console.log(`Ledger ${path.relative(ROOT, LEDGER_FILE)}: ${dollars(s.spentCents)} of ${dollars(ledger.runBudgetCents)} credit spent${held}, ${dollars(s.remainingCents)} left${whom.length ? ' for everything else' : ''}.`);
   for (const h of ledger.holds ?? []) console.log(`  held for ${h.phase}: ${dollars(h.cents)} (${h.kind === 'exam' ? 'the exam reserve' : 'its ceiling'}, set by ${h.setBy}), ${dollars(phaseSpentCents(ledger, h.phase))} of it spent${phaseCompleted(ledger, h.phase) ? ', closed' : ''}`);
@@ -491,8 +491,8 @@ async function build(phase) {
   const margin = orFail(() => ({ overshootCents: flagCents('overshoot-cents'), criticCents: flagCents('critic-cents') }));
   const model = value('model', '');
   const effort = value('effort', '');
-  // A ladder phase's ceiling is what the ledger holds for it (D9) unless the run names a lower one.
-  const ceilingCents = value('ceiling-cents') === undefined ? (ladder ? holdFor(ledger, phase)?.cents ?? null : null) : Number(value('ceiling-cents'));
+  // A phase's ceiling is what the ledger holds for it (D9) unless the run names a lower one.
+  const ceilingCents = value('ceiling-cents') === undefined ? (holdFor(ledger, phase)?.cents ?? null) : Number(value('ceiling-cents'));
   // --dry makes every check that comes before the first session, then stops: nothing uploaded, no
   // session, $0. It needs no briefs; in the exam it opens and verifies the sealed ones, which is
   // the check before the exam's first session. Any spelling of it (`--dry=1`, `--dry-run`) counts,
@@ -853,7 +853,7 @@ if (isMain) {
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) fail('--concurrency takes 1 to 4 judgements at once');
     // The ladder and its teaching rounds are judged in singles by the ladder's judge (D8); the exam
     // phases by the exam's frozen judge, in singles and pairs.
-    const ladderRound = ['L1', 'L2'].includes(phase);
+    const ladderRound = LADDER_JUDGED.includes(phase);
     const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, ...(ladderRound ? { judge: orFail(() => ladderJudge(ROOT)), singlesOnly: true } : {}), claude, env, deliveredOnly: has('delivered-only'), concurrency, briefs: list('briefs').length ? list('briefs') : null }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
     console.log(`Judged with ${r.judge.model} (${r.judge.fingerprint.slice(0, 12)}): ${r.file}`);
   } else if (has('tally')) {

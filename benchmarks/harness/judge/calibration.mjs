@@ -499,7 +499,7 @@ export function sameFiles(lock, examLock) {
 const pct = (x) => `${(x * 100).toFixed(1)}%`;
 
 /** A second judge's held-back result, as its lock carries it: the figures of H2's bar and where they are kept. */
-export function calibrationBlock(s, results, paths) {
+function calibrationBlock(s, results, paths) {
   const ats = results.map((r) => r.at).sort();
   return {
     part: 'heldout',
