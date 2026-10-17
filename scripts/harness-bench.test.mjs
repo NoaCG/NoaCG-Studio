@@ -179,8 +179,10 @@ test('--build refuses a $0 phase, a completed one, tuning before the exam is res
   assert.match(refuseBuild(ledger, 'H7'), /already holds H7 as completed/, 'round 3 is closed and never spends again');
   assert.match(refuseBuild(emptyLedger(), 'H5'), /no exam reserve/);
   assert.equal(refuseBuild(emptyLedger(), 'H3'), null, 'feasibility comes before the reserve');
-  assert.equal(refuseBuild(ledger, 'H8'), null, 'tuning is closed and the reserve held, so the exam may spend it');
-  const beforeH7Closed = { ...ledger, entries: ledger.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H7' && e.outcome === 'completed')) };
+  assert.match(refuseBuild(ledger, 'H8'), /already holds H8 as completed/, 'the exam is closed and never spends again');
+  const beforeH8Closed = { ...ledger, entries: ledger.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H8' && e.outcome === 'completed')) };
+  assert.equal(refuseBuild(beforeH8Closed, 'H8'), null, 'tuning is closed and the reserve held, so the exam may spend it');
+  const beforeH7Closed = { ...beforeH8Closed, entries: beforeH8Closed.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H7' && e.outcome === 'completed')) };
   assert.equal(refuseBuild(beforeH7Closed, 'H7'), null, 'with the reserve held, round 3 could spend before it closed');
   assert.match(refuseBuild(beforeH7Closed, 'H8'), /H8 spends its reserve only on the exam, after tuning: H7 not closed/);
   assert.match(refuseBuild(ledger, 'feasibility'), /phase like H3/);
@@ -257,8 +259,13 @@ test('the committed ledger holds the exam reserve the wall reads, and H4 closed 
   assert.equal(phaseCompleted(ledger, 'H4'), true);
   assert.equal(ledger.entries.filter((e) => e.phase === 'H4' && e.kind === 'session').length, 0, 'H4 created no session');
   assert.equal(phaseSpentCents(ledger, 'H4'), 0);
-  // The wall on a copy of the committed ledger: spend tuning down to one cent short of a session beside the reserve.
+  // The exam is closed (H8, 2026-10-17), so its unspent reserve is no longer held back.
+  assert.equal(phaseCompleted(ledger, 'H8'), true);
+  assert.equal(heldCents(ledger, 'H9'), 0, 'a closed exam holds nothing back');
+  // The wall on a copy of the committed ledger as it stood with the exam open: spend tuning down to
+  // one cent short of a session beside the reserve.
   const copy = structuredClone(ledger);
+  copy.entries = copy.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H8' && e.outcome === 'completed'));
   appendEntry(copy, { kind: 'session', phase: 'H5', funding: 'credit', sessionId: 'sesn_synthetic', listCostCents: remainingCents(copy, 'H5') - (r.sessionBudgetCents + r.overshootCents) + 1, outcome: 'delivered' });
   assert.equal(admit(copy, { budgetCents: r.sessionBudgetCents, overshootCents: r.overshootCents, phase: 'H6' }).ok, false);
   assert.equal(admit(copy, { budgetCents: r.sessionBudgetCents, overshootCents: r.overshootCents, phase: 'H8', ceilingCents: r.cents }).ok, true);

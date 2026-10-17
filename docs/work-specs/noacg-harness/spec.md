@@ -1003,7 +1003,9 @@ the spend added to the ledger, and the check's findings.
   phase's branch is `claude/plan-noacg-harness-p9-build-row`. In two pairs the judge called the
   harness's graphic not airable in one order where its single had called it airable; the counting
   takes airability from singles, so no figure moves, but the report names it as a limit of one
-  judgement.
+  judgement. Two bench tests read the committed ledger and asserted the exam still open; they now
+  assert H8 closed (refused, nothing held) and keep every open-exam assertion on a copy with the
+  close removed. Tests 49 of 49.
 - **Spend:** $0 credit; the ledger at $54.68 of $100 with nothing held ($45.32 left after the
   close released the $13.26). Subscription, notional: judge $134.48 today, $259.10 for the exam.
   **Shas:** built on `0854925a8`; the merge sha is the one the queue records. **Revert:** `git
