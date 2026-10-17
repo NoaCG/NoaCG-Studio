@@ -93,7 +93,7 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/references.json
           REFERENCE_EXE: ${{ github.workspace }}/.noacg/studio-server
-        run: xvfb-run -a $PW e2e/leave-reference.spec.ts --output=.noacg/results/references
+        run: xvfb-run -a $PW e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts --output=.noacg/results/references
       - name: Cumulative interaction and native zoom
         if: always() && inputs.scope == 'visual'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/cumulative.json }
