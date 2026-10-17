@@ -55,3 +55,18 @@ test('a missing first-request size stays unknown even when a later Codex request
   const text = codex([['2026-10-17T08:59:00Z', 100, 50, 10], [manifest.since, 150, 80, 15, null], ['2026-10-17T09:01:00Z', 210, 120, 18]]);
   assert.equal(measureRecovery({ ...manifest, provider: 'codex' }, [text]).usage.firstRequestInput, null);
 });
+
+test('invalid Codex counter rows cannot disappear behind earlier valid in-window totals', () => {
+  const m = { ...manifest, provider: 'codex' };
+  const valid = sample();
+  const row = { timestamp: '2026-10-17T09:02:00Z', payload: { type: 'token_count', info: { total_token_usage: { input_tokens: 240, cached_input_tokens: 140, output_tokens: 20 } } } };
+  for (const patch of [{ input_tokens: -1 }, { cached_input_tokens: undefined }, { cached_input_tokens: 241 }]) {
+    const invalid = structuredClone(row); Object.assign(invalid.payload.info.total_token_usage, patch);
+    assert.throws(() => measureRecovery(m, [`${valid}\n${line(invalid)}`]));
+  }
+  const missing = structuredClone(row); delete missing.payload.info.total_token_usage;
+  assert.throws(() => measureRecovery(m, [`${valid}\n${line(missing)}`]));
+  // Native rate-limit-only heartbeats have no usage info and remain valid observations.
+  const heartbeat = line({ timestamp: row.timestamp, payload: { type: 'token_count', info: null } });
+  assert.equal(measureRecovery(m, [`${valid}\n${heartbeat}`]).usage.records, 2);
+});

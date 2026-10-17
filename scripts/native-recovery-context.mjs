@@ -42,10 +42,11 @@ function codexUsage(transcripts, sessionId, since, until) {
     const id = records.find((row) => row.type === 'session_meta')?.payload?.id;
     if (id !== sessionId) throw new Error('Codex transcript does not match the exact native session');
     for (const row of records) {
-      if (row.payload?.type !== 'token_count' || !row.payload.info?.total_token_usage) continue;
+      if (row.payload?.type !== 'token_count' || !row.payload.info) continue;
       const at = Date.parse(row.timestamp);
       const { total_token_usage: total, last_token_usage: last } = row.payload.info;
-      if (!Number.isFinite(at) || !['input_tokens', 'cached_input_tokens', 'output_tokens'].every((key) => validCount(total[key]))) continue;
+      if (!Number.isFinite(at) || !total || !['input_tokens', 'cached_input_tokens', 'output_tokens'].every((key) => validCount(total[key]))
+          || total.cached_input_tokens > total.input_tokens) throw new Error('Invalid or incomplete native Codex cumulative snapshot');
       samples.push({ at, total, last });
     }
   }
