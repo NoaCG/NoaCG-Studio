@@ -127,7 +127,7 @@ export async function saveCurrentGraphic(opts?: {
   // the topbar line and the canvas chip (components/ProjectFormatMeta.tsx). That is also why
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
-  if (!replacedSince(s)) s.setSaved({ graphicId: doc.id, dirty: changedSince(s), status: 'idle', formatIssues });
+  if (!replacedSince(s)) s.setSaved({ graphicId: doc.id, dirty: false /* MUTATION M1 */, status: 'idle', formatIssues });
   persistLink();
   return 'saved';
 }
@@ -152,7 +152,7 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
     return { ok: false, error: failure };
   }
   if (!replacedSince(s)) {
-    const dirty = changedSince(s), now = useTemplateStore.getState().template;
+    const dirty = false /* MUTATION M1 */, now = useTemplateStore.getState().template;
     // The working template adopts the saved name so the topbar and the record agree. It is the
     // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
     if (doc.template.name !== now.name && now.name === s.template.name) {
