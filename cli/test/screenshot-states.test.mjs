@@ -245,3 +245,43 @@ test('usage errors name what there is to choose from', { skip }, async () => {
   assert.equal(colour.code, 2);
   assert.match(colour.stderr, /not a CSS colour/);
 });
+
+/** A JPEG's size, from its first start-of-frame marker. */
+function jpegSize(bytes) {
+  for (let i = 2; i < bytes.length - 9; ) {
+    if (bytes[i] !== 0xff) return null;
+    const marker = bytes[i + 1];
+    if (marker >= 0xc0 && marker <= 0xc3) return { height: bytes.readUInt16BE(i + 5), width: bytes.readUInt16BE(i + 7) };
+    i += 2 + bytes.readUInt16BE(i + 2);
+  }
+  return null;
+}
+
+// `coverage --strips`: a timeline's moments as one picture, three across, each a third of the
+// frame with its time under it. Needs a browser, not a bridge.
+test("a strip draws a timeline's moments as one picture, three across with their times", async (t) => {
+  const { closeBrowser, launchBrowser } = await import('../dist/browser.js');
+  const { composeStrip, mimeTypeOf, momentLabel, STRIP_COLUMNS } = await import('../dist/screenshot.js');
+  const { stripFile } = await import('../dist/coverage.js');
+  let browser;
+  try {
+    browser = await launchBrowser();
+  } catch {
+    t.skip('no browser to draw with');
+    return;
+  }
+  try {
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    const frame = new Uint8Array(await page.screenshot({ type: 'jpeg' }));
+    await page.close();
+    const moments = [20, 120, 300, 600, 1500, 10000].map((atMs) => ({ atMs, image: frame }));
+    const strip = Buffer.from(await composeStrip(moments, { width: 1920, height: 1080 }));
+    assert.equal(mimeTypeOf(strip), 'image/jpeg');
+    assert.equal(STRIP_COLUMNS, 3);
+    assert.deepEqual(jpegSize(strip), { width: 1920, height: 2 * (360 + 30) }, 'two rows of three, each a third of the frame over its time');
+    assert.deepEqual([20, 1500, 10000].map(momentLabel), ['20 ms', '1.5 s', '10 s']);
+    assert.equal(stripFile({ name: 'event-goalhome' }, 'jpg'), 'event-goalhome-strip.jpg');
+  } finally {
+    await closeBrowser();
+  }
+});
