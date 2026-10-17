@@ -970,12 +970,12 @@ the spend added to the ledger, and the check's findings.
 - **The tally.** I wrote my own count over the committed `cell.json` files, `judgements.jsonl` and
   `action-readings.json`, without `tallyExam`. It gives every figure in `exam/REPORT.md`: harness
   12 delivered and 12 usable, Claude Code 20 and 15 (10 by the gate alone), pairs 13 to 6 with 1
-  flip tie (Spanish), 8 of the 13 by delivery. Defects are 0 of 12 against 3 of 20 (8 defects). The
+  flip tie (the Spanish flood alert), 8 of the 13 by delivery. Defects are 0 of 12 against 3 of 20 (8 defects). The
   unmoved events, Wilson intervals, costs ($2.78, $3.01, $4.52, $4.56) and walls (527/744 s and
   453.5/595 s; 7 and 2 over ten minutes) all match. So do the 5 pairs whose airability differs
   from the single. `--tally` on a copy of the run directory gives a `tally.json` equal to the
   archive's, with both figures and line 1 holding by the gate alone. Lines 1 and 3 fail and 2
-  and 4 hold. Five flip ties would have been needed for "inconclusive"; there is 1.
+  and 4 hold. "Inconclusive" needed more than five flip ties; there is 1.
 - **The readings** follow the ruling committed in `73beabcd3` (2026-10-15 19:02:54Z, before the 31
   calls). For all six of Claude Code's flagged cells the judge's single names no missing action
   and a button does the action. The harness's 12 delivered graphics have no flag. The gate-only
@@ -983,11 +983,11 @@ the spend added to the ledger, and the check's findings.
 - **Also confirmed.** The three slips are fixed; the remaining mentions are the correction notes
   themselves. The ledger holds 5,468 cents with nothing held, `--close H8` carries `verdict:
   MISSED`, and $45.32 is left after the $13.26 release. `--build H9 --dry` refuses with "the run
-  stops (5.5)". The guard's test change replaces "H8 may build" with "H8 refused, and H8 may build
-  only on a copy with the close removed", and the wall's assertions now run on that copy. It also
-  adds the PASSED/MISSED/INCONCLUSIVE/no-verdict cases, so nothing is loosened. Tests pass, 49 of
+  stops (5.5)". The two rewritten ledger tests assert H8 refused and nothing held on the committed ledger,
+  keep every open-exam assertion (H8 may build, the wall) on a copy with the close removed, and
+  add the PASSED, MISSED, INCONCLUSIVE and no-verdict cases, so nothing is loosened. Tests pass, 49 of
   49. The gallery's two copies are identical: 10 pairs by the recorded rule, 20 opaque ids,
-  1,273 frames with none missing, and no arm, session or model name in `review.html`. The
+  1,273 referenced files with none missing, and no arm, session or model name in `review.html`. The
   `docs/AI_ATTEMPTS.md` entry and the cause and retry condition are present. No brief prompt or
   judge note appears in a tracked file, beyond one generic 40-character phrase already in the H0
   tuning briefs. The passphrase appears nowhere, and no gallery or brief file is tracked.
