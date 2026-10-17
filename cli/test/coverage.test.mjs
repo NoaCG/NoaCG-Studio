@@ -206,6 +206,8 @@ test('record --review accepts a complete review of the current digest and refuse
   assert.match(reviewProblems({ review: foreign, coverage: COVERAGE, digest: DIGEST }).join('\n'), /1 verdict\(s\) for frames the coverage did not make: invented\.png/);
   assert.match(reviewProblems({ review: { format: 'x' }, coverage: COVERAGE }).join('\n'), /not a noacg-review-v1 file/);
   assert.match(reviewProblems({ review: complete, coverage: null }).join('\n'), /no coverage\.json beside the review/);
+  // A coverage that could not shoot a render left frames nobody can look at.
+  assert.match(reviewProblems({ review: complete, coverage: { ...COVERAGE, failures: ['event-goal: the page crashed'] }, digest: DIGEST }).join('\n'), /could not shoot 1 render\(s\) \(event-goal\)/);
   // A coverage stripped of its frames leaves nothing to look at, so it is no review.
   assert.match(reviewProblems({ review: { ...complete, frames: [] }, coverage: { ...COVERAGE, frames: [] }, digest: DIGEST }).join('\n'), /holds no frame/);
 });

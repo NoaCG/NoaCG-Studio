@@ -496,6 +496,29 @@ export function sameFiles(lock, examLock) {
   return JSON.stringify(lock.sha256) === JSON.stringify(examLock.sha256);
 }
 
+const pct = (x) => `${(x * 100).toFixed(1)}%`;
+
+/** A second judge's held-back result, as its lock carries it: the figures of H2's bar and where they are kept. */
+export function calibrationBlock(s, results, paths) {
+  const ats = results.map((r) => r.at).sort();
+  return {
+    part: 'heldout',
+    pass: s.pass,
+    agreement: `${s.single.agreed} of ${s.single.n} (${pct(s.single.agreement)}, Wilson ${pct(s.single.interval[0])} to ${pct(s.single.interval[1])})`,
+    basicFailsCalledAirable: s.single.basicFailsCalledAirable.length,
+    pairwise: `${s.pairwise.correct} of ${s.pairwise.n} (${pct(s.pairwise.rate)}, Wilson ${pct(s.pairwise.interval[0])} to ${pct(s.pairwise.interval[1])})`,
+    flips: s.pairwise.flips,
+    unanswered: s.single.unanswered + s.pairwise.unanswered,
+    judgements: results.filter((r) => !r.error).length,
+    notionalUsd: Number(results.reduce((n, r) => n + (r.notionalUsd ?? 0), 0).toFixed(2)),
+    from: ats[0] ?? null,
+    to: ats[ats.length - 1] ?? null,
+    fingerprint: [...new Set(results.map((r) => r.judge))].join(', '),
+    ...paths,
+    bar: 'the parent spec 4.3 / H2: agreement at least 85% with no basic-defect FAIL called airable, pairwise at least 90% with order flips as errors',
+  };
+}
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const verb = argv[0];
@@ -537,6 +560,10 @@ if (isMain) {
       judge = loadJudge(HERE, second ? { lockFile: second.file } : {});
       if (!judge.frozen) fail(`the held-back part is judged only by a frozen judge: ${judge.reason}`);
       if (second && !sameFiles(judge.lock, second.exam)) fail(`${path.relative(ROOT, second.file)} does not freeze judge.lock.json's prompt and rubric: a second judge runs them unchanged`);
+      // One second judge only: trying model after model on the same held-back part until one passes
+      // would be choosing a judge on it.
+      const others = second && existsSync(work) ? readdirSync(work).filter((f) => /^results-heldout-.+\.jsonl$/.test(f) && f !== `results-heldout${tag}.jsonl`) : [];
+      if (others.length) fail(`another second judge already read the held-back part (${others.join(', ')}): a further one needs a new held-back set`);
       // Read once: a second judge on the same held-back part would be a judge tuned on it.
       const earlier = readResults(path.join(work, `results-heldout${tag}.jsonl`)).find((r) => r.judge !== judge.fingerprint);
       if (earlier) fail(`the held-back part was already read by another judge (${earlier.judge.slice(0, 12)}): a re-pin needs a new held-back set, never this one again`);
@@ -560,6 +587,16 @@ if (isMain) {
     console.log(JSON.stringify({ single: s.single, pairwise: s.pairwise, pass: s.pass }, null, 2));
     console.log(`disagreements: ${s.disagreements.map((d) => `${d.id} (owner ${d.owner}, judge ${d.said})`).join('; ') || 'none'}`);
     console.log(`pair errors: ${s.pairErrors.map((p) => `${p.id} -> ${p.combined}`).join('; ') || 'none'}`);
+    // A second judge's held-back result goes into its lock, which a user of it reads (lib/ladder.mjs
+    // `ladderJudge`), with the files to commit beside the lock: the answers and this score.
+    if (second && part === 'heldout') {
+      const lock = readJson(second.file);
+      const kept = path.join(path.dirname(second.file), 'judge');
+      const rel = (f) => path.relative(ROOT, path.join(kept, f)).split(path.sep).join('/');
+      lock.calibration = calibrationBlock(s, results, { results: rel('results-heldout.jsonl'), score: rel('score-heldout.json') });
+      writeFileSync(second.file, `${JSON.stringify(lock, null, 2)}\n`);
+      console.log(`${path.relative(ROOT, second.file)}: calibration ${lock.calibration.pass ? 'PASS' : 'FAIL'}; commit ${path.join(work, `results-heldout${tag}.jsonl`)} and ${path.join(work, `score-heldout${tag}.json`)} as ${lock.calibration.results} and ${lock.calibration.score}`);
+    }
   } else if (verb === 'freeze') {
     const model = value('model', '');
     const effort = value('effort', '');

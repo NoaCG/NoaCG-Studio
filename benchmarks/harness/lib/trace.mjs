@@ -101,15 +101,26 @@ export function traceMetrics({ events, createdAt, model, usage = null }) {
 // `record --review` proves every coverage frame has a verdict, not that it was looked at. The
 // trace says which files the agent opened: a frame is opened when the agent read a file of that
 // name (the frames carry the coverage's own names, `take-sample-video-600ms.png` and the like).
+// Every coverage writes those names again, over new pixels and with empty verdicts, so only a read
+// after the session's last `noacg coverage` counts, and only one that did not fail.
 
-/** The paths a Managed Agents trace's `read` steps opened. */
+const COVERAGE_RUN = /(?:^|[\s;&|(])noacg\s+coverage\b/;
+
+/** The reads that come after the last coverage run of `events` ([{ read } | { coverage }], in order). */
+const sinceLastCoverage = (events) => {
+  const last = events.map((e) => Boolean(e.coverage)).lastIndexOf(true);
+  return events.slice(last + 1).filter((e) => e.read).map((e) => e.read);
+};
+
+/** The paths a Managed Agents trace's `read` steps opened after its last coverage. */
 export function readsOf(steps) {
-  return (steps ?? []).filter((s) => s.kind === 'tool' && /^read$/i.test(s.tool ?? '') && typeof s.path === 'string' && s.ok !== false).map((s) => s.path);
+  return sinceLastCoverage((steps ?? []).filter((s) => s.kind === 'tool').map((s) => (/^read$/i.test(s.tool ?? '') && typeof s.path === 'string' && s.ok !== false ? { read: s.path } : { coverage: COVERAGE_RUN.test(s.command ?? '') })));
 }
 
-/** The paths a Claude Code session's transcript (its `.jsonl`) opened with Read. */
+/** The paths a Claude Code session's transcript (its `.jsonl`) opened with Read after its last coverage. */
 export function transcriptReads(text) {
-  const reads = [];
+  const events = [];
+  const failed = new Set();
   for (const line of String(text ?? '').split('\n')) {
     let entry;
     try {
@@ -118,10 +129,12 @@ export function transcriptReads(text) {
       continue;
     }
     for (const block of Array.isArray(entry?.message?.content) ? entry.message.content : []) {
-      if (block?.type === 'tool_use' && block.name === 'Read' && typeof block.input?.file_path === 'string') reads.push(block.input.file_path);
+      if (block?.type === 'tool_use' && block.name === 'Read' && typeof block.input?.file_path === 'string') events.push({ id: block.id, read: block.input.file_path });
+      else if (block?.type === 'tool_use' && block.name === 'Bash') events.push({ coverage: COVERAGE_RUN.test(block.input?.command ?? '') });
+      else if (block?.type === 'tool_result' && block.is_error) failed.add(block.tool_use_id);
     }
   }
-  return reads;
+  return sinceLastCoverage(events.filter((e) => !(e.read && failed.has(e.id))));
 }
 
 /**

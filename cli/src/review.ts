@@ -30,6 +30,7 @@ export interface Review {
 export interface CoverageManifest {
   digest?: string;
   frames?: Array<{ file: string }>;
+  failures?: string[];
 }
 
 export function reviewFor(digest: string, frames: Array<{ file: string }>): Review {
@@ -57,6 +58,8 @@ export function reviewProblems({ review, coverage, digest }: { review: unknown; 
   if (!r || typeof r !== 'object' || r.format !== REVIEW_FORMAT || !Array.isArray(r.frames)) return [`not a ${REVIEW_FORMAT} file: run \`noacg coverage\` and review the frames it lists`];
   if (!coverage || !Array.isArray(coverage.frames)) return [`no coverage.json beside the review: run \`noacg coverage\` again`];
   if (!coverage.frames.length) return ['the coverage beside the review holds no frame: run `noacg coverage` again'];
+  // Renders that could not be shot are frames nobody can look at: that coverage is not complete.
+  if (coverage.failures?.length) return [`the coverage could not shoot ${coverage.failures.length} render(s) (${listed(coverage.failures.map((f) => f.split(':')[0]))}): run \`noacg coverage\` again`];
   const problems: string[] = [];
   if (r.digest !== coverage.digest) problems.push(`the review (${short(r.digest)}) is not of the coverage beside it (${short(coverage.digest)})`);
   if (digest && r.digest !== digest) problems.push(`stale: the review is of ${short(r.digest)}, the graphic is now ${short(digest)}. Run \`noacg coverage\` again and review its frames`);

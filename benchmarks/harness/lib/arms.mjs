@@ -448,7 +448,19 @@ export function findTranscript(configDir, sessionId) {
 /** What the session said it handed in: its last line, `DELIVERED` or `NOT READY: <why>`. */
 export function handInLine(result) {
   const last = String(result ?? '').trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop() ?? '';
-  return /^\**DELIVERED\b/.test(last) ? 'delivered' : /^\**NOT READY\b/.test(last) ? 'not-ready' : null;
+  // The prompt shows the word in backticks, and a model may bold it: both are the same line.
+  return /^[`*]*DELIVERED\b/.test(last) ? 'delivered' : /^[`*]*NOT READY\b/.test(last) ? 'not-ready' : null;
+}
+
+/** The session's whole closing message: `readRun` keeps only its first 4,000 characters, and the
+ *  hand-in line is the last one. */
+function closingMessage(r) {
+  try {
+    const result = JSON.parse(r.stdout)?.result;
+    return typeof result === 'string' ? result : r.result;
+  } catch {
+    return r.result;
+  }
 }
 
 /**
@@ -499,7 +511,7 @@ export function subscriptionArm({ claude, token, model, effort = null, url, plug
       const calls = readShimLedger(ledgerFile);
       const recordFile = path.join(work, 'outputs', 'record.json');
       const recorded = existsSync(recordFile);
-      const said = handInLine(r.result);
+      const said = handInLine(closingMessage(r));
       const outcome = r.paused ? 'paused' : !recorded ? 'failed' : said === 'delivered' && !r.timedOut ? 'delivered' : 'not-ready';
       const reason = r.paused
         ? `the subscription's usage limit${r.paused.resetsAt ? `, resets ${r.paused.resetsAt}` : ''}`

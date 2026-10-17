@@ -116,8 +116,8 @@ subscription-arm proof below.
   verdict (crops are not listed: D1 names frames). `noacg record --review <review.json>` refuses
   with exit 1, a `reason: review` and nothing written, while a frame of the coverage beside it has
   no verdict, a verdict is open (anything but `ok` or `fixed: <what>`), the review names frames the
-  coverage did not make, the coverage holds no frame, or the review's digest is not the coverage's
-  or not the graphic's now (stale). What the review says by itself is checked before any browser
+  coverage did not make, the coverage holds no frame or could not shoot a render, or the review's
+  digest is not the coverage's or not the graphic's now (stale). What the review says by itself is checked before any browser
   starts; the digest once the bridge has read the package. A record handed in that way carries
   `review` (digest, counts, every verdict). Without `--review`, record is unchanged.
   `cli/src/review.ts`, `cli/test/coverage.test.mjs` (three new tests; the CLI suite 297 pass, 18
@@ -153,9 +153,11 @@ subscription-arm proof below.
   Claude Code's `total_cost_usd`, recorded as notional and never as credit; a session stopped at
   its limit is costed from its transcript at list prices.
 - **The look line (D1, D6).** Every cell carries `look`: the frames its record's review gave a
-  verdict for, how many of those its trace opened (Managed Agents `read` steps that succeeded, or
-  Claude Code `Read` calls in the session's transcript, matched by file name), and which it did
-  not. In a ladder phase a hand-in without a review is `not-ready`.
+  verdict for, how many of those its trace opened (Managed Agents `read` steps, or Claude Code
+  `Read` calls in the session's transcript, matched by file name; only reads that did not fail and
+  that come after the session's last `noacg coverage`, since every coverage writes the same names
+  over new pixels), and which it did not. In a ladder phase a hand-in without a review is
+  `not-ready`.
 - **Judging (D8).** `--judge <runDir> --phase L1|L2` uses the ladder judge, singles only.
 - Tests: `scripts/harness-ladder.test.mjs` (14, new) and `scripts/harness-bench.test.mjs` (49 of
   49; its stand-in CLI now writes `review.json` and checks `--review` as the real verb does, and
@@ -188,7 +190,9 @@ subscription. Its three disagreements: two August cells the owner aired called n
 (`aug:live-vote.C`, `aug:school-scoreboard.A`) and one free-form cell the owner rejected for a
 stroke almost over the logo called airable (`ff:X-55`). The answers and score are committed in
 `benchmarks/harness/ladder/judge/`, and the result in the lock's `calibration` block, which
-`ladderJudge` requires to read `pass: true` before it uses the lock.
+`calibration.mjs score --lock` writes; `ladderJudge` uses the lock only when that block and the
+committed score it names both read `pass: true`. The runner now also refuses a further second
+judge on the held-back part once one has read it, so models cannot be tried on it until one passes.
 
 ## The subscription arm, one brief end to end (AC-3)
 
@@ -203,7 +207,7 @@ eight, so L1's briefs stay unrun.
 | Outcome | delivered: its last line `DELIVERED`, a record handed in with `--review` |
 | Wall | 315 s (11:29:50Z to 11:35:05Z) |
 | Cost | $0.60 notional (`total_cost_usd`), $0 credit; the ledger entry is `funding: subscription`, 0 cents |
-| The look | 23 frames reviewed (all `ok`), 23 of them opened with Read: the look line `all` |
+| The look | 23 frames reviewed (all `ok`), 23 of them opened with Read after its last coverage: the look line `all` (recounted with the final rule, which the review below made stricter) |
 | The bench's own half | the save door's shape check passed, the validator clean, 23 coverage frames captured with no finding, no missing action, the record's, the bench's and the last reviewed digest one version (`bf295fbf`) |
 
 Its CLI calls, from the shim: `doctor`, `whoami` (exit 1, no key, as there should be), `types`,

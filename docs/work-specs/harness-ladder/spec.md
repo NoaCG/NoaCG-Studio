@@ -260,9 +260,13 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
     its first session (AC-4); the bench does not check that order, the checker does.
   - Judge: `--judge <runDir> --phase L1` uses the Opus ladder judge (`ladder/judge.lock.json`),
     singles only, on the subscription. A usage-limit pause waits; nothing moves to the credit.
-  - D6's look line is in every `cell.json` as `look` (reviewed, opened, unopened); a ladder
-    hand-in without a review is counted `not-ready`, so "delivered" already means reviewed. The
-    match rule still has to count usable from the judge's singles, as H8 counted.
+  - D6's look line is in every `cell.json` as `look` (reviewed, opened, unopened), counting only
+    reads after the session's last coverage that did not fail; a ladder hand-in without a review
+    is counted `not-ready`, so "delivered" already means reviewed. The match rule still has to
+    count usable from the judge's singles, as H8 counted.
+  - `--effort` is required with the subscription arm, and `--judge` takes the run's phase from its
+    `summary.json` when `--phase` is not given. The 20-minute stop ends the session's whole process
+    tree on Windows (`taskkill /T`), not only `claude`.
   - The cost per usable graphic is `notionalUsd` (Claude Code's own `total_cost_usd`; for a
     session stopped at 20 minutes, its transcript's usage at list prices, marked
     `notionalFrom: transcript`). It is an estimate (D2); L3 measures the real one.

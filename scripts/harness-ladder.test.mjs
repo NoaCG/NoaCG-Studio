@@ -195,6 +195,26 @@ test('the look line counts the reviewed frames a trace opened, from Managed Agen
   // m1 counted once: 1000 in, 100 out at Haiku 5.5's $0.50 / $2.50, and 10k cache reads at $0.05.
   assert.equal(transcriptUsd(transcript, 'claude-haiku-5-5'), (1000 * 0.5 + 100 * 2.5 + 10_000 * 0.05) / 1e6);
   assert.equal(transcriptUsd(transcript, 'no-such-model'), null);
+  // Only a look after the last coverage counts: a new coverage writes the same names over new
+  // pixels, with every verdict empty again. And a read that failed opened nothing.
+  const again = [
+    { kind: 'tool', tool: 'read', path: '/o/coverage/off.png', ok: true },
+    { kind: 'tool', tool: 'read', path: '/o/coverage/take-sample-video-600ms.png', ok: true },
+    { kind: 'tool', tool: 'bash', command: 'cd /workspace && noacg coverage /workspace/graphic --out /o/coverage' },
+    { kind: 'tool', tool: 'read', path: '/o/coverage/event-goal-1500ms.png', ok: true },
+  ];
+  assert.deepEqual(readsOf(again), ['/o/coverage/event-goal-1500ms.png']);
+  const lines = (blocks) => blocks.map((content, i) => JSON.stringify({ type: i % 2 ? 'user' : 'assistant', message: { id: `m${i}`, content } })).join('\n');
+  const recovered = lines([
+    [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: 'outputs/coverage/off.png' } }],
+    [{ type: 'tool_result', tool_use_id: 't1', content: 'image' }],
+    [{ type: 'tool_use', id: 't2', name: 'Bash', input: { command: 'noacg coverage ./graphic --out ./outputs/coverage' } }],
+    [{ type: 'tool_result', tool_use_id: 't2', content: 'Coverage ...' }],
+    [{ type: 'tool_use', id: 't3', name: 'Read', input: { file_path: 'outputs/coverage/take-sample-video-600ms.png' } }],
+    [{ type: 'tool_result', tool_use_id: 't3', is_error: true, content: 'File does not exist.' }],
+    [{ type: 'tool_use', id: 't4', name: 'Read', input: { file_path: 'outputs/coverage/event-goal-1500ms.png' } }],
+  ]);
+  assert.deepEqual(transcriptReads(recovered), ['outputs/coverage/event-goal-1500ms.png'], 'before the coverage, and the failed read, do not count');
 });
 
 // ── the subscription arm (D2) ───────────────────────────────────────────────────────────────
@@ -291,6 +311,10 @@ test('a ladder hand-in without a review, or without DELIVERED, is not delivered;
   assert.match(stopped.reason, /stopped at 20 minutes/);
   assert.equal(stopped.notionalUsd, (2 * (10_000 * 0.5 + 1000 * 2.5)) / 1e6, 'two model messages at Haiku list prices');
   assert.equal(handInLine('done\n**DELIVERED**'), 'delivered');
+  assert.equal(handInLine('done\n`DELIVERED`'), 'delivered', 'as the prompt shows it, in backticks');
+  // A closing message longer than the 4,000 characters readRun keeps still ends in its hand-in line.
+  const long = await cellOf(arm(standInClaude({ lastLine: `${'A long summary. '.repeat(400)}\nDELIVERED` })));
+  assert.equal(long.outcome, 'delivered');
   assert.equal(handInLine('DELIVERED\nthen one more thought'), null, 'only the last line counts');
   assert.throws(() => subscriptionArm({ claude: 'c', token: 't', url: 'u' }), /--model/);
   assert.equal(findTranscript(path.join(tmp(), 'none'), 'x'), null);

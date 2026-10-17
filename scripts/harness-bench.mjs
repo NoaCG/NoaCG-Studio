@@ -508,7 +508,7 @@ async function build(phase) {
     if (effort || value('agent-version') !== undefined) fail("the exam runs the lock's agent as tuned: no --effort or --agent-version");
   }
   if (arms.includes('claude-code') && !model) fail('--build with claude-code needs --model, the exact model id the reference session runs');
-  if (arms.includes('subscription') && !model) fail("--build with subscription needs --model, the rung's exact model id, and --effort (D3: one variable per rung)");
+  if (arms.includes('subscription') && !(model && effort)) fail("--build with subscription needs --model, the rung's exact model id, and --effort (D3: one variable per rung)");
   // Every paid phase has its own ceiling (5.1): a run that does not name it is refused, never
   // admitted against the whole run budget.
   if (!dry && arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
@@ -843,7 +843,12 @@ if (isMain) {
     const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
     const env = subscriptionEnv({ token: mainEnv().CLAUDE_CODE_OAUTH_TOKEN, home: path.join(runDir, 'judge', 'home'), pathDirs: [path.dirname(process.execPath), path.dirname(claude), system] });
     checkSubscriptionAuth({ claude, env });
-    const phase = value('phase', null);
+    // The run's own phase (its summary.json) unless --phase names one: a ladder run judged without
+    // the flag must still get the ladder's judge, not the exam's.
+    const summaryFile = path.join(runDir, 'summary.json');
+    const ranAs = existsSync(summaryFile) ? JSON.parse(readFileSync(summaryFile, 'utf8')).phase ?? null : null;
+    const phase = value('phase', ranAs);
+    if (ranAs && phase !== ranAs) fail(`${runDir} is a ${ranAs} run, not ${phase}`);
     const concurrency = Number(value('concurrency', '1'));
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) fail('--concurrency takes 1 to 4 judgements at once');
     // The ladder and its teaching rounds are judged in singles by the ladder's judge (D8); the exam

@@ -82,15 +82,17 @@ function fail(message) {
 }
 
 /**
- * The ladder's judge (D8): Opus 5.5, frozen in its own lock, when its calibration passed; else the
- * exam judge. A lock whose calibration did not pass is no judge.
+ * The ladder's judge (D8): Opus 5.5, frozen in its own lock, when its calibration passed (the
+ * block `calibration.mjs score --lock` writes into the lock, and the committed score it names);
+ * else the exam judge. A lock whose calibration did not pass is no judge.
  */
 export function ladderJudge(root) {
   const judgeDir = path.join(root, 'benchmarks', 'harness', 'judge');
   const lockFile = path.join(root, LADDER_JUDGE_LOCK);
   if (existsSync(lockFile)) {
-    const lock = JSON.parse(readFileSync(lockFile, 'utf8'));
-    if (lock.calibration?.pass === true) return { ...loadJudge(judgeDir, { lockFile }), which: 'ladder' };
+    const c = JSON.parse(readFileSync(lockFile, 'utf8')).calibration;
+    const scored = c?.score && existsSync(path.join(root, c.score)) ? JSON.parse(readFileSync(path.join(root, c.score), 'utf8')) : null;
+    if (c?.pass === true && scored?.pass === true) return { ...loadJudge(judgeDir, { lockFile }), which: 'ladder' };
   }
   return { ...loadJudge(judgeDir), which: 'exam' };
 }
