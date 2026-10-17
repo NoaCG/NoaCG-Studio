@@ -5,7 +5,7 @@ on:
       scope:
         description: Bounded independent verification selection
         type: choice
-        options: [unchanged, fifth, maintained, references, visual, mutation]
+        options: [unchanged, fifth, maintained, references, visual, mutation, diag]
         default: unchanged
 permissions:
   contents: read
@@ -45,6 +45,14 @@ jobs:
         if: always() && inputs.scope == 'unchanged'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fourth.json }
         run: $PW e2e/leave-fourth-checker.spec.ts --output=.noacg/results/fourth
+      - name: Carried fourth :228 repeated (frequency only; the diagnosis is the logged copy)
+        if: always() && inputs.scope == 'diag'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat228.json }
+        run: $PW e2e/leave-fourth-checker.spec.ts:228 --repeat-each=12 --output=.noacg/results/repeat228
+      - name: Logged copy of :228
+        if: always() && inputs.scope == 'diag'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/diag.json }
+        run: $PW e2e/leave-fifth-diag.spec.ts --repeat-each=12 --output=.noacg/results/diag
       - name: Fifth checker write-ordering cases
         if: always() && (inputs.scope == 'fifth' || inputs.scope == 'mutation')
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fifth.json }
