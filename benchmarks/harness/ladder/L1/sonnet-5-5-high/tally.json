@@ -1,0 +1,250 @@
+{
+  "verdict": "screened out",
+  "screen": {
+    "briefs": 4,
+    "ran": 4,
+    "delivered": 4,
+    "usable": 2,
+    "notionalUsd": 7.5,
+    "usdPerUsable": 3.75,
+    "medianWallSeconds": 457,
+    "lookAll": 4,
+    "framesReviewed": 242,
+    "framesOpened": 242,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug"
+    ],
+    "unjudged": [],
+    "notUsable": 2,
+    "endsAt": "cost",
+    "done": true
+  },
+  "all": {
+    "briefs": 8,
+    "ran": 4,
+    "delivered": 4,
+    "usable": 2,
+    "notionalUsd": 7.5,
+    "usdPerUsable": 3.75,
+    "medianWallSeconds": 457,
+    "lookAll": 4,
+    "framesReviewed": 242,
+    "framesOpened": 242,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug"
+    ],
+    "unjudged": []
+  },
+  "lines": [
+    {
+      "rule": "at least 7 of 8 delivered and usable",
+      "holds": false,
+      "figure": "2 of 8"
+    },
+    {
+      "rule": "at most $1.00 notional per usable graphic",
+      "holds": false,
+      "figure": "$3.75"
+    },
+    {
+      "rule": "median wall at most 10 minutes",
+      "holds": true,
+      "figure": "457 s"
+    },
+    {
+      "rule": "every reviewed frame opened in at least 7 sessions",
+      "holds": false,
+      "figure": "4 of 8"
+    }
+  ],
+  "rows": [
+    {
+      "brief": "boxing-night-matchup",
+      "ran": true,
+      "id": "boxing-night-matchup.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [
+        "select"
+      ],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": false,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 2.1555354,
+      "wallSeconds": 568,
+      "overBudget": false,
+      "look": {
+        "reviewed": 57,
+        "opened": 57,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [
+        "select"
+      ]
+    },
+    {
+      "brief": "collegiate-cs2-scorebug",
+      "ran": true,
+      "id": "collegiate-cs2-scorebug.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [
+        "event-nextmap: nextMap did not move the machine (still main=enter, phase=pre, pause=running, score=idle). If it should have, the machine does not answer nextMap from there. It did not move it after any other event either."
+      ],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 2.8908373,
+      "wallSeconds": 781,
+      "overBudget": false,
+      "look": {
+        "reviewed": 81,
+        "opened": 81,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": []
+    },
+    {
+      "brief": "charity-stream-alerts",
+      "ran": true,
+      "id": "charity-stream-alerts.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.2656175,
+      "wallSeconds": 226,
+      "overBudget": false,
+      "look": {
+        "reviewed": 64,
+        "opened": 64,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": []
+    },
+    {
+      "brief": "film-fest-nominee-reveal",
+      "ran": true,
+      "id": "film-fest-nominee-reveal.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.1833711,
+      "wallSeconds": 346,
+      "overBudget": false,
+      "look": {
+        "reviewed": 40,
+        "opened": 40,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": []
+    },
+    {
+      "brief": "hockey-club-match-board",
+      "ran": false,
+      "delivered": false,
+      "usable": false,
+      "judged": false,
+      "defects": [],
+      "missing": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "look": null,
+      "rubberStamp": false,
+      "flagsToRead": []
+    },
+    {
+      "brief": "volleyball-set-board",
+      "ran": false,
+      "delivered": false,
+      "usable": false,
+      "judged": false,
+      "defects": [],
+      "missing": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "look": null,
+      "rubberStamp": false,
+      "flagsToRead": []
+    },
+    {
+      "brief": "school-quiz-secret-pick",
+      "ran": false,
+      "delivered": false,
+      "usable": false,
+      "judged": false,
+      "defects": [],
+      "missing": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "look": null,
+      "rubberStamp": false,
+      "flagsToRead": []
+    },
+    {
+      "brief": "ski-sprint-timing-tower",
+      "ran": false,
+      "delivered": false,
+      "usable": false,
+      "judged": false,
+      "defects": [],
+      "missing": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "look": null,
+      "rubberStamp": false,
+      "flagsToRead": []
+    }
+  ]
+}

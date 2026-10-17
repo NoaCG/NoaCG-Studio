@@ -103,3 +103,29 @@ than `medium`, so more usable boards, but it costs more per session than `medium
 which already put `medium` at $2.74 per usable. Expected: at most 5 of 8 usable and more than
 $1.50 per usable, so no match, and possibly the screen's cost line. What would refute it: 7 of 8
 usable at at most $1.00 each.
+
+**Result: screened out on cost; the hypothesis held.** Sessions 13:30Z to 13:49Z, two at a time.
+4 delivered, 2 usable of 4, $7.50 notional ($3.75 per usable, over the $2.00 line), median wall
+457 s, frames opened 242 of 242 reviewed (every one in all 4 sessions). Two rubber stamps.
+Evidence: `benchmarks/harness/ladder/L1/sonnet-5-5-high/`.
+
+| brief | outcome | single | basic mistakes | usable | notional | wall s | opened/reviewed | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| boxing-night-matchup | delivered | not airable (the gym logos on large plates of their own; with long values the record line outgrows the names) | - | no | $2.16 | 568 | 57/57 | yes |
+| collegiate-cs2-scorebug | delivered | not airable (no basic mistake; the logo treatment) | - | no | $2.89 | 781 | 81/81 | yes |
+| charity-stream-alerts | delivered | airable | - | yes | $1.27 | 226 | 64/64 | |
+| film-fest-nominee-reveal | delivered | airable | - | yes | $1.18 | 346 | 40/40 | |
+
+At `high` Sonnet opened every frame it reviewed, and its matchup now shows the boxers with the
+brief's own values and its winner steps work (the judge: "Select, lock and clear all work"; the
+gate's `select` flag is one H8's reading would clear, but the graphic is not airable on its own
+single). The look got complete and the boards still failed on design calls the judge makes and
+the agent did not; the price of looking at every frame is the price that ended the rung.
+
+### Rung 4: Opus 5.5 `low` (`claude-opus-5-5`)
+
+**Hypothesis**, committed before its first session: Opus makes the better boards (in H8 every
+graphic it delivered was usable), and `low` keeps the session short, but its token price is
+higher than Sonnet's and the dense boards still take most of the work. Expected: it passes the
+screen, delivers 5 to 7 usable of 8, and misses D6 on cost (more than $1.00 per usable). What
+would refute it: a match (7 usable at at most $1.00), or a screen out on "not usable".
