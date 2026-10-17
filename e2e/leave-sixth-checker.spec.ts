@@ -228,7 +228,8 @@ for (const action of ['hold', 'late'] as const) {
     await page.getByTestId('save-name').fill(`Sixth S3 ${action}`);
     await rule(page, LIB, action);
     await page.getByTestId('save-confirm').click(); await releasable(page);
-    const during = await raw(page, SLOT);
+    // A late-refused write keeps its readwrite transaction open, so a raw read would queue behind it.
+    const during = action === 'hold' ? await raw(page, SLOT) : null;
     const parsed = during ? JSON.parse(during) : null;
     const facts: Record<string, unknown> = { slotDuring: parsed && { graphicId: parsed.graphicId, reserved: parsed.reservedGraphicId ?? null, dirty: parsed.dirty } };
     await page.reload(); await expect(page.getByTestId('editor-foundation').or(page.getByTestId('home-page')).first()).toBeVisible();
@@ -265,7 +266,8 @@ test('sixth S4: Home -> Save & continue with the record write held; browser Back
   await rule(page, LIB, 'hold');
   await page.getByTestId('switch-save').click(); await releasable(page);
   const before = page.url();
-  await page.goBack();
+  // history.back() rather than page.goBack(): the guard restores the entry, so no load follows.
+  await page.evaluate(() => { history.back(); });
   await page.evaluate(() => new Promise(r => setTimeout(r, 400)));
   const facts: Record<string, unknown> = { before, duringBack: page.url(), dialogs: await page.getByTestId('confirm-switch').count(), editor: await page.getByTestId('editor-foundation').count() };
   await release(page);
@@ -331,7 +333,7 @@ test('sixth S6: first Save under the kept name; reservation and link write both 
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog').locator('.status-bad')).toBeVisible();
   const refused = await acted(page, 'refuse');
-  const facts: Record<string, unknown> = { refused: refused.map(r => r.stack.slice(0, 160)), recordsAfterRefusal: (await library(page)).length, errors: (await probe(page)).errors };
+  const facts: Record<string, unknown> = { refused: refused.map(r => r.stack), recordsAfterRefusal: (await library(page)).length, errors: (await probe(page)).errors };
   await page.waitForTimeout(1500); await settleDurableWrites(page).catch(e => { facts.settle = String(e); });
   facts.slotBeforeReload = await slot(page);
   await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
@@ -343,5 +345,6 @@ test('sixth S6: first Save under the kept name; reservation and link write both 
   facts.records = (await library(page)).length;
   out('s6-reservation-and-link-refused.json', facts);
   expect(refused).toHaveLength(2);
+  for (const r of refused) expect(r.stack, 'both refused puts are the save\'s own slot writes').toContain('persistLink');
   expect(facts.records, 'two refused slot writes and a reload let the next Save mint a second record (repair-6 limit)').toBe(1);
 });
