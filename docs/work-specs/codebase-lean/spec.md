@@ -96,6 +96,18 @@ typecheck/lint/bundle step took 157 seconds. Full logs were denied by the networ
 per-test skip durations and individual build substep costs are unknown. No local build was run
 to fill that gap. See [measurement receipt](evidence/README.md) and [CI metadata](evidence/ci-baseline.json).
 
+**Post-landing capacity finding, 2026-10-17:** [issue #1405](https://github.com/NoaCG/NoaCG-Studio/issues/1405)
+tracks the 20-minute shard timeouts seen after admin retirement. In main run
+[39048521384](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39048521384), 12 of 13 browser
+shards passed; shard 7 reached declaration 215/289 before cancellation, with no assertion failure
+in its complete log. `save-transaction.spec.ts` is absent from the duration table and was packed
+at its 0.397-minute median, but had already consumed about eight minutes before cancellation.
+That is a lower bound, not a completed timing measurement. Refresh from complete authoritative
+reports and rebalance before adding substantial revived coverage under #800. This is a separate
+CI-capacity follow-up; keep the tests and time limits intact. The
+[repair-owner comment](https://github.com/NoaCG/NoaCG-Studio/pull/1400#issuecomment-6236077488)
+tracks the recovery and final gate.
+
 ## Phase 1: remove the old editor and resolve #800
 
 The [review reconciliation](evidence/second-opinion-response.md) explains corrections to both
