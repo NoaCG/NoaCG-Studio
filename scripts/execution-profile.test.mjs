@@ -53,29 +53,29 @@ test('mount roots map membership without escaping and hidden ancestors stay unkn
 });
 test('v1 hybrid ignores a cgroup2 mount that does not carry the controller (#1361)', () => {
   // Measured in a Claude Code cloud VM: v1 controllers plus an empty cgroup2 at /sys/fs/cgroup/unified.
-  const id = '/process_api/01a1', leaf = `${id}/claude-code-bash`, cg = '/sys/fs/cgroup';
+  const id = '/process_api/01a1', leaf = `${id}/claude-code-bash`, cg = '/sys/fs/cgroup', MiB = 2 ** 20;
   const v1 = ['cpu', 'cpuacct', 'cpuset', 'memory', 'devices', 'freezer', 'blkio', 'pids', 'name=systemd'];
   const files = new Map([
     ['/proc/self/cgroup', `9:name=systemd:/\n8:pids:/\n7:blkio:/\n6:freezer:/\n5:devices:/\n4:memory:${leaf}\n3:cpuset:/\n2:cpuacct:/\n1:cpu:/\n0::/`],
     ['/proc/self/mountinfo', [`37 24 0:29 / ${cg} rw,relatime - tmpfs tmpfs rw,mode=755`,
-      ...v1.map((c, i) => `${38 + i} 37 0:${30 + i} / ${cg}/${c === 'name=systemd' ? 'systemd' : c} rw,relatime - cgroup cgroup rw,${c}`),
+      ...v1.map((c, i) => `${38 + i} 37 0:${30 + i} / ${cg}/${c.replace('name=', '')} rw,relatime - cgroup cgroup rw,${c}`),
       `47 37 0:39 / ${cg}/unified rw,relatime - cgroup2 cgroup2 rw`].join('\n')],
-    [`${cg}/unified/cgroup.controllers`, ''],
+    [`${cg}/unified/cgroup.controllers`, 'hugetlb'],
     [`${cg}/cpu/cpu.cfs_quota_us`, '-1'], [`${cg}/cpu/cpu.cfs_period_us`, '100000'],
-    [`${cg}/memory/memory.limit_in_bytes`, '9223372036854771712'], [`${cg}/memory/memory.usage_in_bytes`, String(670 * 2 ** 20)],
-    [`${cg}/memory/process_api/memory.limit_in_bytes`, '9223372036854771712'], [`${cg}/memory/process_api/memory.usage_in_bytes`, String(712 * 2 ** 20)],
-    [`${cg}/memory${id}/memory.limit_in_bytes`, '9223372036854771712'], [`${cg}/memory${id}/memory.usage_in_bytes`, String(670 * 2 ** 20)],
-    [`${cg}/memory${leaf}/memory.limit_in_bytes`, '14343688192'], [`${cg}/memory${leaf}/memory.usage_in_bytes`, String(45 * 2 ** 20)],
+    [`${cg}/memory/memory.limit_in_bytes`, '9223372036854771712'], [`${cg}/memory/memory.usage_in_bytes`, String(670 * MiB)],
+    [`${cg}/memory/process_api/memory.limit_in_bytes`, '9223372036854771712'], [`${cg}/memory/process_api/memory.usage_in_bytes`, String(712 * MiB)],
+    [`${cg}/memory${id}/memory.limit_in_bytes`, '9223372036854771712'], [`${cg}/memory${id}/memory.usage_in_bytes`, String(670 * MiB)],
+    [`${cg}/memory${leaf}/memory.limit_in_bytes`, '14343688192'], [`${cg}/memory${leaf}/memory.usage_in_bytes`, String(45 * MiB)],
   ]);
   const env = { read: (file) => files.get(file) ?? null, affinity: 4, hostMemoryBytes: 16 * GiB, hostFreeBytes: 15 * GiB };
   const r = readResources(env);
   assert.equal(r.limitsObserved, true); assert.equal(r.effectiveCpus, 4);
-  assert.equal(r.memoryLimitBytes, 14343688192); assert.equal(r.availableMemoryBytes, 14343688192 - 45 * 2 ** 20);
-  // A cgroup2 mount that does carry the controller is still read, and a missing reading there stays unknown.
-  files.set(`${cg}/unified/cgroup.controllers`, 'cpu memory');
+  assert.equal(r.memoryLimitBytes, 14343688192); assert.equal(r.availableMemoryBytes, 14343688192 - 45 * MiB);
+  // Once cpu is not held through v1, the cgroup2 mount carries it: a missing reading there stays unknown.
+  files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace('1:cpu:/\n', ''));
   assert.equal(readResources(env).limitsObserved, false);
-  files.delete(`${cg}/unified/cgroup.controllers`);
-  assert.equal(readResources(env).limitsObserved, false);
+  files.set(`${cg}/unified/cpu.max`, '200000 100000');
+  assert.equal(readResources(env).effectiveCpus, 2);
 });
 test('missing or malformed ancestor readings never become host-sized cloud memory', () => {
   for (const [file, raw] of [['/cg/team/cpu.max', null], ['/cg/memory.current', null], ['/cg/team/memory.max', 'garbage']]) {
