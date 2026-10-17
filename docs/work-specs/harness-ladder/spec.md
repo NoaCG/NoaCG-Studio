@@ -114,6 +114,16 @@ configuration; a miss reports the cost and quality of each rung tried, which is 
   so Fable's weekly cap is kept for the exam; if it fails, the ladder uses Fable and waits for its
   resets. Every judge call is on the subscription; a capped judge waits, it never moves to the
   credit. Revert: Fable for the ladder too, or both pair orders in the exam (60 calls).
+  **Amended 2026-10-17, after L1's check (ladder and teaching only; the exam's Fable judging is
+  unchanged):** the frozen Opus ladder judge judges each delivered ladder or teaching graphic as a
+  single three times. A graphic is usable when at least 2 of its 3 readings are airable with no
+  basic visible mistake, and it has no missing operator action under H8's counting (the gate's
+  flags after the readings of the operator surface). A graphic with fewer than three readings is
+  not yet judged. Every tally reports each graphic's agreement (3/3 or 2/3) and the judge's
+  repeatability (the share of graphics at 3/3). Why: L1's check re-asked two singles and both
+  flipped, and D7's choice of the rung to teach sits on the 4-of-8 line. Revert: one reading per
+  graphic (`SINGLE_READINGS` in `lib/ladder.mjs` back to one of one), with the first reading of
+  each graphic as its single.
 - **D9. Money, fixed in L0 before any credit is spent:** the exam reserve $30.00 and the
   confirmation ceiling $8.00 held in the ledger; $7.32 stays unallocated. The exam's session budget
   `B = min(round-up(1.5 m), 130 cents)` from the winner's confirmed mean `m` on Managed Agents,
