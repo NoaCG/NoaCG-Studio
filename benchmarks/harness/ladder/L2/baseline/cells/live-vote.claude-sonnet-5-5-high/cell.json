@@ -1,0 +1,109 @@
+{
+  "costUnread": false,
+  "brief": "live-vote",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "bfe75928-5779-47ec-b528-0ef1ad1e7565",
+  "costCents": 0,
+  "notionalUsd": 1.1943799,
+  "wallSeconds": 250,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type poll --design ig02 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 1,
+      "digest": "sha256:be8a950e31237ccf1823951f4dc98a1f695cdcf7b99e112c7ff00ce2454e9efb"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:d615009bb41082e92013579c522c152b9b0bb90831e77e1ffeacde4b340073dc"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d615009bb41082e92013579c522c152b9b0bb90831e77e1ffeacde4b340073dc"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:db3789d263bde6ab9ad77cb974c8b58b823d33645a96d899f5b725926723ff3a"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:db3789d263bde6ab9ad77cb974c8b58b823d33645a96d899f5b725926723ff3a"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:d9a5b5205143874fc073121ad1b205693a35fee78f9a5d48948c5ebd6f5271f2"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d9a5b5205143874fc073121ad1b205693a35fee78f9a5d48948c5ebd6f5271f2"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:d9a5b5205143874fc073121ad1b205693a35fee78f9a5d48948c5ebd6f5271f2"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\baseline\\cells\\live-vote.claude-sonnet-5-5-high\\frames",
+    "frames": 23,
+    "crops": 1,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:d9a5b5205143874fc073121ad1b205693a35fee78f9a5d48948c5ebd6f5271f2"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 3,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:d9a5b5205143874fc073121ad1b205693a35fee78f9a5d48948c5ebd6f5271f2",
+    "benchValidated": "sha256:d9a5b5205143874fc073121ad1b205693a35fee78f9a5d48948c5ebd6f5271f2",
+    "reviewed": "sha256:d9a5b5205143874fc073121ad1b205693a35fee78f9a5d48948c5ebd6f5271f2",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 23,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

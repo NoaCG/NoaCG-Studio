@@ -1,0 +1,267 @@
+{
+  "costUnread": false,
+  "brief": "basketball-club-scorebug",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "87ab7108-fc84-46a3-a0ad-8fb71bbc3a33",
+  "costCents": 0,
+  "notionalUsd": 3.3647088000000007,
+  "wallSeconds": 765,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design sb01 --out ../ref_sb01",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design sb02 --out ../ref_sb02",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design sb03 --out ../ref_sb03",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design sb04 --out ../ref_sb04",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 1,
+      "digest": "sha256:54f3f41043ecec264eea3b51b501fa3d88beef90828885c7043a2d65a02f13ce"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --data f0=Saint-Étienne-du-Rouvray --data f1=87 --data f2=Mont-Saint-Aignan Basket --data f3=102 --data f6=#f5d90a --data f4=Q3 --data f5=7:42 --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 1,
+      "digest": "sha256:bf49590c1e1a6e5980222c35804fbd6adf1cc86377e80d8041ffa9e50b578c78"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --data f0=Saint-Étienne-du-Rouvray --data f1=87 --data f2=Mont-Saint-Aignan Basket --data f3=102 --data f6=#f5d90a --data f4=Q3 --data f5=7:42 --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --data f0=Football Club Louviers-Val-de-Reuil Basket --data f2=Pont-l'Évêque --out shots/long2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --data f0=Saint-Étienne-du-Rouvray --data f1=87 --data f2=Mont-Saint-Aignan Basket --data f3=102 --data f6=#f5d90a --data f4=Q3 --data f5=7:42 --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --data f0=Football Club Louviers-Val-de-Reuil Basket --data f2=Pont-l'Évêque --out shots/long2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic --screenshots shots",
+      "code": 1,
+      "digest": "sha256:84949dafcb11d75c99b3606cdf1604d3be206018e5d378b22e2271bdeb3d5664"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic --screenshots shots",
+      "code": 1,
+      "digest": "sha256:0eb515e4ba290447f86c01cb917febb3be830263730246f060df6ebfe9d3f353"
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic --json",
+      "code": 1,
+      "digest": "sha256:0eb515e4ba290447f86c01cb917febb3be830263730246f060df6ebfe9d3f353"
+    },
+    {
+      "command": "noacg validate graphic --json",
+      "code": 1,
+      "digest": "sha256:0eb515e4ba290447f86c01cb917febb3be830263730246f060df6ebfe9d3f353"
+    },
+    {
+      "command": "noacg validate graphic --screenshots shots",
+      "code": 1,
+      "digest": "sha256:099c67983d818c515aec37c4e0cd0d1cdcfe9e367bcf4bcf5bfeda2cb96678c6"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 1,
+      "digest": "sha256:eb889b5f647482b0889e314ef1ef136437040f5fdce7662ca8f9856b149d4048"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Saint-Étienne-du-Rouvray Saint-Étienne-du-Rouvray --data f2=Mont-Saint-Aignan Mont-Saint-Aignan --out shots/xl.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic --screenshots shots",
+      "code": 0,
+      "digest": "sha256:bc6dd5e0aa50c4103242333894f94dc987c90a4d16cefa732446d464aa32ee8c"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --event interval --out shots/int.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --event final --data f1=64 --data f3=58 --out shots/fin.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic --screenshots shots",
+      "code": 0,
+      "digest": "sha256:1c7a865dc5dfa4f08d42a603342c2487c655d2fd9d25c3b80dee7687c440c6fa"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --background video --event interval --out shots/int.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:1c7a865dc5dfa4f08d42a603342c2487c655d2fd9d25c3b80dee7687c440c6fa"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:1c7a865dc5dfa4f08d42a603342c2487c655d2fd9d25c3b80dee7687c440c6fa"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\baseline\\cells\\basketball-club-scorebug.claude-sonnet-5-5-high\\frames",
+    "frames": 117,
+    "crops": 4,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:1c7a865dc5dfa4f08d42a603342c2487c655d2fd9d25c3b80dee7687c440c6fa"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "clockStart",
+      "clockStop",
+      "clockReset",
+      "interval",
+      "resumePlay",
+      "final",
+      "scoreA1",
+      "scoreA2",
+      "scoreA3",
+      "scoreB1",
+      "scoreB2",
+      "scoreB3"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:1c7a865dc5dfa4f08d42a603342c2487c655d2fd9d25c3b80dee7687c440c6fa",
+    "benchValidated": "sha256:1c7a865dc5dfa4f08d42a603342c2487c655d2fd9d25c3b80dee7687c440c6fa",
+    "reviewed": "sha256:1c7a865dc5dfa4f08d42a603342c2487c655d2fd9d25c3b80dee7687c440c6fa",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 117,
+    "opened": 117,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

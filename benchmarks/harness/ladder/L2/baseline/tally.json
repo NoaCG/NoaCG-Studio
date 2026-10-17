@@ -1,0 +1,553 @@
+{
+  "verdict": "screened out",
+  "screen": {
+    "briefs": 4,
+    "ran": 4,
+    "delivered": 4,
+    "usable": 2,
+    "notionalUsd": 7.5,
+    "usdPerUsable": 3.75,
+    "medianWallSeconds": 457,
+    "lookAll": 4,
+    "framesReviewed": 242,
+    "framesOpened": 242,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 4,
+      "judged": 4
+    },
+    "notUsable": 2,
+    "endsAt": "cost",
+    "done": true
+  },
+  "all": {
+    "briefs": 8,
+    "ran": 8,
+    "delivered": 7,
+    "usable": 2,
+    "notionalUsd": 16.3,
+    "usdPerUsable": 8.15,
+    "medianWallSeconds": 527,
+    "lookAll": 6,
+    "framesReviewed": 531,
+    "framesOpened": 499,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug",
+      "hockey-club-match-board",
+      "school-quiz-secret-pick",
+      "ski-sprint-timing-tower"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 7,
+      "judged": 7
+    }
+  },
+  "lines": [
+    {
+      "rule": "at least 7 of 8 delivered and usable",
+      "holds": false,
+      "figure": "2 of 8"
+    },
+    {
+      "rule": "at most $1.00 notional per usable graphic",
+      "holds": false,
+      "figure": "$8.15"
+    },
+    {
+      "rule": "median wall at most 10 minutes",
+      "holds": true,
+      "figure": "527 s"
+    },
+    {
+      "rule": "every reviewed frame opened in at least 7 sessions",
+      "holds": false,
+      "figure": "6 of 8"
+    }
+  ],
+  "rows": [
+    {
+      "brief": "boxing-night-matchup",
+      "ran": true,
+      "id": "boxing-night-matchup.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [
+        "select"
+      ],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": false,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 2.1555354,
+      "wallSeconds": 568,
+      "overBudget": false,
+      "look": {
+        "reviewed": 57,
+        "opened": 57,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [
+        "select"
+      ],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T13:41:20.984Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T15:24:55.664Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T15:25:27.539Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "collegiate-cs2-scorebug",
+      "ran": true,
+      "id": "collegiate-cs2-scorebug.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [
+        "event-nextmap: nextMap did not move the machine (still main=enter, phase=pre, pause=running, score=idle). If it should have, the machine does not answer nextMap from there. It did not move it after any other event either."
+      ],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 2.8908373,
+      "wallSeconds": 781,
+      "overBudget": false,
+      "look": {
+        "reviewed": 81,
+        "opened": 81,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T13:45:35.808Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T15:27:13.073Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T15:27:43.826Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "charity-stream-alerts",
+      "ran": true,
+      "id": "charity-stream-alerts.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.2656175,
+      "wallSeconds": 226,
+      "overBudget": false,
+      "look": {
+        "reviewed": 64,
+        "opened": 64,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T13:47:03.555Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:25:20.146Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:25:42.910Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "film-fest-nominee-reveal",
+      "ran": true,
+      "id": "film-fest-nominee-reveal.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.1833711,
+      "wallSeconds": 346,
+      "overBudget": false,
+      "look": {
+        "reviewed": 40,
+        "opened": 40,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T13:51:09.895Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:26:17.045Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:26:34.004Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "hockey-club-match-board",
+      "ran": true,
+      "id": "hockey-club-match-board.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 2.4321049,
+      "wallSeconds": 518,
+      "overBudget": false,
+      "look": {
+        "reviewed": 81,
+        "opened": 68,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "long-side-1-video.jpg",
+          "long-side-1-light.jpg",
+          "long-side-2-video.jpg",
+          "long-side-2-light.jpg",
+          "event-clockstart-10000ms.jpg",
+          "event-interval-10000ms.jpg",
+          "event-final-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T16:45:28.890Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T16:45:48.050Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T16:46:18.766Z",
+          "airable": false,
+          "mistakes": [
+            "unreadable-contrast",
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "volleyball-set-board",
+      "ran": true,
+      "id": "volleyball-set-board.subscription",
+      "outcome": "not-ready",
+      "reason": "the session said NOT READY",
+      "delivered": false,
+      "judged": false,
+      "airable": null,
+      "confidence": null,
+      "defects": [],
+      "missing": [
+        "undoPoint"
+      ],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": false,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 2.3065094999999998,
+      "wallSeconds": 521,
+      "overBudget": false,
+      "look": {
+        "reviewed": 81,
+        "opened": 81,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [
+        "undoPoint"
+      ],
+      "judgeReadings": [],
+      "agreement": null
+    },
+    {
+      "brief": "school-quiz-secret-pick",
+      "ran": true,
+      "id": "school-quiz-secret-pick.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-68.jpg",
+          "where": "Reveal choice after Lock it in: the board looks exactly like the locked state, with only the 'ANSWER LOCKED IN' tag. No tile is highlighted, so the captain's pick is never revealed."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-22.jpg",
+          "where": "Select answer: none of the four tiles changes, so the selected answer never shows on the board."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-34.jpg",
+          "where": "Reveal choice after the Take: the board is unchanged and no pick is shown."
+        }
+      ],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 2.2039727000000005,
+      "wallSeconds": 533,
+      "overBudget": false,
+      "look": {
+        "reviewed": 68,
+        "opened": 68,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T16:51:31.762Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T16:52:22.516Z",
+          "airable": false,
+          "mistakes": [
+            "text-over-text"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T16:52:49.007Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "ski-sprint-timing-tower",
+      "ran": true,
+      "id": "ski-sprint-timing-tower.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "high",
+      "defects": [
+        {
+          "kind": "clipped-or-escaping-text",
+          "frame": "G-45.jpg",
+          "where": "DNF badge on the last row (Lars Ødegård) after the Session update: the 'DNF' letters are cut off at the bottom edge of their outlined box. The same is visible in G-44."
+        }
+      ],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.8667906000000003,
+      "wallSeconds": 536,
+      "overBudget": false,
+      "look": {
+        "reviewed": 59,
+        "opened": 40,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "take-00020ms.jpg",
+          "take-00120ms.jpg",
+          "take-00300ms.jpg",
+          "take-00600ms.jpg",
+          "take-01500ms.jpg",
+          "take-10000ms.jpg",
+          "event-focus-00020ms.jpg",
+          "event-focus-00120ms.jpg",
+          "event-focus-00300ms.jpg",
+          "event-focus-00600ms.jpg",
+          "event-focus-01500ms.jpg",
+          "event-focus-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T16:52:22.816Z",
+          "airable": false,
+          "mistakes": [
+            "clipped-or-escaping-text"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T16:53:37.333Z",
+          "airable": false,
+          "mistakes": [
+            "clipped-or-escaping-text"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T16:53:37.389Z",
+          "airable": false,
+          "mistakes": [
+            "clipped-or-escaping-text"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    }
+  ]
+}

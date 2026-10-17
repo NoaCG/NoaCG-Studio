@@ -33,3 +33,96 @@ answers are committed.
   about $3.75 per usable, every reviewed frame opened; the failures are design calls the look did
   not make (empty sample state, actions that change nothing on screen, faint or colliding text)
   and rubber stamps.
+
+## Baseline result
+
+Sessions 16:33Z to 17:31Z, two at a time, after the pre-registration was pushed (`ebd94dbb9` at
+16:30:31Z); the ladder judge's readings 16:46Z to 17:41Z. Evidence: `benchmarks/harness/ladder/
+L2/baseline/` (the 19 new cells and L1's four screen cells, every reading, `tally.json` and
+`tally-tuning.json`); both tallies reproduce with `--tally benchmarks/harness/ladder/L2/baseline`
+and `--tally benchmarks/harness/ladder/L2/baseline --order tuning`.
+
+| set | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| the eight | 7 of 8 | **2 of 8** | $16.30 | $2.04 | **$8.15** | 527 s | 6 of 8 | 5 |
+| 15 tuning briefs | 15 of 15 | **8 of 15** | $18.82 | $1.25 | **$2.35** | 249 s | 12 of 15 | 7 |
+
+The judge agreed with itself on 20 of 22 judged graphics (3/3); the two at 2/3 are tuning briefs
+(the sponsor strip, not usable, and the choir vote, usable). D6 on the eight: 2 of 8 usable (needs
+7), $8.15 per usable (needs $1.00), median wall 527 s (holds), every frame opened in 6 of 8 (needs
+7). `--tally` prints "screened out (the screen: cost)" because the first four cost $3.75 per usable;
+that is D5's line for a rung, and a teaching round runs and counts all eight whatever it says.
+
+Departures from the pre-registration: the bench refuses the bank's OGraf brief
+(`third-party-ograf`, not a library graphic, its section 4.2), so the tuning set is 15 briefs, not
+16 (`tuningOrder`). The first judge pass ran before the run had written `summary.json`, so the bench
+took the exam's Fable judge for one reading of the hockey board ($5.32 notional, subscription); the
+tally counts only the ladder judge's readings, and `--judge` now refuses a run whose phase it
+cannot tell.
+
+**What failed, on the eight** (the six not usable):
+
+- *An action that draws nothing* (4): the matchup's Select and Lock and the scorebug's Next map
+  (L1's screen), the quiz's Select and Reveal choice, the timing tower's Focus ("pixel-identical to
+  the whole-field state"). Every one of those reviews said `ok` to those frames.
+- *A design call* (1): the hockey board's crests on plates of their own, one nearly lost on its
+  plate, and a goals-by-period strip with no team labels. The agent had opened 68 of its 81 frames.
+- *Not ready* (1): the volleyball board ended `NOT READY` naming two problems it knew of (Undo
+  below zero shows -1; sets kept inside the graphic, not on the panel) and fixed neither.
+
+**On the tuning briefs** (the seven not usable): an entrance still running at 1.5 s that leaves
+the debate clock's digits cut and a box empty; a font without the Vietnamese letters the market
+reporter's name needs; text over text on the basketball scorebug ($3.36, 765 s, 117 frames); Undo
+below zero and a Final that only pulses on the darts board; clipped text and an empty box on the
+event bug; two design calls (the sponsor strip, 2/3; the winner card, which opened 12 of its 52
+frames). Six of the seven reviews said `ok` to every frame.
+
+**Cost.** In the sessions measured (the hockey board here; the scorebug and the nominee reveal in
+L1) the frames the agent opened were 72 to 79% of its context's growth, about 2,860 tokens a
+frame, 45 to 125 frames read a session; and about three in four reviewed frames are moments of a
+timeline (20 ms to 10 s after the Take, an action, Next, the
+update or Out). That is the cost lever for a later round (`coverage --strips`, held back on this
+branch as `a6ea09595`, reverted by `b45c19a24`).
+
+## Round 1: an action that draws nothing is a finding
+
+**Hypothesis**, committed and pushed before the round's first session.
+
+- **Which failure.** On the eight, the most common reason a Sonnet `high` graphic is not usable is
+  an operator action that moves the graphic's machine but changes nothing on screen: the matchup's
+  Select and Lock, the scorebug's Next map (L1), the quiz's Select and Reveal choice, the timing
+  tower's Focus (this baseline; the judge calls the Focus frames pixel-identical to the whole-field
+  state). The bench's action gate passes them
+  (the button is on the operator surface) and so did every agent's review, which set `ok` on each
+  of those frames: a frame that shows nothing new looks fine on its own. No look at one frame at a
+  time can see it; it is a difference between two frames.
+- **Which change** (CLI and skill only): `noacg coverage` now compares, moment by moment from
+  20 ms to 10 s, each action's frames with the same moments without the press, from the settled
+  Take and then after each other action that moved the machine (Reveal may need a Pick first).
+  An action that moves the machine and changes fewer than about 40 pixels of a full-HD frame
+  (0.002%) at every moment from every start is a finding, "shows no change on screen" (exit 1).
+  The same moment rendered twice differs by none; a stopped clock's last digit by about 300. A
+  change that shows and fades again (the darts board's Final, a pulse) counts as drawn: the
+  check finds an action that draws nothing at all, not one that draws too little. The renders that decide it are
+  compared, not kept, so the frames the review lists and the bench's capture (what the judge sees)
+  do not change; only the capture's findings list can grow. `references/hand-in.md` says to fix a
+  coverage finding and run coverage again before the review. Commit: the round's CLI commit on this
+  branch, after this hypothesis. Tried on the baseline's own handed-in packages before any round
+  session: it finds the tower's Focus (and Whole field, which has no focus to clear) and the
+  quiz's Select, Reveal choice and Audience result, all with no pixel changed; on the hockey board
+  and the darts board it finds nothing, the hockey Stop clock changing about 300 to 500 pixels.
+- **What should move.** On the eight: the graphics failed for an action that draws nothing go
+  from 4 (the matchup and scorebug in L1's screen, the quiz and the tower here) to at most 1, and
+  usable from 2 to at least 4 of 8. On the 15 tuning briefs: usable does not fall. Cost: a session that gets the finding spends a fix and a second coverage,
+  so the notional per session rises by up to a fifth on the boards, while the cost per usable
+  falls because more of them are usable. This round does not try to reach D6's $1.00 per usable:
+  at about $2 a session on the eight that needs a cheaper look as well (the held-back
+  `coverage --strips`, the next round's candidate).
+- **Refuted** if usable on the eight rises by fewer than 2, or if two or more of the graphics
+  above still fail for an action that draws nothing. **Reverted** (D7) if it moves nothing: usable
+  on the eight and on the tuning briefs unchanged and the cost per usable not lower.
+- **How it runs**: build the CLI in this worktree, then `--build L2 --arms subscription --model
+  claude-sonnet-5-5 --effort high --stage round-1 --lanes 2 --out
+  C:/claude/noacg-bench-archive/harness-ladder-L2/round-1` on the eight in `RUNG_ORDER` and the
+  15 tuning briefs, judged three times a graphic with `--judge <dir> --phase L2 --delivered-only`,
+  counted with `--tally <dir>` and `--tally <dir> --order tuning`, as the baseline.

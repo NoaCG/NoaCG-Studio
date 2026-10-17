@@ -1,0 +1,155 @@
+{
+  "costUnread": false,
+  "brief": "market-reporter-lower-third",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "a4e69af4-50b6-4137-a9b9-bd8b0b2af845",
+  "costCents": 0,
+  "notionalUsd": 0.7381284,
+  "wallSeconds": 186,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg whoami",
+      "code": 1,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type lower-third --design neutral --name Market Reporter --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:76e7aecc076d2c90206008b16cfa297f46e05362e73f39fffef5b36b0bac5160"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots --background video",
+      "code": 0,
+      "digest": "sha256:42306912172656f3ccadb855b3c259157f98371aee8e3885df205dd852469eb4"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:dfa15f4e19dd7bdcd80fd1f771db1376a4201fa294c2543ca2c23cb74507d351"
+    },
+    {
+      "command": "noacg coverage . --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:dfa15f4e19dd7bdcd80fd1f771db1376a4201fa294c2543ca2c23cb74507d351"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:00ee667906141da295f857eb13d4e88930e3c61bed446edd2aab8184fa85808c"
+    },
+    {
+      "command": "noacg screenshot . --at 10s --background video --out ../shots/at10.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --at 5s --background video --out ../shots/at5.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:03b3a5fe41dd84044792fd3f4fbd6a7fe0974cd86aa098778a38d92b45de46c9"
+    },
+    {
+      "command": "noacg coverage . --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:03b3a5fe41dd84044792fd3f4fbd6a7fe0974cd86aa098778a38d92b45de46c9"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:03b3a5fe41dd84044792fd3f4fbd6a7fe0974cd86aa098778a38d92b45de46c9"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\baseline\\cells\\market-reporter-lower-third.claude-sonnet-5-5-high\\frames",
+    "frames": 26,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:03b3a5fe41dd84044792fd3f4fbd6a7fe0974cd86aa098778a38d92b45de46c9"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:03b3a5fe41dd84044792fd3f4fbd6a7fe0974cd86aa098778a38d92b45de46c9",
+    "benchValidated": "sha256:03b3a5fe41dd84044792fd3f4fbd6a7fe0974cd86aa098778a38d92b45de46c9",
+    "reviewed": "sha256:03b3a5fe41dd84044792fd3f4fbd6a7fe0974cd86aa098778a38d92b45de46c9",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 8,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "take-00020ms.jpg",
+      "take-00120ms.jpg",
+      "take-00300ms.jpg",
+      "take-00600ms.jpg",
+      "update-00120ms.jpg",
+      "update-00600ms.jpg",
+      "out-00020ms.jpg",
+      "out-00600ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}
