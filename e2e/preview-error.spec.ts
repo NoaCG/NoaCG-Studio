@@ -1,5 +1,7 @@
-// covers: none - its subject, PreviewFrame and the preview composer, is CORE, so a change there
-// already runs the full suite
+// covers: none - its subject, the preview composer, is CORE, so a change there already runs the
+// full suite. The stage that wore the error (PreviewFrame) was deleted with the old code editor on
+// 2026-10-17; the case left is the composer's command-error reply, skipped until it is rewritten
+// onto the new editor's stage (issue #800).
 
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
@@ -22,28 +24,6 @@ async function applyJs(page: import('@playwright/test').Page, js: string | null)
     }, js),
   );
 }
-
-test('a template runtime error is worn on the stage, and clears on the next good build', async ({ page }) => {
-  await createProject(page, 'Hairline');
-  const badge = page.getByTestId('preview-runtime-error');
-  await expect(badge).toBeHidden();
-
-  // Keep the good code to restore - the "fix" half of the test.
-  const goodJs = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.js;
-  });
-
-  await applyJs(page, 'throw new Error("boom at load");');
-  await expect(badge).toBeVisible();
-  await expect(badge).toContainText('boom at load');
-
-  // The badge must not take gestures from the canvas under it (it is a label, not a control).
-  await expect(badge).toHaveCSS('pointer-events', 'none');
-
-  await applyJs(page, goodJs);
-  await expect(badge).toBeHidden();
-});
 
 // A simulator command that throws used to go nowhere: composeDocument's `spx-simulate` tag caught
 // every one of them into an empty block. That silence is what hid the 2026-09-02 production bug -

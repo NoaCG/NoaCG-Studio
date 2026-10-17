@@ -749,26 +749,25 @@ test('the plan states the wall clock it expects, and says when that does not fit
 // A rule naming a path that no longer exists used to be silent (the build now refuses a covers
 // glob that matches no file): it matched nothing, the file fell through to the unmapped
 // escalation, and the plan looked conservative rather than broken. That is
-// what happened to the timeline dock's five components when they moved into
-// `src/components/timeline/` - both rules kept naming `src/components/<Name>` and every timeline
-// change ran the full suite to prove nothing. Pinned by DIRECTORY, so the next move fails here
-// instead of going quiet again.
-test('the timeline dock components are mapped at the path they actually live at', () => {
+// what happened to the old timeline dock's five components when they moved into
+// `src/components/timeline/` (deleted with the old code editor on 2026-10-17) - both rules kept
+// naming `src/components/<Name>` and every timeline change ran the full suite to prove nothing.
+// Pinned by DIRECTORY on the editor that replaced it, so the next move fails here instead of
+// going quiet again.
+test('the new editor\'s components are mapped at the directory they actually live in', () => {
   for (const file of [
-    'src/components/timeline/StepTimeline.tsx',
-    'src/components/timeline/LegacyTimeline.tsx',
-    'src/components/timeline/Inspector.tsx',
-    'src/components/timeline/PlayoutSimulator.tsx',
-    'src/components/timeline/MachineGraph.tsx',
+    'src/components/editorFoundation/EditorFoundation.tsx',
+    'src/components/editorFoundation/Inspector.tsx',
+    'src/components/editorFoundation/commandAdapter.ts',
   ]) {
     const { mode, specs } = planFor([file]);
     assert.equal(mode, 'subset', `${file} is mapped, so it must not escalate to the full suite`);
     assert.ok(specs.length > 0, `${file} planned no specs at all`);
   }
-  // The dock's own specs, and the key contract StepTimeline holds half of.
-  const { specs } = planFor(['src/components/timeline/StepTimeline.tsx']);
-  for (const spec of ['timeline-v2.spec.ts', 'anim-engine.spec.ts', 'keyboard.spec.ts']) {
-    assert.ok(specs.includes(spec), `${spec} must be planned by a StepTimeline change`);
+  // The editor's own journeys, planned by a change to its shell.
+  const { specs } = planFor(['src/components/editorFoundation/EditorFoundation.tsx']);
+  for (const spec of ['editor-foundation.spec.ts', 'editor-keys.spec.ts', 'editor-steps.spec.ts']) {
+    assert.ok(specs.includes(spec), `${spec} must be planned by an EditorFoundation change`);
   }
 });
 

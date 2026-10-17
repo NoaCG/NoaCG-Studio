@@ -1,5 +1,4 @@
 // covers: src/blocks/**, src/templates/**
-// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
 // covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //

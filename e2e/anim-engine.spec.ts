@@ -1,5 +1,4 @@
 // covers: src/blocks/**
-// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
 //
 // This spec RECONSTRUCTS a preset's emitted region - the only spec that imports presetRegistry -
 // and measures it against the interpreter, so the emit authored under src/templates/ is its subject.
