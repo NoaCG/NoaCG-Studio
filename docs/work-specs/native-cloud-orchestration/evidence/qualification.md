@@ -107,9 +107,33 @@ filled in after that turn. Fields not returned stay null.
 | --- | --- |
 | Source | `f41b0418e11f1fe61204933889025b9986eb9da6` |
 | Builder push 1 (receipt) | `db1399793fa99fa72047d0aa1e020603450af837` |
+| Builder push 2, first reviewed tip | `09ca4d33153dd2bbea4d03a5bde9689ded445175` |
 
-Later SHAs (the reviewed tip, the merge SHA) are named in the pull request, because a file cannot
+The current reviewed tip and the merge SHA are named in the pull request, because a file cannot
 name the commit that contains it.
+
+## Landing at queue time
+
+- PR #1408 opened at 18:56Z through the REST API (`gh pr create` uses GraphQL, which is 403 here).
+- Posting `noacg/reviewed` directly was refused at the proxy (403), so the builder dispatched
+  `cloud-queue-merge.yml` on main for `09ca4d33`: run 39060293753, job "Stamp, label and queue"
+  success. `noacg/reviewed` success, label `land` present.
+- The builder's session-owned auto-merge call (`PUT .../pulls/1408/ccr/auto_merge`) was refused
+  by its own permission classifier as self-approval. It was not retried another way.
+- The coordinator enabled auto-merge at 18:58:03Z; its own classifier then refused a follow-on
+  action as self-approval, and it disabled auto-merge at 18:58:24Z (PR timeline).
+- At queue time auto-merge was off and there was no merge-queue entry. Auto-merge waits on the
+  owner.
+
+## Criterion change (AC-3)
+
+Codex review comment 4304039159 found that AC-3 asked this landed record to name the merge SHA
+and post-land conclusions, which cannot exist in the file that lands. At the repair owner's
+request (repair 1 of 3), AC-3 now says the landed record names the PR, reviewed SHA and queue
+state at queue time, and that the merge-queue entry, merge SHA and terminal conclusions are
+recorded in the repair owner's PR comment (#1408 issuecomment-6239053255) and verified by the
+AC-4 checker receipt. Nothing else in the spec changed; `specSha256` in `work.json` was
+recomputed with the digest command from `docs/work-specs/README.md`.
 
 ## Reused qualifications
 
@@ -136,8 +160,8 @@ through the queue.
 
 ## Verification
 
-Run by the builder on the reviewed source state (docs only; `origin/main`
-`c1e02c6e9aff6f6556c7aabdd3560193fd4a3a78` already contained, nothing to merge):
+Run by the builder on each reviewed source state (docs only; `origin/main` contained, nothing
+to merge). First pass on `09ca4d33`; repeated after the AC-3 change:
 
 - Review: inline (the diff is three docs files). Checked every value in this record against the
   builder's own `get_session`, git and shell output. 0 findings.
@@ -146,5 +170,7 @@ Run by the builder on the reviewed source state (docs only; `origin/main`
   contract-citations, docs-index, client-secrets, copy all ok).
   `node scripts/work-spec.mjs status` reports 0 problems; its one gap is the convergence review,
   left null on purpose because the checker is independent.
+- PR CI on `09ca4d33` at 19:00Z: Reviewed, Factory gates and E2E plan success, Build running,
+  the rest skipped for docs only.
 - Not run: production build and browser checks (docs only, no build inputs). Full checks run in
   GitHub Actions.

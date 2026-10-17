@@ -37,9 +37,12 @@ reply naming the same identity and nonce. It commits the qualification record un
 
 ### AC-3: Landing through the queue
 
-The evidence change passes `/check` (stamped tip) and lands through `/queue-merge`. The record
-names the PR, reviewed SHA, merge-queue entry, merge SHA and the terminal conclusions of that
-SHA's PR, merge-group, main CI and post-land runs. Pending or failed stays explicit. The
+The evidence change passes `/check` (stamped tip) and lands through `/queue-merge`. The landed
+qualification record names the PR, reviewed SHA and queue state at queue time. The merge-queue
+entry, merge SHA and the terminal conclusions of that SHA's PR, merge-group, main CI and
+post-land runs cannot exist in the file that lands: they are recorded in the repair owner's PR
+comment (#1408 issuecomment-6239053255) and verified independently by the AC-4 checker receipt.
+Pending or failed stays explicit. The
 coordinator acknowledges sole repair ownership in one PR comment before the builder ends.
 
 ### AC-4: Independent checker on main
