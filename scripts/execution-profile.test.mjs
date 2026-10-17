@@ -88,13 +88,18 @@ test('v1 hybrid ignores a cgroup2 mount that does not carry the controller (#136
   assert.equal(readResources(env).effectiveCpus, 2);
 });
 test('a failed reading falls back to the machine totals, never to one worker', () => {
-  for (const [file, raw, cpus, memory] of [['/cg/team/cpu.max', null, 4, 4 * GiB], ['/cg/memory.current', null, 2, 4 * GiB], ['/cg/team/memory.max', 'garbage', 2, 16 * GiB]]) {
+  // Each failure loses only what it could not read; every other reading still lowers the totals.
+  for (const [file, raw, cpus, memory, available] of [
+    ['/cg/team/cpu.max', null, 4, 4 * GiB, 2 * GiB],
+    ['/cg/memory.current', null, 2, 4 * GiB, 2 * GiB],
+    ['/cg/team/memory.max', 'garbage', 2, 16 * GiB, 16 * GiB],
+    // A limit whose usage file is missing still caps memory and headroom at the limit.
+    ['/cg/team/memory.current', null, 2, 4 * GiB, 4 * GiB],
+  ]) {
     const f = fixture(); if (raw === null) f.files.delete(file); else f.files.set(file, raw);
     const r = readResources(f); assert.equal(r.limitsObserved, false, file);
-    assert.equal(r.effectiveCpus, cpus, file); assert.equal(r.memoryLimitBytes, memory, file);
+    assert.deepEqual([r.effectiveCpus, r.memoryLimitBytes, r.availableMemoryBytes], [cpus, memory, available], file);
     const p = cloud(r); assert.equal(p.known, false); assert.equal(p.broaderMinutes, 12); assert.equal(p.buildMinutes, 5);
-    // What was read still sizes the run; the failure itself costs no worker.
-    assert.equal(p.workers, cloud({ ...r, limitsObserved: true }).workers, file);
   }
   // Nothing readable at all: the whole machine.
   const none = readResources({ read: () => null, affinity: 8, hostMemoryBytes: 64 * GiB, hostFreeBytes: 32 * GiB });

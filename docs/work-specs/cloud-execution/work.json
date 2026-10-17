@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "f44b8144f9e80a2d8da4e72820dbf3476e45307e3d4d91bc7715e5cf26a11361",
+  "specSha256": "571263092acea5c7dd2e52f86af3b9a97f0962042b9f23173b83842927f9bd4e",
   "authority": {
     "status": "agreed",
-    "source": "Owner numerical approval, 2026-10-16: https://github.com/NoaCG/NoaCG-Studio/issues/1301#issuecomment-6223002051; native launch/authentication and recovery boundaries remain explicit."
+    "source": "Owner numerical approval, 2026-10-16: https://github.com/NoaCG/NoaCG-Studio/issues/1301#issuecomment-6223002051; its resource defaults replaced by the owner's decision of 2026-10-17 (cloud sessions use all their machine's resources and run browser and e2e checks themselves; only the laptop watches RAM); native launch/authentication and recovery boundaries remain explicit."
   },
   "review": {
     "revision": "8a73dfec6b5ed22d94d626fd7ea4ab722f1cb1c0",

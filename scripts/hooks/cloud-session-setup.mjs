@@ -1,7 +1,7 @@
 // SessionStart hook: make a fresh checkout able to build before the first command, so no session
 // spends its first minutes rediscovering the same gaps. Steps 0 and 1 run everywhere - a fresh cloud
 // container and a fresh local worktree alike (the desktop app creates one per scheduled run and per
-// worktree session, with no node_modules); steps 2 to 4 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
+// worktree session, with no node_modules); steps 2 to 5 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
 //
 //   0. FRESHNESS. The desktop app cuts a new worktree from ITS last fetch of main, which can be a
 //      landing or more behind (measured 2026-09-26: a scheduled run started on 07352ec8 three
@@ -70,7 +70,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from 'n
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readHookInput } from './lib.mjs';
-import { executionProfile } from '../execution-profile.mjs';
+import { executionProfile, limitsNote } from '../execution-profile.mjs';
 
 const BROWSERS_DIR = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers';
 
@@ -320,7 +320,7 @@ export function resourcesLine(profile) {
   if (profile.kind !== 'cloud') return '';
   const { effectiveCpus, memoryLimitBytes } = profile.limits;
   return `Cloud machine: ${Math.floor(effectiveCpus)} CPUs, ${(memoryLimitBytes / 2 ** 30).toFixed(1)} GiB memory`
-    + `${profile.known ? '' : ' (machine totals; some cgroup readings failed)'}, ${profile.workers} e2e workers. Browser/e2e checks: run here.`;
+    + `${limitsNote(profile)}, ${profile.workers} e2e workers. Browser/e2e checks: run here.`;
 }
 
 /**
@@ -364,6 +364,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     if (linked.length > 0) {
       console.log(`Cloud setup: Playwright's pinned Chromium pointed at the image's build (${linked.join(', ')}).`);
     }
-    console.log(resourcesLine(executionProfile()));
+    const resources = resourcesLine(executionProfile());
+    if (resources) console.log(resources);
   }
 }

@@ -78,11 +78,14 @@ export function readResources({ read = readText, affinity = availableParallelism
           const used = number(read(`${dir}/${mount.v2 ? 'memory.current' : 'memory.usage_in_bytes'}`));
           const limit = number(raw);
           const unlimited = raw === 'max' || (!mount.v2 && limit >= 2 ** 60);
-          if (raw === null || !(unlimited || limit > 0) || used === null || used < 0) valid = false;
+          if (raw === null || !(unlimited || limit > 0)) valid = false;
           else if (!unlimited) {
             memory = Math.min(memory, limit);
-            available = Math.min(available, Math.max(0, limit - used));
+            available = Math.min(available, limit);
           }
+          // Without the usage beside it, the limit still holds; only the headroom is unknown.
+          if (used === null || used < 0) valid = false;
+          else if (!unlimited && limit > 0) available = Math.min(available, Math.max(0, limit - used));
         }
       }
     }
@@ -116,12 +119,15 @@ export function executionProfile({ env = process.env, platform = process.platfor
 //     on both runs in 1.3 min; 3 workers failed 0, 1 and 1 in 1.4-1.5 min; 2 workers passed all
 //     27 twice in 1.5 min. Starved boots are the trap docs/VERIFICATION.md names.
 //   - Memory (cloud-execution evidence/claude-measurements.md): cgroup peak 3.33 / 4.55 / 5.62 GiB
-//     at 2 / 4 / 6 workers, so about 2.1 GiB of dev server, runner and cache plus 0.6 GiB a worker;
-//     each figure here carries about half a gigabyte more.
+//     at 2 / 4 / 6 workers, so about 2.1 GiB of dev server, runner and cache plus 0.53-0.61 GiB a
+//     worker. The base carries about half a gigabyte of margin; a worker is the measured high end.
 export const CLOUD_BASE_MB = 2560, CLOUD_WORKER_MB = 640;
 export function cloudWorkers(cpus, freeMb) {
   return Math.max(1, Math.min(Math.floor(cpus / 2), Math.floor((freeMb - CLOUD_BASE_MB) / CLOUD_WORKER_MB)));
 }
+
+/** What a cloud line adds when a reading failed and the machine's totals stood in. */
+export const limitsNote = (profile) => (profile.known ? '' : ' (machine totals; some cgroup readings failed)');
 
 export function buildRisk(files) {
   return files.some((file) => /^(?:src\/(?:main\.tsx|(?:admin|output|join|ograf|bridge)\/main\.tsx?|docs\/docs\.ts|downloads\/downloads\.ts|landing\/motion\.ts)|package(?:-lock)?\.json|(?:vite|tsconfig|eslint)[^/]*\.[^/]+|(?:app|admin|output|join|ograf|bridge|index|docs|downloads)\.html|(?:cli|render-worker|player-host)\/(?:package(?:-lock)?\.json|(?:vite|tsconfig|eslint)[^/]*\.[^/]+|index\.html|src\/(?:main|index|worker)\.[cm]?[jt]sx?)|scripts\/(?:build[^/]*|gates|compile-contracts)\.mjs)$/.test(file));

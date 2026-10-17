@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { aliasPinnedChromium, freshen, GITHUB_PROBE_TIMEOUT_MS, githubAccessLine, realignStaleMain, resourcesLine } from './cloud-session-setup.mjs';
+import { executionProfile } from '../execution-profile.mjs';
 
 /** A browsers folder shaped like the cloud image's: build 1194 in the old `chrome-linux` layout. */
 function imageWith1194() {
@@ -328,10 +329,11 @@ test('the real probe is quiet on a reachable origin, and a hung one is killed at
 });
 
 test('a cloud session starts by naming its CPUs, memory, e2e workers and that browser checks run here', () => {
-  const limits = { effectiveCpus: 4, memoryLimitBytes: 14343688192 };
-  assert.equal(resourcesLine({ kind: 'cloud', limits, known: true, workers: 4 }),
-    'Cloud machine: 4 CPUs, 13.4 GiB memory, 4 e2e workers. Browser/e2e checks: run here.');
-  assert.match(resourcesLine({ kind: 'cloud', limits, known: false, workers: 4 }), /machine totals/);
+  // The 4 vCPU, 13.36 GiB VM this was measured on, through the profile its commands get.
+  const limits = { effectiveCpus: 4, memoryLimitBytes: 14343688192, availableMemoryBytes: 14 * 2 ** 30, limitsObserved: true };
+  const at = (resources) => executionProfile({ platform: 'linux', env: { CLAUDE_CODE_REMOTE: 'true' }, resources, freeBytes: 15 * 2 ** 30 });
+  assert.equal(resourcesLine(at(limits)), 'Cloud machine: 4 CPUs, 13.4 GiB memory, 2 e2e workers. Browser/e2e checks: run here.');
+  assert.match(resourcesLine(at({ ...limits, limitsObserved: false })), /machine totals; .* 2 e2e workers/);
   assert.equal(resourcesLine({ kind: 'local' }), '');
 });
 
