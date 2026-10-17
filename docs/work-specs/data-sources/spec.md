@@ -437,8 +437,8 @@ Each phase runs `/check` and the production-page spec's §6 matrix, lands with `
 adds its notes under this spec's `## Phase notes`. Numbers are the production-page run's.
 
 15. **Prove the interaction and external constraints** (AC-10/11 prototype; sheet D3; audience
-    AC-5 findings). Prototype native list editing, Sheet connection, API sample setup and an
-    audience message through a compatible graphic. A newcomer completes the tasks without a
+    AC-5 findings/7 prototype). Prototype native list editing, Sheet connection, API sample setup
+    and an audience message through a compatible graphic. A newcomer completes the tasks without a
     binding lesson. Measure 20 real Sheet edits and one hour of five-second polling, report the
     slowest edit and throttling; check five public feeds' conditional requests. Qualify the
     published scheduler cost and chat provider/listener options. Missing access is unverified,
@@ -472,21 +472,25 @@ adds its notes under this spec's `## Phase notes`. Numbers are the production-pa
     Retire the new-graphic Sheet panel while keeping old embedded blocks working. Run the
     newcomer journeys, validate exports, publish transitions and the shared score controls.
     No data phase is complete merely because its new screen exists.
-23. **Safe audience destinations** (AC-9/15; audience AC-1/5). Reproduce #1313, remove unrelated
-    graphic fallbacks, offer a compatible question card and retain broadcast edits and original
-    text. Prove that putting a message in rundown does not air it or alter an existing cue.
-24. **Audience inbox and joining** (audience AC-2/3/5, A5). Keep Audience stable, simplify message
-    actions, make the publish/join step clear and walk phone join, presenter and vote flows.
-    Votes keep their deliberate staging and explicit live-update toggle.
+23. **Safe audience destinations** (AC-9/15; audience AC-1/6). Reproduce #1313, remove unrelated
+    graphic fallbacks, offer a compatible question card and remember the chosen destination.
+    Retain broadcast edits and original text. Prove the exact reviewed message reaches Take,
+    including two cues sharing a graphic and a target with live data bindings. Putting a message
+    in rundown must not air it or alter another cue.
+24. **Audience inbox and joining** (audience AC-2/3/5/7, A5). Keep Audience stable and simplify
+    message actions, make failed saves and retries safe, and walk phone join, presenter and votes.
+    Make the publish/join step clear. Votes keep their deliberate staging and explicit live-update
+    toggle; blocking journey defects must be fixed, not merely filed.
 25. **Persistent chat sources** (AC-8 audience/15; audience AC-4). Implement only the provider
     access and subscription runner qualified in phase 15. Prove reconnect deduplication, Pause,
     reload and closed-page arrival with a single owner and no data-writer capability. If provider
     authorization or hosting remains unresolved, record the blocker; do not claim A4 complete.
-26. **Combined production rehearsal** (AC-10/15; sheet AC-12; audience AC-1 through AC-5). In one
+26. **Combined production rehearsal** (AC-10/15; sheet AC-12; audience AC-1 through AC-7). In one
     production run a Sheet ticker, schedule, standings and credits; shared API scoreboards;
     guest rows; an approved audience message and staged votes. Exercise source failure, Pause,
-    reconnect, reload and operator-page closure. Record timing, the owner look and remaining
-    provider/device limits before calling the whole continuation complete.
+    reconnect, reload and operator-page closure. Repeat the unaided audience journey. Record
+    timing, the owner look and remaining provider/device limits before calling the continuation
+    complete.
 
 JSON URL mapping and Google account creation/discovery remain outside this run. Each phase is
 split into bounded work items by the existing plan runner, not by a new scheduler or ledger.
