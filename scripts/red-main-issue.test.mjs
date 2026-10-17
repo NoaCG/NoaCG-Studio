@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { issueBody, marker, planRedMainComment } from './red-main-issue.mjs';
+import { alarmSet, issueBody, marker, planRedMainComment } from './red-main-issue.mjs';
 
 const HASH = 'abc123def456';
 const OTHER = '0f0f0f0f0f0f';
@@ -96,38 +96,49 @@ test('the body names the failing specs and carries the marker the next run reads
   );
 });
 
-// AN ALARM MUST NOT INVENT A FAULT. The rules above are all written against the opposite failure -
-// going quiet about a real problem - and they are right. This one guards the other direction, and
-// it has its own receipt: issue #52, opened 2026-09-04 against main's tip 09be5a75, saying
-// "Failing: something this gate could not name - open the run". Nothing had failed. Four E2E
-// shards had been killed at the job's 20-minute cap, which GitHub records as `cancelled`.
-test('a run that only ran out of time files nothing, and names the jobs that did not finish', () => {
-  const decision = planRedMainComment({
-    existing: null,
-    sha: 'd'.repeat(40),
-    hash: 'unknown',
-    exhausted: true,
-    cancelled: ['E2E 2/9 (full)', 'E2E 4/9 (full)'],
-  });
+// AN ALARM MUST NOT INVENT A FAULT, AND MUST NOT CALL A TIMEOUT GREEN. Issue #52 (2026-09-04) said
+// "Failing: something this gate could not name" for four E2E shards killed at the 20-minute cap:
+// nothing had failed. Issue #1348 (2026-10-17) was closed "Green again" after shard 6 of run
+// 38990305985 was killed at the cap twice and the retry passed its files. So a job that hit its
+// time limit is reported as exactly that, and as nothing more.
+test('a run that only ran out of time is reported as out of time, naming the jobs and no failure', () => {
+  const alarm = alarmSet({ items: [], hash: 'unknown', cancelled: ['E2E 2/9 (full)', 'E2E 4/9 (full)'] });
+  assert.deepEqual(alarm.items, ['time limit: E2E shard']);
+  assert.notEqual(alarm.hash, 'unknown');
+  assert.equal(planRedMainComment({ existing: null, sha: 'd'.repeat(40), hash: alarm.hash }).action, 'create');
+  const green = issueBody({ sha: 'd'.repeat(40), runUrl: 'u', items: [], hash: alarm.hash, cancelled: ['E2E 2/9 (full)', 'E2E 4/9 (full)'], retry: 'success', revert: { status: 'skipped', reason: 'the run reached no verdict' } });
+  assert.match(green, /Out of time: E2E 2\/9 \(full\), E2E 4\/9 \(full\) hit the job time limit/);
+  assert.match(green, /no test is known to be broken/);
+  assert.match(green, /still not green/);
+  assert.doesNotMatch(green, /Failing:|something this gate could not name|Not reverted/);
+  const noVerdict = issueBody({ sha: 'd'.repeat(40), runUrl: 'u', items: [], hash: alarm.hash, cancelled: ['E2E 2/9 (full)'], retry: 'failure' });
+  assert.match(noVerdict, /nothing is named as broken and nothing is reverted/);
+});
+
+test('the next commit timing out on another shard is a repeat, not news', () => {
+  const first = alarmSet({ cancelled: ['E2E 6/11 (full)'] });
+  const next = alarmSet({ cancelled: ['E2E 1/11 (full)'] });
+  assert.equal(next.hash, first.hash);
+  const decision = planRedMainComment({ existing: 7, bodies: [`Still not green. ${marker(first.hash)}`], sha: 'e'.repeat(40), hash: next.hash });
   assert.equal(decision.action, 'withhold');
-  assert.match(decision.reason, /ran out of time/);
-  assert.match(decision.reason, /E2E 4\/9 \(full\)/);
-  assert.match(decision.reason, /not a pass/, 'withholding the report must not read as approval');
 });
 
-test('exhaustion outranks every other rule, including "no issue exists yet"', () => {
-  // Checked first on purpose: with an open issue the old code would have COMMENTED (unknown never
-  // dedups), and with none it would have CREATED one. Both would be false.
-  for (const existing of [null, 7]) {
-    const decision = planRedMainComment({ existing, bodies: [], sha: 'e'.repeat(40), hash: 'unknown', exhausted: true, cancelled: ['E2E 1/9 (full)'] });
-    assert.equal(decision.action, 'withhold', `existing=${existing}`);
-  }
+test('a timeout beside a failure changes the set, and a run with neither is left as it was', () => {
+  const failing = { items: ['e2e/a.spec.ts'], hash: HASH };
+  const both = alarmSet({ ...failing, cancelled: ['E2E 3/13 (full)'] });
+  assert.deepEqual(both.items, ['e2e/a.spec.ts', 'time limit: E2E shard']);
+  assert.notEqual(both.hash, HASH);
+  assert.deepEqual(alarmSet({ ...failing, cancelled: [] }), failing);
+  const body = issueBody({ sha: SHA, runUrl: 'u', items: ['e2e/a.spec.ts'], hash: both.hash, cancelled: ['E2E 3/13 (full)'], retry: 'failure', retried: 1 });
+  assert.match(body, /Failing: e2e\/a\.spec\.ts/);
+  assert.match(body, /Out of time: E2E 3\/13 \(full\)/);
+  assert.match(body, /Main stays red/);
 });
 
-test('a genuinely unidentifiable failure still speaks up - exhaustion is a narrow exception', () => {
-  // The eyes-open rule the whole file exists for. `exhausted` false means something DID fail, so
-  // an unnameable set must comment exactly as it always has.
-  const decision = planRedMainComment({ existing: 1, bodies: ['unrelated'], sha: 'f'.repeat(40), hash: 'unknown', exhausted: false });
+test('a genuinely unidentifiable failure still speaks up', () => {
+  // The eyes-open rule the whole file exists for: an unnameable set must comment exactly as it
+  // always has.
+  const decision = planRedMainComment({ existing: 1, bodies: ['unrelated'], sha: 'f'.repeat(40), hash: 'unknown' });
   assert.equal(decision.action, 'comment');
 });
 

@@ -28,6 +28,7 @@ import {
   REFRESH_BRANCH,
   REFRESH_THRESHOLDS,
   shardBalance,
+  slowRunnerMinutes,
   SHARD_CAP_MINUTES,
   SHARD_SAFETY_MINUTES,
 } from './e2e-durations.mjs';
@@ -382,4 +383,20 @@ test('the workflow token may dispatch the ci.yml run it asks for', () => {
   const workflow = readFileSync(new URL('../.github/workflows/e2e-durations-refresh.yml', import.meta.url), 'utf8');
   assert.match(workflow, /gh workflow run ci\.yml/);
   assert.match(workflow, /^ {2}actions: write$/m);
+});
+
+// A RUNNER MOVES EVERY FILE IN ITS SHARD AT ONCE, and GitHub hands out a fast and a slow kind. A
+// table recorded from one run carries that run's lottery in every entry, so the recording takes
+// each spec's 80th percentile across several runs: its time on a slow runner, whichever shard and
+// runner it drew, and never one run's hang.
+test('several runs record each spec at its slow-runner percentile, from the runs that measured it', () => {
+  const fast = { 'a.spec.ts': 1.0, 'b.spec.ts': 2.0 };
+  const slow = { 'a.spec.ts': 1.3, 'b.spec.ts': 2.6 };
+  const hung = { 'a.spec.ts': 9.0, 'b.spec.ts': 2.6, 'c.spec.ts': 0.5 };
+  const table = slowRunnerMinutes([fast, slow, fast, slow, slow, hung]);
+  assert.deepEqual(Object.keys(table), ['a.spec.ts', 'b.spec.ts', 'c.spec.ts']);
+  assert.equal(table['a.spec.ts'], 1.3, 'the slow runner, not the fast one and not the hang');
+  assert.equal(table['b.spec.ts'], 2.6);
+  assert.equal(table['c.spec.ts'], 0.5, 'a spec one run carried is recorded from that run, never dropped');
+  assert.deepEqual(slowRunnerMinutes([fast]), fast, 'one run records itself');
 });

@@ -485,7 +485,7 @@ jobs:
           ' "$PLAN" >> "$GITHUB_OUTPUT"
 
       # THE CAPACITY LINE, estimated before a shard runs. How much of the full run's envelope
-      # (11 runners x the shard budget) the suite on disk uses with this change's spec files in
+      # (13 runners x the shard budget) the suite on disk uses with this change's spec files in
       # it, from the table and the median for a spec it has never seen. Above 85% every pull
       # request is warned; above 95% a change that ADDS spec-minutes needs an expiring exception
       # in its work spec, and the gate below refuses without one. The report job measures the same
@@ -513,9 +513,9 @@ jobs:
       fail-fast: false
       # Sized by the plan job, not fixed here, and since 2026-08-19 sized from MEASURED MINUTES
       # (scripts/e2e-affected.mjs `shardsFor`, scripts/e2e-durations.json): about three minutes
-      # of test execution per runner, capped at eleven (`MAX_SHARDS`, which says how that ceiling
-      # is set). The full suite is 169.4 measured minutes (run 38144735534); ten bins predict
-      # 17.5 minutes a job, over the three-minute margin, and eleven predict 16.0.
+      # of test execution per runner, capped at thirteen (`MAX_SHARDS`, which says how that
+      # ceiling is set). The full suite is 183.3 slow-runner minutes (six runs to 39000659873); on
+      # the slowest runner measured, twelve bins reach 18.4 minutes a job and thirteen 16.7.
       #
       # What changed is the SUBSET, which used to be capped at four runners however big it was:
       # under sprint focus and the curated map a subset is routinely 70-100 of the 128 spec
@@ -538,11 +538,12 @@ jobs:
       # and `scripts/e2e-durations.json` now RECORDS the per-job cost so the plan predicts wall
       # clock instead of assuming the good day. See docs/VERIFICATION.md.
       #
-      # Eleven is the smallest count that keeps three minutes of safety on the latest measured
-      # full run, the same rule that took nine to ten on 2026-10-03. Each step adds one runner
-      # under the account's 20-concurrent-job ceiling. More runners cost setup and can
-      # delay overlapping runs: across the 60 runs to 2026-08-19, branches starting while two
-      # others were mid-gate waited 22 to 45 minutes for a runner. Keep the timeout at 20,
+      # Thirteen is the smallest count that keeps three minutes of safety on the slowest runner
+      # measured, the rule that took nine to ten on 2026-10-03, now checked against the runner
+      # rather than the table (GitHub hands out a fast and a slow kind; scripts/e2e-durations.mjs).
+      # Each step adds one runner under the account's 20-concurrent-job ceiling. More runners cost
+      # setup and can delay overlapping runs: across the 60 runs to 2026-08-19, branches starting
+      # while two others were mid-gate waited 22 to 45 minutes for a runner. Keep the timeout at 20,
       # retries at 0 inside each shard, fail-fast false, and the existing retry job and gate.
       # The measurements below explain the earlier move from test-count splits to nine bins.
       #
@@ -1233,7 +1234,7 @@ jobs:
   # success; the branch and pull-request runs skip it entirely.
   after-gate:
     name: After the gate
-    needs: [gate, e2e-retry, rerun]
+    needs: [gate, e2e, e2e-retry, rerun]
     if: ${{ always() && needs.gate.result != 'skipped' && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1304,8 +1305,12 @@ jobs:
       # reverts everything since that commit on a branch and queues it; every other case is
       # written into the issue as the reason nothing was reverted. `shouldRevert` in
       # red-main-issue.mjs is the rule, with its tests.
+      # A SHARD KILLED AT ITS TIME LIMIT IS NOT GREEN, even when the retry ran its files and the
+      # gate passed on that answer: the full run no longer fits, so it is reported here (as out of
+      # time, never as a failure) and the issue stays open (issue #1348, closed 'Green again' after
+      # shard 6 of run 38990305985 was killed at the cap twice).
       - name: File / update the red-main issue
-        if: ${{ needs.gate.result == 'failure' && github.ref == 'refs/heads/main' }}
+        if: ${{ (needs.gate.result == 'failure' || needs.e2e.result == 'cancelled') && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           # The revert queues with the bot's token; the issue stays on the workflow token.
@@ -1323,7 +1328,7 @@ jobs:
         run: node scripts/red-main-issue.mjs
 
       - name: Close the red-main issue
-        if: ${{ needs.gate.result == 'success' && github.ref == 'refs/heads/main' }}
+        if: ${{ needs.gate.result == 'success' && needs.e2e.result != 'cancelled' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

@@ -7,7 +7,7 @@ import test from 'node:test';
 import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, parseExceptions, summarize } from './e2e-capacity.mjs';
 
 // A table whose budget is easy to reason about: jobMinutes 0.42 and testFactor 1.01 give
-// budgetMinutes 16.416 and, on 11 runners, a capacity of 180.57 table-minutes.
+// budgetMinutes 16.416 and, on 13 runners, a capacity of 213.40 table-minutes.
 const overhead = { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 };
 function table(total, n = 100) {
   const minutes = {};
@@ -17,10 +17,10 @@ function table(total, n = 100) {
 const suiteOf = (t, extra = []) => [...Object.keys(t.minutes), ...extra].sort();
 
 test('capacity is runners times the budget, and the lines sit where the spec says', () => {
-  assert.equal(MAIN_RUNNERS, 11);
+  assert.equal(MAIN_RUNNERS, 13);
   assert.equal(WARN_SHARE, 0.85);
   assert.equal(HARD_SHARE, 0.95);
-  assert.ok(Math.abs(capacityMinutes(table(100)) - 180.57) < 0.05);
+  assert.ok(Math.abs(capacityMinutes(table(100)) - 213.40) < 0.05);
 });
 
 test('below the warning line a change that adds a spec is ok, and the added minutes are reported', () => {
@@ -32,13 +32,13 @@ test('below the warning line a change that adds a spec is ok, and the added minu
 });
 
 test('between the lines every change is warned, whether or not it adds minutes', () => {
-  const t = table(160);
+  const t = table(189);
   assert.equal(assess({ table: t, suite: suiteOf(t), today: '2026-10-12' }).status, 'warn');
   assert.equal(assess({ table: t, suite: suiteOf(t, ['new.spec.ts']), changed: ['e2e/new.spec.ts'], today: '2026-10-12' }).status, 'warn');
 });
 
 test('above the hard line a change is refused only when it ADDS minutes without an exception', () => {
-  const t = table(172);
+  const t = table(204);
   const quiet = assess({ table: t, suite: suiteOf(t), today: '2026-10-12' });
   assert.equal(quiet.status, 'warn', 'a change that adds nothing is never refused, whoever made it');
   const adds = assess({ table: t, suite: suiteOf(t, ['new.spec.ts']), changed: ['e2e/new.spec.ts'], today: '2026-10-12' });
@@ -51,7 +51,7 @@ test('above the hard line a change is refused only when it ADDS minutes without 
 });
 
 test('a valid exception covers the added spec; an expired or too-long one does not', () => {
-  const t = table(172);
+  const t = table(204);
   const ex = (expires) => [{ spec: 'e2e/new.spec.ts', minutes: 2, protects: 'the saved graphic reopening', expires, from: 'docs/work-specs/x/spec.md' }];
   const covered = assess({ table: t, suite: suiteOf(t, ['new.spec.ts']), changed: ['e2e/new.spec.ts'], exceptions: ex('2026-11-01'), today: '2026-10-12' });
   assert.equal(covered.status, 'warn');
@@ -88,7 +88,7 @@ test('the summary keeps execution, runner minutes and wall clock apart', () => {
   const t = table(100);
   const r = assess({ table: t, suite: suiteOf(t, ['new.spec.ts']), changed: ['e2e/new.spec.ts'], today: '2026-10-12' });
   const text = summarize(r, { runnerMinutes: 42.5, wallMinutes: 9.1 });
-  assert.match(text, /Execution: 101\.0 of 180\.6 table-minutes/);
+  assert.match(text, /Execution: 101\.0 of 213\.4 table-minutes/);
   assert.match(text, /Runner minutes of this run: 42\.5/);
   assert.match(text, /Wall clock of this run so far: 9\.1 min/);
   assert.match(text, /\| `new\.spec\.ts` \| - \| 1\.00 \| \+1\.00 \|/);
