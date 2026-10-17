@@ -1202,7 +1202,30 @@
       "funding": "subscription",
       "notionalUsd": 124.62,
       "outcome": "paused",
-      "note": "the frozen judge on the subscription: 26 answered claude -p calls (14 singles, 6 pairs in both orders) on the exam's delivered graphics, then the subscription's Fable limit (rate limit seven_day_overage_included at 100%, extra usage disabled for the organization) refused the next call; paused until 2026-10-20T05:00:00Z, when that 7-day window resets. 18 singles and 6 pairs (30 calls) wait, and one single answered on frames later re-captured is void (evidence/phase-8/judgements.void.jsonl), so 31 calls; nothing moved to the credit (evidence/phase-8.md)"
+      "note": "the frozen judge on the subscription: 26 answered claude -p calls (14 singles, 6 pairs in both orders) on the exam's delivered graphics, then the subscription's Fable limit (rate limit seven_day_overage_included at 100%, extra usage disabled for the organization) refused the next call; paused until 2026-10-20T05:00:00Z, when that 7-day window resets. 19 singles (the one answered on frames later re-captured, now void in evidence/phase-8/judgements.void.jsonl, among them) and 6 pairs in both orders wait: 31 calls; nothing moved to the credit (evidence/phase-8.md). Corrected 2026-10-17: this note first said 18 singles and 30 calls, counting the void single only afterwards"
+    },
+    {
+      "at": "2026-10-17T07:38:01.446Z",
+      "listCostCents": 0,
+      "kind": "session",
+      "phase": "H8",
+      "stage": "judge",
+      "arm": "judge",
+      "model": "claude-fable-5-1",
+      "funding": "subscription",
+      "notionalUsd": 134.48,
+      "outcome": "completed",
+      "note": "the frozen judge resumed on the subscription once the Fable cap was reset (2026-10-17, 07:03Z to 07:36Z): the 31 waiting calls answered (19 singles, 6 pairs in both orders), no pause, no error, every answer fingerprint 60bfb08e18a4; nothing moved to the credit. The exam's judge in all: 57 answered calls (one void), $259.10 notional (evidence/phase-8.md)"
+    },
+    {
+      "at": "2026-10-17T07:40:41.387Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H8",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "the held-out exam, MISSED (evidence/phase-8.md, exam/REPORT.md): 4.5 lines 1 and 3 fail. Harness 12 of 20 delivered and usable (8 stopped at the 194-cent budget, not ready), Claude Code 15 usable with the action readings (10 by the gate alone, where line 1 holds); Claude Code preferred in 13 of 20 pairs (8 by delivery), harness 6, 1 flip tie; 0 basic mistakes and 0 missing actions in the harness's delivered graphics; median wall 527 s. 20 credit sessions, $33.34 of the $46.60 reserve; the frozen judge 57 answered calls on the subscription ($259.10 notional, no credit). The run stops (5.5); H9 does not start"
     }
   ]
 }

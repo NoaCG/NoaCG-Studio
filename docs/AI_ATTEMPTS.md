@@ -12,6 +12,22 @@ Live contract: `src/ai/AGENTS.md`. Deadline plan: `docs/AI_LITE_PLAN.md`.
 
 ---
 
+### Managed Agents as the Create with AI harness (the held-out exam)
+**2026-10-15 to 10-17 · Opus 5.5 on Managed Agents (agent v7, no critic, 194-cent session budget)
+against Claude Code with the plugin on the same model and skill, 20 sealed briefs · $33.34 credit
+for the exam, $54.68 for the plan · MISSED.** The harness delivered 12 of 20; the other 8 reached
+the session budget while still revising. Every delivered graphic was judged airable with no basic
+mistake and no missing action, and on the 12 briefs both arms delivered the frozen judge preferred
+the harness 6, Claude Code 5, with 1 tie. But the 8 budget stops went to Claude Code by delivery,
+so it was preferred in 13 of 20 pairs (the pass allowed 10), and it had 15 usable graphics to the
+harness's 12 (10 by the missing-action gate alone). The loop matched; the budget, set from five
+light tuning briefs, did not fit dense ones (every capped brief had 2 to 5 operator actions).
+Report: `benchmarks/harness/exam/REPORT.md`; plan: `docs/work-specs/noacg-harness/spec.md`.
+**RETRY WHEN** a next plan sets the per-graphic budget from briefs as dense as the exam's (or runs
+the fallback path, our own loop, section 9 of that spec), and is examined on newly sealed briefs
+with this exam's counting rules; or a cheaper arm passes the same kind of exam at a lower cost per
+accepted graphic.
+
 ### The model-vs-harness four-arm study
 **2026-08-15 · `alibaba/qwen3-coder` + `anthropic/claude-sonnet-5` · 24 of 24 captured,
 ~$2.70 of a $4 authorization · OWNER'S BLIND VERDICT: A ≈ B and D >> A - NOT the

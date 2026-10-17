@@ -6,7 +6,7 @@ disagreement is logged here with its frame and its resolution. Newest first. Fra
 the repository (named by their calibration id; `benchmarks/harness/judge/calibration.mjs render`
 rebuilds them at zero cost).
 
-## H8 (2026-10-15): the held-out exam (judging paused, see `phase-8.md`)
+## H8 (2026-10-15, judged to the end 2026-10-17): the held-out exam (see `phase-8.md`)
 
 Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`
 on the 40 exam cells (`C:\claude\noacg-bench-archive\harness-exam-2026-10-15\cells\`), and the
@@ -35,18 +35,32 @@ re-shot frames named.
     which show a language and hold it, where the brief names `lang1` and `lang2`; the gate counts
     both missing, and the judge's single named no missing action ("the brief's described workflow
     is still fully achievable"). Resolution: read as offered (`exam/action-readings.json`), per the
-    ruling in `phase-8.md`; the report gives the gate-only figure too. Waiting for the judge's
-    singles, the same reading is open on Claude Code's volleyball board (`undoA`/`undoB`,
-    `setA`/`setB` for `undoPoint`, `endSet`), its matchup (`winRed`/`winBlue` for `select`), its
-    head-to-head (`highlight`), its podiums (`spotlight`) and its bracket (`advance`). The same flags
-    on the harness's matchup, head-to-head, podiums and bracket do not count: those sessions were
-    not ready.
+    ruling in `phase-8.md`; the report gives the gate-only figure too. The same reading was open
+    on five more of Claude Code's graphics until their singles were answered (2026-10-17). On all
+    five the judge named no missing action, and a button does each action, so all five are read as
+    offered: the volleyball board (`undoA`/`undoB` "Undo A/B" for `undoPoint`, `setA`/`setB` "Set
+    A/B" in the "End set" group for `endSet`; the judge notes the operator picks the set's winner,
+    "the function is there, but it is a different mechanic"), the matchup (`winRed`/`winBlue` "Red
+    wins"/"Blue wins" for `select`; the judge: "the operator surface does cover select"), the
+    head-to-head (`leadA`/`leadB` "Lead Home"/"Lead Away" for `highlight`; the judge: they "cover
+    the highlight and clear actions"), the podiums (`spot1` to `spot4` "Spot P1" to "Spot P4" for
+    `spotlight`) and the bracket (`qf1Top` to `finalBot` for `advance`; the judge: "all eight
+    quarter-final advance steps work"). The same flags on the harness's matchup, head-to-head,
+    podiums and bracket do not count: those sessions were not ready. These readings can only raise
+    Claude Code's usable count: 10 by the gate alone, 15 with all six readings (the matchup stays
+    not usable, judged not airable). The report gives both figures.
 19. **Events that did not move the machine** (coverage findings, 4.4's functional failures):
     `settle` on both award reveals, `sold` on both auction boards, `resume` on Claude Code's
     podiums, `undo` on the harness's volleyball board. An event can change values without changing
     a state group (a point, a settle of a celebration), so each is to be read against its frames
     with the judge's single before it is called a failure; counted in the report's functional
-    failures, not in "usable", as tuning counted.
+    failures, not in "usable", as tuning counted. Read with the singles (2026-10-17): the judge saw
+    the harness's settle return the card to calm, Claude Code's sold stamp and its podiums' resume
+    "back to game", and named nothing missing on Claude Code's award reveal. So each is the state
+    rule's blind spot (the event changes the look without changing a state group), not a broken
+    event. The two auction boards are not usable for other reasons (the harness's not ready,
+    Claude Code's not airable), and the harness's volleyball board was not ready. They stay counted
+    as functional failures, as fixed before the run.
 
 ## H7 (2026-10-15): tuning round 3
 
