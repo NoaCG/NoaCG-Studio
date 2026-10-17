@@ -37,8 +37,9 @@ on 2026-10-16 (local dev server, signed out, a new production with one scoreboar
 6. **The menu changes under you.** "Add data source…" leaves Setup once a value exists.
 
 What already works and is kept: a bound field shows its source and is locked in the cue editor;
-values follow on air without a new Take; a name with spaces is a valid path; a ± press on a bound
-field moves the shared value (`e2e/production-data.spec.ts` 749).
+values follow on air without a new Take; a name with spaces is a valid path. A ± press on a bound
+field moves the shared value, but its test (`e2e/production-data.spec.ts` 749) is skipped under
+`skipOldEditor()` and counts as no coverage; C1 asserts it in a test that runs.
 
 ## Goal
 
@@ -107,8 +108,9 @@ row and shows "empty" on the sources line.
 
 **Status and Pause on the Playout tab.** One line per source distinguishes last checked from
 last changed: "Sheet: News - checked 3 s ago", "paused", "empty", or "can't read it (not shared)
-since 20:14" with the fix. After three missed intervals the line and the connected fields show
-the data as stale; the mark clears on the next good read. Pause and Resume sit on the line.
+since 20:14" with the fix. After three missed reads of the active reader (15 seconds in the
+browser, about three minutes under the tick) the line and the connected fields show the data as
+stale; the mark clears on the next good read. Pause and Resume sit on the line.
 Published, status and Pause live on the row so a reload shows the true state and the tick
 honours Pause.
 
@@ -194,9 +196,10 @@ Layer: Node lease tests with a fake clock; configured handover scenario.
 
 ### AC-6: Failure, emptiness and staleness are visible and safe
 An unshared, deleted or unreachable sheet shows the line with a plain fix and the time it
-started; values on air stay. After 15 seconds the line and fields show stale; the mark clears on
-the next good read; reading resumes by itself. A valid empty tab clears the field and says
-"empty". Layer: Node reader-state tests; journey; the `""` conformance case.
+started; values on air stay. After three missed reads of the active reader (15 seconds in the
+browser, about three minutes under the server tick) the line and fields show stale; the mark
+clears on the next good read; reading resumes by itself. A valid empty tab clears the field and
+says "empty". Layer: Node reader-state tests; journey; the `""` conformance case.
 
 ### AC-7: The operator wins with one shared value
 ±, a Goal action and a typed value change the shared value; every connected graphic follows;

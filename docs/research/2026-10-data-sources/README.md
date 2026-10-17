@@ -149,10 +149,10 @@ shows the value in its preview, Take airs it, and the cue never stores its own c
 
 **What makes it unclear.** No screen says what the API is for, which names it may send, or when
 it last wrote. The public guide (`/docs#data-api`) leads with the graphic-addressed `/update`,
-the opposite of the plan's own advice (`PRODUCTION_DATA_PLAN.md` §1). `DATA_API.md` still says
-"Not a read API, yet" though `/state` exists, and still tells the owner to read the key from SQL
-though the Data tab shows it. Binding needs paths, and pushing needs an account and a developer
-(the 2026-10-16 walk, `sheet-data-flow` problem 4).
+the opposite of the plan's own advice (`PRODUCTION_DATA_PLAN.md` §1). `DATA_API.md` said "Not a
+read API, yet" though `/state` exists, and told the owner to read the key from SQL though the
+Data tab shows it; both lines were corrected on 2026-10-17. Binding needs paths, and pushing
+needs an account and a developer (the 2026-10-16 walk, `sheet-data-flow` problem 4).
 
 ### 1.3 How a list reaches a ticker today
 

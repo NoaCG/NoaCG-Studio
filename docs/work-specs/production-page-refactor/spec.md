@@ -463,7 +463,8 @@ rehearsal; this spec names no show date and claims no waiting period makes it sa
 ## 9. Execution settings
 
 - **Coordinator:** `/plan-run`, sequential; the wave file lists the remaining spec phases as
-  `N. Phase <k> of the spec: <name> (AC-...)`; the ledger numbers them 1..N per run; a later
+  `N. Phase <k> of the spec: <name> (AC-...)`, `<k>` being a number for this spec's phases and
+  `C0`..`C7` for the data-sources spec's; the ledger numbers them 1..N per run; a later
   window is a new run whose list starts at the first unfinished spec phase (a wave file cannot be
   stretched past 24 hours from its recorded start, `scripts/wave-plan-store.mjs` `openWave`).
 - **Builders and ordinary checks:** `wave-row` (Opus, high). One builder owns the page in any
@@ -480,7 +481,8 @@ rehearsal; this spec names no show date and claims no waiting period makes it sa
   depend on those changes and does not assume them done; the coordinator revalidates the runner
   (the ledger commands in `.agent-workflows/plan-run.md` as they stand then) when a run is
   authorised.
-- **Preflight before phase 1** (recorded in the wave file): `node scripts/work-spec.mjs status
+- **Preflight before the run's first step** (C0 in the reconciled order; recorded in the wave
+  file): `node scripts/work-spec.mjs status
   docs/work-specs/production-page-refactor/work.json` clean and the plan listed under "Runnable
   plans"; `origin/main` CI green and the latest `configured-suite` and `deploy-verify` runs on
   main green (`gh run list --workflow <file> --limit 1`); a local Supabase stack can start or
@@ -509,9 +511,10 @@ rehearsal; this spec names no show date and claims no waiting period makes it sa
    /plan-run production-page until <date and time with UTC offset>
    ```
 
-   The coordinator reads this spec on `origin/main`, runs the §9 preflight (phase 1) or the
-   phase-2 prerequisites (recorded in phase 1's notes), opens the run, copies the unfinished
-   phases into the wave file and starts at the first unfinished one. It continues through the
+   The coordinator reads this spec on `origin/main`, runs the §9 preflight before the run's
+   first step (and the phase-2 prerequisites, recorded in phase 1's notes, before phase 2),
+   opens the run, copies the unfinished phases into the wave file and starts at the first
+   unfinished one. It continues through the
    following phases inside the authorised window. No per-phase start and no routine approval is
    needed from the owner; the coordinator stops only on `stop` (§8) and asks him then.
 4. Permission mode is a harness setting, not an execution step. Switching a session to auto mode
@@ -650,8 +653,10 @@ state; each is removed in the phase that moves that state.
     tests. Removes the last temporary interfaces. Reconciled 2026-10-17: split into **13a**, a
     props-only move of the cue editor JSX into `CueEditor.tsx` in the phase-3 style (derives
     nothing, moves no state; the Fill and Connect menus of C0 and C1 live there), run in this
-    window after 2+7 with phase 3's matrix row plus `production-data` and `playout-air-contract`;
-    and **13b**, the draft part as written here, in the later window.
+    window after 2+7. Files for 13a: `src/components/home/CueEditor.tsx` (new) and
+    `src/components/home/ProductionPage.tsx` only; matrix: phase 3's row plus `production-data`
+    and `playout-air-contract`, assessment A. **13b**, the draft part as written here with the
+    file list above, runs in the later window.
 14. **Close-out** (AC-9 final, AC-11, AC-12, AC-14). Files: `ProductionPage.tsx` (imports),
     `contracts/rules/...` through `npm run learn`,
     `src/components/home/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CLIP_PLAYBACK_PLAN.md`,
@@ -668,14 +673,15 @@ content work needs the data session and a props-only cue editor move, not the pr
 reconciliation (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`) replaces the
 "cleanup first" order with the one below. The refactor's safety contracts (§4-§8) are unchanged.
 
-One `/plan-run production-page`, sequential; the wave file names each step as
-`N. Phase <k> of the <spec> spec: <name>`:
+One `/plan-run production-page`, sequential; the wave file names each step in §9's format,
+`N. Phase <k> of the spec: <name> (AC-...)`, where `<k>` is `C0`..`C7` for the data-sources
+spec's phases (the §9 line says so):
 
 | Step | Phase | Spec | Result |
 | --- | --- | --- | --- |
 | 1 | C0 | data-sources | Paste a message and safe staging; #1313 fixed. A feature change outside the refactor fence, landed before phase 1 so the baseline includes it |
 | 2 | 1 | this spec | Safety net, S1 and S3 decided, two perf baselines |
-| 3 | 2+7 | this spec | Store part, session skeleton, the production-data session (one phase; phase 7's matrix row plus phase 2's Node tests) |
+| 3 | 2+7 | this spec | Store part, session skeleton, the production-data session (one phase; both §6 rows run in full: phase 2's targeted specs, Node tests and configured dispatch, and phase 7's) |
 | 4 | 13a | this spec | Props-only cue editor extraction |
 | 5 | C1 | data-sources | Native lists (paste rows), starter rows, local Sheets, the browser reader, the sources line, the Data overview with Advanced |
 | 6 | C2 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat |
@@ -712,7 +718,8 @@ Before the next run: the two independent reviews are reconciled
 plan, including the run order above and the four decisions in the synthesis §7. This is a
 planning review gate, not authorization to start a run.
 
-Before starting phase 1 (the start instruction): this spec and `work.json` landed on `main`,
+Before the run's first step (the start instruction; C0 in the reconciled order, then phase 1):
+this spec and `work.json` landed on `main`,
 `work-spec.mjs status` clean and the "Runnable plans" line present; `origin/main` CI, the latest
 configured-suite run and deploy-verify green; the local Supabase stack or the dispatch route
 confirmed, `gh auth status` ok, the browser queue idle, `wave-row` and `wave-row-deciding`
@@ -723,8 +730,9 @@ Added 2026-10-16: the phase 1 builder reads `evidence/reconcile-2026-10-16.md` f
 here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reused. The owner
 answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settled.
 
-Before C0 (step 1): nothing from the refactor; C0 lands before phase 1's baseline, and phase 1's
-characterisation then covers it. Before C1 (step 5): phases 1, 2+7 and 13a checked PASS on
+Before C0 (step 1): the run preflight above and nothing from the refactor; C0 lands before phase
+1's baseline, and phase 1's characterisation then covers it. Before C1 (step 5): phases 1, 2+7
+and 13a checked PASS on
 `main`; track Q recorded with the Sheet measurement inside D3, or the plan stopped and asked; the
 data-sources and audience-flow specs agreed; digests current and `work-spec.mjs status` clean.
 Later readiness per content phase is in the data-sources spec. A manual YouTube copy does not

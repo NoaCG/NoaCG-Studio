@@ -78,7 +78,8 @@ chat; the join page; Simulate for rehearsal. Every intake writes candidates only
 in the cue editor, "Fill from… Paste a message" or "… Pick a message" on a cue of the card (the
 cue's graphic is the destination; no picker); in Messages, "Prepare cue on…" with a picker that
 lists compatible graphics only, remembers the choice per production, and offers the four Q&A
-cards (`House`, `Volt`, `Frost`, `Clean Q&A`) when the list is empty. Compatible: a body field
+cards (House Q&A, Volt Q&A, Frost Q&A and Clean Q&A, `src/templates/types/audience.ts` 135-138)
+when the list is empty. Compatible: a body field
 titled Message, Question, Comment, Body, Text or Request and, if present, a name field titled
 Name, Author, From, Sender, Handle or Asked by; not a vote board; neither field bound. The
 function copies the broadcast version into the cue's values by field title, writes `stagedFrom`

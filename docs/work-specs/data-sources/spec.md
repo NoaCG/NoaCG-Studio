@@ -164,7 +164,8 @@ production is open, local or published, in one tab at a time (a browser lease; a
 shows status and does not read). It diffs against its last good snapshot and writes only what
 changed: locally into the tree; published through the operator door the ± press already uses.
 A published source with no live lease is read by a server tick about once a minute (C3). Status
-distinguishes last checked from last changed; three missed intervals mark the data stale; a
+distinguishes last checked from last changed; three missed reads of the active reader (15 s in
+the browser, about three minutes under the tick) mark the data stale; a
 failed read keeps the last good value. Pause stops writes and keeps any override; Resume compares
 with the last applied snapshot. Disconnect returns the field to the cue with its last value.
 Values typed on a value field or moved by ± win until that cell changes (D4). A connected list
@@ -204,8 +205,8 @@ The owner answered DS1-DS20 by accepting the recommendations. Each is kept here 
 - **DS4. RSS and Atom feeds.** Answer: titles, newest 20, 5 minutes, conditional requests,
   publisher backoff. Kept.
 - **DS5. Who reads a feed for a local production.** Answer: a public route as a segment of an
-  existing catch-all. Kept (the data catch-all; the function budget is at 12 of 13 and is not
-  raised).
+  existing catch-all. Kept (the data catch-all; the function budget is full at its cap of 13 at
+  this branch's base and is not raised; no phase adds a function file).
 - **DS6. JSON addresses.** Answer: not in this run. Kept.
 - **DS7. The data API on the data view.** Answer: "Another system" card with address, key,
   example and last receipt; a pushed name connects matching fields on first arrival. Now: the
@@ -392,8 +393,9 @@ Reject, the rest in a menu. Setup always lists "Messages…" and "Data…"; the 
 becomes Messages; routes unchanged. Files: `src/control/messageStaging.ts` (new),
 `src/components/home/ProductionAudienceWorkspace.tsx`, `src/components/home/ProductionPage.tsx`
 (the cue editor menu only), `src/components/home/ProductionSetupMenu.tsx`,
-`src/audience/localAudience.ts`, `src/audience/audienceTypes.ts`, the published audience
-provider's submit path, `src/model/shows.ts` (additive `stagedFrom`, `messageTarget`), tests.
+`src/audience/localAudience.ts`, `src/audience/audienceTypes.ts`, `src/audience/audienceData.ts`
+(the published provider's submit path), `src/model/shows.ts` (additive `stagedFrom`,
+`messageTarget`), tests.
 
 **Q. Qualification and trial** (AC-13, AC-14; sheet AC-3; audience AC-7/9). No product code. In
 a session with network access and the owner's keys: 20 real Sheet edits timed to the export; an
@@ -411,7 +413,8 @@ overview with Advanced; the cue editor's connected-field state. Files: `src/cont
 (new), `src/control/sheetSource.ts` (new), `src/control/productionDataSession.ts` (the writer
 entry), `src/model/shows.ts` (`sources`), `src/components/home/CueEditor.tsx`,
 `src/components/home/ProductionPage.tsx`, `src/components/home/ProductionDataWorkspace.tsx`,
-`src/components/home/ProductionDataPanel.tsx`, a sources line component, tests.
+`src/components/home/ProductionDataPanel.tsx`, `src/components/home/SourcesLine.tsx` (new),
+tests.
 
 **C2. Sheet messages and YouTube** (AC-10/15; sheet AC-11; audience AC-4/8/9). Message Sheets
 through the rows adapter with content-hash identity; "Fill from… Pick a message" in the cue
@@ -431,8 +434,8 @@ one-minute Vercel cron) reading published Sheet and feed sources with no live le
 through `control_data_apply` with a source label; cost measured for an hour and recorded; the
 real-Sheet run repeated against the published output with the browser closed, latency reported as
 measured. Files: `src/control/hostedControl.ts`, `src/control/sheetSource.ts`,
-`api/data/[...path].ts`, `api/_lib/` tick helper, one additive migration (`control_shows.sources`,
-read state), `vercel.json`, tests.
+`api/data/[...path].ts`, `api/_lib/dataTick.ts` (new, a helper, not a function), one additive
+migration (`control_shows.sources`, read state), `vercel.json`, tests.
 
 **C4. Feeds** (AC-5/6/11). The guarded feed route as a public segment of the data catch-all;
 `feedSource` on the browser reader and the server tick; "Connect… News feed" on ticker fields.
@@ -442,10 +445,11 @@ Files: `api/_lib/feedFetch.ts` (new), `api/data/[...path].ts`, `src/control/feed
 **C5. Another-system card and Pause** (AC-7/8). The card with the generated example and receipt;
 "Connect… Another system" on a field; Pause by suppress-and-diff for `/patch` and a held
 per-graphic map for `/update`, or the documented fallback; `DATA_API.md` and `/docs` lead with
-`/patch`. Files: the Data view card, `api/data/[...path].ts`, one migration (`data_paused`,
+`/patch`. Files: `src/components/home/ProductionDataWorkspace.tsx` (the card),
+`src/components/home/CueEditor.tsx`, `api/data/[...path].ts`, one migration (`data_paused`,
 `dispatched`, held updates), `docs/DATA_API.md`, tests.
 
-**C6. Journeys, compatibility, docs** (AC-9/12/14). New graphics are no longer offered the
+**C6. Journeys, compatibility, docs** (AC-9/12/14; sheet AC-10). New graphics are no longer offered the
 graphic-level Sheet panel; existing blocks keep running; exports unchanged; the migration test
 over a fixture saved by today's build; `/docs` and `docs/PRODUCTION_DATA_PLAN.md` carry the
 supersession; the newcomer list, feed and push journeys automated where mechanics allow. Files:
@@ -469,12 +473,12 @@ fence. A = assessment by a fresh read-only `wave-row` session with the `/so` bri
 | --- | --- | --- | --- | --- | --- |
 | C0 | `message-staging` (targets: scoreboard-only none, vote board with Question none, bound body refused; values by title; dedupe; Source and Reference never mapped) | `production-audience` (#1313 steps with the restore-the-fallback mutation; paste, prepare, Take asserting PROGRAM text; two cues on one card; reload keeps pasted rows, simulated rows gone; double press makes one cue); `production-views` (Setup items) | `audience-live` (a pasted candidate on a published production reaches the inbox and the cue) | none | A |
 | Q | none | none | none | `evidence/sheet-latency.md`, `sheet-endurance.md`, `feeds.md`, `youtube.md`, `trial.md`, `tick-cost-estimate.md` | owner reads the trial |
-| C1 | `content-formats` (the fixtures of Formats), `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty), `production-data-session` extended (the writer) | `production-data` (paste rows per adapter; connect a stub sheet; preview and "Used by"; status line; Pause; Disconnect; empty tab clears; equal title elsewhere untouched); `production-views` (Data overview, Advanced) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | a conformance case: a string `""` over a list path emits one update row | A |
+| C1 | `content-formats` (the fixtures of Formats), `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty), `production-data-session` extended (the writer) | `production-data` (paste rows per adapter; connect a stub sheet; preview and "Used by"; status line; Pause; Disconnect; empty tab clears; equal title elsewhere untouched; a ± press on a connected value moves the shared value, asserted in a test that runs, since the existing one at line 749 is skipped under `skipOldEditor()`); `production-views` (Data overview, Advanced) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | a conformance case: a string `""` over a list path emits one update row | A |
 | C2 | `sheet-messages` (hash identity: reorder, edit, delete, identical rows, occurrence), `youtube-comments` and `youtube-chat` with recorded responses (first page kept, floor, errors) | `production-audience` (Sheet rows as candidates; edit keeps the cue; Source and Reference hidden); `production-chat-intake` (comments mode, remembered source, key prompt on reload) | `audience-live` (imported candidate on a published production, dedupe by `external_id`) | migration self-check; provider receipts from Q | A |
 | C3 | `sheet-source` lease and handover rules | `production-data` (reload keeps sources) | `production-data-key` extended (bind after publish moves the output without republish; tick skips a leased source and reads an expired one; a value changed once written once) | migration self-check; the tick's cost record; the closed-browser real-Sheet run in `evidence/` | A |
 | C4 | `feed-fetch` (fake resolver and fetch: public then private name, redirects, caps, conditional requests, cache), `feed-source` | `production-data` (connect a stub feed; failed fetch keeps the list) | `feed-route` (new, small; `expected-run.json` raised) | one real feed receipt | A |
 | C5 | `data-pause` contracts | `production-data` (the card, the example, receipt) | `production-data-key` extended (push, Pause, push with a null, `/update` while paused, Resume emits the final values once) | conformance cases in the migration's self-check | A |
-| C6 | `production-data-migration` extended (today's fixture loads unchanged) | `production-data` (no panel for new graphics; existing block still updates) | none | none | A |
+| C6 | `production-data-migration` extended (today's fixture loads unchanged); a Node test that an existing graphic's `liveData` block still emits in its template output (sheet AC-10) | `production-data` (no panel for new graphics; existing block still updates) | none | none | A |
 | C7 | none | the full offline suite on CI | the whole configured suite | `evidence/rehearsal.md` per route; the owner's player check; trial repeat | A+ |
 
 Revalidation, evidence-only commits and mappings follow the parent §6. A configured spec added
