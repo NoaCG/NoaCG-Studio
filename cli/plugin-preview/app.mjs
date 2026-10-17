@@ -2,7 +2,7 @@ import { App } from '@modelcontextprotocol/ext-apps';
 import { OpenAIExtensions } from '@openai/mcp-extensions/app';
 import { regionFromPoints, selectionAt } from './protocol.mjs';
 
-const app = new App({ name: 'NoaCG preview trial', version: '0.1.1' }, {});
+const app = new App({ name: 'NoaCG preview trial', version: '0.1.2' }, {});
 const extensions = new OpenAIExtensions(app);
 const element = (id) => document.getElementById(id);
 const stage = element('stage');

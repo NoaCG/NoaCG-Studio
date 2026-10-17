@@ -50,22 +50,28 @@ test('actual PNG, isolated live fixture, selection, stale refusal and refreshed 
     const page = await bench.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.exposeFunction('callTrialTool', (params) => client.callTool(params));
+    const prefix = 'mcp__preview_trial__';
+    const openTool = (await client.listTools()).tools.find(({ name }) => name === 'noacg_preview');
+    const qualifiedTool = { ...openTool, name: prefix + openTool.name };
+    await page.exposeFunction('callTrialTool', ({ name, ...params }) => {
+      assert.ok(name.startsWith(prefix), 'host requires the qualified tool name');
+      return client.callTool({ ...params, name: name.slice(prefix.length) });
+    });
     await page.setContent('<iframe id="app" style="width:800px;height:800px;border:0"></iframe>');
-    await page.evaluate(({ html, initial }) => {
+    await page.evaluate(({ html, initial, qualifiedTool }) => {
       const appFrame = document.getElementById('app');
       window.received = [];
       window.addEventListener('message', async (event) => {
         if (event.source !== appFrame.contentWindow || event.data?.jsonrpc !== '2.0') return;
         const { id, method, params } = event.data;
         const reply = (result) => appFrame.contentWindow.postMessage({ jsonrpc: '2.0', id, result }, '*');
-        if (method === 'ui/initialize') reply({ protocolVersion: '2026-01-26', hostInfo: { name: 'test stub', version: '1' }, hostCapabilities: { serverTools: {}, message: { text: {}, image: {} }, experimental: { 'openai/message': {} } }, hostContext: { theme: 'light', displayMode: 'inline' } });
+        if (method === 'ui/initialize') reply({ protocolVersion: '2026-01-26', hostInfo: { name: 'test stub', version: '1' }, hostCapabilities: { serverTools: {}, message: { text: {}, image: {} }, experimental: { 'openai/message': {} } }, hostContext: { theme: 'light', displayMode: 'inline', toolInfo: { tool: qualifiedTool } } });
         if (method === 'ui/notifications/initialized') appFrame.contentWindow.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: initial }, '*');
         if (method === 'tools/call') reply(await window.callTrialTool(params));
         if (method === 'ui/message') { window.received.push(params); reply({}); }
       });
       appFrame.srcdoc = html;
-    }, { html, initial });
+    }, { html, initial, qualifiedTool });
     const ui = page.frameLocator('#app');
     await ui.getByRole('status').filter({ hasText: 'Ready' }).waitFor();
     const graphic = ui.frameLocator('#graphic');

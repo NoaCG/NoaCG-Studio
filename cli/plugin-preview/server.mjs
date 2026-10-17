@@ -9,10 +9,10 @@ import { capture } from './capture.mjs';
 import { buildChangeMessage } from './protocol.mjs';
 import { closeBrowser } from './dist/browser.mjs';
 
-export const UI_URI = 'ui://noacg-preview-trial/panel.html';
+export const UI_URI = 'ui://noacg-preview-trial/v0.1.2/panel.html';
 
 export async function createServer({ fixtureRoot } = {}) {
-  const server = new McpServer({ name: 'noacg-preview-trial', version: '0.1.1' });
+  const server = new McpServer({ name: 'noacg-preview-trial', version: '0.1.2' });
   const html = await readFile(new URL('./app.html', import.meta.url), 'utf8');
   const js = await readFile(new URL('./dist/app.js', import.meta.url), 'utf8');
   let snapshot;

@@ -39,7 +39,8 @@ desktop host open its inspectable app panel instead of defaulting to an inline c
 If an installed tool returns `Transport closed`, restart the desktop app, reopen
 this task, then call `noacg_preview` again. Supported removal/reinstallation and a
 new trial version did not replace the closed connection in the existing session.
-Until the reopened task completes the real selection/image/edit/refresh journey,
+The 0.1.1 real selection/image/edit/refresh journey passed on 2026-10-17. The
+recovered 0.1.2 adapter still needs its native recheck and independent phase check;
 phase 1 remains open in [#1314](https://github.com/NoaCG/NoaCG-Studio/issues/1314).
 
 ## Try the native round trip

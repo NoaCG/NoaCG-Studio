@@ -1,101 +1,109 @@
-# Phase 1 local trial receipt
+# Phase 1 native preview receipt
 
-Status: independently verified infrastructure only; phase 1 remains open. AC-1
-and AC-2 require an actual native Codex conversation round trip and are not passed
-by these checks. This work advances, and does not close,
-[#1314](https://github.com/NoaCG/NoaCG-Studio/issues/1314).
+Status: the installed 0.1.1 native compatibility journey passed AC-1 and AC-2.
+The recovered 0.1.2 source adds two reviewed host compatibility fixes. Its native
+reload/recheck and independent landed-main check remain pending; do not begin
+phase 2 until those gates are recorded here and in issue #1314.
 
-The implementation is confined to `cli/plugin-preview` and its pure source/protocol
-build-gate test. It uses one editable local lower third, a thread MCP App resource,
-exact file revisions, the CLI's isolated browser helper and a real PNG. The app
-submits the selected element/region, request and PNG through the supported
-OpenAI extension to the active conversation. No separate reasoning service,
-unfinished editor, account, database or production output is involved.
+## Actual Windows journey, 2026-10-17
 
-## Installation receipt, 2026-10-16
+- App: Codex Windows package 26.1013.4894.0. CLI: 0.163.0-alpha.5.
+- Installed plugin: noacg-preview-trial@noacg-preview-local 0.1.1.
+- SDKs: MCP 1.30.0, MCP Apps 1.7.5, OpenAI extensions 0.2.0.
+- Runtime source: ea98f7d1593c3663a537fb6302163e0b1693c848, followed by the
+  selected CSS edit committed as 3df52b05906d0ccb06242d7e7f8eb697bd782b87.
+- Preserved runtime: C:/Users/ahonemi/.codex/worktrees/codex-graphic-preview-p1/NoaCG-Studio.
+  It remains locked because the installed launcher imports its runtime and ignored dependencies.
 
-The coordinating native task installed/enabled
-`noacg-preview-trial@noacg-preview-local` using supported CLI commands.
-CLI version: `codex-cli 0.163.0-alpha.5`.
-Desktop app package version: `26.1007.9446.0` (read by the coordinator from the
-actual `ChatGPT.exe` package path).
-Current installed/enabled version: 0.1.1.
-Cache: `C:/Users/ahonemi/.codex/plugins/cache/noacg-preview-local/noacg-preview-trial/0.1.1`.
-Supported removal/re-addition succeeded after stopping only the trial's identified
-processes that held its Windows cache files. The 0.1.1 native tool attempt still
-returned `Transport closed`: the ongoing task retained its closed connection.
-No native app restart or native app UI automation was performed. Restarting the
-desktop app and reopening the task remains the next host prerequisite.
-The cached launcher imports the explicitly prepared source worktree's runtime.
-SDKs: MCP 1.30.0, MCP Apps 1.7.5, OpenAI MCP extensions 0.2.0.
+The restarted native tool returned the actual lower-third PNG and its source
+identity. The owner opened the conversation side-panel entry and clicked Alex
+Morgan. CUA then observed the actual panel's Name selection, filled the request
+and clicked Send. The active native task received the request, context and PNG
+in the following turn, without a second model service or another manual message.
+The host queues this submission behind a running turn; a panel acknowledgement
+alone was not used as evidence of model receipt.
 
-Earlier, version 0.1.0 became available dynamically in the same native task.
-Against source commit `0fb9ebae72a4fdb7cbee8212227651087563602c`, the coordinator
-called `noacg_preview` and received/inspected a real, legible PNG, package ID
-`noacg-preview-lower-third`, exact revision
-`files-sha256:48496423f8fb86a74273ae42e8a12e8a01b4940f06f4a83dff6dbd73ab7d4032`
-and the correct absolute fixture path in the phase-1 worktree. The actual MCP Apps
-surface still reported no tab. Opening the panel, native selected request/image
-receipt and native before/after source-edit refresh are not yet observed.
-The owner subsequently reported the 0.1.0 inline textbox and Send control visible.
-The resource now advertises inline/fullscreen and prefers fullscreen with the
-documented `openai/ui` metadata so the host can open an inspectable panel; that
-metadata change still needs its own actual host observation. The supported CUA
-MCP Apps surface lists expanded side-panel apps only, so its empty tab inventory
-does not prove the owner-visible inline widget was absent. Actual selection and
-message sending could not be exercised there. The owner accepted the simple
-prototype and authorized independent continuation before leaving for the night.
+The actual received request was: "Make the selected name 66 px. This is the phase
+1 native preview test: edit the real fixture source, validate it with NoaCG, and
+refresh this panel."
 
-The actual cached launcher also served both tools and the MCP App resource over
-stdio in a separate protocol probe. This proves cached startup, not panel support.
-The runtime worktree is locked with reason "Installed noacg-preview-trial runtime;
-unlock after uninstall" to preserve its ignored dependencies and build outputs
-through automatic post-landing cleanup.
+Context received: package noacg-preview-lower-third; selection element f0, Name;
+1920 x 1080; Name Alex Morgan and Role Studio correspondent; settled fixture;
+the absolute runtime fixture source root and all four source filenames. Selected
+bounds were x252, y828.203125, width312.0625, height59.796875. The MCP App text
+receipt source ID was session:f7f597ce-c3ee-4456-bb61-b9cd4da15d74; the actual
+PNG arrived in the same native input. Owner authorization remains the explicit
+phase-1 request; the app payload supplies data, not new authority.
 
-## Evidence
+The task used ordinary file tools to change only #f0 font-size from 52px to 66px.
 
-- Source/protocol tests: exact image/context contract, stale/unknown target and
-  invalid region refusal, coordinate selection, exact-byte source digest and
-  asset containment, exclusion from npm/toolkit distribution.
-- Local build and seven trial unit/MCP tests passed. Selected repository gates
-  passed (12 tests across two files, plus relevant shape/docs/workflow checks),
-  and ESLint passed for `scripts/codex-preview-trial.test.mjs`. Root dependencies
-  were installed without lifecycle scripts; no full application build ran.
-- MCP tests: thread entrypoint/resource registration, app-only request tool and
-  request refusal before a matching preview exists.
-- Local browser journey: queue job `j-4535` ran the complete assertion path and
-  printed the PNG/before-after verification line, then was stopped and requeued
-  when admission detected Chromium in a command priced as light work. There is
-  no terminal passing job verdict. Its browser-priced retry was cancelled once
-  focused CI started; no unowned local retry remains.
-- Focused CI: `.github/workflows/preview-trial.yml` installs the pinned trial,
-  builds it, runs its unit/MCP tests, then only its browser protocol journey.
-  [Run 38955385716](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38955385716)
-  passed all of those steps on `0fb9ebae72a4fdb7cbee8212227651087563602c`: seven
-  unit/MCP tests and one actual Chromium journey under host-style CSP, including
-  `frame-src 'none'`. Artifact `preview-trial-browser-stub` contains
-  `dist/browser-stub.png`. Builder and coordinator inspected it: narrow panel
-  controls are legible and unclipped; region stays aligned. This is explicitly a
-  browser host stub, not actual desktop proof. A later fixture lifecycle fix
-  starts it hidden until Take; the preview explicitly Takes its isolated copy.
-- CLI npm dry run checked 13 included files with zero `plugin-preview` files.
-- Final source CI: [run 38957305147](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38957305147)
-  passed on `ca86c66ca64eaa14c4a8266bbc042e76c9128201` (0.1.1), including the raw
-  fixture's off/Take/Update/Out lifecycle, PNG difference and strict-CSP app
-  journey. Fullscreen resource metadata also passed the MCP registration test.
-  This remains browser/protocol evidence; it cannot replace the native gate.
-- Actual Codex desktop AC-1/AC-2: **OPEN**. Initial PNG/inline UI receipts are
-  partial; the final installed version needs app restart/reopen and the complete
-  native selection, image-bearing request, source edit and displayed refresh.
-- Later AC-3/AC-4/AC-5: **not checked**; outside phase 1. Owner judgment covers the
-  initial simple prototype only, not the final native journey.
+| State | Exact four-file revision |
+| --- | --- |
+| Before | files-sha256:8dde8a7398c3d3a09d8bf499bdee9643d931a759ee7af28de7e34d5bf4db086f |
+| After | files-sha256:cde50027ff28af1a3e7a0b5861de719e282997fc37ce8f99e213e111560ac5ac |
 
-## Next actual host check
+CUA clicked the real Refresh source button. The actual panel returned Ready,
+showed the after revision, rendered f0 as 66px and cleared the selection. The
+native preview tool also returned the edited PNG and same after revision.
+The actual native-tool PNGs are retained locally, outside Git, in
+C:/Users/ahonemi/.codex/visualizations/2026/10/16/01a14564-a79b-7982-a535-8dfd8de6adcf/noacg-native-phase1:
 
-Restart the desktop app, reopen the task and call `noacg_preview`. Then follow
-`cli/plugin-preview/README.md`. Record the app version, reviewed source
-commit, exact before/after fixture revisions, selected target or region, native
-message text and actual image receipt, normal file edits, validation/screenshot
-tools and refreshed displayed result. If the host does not load the UI or cannot
-route the image-bearing request into the active native task, keep phase 1 open
-and stop expansion. No browser simulation can replace that gate.
+- before.png SHA256 f386f4e33bdc90db1efed67691c507be95209058b4bcddb34b58047f83e455dc
+- after.png SHA256 b7941b8d5a0799d57f5f651dd50c2842ba972e8bc2ccc36f1e5eda1aa9154336
+
+They are native-tool PNGs, not screenshots of a simulated host or the whole
+Codex window. The installed local draft retains the edit.
+
+## NoaCG validation and visual inspection
+
+Local browser job j-4579 was queued with browser pricing, then cancelled before
+it started because the laptop had about 0.7 GB free and needed 3.5 GB. No local
+validation pass is claimed and no limits were changed.
+
+[Focused CI run 39064556389](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064556389)
+on b79ec150cfa585b5ac24cec20f4423956f63cd9d independently reconstructed the exact
+four edited files and asserted the after files-sha256 above before invoking:
+
+```text
+npx --yes @noacg/cli@0.12.2 validate dist/native-edited-fixture.zip --screenshots dist/validation-after --json
+```
+
+The normal static gate and runtime bench passed with zero errors; benchSkipped
+was null. Fields, lifecycle, layout, legibility, stress and export readiness
+passed. The CLI's normalized digest was
+sha256:a09aa53f9a7b99a7e8bcf98632bcc6a22fc9d0928a66138f1844e1862c44597e.
+This is distinct from the exact source-file revision.
+
+Three bench-editability warnings remain: no editor structure spine, no timeline
+animation data/interpreter, and incomplete editor style variables. These belong
+to the unfinished editor, which the agreed spike explicitly does not depend on.
+The fixed trial is not a production-ready editable-template claim.
+
+The coordinator downloaded and inspected off.png, onair.png and stress.png.
+Off is transparent; on-air matches the larger-name composition; doubled names
+and roles remain within the panel and safe frame. Artifact preview-trial-browser-stub
+contains those frames, native-edited-source.json and noacg-validation.json.
+The same run passed 11 unit/protocol tests and the Chromium host-stub journey.
+The browser stub is protocol evidence, never the actual native-host receipt.
+
+## Recovery and remaining gate
+
+PR #1311 was removed by the batch rollback #1338 after an unrelated thumbnail
+expectation failed. That behavior was repaired in #1337 and re-landed in #1343.
+Recovery PR #1413 restores only the preview paths on current main and fixes both
+unresolved #1311 findings: preserve host-qualified tool names, and disable Send
+without serverTools. Focused regression tests failed before those fixes and
+passed afterward. The private version and UI cache URI advance to 0.1.2 so an
+existing installation cannot silently retain old assets. This updated adapter
+has not yet been claimed as native-tested.
+
+The trial remains excluded from CLI npm/toolkit distribution. Source is the four
+fixture files; graphic code runs in an opaque-origin allow-scripts iframe without
+a trusted bridge, credentials or networking. No account, database, editor,
+production delivery or on-air operation was used.
+
+AC-1/AC-2: passed on installed 0.1.1. Final 0.1.2 native recheck pending.
+AC-3/AC-4/AC-5: outside phase 1, not checked. AC-6: local install/restart, source
+persistence and isolation observed; final 0.1.2 reload and independent check pending.
+Owner taste judgment covers the simple initial prototype only. No cloud run or
+automation has started. The plan and eight-hour gated prompt remain in #1309/#1311.
