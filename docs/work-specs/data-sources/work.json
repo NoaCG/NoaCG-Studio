@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "35606f1cede1beb3906bdce040da35a8d1b9faa1c7d847056a8b6cb89334e741",
+  "specSha256": "9ccbffbc28f5d051e5d45798d5ab13935412f707fc5890f776a98153b8f8d637",
   "authority": {
     "status": "draft",
     "source": "2026-10-17, owner research brief: \"Research only, no product code. Goal: one clear model for how outside data and audience input reach graphics in a NoaCG production, written up as draft specs and draft phases for the production page plan run, with every decision left open for the owner.\" Drafted the same day from docs/research/2026-10-data-sources/README.md; decisions DS1 to DS20 await the owner. 2026-10-17, owner: \"For me it's too difficult now to answer those questions before I actually can try it out so let's go with your recommendations. Record those as answers.\" and \"Before we start planning the phase let's research how this should be done a bit further,\" with a second opinion from another agent. DS1-DS20 recorded as the recommendations; R1-R5 added from the owner's second-round input; authority stays draft until the second opinion is reviewed."

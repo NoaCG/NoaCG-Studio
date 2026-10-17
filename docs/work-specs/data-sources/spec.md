@@ -117,7 +117,7 @@ a ready example built from this production's own names (DS7). It stays data only
 take or clear anything. `POST /api/data/update` stays as the low-level door that addresses one
 graphic by name.
 
-**Where the audience fits (DS11, recommendation C).** Viewers are a source of candidates, not of
+**Where the audience fits (DS11, answer C).** Viewers are a source of candidates, not of
 values. A viewer sends a message from the production's join page (a link or QR code, published
 productions only) or in the chat of a Twitch channel or YouTube stream the operator connected.
 Every message lands in the Audience inbox; the operator approves, edits the broadcast text and puts
@@ -270,7 +270,7 @@ After reading the first draft, the owner said:
 
 Child criteria stay in their own specs and are named in the phases as "sheet AC-n" and
 "audience AC-n". These are the criteria that cross them. They follow the answers; a change the
-second opinion brings rewrites the criterion that names its decision.
+second opinion proposes and the owner accepts rewrites the criterion that names its decision.
 
 ### AC-1: A source writes names, never graphics
 Each source kind (Sheet, feed, pushed, a test kind) produces named values, lists or table rows
@@ -352,8 +352,7 @@ adds its notes under this spec's `## Phase notes`. Numbers are the production-pa
     unpublished): connect from the data view and from a field, the browser reader under a lock,
     connecting by name, the sources line with Pause, the local override and Resume (D4).
 17. **Feeds** (AC-3 for feeds, AC-4, AC-5): the fetch route (DS5) and the feed kind on a local
-    production, with the ticker journey. If DS5 answers "published only", this phase joins phase
-    18, and a feed pasted on a local production says publishing is the step.
+    production, with the ticker journey.
 18. **Published productions** (AC-4 published; sheet AC-3 published, sheet AC-4, sheet AC-5
     handover, sheet AC-6, sheet AC-7 published; AC-3 published half, DS17): the server copy of
     sources with its row security, the scheduled tick for Sheets and for feeds through phase 17's
@@ -369,8 +368,8 @@ adds its notes under this spec's `## Phase notes`. Numbers are the production-pa
     AC-10, sheet AC-12).
 
 Audience follows as phases 23 onward: `audience-flow` phases 1-4, its chat sources on the core of
-phase 15 and on the sources line (A4; AC-8 for audience sources, AC-9). If DS6 answers "build
-JSON now", a JSON phase follows phase 17 with its own criteria added here first.
+phase 15 and on the sources line (A4; AC-8 for audience sources, AC-9). JSON addresses are not in
+this run (DS6).
 
 ## Readiness
 

@@ -5,7 +5,7 @@ decisions" the same day. Parent direction: `docs/GOALS.md` outcome 7 (one data m
 design), which this spec pulls forward from "later". Architecture it builds on:
 `docs/PRODUCTION_DATA_PLAN.md` and `docs/CLOUD_PLAYOUT.md` §7.
 
-## Revision, 2026-10-17 (open until the owner answers)
+## Revision, 2026-10-17 (answered; applied when the data sources spec is agreed)
 
 The owner, 2026-10-17: this spec's main use case is wrong. It leads with values and uses scores
 as examples, when a sheet's main value is long texts and lists (tickers, schedules, credits, any
@@ -14,7 +14,8 @@ through the data API and RSS. Typing a score in a sheet stays possible but is ne
 path. The model this spec now sits in is `docs/work-specs/data-sources/spec.md` (draft). Until
 the owner agrees it:
 
-- D1-D4 stand as agreed and nothing below them changes.
+- D1, D3 and D4 stand. D2's order changes as the next point says; nothing else below changes
+  until then.
 - Two were asked again there and answered on 2026-10-17 as recommended: DS2 puts lists before
   values, which changes D2's order; DS15 keeps D3 for Sheets. D2 is rewritten here when the data
   sources spec is agreed, after its second opinion.
@@ -213,7 +214,8 @@ Not a run of its own (owner, 2026-10-16): these six phases run as phases 15-20 o
 (`docs/work-specs/production-page-refactor/spec.md`, "After the refactor, in the same run"). The
 cleanup moves the cue editor and the press verbs this work changes, so it goes first. The readers
 and their rules live in `src/control/` and are Node-tested; the page change is wiring only.
-Proposed 2026-10-17 (data sources DS16, open): these phases run inside that spec's phases 15-22.
+Answered 2026-10-17 (data sources DS16): these phases run inside that spec's phases 15-22 once it
+is agreed.
 
 ## Acceptance criteria
 

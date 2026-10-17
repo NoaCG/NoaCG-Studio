@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "f7912a6927c9933c00299ee58bf8533fd1cb070acf910137f7f89ae412cbfafa",
+  "specSha256": "8a44ba97d065421525e3f3d167b7dc68f68d7df9ef514ea9b5b296acf844d863",
   "authority": {
     "status": "draft",
-    "source": "owner, 2026-10-16: \"The playout dashboard, our playout system, is top priority right now, and I think everything that has to do with the playout system is important. That means also the data and the audience tabs.\" Then: \"production page cleanup first, then Sheet data, then audience, all in the one run.\" Drafted overnight from the 2026-10-16 walk; decisions A1 to A5 await the owner. 2026-10-17, owner research brief: \"Revisions to sheet-data-flow and audience-flow so the three agree.\" Where the audience fits is asked in docs/work-specs/data-sources/spec.md DS11-DS14. 2026-10-17, owner: \"For me it's too difficult now to answer those questions before I actually can try it out so let's go with your recommendations. Record those as answers.\" and \"Before we start planning the phase let's research how this should be done a bit further,\" with a second opinion from another agent. DS11-DS14 answered; A1-A5 remain open here."
+    "source": "owner, 2026-10-16: \"The playout dashboard, our playout system, is top priority right now, and I think everything that has to do with the playout system is important. That means also the data and the audience tabs.\" Then: \"production page cleanup first, then Sheet data, then audience, all in the one run.\" Drafted overnight from the 2026-10-16 walk; decisions A1 to A5 await the owner. 2026-10-17, owner research brief: \"Revisions to sheet-data-flow and audience-flow so the three agree.\" Where the audience fits is asked in docs/work-specs/data-sources/spec.md DS11-DS14. 2026-10-17, owner: \"For me it's too difficult now to answer those questions before I actually can try it out so let's go with your recommendations. Record those as answers.\" and \"Before we start planning the phase let's research how this should be done a bit further,\" with a second opinion from another agent. DS11-DS14 answered; A1-A5 recorded as answered by the same ruling, read as covering them because its reason (the choices cannot be judged before trying them) applies equally; the owner can reopen any."
   },
   "review": null
 }

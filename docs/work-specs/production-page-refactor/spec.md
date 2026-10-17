@@ -665,11 +665,12 @@ it follows phase 14 rather than interleaving.
 Audience phases are added here as 21 onward once an audience spec is agreed; until then the run
 ends after phase 20.
 
-**Proposed 2026-10-17, open (data sources DS16).** `docs/work-specs/data-sources/spec.md`
-(draft) proposes one model for every data source and audience input, and draft phases 15-22 in
-place of 15-20: they carry the Sheet data flow's six phases, re-ordered with lists first, plus RSS
-feeds and the data API made visible. Audience would then be 23 onward. Until the owner answers,
-15-20 stay as written above, and none starts before the readiness item below.
+**Answered 2026-10-17 (data sources DS16, as recommended).** `docs/work-specs/data-sources/spec.md`
+holds one model for every data source and audience input, and phases 15-22 in place of 15-20:
+they carry the Sheet data flow's six phases, re-ordered with lists first, plus RSS feeds and the
+data API made visible. Audience is then 23 onward. That list replaces the two paragraphs above
+once the data sources spec is agreed after its second opinion; no phase from 15 starts before the
+readiness item below.
 
 ## What the plan can demonstrate, and what stays uncertain
 

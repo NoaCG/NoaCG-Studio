@@ -405,8 +405,8 @@ twenty decisions, answered as recommended. A Sheet driving a ticker is also the 
 ## 8. Hosts a research or test session needs
 
 The cloud environment's network policy decides what an agent session can reach. These hosts let a
-session read the pages cited here and test real sources; they change nothing for NoaCG's users,
-whose Sheets and feeds NoaCG's own server reads.
+session read the pages cited here and test real sources. They change nothing for NoaCG's users,
+whose Sheets and feeds are read by NoaCG's server or by their own browser.
 
 - Google Sheets and Google's documentation: `docs.google.com`, `sheets.googleapis.com`,
   `support.google.com`, `developers.google.com`, `workspaceupdates.googleblog.com`,
