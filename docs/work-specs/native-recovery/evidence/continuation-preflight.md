@@ -63,9 +63,13 @@ through an owner approval wait. The known cloud CLI denial was not retried.
 [timing-reconciliation.json](timing-reconciliation.json) calculates differences from
 the existing qualification timestamps. The accepted next due time was **41.611 seconds
 later** than first executor observation plus 60 minutes. The second provider fire was
-**144.553853 seconds after** its requested due time; the recorded second executor
-arrival was **166.418 seconds after** it. The two executor observations are **3808.029
-seconds apart**. These are arithmetic over the historical receipt, not a new timing
+**144.553853 seconds after** its requested due time; the first resumed executor
+observation was **150.249 seconds after** it. The later delivery bookkeeping write
+was **166.418 seconds after** due. The two first executor observations are **3791.860
+seconds apart**; the later bookkeeping write is **3808.029 seconds after** the first
+observation. The distinction was corrected during landing review of #1415, using
+the already recorded timestamps in `qualification.md`. These are arithmetic over
+the historical receipt, not a new timing
 trial or a cross-clock latency guarantee. They establish why exact cadence cannot be
 credited from the previous relative update.
 
@@ -117,7 +121,9 @@ receipts and removed an unsupported comparison with the previous managed environ
 No code or provider behavior changed. Simplification reused the existing guards and
 usage reader; no new helper or scheduler was needed.
 
-An independent Python datetime calculation verified all six JSON timing differences.
+An independent Python datetime calculation verified the six initial JSON timing differences.
+Landing review corrected the second arrival label and independently recalculated
+all eight differences, retaining the later bookkeeping timestamp separately.
 The five changed-path gates passed with supported per-command network permission, and
 `git diff --check` passed. The first default-sandbox gate command stalled in a Git child;
 only that command tree was stopped before the unchanged supported-permission rerun.

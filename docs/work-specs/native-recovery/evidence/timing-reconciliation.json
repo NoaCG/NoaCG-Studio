@@ -7,13 +7,17 @@
   "rearmAcknowledgedAt": "2026-10-17T09:55:47.245325Z",
   "secondRequestedDueAt": "2026-10-17T10:55:46Z",
   "secondProviderFiredAt": "2026-10-17T10:58:10.553853Z",
-  "secondExecutorArrival": "2026-10-17T10:58:32.418Z",
+  "secondExecutorArrival": "2026-10-17T10:58:16.249Z",
   "requestedDueMinusFirstObservationSeconds": 3641.611,
   "requestedDueMinusAcknowledgedUpdateSeconds": 3598.754675,
   "requestedDueErrorFromObservationPlusHourSeconds": 41.611,
   "secondProviderFireAfterRequestedDueSeconds": 144.553853,
-  "secondExecutorArrivalAfterRequestedDueSeconds": 166.418,
-  "executorObservationIntervalSeconds": 3808.029,
+  "secondExecutorArrivalAfterRequestedDueSeconds": 150.249,
+  "executorObservationIntervalSeconds": 3791.86,
   "exactHourlyCadenceQualified": false,
-  "limits": "Different provider/executor clock domains; historical recorded observations are not a latency SLA or a new delivery qualification. Original trial remains completed and disabled."
+  "limits": "Different provider/executor clock domains; historical recorded observations are not a latency SLA or a new delivery qualification. Original trial remains completed and disabled.",
+  "secondDeliveryBookkeepingWrite": "2026-10-17T10:58:32.418Z",
+  "secondBookkeepingWriteAfterRequestedDueSeconds": 166.418,
+  "bookkeepingWriteMinusFirstObservationSeconds": 3808.029,
+  "timestampDefinitions": "secondExecutorArrival is the first resumed executor observation in qualification.md; secondDeliveryBookkeepingWrite is the later write/read-back, previously mislabeled arrival. Both raw observations are retained."
 }
