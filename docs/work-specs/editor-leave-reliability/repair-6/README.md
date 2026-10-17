@@ -146,7 +146,40 @@ it queues.
 
 ## Results
 
-Filled in from the runs below.
+Disposable dispatch-only probes, no pull request, never queued. Each run records the carried files'
+sha256, byte-identical to independent-5: original `28988d71…`, second `ef78c1eb…`, third
+`71f8378b…`, fourth `95317231…`, fifth `145756a7…`, references `8aaf0a47…`, `2447cef0…`,
+`bae58ddb…`.
+
+- Fix probe `claude/probe-editor-p2-repair-6-ci`: this branch at `5ca13fa8`, plus the carried files
+  and the checker's recipe, with two scopes added (`repeat228`, `matrix`).
+- Main probe `claude/probe-editor-p2-repair-6-main` (`4b64b3d3`): main `6d66070e`, plus the same
+  files and this matrix only.
+
+| Run | Result |
+| --- | --- |
+| Fifth checker on main, [39030466888](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030466888) | **5 failed / 15 passed**: A1, B1, B2, C1 and H1-renamed, exactly where the fifth receipt says. |
+| Fifth checker on the fix, [39030410046](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030410046) | **19 passed / 1 failed**. A1, B2, C1 and H1-renamed now pass. B1 fails by timeout inside the checker's facts step (see Limits). In this VM, j-0012 gives the same result, and the copy with only that call guarded passes 60/60 over 3 repeats (j-0013). |
+| `:228` x20 on the fix, [39030411353](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030411353) | **20/20**. In this VM, j-0017 gives **20/20**. |
+| Unchanged checkers on the fix, [39030408693](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030408693) | Original **3/3**, second **4/4**, third **10/10**, `:24` x20 **20/20**, fourth **11/11** (`:228` and both `:298` included). |
+| Maintained selection on the fix, [39030412630](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030412630) | **85 passed**, the same **8 legacy skips** (new-graphic-guard, library, wizard-draft-guard and the preserved editor selections). Two-graphic export **1/1**. |
+| Matrix on the fix, [39030414011](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030414011) | **52/52**, one worker, 9.3 min, every case under 30 s. In this VM: j-0016 52/52, and j-0020 52/52 on the final head after review. |
+| Matrix on main, [39030465479](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030465479) | **22 failed / 30 passed**. The behaviour failures are first-kept K reload (#1383, A1's shape), in-flight I for leave and first Save (late refusal announced after the save), the renamed export double (#1384), and the leave replay for **hash and Back** (#1386; Back was lost the same way). The R and F cases fail on main because those writes do not exist there: no reservation, and the trailing autosave fired after the answer. |
+| Walk-state and door Node tests | **53/53** (`scripts/wizard-walk-state.test.mjs`, `scripts/wizard-doors.test.mjs`), including "held writes: … neither waits on the other". |
+
+Mutations, each run on the matrix in this VM and then reverted:
+
+- M1, the answer before settle: `commitLink` answers without waiting for K or F (j-0018). **16
+  failed / 36 passed**: every K refusal and K hold case, leave/F and first-named/F hold+edit, wizard
+  K, and both leave-replay cases.
+- M2 and M3 together: no step-6 flush, and no reservation (j-0019). **10 failed / 42 passed**:
+  every F case (M2) and first-kept/K reload (M3, A1's shape).
+
+Gates: `node scripts/gates.mjs run --changed origin/main` passes, `check-e2e-protection --changed
+origin/main` passes, and `eslint` on the changed files and `tsc --noEmit -p .` are clean.
+
+Captures: none committed. The fix's change is not visual. The dialogs, the copy and the notice are
+unchanged, and only which writes reach them changed.
 
 ## Limits
 
