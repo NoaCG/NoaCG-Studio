@@ -25,6 +25,8 @@ import { getSyncState, onSyncState } from '../../backend/syncController';
  *   (opening another graphic, creating a new project, the wizard's mid-walk start-over).
  *   Save first, discard, or cancel.
  */
+const SAVE_FAILED = 'Could not save. Your changes are still open. Try again.';
+
 export default function SaveDialogs() {
   const saveDialog = useSaveUi((s) => s.saveDialog);
   const confirmSwitch = useSaveUi((s) => s.confirmSwitch);
@@ -83,11 +85,27 @@ function SaveDialog() {
     return () => window.removeEventListener('keydown', onKey);
   }, [closeDialog]);
 
+  // The record a refused attempt already minted: only its link write failed, so the retry
+  // writes into it rather than minting a second (#1367).
+  const minted = useRef<string | null>(null);
+  const attempt = async (chosen: string) => {
+    const { saved, template: now } = useTemplateStore.getState();
+    if (minted.current && saved.graphicId === minted.current) {
+      // A new name is adopted by the draft too, as the first attempt adopted its own.
+      if (now.name !== chosen) useTemplateStore.setState({ template: { ...now, name: chosen } });
+      const r = await saveCurrentGraphic({ name: chosen });
+      if (r !== 'needs-name') return { ok: r === 'saved', error: r === 'saved' ? null : SAVE_FAILED };
+    }
+    const res = await saveGraphicAs(chosen, { kind: 'standalone' });
+    minted.current = res.graphicId ?? null;
+    return res;
+  };
+
   const confirm = () => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
-    void saveGraphicAs(name.trim() || template.name, { kind: 'standalone' }).then((res) => {
+    void attempt(name.trim() || template.name).then((res) => {
       if (!res.ok) {
         setError(res.error);
         return;
@@ -172,7 +190,7 @@ function ConfirmSwitchDialog() {
       busyRef.current = true;
       setBusy(true);
       void saveCurrentGraphic().then((r) => {
-        if (r === 'failed') { setError('Could not save. Your changes are still open. Try again.'); return; }
+        if (r === 'failed') { setError(SAVE_FAILED); return; }
         // Saved, but an edit accepted during the wait is not in that copy (#1359).
         if (r === 'saved' && useTemplateStore.getState().saved.dirty) {
           setError('The graphic changed while saving. Your newer changes are still open. Try again.');

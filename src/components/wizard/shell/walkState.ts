@@ -568,8 +568,8 @@ export interface LibraryIo {
   linkTo(id: string): void;
   /** Save the working document over its linked record, under `name`. */
   saveCurrent(name: string): Promise<'saved' | 'needs-name' | 'failed'>;
-  /** Mint a new record under `name`. */
-  saveAs(name: string): Promise<{ ok: boolean; error: string | null }>;
+  /** Mint a new record under `name`. A failure with `graphicId` minted that record all the same. */
+  saveAs(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }>;
 }
 
 /**
@@ -601,14 +601,21 @@ export async function saveBuiltGraphic(
 ): Promise<{ ok: boolean; error: string | null }> {
   const effect = lib.effect(lib.index(), name, memory.made?.graphicId ?? null);
   const over = effect.targetId;
-  if (!over) return lib.saveAs(name);
+  // A mint whose record landed while its link write was refused still made that record, so the
+  // retry writes over it, under whatever name Finish then carries (#1367).
+  const mint = async () => {
+    const minted = await lib.saveAs(name);
+    if (!minted.ok && minted.graphicId) noteMade(memory, { name, graphicId: minted.graphicId, production: null, landedOn: null });
+    return minted;
+  };
+  if (!over) return mint();
   lib.linkTo(over);
   const result = await lib.saveCurrent(name);
   if (result === 'saved') return { ok: true, error: null };
   // 'needs-name' means the record went between the check above and the write (deleted on
   // another device or tab). Minting is then the right answer, not an error - the work is what
   // matters, and there is no longer anything to write over.
-  if (result === 'needs-name') return lib.saveAs(name);
+  if (result === 'needs-name') return mint();
   return {
     ok: false,
     error:

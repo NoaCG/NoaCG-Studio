@@ -43,7 +43,9 @@ save dialog + the unsaved-changes guard). `saveCurrentGraphic()` writes the link
 / into a package / into a new package; `openGraphicDoc` loads a record as the working
 document (applies its ACTIVE control entry into sample data) and re-links. Every path calls
 `persistLink()` so the slot's `graphicId`/`dirty` survive a reload even when no template
-change follows. `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
+change follows. A save makes TWO durable writes, the record and that link, and answers only
+once both landed: a refused link write is a failed save, and the draft stays linked to the
+record so a retry writes into it (#1367). `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
 working document (open another graphic, create new) goes through it. The mounted editor
 also guards leaving its route before Home/control/video renders. Other surfaces do not
 ask merely because a working document exists. Discard restores the linked library copy
