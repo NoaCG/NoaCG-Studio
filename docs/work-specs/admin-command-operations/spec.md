@@ -64,3 +64,6 @@ Supabase read access were checked before creation. Scheduled delivery has not ye
 Unknown cloud ancestor limits leave the full build/browser run to GitHub CI as required.
 The API-depth gate also scans comments; removed its stale admin-route example from the Pro
 contract without changing any model route or runtime behavior.
+
+CI repair 1: build run 39042613030 required command/skill adapters for the new shared routine.
+Added the normal thin Claude/Codex adapters and verified the shared-instruction gate unchanged.
