@@ -1,0 +1,195 @@
+{
+  "costUnread": false,
+  "brief": "school-quiz-secret-pick",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "946a59c9-ea58-42b1-b20c-c77505fc0099",
+  "costCents": 0,
+  "notionalUsd": 1.829211,
+  "wallSeconds": 412,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:003e40ae2bd9ea294a6e37d0a3a9cfa349ea4157db6382f05e1a2cc0c72e83dc"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:c7d2b8e5546bee16c75f1e92d95c68024de24e49f82ca18e1070515346799a2e"
+    },
+    {
+      "command": "noacg coverage . --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c7d2b8e5546bee16c75f1e92d95c68024de24e49f82ca18e1070515346799a2e"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:e571c7216e62355dbfd4d2b82ace6b8ba2841e81c86e411651c498cdcd6a22c8"
+    },
+    {
+      "command": "noacg coverage graphic --out outputs/coverage",
+      "code": 0,
+      "digest": "sha256:e571c7216e62355dbfd4d2b82ace6b8ba2841e81c86e411651c498cdcd6a22c8"
+    },
+    {
+      "command": "noacg validate graphic --screenshots shots",
+      "code": 0,
+      "digest": "sha256:e571c7216e62355dbfd4d2b82ace6b8ba2841e81c86e411651c498cdcd6a22c8"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event select --at 3s --background video --out shots2/sel.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event select --event lock --at 3s --background video --out shots2/lockc.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event select --event lock --event revealChoice --at 3s --background video --out shots2/rev.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event select --event lock --event revealChoice --event judge --at 3s --background video --out shots2/wrong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f7=A:12,B:70,C:10,D:8 --event judge --event audience --at 3s --background video --out shots2/aud.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event lock --at 3s --background video --out shots2/sealed.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event lock --event revealChoice --at 3s --background video --out shots2/rev.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event lock --event revealChoice --event judge --at 3s --background video --out shots2/wrong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b"
+    },
+    {
+      "command": "noacg screenshot graphic --data f7=12 | 70 | 10 | 8 --event judge --event audience --at 3s --background video --out shots2/aud.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --data f6=C --event lock --event revealChoice --event judge --at 3s --background video --out shots2/wrong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b"
+    },
+    {
+      "command": "noacg coverage graphic --out outputs/coverage",
+      "code": 0,
+      "digest": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b"
+    },
+    {
+      "command": "noacg record graphic --out outputs/record.json --review outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\sonnet-5-5-medium\\cells\\school-quiz-secret-pick.claude-sonnet-5-5-medium\\frames",
+    "frames": 68,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "revealChoice",
+      "judge",
+      "audience"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b",
+    "benchValidated": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b",
+    "reviewed": "sha256:0012e752239e6301a2768fb5aac438ce976db262808531fe576e13af5cd7684b",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 68,
+    "opened": 59,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "long-side-1-video.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

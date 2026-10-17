@@ -71,3 +71,35 @@ dense boards than Haiku (H7: Sonnet at `high` delivered 5 of 5 tuning briefs at 
 H7 failure, basic visible mistakes it did not see, survives the forced look at a lower effort.
 Expected: it passes the screen's cost line (under $2.00 per usable) but not D6: at most 5 of 8
 usable, so no match. What would refute it: 7 or more of 8 usable at at most $1.00 each.
+
+**Result: passed the screen, no match; the hypothesis held.** Screen 12:58Z to 13:03Z, the
+other four 13:07Z to 13:27Z, two at a time. 8 delivered, 4 usable of 8, $10.96 notional ($2.74 per
+usable), median wall 318 s, frames opened 363 of 507 reviewed (every one in 4 sessions). Four
+rubber stamps. The screen: 2 not usable, $1.36 per usable, so the rung ran on; with two failed it
+could no longer match, but L2's teaching rule counts usable of all eight. Evidence:
+`benchmarks/harness/ladder/L1/sonnet-5-5-medium/`.
+
+| brief | outcome | single | basic mistakes | usable | notional | wall s | opened/reviewed | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| boxing-night-matchup | delivered | not airable | empty-or-broken, text-over-text; the judge also names `select` and `lock` | no | $0.45 | 170 | 3/57 | yes |
+| collegiate-cs2-scorebug | delivered | not airable | empty-or-broken (empty logo slots in the sample state) | no | $0.47 | 157 | 13/69 | yes |
+| charity-stream-alerts | delivered | airable | - | yes | $1.17 | 215 | 64/64 | |
+| film-fest-nominee-reveal | delivered | airable | - | yes | $0.64 | 246 | 15/40 | |
+| hockey-club-match-board | delivered | not airable | unreadable-contrast (the white visitor crest on a near-white disc) | no | $2.74 | 631 | 81/81 | yes |
+| volleyball-set-board | delivered | not airable | text-over-text (2: a wrapped Polish name's ogonek into the next line) | no | $1.82 | 390 | 69/69 | yes |
+| school-quiz-secret-pick | delivered | airable | - | yes | $1.83 | 412 | 59/68 | |
+| ski-sprint-timing-tower | delivered | airable | - | yes | $1.84 | 520 | 59/59 | |
+
+The gate flagged `undoPoint` missing on the volleyball board and the judge did not name it; the
+graphic is not airable on its own single, so the reading cannot change "usable" and is not made.
+On the two simple-looking boards it opened 3 and 13 frames; on the two it opened in full (81 and
+69), it still passed the defect the judge failed. The cost moved with the board, not the effort:
+$0.45 for a three-minute board it barely looked at, $2.74 for the one it looked at in full.
+
+### Rung 3: Sonnet 5.5 `high` (`claude-sonnet-5-5`)
+
+**Hypothesis**, committed before its first session: `high` buys more looking and more fixing
+than `medium`, so more usable boards, but it costs more per session than `medium`'s $1.37 mean,
+which already put `medium` at $2.74 per usable. Expected: at most 5 of 8 usable and more than
+$1.50 per usable, so no match, and possibly the screen's cost line. What would refute it: 7 of 8
+usable at at most $1.00 each.
