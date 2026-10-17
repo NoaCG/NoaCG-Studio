@@ -29,8 +29,8 @@ sealed file, and only ids, types and the judge's answers are committed.
   rung-<model>-<effort> --lanes 2 --out C:/claude/noacg-bench-archive/harness-ladder-L1/<rung>`,
   the screen's four first, judged with `--judge <dir> --delivered-only --concurrency 2`, then the
   other four into the same directory. Each rung's committed evidence is `benchmarks/harness/
-  ladder/L1/<rung>/`: every `cell.json`, `judgements.jsonl`, `tally.json`, and `readings.json`
-  when it has one.
+  ladder/L1/<rung>/`: every `cells/<id>/cell.json`, `judgements.jsonl`, `tally.json`, the run's
+  phase as `summary.json`, and `readings.json` when it has one (none did).
 - **A rubber stamp** is a delivered graphic whose review said `ok` to every frame and that the
   judge failed; counted per rung (L0's carry: the gate cannot tell a look from a stamp).
 
@@ -185,8 +185,10 @@ Haiku, $0.64 on Sonnet `medium`); the two boards Sonnet `medium` made usable aft
 (the quiz and the timing tower) cost $1.83 and $1.84 each. More effort bought more looking (Sonnet `high` and Opus `medium` opened
 every frame) and not more usable boards.
 
-Every figure above reproduces with `node scripts/harness-bench.mjs --tally <dir>` on the run
-directories, and from the committed `tally.json`, `cell.json` and `judgements.jsonl` of each rung.
+Every figure above reproduces from the committed evidence: `node scripts/harness-bench.mjs
+--tally benchmarks/harness/ladder/L1/<rung>` reads each rung's `cells/*/cell.json`,
+`judgements.jsonl` and `summary.json` (its phase) and rewrites `tally.json` byte for byte (checked
+on all five at commit time).
 The judge's 21 singles cost $33.56 notional (Haiku 3, $4.10; Sonnet `medium` 8, $12.34; Sonnet
 `high` 4, $7.30; Opus `low` 3, $4.67; Opus `medium` 3, $5.15), every one on the subscription,
 `claude-opus-5-5` (`9fa9d7e3ac9b`), no pause. The 24 sessions cost $38.16 notional. Credit: $0;
