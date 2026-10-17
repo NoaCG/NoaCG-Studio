@@ -1,6 +1,6 @@
 # Make the codebase lean, starting with the retired editor
 
-Status: **revised after independent review; no deletion or plan run started**.
+Status: **old-editor implementation not started; admin retirement separately approved and in PR #1396**.
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
 `3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
@@ -19,7 +19,8 @@ the catalog, saved-data compatibility and real on-air regression checks have cur
 Remove retired product surfaces with their tests, tooling and instructions; preserve loading
 and playback of saved graphics/projects; reduce repeated browser work without losing named
 failure coverage. Make each deletion a small, reviewable change with measured before/after
-size and timing. This report supplies the inventory and order, not implementation permission.
+size and timing. This report supplies the old-editor inventory and order, not implementation permission. The
+separate admin removal is explicitly authorized under decision 8 below.
 
 ## Non-goals
 
@@ -37,11 +38,12 @@ size and timing. This report supplies the inventory and order, not implementatio
    owner accepted retaining [issue #800](https://github.com/NoaCG/NoaCG-Studio/issues/800) for
    skipped tests of live features. A call to an old bootstrap proves a test is disabled, not
    that its subject is obsolete. Resolve #800 inside this cleanup run, not as an indefinite
-   follow-up. No issue comment or change has been sent from this research task.
+   follow-up. The implementation session recorded this scope and order in
+   [issue #800](https://github.com/NoaCG/NoaCG-Studio/issues/800#issuecomment-6235372874).
 2. Saved graphics and projects keep loading. Retain live readers/migrations and ask before
    dropping any stored format. The separate old dock-layout record is an explicit pending question.
-3. Keep the live video workspace, CLI/Bridge, exports, public output, audience, account and
-   admin surfaces. They are reachable dependencies or existing product surfaces; the short
+3. Keep the live video workspace, CLI/Bridge, exports, public output, audience and account
+   surfaces. They are reachable dependencies or existing product surfaces; the short
    product description is not permission to retire them.
 4. A disappearance from an import graph is evidence to investigate. Bench tools, SSR loaders,
    ambient types, string registries and fixtures are checked before a dead-code verdict.
@@ -49,12 +51,18 @@ size and timing. This report supplies the inventory and order, not implementatio
    smaller validation set, raised limit or budget exception substitutes for a reviewed removal.
 6. Finish the approved deletions before the codebase-health documentation run and any source
    cleanup on the same files. Disjoint E2E infrastructure research may continue.
-7. Keep the system-notice reader and bar pending the separate admin decision. Their only mount
-   is retired, but the live admin page still publishes notices. Do not build a new mount during
-   shell deletion. Keep machineEdit, lottieInsert and the animation runtime with their current
+7. Recheck the system-notice reader and bar after admin retirement: their only mount is the
+   retired shell, and #1396 removes its dashboard publisher. Delete them with the remaining
+   old-editor UI when the consumer scan confirms that; do not build a new mount to justify
+   retention. Keep machineEdit, lottieInsert and the animation runtime with their current
    tests; moving a working helper just to reduce the app directory is not required cleanup.
-8. The admin page is under review at the owner's request. No admin deletion, database change,
-   routine creation or purchase is authorized. See [admin assessment](evidence/admin-audit.md).
+8. The owner explicitly approved removing the entire admin page and replacing it with
+   commands/sessions and routines. [PR #1396](https://github.com/NoaCG/NoaCG-Studio/pull/1396)
+   implements the dashboard and unused HTTP-handler retirement, preserves deployed data and
+   live access enforcement, and adds aggregate reporting plus a weekly Codex brief. Its scope
+   and verification live in `docs/work-specs/admin-command-operations/spec.md` on that branch.
+   Future role-management UI waits for a real need; no speculative dashboard is kept. No paid
+   benchmarks, model promotions or database mutations are authorized by the reporting routine.
 
 ## Measured baseline
 
@@ -94,7 +102,7 @@ remaining source candidates, retained helpers and tests requiring subject review
 |---|---|---|
 | First source PR | AppShell, WorkspaceDock, CodeEditor, SidePanel and the three teach files: 7 files, 1,230 lines | Ready to propose; no test-body deletion, shared state or CSS edit |
 | Remaining whole-source candidates | 20 further files, 9,530 lines; total 27 files / 10,760 lines | Delete in small dependent groups after last live consumer is checked on fresh main |
-| System notices | 2 files, 115 lines | Excluded from deletion pending the admin decision |
+| System notices | 2 files, 115 lines | Recheck consumers after #1396; remove with old-editor UI if unused |
 | Current fixture helpers | lottieInsert and machineEdit: 395 lines | Keep their active OGraf and mutator tests; no replacement project for its own sake |
 | Old-helper test discovery | 474 static declarations in 77 specs at the original pin | Classification input, not a deletion list; retired UI and live-product subjects are different |
 | Old timeline/WYSIWYG documents | 8 files, 1,280 lines | Remove only after current schema facts and live references have a maintained home |
@@ -260,15 +268,10 @@ process for every unrelated change; use the existing feature-removal/review path
 
 ## Owner decisions still needed
 
-The narrower #800 policy is accepted. The owner does not use the current admin page and wants
-its weight measured before deciding its future; cleanliness takes priority over speculative
-retention. No deletion or plan-run window has been authorized in this update.
-
-The next product question is which admin actions need an accessible control. Recommend a
-periodic report for spending, failures, feedback and actual external usage; keep only a small
-emergency/support surface if the owner needs one. The exact choice follows the
-[admin assessment](evidence/admin-audit.md), not a blanket promise to preserve ten sections.
-A reporting routine reports; it does not silently change access, budgets or model policy.
+The narrower #800 policy and complete admin-page retirement are accepted. The admin decision
+is being implemented separately in #1396; the weekly report is enabled and the live aggregate
+query was checked read-only. No further admin product decision is required. The first scheduled
+report has not yet run, and the PR's merge/deployment status is the source of truth for removal.
 
 Before deleting support for the old dock-layout format, ask that separate stored-data question.
 Do not ask about retiring AI experiments during the active harness work; they are outside this

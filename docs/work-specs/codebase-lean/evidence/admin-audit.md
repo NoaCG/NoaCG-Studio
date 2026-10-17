@@ -4,6 +4,21 @@ Measured 2026-10-17 against main `ea71261c97a7bca8c8fd3b68adef1307561588dd`.
 The admin files are unchanged since the original audit pin. This is a source and public-asset
 inspection, not a production data query. No account, database, schedule or application changed.
 
+## Subsequent owner decision
+
+The owner approved complete retirement after reading this audit. Implementation is
+[PR #1396](https://github.com/NoaCG/NoaCG-Studio/pull/1396): about 10.4k net lines removed across
+the dashboard, its unused HTTP handlers, retired tests and supporting docs. Shared access
+loaders, deployed tables/policies, audit history and role commands remain. A read-only SQL
+report reuses existing database aggregates; a weekly Codex product/model brief is enabled for
+Tuesday mornings. Claude and Codex also expose it as `noacg-product-brief` on demand.
+
+The implementation session verified the query against live data without mutations. This is
+later evidence, separate from the read-only source/asset audit below. It confirmed GitHub and
+Supabase access and the enabled schedule; the first scheduled delivery has not occurred. Read
+PR status for merge/deployment completion. Future roles UI is deferred until real collaborators
+need it; no admin-page retention decision remains outstanding.
+
 ## How heavy it is
 
 | Scope | Files | Physical lines |

@@ -10,8 +10,9 @@ old-helper spec changed between those pins and the original baseline.
 - The original analysis proved the transitive skip mechanism, but treated it as a retirement
   decision. The owner now explicitly accepts keeping #800 for live-product subjects. The
   broad 474-case deletion draft and its 30,244-line source/test forecast are withdrawn.
-- Preserve SystemNoticeBar and backend/systemNotice pending the admin decision: admin still
-  publishes `public_system_notice`. A disconnected consumer can indicate a feature gap.
+- The initial notice-reader hold was conditional on the admin decision. The owner has since
+  approved removing the dashboard (#1396). Recheck these old-shell consumers after that lands;
+  remove them with the retired UI if unused rather than building a new mount to preserve them.
 - Keep machineEdit/lottieInsert and current runtime/schema protection. No fixture replacement
   solely to move lines out of src is required. MachineGraph UI can still be retired.
 - Use a seven-source-file first PR, with no test-body, state, routing, saving or CSS changes.
