@@ -1,8 +1,8 @@
 # Phase 1 native preview receipt
 
 Status: the installed 0.1.1 native compatibility journey passed AC-1 and AC-2.
-The recovered 0.1.2 source adds two reviewed host compatibility fixes. Its native
-reload/recheck and independent landed-main check remain pending; do not begin
+The recovered adapter adds two reviewed host compatibility fixes and the approved
+0.1.3 connection/selection changes. Its final native recheck and independent landed-main check remain pending; do not begin
 phase 2 until those gates are recorded here and in issue #1314.
 
 ## Actual Windows journey, 2026-10-17
@@ -122,9 +122,9 @@ fixture files; graphic code runs in an opaque-origin allow-scripts iframe withou
 a trusted bridge, credentials or networking. No account, database, editor,
 production delivery or on-air operation was used.
 
-AC-1/AC-2: passed on installed 0.1.1. Final 0.1.2 native recheck pending.
+AC-1/AC-2: passed on installed 0.1.1. Final 0.1.3 native recheck pending.
 AC-3/AC-4/AC-5: outside phase 1, not checked. AC-6: local install/restart, source
-persistence and isolation observed; final 0.1.2 reload and independent check pending.
+persistence and isolation observed; final 0.1.3 native loop and independent phase check pending.
 Owner taste judgment covers the simple initial prototype only. No cloud run or
 automation has started. The plan and eight-hour gated prompt remain in #1309/#1311.
 ## Approved private connection recovery
@@ -140,3 +140,38 @@ Twelve targeted unit/protocol tests pass, including named selection, refresh
 replacement and Region-mode exclusion. The browser journey now exercises Enter
 activation before the existing pointer journey. This is not a native completion
 claim; the installed 0.1.3 recheck is still pending.
+
+## Final adapter verification, 2026-10-17
+
+[Focused run 39066690174](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39066690174)
+on fef7a5593a8e54145c1e3e3152a25881672d47e6 passed all 12 unit/protocol tests,
+the Chromium host journey including Enter activation, and the pinned NoaCG
+validator on the exact edited CDE revision above. Static and runtime checks had
+zero errors; the same three editor warnings remain. The coordinator inspected
+browser-stub.png plus off.png, onair.png and stress.png from this run. The graphic
+is unchanged, the longer text fits, and Region mode hides the element buttons.
+
+The independent source review covered the exact branch, base a1c9efb564fe6057f3f4af5669bda8d6eebb5267
+and all 25 changed paths: zero findings, no simplification needed. Targeted local
+repository gates passed 12 tests across two files and all selected cheap checks.
+The earlier red PR job was only Reviewed waiting for the queue stamp, not a
+product/test failure. No full production build ran locally.
+
+A fresh checking agent discovered `mcp__noacg_graphic_preview__noacg_preview` and
+received the actual baseline PNG, four-file identity and before revision from
+the new runtime. The owner reopened that updated panel. CUA selected its named
+Name button and filled the final request with the baseline revision visible.
+Sending was refused by Codex with: `direct app-server input is not allowed for
+multi-agent v2 sub-agents`. No native message was delivered by this attempt and
+no source edit was performed for it. The panel belonged to the checking-agent
+context. This original root task still exposes only its old closed connection;
+its direct preview call again returned Transport closed.
+
+This is verified trial infrastructure, not a completed final-adapter journey.
+Issue #1314 remains open. Continue the native test from a fresh ordinary local
+Codex task, using its own preview tool and panel, never a sub-agent-owned panel.
+It must receive the real selected request and PNG, edit 52px to 66px using normal
+file tools, bind NoaCG validation/screenshots to that exact source, and refresh
+its own panel. Then an independent checker must verify the landed phase before
+phase 2 starts. Do not repeat generic window restarts or treat connectivity-only
+or simulated-host checks as the missing proof. The installed runtime stays locked.
