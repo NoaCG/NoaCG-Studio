@@ -184,7 +184,7 @@ test('command worker parsing covers normal overrides without misreading --json',
 });
 
 test('source entrypoints trigger builds while documentation remains targeted', () => {
-  for (const file of ['src/main.tsx', 'src/admin/main.tsx', 'src/output/main.ts', 'src/docs/docs.ts', 'downloads.html', 'player-host/index.html', 'player-host/src/main.tsx', 'cli/src/index.ts', 'player-host/vite.config.ts', 'player-host/tsconfig.json']) assert.equal(buildRisk([file]), true, file);
+  for (const file of ['src/main.tsx', 'src/join/main.ts', 'src/output/main.ts', 'src/docs/docs.ts', 'downloads.html', 'player-host/index.html', 'player-host/src/main.tsx', 'cli/src/index.ts', 'player-host/vite.config.ts', 'player-host/tsconfig.json']) assert.equal(buildRisk([file]), true, file);
   assert.equal(buildRisk(['docs/ARCHITECTURE.md']), false);
 });
 test('runtime refuses legacy/moved build and broader records without reviewed admission', async () => {

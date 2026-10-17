@@ -189,8 +189,9 @@ The Vercel **Hobby plan caps a deployment at 12 serverless functions**. Every fi
 the api/ tree grew to 29 files and **every production deploy failed for days while the repo
 stayed green** - the wake-up call this runbook exists for.
 
-The fix was consolidation to **10 functions** via one catch-all per area
-(`api/admin/[...path].ts`, `api/ai/[...path].ts`, `api/ai/lite/[...path].ts`,
+The historical fix was consolidation to **10 functions** via one catch-all per area;
+the unused admin function was retired in October 2026. Remaining catch-alls include
+(`api/ai/[...path].ts`, `api/ai/lite/[...path].ts`,
 `api/ai/tasks/[...path].ts`, `api/render/[...path].ts`) plus the standalone entrypoints
 that need their own runtime config in `vercel.json` (`api/ai/generate.ts`,
 `api/render/start.ts`, `api/render/cleanup.ts`) and the small singles (`api/events.ts`,

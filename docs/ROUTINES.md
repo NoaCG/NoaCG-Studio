@@ -16,8 +16,21 @@ while Claude Code is open.
 | Quality / refactor review | 15th of the month, 10:00 | `monthly-quality-review` | monthly |
 | What's new draft | Mondays and Thursdays 08:30 | `whats-new-twice-weekly` | a pull request to review, when something big landed |
 
-Six routines. He attends one of them, and while the What's new style settles he also reviews the
+The six Claude Code routines remain. He attends the owner session, and while the What's new style settles he also reviews the
 draft it opens. That is the shape to keep.
+
+## Product information after dashboard retirement
+
+The **NoaCG product brief** is a separate Codex routine on Tuesday mornings, using the owner's
+existing personal timezone. Its canonical procedure is `.agent-workflows/noacg-product-brief.md`.
+It reads current main through GitHub and aggregate product data through the connected Supabase
+project, so it does not depend on an open Claude Code window or a surviving local checkout.
+
+It covers new/existing users, activity, spend, failures, feedback and relevant new models for the
+NoaCG graphics harness. The existing Agent Harness Weekly concerns orchestration tooling and
+is a different report. The Claude owner session may reference the product brief rather than
+repeat its counts; the alignment and daily incident routines continue. Missing data is reported
+as missing. Weekly reporting does not promise immediate outage detection.
 
 ## The two rules
 
@@ -161,10 +174,10 @@ records it: direction in `docs/GOALS.md`, a rule or a plan in its scoped doc, pr
 `docs/private/`. No file holds the answers in between, and no script has to parse one.
 
 Feedback and freshness ride here too, and they used to be their own Monday routine. Feedback,
-because `/admin` has a real inbox that only works for somebody who opens it - the owner's ruling,
+because feedback once depended on visiting an inbox - the owner's ruling,
 2026-08-26: *"I will not remember to go to the admin page."* Counts travel and words do not:
 `--count` never asks the database for the message column, so what a person wrote stays behind the
-admin login as a property of the query rather than of the printing. Freshness, because
+private operator access as a property of the query rather than of the printing. Freshness, because
 `docs/STACK_FRESHNESS.md` is time-driven and nothing else mentions it; it reports weekly and nothing
 auto-upgrades.
 

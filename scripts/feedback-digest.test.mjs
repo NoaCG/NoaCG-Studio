@@ -211,7 +211,7 @@ test('a full page says there may be more rather than showing a truncated day as 
   assert.match(renderDigest({ rows, ...WINDOW }).text, /hit its 200-row limit/);
 });
 
-test('the digest carries the note, the context and the inbox link', () => {
+test('the digest carries the note, context and current operator instructions', () => {
   const digest = renderDigest({
     rows: [rowWith({ message: 'the export folder was named twice', area: 'export', reasons: ['export-problem'] })],
     ...WINDOW,
@@ -220,7 +220,7 @@ test('the digest carries the note, the context and the inbox link', () => {
   assert.match(digest.text, /the export folder was named twice/);
   assert.match(digest.text, /area export/);
   assert.match(digest.text, /reasons: export-problem/);
-  assert.match(digest.text, /https:\/\/noacg\.studio\/admin/);
+  assert.match(digest.text, /private operator session \(docs\/ADMIN\.md section 10\)/);
 });
 
 // -- 5. the message on the wire -------------------------------------------------------------
@@ -330,7 +330,7 @@ test('runCount sends no message column and prints nothing a person wrote', async
   assert.ok(!text.includes(planted), 'no line may carry what a person wrote');
   assert.match(text, /2 piece\(s\) of feedback in the last 168 hours \(7 day\(s\)\)/);
   assert.match(text, /2 with a written note, 1 still at status "new"/);
-  assert.match(text, /https:\/\/noacg\.studio\/admin/);
+  assert.match(text, /private operator session \(docs\/ADMIN\.md section 10\)/);
 });
 
 test('an empty week says there is nothing to open', () => {

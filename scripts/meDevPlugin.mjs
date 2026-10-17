@@ -1,13 +1,13 @@
 // Vite dev middleware for /api/me - what the caller may do, and what the caller thinks of it.
 //
-// Same shape as aiDevPlugin/adminDevPlugin: the browser calls the same route in development
+// Same shape as aiDevPlugin: the browser calls the same route in development
 // and production, and the REAL handler runs in both, so the degrade-to-defaults path and the
 // always-204-shaped feedback answer are exercised locally rather than assumed.
 //
 // There is deliberately NO route list here. The catch-all owns the closed dispatch table, and
 // a second copy in the dev server would be a second thing to keep in step - which is how a
 // route ends up reachable in one environment and missing in the other. The same reasoning
-// adminDevPlugin already records.
+// apiRouteTable records.
 //
 // The same goes for the PUBLIC paths vercel.json rewrites into this function (the remote MCP
 // connector's `/mcp` and its protected resource metadata): they are read from vercel.json's own

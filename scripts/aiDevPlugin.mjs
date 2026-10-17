@@ -29,7 +29,7 @@ export function aiApiPlugin() {
 // while production served it, so `loadProStatus` read "this deployment has no Pro" and the door
 // never appeared; and `/api/ai/consent` has never been routed in development at all. A list
 // somebody keeps in step is a second copy of the real table, and a second copy is how one of
-// them quietly stops being served - which is the reasoning `adminDevPlugin` and `meDevPlugin`
+// them quietly stops being served - which is the reasoning `meDevPlugin`
 // already record. They can forward everything blindly because each mounts ONE function; api/ai
 // mounts four, so the choice is DERIVED from the tree instead (scripts/apiRouteTable.mjs).
 //
