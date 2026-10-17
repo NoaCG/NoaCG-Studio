@@ -173,8 +173,6 @@ export interface DurableWriteReceipt {
   readonly settled: Promise<string | null>;
 }
 const receipts = new Map<string, DurableWriteReceipt>();
-/** Every receipt whose put has not settled yet, so a claimer can name what it waits for. */
-const unsettled = new Set<DurableWriteReceipt>();
 const receiptObservers = new Set<(receipt: DurableWriteReceipt) => void>();
 const conditionalWrites = new Map<string, () => void>();
 
@@ -198,33 +196,29 @@ export function lastDurableWrite(key: string): DurableWriteReceipt | undefined {
   return receipts.get(key);
 }
 
-export async function commitDurableReceipt(receipt: DurableWriteReceipt): Promise<string | null> {
-  const release = claim([receipt]);
-  try {
-    const error = await receipt.settled;
-    if (unclaimedFailure?.sequence === receipt.sequence) unclaimedFailure = null;
-    return error;
-  } finally { release(); }
-}
+/** How many callers wait on each write sequence (`commitDurableReceipt`). */
+const claimed = new Map<number, number>();
 
 /**
- * The writes a caller is waiting on, by sequence (counted: two callers can wait on one write).
- * A failure among them is that caller's to report, so it never reaches the generic announcement.
- * This is what keeps the claim however long the caller waits: `commitDurableWrites` waits for
- * EVERY pending write, and an unrelated slower one (an autosave of the working draft) used to
- * outlast the announcement's macrotask, so a refused Save was announced generically and Save
- * was told its write had landed (#1351).
+ * Wait for exactly this write and CLAIM its failure. The claim is taken before the first await,
+ * so a write still pending is never announced generically at all, however long the caller waits.
+ * Counted, because two callers can wait on one write. A caller that must know whether ITS write
+ * landed uses this rather than `commitDurableWrites`: that waits for every pending write, and an
+ * unrelated slower one (an autosave of the working draft) can outlast the announcement's
+ * macrotask, so a refused Save was announced generically and Save was told it landed (#1351).
  */
-const claimed = new Map<number, number>();
-function claim(waiting: readonly DurableWriteReceipt[]): () => void {
-  for (const { sequence } of waiting) claimed.set(sequence, (claimed.get(sequence) ?? 0) + 1);
-  return () => {
-    for (const { sequence } of waiting) {
-      const left = (claimed.get(sequence) ?? 1) - 1;
-      if (left > 0) claimed.set(sequence, left);
-      else claimed.delete(sequence);
-    }
-  };
+export async function commitDurableReceipt(receipt: DurableWriteReceipt): Promise<string | null> {
+  const { sequence } = receipt;
+  claimed.set(sequence, (claimed.get(sequence) ?? 0) + 1);
+  try {
+    const error = await receipt.settled;
+    if (unclaimedFailure?.sequence === sequence) unclaimedFailure = null;
+    return error;
+  } finally {
+    const left = (claimed.get(sequence) ?? 1) - 1;
+    if (left > 0) claimed.set(sequence, left);
+    else claimed.delete(sequence);
+  }
 }
 
 /**
@@ -232,10 +226,9 @@ function claim(waiting: readonly DurableWriteReceipt[]): () => void {
  * - "Adding “Clean Clock” to a production" says far more than "a write failed" - awaits
  * `commitDurableWrites()` and CLAIMS the message, reporting it in its own words. Everything
  * else (autosaves, background writes) leaves it unclaimed, and it is announced generically a
- * tick later. A write still pending when the caller starts waiting is claimed by sequence
- * (`claimed` above), so its failure is never announced at all. The macrotask covers only a
- * failure that had already been reported before the caller looked: awaiting resumes on a
- * microtask, so the caller still takes it first.
+ * tick later. The macrotask gives `commitDurableWrites` a turn to take a failure, but it is a
+ * race whenever another pending write settles later than the refused one; a caller that has to
+ * know about its own write claims that write's receipt instead (`commitDurableReceipt`).
  */
 let unclaimedFailure: { key: string; message: string; sequence?: number } | null = null;
 
@@ -262,16 +255,10 @@ function reportError(key: string, message: string, sequence?: number): void {
  * decision it used to make, one await later.
  */
 export async function commitDurableWrites(): Promise<string | null> {
-  // Claimed before the first await, so none of them can have been announced yet.
-  const waiting = [...unsettled].filter((receipt) => receipt.account === namespace);
-  const release = claim(waiting);
-  try {
-    await flushDurableStore();
-    const own = (await Promise.all(waiting.map((receipt) => receipt.settled))).find(Boolean) ?? null;
-    const failure = unclaimedFailure;
-    unclaimedFailure = null;
-    return own ?? failure?.message ?? null;
-  } finally { release(); }
+  await flushDurableStore();
+  const failure = unclaimedFailure;
+  unclaimedFailure = null;
+  return failure?.message ?? null;
 }
 
 /** Reusable binary assets use the same account-scoped database, outside document JSON. */
@@ -664,14 +651,11 @@ function queueWrite(key: string, value: string | null, previous: string | null):
     if (namespace === account) reportError(key, message, seq);
     return message;
   });
-  const receipt: DurableWriteReceipt = { sequence: seq, key, value, account, settled };
-  recordReceipt(receipt);
-  unsettled.add(receipt);
+  recordReceipt({ sequence: seq, key, value, account, settled });
   const write = settled.then(() => {});
   pending.add(write);
   void write.finally(() => {
     pending.delete(write);
-    unsettled.delete(receipt);
     // Tell the other tabs. AFTER the put has settled, so a tab that re-reads on this message
     // cannot read the value the write was replacing.
     if (latestWrite.get(key) === seq) announceWrite(key);

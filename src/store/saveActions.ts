@@ -17,7 +17,7 @@ import {
 } from '../model/library';
 import { saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
-import { captureDurableWrites, commitDurableReceipt, commitDurableWrites } from '../model/durableStore';
+import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
@@ -37,6 +37,17 @@ function persistLink(): void {
   saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
 }
 
+const LIBRARY_KEY = 'spx-gfx-graphics' as const;
+
+/** Wait for the library puts this save made, and claim their failure. Never every pending
+ *  write: a slower autosave can outlast the generic announcement, which then takes the Save's
+ *  refusal and the Save reads as landed (#1351). Another write's failure stays that write's,
+ *  announced by the app. */
+async function commitLibraryWrite(receipts: DurableWriteReceipt[]): Promise<string | null> {
+  if (!receipts.length) return commitDurableWrites();
+  return (await Promise.all(receipts.map(commitDurableReceipt))).find(Boolean) ?? null;
+}
+
 /** Where a first save / Save As puts the graphic. Packages are retired (docs/GOALS_ARCHIVE.md
  *  "Student release" step 3): every save is standalone in the flat library, and grouping
  *  happens in a PRODUCTION's own pool. The envelope type stays so every caller keeps one
@@ -48,7 +59,7 @@ export type SaveDestination = { kind: 'standalone' };
  * document has never been saved — the caller opens the save dialog instead.
  *
  * ASYNC because the durable store confirms a write a moment after taking it
- * (model/durableStore.ts): `commitDurableWrites` waits for that confirmation and CLAIMS any
+ * (model/durableStore.ts): `commitLibraryWrite` waits for that confirmation and CLAIMS its
  * failure, so this still answers 'failed' for a save that did not land — the caller makes the
  * same decision it always did, one await later, rather than being told 'saved' and corrected
  * by a dialog afterwards.
@@ -71,8 +82,9 @@ export async function saveCurrentGraphic(opts?: {
   // The key is ADDED rather than set to undefined: `updateGraphic` copies the patch with
   // Object.assign, which would write an undefined name straight onto the record.
   const patch = { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility };
-  const { doc, error } = updateGraphic(s.saved.graphicId, opts?.name ? { ...patch, name: opts.name } : patch);
-  const failure = error ?? (await commitDurableWrites());
+  const graphicId = s.saved.graphicId;
+  const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => updateGraphic(graphicId, opts?.name ? { ...patch, name: opts.name } : patch));
+  const failure = error ?? (await commitLibraryWrite(receipts));
   if (!doc || failure) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
     if (!doc) {
@@ -97,7 +109,7 @@ export async function saveCurrentGraphic(opts?: {
 export async function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null }> {
   prepareEmptyOut();
   const s = useTemplateStore.getState();
-  const { doc, error } = createGraphic(s.template, {
+  const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
     name,
     packageId: null,
     baseline: s.baseline,
@@ -106,8 +118,8 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
     legibility: s.legibility,
     // A copy of a community pack's graphic is still the pack's (spec AC-5), as Duplicate keeps it.
     fromPack: s.saved.graphicId ? graphicById(s.saved.graphicId)?.fromPack ?? null : null,
-  });
-  const failure = error ?? (await commitDurableWrites());
+  }));
+  const failure = error ?? (await commitLibraryWrite(receipts));
   if (failure) {
     s.setSaved({ ...s.saved, status: 'failed' });
     return { ok: false, error: failure };
