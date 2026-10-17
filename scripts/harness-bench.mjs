@@ -67,7 +67,7 @@
 //                                                    SUBSCRIPTION. The frozen judge on a run's cells;
 //                                                    for L1 and L2 the ladder's judge, singles only,
 //                                                    three readings a graphic (D8 as amended).
-//   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>] [--order tuning]
+//   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>] [--order tuning] [--phase <L#>]
 //                                                    FREE. 4.4's numbers and 4.5's verdict for an exam
 //                                                    run; for an L1 or L2 run, its rung's figures, D5's
 //                                                    screen and D6's match (tallyRung). --order tuning
@@ -889,7 +889,8 @@ if (isMain) {
     const judgements = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
     const ledger = readLedger(LEDGER_FILE);
     const summaryFile = path.join(runDir, 'summary.json');
-    const ranAs = existsSync(summaryFile) ? JSON.parse(readFileSync(summaryFile, 'utf8')).phase ?? null : null;
+    // A run still going has no summary.json yet: --phase names it, as for --judge.
+    const ranAs = existsSync(summaryFile) ? JSON.parse(readFileSync(summaryFile, 'utf8')).phase ?? null : value('phase', null);
     if (LADDER_JUDGED.includes(ranAs)) {
       // A rung (D5, D6): counted as H8 counted, with the ladder judge's singles and the rung's own
       // readings of the gate's flags (`readings.json` beside its cells, when it has any).
