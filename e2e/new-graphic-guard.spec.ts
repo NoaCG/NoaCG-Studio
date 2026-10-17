@@ -602,3 +602,24 @@ test('a linked save refused while an autosave write is in flight keeps the edito
   const kept = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
   expect(kept).toHaveLength(1); expect(kept[0].id).toBe(saved[0].id); expect(kept[0].template).toEqual(edited);
 });
+
+// The other half of the claim: a refused write nobody waits on is still announced by the app.
+test('a refused autosave nobody waits on still raises the app-level storage notice', async ({ page }) => {
+  await open(page); await draw(page, .3); await settleDurableWrites(page);
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-project') {
+        IDBObjectStore.prototype.put = put;
+        throw new DOMException('Unclaimed autosave refusal', 'QuotaExceededError');
+      }
+      return put.call(this, value, key);
+    };
+  });
+  await commandEdit(page);
+  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+  await expect(page.getByTestId('storage-alert-action')).toContainText('Saving to this browser');
+  await expect(page.getByTestId('storage-alert-error')).toContainText(/storage is full/i);
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved.status)).toBe('failed');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+});

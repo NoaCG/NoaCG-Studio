@@ -699,6 +699,14 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-17: refused-save claim repair (#1351)
+
+- Last check's findings: a refused linked Save sometimes went to Home and marked the draft clean (AC 3). Seen with the unchanged `e2e/leave-checker.spec.ts:24`: CI 38994640363 failed 1 of 3, and local runs on `5ccdbbc4` failed 1 of 5 and 1 of 15. The refused write was the Save's own. Its failure reached `reportError`'s `setTimeout(0)` unclaimed path before Save claimed it, while an autosave write to the working draft was still in flight. All other criteria passed (third check, `independent-3/` on notes PR #1350; write log `linked-save-race.json`; diagnosis branch `claude/probe-editor-p1-check-3-diag` `7dd7e2d7`).
+- [Repair receipt](work-specs/editor-leave-reliability/repair-3/README.md): `commitDurableWrites` and `commitDurableReceipt` now claim, by sequence, every write still pending when they start waiting. `reportError` never announces a claimed failure. On main, `:24` failed 3 of 20 and a new held-autosave case failed 3 of 3. After the fix, `:24` passes 40 of 40, the held case passes, and the maintained selection passes 84 with 2 legacy skips. Removing the claim check fails the held case.
+- Next phase must allow for: any caller of `commitDurableWrites` owns every failure among the writes pending when it started, including an autosave's. Phase 3 save/cloud-status notices should therefore expect a refused autosave during a Save to come back as Save's own failure, not as the app-level notice. The macrotask announcement now covers only failures that no caller waits on. A fresh fourth independent check precedes Phase 3.
+- Trap: a refusal can be timed for some writes and not others. Hold the competing write's completion to force the order; a passing `--repeat-each` is not proof. The 2026-10-16 trap note below misattributed the failure to another library write.
+- Decision: the `model/durable-write-confirmed-after-call-returns` rule still says the microtask/macrotask order is why a claimer wins. The outcome it states now holds by construction. Its stated mechanism is out of date and is left for a rule update through `npm run learn`.
+
 ### 2026-10-16: newer-edit discard repair (#1147)
 
 - Last check's findings: [#1147](https://github.com/NoaCG/NoaCG-Studio/issues/1147). A command edit accepted while Discard drained the pending autosave was discarded without refusal, because `before` was captured after `await commitDurableWrites()`. The original failure was run 38486709664 on probe `39a900183` (`e2e/leave-second-checker.spec.ts:106`, assertion `:135`). Fresh reproduction was run 38798506098 (`fbb83d01`).
