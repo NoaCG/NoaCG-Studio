@@ -53,7 +53,7 @@
       "figure": "8 of 15"
     },
     {
-      "rule": "at most $1.00 notional per usable graphic",
+      "rule": "at most $1.35 notional per usable graphic",
       "holds": false,
       "figure": "$2.35"
     },

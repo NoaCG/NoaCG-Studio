@@ -101,7 +101,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, holdFor, HOLD_KINDS, isLadder, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, setHold, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
-import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
+import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, rungRule, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
@@ -899,7 +899,7 @@ if (isMain) {
       const order = value('order', 'ladder');
       if (!['ladder', 'tuning'].includes(order)) fail('--order is ladder (the eight, D5 and D6) or tuning (the tuning bank, figures only)');
       const tuning = order === 'tuning';
-      const tally = tallyRung({ cells, judgements, fingerprint: orFail(() => ladderJudge(ROOT)).fingerprint, readings, ...(tuning ? { order: tuningOrder(JSON.parse(readFileSync(TUNING, 'utf8')).briefs), match: false } : {}) });
+      const tally = tallyRung({ cells, judgements, fingerprint: orFail(() => ladderJudge(ROOT)).fingerprint, readings, rule: rungRule(ranAs), ...(tuning ? { order: tuningOrder(JSON.parse(readFileSync(TUNING, 'utf8')).briefs), match: false } : {}) });
       const tallyFile = path.join(runDir, tuning ? 'tally-tuning.json' : 'tally.json');
       writeFileSync(tallyFile, `${JSON.stringify(tally, null, 2)}\n`);
       console.log(rungMarkdown(`${path.basename(runDir)}${tuning ? ', tuning briefs' : ''}`, tally));

@@ -32,7 +32,7 @@ import { readAgentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harn
 import { findTranscript, handInLine, ladderPrompt, subscriptionArm } from '../benchmarks/harness/lib/arms.mjs';
 import { examBriefs } from '../benchmarks/harness/lib/exam.mjs';
 import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, sealCommittedAt, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
+import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, RUNG_RULE, rungMarkdown, rungRule, sealCommittedAt, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
 import { admit, appendEntry, emptyLedger, heldCents, LEDGER_FILE, readLedger, remainingCents, setHold, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readHash, readSealed, sealedShape, sha256 } from '../benchmarks/harness/lib/sealed.mjs';
@@ -464,6 +464,17 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
   const costly = tallyRung({ cells: dear, judgements: [...thrice(single(b0, { airable: false })), ...thrice(single(b1, { airable: false })), ...goodSingles.slice(6)], fingerprint: 'fp' });
   assert.equal(costly.screen.endsAt, 'cost');
   assert.equal(costly.screen.usdPerUsable, 2.2);
+
+  // D6's cost line as the owner amended it for a taught rung (L2): $1.20 a usable misses L1's
+  // $1.00 and meets L2's $1.35; $1.40 meets neither. L1's ladder keeps its committed rule.
+  assert.equal(rungRule('L1'), RUNG_RULE);
+  assert.equal(rungRule('L2').usdPerUsableMax, 1.35);
+  const at = (usd) => eight.map((c) => ({ ...c, notionalUsd: usd }));
+  assert.equal(tallyRung({ cells: at(1.2), judgements: goodSingles, fingerprint: 'fp', rule: rungRule('L1') }).verdict, 'no match');
+  const taught = tallyRung({ cells: at(1.2), judgements: goodSingles, fingerprint: 'fp', rule: rungRule('L2') });
+  assert.equal(taught.verdict, 'MATCH');
+  assert.equal(taught.lines[1].rule, 'at most $1.35 notional per usable graphic');
+  assert.equal(tallyRung({ cells: at(1.4), judgements: goodSingles, fingerprint: 'fp', rule: rungRule('L2') }).verdict, 'no match');
 
   // All eight run but one line fails: no match. A missing action read as offered counts as offered.
   const slow = tallyRung({ cells: eight.map((c) => ({ ...c, wallSeconds: 700 })), judgements: goodSingles, fingerprint: 'fp' });

@@ -98,6 +98,14 @@ configuration; a miss reports the cost and quality of each rung tried, which is 
   graphic, median wall at most 10 minutes, and the agent opened every frame it gave a verdict for
   in at least 7 sessions. The first matching rung is the winner. Revert: a different rule,
   committed before the rung's first session.
+  **Amended 2026-10-17 by the owner, for a taught rung (L2) only; L1's ladder stays as counted:**
+  the cost line is an estimated $1.35 or less per usable graphic ("if a taught setup meets the
+  quality bar and its subscription estimate is at most $1.35 per usable, confirm it on Managed
+  Agents from the $8; the real-host check still needs at most $1.00 per usable"). The other three
+  lines are unchanged, and AC-5's line (at most $1.00 per usable, measured on Managed Agents)
+  stays the real test. Why: H8 measured Claude Code's notional at about 1.35 times Managed Agents'
+  real cost ($2.26 against $1.67 a session). Revert: the cost line back to $1.00 estimated
+  (`TAUGHT_RULE` in `lib/ladder.mjs`).
 - **D7. Teaching.** Taught is the cheapest rung below the winner (or of all rungs, when none
   matched) with at least 4 of 8 usable, or 2 of its first 4 when the screen ended it: up to five
   rounds, each with its hypothesis (which failure, which skill or CLI change, what

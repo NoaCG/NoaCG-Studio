@@ -146,6 +146,13 @@ export const SCREEN_SIZE = 4;
 export const tuningOrder = (bank) => bank.filter((b) => b.kind === 'noacg').map((b) => b.id);
 /** D5's screen and D6's match, as committed before the first rung. */
 export const RUNG_RULE = { screenNotUsableMax: 2, screenUsdPerUsableMax: 2, usableMin: 7, usdPerUsableMax: 1, medianWallSecondsMax: 600, lookAllMin: 7 };
+/** D6 as the owner amended it on 2026-10-17 for a taught rung (L2): at most $1.35 notional per
+ *  usable, since H8 measured Claude Code's notional at about 1.35 times Managed Agents' real cost;
+ *  AC-5's real-host line stays $1.00 measured. Revert: `usdPerUsableMax` back to 1. */
+export const TAUGHT_RULE = { ...RUNG_RULE, usdPerUsableMax: 1.35 };
+/** The match rule a phase's rung or round is counted by: L1's ladder as committed, L2's teaching
+ *  as amended. */
+export const rungRule = (phase) => (phase === 'L2' ? TAUGHT_RULE : RUNG_RULE);
 
 /** D8 as amended after L1's check: the ladder judge reads each delivered graphic as a single this
  *  many times, and the judge passes it when at least `usableMin` of them are airable with no basic
