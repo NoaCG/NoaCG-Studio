@@ -5,6 +5,29 @@ decisions" the same day. Parent direction: `docs/GOALS.md` outcome 7 (one data m
 design), which this spec pulls forward from "later". Architecture it builds on:
 `docs/PRODUCTION_DATA_PLAN.md` and `docs/CLOUD_PLAYOUT.md` §7.
 
+## Revision, 2026-10-17 (open until the owner answers)
+
+The owner, 2026-10-17: this spec's main use case is wrong. It leads with values and uses scores
+as examples, when a sheet's main value is long texts and lists (tickers, schedules, credits, any
+text easier to edit in a sheet) and data pulled in by formulas or scripts, with automation
+through the data API and RSS. Typing a score in a sheet stays possible but is never the promoted
+path. The model this spec now sits in is `docs/work-specs/data-sources/spec.md` (draft). Until
+the owner agrees it:
+
+- D1-D4 stand as agreed and nothing below them changes.
+- Two are asked again there, each with a recommendation: DS2 (lists before values, which
+  revisits D2's order) and DS15 (D3's interval, kept for Sheets in the recommendation).
+- Words: what this spec calls a list sheet (one row per entry, a production table loaded one row
+  at a time) is a table there. A list there is every row in one field that takes lines (a
+  ticker, a schedule, credits), which this spec does not cover yet.
+- Production-page phase 15 waits for that spec to be agreed. Its draft phases 15-22 carry all six
+  phases below, re-ordered, with feeds and the data API beside them.
+- Its DS5 would have the server fetch a feed address a person pasted, which "Safety" below rules
+  out for Sheets; Sheets keep that rule either way.
+- Since this was written: the account is on Vercel Pro (`api/AGENTS.md`, 2026-08-16), so the
+  twelve-function budget under "The server reader" is house discipline, not a platform cap, and
+  its cron limit needs checking again when phase 3 chooses the clock.
+
 ## Problem
 
 A production can already hold live values and bind graphic fields to them, but a person who is not
@@ -189,6 +212,7 @@ Not a run of its own (owner, 2026-10-16): these six phases run as phases 15-20 o
 (`docs/work-specs/production-page-refactor/spec.md`, "After the refactor, in the same run"). The
 cleanup moves the cue editor and the press verbs this work changes, so it goes first. The readers
 and their rules live in `src/control/` and are Node-tested; the page change is wiring only.
+Proposed 2026-10-17 (data sources DS16, open): these phases run inside that spec's phases 15-22.
 
 ## Acceptance criteria
 
