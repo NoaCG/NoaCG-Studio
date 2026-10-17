@@ -13,7 +13,7 @@
 // Finish doors.
 import { test, expect, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
-import { open, draw, source, ready, inspection } from './_layerProperty';
+import { open, draw, source, ready } from './_layerProperty';
 import { settleDurableWrites } from './_durable';
 import { pickDesign } from './_browse';
 
@@ -423,7 +423,7 @@ test('fifth E1: first Save, link write refused twice: two retries, one record, o
 test('fifth E2: first Save, link write refused, Escape, then Home asks and Save & continue writes the same record', async ({ page }) => {
   test.setTimeout(120_000);
   await fresh(page);
-  const history = (await inspection(page)).history;
+  const edited = await source(page);
   await install(page);
   await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
   await page.getByTestId('save-name').fill('Fifth E2');
@@ -432,7 +432,7 @@ test('fifth E2: first Save, link write refused, Escape, then Home asks and Save 
   await expect(page.getByTestId('save-dialog').locator('.status-bad')).toBeVisible();
   await page.keyboard.press('Escape'); await expect(page.getByTestId('save-dialog')).toHaveCount(0);
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  expect((await inspection(page)).history.length).toBeGreaterThanOrEqual(history.length);
+  expect(await source(page), 'Escape after the refusal changed the draft').toEqual({ ...edited, name: 'Fifth E2' });
   const [minted] = await library(page);
   await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await expect(page.getByTestId('switch-save')).toHaveText('Save & continue');
