@@ -956,6 +956,49 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H8 second check (2026-10-17, on `8330a4d18`)
+
+- **Verdict: PASS.** The exam was conducted and reported correctly; its verdict is MISSED, so the
+  run stops (5.5). Checked at $0 credit with no judge call.
+- **The judge.** 57 answered calls: 26 on 2026-10-15 (one the void esports single) and 31 from
+  07:03:51Z to 07:36:04Z on 2026-10-17 (19 singles, 6 pairs in both orders). Every answer carries
+  `60bfb08e18a4`, which `loadJudge` recomputes, and `prompt.md` and `rubric.json` hash to
+  `judge.lock.json`. The last re-capture ran at 20:54Z on 2026-10-15, so none of the 31 calls
+  predates one. The void single was asked again at 07:10:41Z, and the refused volleyball single at
+  07:17:56Z. Notional $124.62 plus $134.48 is $259.10. The committed `judgements.jsonl` and
+  `judgements.void.jsonl` parse equal to the run directory's.
+- **The tally.** I wrote my own count over the committed `cell.json` files, `judgements.jsonl` and
+  `action-readings.json`, without `tallyExam`. It gives every figure in `exam/REPORT.md`: harness
+  12 delivered and 12 usable, Claude Code 20 and 15 (10 by the gate alone), pairs 13 to 6 with 1
+  flip tie (the Spanish flood alert), 8 of the 13 by delivery. Defects are 0 of 12 against 3 of 20 (8 defects). The
+  unmoved events, Wilson intervals, costs ($2.78, $3.01, $4.52, $4.56) and walls (527/744 s and
+  453.5/595 s; 7 and 2 over ten minutes) all match. So do the 5 pairs whose airability differs
+  from the single. `--tally` on a copy of the run directory gives a `tally.json` equal to the
+  archive's, with both figures and line 1 holding by the gate alone. Lines 1 and 3 fail and 2
+  and 4 hold. "Inconclusive" needed more than five flip ties; there is 1.
+- **The readings** follow the ruling committed in `73beabcd3` (2026-10-15 19:02:54Z, before the 31
+  calls). For all six of Claude Code's flagged cells the judge's single names no missing action
+  and a button does the action. The harness's 12 delivered graphics have no flag. The gate-only
+  figure is reported throughout.
+- **Also confirmed.** The three slips are fixed; the remaining mentions are the correction notes
+  themselves. The ledger holds 5,468 cents with nothing held, `--close H8` carries `verdict:
+  MISSED`, and $45.32 is left after the $13.26 release. `--build H9 --dry` refuses with "the run
+  stops (5.5)". The two rewritten ledger tests assert H8 refused and nothing held on the committed ledger,
+  keep every open-exam assertion (H8 may build, the wall) on a copy with the close removed, and
+  add the PASSED, MISSED, INCONCLUSIVE and no-verdict cases, so nothing is loosened. Tests pass, 49 of
+  49. The gallery's two copies are identical: 10 pairs by the recorded rule, 20 opaque ids,
+  1,273 referenced files with none missing, and no arm, session or model name in `review.html`. The
+  `docs/AI_ATTEMPTS.md` entry and the cause and retry condition are present. No brief prompt or
+  judge note appears in a tracked file, beyond one generic 40-character phrase already in the H0
+  tuning briefs. The passphrase appears nowhere, and no gallery or brief file is tracked.
+- **Minor, nothing to fix for the verdict:** `docs/AI_ATTEMPTS.md` says the budget was "set from
+  five light tuning briefs", while the report says six Opus graphics (H3's one and H5's five).
+  Claude Code's volleyball cell has `digest.ok: false` ("the delivered zip is not the version the
+  record names"). The counting rule does not use the digest, and 14 usable would still fail line 1.
+  Some stress values (sample names) appear in committed traces and judge answers, as the run's
+  decision to commit those allowed. The owner's phone notice (Phases, item 9) is not recorded in
+  the repository, so this check could not confirm it.
+
 ### H8, finished (2026-10-17): MISSED; the run stops
 
 - **Check's findings (H8 check, on `e759c100c`):** FAIL blocked. Everything checkable before the
