@@ -5,7 +5,7 @@ Save's own library write is refused, but the leave decision continues to Graphic
 in the library, the link is marked clean, and the app-level notice says "Your work is still open
 here" over Home. It reproduces intermittently with the original independent assertion, unchanged
 (`leave-checker.spec.ts:24`): in CI it failed 1 of 3 executions; locally 1 of 5 and 1 of 15. Everything else checked
-passes. This is the third failed check of Phase 1, so Phase 2 does not start.
+passes. This is the third failed check of the leave-editor phase, so Phase 3 (save/cloud-status) does not start.
 
 ## Scope
 
@@ -98,4 +98,4 @@ refused-decision captures show the "changed while discarding" error over the mou
 blue text highlight in them is the checker's drag across the dialog.
 
 Unrun: nothing in the row. Hosted cloud status, owner comfort and physical hosts stay outside
-Phase 1.
+the leave-editor phase.
