@@ -15,6 +15,10 @@
       "boxing-night-matchup"
     ],
     "unjudged": [],
+    "agreement": {
+      "unanimous": 3,
+      "judged": 3
+    },
     "notUsable": 2,
     "endsAt": "cost",
     "done": true
@@ -33,7 +37,11 @@
     "rubberStamps": [
       "boxing-night-matchup"
     ],
-    "unjudged": []
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 3,
+      "judged": 3
+    }
   },
   "lines": [
     {
@@ -163,7 +171,38 @@
         "fixed": 0
       },
       "rubberStamp": true,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T13:58:12.404Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T15:28:34.173Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-17T15:28:49.063Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
     },
     {
       "brief": "collegiate-cs2-scorebug",
@@ -260,7 +299,9 @@
         "fixed": 0
       },
       "rubberStamp": false,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [],
+      "agreement": null
     },
     {
       "brief": "charity-stream-alerts",
@@ -291,7 +332,28 @@
         "fixed": 2
       },
       "rubberStamp": false,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T14:06:16.849Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:29:00.097Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:29:53.514Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
     },
     {
       "brief": "film-fest-nominee-reveal",
@@ -355,7 +417,28 @@
         "fixed": 11
       },
       "rubberStamp": false,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-17T13:59:15.720Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:29:23.080Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-17T15:29:38.045Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
     },
     {
       "brief": "hockey-club-match-board",
@@ -369,7 +452,9 @@
       "validatorErrors": [],
       "look": null,
       "rubberStamp": false,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [],
+      "agreement": null
     },
     {
       "brief": "volleyball-set-board",
@@ -383,7 +468,9 @@
       "validatorErrors": [],
       "look": null,
       "rubberStamp": false,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [],
+      "agreement": null
     },
     {
       "brief": "school-quiz-secret-pick",
@@ -397,7 +484,9 @@
       "validatorErrors": [],
       "look": null,
       "rubberStamp": false,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [],
+      "agreement": null
     },
     {
       "brief": "ski-sprint-timing-tower",
@@ -411,7 +500,9 @@
       "validatorErrors": [],
       "look": null,
       "rubberStamp": false,
-      "flagsToRead": []
+      "flagsToRead": [],
+      "judgeReadings": [],
+      "agreement": null
     }
   ]
 }
