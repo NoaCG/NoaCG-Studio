@@ -723,8 +723,8 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
   };
   const graphic = (c) => ({ id: c.id, frames: coverageFrames(path.join(c.dir, 'frames')), operator: c.cell.operator?.buttons ?? [] });
   // Every judgement as a task, singles first, then pairs; `concurrency` of them at once.
-  const toAsk = (c) => Array.from({ length: Math.max(0, readings - singlesOf(c.id)) }, (_, i) => singlesOf(c.id) + i + 1);
-  const tasks = cells.flatMap((c) => toAsk(c).map((reading) => async () => {
+  const toAsk = (have) => Array.from({ length: Math.max(0, readings - have) }, (_, i) => have + i + 1);
+  const tasks = cells.flatMap((c) => toAsk(singlesOf(c.id)).map((reading) => async () => {
     const dir = path.join(runDir, 'judge', 'single', reading === 1 ? c.id : `${c.id}.reading-${reading}`);
     const r = await once(`single:${c.id}#${reading}`, () => judgeSingle(judge, { brief: c.brief.prompt, frames: graphic(c).frames, operator: graphic(c).operator, actions: c.brief.expect?.actions ?? [], dir, claude, env, run }));
     if (r) {
