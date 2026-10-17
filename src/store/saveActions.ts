@@ -84,7 +84,9 @@ async function commitLink(link: Omit<EditingContext['saved'], 'status'>): Promis
   useTemplateStore.getState().setSaved({ ...link, status: 'saving' });
   const linked = useTemplateStore.getState();
   const failure = await commitSaveWrites(captureDurableWrites('spx-gfx-project', persistLink).receipts);
-  if (replacedSince(linked)) return failure;
+  // Replaced meanwhile: the slot is the new document's, written after this one, so the record
+  // that landed is the whole answer.
+  if (replacedSince(linked)) return null;
   // The live flag: an edit made during this wait has already set `dirty`.
   const now = useTemplateStore.getState().saved;
   if (failure) linked.setSaved({ ...now, dirty: true, status: 'failed' });

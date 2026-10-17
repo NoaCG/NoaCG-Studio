@@ -701,20 +701,18 @@ test('a newer edit during a held first Save is kept unsaved, and leaving asks ag
 // refused it the leave had already gone to Home, the app's notice said "still open here" over
 // Home, and after a reload the next New asked about the graphic just saved. The probe helpers
 // and the two `:298` cases are the fourth independent checker's (independent-4/probe.patch),
-// carried with their assertions unchanged; only helper names differ. The retry leg follows.
+// carried with their assertions unchanged; only helper names differ, and the probe's put-holding
+// half, which these cases never use, is left out. The retry leg follows.
 type FourthRule = { key: string; after?: string; used?: boolean };
-type FourthProbe = {
-  puts: Record<string, number>; held: { key: string; value: unknown }[]; releases: (() => void)[];
-  hold: { key: string; left: number } | null; refuse: FourthRule[]; refused: string[]; stacks: string[]; errors: unknown[];
-};
+type FourthProbe = { puts: Record<string, number>; refuse: FourthRule[]; refused: string[]; stacks: string[]; errors: unknown[] };
 declare global { interface Window { fourth: FourthProbe } }
 
-/** One wrapper around IndexedDB puts for the whole page: counts puts per key, holds the
- *  completion of the next `hold.left` puts on `hold.key`, and refuses puts by rule. */
+/** One wrapper around IndexedDB puts for the whole page: counts puts per key and refuses puts
+ *  by rule (`after`: only once a put on that key has been made). */
 async function installFourth(page: Page) {
   await page.evaluate(() => {
     if (window.fourth) return;
-    const p: FourthProbe = { puts: {}, held: [], releases: [], hold: null, refuse: [], refused: [], stacks: [], errors: [] };
+    const p: FourthProbe = { puts: {}, refuse: [], refused: [], stacks: [], errors: [] };
     window.fourth = p;
     window.addEventListener('spx-storage-error', e => p.errors.push((e as CustomEvent).detail));
     const original = IDBObjectStore.prototype.put;
@@ -723,22 +721,12 @@ async function installFourth(page: Page) {
       const rule = p.refuse.find(r => !r.used && r.key === k && (!r.after || (p.puts[r.after] ?? 0) > 0));
       p.puts[k] = (p.puts[k] ?? 0) + 1;
       if (rule) { rule.used = true; p.refused.push(k); p.stacks.push(String(new Error().stack)); throw new DOMException('Fourth checker refusal', 'QuotaExceededError'); }
-      const request = original.call(this, value, key);
-      if (p.hold && p.hold.key === k && p.hold.left > 0) {
-        p.hold.left--;
-        const index = p.held.length, tx = this.transaction;
-        p.held.push({ key: k, value: JSON.parse(String(value)) });
-        Object.defineProperty(tx, 'oncomplete', { configurable: true, set(handler: (event: Event) => void) {
-          tx.addEventListener('complete', event => { p.releases[index] = () => handler.call(tx, event); }, { once: true });
-        } });
-      }
-      return request;
+      return original.call(this, value, key);
     };
   });
 }
 const refuseFourth = (page: Page, key: string, after?: string) => page.evaluate(([key, after]) => { window.fourth.refuse.push({ key, after: after || undefined }); }, [key, after ?? ''] as const);
-const fourthState = (page: Page) => page.evaluate(() => ({ puts: { ...window.fourth.puts }, held: window.fourth.held, released: window.fourth.releases.map(Boolean),
-  refused: [...window.fourth.refused], stacks: [...window.fourth.stacks], errors: window.fourth.errors.length }));
+const fourthState = (page: Page) => page.evaluate(() => ({ puts: { ...window.fourth.puts }, refused: [...window.fourth.refused], stacks: [...window.fourth.stacks], errors: window.fourth.errors.length }));
 const raw = (page: Page, key: string) => page.evaluate(key => new Promise<string | null>((resolve, reject) => {
   const request = indexedDB.open('noacg-studio');
   request.onsuccess = () => {

@@ -87,7 +87,10 @@ function SaveDialog() {
   // writes into it rather than minting a second (#1367).
   const minted = useRef<string | null>(null);
   const attempt = async (chosen: string) => {
-    if (minted.current && useTemplateStore.getState().saved.graphicId === minted.current) {
+    const { saved, template: now } = useTemplateStore.getState();
+    if (minted.current && saved.graphicId === minted.current) {
+      // A new name is adopted by the draft too, as the first attempt adopted its own.
+      if (now.name !== chosen) useTemplateStore.setState({ template: { ...now, name: chosen } });
       const r = await saveCurrentGraphic({ name: chosen });
       if (r !== 'needs-name') return { ok: r === 'saved', error: r === 'saved' ? null : 'Could not save. Your changes are still open. Try again.' };
     }
