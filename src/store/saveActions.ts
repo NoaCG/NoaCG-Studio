@@ -44,7 +44,8 @@ const LIBRARY_KEY = 'spx-gfx-graphics' as const;
  *  refusal and the Save reads as landed (#1351). Another write's failure stays that write's,
  *  announced by the app. */
 async function commitLibraryWrite(receipts: DurableWriteReceipt[]): Promise<string | null> {
-  if (!receipts.length) return commitDurableWrites();
+  // No put recorded means nothing reached storage, as Discard treats it.
+  if (!receipts.length) return 'Your work could not be saved to browser storage.';
   return (await Promise.all(receipts.map(commitDurableReceipt))).find(Boolean) ?? null;
 }
 

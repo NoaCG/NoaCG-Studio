@@ -201,7 +201,8 @@ const claimed = new Map<number, number>();
 
 /**
  * Wait for exactly this write and CLAIM its failure. The claim is taken before the first await,
- * so a write still pending is never announced generically at all, however long the caller waits.
+ * so a write still pending when it is claimed is never announced generically, however long the
+ * caller waits. One that already failed is taken back from `unclaimedFailure` below.
  * Counted, because two callers can wait on one write. A caller that must know whether ITS write
  * landed uses this rather than `commitDurableWrites`: that waits for every pending write, and an
  * unrelated slower one (an autosave of the working draft) can outlast the announcement's

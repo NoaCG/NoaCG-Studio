@@ -49,16 +49,17 @@ is the narrower fix, and it is the one that lands.
 
 ## After the fix
 
-Final source (sha256): `durableStore.ts` `a011e297e1de273580944a532588eecb3ebcc3cefef4a909316d4241b2cbe828`,
-`saveActions.ts` `700d85b15a8dddabceac858e49360c1bf00695ab1e0ff4184fe3a5a40359e768`,
-`new-graphic-guard.spec.ts` `a721260645626b297f2687df39ed10d81019e87a00ebf885c3fd8b4984da956c`.
+Final source (sha256): `durableStore.ts` `41d3f5076cfd2413391e88b9d4960be696905c3e5084960b60e953f48f79e444`,
+`saveActions.ts` `7a8d07552bfc2005661b0bdce38c4436afe8f609b22e47bd1e9082a53e5a22c6`,
+`new-graphic-guard.spec.ts` `b89e8659d542d6f57d5b0184e703ac6281a838a6f73463cf5213e6eb0d187987`.
 Locally, through the job queue, 4 workers:
 
 | Run | Result |
 | --- | --- |
-| Unchanged `leave-checker.spec.ts:24`, `--repeat-each 40` | **40 passed / 0 failed** (2.6 min) |
-| Maintained selection: `new-graphic-guard` (all, including the new held-autosave and unclaimed-notice cases, the #1147 newer-edit cases and the quota-refusal/Undo/history cases), `leave-checker` (all three), `leave-second-checker` (probe `39a900183`), `storage-full`, `wizard-finish`, `project` (wizard-open and native export-notification continuations), `wizard-draft-guard`, `rundown-history-storage`, `rundown-history` (receipt-claimed failures) | **85 passed, 2 skipped, 0 failed** (4.0 min). The two skips are the existing legacy-editor skips in `project.spec.ts` (#800). |
-| Mutation: Save waits on `commitDurableWrites` again (one line in `saveCurrentGraphic`), held case `--repeat-each 2` | 2 failed / 2 at `:592`: no Save refusal, and Home is mounted. The line was restored and the file hash re-checked. |
+| Unchanged `leave-checker.spec.ts:24`, `--repeat-each 30` on the final source | **30 passed / 0 failed** (2.0 min) |
+| The same, `--repeat-each 40`, on the source before the second review's edits (same claim; empty-receipt branch and test wait differ) | **40 passed / 0 failed** (2.6 min) |
+| Maintained selection: `new-graphic-guard` (all, including the new held-autosave and unclaimed-notice cases, the #1147 newer-edit cases and the quota-refusal/Undo/history cases), `leave-checker` (all three), `leave-second-checker` (probe `39a900183`), `storage-full`, `wizard-finish`, `project` (wizard-open and native export-notification continuations), `wizard-draft-guard`, `rundown-history-storage`, `rundown-history` (receipt-claimed failures) | **85 passed, 2 skipped, 0 failed** (3.7 min). The two skips are the existing legacy-editor skips in `project.spec.ts` (#800). |
+| Mutation: Save waits on `commitDurableWrites` again (one line in `saveCurrentGraphic`), held case `--repeat-each 2` | 2 failed / 2 at `:594` (the final test): no Save refusal, and Home is mounted. The line was restored and the file hash re-checked. |
 
 The added case "a refused autosave nobody waits on still raises the app-level storage notice"
 checks the unclaimed path: the "Saving to this browser" alert appears, the status reads `failed`
@@ -79,3 +80,8 @@ maintained cases. It does not run the two carried checker files, because they ar
   them is the same: capture and commit their own receipts.
 - Not covered by a spec: an autosave refused while a Save waits on its own held write. By
   construction it is unclaimed, so it goes to the app notice.
+- Found in review and not changed here, because it predates this repair: a successful Save marks
+  the link clean from the template it captured before its wait, so an edit made during that wait
+  reads as saved. Discard already refuses that case (#1147). The topbar Save shows only "Save
+  failed" without the storage-full reason, which was also true before when Save claimed the
+  failure.
