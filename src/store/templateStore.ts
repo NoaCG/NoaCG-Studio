@@ -8,7 +8,7 @@ import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
-import { loadProject, saveProject } from '../model/project';
+import { loadProject, resumeReservation, saveProject } from '../model/project';
 import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
@@ -343,6 +343,8 @@ const initialTemplate = initialProject?.template ?? createDefaultTemplate();
 // The pristine state Reset returns to: the saved baseline if we have one, else the loaded
 // template (so Reset on a pre-baseline project at least returns to how it opened).
 const initialBaseline = initialProject?.baseline ?? initialTemplate;
+// Not relinked, the reservation is still this document's next mint: keep it (model/project.ts).
+if (reservedId && !relinked) resumeReservation(reservedId, initialBaseline);
 
 export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   const set = (patch: Partial<TemplateState> | ((state: TemplateState) => Partial<TemplateState>)) => rawSet(state => {

@@ -38,10 +38,11 @@ export interface SavedProject {
    *  serializes to NOTHING (normalizeLegibility), so an untouched project's record is
    *  unchanged. */
   legibility?: ProjectLegibility | null;
-  /** The id a first Save or Save As is about to mint, written BEFORE its record (#1383). The
-   *  link write that follows can be refused; a reload then finds the record by this id instead
-   *  of minting a second one (templateStore's initial link). Every later slot write drops it,
-   *  since it carries the live link. Additive optional. */
+  /** The id this document's next first Save or Save As will mint (#1383). Every slot write of
+   *  the document carries it, so it is durable BEFORE its record is written: when the save's own
+   *  slot writes (the reservation and the link) are both refused, a reload still finds the record
+   *  by this id instead of minting a second one (templateStore's initial link). The link write
+   *  of a mint carries a fresh one. Additive optional. */
   reservedGraphicId?: string;
   /** Soft-delete tombstone (for cloud sync parity — see Packet.deleted). */
   deleted?: boolean;
@@ -49,14 +50,26 @@ export interface SavedProject {
 
 const STORAGE_KEY = 'spx-gfx-project';
 
-/** The record id a first Save / Save As is minting, carried by EVERY slot write until its link
- *  write has settled (store/saveActions.ts). An autosave that fires while the save waits must not
- *  drop it, or a refused link write followed by a reload could not find the record (#1383). It
- *  is the document's only while its baseline is the one the save started from: a write of a
- *  replaced document never carries it. */
+/** The record id this document's next first Save / Save As mints (store/saveActions.ts),
+ *  carried by EVERY slot write of the document from its first one on. A reservation written only
+ *  by the save itself was lost when that write and the link write were both refused, and a
+ *  reload then minted a second record (#1383, sixth check S6). It belongs to the document whose
+ *  baseline it was taken for: a replaced document's writes take a fresh one, so they never point
+ *  at a record minted for another document. */
 let reservation: { id: string; baseline: SpxTemplate | undefined } | null = null;
-export function holdReservation(next: { id: string; baseline: SpxTemplate | undefined } | null): void {
-  reservation = next;
+export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
+  if (!reservation || reservation.baseline !== baseline) reservation = { id: uuid(), baseline };
+  return reservation.id;
+}
+/** Boot: the slot's persisted reservation is the document's, so a reload before its first Save
+ *  keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
+ *  the mint never takes, and a double refusal after the reload could not relink. */
+export function resumeReservation(id: string, baseline: SpxTemplate | undefined): void {
+  reservation = { id, baseline };
+}
+/** A mint took the reserved id (or found it taken): the document's next mint reserves a fresh one. */
+export function releaseReservation(): void {
+  reservation = null;
 }
 
 function notifyDataChanged(): void {
@@ -106,7 +119,7 @@ export function saveProject(
       aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
       // Same rule again; an explicit null (the default state) drops the key entirely.
       legibility: (legibility === undefined ? existing?.legibility : legibility) ?? undefined,
-      ...(reservation && reservation.baseline === baseline ? { reservedGraphicId: reservation.id } : {}),
+      reservedGraphicId: reservedGraphicId(baseline),
     };
     durable.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();

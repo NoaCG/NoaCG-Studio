@@ -52,7 +52,13 @@ only after every one of them settled and claims their refusals, so nothing of th
 can be refused after the answer and raise the app notice over Home (#1382); a refused record or
 link write is a failed save, and the draft stays linked to a minted record so a retry writes
 into it (#1367). Writes anything else makes meanwhile stay theirs. A new door that saves goes
-through these functions, never through its own sequence of writes. `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
+through these functions, never through its own sequence of writes. The reserved id is carried by
+EVERY slot write of the document (`model/project.ts` `reservedGraphicId`), so it is durable before
+the record even when the save's own reservation and link writes are both refused (#1383); a mint
+calls `releaseReservation()` before its link write. While a transaction runs or waits,
+`useSaveUi.inFlight` is true, and `requestSwitch` asks rather than reading `saved.dirty`, which a
+Save clears before its link write settles (#1392). The leave dialog shows that save's answer over
+the editor and continues only on the user's word (`saveBeforeLeave`). `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
 working document (open another graphic, create new) goes through it. The mounted editor
 also guards leaving its route before Home/control/video renders. Other surfaces do not
 ask merely because a working document exists. Discard restores the linked library copy
