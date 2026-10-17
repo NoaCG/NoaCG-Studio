@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { extractRefs, staleRefs, TRANSIENT_PREFIXES } from './check-contract-freshness.mjs';
+import { extractRefs, staleRefs, TRANSIENT_PREFIXES, withoutRetiredRows } from './check-contract-freshness.mjs';
 
 test('extractRefs reads repo paths and npm-run names, and ignores prose and patterns', () => {
   const text = [
@@ -49,4 +49,18 @@ test('staleRefs flags a missing script, doc or directory and passes a present on
   // The live ones are absent from the stale list.
   assert.ok(!refs.includes('scripts/live.mjs'));
   assert.ok(!refs.includes('src/here/'));
+});
+
+test('the rule index is checked without its retired rows, whose scopes are history', () => {
+  // A retired rule keeps the scope of the code it pinned after that code is deleted (the old code
+  // editor's rules name AppShell.tsx), and the index prints it in backticks like every other row.
+  const index = [
+    '| id | kind | fires | status | scope | rule |',
+    '|---|---|---|---|---|---|',
+    '| `a/live` | rule | contract | active | `src/real/thing.ts` | Keep it. |',
+    '| `a/gone` | rule | contract | retired | `src/components/AppShell.tsx` | Bind undo in AppShell. |',
+  ].join('\n');
+  const refs = extractRefs(withoutRetiredRows(index));
+  assert.deepEqual(refs.paths, ['src/real/thing.ts']);
+  assert.ok(extractRefs(index).paths.includes('src/components/AppShell.tsx'), 'the raw index still names it');
 });

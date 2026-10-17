@@ -110,7 +110,7 @@ templateStore.ts (zustand) holds the template plus editor UI state.
 - **undo() / redo()** - undo() restores the snapshot and pushes the undone state onto the
   `future` stack; redo() re-applies from it. Any NEW edit (apply, patchCss, manual typing)
   clears `future` - the classic undo-tree cut. Global Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z
-  (+ Ctrl+Y), bound in AppShell, unless focus is in Monaco or a form field.
+  (+ Ctrl+Y), bound by the editor shell (the retired AppShell used to), unless focus is in Monaco or a form field.
 - **setHtml/setCss/setJs** - editor edits; editing HTML re-parses the definition so
   `fields`/`settings` stay in sync. The preview rebuilds on a ~350 ms debounce.
 - **syncSampleData(template, existing)** - EXPORTED (not just internal): the data-carrying
@@ -174,10 +174,10 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   highlight). `addAssets` batches a multi-file import into ONE history slot; `addAsset`
   delegates to it. Undo/redo restore whole-template snapshots, so assets travel with them.
 - **canvasGestureActive / setCanvasGestureActive** - true while a canvas gesture is in flight
-  (inline edit, root/layer/scale drag; published by CanvasInteraction). AppShell's deferred
-  Inspector auto-open checks it at fire time so the workspace never resizes under a gesture.
+  (inline edit, root/layer/scale drag; published by CanvasInteraction). The retired AppShell's
+  deferred Inspector auto-open used to check it at fire time so the workspace never resized under a gesture.
   UI state only - no history.
-- **activePanel** (`SidePanel` type) - the mobile strip's tab AND the desktop docks' "reveal
+- **activePanel** (`SidePanel` type; the panel component itself is retired) - the mobile strip's tab AND the desktop docks' "reveal
   this panel" signal: SEVEN ids (inspector/data/control/style/assets/ai/export - a subset of
   model/layout.ts's PanelId; `code` is not a tab). Motion is not a tab - it lives on the
   timeline.

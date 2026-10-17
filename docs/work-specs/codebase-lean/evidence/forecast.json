@@ -1,0 +1,46 @@
+{
+  "sourcePin": "3010e41134f1e3a6ebf3933582eb9b7e52055241",
+  "status": "conditional proposal, not a cap or approval",
+  "laterConditional": {
+    "srcAfterAll35ResearchOnlyAiFilesRetire": 282227,
+    "scriptsAfterThreeProbeDeletions": 106783,
+    "offlineAfterRoutingAndScheduleMoveToNode": 182.337,
+    "creativePilotAlternativeBrowserMinutes": 2.061,
+    "qualificationRelocationCeilingMinutes": 12.979
+  },
+  "notCredited": {
+    "mixedSkippedCaseMinutes": null,
+    "buildSeconds": null,
+    "wholeCiJobs": 0,
+    "partialStoreCssAndToolEdits": null,
+    "replacementNodeRuntime": null,
+    "currentFixtureHelperLinesKept": 395
+  },
+  "reportFootprint": {
+    "markdownFiles": 7,
+    "markdownLines": 868,
+    "filesExcludingForecast": 30,
+    "bytesExcludingForecast": 3628712
+  },
+  "notes": [
+    "First PR removes seven isolated source files only; test bodies and shared code stay.",
+    "The original 30,244-line source/test scenario is withdrawn after subject review.",
+    "27 source candidates exclude notice files; 395 lines of current fixture helpers remain.",
+    "Issue #800 resolution may add running coverage; net time/size must be measured.",
+    "No admin, historical-schema, public-asset or experimental-lane retirement is approved."
+  ],
+  "firstPr": {
+    "srcTsTsx": 302323,
+    "e2eTsTsx": 116035,
+    "scriptsImplementation": 106976,
+    "scriptsTests": 55586,
+    "offlineSpecMinutes": 183.252,
+    "testBodiesDeleted": 0
+  },
+  "conditionalSourceAndDocsOnly": {
+    "srcAfterAll27Candidates": 292793,
+    "docsOriginalMinusNamedCandidates": 127845,
+    "testSizeAndMinutesAfterIssue800": null,
+    "docsIncludingReportBeforeRetainedSchemaAdditions": 128713
+  }
+}

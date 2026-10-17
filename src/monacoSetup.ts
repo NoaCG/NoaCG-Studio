@@ -48,12 +48,12 @@ monaco.typescript.typescriptDefaults.setDiagnosticsOptions({
   noSyntaxValidation: false,
 });
 
-// Turn OFF Monaco's built-in HTML/CSS/JS document formatters for the SPX code editor's languages.
-// The editor registers a Prettier document-formatting provider (src/components/CodeEditor.tsx); if
-// the built-ins stayed on, "Format Document" (the Format button, Shift+Alt+F, right-click) could
-// pick the built-in beautifier instead. Disabling them here leaves Prettier as the only provider,
-// so formatting is consistent everywhere. The video editor's TSX model uses typescriptDefaults,
-// which is left untouched.
+// Turn OFF Monaco's built-in HTML/CSS/JS document formatters. The retired old code editor used to
+// register a Prettier document-formatting provider for these languages, and with the built-ins on
+// "Format Document" could pick the built-in beautifier instead; nothing registers a formatter for
+// them now, so a stray "Format Document" does nothing rather than beautifying a template with a
+// formatter the exports never ran. The video editor's TSX model uses typescriptDefaults, which is
+// left untouched.
 for (const defaults of [monaco.html.htmlDefaults, monaco.css.cssDefaults, monaco.typescript.javascriptDefaults]) {
   defaults.setModeConfiguration({
     ...defaults.modeConfiguration,

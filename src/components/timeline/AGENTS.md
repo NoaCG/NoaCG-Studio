@@ -171,7 +171,7 @@ still loose in components/.
   choice afterwards sticks. Legacy templates get a
   read-only shell (the timeline's convert chip arms editing). It is a dockable panel (default:
   the active tab of the RIGHT dock); any NEW selection reveals it, and an explicit close holds
-  while the selection is unchanged (see AppShell).
+  while the selection is unchanged (the reveal timer used to live in the retired AppShell).
 - **LegacyTimeline** (Phase 8) - the READ-ONLY chart of a legacy region the importer REFUSES:
   measured motion written inline (`x: -track.scrollWidth`), or a loop it would have to guess at.
   Such a template can never be auto-converted, and regenerating it would discard its owner's
