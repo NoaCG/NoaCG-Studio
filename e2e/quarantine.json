@@ -16,6 +16,11 @@
       "since": "2026-10-17",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39015354033"
+    },
+    "e2e/import-svg-corpus.spec.ts": {
+      "since": "2026-10-17",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39043912945"
     }
   },
   "released": {
