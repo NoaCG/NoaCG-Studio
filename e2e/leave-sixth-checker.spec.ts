@@ -7,6 +7,7 @@
 // Save's own link write is still pending (the leave guard reads only `saved.dirty`), Discard
 // queued behind a Save, a reload mid-transaction, browser Back while Save & continue is busy, a
 // second tab, and the reservation and link write both refused (repair-6's disclosed limit).
+import { test, expect, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { open, draw, source, ready } from './_layerProperty';
 import { settleDurableWrites } from './_durable';
