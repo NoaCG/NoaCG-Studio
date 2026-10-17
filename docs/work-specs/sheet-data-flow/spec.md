@@ -15,8 +15,9 @@ path. The model this spec now sits in is `docs/work-specs/data-sources/spec.md` 
 the owner agrees it:
 
 - D1-D4 stand as agreed and nothing below them changes.
-- Two are asked again there, each with a recommendation: DS2 (lists before values, which
-  revisits D2's order) and DS15 (D3's interval, kept for Sheets in the recommendation).
+- Two were asked again there and answered on 2026-10-17 as recommended: DS2 puts lists before
+  values, which changes D2's order; DS15 keeps D3 for Sheets. D2 is rewritten here when the data
+  sources spec is agreed, after its second opinion.
 - Words: what this spec calls a list sheet (one row per entry, a production table loaded one row
   at a time) is a table there. A list there is every row in one field that takes lines (a
   ticker, a schedule, credits), which this spec does not cover yet.

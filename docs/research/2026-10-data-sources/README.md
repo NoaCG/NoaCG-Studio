@@ -3,7 +3,8 @@
 Research date 2026-10-17. Asked by the owner before anything is built: what the data API does
 today, which source kinds NoaCG should accept and where each enters, and whether the audience is
 just another data source. The draft spec built from this is
-`docs/work-specs/data-sources/spec.md`; its open decisions DS1-DS20 are the owner's.
+`docs/work-specs/data-sources/spec.md`. The owner answered its decisions DS1-DS20 on 2026-10-17 by
+accepting every recommendation, and asked for a second opinion before the phases are planned.
 
 **How the outside facts were read.** The cloud environment's network policy denied the hosts
 (support.google.com, developers.google.com, rssboard.org, dev.twitch.tv, owasp.org), so no page
@@ -371,8 +372,8 @@ switch, which is an operator's choice made per production (`INTERACTIVE_PLAYOUT_
 
 **Recommended.** Values, lists and tables; each from one source; fields connect by name, by
 themselves or from the field; the data API is the "Another system" source; feeds are read by the
-server; audience sources share the line but write only the inbox. Spelled out in the spec, with
-its twenty open decisions. A Sheet driving a ticker is also the first experiment
+server; audience sources share the line but write only the inbox. Spelled out in the spec, with its
+twenty decisions, answered as recommended. A Sheet driving a ticker is also the first experiment
 `CLOUD_PLAYOUT.md` §7 named in 2026-08, before scores took over the plan.
 
 **Alternatives considered.**
@@ -400,3 +401,27 @@ its twenty open decisions. A Sheet driving a ticker is also the first experiment
 - Other tools' behaviour on a failed read (whether they keep the last good data), and a few of
   their features the survey could not confirm.
 - The pages cited above, opened directly rather than through extracts.
+
+## 8. Hosts a research or test session needs
+
+The cloud environment's network policy decides what an agent session can reach. These hosts let a
+session read the pages cited here and test real sources; they change nothing for NoaCG's users,
+whose Sheets and feeds NoaCG's own server reads.
+
+- Google Sheets and Google's documentation: `docs.google.com`, `sheets.googleapis.com`,
+  `support.google.com`, `developers.google.com`, `workspaceupdates.googleblog.com`,
+  `script.google.com`, `script.googleusercontent.com`. A Sheet's CSV export redirects to a host
+  under `googleusercontent.com` that changes, so testing a real Sheet needs that whole domain.
+- YouTube and Twitch: `www.googleapis.com`, `youtube.googleapis.com`, `www.youtube.com`,
+  `dev.twitch.tv`, `discuss.dev.twitch.com`, `api.twitch.tv`, `id.twitch.tv`,
+  `irc-ws.chat.twitch.tv`, `eventsub.wss.twitch.tv`.
+- Formats and safety: `www.rssboard.org`, `www.rfc-editor.org`, `datatracker.ietf.org`,
+  `www.ietf.org`, `www.jsonfeed.org`, `www.w3.org`, `validator.w3.org`, `developer.mozilla.org`,
+  `cheatsheetseries.owasp.org`, `owasp.org`.
+- Automation tools: `zapier.com`, `help.zapier.com`, `www.make.com`, `help.make.com`,
+  `docs.n8n.io`, `community.n8n.io`.
+- Playout environments NoaCG works with: `www.vmix.com`, `forums.vmix.com`, `www.spxgraphics.com`,
+  `docs.spxgraphics.com`, `casparcg.com`, `obsproject.com`, `bitfocus.io`.
+- Hosting docs: `vercel.com`, `supabase.com`.
+- Real sources to test against: `api.open-meteo.com` (the weather connector), plus each feed or
+  JSON address a test will use; a news site's feed host is usually separate from its web host.

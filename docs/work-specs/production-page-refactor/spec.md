@@ -698,7 +698,8 @@ answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settl
 Before starting phase 15: phase 14 checked PASS on `main`, and `node scripts/work-spec.mjs status
 docs/work-specs/sheet-data-flow/work.json` shows the spec agreed. Added 2026-10-17 (owner): the
 owner has agreed `docs/work-specs/data-sources/spec.md` (its `work.json` authority `agreed`, its
-decisions answered) before phases 15 onward start; phase 15 then follows the phase list the owner's
+decisions answered, and, owner 2026-10-17, its second opinion reviewed) before phases 15 onward
+start; phase 15 then follows the phase list the owner's
 answer to its DS16 names.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the

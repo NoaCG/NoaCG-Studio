@@ -52,16 +52,17 @@ and the broadcast text editable. A message never lands in a graphic not made for
 
 ## Where the audience fits (2026-10-17)
 
-The data sources spec asks whether the audience is just another data source (DS11-DS14). Its
-recommendation, C: audience sources (the join page, Twitch, YouTube) sit on the same sources line
-as data sources, with status and Pause, and run on the same source core (A4 below), but they write
-only to the inbox; a message reaches air only as a cue the operator takes. Votes stay staged by
-the operator. The research behind it (`docs/research/2026-10-data-sources/README.md` §2.6, §5)
-also found, for A4: reading Twitch chat anonymously works but is not documented (the documented
-way needs a user token); YouTube's daily quota is per Google project, and its streaming method
-costs far less than polling; and a listener that must stay connected does not fit a serverless
-function, so the published half of A4 needs a worker that stays connected or the database's
-scheduler. Phase 4 settles that design; nothing here decides it.
+The data sources spec asks whether the audience is just another data source (DS11-DS14); the owner
+accepted its recommendations on 2026-10-17. The answer, C: audience sources (the join page, Twitch,
+YouTube) sit on the same sources line as data sources, with status and Pause, and run on the same
+source core (A4 below), but they write only to the inbox; a message reaches air only as a cue the
+operator takes. Votes stay staged by the operator. The research behind it
+(`docs/research/2026-10-data-sources/README.md` §2.6, §5) also found, for A4: reading Twitch chat
+anonymously works but is not documented (the documented way needs a user token); YouTube's daily
+quota is per Google project, and its streaming method costs far less than polling; and a listener
+that must stay connected does not fit a serverless function, so the published half of A4 needs a
+worker that stays connected or the database's scheduler. Phase 4 settles that design; nothing here
+decides it.
 
 ## Owner decisions (open; recommendation first)
 

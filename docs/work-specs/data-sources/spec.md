@@ -1,11 +1,13 @@
 # Data sources: how outside data and audience input reach graphics
 
-Authority: owner brief, 2026-10-17 (see `work.json`). **Draft**: every decision under "Open
-decisions" is the owner's, each with a recommendation, and nothing here is built until the owner
-agrees this spec. Research and sources: `docs/research/2026-10-data-sources/README.md`. Parent
-direction: `docs/GOALS.md` outcomes 5 and 7. Child specs: `docs/work-specs/sheet-data-flow/spec.md`
-(agreed, D1-D4) and `docs/work-specs/audience-flow/spec.md` (draft, A1-A5); each keeps its own
-criteria, and this spec owns the model they share and the criteria that cross them.
+Authority: owner brief, 2026-10-17 (see `work.json`). Decisions DS1-DS20 are answered: the owner
+accepted every recommendation the same day. **Still a draft**: before the phases are planned, a
+second opinion reviews this plan and the research questions R1-R5 below, and the owner agrees the
+result. Nothing here is built until then. Research and sources:
+`docs/research/2026-10-data-sources/README.md`. Parent direction: `docs/GOALS.md` outcomes 5 and 7.
+Child specs: `docs/work-specs/sheet-data-flow/spec.md` (agreed, D1-D4) and
+`docs/work-specs/audience-flow/spec.md` (draft, A1-A5); each keeps its own criteria, and this spec
+owns the model they share and the criteria that cross them.
 
 ## Problem
 
@@ -131,25 +133,30 @@ the Audience tab and staged onto a vote board cue by the operator (interactive p
 - One ingress: every outside write becomes ordinary rows in the one command log
   (`CLOUD_PLAYOUT.md` §7); the renderer applies rows in order and learns nothing new.
 - The audience backend has no method that reaches the command log or production values.
-- Sheet D1-D4, as agreed, unless the owner answers DS2 or DS15 otherwise.
+- Sheet D1, D3 and D4 as agreed (DS15 keeps D3). D2's order becomes lists first (DS2), written
+  into the sheet spec when this spec is agreed.
 - Templates and exports are unchanged; a template's existing `liveData.ts` block keeps running.
 
-## Open decisions (each the owner's; recommendation first)
+## Decisions (answered 2026-10-17)
+
+The owner, 2026-10-17: "For me it's too difficult now to answer those questions before I actually
+can try it out so let's go with your recommendations. Record those as answers." Each answer below
+was the recommendation. A change the second opinion proposes goes back to the owner.
 
 - **DS1. The model and its words.** Agree the model above: values, lists and tables, each from
   one source, fields connected by name, "source" and "connected" as the only other words on the
-  default surface. Recommendation: agree.
-- **DS2. The first Sheet shape (revisits sheet D2).** D2 says values first. Recommendation: lists
+  default surface. Answer: agree.
+- **DS2. The first Sheet shape (revisits sheet D2).** D2 says values first. Answer: lists
   first (each row one line), values in the same phase, tables last; the operator still picks the
   shape (D2's rule stays); the sheet spec's examples and its newcomer run (AC-12) move from a
   scoreboard to a ticker.
-- **DS3. A row with several cells.** Recommendation: its cells join with " | ", the separator
+- **DS3. A row with several cells.** Answer: its cells join with " | ", the separator
   schedules, standings, fixtures and credits split on; empty cells at the row's end drop. A ticker
   reads " | " as plain text (the bilingual ticker as its language split) and a tab or ": " as a
   kicker, so a ticker's sheet keeps one cell per row, with "SPORT: United win" for a kicker.
   Alternative: join with a tab, which tickers read as a kicker but the other list graphics do not
   split on.
-- **DS4. RSS and Atom feeds.** Recommendation: accept a pasted feed address as a list source:
+- **DS4. RSS and Atom feeds.** Answer: accept a pasted feed address as a list source:
   each item's title is one line, newest first, the newest 20, markup and entities turned into
   plain text, read every 5 minutes with conditional requests, and slower when the feed asks
   (its `ttl`, `Cache-Control` or `Retry-After`).
@@ -158,61 +165,91 @@ the Audience tab and staged onto a vote board cue by the operator (interactive p
   browser asks to fetch the feed (a new public server path: public addresses only, size and time
   caps, a limit per client and per address, one cached read per feed address), or feeds only once
   published. Either way the server fetches an address a person pasted, which reverses the sheet
-  spec's rule that it never does (sheet "Safety"). Recommendation: the route, as a segment of an
+  spec's rule that it never does (sheet "Safety"). Answer: the route, as a segment of an
   existing catch-all, so a feed works before anyone signs in.
-- **DS6. JSON addresses.** Recommendation: not in this run. Later, only for JSON whose shape NoaCG
+- **DS6. JSON addresses.** Answer: not in this run. Later, only for JSON whose shape NoaCG
   can read without a selector (an object of names to values or lists), behind the same guards;
   anything else reaches NoaCG through the data API with a small connector or an automation tool.
-- **DS7. The data API on the data view.** Recommendation: show it as the source "Another system"
+- **DS7. The data API on the data view.** Answer: show it as the source "Another system"
   with the address, the key behind Reveal, an example built from this production's names, and
   "updated N s ago" from the last push; a pushed name connects matching fields when it first
   arrives; the guide and `DATA_API.md` lead with `/patch` and names, and `/update` moves to a
   low-level section.
-- **DS8. Pushing to a local production.** Recommendation: no; publishing stays the step, said
+- **DS8. Pushing to a local production.** Answer: no; publishing stays the step, said
   plainly on the card with Publish one press away (as audience A5 for phones).
-- **DS9. Two sources writing one name.** Recommendation: the later write wins (today's rule and
+- **DS9. Two sources writing one name.** Answer: the later write wins (today's rule and
   D4); each value shows which source wrote it last; the data view warns when two sources write
   the same name.
-- **DS10. Where a field connects.** Recommendation: both doors, the data view and the field's own
+- **DS10. Where a field connects.** Answer: both doors, the data view and the field's own
   "Connect" in the cue editor, which also takes a pasted Sheet or feed link; the newcomer
   journeys use the field.
 - **DS11. Is the audience just another data source?** Options: (A) keep two separate systems,
   sharing only the source core (today plus A4); (B) merge: viewer input becomes production values;
   (C) one intake, two destinations: every source on one sources line with status and Pause, data
   sources write values and lists, audience sources write only the inbox, and an operator action
-  moves a message into a cue. Recommendation: C. B breaks the rule that nothing a viewer sends
+  moves a message into a cue. Answer: C. B breaks the rule that nothing a viewer sends
   airs without an operator.
-- **DS12. How a picked message reaches air.** Recommendation: as a cue the operator takes (today,
+- **DS12. How a picked message reaches air.** Answer: as a cue the operator takes (today,
   A2 and A3), not a "show now" value that changes an on-air graphic without a Take.
-- **DS13. Votes.** Recommendation: tallies stay staged by the operator onto a vote board cue, with
+- **DS13. Votes.** Answer: tallies stay staged by the operator onto a vote board cue, with
   the existing "Update the percentages on air while voting" switch; tallies are not production
   values.
-- **DS14. Where sources show.** Recommendation: one line per source on the Playout tab, data and
+- **DS14. Where sources show.** Answer: one line per source on the Playout tab, data and
   audience alike, with status and Pause (the sheet spec's status line, for every kind). Where the
   Data and Audience views live stays with the sheet spec (one stable Setup item) and audience A1.
-- **DS15. How fresh each kind is (revisits sheet D3 in part).** Recommendation: keep D3 for
+- **DS15. How fresh each kind is (revisits sheet D3 in part).** Answer: keep D3 for
   Sheets (read every 5 s, on screen within 10 s); feeds every 5 minutes (DS4); a push is as fast
   as its sender. A Sheet's own import formulas refresh far more slowly than 5 s (research README),
   so reading faster speeds up typed edits only.
-- **DS16. The run order.** Recommendation: the phases below replace production-page phases 15-20
+- **DS16. The run order.** Answer: the phases below replace production-page phases 15-20
   (they carry all six Sheet phases, re-ordered), audience follows, and the run waits before phase
   15 until this spec is agreed.
 - **DS17. A connection on a published production.** Today the server resolves the bindings pinned
   at the last publish, so a field connected afterwards moves nothing on air until the production
-  is published again. Recommendation: connecting or disconnecting a field on a published
+  is published again. Answer: connecting or disconnecting a field on a published
   production reaches the server at once, as a value edit does; publishing is never the hidden
   second step.
 - **DS18. An emptied list.** Today an empty list writes nothing, so the old lines stay on air.
-  Recommendation: a read that succeeds and finds no rows clears the field and the sources line
+  Answer: a read that succeeds and finds no rows clears the field and the sources line
   says "empty"; a read that fails keeps the last good list, as now.
 - **DS19. A manual change to a list.** A list is one value, so under D4 an operator's edit holds
-  only until any row of the source changes, not just the edited line. Recommendation: accept it
+  only until any row of the source changes, not just the edited line. Answer: accept it
   and say so where the list is edited; to keep a fix, edit the Sheet or press Pause.
 - **DS20. Pause on pushed data.** Today nothing in NoaCG can stop a sender: "freeze" means the
-  sender stops writing. Recommendation: Pause on "Another system" makes the server refuse writes
+  sender stops writing. Answer: Pause on "Another system" makes the server refuse writes
   from the data key with an answer that says the production paused it, while the operator's own
   presses still work; nothing sent while paused is kept, and since pushes carry absolute values,
   the sender's next write after Resume brings it up to date.
+
+## Owner input, second round (2026-10-17)
+
+After reading the first draft, the owner said:
+
+- The lists are the ones that matter: tickers, schedules, standings and credits.
+- Sheets are hard to build from scratch, even simple ones. Every graphic would need its own
+  template sheet, or one template could hold every graphic type, perhaps as tabs. How that looks
+  is open.
+- How a cell connects to its graphic must be clear, and as automatic as possible.
+- Opening the data page must need no reading: a page where you add values and they reach the
+  graphic. That page need not be NoaCG's if Google Sheets already does it better; the point is
+  that today's Data tab is so confusing that nobody knows how to use it.
+- Before the phases are planned, research further and get a second opinion from another agent.
+
+**Research questions for the second opinion:**
+
+- **R1. The starter sheet.** How NoaCG hands over a sheet that already fits the production: one
+  tab per graphic, per list, or per graphic type; a copy of a published template, a file to
+  import, or rows to paste into a new sheet; and how the production's own field titles and
+  current values get into it.
+- **R2. Connected by construction.** If NoaCG writes the sheet, its tab and header names can be
+  the field names, so nothing needs mapping. How a cell is named so it reaches exactly the right
+  field, and what happens when two graphics share a value (one score on two scoreboards) or share
+  a field title ("Name").
+- **R3. A data page with nothing to read.** What someone sees on opening it, whether NoaCG needs
+  such a page at all when the Sheet is the editor, and what stays in NoaCG (typing in the cue, ±).
+- **R4. Lists in practice.** The fewest steps from a starter sheet to a ticker, a schedule,
+  standings and credits on air, and what each tab looks like for each catalog type.
+- **R5. The answers.** Any of DS1-DS20 the review would answer differently, with its reason.
 
 ## Risks the research found
 
@@ -232,8 +269,8 @@ the Audience tab and staged onto a vote board cue by the operator (interactive p
 ## Acceptance criteria
 
 Child criteria stay in their own specs and are named in the phases as "sheet AC-n" and
-"audience AC-n". These are the criteria that cross them. They are written for the
-recommendations; an answer that differs rewrites the criterion that names its decision.
+"audience AC-n". These are the criteria that cross them. They follow the answers; a change the
+second opinion brings rewrites the criterion that names its decision.
 
 ### AC-1: A source writes names, never graphics
 Each source kind (Sheet, feed, pushed, a test kind) produces named values, lists or table rows
@@ -299,6 +336,8 @@ Layer: scenario runs recorded in `evidence/`.
 
 ## Phases (draft; production-page phases 15 onward once agreed)
 
+These wait for the second opinion and R1-R5 (owner, 2026-10-17), which may reorder or reshape them.
+
 Each phase runs `/check` and the production-page spec's §6 matrix, lands with `/queue-merge`, and
 adds its notes under this spec's `## Phase notes`. Numbers are the production-page run's.
 
@@ -335,8 +374,9 @@ JSON now", a JSON phase follows phase 17 with its own criteria added here first.
 
 ## Readiness
 
-Before phase 15: phase 14 checked PASS on `main`; the owner has agreed this spec (`work.json`
-authority `agreed`) and answered DS1-DS20; `sheet-data-flow` and `audience-flow` updated to the
+Before phase 15: phase 14 checked PASS on `main`; the second opinion reviewed and its accepted
+changes folded in; the owner has agreed this spec (`work.json` authority `agreed`), with DS1-DS20
+answered; `sheet-data-flow` and `audience-flow` updated to the
 answers in the same change, with their digests current; `node scripts/work-spec.mjs status`
 reports no problems for all three.
 
