@@ -833,3 +833,29 @@ for (const kind of ['first', 'linked'] as const) {
     expect(await library(page)).toHaveLength(1);
   });
 }
+
+// The wizard's Finish doors save through the same mint. A record that landed while its link write
+// was refused is the walk's record, so pressing the door again under a NEW name writes over it
+// rather than minting a second one (raised in review of #1376).
+test('a refused link write on the wizard export door keeps its record: a renamed retry writes over it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await toFinish(page);
+  await page.getByTestId('wz-finish-name').fill('Door link first');
+  await installFourth(page);
+  await refuseFourth(page, 'spx-gfx-project', 'spx-gfx-graphics');
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('storage-alert')).toBeVisible();
+  expect((await fourthState(page)).refused).toEqual(['spx-gfx-project']);
+  const [minted] = await library(page);
+  expect(await library(page)).toHaveLength(1); expect(minted.name).toBe('Door link first');
+  await page.getByTestId('storage-alert-close').click();
+  await page.getByTestId('export-window').locator('.gallery-close').click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+  await page.getByTestId('wz-finish-name').fill('Door link renamed');
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible(); await expect(page.getByTestId('storage-alert')).toHaveCount(0);
+  const kept = await library(page);
+  expect(kept, 'the retry minted a second record').toHaveLength(1);
+  expect(kept[0].id).toBe(minted.id); expect(kept[0].name).toBe('Door link renamed');
+  expect(await saveLink(page)).toMatchObject({ graphicId: minted.id, dirty: false, status: 'idle' });
+});
