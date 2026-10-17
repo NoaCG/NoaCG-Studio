@@ -20,8 +20,10 @@ import { appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
+import { reviveReviewed } from './cloud-queue.mjs';
 import { finishedSince, jobsDir, landingStateFor, NO_VERDICT_EXIT } from './jobs-store.mjs';
-import { pullRequestNumberFromGroupRef } from './reviewed-status.mjs';
+import { REVIEW_CONTEXT, spawnRunner } from './queue-pr.mjs';
+import { DEFAULT_WAIT_MS, pullRequestNumberFromGroupRef } from './reviewed-status.mjs';
 import { REQUIRED_CHECKS } from './landing-ruleset-reader.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
 import { triggerUnattendedSweep } from './worktree-cleanup-lib.mjs';
@@ -29,6 +31,8 @@ import { triggerUnattendedSweep } from './worktree-cleanup-lib.mjs';
 const POLL_MS = 30_000;
 const CAP_MS = 60 * 60_000;
 const CONFIRM_MS = 10_000;
+/** How long a late-stamped `Reviewed` red is not believed: the re-run's own wait plus a runner's pickup. */
+const REVIEWED_GRACE_MS = DEFAULT_WAIT_MS + 150_000;
 
 /**
  * Pure: what the pull request's state means for the watcher.
@@ -68,7 +72,7 @@ export function watchVerdict(pr, checks = [], { expectSha = null } = {}) {
   // merge queue" at 20:28. Only while the queue has NOT taken it, because inside the queue the
   // pull request's own checks are history and the merge group's run is what decides. Which
   // checks, and when they are a verdict, is `requiredRefusal` below.
-  const refusedOn = pr.state === 'OPEN' && pr.autoMergeRequest && !pr.mergeQueueEntry ? requiredRefusal(checks) : [];
+  const refusedOn = queueRefusal(pr, checks);
   if (refusedOn.length > 0) {
     const others = failedNames.filter((name) => !refusedOn.includes(name));
     const also = others.length > 0 ? ` (also red: ${others.join(', ')})` : '';
@@ -82,6 +86,9 @@ export function watchVerdict(pr, checks = [], { expectSha = null } = {}) {
     : `the pull request is ${String(pr.state).toLowerCase()} and no longer queued for auto-merge`;
   return { verdict: 'refused', reason };
 }
+
+/** The required checks refusing an open pull request the queue has not taken, or none. */
+const queueRefusal = (pr, checks) => (pr.state === 'OPEN' && pr.autoMergeRequest && !pr.mergeQueueEntry ? requiredRefusal(checks) : []);
 
 /** Every conclusion that blocks a required check; SKIPPED and NEUTRAL pass it. */
 const FAILED = /^(FAILURE|ERROR|CANCELLED|TIMED_OUT|STARTUP_FAILURE|ACTION_REQUIRED|STALE)$/i;
@@ -123,6 +130,24 @@ function requiredRefusal(checks) {
     const lastRed = newest(true);
     return lastRed !== undefined && !(newest(false) > lastRed);
   });
+}
+
+/**
+ * Pure: is this a `Reviewed` that went red only because the `/check` stamp came late (#1159)?
+ * `Reviewed` waits 150 s for `noacg/reviewed` and fails without it; a session that pushes, then
+ * reviews for four minutes, then queues, has a red `Reviewed` on a head that DOES carry the stamp.
+ * `queue:merge` re-runs that job itself, but GitHub refuses a job re-run while its run is still
+ * going, and the gate takes six to nine minutes. So the watcher, which is waiting for that run
+ * anyway, re-runs it once the run has settled. Only when `Reviewed` is the one required check
+ * refusing the declared head and the rollup (which is the head commit's) holds a passing stamp:
+ * with no stamp the red is true, and with `CI gate` red, a conflict or a moved head a re-run lands
+ * nothing.
+ */
+export function lateStampedReviewed(pr, checks, { expectSha = null } = {}) {
+  if (!pr || (expectSha && pr.headRefOid !== expectSha) || pr.mergeable === 'CONFLICTING') return false;
+  const refusedOn = queueRefusal(pr, checks);
+  const stamped = (checks ?? []).some((c) => nameOf(c) === REVIEW_CONTEXT && /^SUCCESS$/i.test(c.state || c.conclusion || ''));
+  return stamped && refusedOn.length === 1 && refusedOn[0] === 'Reviewed';
 }
 
 /**
@@ -258,10 +283,13 @@ export async function watch({ pr, branch, expectSha }, io = {}) {
     now = Date.now,
     record = recordLanding,
     afterLanding = () => {},
+    ghRun = spawnRunner('gh'),
   } = io;
   const started = now();
   let lastSaid = '';
   let refusedOnce = false;
+  let reviewedAnswered = false;
+  let reviewedGraceUntil = null;
   while (now() - started < CAP_MS) {
     const view = readView(pr);
     // The checks are only read while they can decide something: an open pull request the queue
@@ -279,6 +307,32 @@ export async function watch({ pr, branch, expectSha }, io = {}) {
         // Housekeeping never turns a landing into a failure.
       }
       return 0;
+    }
+    // A late stamp is not a refusal: re-run the stale `Reviewed` on the head it stamps, once, and
+    // do not believe that red for `REVIEWED_GRACE_MS` after first seeing it or after the re-run.
+    // The rollup can lag GitHub's run (a re-run asked for by `queue:merge` or here that it does not
+    // list yet), and a `gh` that fails is no answer; past the grace the refusal stands as before.
+    // GitHub is asked again only while its run is still going or the read failed: any other
+    // answer (re-ran, already re-running or green, no pull-request run) will not change.
+    if (verdict === 'refused' && lateStampedReviewed(view, checks, { expectSha })) {
+      reviewedGraceUntil ??= now() + REVIEWED_GRACE_MS;
+      if (!reviewedAnswered) {
+        try {
+          const { outcome } = reviveReviewed({ branch, sha: view.headRefOid, gh: ghRun, waitMs: 0, dispatch: false });
+          reviewedAnswered = outcome !== 'timeout';
+          if (outcome === 'rerun') {
+            reviewedGraceUntil = now() + REVIEWED_GRACE_MS;
+            console.log(`land-watch: Reviewed failed before the /check stamp existed on ${String(view.headRefOid).slice(0, 8)}; re-ran it.`);
+          }
+        } catch (error) {
+          console.error(`land-watch: could not re-run Reviewed: ${String(error?.message ?? error).split('\n')[0]}`);
+        }
+      }
+      if (now() < reviewedGraceUntil) {
+        refusedOnce = false;
+        await wait(POLL_MS);
+        continue;
+      }
     }
     // A REFUSAL IS READ TWICE BEFORE IT IS BELIEVED. In the moment the queue merges a pull
     // request GitHub has already cleared the auto-merge request and the queue entry while the

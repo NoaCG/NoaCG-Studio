@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ciLogLink, failedLandings, watch, watchVerdict } from './land-watch.mjs';
+import { ciLogLink, failedLandings, lateStampedReviewed, watch, watchVerdict } from './land-watch.mjs';
 
 const open = (over = {}) => ({ state: 'OPEN', mergedAt: null, mergeCommit: null, headRefOid: 'abc', autoMergeRequest: { enabledAt: 'x' }, ...over });
 
@@ -221,4 +221,159 @@ test('a refused landing writes its CI log line, and `jobs failed` reads it back'
   assert.deepEqual(failedLandings([...jobs, record({ id: 'j-3', enqueuedAt: 3, state: 'running' })], { now, logOf: () => log }), []);
   assert.deepEqual(failedLandings(jobs, { now, logOf: () => '=== j-2 x\nland-watch: claude/x landed on main as 1234abcd (u)\n' }), []);
   assert.deepEqual(failedLandings(jobs, { now: now + 25 * 60 * 60_000, logOf: () => log }), []);
+});
+
+// #1159: PR 1152 pushed at 00:45:12Z, ran /check, and was stamped at 00:49:28Z. Its `Reviewed` had
+// given up at 147 s, its run was still going so `queue:merge` could not re-run the job, and the
+// pull request sat out of the queue until somebody re-ran it by hand.
+const HEAD = 'a'.repeat(40);
+const ciCheck = (name, conclusion, status = 'COMPLETED') => ({ __typename: 'CheckRun', name, workflowName: 'CI', status, conclusion });
+const stamp = (state = 'SUCCESS') => ({ __typename: 'StatusContext', context: 'noacg/reviewed', state });
+const LATE = [ciCheck('Build', 'SUCCESS'), ciCheck('CI gate', 'SUCCESS'), ciCheck('Reviewed', 'FAILURE'), stamp()];
+const unstamped = (checks) => checks.filter((c) => c.context !== 'noacg/reviewed');
+
+/** A `gh` in spawnRunner's shape that answers the run list and run view and records every call. */
+function ghStub({ reviewed = { status: 'completed', conclusion: 'failure' }, run = { status: 'completed' }, runs = [{ databaseId: 42, ...run }] } = {}) {
+  const calls = [];
+  const gh = (args) => {
+    calls.push(args);
+    if (args[0] === 'run' && args[1] === 'list') return { status: 0, out: JSON.stringify(typeof runs === 'function' ? runs() : runs), err: '' };
+    if (args[0] === 'run' && args[1] === 'view') return { status: 0, out: JSON.stringify({ jobs: [{ name: 'Reviewed', databaseId: 7, ...reviewed }] }), err: '' };
+    return { status: 0, out: '', err: '' };
+  };
+  return { gh, calls, reruns: () => calls.filter((a) => a[0] === 'run' && a[1] === 'rerun') };
+}
+
+/** Replay (pull request, rollup) ticks through the watcher, one per wait; the last tick repeats. */
+async function replay(ticks, gh, { expectSha = HEAD } = {}) {
+  let tick = 0;
+  let clock = 0;
+  const out = [];
+  const [log, error] = [console.log, console.error];
+  console.log = (line) => out.push(line);
+  console.error = (line) => out.push(line);
+  try {
+    const at = () => ticks[Math.min(tick, ticks.length - 1)];
+    const code = await watch(
+      { pr: '1152', branch: 'claude/x', expectSha },
+      {
+        view: () => at()[0],
+        checks: () => at()[1],
+        mergeGroupRuns: () => [],
+        wait: async (ms) => { tick += 1; clock += ms; },
+        now: () => clock,
+        record: () => {},
+        ghRun: gh,
+      },
+    );
+    return { code, out: out.join('\n') };
+  } finally {
+    console.log = log;
+    console.error = error;
+  }
+}
+
+const merged = (pr) => ({ ...pr, state: 'MERGED', mergedAt: 'x', mergeCommit: { oid: 'm1' } });
+
+test('#1159: a Reviewed that failed before the stamp existed on the same head is re-run, and the landing goes on', async () => {
+  const pr = open({ headRefOid: HEAD });
+  const stub = ghStub();
+  const rerunning = [ciCheck('Build', 'SUCCESS'), ciCheck('CI gate', 'SUCCESS'), ciCheck('Reviewed', null, 'IN_PROGRESS'), stamp()];
+  const { code, out } = await replay([[pr, LATE], [pr, rerunning], [merged(pr), []]], stub.gh);
+  assert.equal(code, 0, 'landed, with no person re-running anything');
+  assert.deepEqual(stub.calls[0].slice(0, 6), ['run', 'list', '--workflow', 'ci.yml', '--commit', HEAD], 'the run asked about is the one on the stamped head');
+  assert.deepEqual(stub.reruns(), [['run', 'rerun', '42', '--job', '7']]);
+  assert.match(out, /re-ran it/);
+  assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), LATE), true);
+});
+
+test('#1159: a passing or pending Reviewed is never re-run', async () => {
+  const pr = open({ headRefOid: HEAD });
+  for (const reviewed of [ciCheck('Reviewed', 'SUCCESS'), ciCheck('Reviewed', null, 'IN_PROGRESS'), ciCheck('Reviewed', null, 'QUEUED')]) {
+    const checks = [ciCheck('CI gate', 'SUCCESS'), reviewed, stamp()];
+    assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), checks), false);
+    const stub = ghStub();
+    const { code } = await replay([[pr, checks], [merged(pr), []]], stub.gh);
+    assert.equal(code, 0);
+    assert.deepEqual(stub.calls, [], 'no gh call at all');
+  }
+  // The rollup can lag a re-run queue:merge already asked for: GitHub's run says Reviewed is going
+  // again, so the watcher waits instead of re-running it a second time or calling it refused.
+  const lagging = ghStub({ reviewed: { status: 'in_progress', conclusion: null }, run: { status: 'in_progress' } });
+  const { code } = await replay([[pr, LATE], [merged(pr), []]], lagging.gh);
+  assert.equal(code, 0);
+  assert.deepEqual(lagging.reruns(), []);
+});
+
+test('#1159: a stamp on a different sha re-runs nothing', async () => {
+  // The branch moved after it was stamped: the declared tip carries the stamp, the head does not.
+  const moved = ghStub();
+  const { code: movedCode, out } = await replay([[open({ headRefOid: 'b'.repeat(40) }), LATE]], moved.gh);
+  assert.equal(movedCode, 1);
+  assert.match(out, /moved after it was declared finished/);
+  assert.deepEqual(moved.calls, []);
+  // No pin, and the head's own rollup carries no stamp: its Reviewed red is true.
+  const other = ghStub();
+  const { code } = await replay([[open({ headRefOid: 'b'.repeat(40) }), unstamped(LATE)]], other.gh, { expectSha: null });
+  assert.equal(code, 1);
+  assert.deepEqual(other.calls, []);
+});
+
+test('#1159: no passing stamp changes nothing - Reviewed red is still a refusal', async () => {
+  for (const checks of [unstamped(LATE), [...unstamped(LATE), stamp('FAILURE')]]) {
+    assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), checks), false);
+    const stub = ghStub();
+    const { code, out } = await replay([[open({ headRefOid: HEAD }), checks]], stub.gh);
+    assert.equal(code, 1);
+    assert.match(out, /refused: Reviewed failed on the pull request/);
+    assert.deepEqual(stub.calls, []);
+  }
+  // With CI gate red as well, re-running Reviewed would land nothing.
+  assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), [ciCheck('CI gate', 'FAILURE'), ciCheck('Reviewed', 'FAILURE'), stamp()]), false);
+});
+
+test('#1159: a conflict, auto-merge off or a run that is not the pull request\'s re-runs nothing', async () => {
+  for (const pr of [open({ headRefOid: HEAD, mergeable: 'CONFLICTING' }), open({ headRefOid: HEAD, autoMergeRequest: null })]) {
+    assert.equal(lateStampedReviewed(pr, LATE), false);
+    const stub = ghStub();
+    assert.equal((await replay([[pr, LATE]], stub.gh)).code, 1);
+    assert.deepEqual(stub.calls, []);
+  }
+  // No pull_request run on the head: the watcher never dispatches a second whole CI run.
+  const none = ghStub({ runs: [] });
+  const { code, out } = await replay([[open({ headRefOid: HEAD }), LATE]], none.gh);
+  assert.equal(code, 1);
+  assert.deepEqual(none.calls.filter((a) => a[0] === 'workflow' || a[1] === 'rerun'), []);
+  assert.match(out, /refused: Reviewed failed on the pull request/);
+});
+
+test('#1159: Reviewed is re-run once; red again past the grace is a refusal', async () => {
+  const stub = ghStub();
+  const { code, out } = await replay([[open({ headRefOid: HEAD }), LATE]], stub.gh);
+  assert.equal(code, 1);
+  assert.equal(stub.reruns().length, 1);
+  assert.match(out, /refused: Reviewed failed on the pull request/);
+});
+
+test('#1159: a rollup that lags the re-run is not a refusal, and one that never catches up ends as one', async () => {
+  const pr = open({ headRefOid: HEAD });
+  // Re-run asked for, then two ticks where the rollup still shows the old red, then the new attempt.
+  const stub = ghStub();
+  const rerunning = [ciCheck('CI gate', 'SUCCESS'), ciCheck('Reviewed', null, 'QUEUED'), stamp()];
+  const { code } = await replay([[pr, LATE], [pr, LATE], [pr, LATE], [pr, rerunning], [merged(pr), []]], stub.gh);
+  assert.equal(code, 0, 'the re-run that went on to pass is not reported as refused');
+  assert.equal(stub.reruns().length, 1);
+  // GitHub's pull_request run keeps saying Reviewed is fine while the rollup keeps saying red: the
+  // watcher stops waiting after the grace rather than holding the landing slot for an hour.
+  const passing = ghStub({ reviewed: { status: 'completed', conclusion: 'success' } });
+  const ended = await replay([[pr, LATE]], passing.gh);
+  assert.equal(ended.code, 1);
+  assert.deepEqual(passing.reruns(), []);
+  assert.equal(passing.calls.filter((a) => a[1] === 'list').length, 1, 'an answer that will not change is asked for once');
+  // A run still going is asked about again, and re-run once it has settled.
+  const answers = [[{ databaseId: 42, status: 'in_progress' }]];
+  const settling = ghStub({ runs: () => answers.shift() ?? [{ databaseId: 42, status: 'completed' }] });
+  assert.equal((await replay([[pr, LATE], [pr, LATE], [pr, rerunning], [merged(pr), []]], settling.gh)).code, 0);
+  assert.equal(settling.calls.filter((a) => a[1] === 'list').length, 2);
+  assert.equal(settling.reruns().length, 1);
 });

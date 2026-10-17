@@ -589,11 +589,20 @@ function queueOnGitHub(branch, tip, description, { why = '', risk = '' } = {}) {
   // queued again with no new commit - has a `Reviewed` that already failed for want of this stamp,
   // and it never looks again. Re-run it (the cloud path's own rule). Only when this push started no
   // new run on an existing pull request: after a real push the new run reads the stamp itself, and
-  // asking before GitHub has listed that run would dispatch a second one. No waiting here.
+  // asking before GitHub has listed that run would dispatch a second one. No waiting here: a run
+  // still going cannot have a job re-run, and the landing watcher re-runs it once the run settles
+  // (scripts/land-watch.mjs `lateStampedReviewed`, #1159).
   if (pushesNothing && prExisted) {
-    const revived = reviveReviewed({ branch, sha: tip, gh: spawnRunner('gh'), waitMs: 0 });
+    // A failed read is no reason to abandon the queueing: the label and auto-merge below still
+    // matter, and the watcher looks again once the run settles.
+    let revived = {};
+    try {
+      revived = reviveReviewed({ branch, sha: tip, gh: spawnRunner('gh'), waitMs: 0 });
+    } catch (error) {
+      console.log(`Could not check Reviewed on the stamped tip (${String(error?.message ?? error).split('\n')[0]}); the landing watcher looks again.`);
+    }
     if (revived.outcome === 'rerun') console.log(`Reviewed had failed before the stamp existed; re-ran it on run ${revived.run}.`);
-    if (revived.outcome === 'timeout') console.log(`Run ${revived.run} is still going with Reviewed red; re-run that job once the run finishes.`);
+    if (revived.outcome === 'timeout') console.log(`Run ${revived.run} is still going with Reviewed red; the landing watcher re-runs that job once the run finishes (or re-run it by hand).`);
   }
   // The label marks a queued pull request for the ledger sync and the listing; auto-merge is what
   // hands it to GitHub's merge queue the moment its required checks (`CI gate`, `Reviewed`) pass.
