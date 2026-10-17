@@ -32,10 +32,10 @@
   { "run": 39047556378, "scope": "fifth", "result": "17 passed, 3 timed out (B1 at its unbounded read; F-hold and F-late at :464, the library row after a cancelled Open); bounded B1 1/1" },
   { "run": 39047558774, "scope": "sixth", "result": "10/10" },
   { "run": 39047561209, "scope": "repeat228", "result": "20/20" },
-  { "run": 39047563682, "scope": "maintained", "result": "MAINTAINED" },
+  { "run": 39047563682, "scope": "maintained", "result": "85 passed, 8 legacy skips; two-graphic export 1/1" },
   { "run": 39047566239, "scope": "references", "result": "6/6; 17 hashed files, sha256 identical to independent-6; Studio binary 9ba1de31" },
   { "run": 39047568730, "scope": "visual", "result": "4/4" },
-  { "run": 39047571000, "scope": "matrix", "result": "MATRIX" },
+  { "run": 39047571000, "scope": "matrix", "result": "107/107 (regression only)" },
   { "run": 39047573162, "workflow": "configured-suite (signed-in localhost)", "result": "success" },
   { "run": 39047990848, "scope": "seventh", "head": "e27983ce", "result": "9 passed, 1 failed (H, #1402)" },
   { "run": 39048135358, "scope": "seventh", "head": "f08bb306 (control, main before #1397)", "result": "2 passed (D-edit, H), 8 failed (A, B, C, E, F, G: the leave does not ask while the save writes, #1392)" }

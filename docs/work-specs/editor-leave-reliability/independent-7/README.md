@@ -16,7 +16,8 @@ while it is open. Its reservation change introduced one regression.
   unlinked, Save asks for a name, and "Beta" is minted beside an unchanged "Alpha".
 
 This is the seventh failed check of the leave-editor phase. Phase 3 (save/cloud-status) does not
-start. In one tab nothing failed, and no edit was lost.
+start. In one tab nothing failed and no edit was lost. In H, A's later edit is lost from the
+saved graphic.
 
 ## Scope
 
@@ -67,24 +68,26 @@ two records, "Alpha" unchanged. VM j-0042, CI
 
 Not crossed here, and why: the modal doors (Save As, the naming dialog, Discard and the wizard's
 Finish doors) cannot be left while they write; the matrix pins hash and Back under them. New and
-Open during a topbar Save are the matrix's 30 non-modal rows.
+Open during a topbar Save are among the matrix's 30 non-modal rows.
 
 ## The two recorded departures
 
 - **Fifth B1.** Run unchanged, it times out, as in repair-6, independent-6 and repair-7
   ([39047556378](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047556378)). Its unbounded
   `textContent()` on `storage-alert` waits out the test when the alert is absent, which is the
-  fixed behaviour. With only that call bounded, B1 passes 1/1 (same run). The departure is correct: judged by its assertions (no notice, the link clean, one
-  record, New asks nothing), B1 passes.
-- **Fifth F-hold and F-late** (`leave-fifth-checker.spec.ts:447`). Both time out at `:464` (same run; the fifth file gives 17
-  passed and these 3 timed out). They open
-  **Open saved graphics…** while the topbar Save's link write waits, press Cancel when that asks,
+  fixed behaviour. With only that call bounded, B1 passes 1/1 (same run). The departure is
+  correct: judged by its assertions (no notice, the link clean, one record, New asks nothing),
+  B1 passes.
+- **Fifth F-hold and F-late** (`leave-fifth-checker.spec.ts:447`). Both time out at `:464` (same
+  run; the fifth file gives 17 passed and these 3 timed out). They open **Open saved graphics…**
+  while the topbar Save's link write waits, press Cancel when that asks,
   then wait for a library row a cancelled leave never shows. The departure is correct. AC 3 says
   New and Open use the same boundary and that a durable write still unsettled cannot navigate
   early. The owner's scope for repair-7 names Open among the leaves that wait or ask. AC 1 says
   Cancel keeps the editor. A fix that let this Open through would reopen #1392. Their remaining
   assertions (the record holds its source, the opened graphic owns the link, before and after a
-  reload) are the matrix's updated `replace` cases, which pass (MATRIX).
+  reload) are the matrix's updated `replace` cases, which pass: the whole matrix gives 107/107
+  ([39047571000](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047571000)).
 
 ## Criteria
 
@@ -96,7 +99,7 @@ Open during a topbar Save are the matrix's 30 non-modal rows.
 | AC 4: baseline guard, wizard walk, library links, cloud separation, production copies; mutation | Pass. The maintained selection gives 85 passed with the same 8 legacy skips, and the two-graphic export 1/1 ([39047563682](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047563682)). Signed-in localhost task passes ([39047573162](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047573162)). Mutation: repair-7's M1/M2 were not repeated; H's control on pre-#1397 main shows the failing assertion is not vacuous. |
 | AC 5: fresh Studio `3142fc7d` / Eyevinn `616841bd` executions, hashes, no copied source | Pass, 6/6 ([39047566239](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047566239)). [reference.json](reference.json): the same 17 files, sha256 identical to independent-6. Studio binary `9ba1de31…`. |
 | AC 6: desktop/laptop/native 125% cumulative text, artwork, animation, save/reopen, outputs | Pass, 4/4 ([39047568730](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047568730)). |
-| Carried checkers, unchanged | Original 3/3, second 4/4, third 10/10, `:24` x20 20/20, fourth 11/11 ([39047553747](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047553747)). `:228` x20 20/20 ([39047561209](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047561209)). Sixth 10/10 ([39047558774](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047558774)). Fifth as above. |
+| Carried checkers, unchanged | Original 3/3, second 4/4, third 10/10, `:24` x20 20/20, fourth 11/11 ([39047553747](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047553747)). `:228` x20 20/20 ([39047561209](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047561209)). Sixth 10/10 ([39047558774](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047558774)). Fifth as above. Repair-7's matrix 107/107 as a regression check only ([39047571000](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047571000)). |
 
 ## References
 
@@ -106,8 +109,9 @@ comparison is a reading of the hashed files, not an execution. Eyevinn's `saveTo
 the record and its pointer synchronously to `localStorage`, and the id is the record's identity,
 minted when it is saved (independent-5's reading). Studio v0.17 saves a project by download and
 has no library record to relink. Neither keeps an id for a record that does not exist yet, so
-neither can link one tab's draft to a record another tab created. NoaCG's reservation is a shared, durable pointer to a
-record that does not exist yet, so who owns it has to be decided, which is what #1402 asks.
+neither can link one tab's draft to a record another tab created. NoaCG's reservation is a
+shared, durable pointer to a record that does not exist yet, so who owns it has to be decided,
+which is what #1402 asks.
 
 ## Runs
 
@@ -119,8 +123,8 @@ workers and `--retries=0`.
   9/1 with the same facts.
 - Control on `f08bb306` (main before #1397): VM j-0042, H passes. CI
   [39048135358](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39048135358): H and D pass, and
-  the other 8 fail because the leave does not ask while the save writes (#1392 on that code). So
-  those 8 cases are not vacuous.
+  the other 8 fail at the spec's line 165, where Home must ask while the save writes (#1392 on
+  that code). So those 8 cases are not vacuous.
 
 ## Captures
 
