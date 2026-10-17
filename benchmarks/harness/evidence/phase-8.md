@@ -108,8 +108,10 @@ added up. Each applies to both arms alike.
   rules over the picture; AC-17). On a typeless or free-named brief the mechanical gate's word
   rule can miss an action offered under another name: Claude Code's volleyball board offers
   `undoA`/`undoB` and `setA`/`setB` where the brief says `undoPoint` and `endSet`, and its
-  bilingual notice offers `holdFi`/`holdSv` ("Suomi", "Svenska") for `lang1`/`lang2`, and the
-  judge's single judgement named no missing action on either. So a flag stands when the judge's
+  bilingual notice offers `holdFi`/`holdSv` ("Suomi", "Svenska") for `lang1`/`lang2`; the
+  judge's single on the notice named no missing action. (Corrected 2026-10-17: this first said
+  the judge named nothing missing on either; the volleyball single was the call the usage limit
+  refused, unanswered when this was written.) So a flag stands when the judge's
   single also names the action missing, or when no button's event and label do what the action
   says; otherwise it is an instrument disagreement, logged in `instruments.md` with the buttons,
   and the action counts as offered. Each reading is listed in `exam/action-readings.json`, which
@@ -121,9 +123,9 @@ added up. Each applies to both arms alike.
   (`exam/rekey.json`), and both arms of that brief are captured again before the judge reads
   them (`--recapture`).
 
-## The run (2026-10-15): every session ran; the judge is paused
+## The run (2026-10-15): every session ran; the judge paused
 
-**Status: incomplete, no verdict yet.** All 40 sessions ran and every graphic is captured, but the
+**Status on 2026-10-15 (the verdict came on 2026-10-17, below).** All 40 sessions ran and every graphic is captured, but the
 frozen judge (`claude-fable-5-1`) stopped after 26 answered calls: the subscription's own Fable
 cap (`rate_limit_event` `seven_day_overage_included`, utilization 1.0, extra usage disabled for
 the organization) refuses it until **2026-10-20T05:00Z**, when that seven-day window resets. 19
@@ -207,19 +209,46 @@ CONTROL PASSED at $0 (the wall refused before any session). `node --test
 scripts/harness-bench.test.mjs` 49 of 49. Every judgement so far was answered by the frozen judge
 (fingerprint `60bfb08e18a4`, the files hashing to `judge.lock.json`).
 
-### To finish the exam (after 2026-10-20T05:00Z)
+## Judged to the end (2026-10-17): MISSED
+
+The owner reported the subscription's Fable cap reset on 2026-10-17, three days before the window
+the refusal named. The frozen judge resumed on the same model, on the subscription only:
 
 ```sh
 node scripts/harness-bench.mjs --judge C:\claude\noacg-bench-archive\harness-exam-2026-10-15 --phase H8 --delivered-only --concurrency 2
 node scripts/harness-bench.mjs --tally C:\claude\noacg-bench-archive\harness-exam-2026-10-15
 ```
 
-The judge re-asks only what has no good answer. Before the tally, read each new single for the
-open missing-action flags (`instruments.md` entry 18) and the unmoved events (entry 19), adding
-a reading to `exam/action-readings.json` only where the judge named nothing missing and a button
-does the action. Then the gallery (`--review <runDir> --briefs <ten> --into
-benchmarks/harness/exam/gallery`, the ten by the rule above), `exam/REPORT.md` with the verdict,
-`docs/AI_ATTEMPTS.md`, and `--close H8`, which ends the freeze.
+- **The judge:** the 31 waiting calls answered from 07:03Z to 07:36Z (19 singles, the void
+  esports single and the refused volleyball single among them, and 6 pairs in both orders), no
+  pause, no error, every answer fingerprint `60bfb08e18a4`, $134.48 notional. The exam's judge in
+  all: 57 answered calls, $259.10 notional, $0 credit. `prompt.md` and `rubric.json` hash to
+  `judge.lock.json` (the hash `loadJudge` takes, line endings normalised).
+- **The readings, before the tally** (`instruments.md` entries 18 and 19): on Claude Code's
+  volleyball board, matchup, head-to-head, podiums and bracket the judge's single named no missing
+  action and a button does each flagged action, so all five are read as offered in
+  `exam/action-readings.json`, as the ruling above says. They can only raise Claude Code's count.
+  None of the four unmoved events in delivered graphics is shown broken by the judge's singles
+  (entry 19); they stay counted as functional failures, as fixed. The judge also named `focus`
+  missing on Claude Code's ski timing tower, already not airable; the gate had not flagged it.
+- **The tally: MISSED.** Line 1 fails with the readings (harness 12 usable, Claude Code 15) and
+  holds by the gate alone (Claude Code 10). Line 3 fails either way: Claude Code preferred in 13
+  of 20 pairs (5 judged, 8 by delivery), harness 6, 1 tie on an order flip. Lines 2 and 4 hold:
+  no basic mistake and no missing action in the harness's 12 delivered graphics, median wall
+  527 s, no accepted graphic over 194 cents. On the 12 judged pairs the harness won 6, Claude
+  Code 5, 1 tie: the miss is the 8 budget stops. The committed `cell.json` files and
+  `phase-8/judgements.jsonl` reproduce the same tally through `tallyExam`.
+- **The gallery:** ten pairs by the rule above (the flip tie, then Claude Code's wins, judged
+  before by delivery, each in brief order), built into `benchmarks/harness/exam/gallery/` and,
+  to outlive the worktree, into `C:\claude\noacg-bench-archive\harness-exam-2026-10-15\owner-gallery\`
+  (`review.html`, `key.json`, `notes.md`); never committed.
+- **Closed:** `--close H8` recorded the phase as completed with `verdict: MISSED`, which ends the
+  bench's freeze and releases the $13.26 of the reserve the exam did not spend: $54.68 spent,
+  $45.32 left. The run stops (5.5); `--build` now refuses H9 and every later phase because the
+  exam did not pass. The report, `docs/AI_ATTEMPTS.md` and the spec's phase notes
+  say what a retry needs.
+
+Checks after the verdict: `node --test scripts/harness-bench.test.mjs` 49 of 49.
 
 Checks before the first session, on this branch: `NOACG_URL=https://noacg.studio node
 scripts/harness-bench.mjs --control`, run directly after building `cli/`: CONTROL PASSED at $0.
