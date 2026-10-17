@@ -625,3 +625,93 @@ test('a refused autosave nobody waits on still raises the app-level storage noti
   expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved.status)).toBe('failed');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
 });
+
+// A NEWER EDIT ACCEPTED WHILE SAVE WAITS FOR ITS OWN WRITE (#1359). Save used to mark the draft
+// clean once its library put landed, whatever the draft had become meanwhile, so the edit read
+// as saved, the leave asked nothing and the edit could be lost. The Save's own put is held here,
+// and the case checks that the held put is the one carrying the source Save was asked to write.
+type HeldLibrary = { heldLibrary: { writes: { id: string; template: unknown }[][]; release: (() => void) | null } };
+async function holdLibraryWrite(page: Page) {
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put, held: HeldLibrary['heldLibrary'] = { writes: [], release: null };
+    Object.assign(window, { heldLibrary: held });
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-graphics') {
+        IDBObjectStore.prototype.put = put; held.writes.push(JSON.parse(value as string));
+        const tx = this.transaction;
+        Object.defineProperty(tx, 'oncomplete', { set(handler: (event: Event) => void) {
+          tx.addEventListener('complete', event => { held.release = () => handler.call(tx, event); }, { once: true });
+        } });
+      }
+      return put.call(this, value, key);
+    };
+  });
+}
+const heldLibrary = (page: Page) => page.evaluate(() => {
+  const held = (window as unknown as HeldLibrary).heldLibrary;
+  return { writes: held.writes, held: !!held.release };
+});
+const releaseLibrary = (page: Page) => page.evaluate(() => { (window as unknown as HeldLibrary).heldLibrary.release!(); });
+const library = (page: Page) => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+const saveLink = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
+
+test('a newer edit during a held linked Save stays unsaved, and leaving asks again', async ({ page }) => {
+  await open(page); await draw(page, .23);
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Held save');
+  await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await draw(page, .55); await settleDurableWrites(page);
+  const requested = await source(page), [record] = await library(page);
+  await holdLibraryWrite(page);
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await expect.poll(async () => (await heldLibrary(page)).held).toBe(true);
+  expect((await heldLibrary(page)).writes[0].find(g => g.id === record.id)?.template).toEqual(requested);
+  await commandEdit(page); await ready(page);
+  const newer = await source(page); expect(newer).not.toEqual(requested);
+  await releaseLibrary(page);
+  await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toContainText('changed while saving');
+  await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
+  expect(await saveLink(page)).toMatchObject({ graphicId: record.id, dirty: true, status: 'idle' });
+  const saved = await library(page);
+  expect(saved).toHaveLength(1); expect(saved[0].template).toEqual(requested);
+  expect(await source(page)).toEqual(newer);
+  await page.getByTestId('switch-cancel').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
+  await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-cancel').click();
+  await settleDurableWrites(page); await page.reload(); await ready(page);
+  expect(await source(page)).toEqual(newer); expect(await library(page)).toEqual(saved);
+  await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const kept = await library(page);
+  expect(kept).toHaveLength(1); expect(kept[0].id).toBe(record.id); expect(kept[0].template).toEqual(newer);
+});
+
+test('a newer edit during a held first Save is kept unsaved, and leaving asks again', async ({ page }) => {
+  await open(page); await draw(page, .3); await settleDurableWrites(page);
+  const requested = await source(page);
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await page.getByTestId('save-name').fill('Held first save');
+  await holdLibraryWrite(page); await page.getByTestId('save-confirm').click();
+  await expect.poll(async () => (await heldLibrary(page)).held).toBe(true);
+  const [minted] = (await heldLibrary(page)).writes[0];
+  expect(minted.template).toEqual({ ...requested, name: 'Held first save' });
+  await commandEdit(page); await ready(page);
+  const newer = await source(page); expect(newer).not.toEqual(requested);
+  await releaseLibrary(page);
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
+  const saved = await library(page);
+  expect(saved).toHaveLength(1); expect(saved[0].id).toBe(minted.id); expect(saved[0].template).toEqual(minted.template);
+  // The working draft keeps the newer edit and adopts the saved name.
+  expect(await source(page)).toEqual({ ...newer, name: 'Held first save' });
+  expect(await saveLink(page)).toMatchObject({ graphicId: minted.id, dirty: true, status: 'idle' });
+  await page.getByTestId('switch-cancel').click();
+  await settleDurableWrites(page); await page.reload(); await ready(page);
+  expect(await source(page)).toEqual({ ...newer, name: 'Held first save' }); expect(await library(page)).toEqual(saved);
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const kept = await library(page);
+  expect(kept).toHaveLength(1); expect(kept[0].id).toBe(minted.id); expect(kept[0].template).toEqual({ ...newer, name: 'Held first save' });
+});

@@ -49,6 +49,24 @@ async function commitLibraryWrite(receipts: DurableWriteReceipt[]): Promise<stri
   return (await Promise.all(receipts.map(commitDurableReceipt))).find(Boolean) ?? null;
 }
 
+type EditingContext = ReturnType<typeof useTemplateStore.getState>;
+
+/** Has the working document changed since `before` was taken? Save and Discard both wait for
+ *  storage, and the editor can accept an edit meanwhile. Save then marks clean only the source
+ *  it wrote (#1359), and Discard refuses rather than erase the edit (#1147). */
+function changedSince(before: EditingContext): boolean {
+  const now = useTemplateStore.getState();
+  return now.template !== before.template || now.baseline !== before.baseline ||
+    now.saved.graphicId !== before.saved.graphicId || now.aiSpec !== before.aiSpec ||
+    now.aiThread !== before.aiThread || now.legibility !== before.legibility;
+}
+
+/** A refused save leaves the link as it is NOW: an edit made during the wait stays dirty. */
+function markSaveFailed(): void {
+  const now = useTemplateStore.getState();
+  now.setSaved({ ...now.saved, status: 'failed' });
+}
+
 /** Where a first save / Save As puts the graphic. Packages are retired (docs/GOALS_ARCHIVE.md
  *  "Student release" step 3): every save is standalone in the flat library, and grouping
  *  happens in a PRODUCTION's own pool. The envelope type stays so every caller keeps one
@@ -92,7 +110,7 @@ export async function saveCurrentGraphic(opts?: {
       s.setSaved({ graphicId: null, dirty: true, status: 'idle' });
       return 'needs-name';
     }
-    s.setSaved({ ...s.saved, status: 'failed' });
+    markSaveFailed();
     return 'failed';
   }
   // An unknown catalogue format is not a broken document, so the save LANDS and reports it.
@@ -101,7 +119,7 @@ export async function saveCurrentGraphic(opts?: {
   // the topbar line and the canvas chip (components/ProjectFormatMeta.tsx). That is also why
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
-  s.setSaved({ graphicId: doc.id, dirty: false, status: 'idle', formatIssues });
+  s.setSaved({ graphicId: doc.id, dirty: changedSince(s), status: 'idle', formatIssues });
   persistLink();
   return 'saved';
 }
@@ -122,17 +140,19 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
   }));
   const failure = error ?? (await commitLibraryWrite(receipts));
   if (failure) {
-    s.setSaved({ ...s.saved, status: 'failed' });
+    markSaveFailed();
     return { ok: false, error: failure };
   }
-  // The working template adopts the saved name so the topbar and the record agree.
-  if (doc.template.name !== s.template.name) {
-    useTemplateStore.setState({ template: { ...s.template, name: doc.name } });
+  const dirty = changedSince(s), now = useTemplateStore.getState().template;
+  // The working template adopts the saved name so the topbar and the record agree. It is the
+  // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
+  if (doc.template.name !== now.name && now.name === s.template.name) {
+    useTemplateStore.setState({ template: { ...now, name: doc.name } });
   }
   // An unknown catalogue format is not a broken document, so the save lands and reports it.
   const workingTemplate = useTemplateStore.getState().template;
   const formatIssues = validateProjectFormat(workingTemplate.resolution, workingTemplate.fps);
-  useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty: false, status: 'idle', formatIssues });
+  useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty, status: 'idle', formatIssues });
   persistLink();
   return { ok: true, error: null };
 }
@@ -195,10 +215,7 @@ export async function discardCurrentGraphic(): Promise<string | null> {
   const failures = await Promise.all(receipts.map(commitDurableReceipt));
   const failure = failures.find(Boolean);
   if (failure) return failure;
-  const current = useTemplateStore.getState();
-  if (current.template !== before.template || current.baseline !== before.baseline ||
-      current.saved.graphicId !== before.saved.graphicId || current.aiSpec !== before.aiSpec ||
-      current.aiThread !== before.aiThread || current.legibility !== before.legibility) {
+  if (changedSince(before)) {
     // The slot now holds the replacement. Refuse only once the newer draft is durable again,
     // so a reload straight after the refusal cannot reopen the discarded copy.
     const { receipts: restored } = captureDurableWrites('spx-gfx-project', persistLink);
