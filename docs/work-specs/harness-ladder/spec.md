@@ -243,7 +243,7 @@ The owner starts it with `/plan-run harness-ladder until <time>`.
 Each phase's pull request adds its notes here, newest first: the last check's findings, what the
 next phase must allow for, decisions, traps, spend, shas and the revert.
 
-### L2. Teaching (in progress: PAUSED 2026-10-17 after the baseline)
+### L2. Teaching (in progress: PAUSED 2026-10-17 in round 1)
 
 - **Check's findings (L1's second check, PASS on `905fabec1`):** three Opus readings a graphic
   (usable at 2 of 3), repeatability 19 of 21 at 3/3; no rung matched D6; D7 as written teaches
@@ -255,8 +255,9 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   after opening 3 of 57 or 8 of 40 frames); NOT READY at the review. Minor: the ledger's L1 close
   note still said Sonnet `medium` 4 of 8 at $2.74; a correcting entry now follows it (the note
   itself stays, the ledger being append-only).
-- **Status: paused where the window ended. Baseline done; round 1's hypothesis pushed and its
-  change committed and built; no round session has run.**
+- **Status: paused where the window ended. Baseline done; round 1 ran on the eight (4 of 8
+  usable, from 2; $4.08 per usable, from $8.15) and waits for its 15 tuning briefs before it is
+  kept or reverted.**
   (`benchmarks/harness/ladder/evidence/phase-L2.md`, the cells and readings in
   `benchmarks/harness/ladder/L2/baseline/`.) The baseline, Sonnet 5.5 `high` with the skill and
   CLI as L1 ran them, pre-registered and pushed (`ebd94dbb9`, 16:30:31Z) before its first session
@@ -278,13 +279,18 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   finding before the review. The comparison renders are not kept, so the judge's frames do not
   change. Tried on the baseline's own packages: it finds the tower's Focus and the quiz's Select
   and Reveal choice, and nothing on the hockey or darts boards. Expected: usable on the eight from
-  2 to at least 4, cost per usable down, cost per session up to a fifth higher.
+  2 to at least 4, cost per usable down, cost per session up to a fifth higher. **On the eight:**
+  4 of 8 usable (the volleyball board, and the timing tower at 2/3 readings, joined the alerts and
+  the nominee reveal), $16.32 notional ($2.04 a session, unchanged; $4.08 per usable), median wall
+  600.5 s, every frame opened in 5 of 8; the matchup handed its record into the wrong folder; the
+  quiz still draws nothing for Select under the brief's stress values.
 - **What the next window must allow for:**
-  - Resume in this worktree on this branch: `npm run build` in `cli/` (the plugin the sessions
-    read is already regenerated), then run round 1 as its hypothesis says (`--stage round-1`, the
-    eight in `RUNG_ORDER` and the 15 tuning briefs, 23 sessions; about 75 minutes at two lanes and
-    69 readings, about $80 notional of judging). Then tally, keep or revert, and write round 2's
-    hypothesis before its first session.
+  - Resume in this worktree on this branch: `npm run build` in `cli/` (the plugin is committed;
+    `dist/` is not), then finish round 1 with its 15 tuning briefs into the same `--out`
+    (`C:/claude/noacg-bench-archive/harness-ladder-L2/round-1`, `--stage round-1`; about 40
+    minutes at two lanes, 45 readings), copy them into `benchmarks/harness/ladder/L2/round-1/`,
+    tally with `--order tuning`, then keep or revert round 1 (D7) and write round 2's hypothesis
+    before its first session.
   - Pass `--phase L2` to `--judge` and `--tally` while a run is still going: without
     `summary.json` the bench cannot tell the phase (it now refuses to judge; `--tally` takes
     `--phase`).
@@ -312,8 +318,9 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   above; $5.32 notional on the subscription, not counted). A threshold of 0.05% of the frame missed
   a stopped clock's digits (300 to 500 pixels); the round uses 0.002%.
 - **Spend:** $0 credit; the ledger at 5,468 cents spent with $30.00 held for L4 and $8.00 for L3.
-  Subscription, notional: $95.71 (19 sessions $27.63; 54 ladder-judge readings $62.76; the one
-  stray Fable reading $5.32). **Shas:** built on `905fabec1`; the pre-registration `ebd94dbb9`.
+  Subscription, notional: $148.64 (27 sessions $43.95; 75 ladder-judge readings $99.37; the one
+  stray Fable reading $5.32). **Shas:** built on `905fabec1`; the pre-registration `ebd94dbb9`;
+  round 1's hypothesis `05ca783bb`, its change `8d4fa88a0`.
   **Revert:** nothing has landed; the branch `claude/plan-harness-ladder-p3-build` holds it.
 
 ### L1 repair: the judge's repeatability (built 2026-10-17)

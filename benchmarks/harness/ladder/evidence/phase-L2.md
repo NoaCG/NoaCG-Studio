@@ -126,3 +126,38 @@ branch as `a6ea09595`, reverted by `b45c19a24`).
   C:/claude/noacg-bench-archive/harness-ladder-L2/round-1` on the eight in `RUNG_ORDER` and the
   15 tuning briefs, judged three times a graphic with `--judge <dir> --phase L2 --delivered-only`,
   counted with `--tally <dir>` and `--tally <dir> --order tuning`, as the baseline.
+
+### Round 1 result on the eight (the 15 tuning briefs not yet run)
+
+Sessions 17:44Z to 18:25Z, after the hypothesis (`05ca783bb`) and the change (`8d4fa88a0`) were
+pushed; readings 17:57Z to 18:27Z. Evidence: `benchmarks/harness/ladder/L2/round-1/` (cells,
+readings, `readings.json`, `tally.json`); `--tally benchmarks/harness/ladder/L2/round-1`
+reproduces it.
+
+| the eight | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| baseline | 7 | 2 | $16.30 | $2.04 | $8.15 | 527 s | 6 of 8 | 5 |
+| round 1 | 7 | **4** | $16.32 | $2.04 | **$4.08** | 600.5 s | 5 of 8 | 3 |
+
+- Usable went from 2 to 4 of 8: the alerts and the nominee reveal as before, and now the
+  volleyball board (3/3; the gate's `undoPoint` read as offered by its `undo` button, which all
+  three readings name as working, `readings.json`) and the timing tower (**at 2/3**, so by L1's
+  rule not a gain to claim on its own). The cost per session did not move; the cost per usable
+  halved. The median wall rose to 600.5 s, half a second over D6's line.
+- The new finding reached three sessions (the matchup, the quiz, the tower; in their
+  transcripts); the scorebug and the volleyball board also had a coverage exit 1, for other
+  findings. Each of the five ran coverage again until it passed.
+- What still failed: the matchup handed its record into the wrong folder (`../outputs` from the
+  work folder) and counts as failed, though its Select is now drawn; the scorebug clips the
+  descenders of a long name and opened 8 of its 69 frames (a stamp); the hockey board's Interval
+  and Final now draw only a colour change, too little to read as a state ("draws too little",
+  which the check by design does not catch); the quiz's last coverage passed, yet the bench's
+  capture, with the brief's stress values, still finds Select and Reveal choice drawing nothing.
+- Against the hypothesis: usable rose by 2 (refutation line: fewer than 2), with one of the two at
+  2/3; the action-draws-nothing failures went from 4 to 1 on the eight (the quiz). Not refuted so
+  far; the round's keep-or-revert waits for its 15 tuning briefs.
+- Spend: $0 credit; 8 sessions $16.32 notional, 21 readings $36.61 notional.
+
+A scan of `benchmarks/harness/ladder/L2/` and this file for every ladder brief's prompt opening
+and stress values of eight characters or more finds no prompt; as in L1, the judge's reasons and
+the cells' command traces quote a few short values (a name, a label), which L1 decided to keep.
