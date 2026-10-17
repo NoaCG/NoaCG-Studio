@@ -1,0 +1,328 @@
+{
+ "product": "5ccdbbc4471bafbba81a90f58b8335e4fc64ab18 (product tree identical to 0cf2e0511; only scripts/e2e-durations.json differs)",
+ "spec": "e2e/leave-third-diagnosis.spec.ts on claude/probe-editor-p1-check-3-diag 7dd7e2d7c34eb743daf6f2dfe43597cbb93bbda7: the original leave-checker.spec.ts:24 preamble and one-shot spx-gfx-graphics refusal, unchanged, plus a put logger and an spx-storage-error listener",
+ "job": "j-0014: --repeat-each=16 --workers=4 --retries=0",
+ "summary": {
+  "iterations": 15,
+  "navigatedAfterRefusedSave": 1,
+  "refusedInPlace": 14,
+  "note": "repeat13 ended in a harness error (execution context destroyed during the preamble settle) and wrote no receipt"
+ },
+ "failing": {
+  "iteration": "repeat1",
+  "navigated": true,
+  "state": {
+   "hash": "#/home/graphics",
+   "leaveError": 0,
+   "libraryHasEdit": false,
+   "link": {
+    "graphicId": "23b9e952-d354-41f2-a331-1f550dc1ee06",
+    "dirty": false,
+    "status": "idle",
+    "formatIssues": []
+   }
+  },
+  "saveClickMs": 116,
+  "diag": {
+   "refusedMs": 241,
+   "puts": [
+    {
+     "ms": 317,
+     "key": "spx-gfx-project",
+     "stack": "    at /src/model/durableStore.ts:317:16 |     at new Promise (<anonymous>) |     at idbWrite (/src/model/durableStore.ts:305:9) |     at queueWrite (/src/model/durableStore.ts:556:18) |     at Object.setItem (/src/model/durableStore.ts:517:3) |     at saveProject (/src/model/project.ts:43:11) |     at /src/store/templateStore.ts:421:3"
+    },
+    {
+     "ms": 346,
+     "key": "spx-gfx-project",
+     "stack": "    at /src/model/durableStore.ts:317:16 |     at new Promise (<anonymous>) |     at idbWrite (/src/model/durableStore.ts:305:9) |     at queueWrite (/src/model/durableStore.ts:556:18) |     at Object.setItem (/src/model/durableStore.ts:517:3) |     at saveProject (/src/model/project.ts:43:11) |     at persistLink (/src/store/saveActions.ts:32:2)"
+    }
+   ],
+   "appLevelErrors": [
+    {
+     "at": 328,
+     "detail": {
+      "key": "spx-gfx-graphics",
+      "message": "Browser storage is full \u2014 delete an old graphic (large fonts/images count) or export and remove one.",
+      "sequence": 7
+     },
+     "hash": "#/editor-foundation"
+    }
+   ]
+  }
+ },
+ "iterations": [
+  {
+   "iteration": "repeat1",
+   "navigated": true,
+   "leaveErrorShown": false,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "23b9e952-d354-41f2-a331-1f550dc1ee06",
+    "dirty": false,
+    "status": "idle",
+    "formatIssues": []
+   },
+   "saveClickMs": 116,
+   "refusedMs": 241,
+   "slotPutsMs": [
+    317,
+    346
+   ],
+   "appLevelErrorsMs": [
+    328
+   ]
+  },
+  {
+   "iteration": "repeat10",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "f60bcf0f-0483-4de3-85a6-8a29eb53f57a",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 105,
+   "refusedMs": 225,
+   "slotPutsMs": [
+    394
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat11",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "ed81c592-a578-408a-b9aa-c9d42bc91ca1",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 125,
+   "refusedMs": 224,
+   "slotPutsMs": [
+    350
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat12",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "e642c473-3e3c-4899-b652-371a2cc6b277",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 79,
+   "refusedMs": 172,
+   "slotPutsMs": [
+    426
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat14",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "5c883477-8a4d-4172-a93f-f060f6a2c19c",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 139,
+   "refusedMs": 198,
+   "slotPutsMs": [
+    482
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat15",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "ac0b8f28-b7e8-40bb-897d-4bcf3d924f14",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 79,
+   "refusedMs": 161,
+   "slotPutsMs": [
+    511
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat2",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "7caa9fb9-064d-4a87-9b2b-5348213a69b9",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 113,
+   "refusedMs": 332,
+   "slotPutsMs": [
+    315
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat3",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "e016f543-d28d-43f4-8743-e955db69d1b6",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 213,
+   "refusedMs": 314,
+   "slotPutsMs": [
+    404
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat4",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "fb1b85ea-9da5-4695-b394-53eaf15a87fb",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 116,
+   "refusedMs": 261,
+   "slotPutsMs": [
+    410
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat5",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "d23e7e92-2046-4c69-886c-2a3d946aeeb5",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 148,
+   "refusedMs": 252,
+   "slotPutsMs": [
+    379
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat6",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "eed0572c-0ab3-42c7-9262-99d65a20846b",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 92,
+   "refusedMs": 182,
+   "slotPutsMs": [
+    377
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat7",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "231437e7-fd80-4bb9-81f2-8951d3d2ff25",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 79,
+   "refusedMs": 161,
+   "slotPutsMs": [
+    428
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat8",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "0ebf4400-e505-4e51-a975-4815361cbd04",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 142,
+   "refusedMs": 250,
+   "slotPutsMs": [
+    366
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "repeat9",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "c84acd35-e0f6-4dce-82f2-043ca394f7be",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 129,
+   "refusedMs": 260,
+   "slotPutsMs": [
+    411
+   ],
+   "appLevelErrorsMs": []
+  },
+  {
+   "iteration": "chromium",
+   "navigated": false,
+   "leaveErrorShown": true,
+   "libraryHoldsEdit": false,
+   "link": {
+    "graphicId": "21246615-ee7c-419d-a6ae-e926f304092f",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "saveClickMs": 103,
+   "refusedMs": 310,
+   "slotPutsMs": [
+    380
+   ],
+   "appLevelErrorsMs": []
+  }
+ ]
+}

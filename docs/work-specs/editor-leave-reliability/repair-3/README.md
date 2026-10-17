@@ -28,37 +28,54 @@ to run here and are not committed:
 
 ## Change
 
-`src/model/durableStore.ts` only. `commitDurableWrites()` and `commitDurableReceipt()` now claim
-by sequence every write still pending when they start waiting. The claim is taken before their
-first await, and it is counted so two callers can wait on one write. `reportError` does not
-announce a claimed failure at all. The claimer takes the message from that write's own receipt
-(`settled`), so it no longer matters how long the other pending writes take. A failure that
-nobody is waiting on still goes through the `setTimeout(0)` announcement unchanged. A failure
-reported before the caller started waiting is still taken from `unclaimedFailure`, as before.
-`saveActions.ts`, routing, rendering, wizard and import files are not touched.
+`src/store/saveActions.ts` and `src/model/durableStore.ts`. Save (`saveCurrentGraphic`) and Save As
+(`saveGraphicAs`) capture the library puts they make with `captureDurableWrites('spx-gfx-graphics', ...)`,
+and wait for exactly those receipts through `commitDurableReceipt`. Before, they waited on
+`commitDurableWrites`, which waits for every pending write. `commitDurableReceipt` now claims its
+write's sequence before its first await. The claim is counted, so two callers can wait on one
+write. `reportError` does not announce a claimed write at all. The Save learns of its refusal
+from that write's own receipt, so it no longer matters how long other writes take.
+`commitDurableWrites` is unchanged. A refusal of any other write, an autosave included, stays
+unclaimed and reaches the app-level notice. Routing, rendering, wizard and import files are not
+touched.
+
+A first cut (`beac1f6d`) put the claim inside `commitDurableWrites`, claiming every write still
+pending when a caller started waiting. It passed the same runs: held case 5/5, `:24` 40/40, and
+the maintained selection below 84 passed with 2 skips. Review rejected it, because any waiting
+caller (sync, video autosave, a Home row) would then silently take an unrelated autosave refusal
+away from the app notice. A minting caller (Save As, wizard production doors) could also be told
+that its landed write failed, and a retry would duplicate the record. The receipt-scoped claim
+is the narrower fix, and it is the one that lands.
 
 ## After the fix
 
-Head `beac1f6d` (source hash `durableStore.ts` sha256 `bea171a5…0e675`), locally through the queue:
+Final source (sha256): `durableStore.ts` `a011e297e1de273580944a532588eecb3ebcc3cefef4a909316d4241b2cbe828`,
+`saveActions.ts` `700d85b15a8dddabceac858e49360c1bf00695ab1e0ff4184fe3a5a40359e768`,
+`new-graphic-guard.spec.ts` `a721260645626b297f2687df39ed10d81019e87a00ebf885c3fd8b4984da956c`.
+Locally, through the job queue, 4 workers:
 
 | Run | Result |
 | --- | --- |
-| Deterministic held-autosave case, `--repeat-each 5`, 4 workers | 5 passed / 0 failed |
-| Unchanged `leave-checker.spec.ts:24`, `--repeat-each 40`, 4 workers | **40 passed / 0 failed** (2.5 min) |
-| Maintained selection: `new-graphic-guard` (all, including the #1147 newer-edit and quota-refusal/Undo/history cases), `leave-checker` (all three), `leave-second-checker` (probe `39a900183`), `storage-full` (claimed failures named by their surface), `wizard-finish`, `project` (wizard-open and native export-notification continuations), `wizard-draft-guard`, `rundown-history-storage`, `rundown-history` (receipt-claimed failures) | **84 passed, 2 skipped, 0 failed** (3.7 min). The two skips are the existing legacy-editor skips in `project.spec.ts` (#800). |
-| Added case: an autosave refused while nobody waits still raises the app-level notice ("Saving to this browser", status `failed`), with the held case, `--repeat-each 3` | 6 passed / 0 failed. No existing spec asserted the unclaimed path, so this case was added. |
-| Mutation: only the `claimed` check in `reportError` removed, held case `--repeat-each 2` | 2 failed / 2 at `:594` ("Save claims its own refusal"). The source was restored from the commit. |
+| Unchanged `leave-checker.spec.ts:24`, `--repeat-each 40` | **40 passed / 0 failed** (2.6 min) |
+| Maintained selection: `new-graphic-guard` (all, including the new held-autosave and unclaimed-notice cases, the #1147 newer-edit cases and the quota-refusal/Undo/history cases), `leave-checker` (all three), `leave-second-checker` (probe `39a900183`), `storage-full`, `wizard-finish`, `project` (wizard-open and native export-notification continuations), `wizard-draft-guard`, `rundown-history-storage`, `rundown-history` (receipt-claimed failures) | **85 passed, 2 skipped, 0 failed** (4.0 min). The two skips are the existing legacy-editor skips in `project.spec.ts` (#800). |
+| Mutation: Save waits on `commitDurableWrites` again (one line in `saveCurrentGraphic`), held case `--repeat-each 2` | 2 failed / 2 at `:592`: no Save refusal, and Home is mounted. The line was restored and the file hash re-checked. |
+
+The added case "a refused autosave nobody waits on still raises the app-level storage notice"
+checks the unclaimed path: the "Saving to this browser" alert appears, the status reads `failed`
+and the editor stays open. No existing spec asserted that path. It passed 3/3 with the first cut.
 
 GitHub Actions on the pull request is the authoritative full build and suite. It runs the
 maintained cases. It does not run the two carried checker files, because they are not on main.
 
 ## Limits
 
-- The carried `leave-checker.spec.ts:24` repetition was local only (one machine, 4 workers). The
-  deterministic held case is the one that proves the order, and it is maintained, so CI runs it.
-- No cumulative, reference or native-125% tasks were run. This store-level change does not touch
-  rendering or routing (the row brief allows this).
-- A Save now also claims a failure of any other write still pending when it starts waiting, for
-  example a refused autosave. That was already the documented contract of `commitDurableWrites`.
-  It used to depend on timing and is now deterministic. In that case Save reports the failure in
-  its own words instead of the app-level notice.
+- The carried `leave-checker.spec.ts:24` repetition ran on one machine only. The held case is the
+  one that forces the order, and it is maintained, so CI runs it.
+- No cumulative, reference or native-125% tasks were run. This is a store-level change that does
+  not touch rendering or routing (the row brief allows this). No reference editor has an
+  equivalent of this internal write claim, so no comparable task was run.
+- Other callers that branch on `commitDurableWrites` keep its old race, in which a refusal can be
+  announced generically before they look. That is unchanged by this repair. The fix for any of
+  them is the same: capture and commit their own receipts.
+- Not covered by a spec: an autosave refused while a Save waits on its own held write. By
+  construction it is unclaimed, so it goes to the app notice.

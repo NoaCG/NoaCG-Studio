@@ -5,9 +5,8 @@
 // A FILE THAT IS BEING TAKEN APART MUST NOT QUIETLY GROW BACK.
 //
 // The wizard shell (`src/components/wizard/CreationWizard.tsx`, 2,601 lines when its split was
-// planned) and the production page are being split into tested modules, one phase at a time, by
-// plans that each run for days (docs/work-specs/wizard-structure/spec.md D8,
-// docs/work-specs/production-page-refactor/spec.md D8). Every phase moves code out; nothing in
+// planned) is being split into tested modules, one phase at a time, by a plan that runs for days
+// (docs/work-specs/wizard-structure/spec.md D8). Every phase moves code out; nothing in
 // review notices when an unrelated change moves code back in, and a split that is undone a
 // hundred lines at a time is never finished. So each such file carries a line budget, and this
 // gate fails the build when a budgeted file is longer than its budget.
@@ -22,8 +21,8 @@
 //   scripts/file-budgets/components-wizard-CreationWizard.json
 //   { "file": "src/components/wizard/CreationWizard.tsx", "lines": 2601, "why": "..." }
 //
-// `scripts/file-budgets.json` is read as well when it exists (the single-file layout the
-// production-page plan's D8 names), holding one such entry or an array of them. A file budgeted
+// `scripts/file-budgets.json` is read as well when it exists (an older single-file layout),
+// holding one such entry or an array of them. A file budgeted
 // twice is refused rather than resolved, because two numbers for one file is two owners.
 //
 // HOW A LINE IS COUNTED: as `wc -l` counts a checked-out file with LF endings, so a Windows
