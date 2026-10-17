@@ -80,7 +80,7 @@ function markSaveFailed(before: EditingContext): void {
  *  gone on, and the next New asked about the graphic just saved (#1367). Refused, the draft
  *  stays linked to the record, so a retry writes into it rather than minting another, but it
  *  reads unsaved and the save reports the refusal as its own. */
-async function commitLink(link: EditingContext['saved']): Promise<string | null> {
+async function commitLink(link: Omit<EditingContext['saved'], 'status'>): Promise<string | null> {
   useTemplateStore.getState().setSaved({ ...link, status: 'saving' });
   const linked = useTemplateStore.getState();
   const failure = await commitSaveWrites(captureDurableWrites('spx-gfx-project', persistLink).receipts);
@@ -105,10 +105,10 @@ export type SaveDestination = { kind: 'standalone' };
  *
  * ASYNC because the durable store confirms a write a moment after taking it
  * (model/durableStore.ts): `commitSaveWrites` waits for that confirmation of both its writes,
- * the record and the draft's link, and CLAIMS their failure, so this still answers 'failed'
- * for a save that did not land — the caller makes the
- * same decision it always did, one await later, rather than being told 'saved' and corrected
- * by a dialog afterwards.
+ * the record and the draft's link (`commitLink`), and CLAIMS their failure, so this still
+ * answers 'failed' for a save that did not land — the caller makes the same decision it
+ * always did, one await later, rather than being told 'saved' and corrected by a dialog
+ * afterwards.
  */
 export async function saveCurrentGraphic(opts?: {
   /** Write the record's NAME too. The wizard passes the name in its Finish field, which the
@@ -147,7 +147,7 @@ export async function saveCurrentGraphic(opts?: {
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
   if (replacedSince(s)) return 'saved';
-  return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), status: 'idle', formatIssues })) ? 'failed' : 'saved';
+  return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), formatIssues })) ? 'failed' : 'saved';
 }
 
 /** First save or Save As: mint a new library record and link the working document to it. */
@@ -178,7 +178,7 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
   }
   // An unknown catalogue format is not a broken document, so the save lands and reports it.
   const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
-  const linkFailure = await commitLink({ graphicId: doc.id, dirty, status: 'idle', formatIssues });
+  const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
   return linkFailure ? { ok: false, error: linkFailure, graphicId: doc.id } : { ok: true, error: null };
 }
