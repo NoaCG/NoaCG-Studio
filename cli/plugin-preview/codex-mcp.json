@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "noacg_graphic_preview": {
+      "command": "node",
+      "args": ["./launch.mjs"],
+      "cwd": "."
+    }
+  }
+}
