@@ -12,6 +12,47 @@ connections, explicit list formats and a smaller operator workflow. Its proposed
 phases 15-26 are in the data-sources spec. Original owner answers stay recorded; changes remain
 draft. The source-access note below describes this first research pass, not the follow-up.
 
+## Latest owner direction and full-plan review, 2026-10-17
+
+The owner has now accepted the recommendations for inclusion in the plan and clarified the
+main message use case: paste a message from anywhere, or select one from a Sheet, preview it in
+a graphic and put it on air deliberately. Separate Data/Audience systems are not required.
+YouTube is useful now; Twitch is an optional future extension. Live chat and ordinary video
+comments must be qualified separately; current `src/audience/youtubeChat.ts` handles live chat.
+
+The current specs now separate where content arrives from how it is used. A Sheet may feed a
+live ticker or message candidates; candidate refresh never rewrites an approved cue. Native
+paste and Sheet messages work without native X/SMS/WhatsApp connectors. Message identity,
+revisions, local persistence, compatible targets and reliable staging are explicit criteria.
+The initial answers and research below are historical wherever this direction supersedes them.
+
+[Paste-ready independent review prompt](external-review-prompt.md). Give the same brief to each
+reviewer separately before sharing other opinions. It includes the owner's outcomes, all 26
+phases, constraints, source paths and a requested review structure. It asks for an independent
+model first and permits replacing the proposed design.
+
+The full-plan read found these questions worth challenging before implementation:
+
+- Phases 1-14 have detailed command, lifecycle, rollback and verification contracts. Those are
+  valuable; the number of extractions is not itself a user outcome. Review maintenance phases
+  3/4/6/8/9 and any dependency on them before the first useful feature.
+- The manual message result currently waits until 23, after feed/API work. Review whether its
+  smallest safe path can come earlier, while keeping feature changes out of refactor commits.
+- The old §6 matrix only covers 1-14. Phase 15 now explicitly requires a named verification
+  matrix for 15-26; citing the old matrix alone cannot verify the new features.
+- Navigation, source kind, use policy and storage are distinct choices. A coherent workflow
+  should not require a new generic platform, nor permit a Sheet message to bypass staging.
+- Existing live binding precedence can override prepared cue text. Prototype and verify two
+  messages on one graphic and a competing binding, not only the first successful message.
+- YouTube direct scope, authentication, recent-history behavior and closed-page hosting remain
+  unproven. No quota or runtime claim should be inferred from fixtures or manual copying.
+
+No code, migration, browser walkthrough, provider trial or implementation phase was run in this
+update. The continuation remains draft pending the requested reviews and agreement. The parent
+run is updated in the draft PR; it is not yet an executable update on `main`.
+
+## Earlier research and follow-up corrections
+
 Corrections from the follow-up: standings need a separate column-header update; blank credit
 rows can be section breaks; a CSV read does not discover other tabs. Google's import help names
 only IMPORTDATA/HTML/XML in its hourly-while-open sentence, while its settings page separately

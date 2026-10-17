@@ -1,33 +1,30 @@
 # Audience flow: viewer messages reach the right graphic in a few plain steps
 
-Authority: owner, 2026-10-16 (see `work.json`). The decisions under "Owner decisions" were answered
-on 2026-10-17: the owner took every recommendation. **Still a draft** until the data sources spec
-is agreed after its second opinion; nothing is built before then. The proposed phases join
-`/plan-run production-page` as 23-25, with integration in 26, after the page cleanup (1-14) and
-the data sources phases 15-22 (DS16, proposed P5). Parent: `docs/GOALS.md` outcome 5 (Data and
-Audience tabs); the model it shares with data is `docs/work-specs/data-sources/spec.md` (draft).
-Built on: `docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6 and its audience backend design.
+Authority: owner, 2026-10-16 and 2026-10-17 (see `work.json`). The owner accepted A1-A5,
+then clarified that messages should share the data workflow, manual intake is central, YouTube
+matters now and Twitch is optional. The updated recommendations are accepted for inclusion in
+the plan. **Still a draft pending independent whole-plan review and final agreement.**
+This document owns message behavior, not a requirement for a separate Audience page or store.
+Shared model and phases: `docs/work-specs/data-sources/spec.md`. Parent run:
+`docs/work-specs/production-page-refactor/spec.md`, phases 1-26.
+Existing foundation: `docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6.
 
-## Second-opinion proposal, 2026-10-17
+## Latest owner direction, 2026-10-17
 
-See `docs/research/2026-10-data-sources/second-opinion.md` and data-sources P1-P5. These are
-proposed refinements, not new owner answers. A1-A3 and A5 stand. A4 keeps production persistence,
-one reader, status and Pause, but its shared core means shared management and narrow destination
-interfaces, not one identical polling loop. Chat uses a subscription runner; a database scheduler
-cannot itself hold an IRC or streaming connection. Qualify provider access, reconnect behavior,
-runtime lifetime and cost before promising closed-page delivery. No silent new platform OAuth.
+The main task is to take a chosen message from anywhere into a graphic. Pasting a message from
+X, SMS or WhatsApp, or selecting it from a Google Sheet, is a complete supported route. Native
+connectors are not a prerequisite. YouTube is a priority; Twitch remains possible for other
+users later. A shared content workspace with a Messages view is a candidate, not a fixed UI.
+The independent reviews may propose a simpler approach across the whole plan.
 
-Audience remains an inbox. Neither an equal field title nor an approved message creates a live
-data binding. The message is copied into a compatible cue, and later viewer edits or arrivals
-cannot mutate it. Keep the existing deliberate vote staging and explicit live-tally switch.
-The Data and Audience interaction is prototyped together in phase 15; the safe destination fix,
-inbox/join flow and chat work follow sequentially in 23-25, with combined acceptance in 26.
+One workflow can preserve two behaviors: live data follows a connection; a message is selected,
+prepared and copied into a cue before Take. A Sheet message needs the same protection as chat.
+Share management and interactions without giving message intake a live-data writer. Polling,
+push and subscriptions may need different runners. Reuse existing storage where it fits.
 
-Review, 2026-10-17: the owner asked whether these phases deliver the intended audience workflow.
-The criteria below now explicitly cover remembered target choice, exact broadcast text, safe
-retry and an unaided newcomer journey. These make A1-A5 observable; they do not approve the draft
-or add a redesign of the public join page. Phase 15 still has to qualify provider access and
-durable chat before phase 25 can be called ready.
+The current source `src/audience/youtubeChat.ts` resolves `activeLiveChatId` and reads live chat.
+It does not read ordinary video comments. Phase 15 must name which direct YouTube routes the run
+will support and qualify them separately. Copying either kind manually remains available.
 
 ## Problem
 
@@ -59,36 +56,41 @@ operator takes. The audience backend has no method that reaches the command log.
 
 ## Goal
 
-An operator who wants viewers' questions on air turns on the audience, shares one link or QR, and
-puts a chosen message into a graphic made for it, in a few presses, with the original text kept
-and the broadcast text editable. A message never lands in a graphic not made for it.
+An operator or student pastes a message, or picks one from a Sheet or supported YouTube input,
+edits the broadcast text, previews it on a compatible graphic, puts it in the rundown and Takes
+it. This works without first enabling audience participation or connecting the original service.
+The original stays intact and later source changes cannot alter the prepared or on-air cue.
 
 ## Non-goals
 
-- Automatic airing of any message or vote result.
-- Per-show customisation of the join page (backlog item, its own decision about what a guessed
-  link may reveal).
-- New chat platforms or platform OAuth.
-- Moving local work into an account (a sign-in matter for the whole product, not this tab).
+- Automatic airing of messages or votes, or source edits changing an approved cue.
+- Required direct X, SMS or WhatsApp integrations; manual content from them is in scope.
+- New persistent Twitch integration in this run; retain existing behavior and an extension path.
+- A separate Audience workspace or a new general data store as prerequisites.
+- Join-page branding, local-to-account migration, or unreviewed platform OAuth.
 
-## Where the audience fits (2026-10-17)
+## Shared content, optional joining
 
-The data sources spec asks whether the audience is just another data source (DS11-DS14); the owner
-accepted its recommendations on 2026-10-17. The answer, C: audience sources (the join page, Twitch,
-YouTube) sit on the same sources line as data sources, with status and Pause, and run on the same
-source core (A4 below), but they write only to the inbox; a message reaches air only as a cue the
-operator takes. Votes stay staged by the operator. The research behind it
-(`docs/research/2026-10-data-sources/README.md` §2.6, §5) also found, for A4: reading Twitch chat
-anonymously works but is not documented (the documented way needs a user token); YouTube's daily
-quota is per Google project, and its streaming method costs far less than polling; and a listener
-that must stay connected needs an explicitly supported runtime and recovery strategy. A database
-scheduler may dispatch bounded reads but is not a replacement for an open chat connection.
-Data-sources phase 15 qualifies the options and phase 25 implements the qualified choice.
+The same source can provide different kinds of content. A Sheet can supply a ticker that follows
+edits and a table of messages that must be selected. The operator sees one coherent workflow and
+one source identity, with specialized views where helpful. A message has original text, optional
+source/reference, a broadcast version and cue snapshots. Technical IDs stay behind the workflow.
 
-## Owner decisions (answered 2026-10-17)
+Manual paste needs only the message body; name is optional. A message Sheet uses `Name`, `Message`
+and optional `Source`/`Reference` columns, with starter rows to copy. Source labels do not imply a
+native connection. Only chosen broadcast text and credit fields reach the graphic; private sender
+metadata is not auto-filled on air. Imported items and operator edits survive production reload.
+
+The production's join link/QR is another route, requiring publishing. Simulate stays for local
+join rehearsal, while paste is useful production content in its own right. Presenter Now/Next
+and votes keep their existing explicit operator controls. No intake can take a graphic.
+
+## Historical owner decisions (answered 2026-10-17)
 
 The owner, 2026-10-17: "yes, use your recommendations for A1-A5 too." Each answer below was the
-recommendation.
+recommendation. The latest direction supersedes A1's mandatory separate tab and A4's equal
+priority for both chat providers. A2/A3/A5 remain, applied to the shared workflow. The current
+criteria below govern the proposed run; these historical answers are not a second specification.
 
 - **A1. Where audience lives.** Answer: the Audience tab is always there next to Playout
   and Data, never added through Setup, and opens on the inbox; turning messages on is the tab's
@@ -129,19 +131,23 @@ does not mark the message used or claim success. A double press or retry of an u
 does not create duplicate cues; a deliberate later reuse remains possible. Layer: journey with
 held and failed persistence; owner look in the pull request.
 
-### AC-3: The tab is always in the same place
-The Audience tab is present on every production in the same position, and the Setup menu has no
-item that adds or removes it. Layer: journey.
+### AC-3: Messages are easy to find in the shared workflow
+A stable content entry and contextual graphic actions lead to the same message records. Pasting
+or selecting a Sheet message requires no audience-enable step and no switch between duplicate
+Data/Audience setup flows. Views can specialize tasks, but Setup never hides their entry point.
+Phase 15 compares the shared workspace and a simpler field-led alternative. Layer: prototype,
+newcomer observation and journey.
 
-### AC-4: Chat sources survive a reload and a closed page when published
-A connected chat source is remembered with the production; published, messages keep arriving
-with every operator page closed; status and Pause are in the tab. One source has one intake owner,
-and reconnecting does not duplicate already received messages. Pause prevents new intake while
-existing inbox messages remain usable. A disconnect, quota refusal or missing authorization is
-shown honestly with the next useful action; no source says connected before a successful intake
-connection. Prove the promised behavior separately for Twitch and YouTube with actual provider
-access; fixtures alone do not establish platform support. Layer: Node state/reconnect tests;
-configured suite; `e2e/production-chat-intake.spec.ts`; provider scenario receipts.
+### AC-4: Promised direct YouTube intake survives reload and closed pages
+The agreed YouTube source is remembered with the production. Published intake continues with
+operator pages closed; local intake honestly requires an open page. One source has one owner,
+with stable message identity, reconnect deduplication and status. Pause stops new intake while
+existing messages stay usable; the provider's resume/backfill policy is documented and bounded.
+A disconnect, ended chat, missing authorization or quota refusal shows a useful next action.
+Credentials needed by the published reader stay private to operators and the service. Prove with
+actual provider access, not fixtures alone. Layer: Node lifecycle tests, configured suite,
+`e2e/production-chat-intake.spec.ts` and provider receipts. An unavailable required route remains
+unverified; manual copying is not proof of direct intake. Twitch is covered separately by AC-9.
 
 ### AC-5: The published flow is walked and its findings settled
 The join page on a phone-sized browser, the presenter view and a vote on air are walked on the
@@ -158,31 +164,69 @@ values. Preparing a second message on the same graphic, new chat arrivals, a lat
 and an unrelated data-source update cannot change the first cue's prepared text or its on-air
 text. Message/author fields with live data bindings cannot be used silently: offer a compatible
 unbound target or a separate card, without removing existing bindings or changing another cue.
+Adding or changing a live binding later on fields used by a prepared/on-air message is refused
+with a safe alternative. Revalidate restored or legacy cues before Take; never silently air a
+substituted value. The same protection covers direct or held data-key `/update` writes to these
+message fields; preserving legacy support does not permit a bypass on a protected message.
+The operator can still deliberately edit the cue and Update through playout.
 Layer: Node target/field-value contracts; audience journey with two cues and a competing data
-binding; configured published Take scenario. This preserves the existing live-data precedence
-for ordinary graphics while protecting the audience snapshot.
+binding attempted before and after staging, plus a data-key update against protected fields;
+configured published Take scenario. Existing live-data precedence stays for ordinary graphics.
 
-### AC-7: A newcomer completes the message journey without a guide
-Using a signed-in test production ready to publish and a second phone-sized browser, someone
-unfamiliar with Audience opens the tab, enables messages, publishes if needed, shares the join
-link or QR, submits a question, edits it, puts it in rundown and takes it in under five minutes,
-without instructions from the tester or opening documentation. Include a production with no
-message graphic, so the card offer is exercised. Record time, missteps and assistance; assistance
-or a blocked step means the trial did not pass. Repeat after correcting the flow. Rehearsing
-locally with Simulate also stays available. Layer: prototype task in phase 15; recorded product
-scenario in phase 26. This does not claim to solve moving signed-out local work into an account.
+### AC-7: A newcomer completes the main message journeys without a guide
+Use a fresh unpublished production with no message graphic. Someone unfamiliar with the product
+pastes a message and optional name, edits the broadcast text, accepts a compatible card, previews,
+puts it in rundown and Takes it without documentation, sign-in or a source account. Proposed
+usability target: under two minutes. Repeat with a prepared link-shared message Sheet: choose a
+row, edit, stage and Take in under five minutes, without a binding lesson. Record time, errors
+and assistance; assistance or a blocked step does not pass. Phase 15 validates these targets
+with the owner rather than asserting that they have already been met.
+
+Separately walk the optional signed-in publish/join/QR journey on a phone-sized browser in under
+five minutes, with the starting account state stated. It must not block either primary task.
+Local Simulate remains available. Layer: phase 15 prototype and phase 26 recorded product trials.
+Automated journeys prove mechanics; they do not replace observation of an unfamiliar person.
+
+### AC-8: Paste and Sheet messages are first-class production content
+A pasted body works with no name, reference, platform login or automatic integration. Sheet
+starter rows contain Name/Message and optional Source/Reference; the operator previews which
+fields will be broadcast. Original text, editable broadcast text and prepared cue revisions are
+distinct, with one logical candidate record rather than mirrored editable copies in two views.
+Native/imported items and edits persist across reload in local and published productions.
+
+Refresh, row reorder and reconnect do not silently duplicate already imported items. Stable
+source IDs distinguish revisions where available. For ID-less Sheets, phase 16 must specify a
+conservative rule: never use row position as identity; changed or ambiguous rows may be new
+candidates, visibly so, and cannot silently inherit an earlier approval. Identical bodies from
+different sources or authors must not be merged just because the text matches. A removed row
+does not delete a prepared cue. Late reads after disconnect cannot revive removed candidates.
+Layer: Node import/revision contracts and local/configured journeys with reorder, edit, delete,
+identical text from distinct senders, reload and an already on-air snapshot.
+
+### AC-9: Provider support and deferral are honest
+Phase 15 records direct YouTube scope for live chat and ordinary video comments separately,
+including what is available on initial connection, history, pagination, quota and authorization.
+The current live-chat reader discards its first history page; decide deliberately which recent
+messages users should be able to select rather than inheriting that behavior unnoticed.
+A promised comments route needs its own provider proof; neither fixtures nor live chat covers it.
+Manual copying is always available. Twitch remains an extension point, existing controls receive
+regression coverage, and no new durable Twitch service blocks this run. Layer: qualification
+receipt, compatibility checks and separately labeled phase 26 results.
 
 ## Phases
 
-The candidate schedule is defined once, in `data-sources/spec.md` P5 and its phase list:
+The single candidate schedule is in `data-sources/spec.md`:
 
-- 15: prototype both journeys and walk the published flow (AC-5 findings, AC-7 prototype).
-- 23: fix #1313, remember compatible targets and preserve cue snapshots (AC-1/6).
-- 24: stable inbox, reliable actions and publishing/joining/vote/presenter flows (AC-2/3/5/7).
-- 25: persistent chat with the qualified subscription runner (AC-4).
-- 26: combined rehearsal, closed-page intake and the unaided message journey (AC-1 to AC-7).
+- 15: prototype paste, Sheet and YouTube alongside lists; qualify provider scope (AC-4/5/7/9).
+- 16: source/use boundaries, message identity, revisions and persistence (AC-6/8).
+- 21: manual/Sheet intake and preview, without enabling unsafe legacy staging (AC-8).
+- 23: safe destinations, reliable staging and exact cue snapshots from all routes (AC-1/2/6/8).
+- 24: shared navigation, newcomer tasks and optional join/presenter/votes (AC-3/5/7).
+- 25: qualified direct YouTube and Twitch compatibility (AC-4/9).
+- 26: combined rehearsal, primary newcomer tasks and separate provider receipts (AC-1 to AC-9).
 
-AC-4 remains unverified if provider access or runtime feasibility is blocked. Other completed
-flows may be recorded individually; a blocked provider never becomes a claim of full acceptance.
+Open review issue: can the valuable paste-to-graphic result land safely earlier, without waiting
+for feeds and API polish or interleaving feature changes with the refactor? Reviewers should
+propose the smallest justified dependency chain, not assume the current order is optimal.
 
 ## Phase notes

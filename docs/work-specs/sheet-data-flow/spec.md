@@ -5,55 +5,30 @@ decisions" the same day. Parent direction: `docs/GOALS.md` outcome 7 (one data m
 design), which this spec pulls forward from "later". Architecture it builds on:
 `docs/PRODUCTION_DATA_PLAN.md` and `docs/CLOUD_PLAYOUT.md` §7.
 
-## Second-opinion proposal, 2026-10-17
+## Current planning revision, 2026-10-17
 
-The agreed D1-D4 baseline below is retained. The proposed continuation is now data-sources phases
-15-22, with Audience in 23-25 and integration in 26. P1-P5 in
-`docs/work-specs/data-sources/spec.md` require owner agreement before replacing this baseline.
-`docs/research/2026-10-data-sources/second-opinion.md` gives the starter layouts and source checks.
+The owner accepted the additional recommendations for inclusion and requested independent review
+of all production-page phases. Current model and schedule: `docs/work-specs/data-sources/spec.md`.
+This spec retains its agreed D1/D3/D4 baseline. The revised continuation stays draft until the
+whole-plan review is reconciled and agreed; no implementation is authorized by this change.
 
-The proposed Sheet journey starts at the graphic, prioritizes lists, and supplies starter rows
-from its current content. The operator confirms the selected format and rendered preview. One
-tab holds one reusable content set; each tab's link is connected once. NoaCG does not infer all
-tabs from one CSV or require a Google account connection to read a link-shared tab. Creating the
-user's own Sheet remains a Google account workflow. Native paste/edit stays available without it.
+The Sheet journey starts at a graphic or its content, prioritizes lists, and supplies starter
+rows from current content. Select the format, see the rendered preview and save a scoped
+connection. One tab holds one reusable set; connect each tab's link once. A CSV cannot discover
+all tabs. Reading a link-shared tab needs no NoaCG account or Google OAuth connection; creating
+one's own Sheet is still a Google account workflow. Native paste/edit needs neither.
 
-Proposed changes to the original criteria: AC-1 covers list-first connection; AC-2 maps generated
-headers only within the selected destination and requires explicit reuse for other graphics;
-AC-8 shares source management but uses different polling/push/subscription runners; AC-9 keeps a
-stable Data tab; AC-11 calls selected-row content a table; AC-12 uses a ticker, not a scoreboard.
-Data-sources AC-11 through AC-14 add scoped identity, exact list formatting and compatibility.
-Do not execute the original global title-matching rule when implementing the revised proposal.
+A Sheet can also contain messages for selection. The same shared content workflow imports its
+rows as candidates, previews the chosen broadcast version and stages a cue through the safe
+message action. It must never treat new message rows as automatic live updates. Source kind and
+use behavior are separate; audience AC-1/2/6/8 governs message staging and preservation.
 
-Keep D1's ownership, D3's measured freshness and D4's shared manual values. A connection already
-on air can change the output when applied, so setup previews the affected graphics. A valid empty
-source is distinct from failure; credits preserve internal blank sections, and standings update
-rows and column headers together. These are adapters beside production data, not template code.
-
-## Revision, 2026-10-17 (answered; applied when the data sources spec is agreed)
-
-The owner, 2026-10-17: this spec's main use case is wrong. It leads with values and uses scores
-as examples, when a sheet's main value is long texts and lists (tickers, schedules, credits, any
-text easier to edit in a sheet) and data pulled in by formulas or scripts, with automation
-through the data API and RSS. Typing a score in a sheet stays possible but is never the promoted
-path. The model this spec now sits in is `docs/work-specs/data-sources/spec.md` (draft). Until
-the owner agrees it:
-
-- D1, D3 and D4 stand. D2's order changes as the next point says; nothing else below changes
-  until then.
-- Two were asked again there and answered on 2026-10-17 as recommended: DS2 puts lists before
-  values, which changes D2's order; DS15 keeps D3 for Sheets. D2 is rewritten here when the data
-  sources spec is agreed, after its second opinion.
-- Words: what this spec calls a list sheet (one row per entry, a production table loaded one row
-  at a time) is a table there. A list there is every row in one field that takes lines (a
-  ticker, a schedule, credits), which this spec does not cover yet.
-- Production-page phase 15 waits for that spec to be agreed. Its draft phases 15-22 carry all six
-  phases below, re-ordered, with feeds and the data API beside them.
-- Its DS5 would have the server fetch a feed address a person pasted, which "Safety" below rules
-  out for Sheets; Sheets keep that rule either way.
-- Since this was written: the account is on Vercel Pro (`api/AGENTS.md`, 2026-08-16), so the
-  twelve-function budget under "The server reader" is house discipline, not a platform cap, and
-  its cron limit needs checking again when phase 3 chooses the clock.
+The current behavior and criteria below reconcile the earlier global title-matching proposal.
+Matching headers only suggests fields within the selected destination. Explicitly share content
+with other graphics. Keep paths and bindings in Advanced, stable content navigation, the existing
+production tree, formats and command log. No additional general data store is required.
+D2's original values-first order is superseded by lists first, values alongside, then selectable
+rows. The six historical phases at the end are a traceability record, not an executable queue.
 
 ## Problem
 
@@ -89,11 +64,11 @@ path.
 
 ## Goal
 
-An operator pastes the ordinary share link of a Google Sheet into the production. The names in the
-Sheet appear as the production's values, every graphic field with the same title connects itself,
-and editing a cell changes the graphic within seconds, on air too, without a Take. Connecting needs
-no code, no account, no path and no second place to look. Once the production is published, the
-Sheet keeps feeding its output with every operator page closed.
+An operator starts with content or a graphic, pastes a Sheet tab's ordinary share link, sees
+what will appear and saves the connection. Lists follow on air; selected guest or message rows
+become prepared cue snapshots. Nothing requires paths, code or guessing field names. Published
+live connections keep following when operator pages close; new messages remain candidates until
+selected and taken. D3's freshness target measures availability, never automatic message airing.
 
 ## Non-goals
 
@@ -104,7 +79,7 @@ Sheet keeps feeding its output with every operator page closed.
 - Data operating the show. A Sheet never takes, advances or removes a graphic (GOALS outcome 7).
 - A formula, formatting or expression language. Formatting stays in the Sheet or the template.
 - Removing code that existing graphics carry: a template with a `liveData.ts` block keeps working.
-- The audience flow. Its walk findings belong to its own spec.
+- Join/chat provider integration lives in the message spec; Sheet message intake is shared scope.
 
 ## Measured (2026-10-16, Google's public sample sheet, from this machine)
 
@@ -117,31 +92,32 @@ Sheet keeps feeding its output with every operator page closed.
   type per column and blanks cells of the minority type, which breaks a column of mixed names and
   numbers. Not used.
 - Not yet measured: how often Google lets one browser read the same sheet before refusing, and how
-  soon an edit is visible. Phase 1 measures both before the interval is fixed.
+  soon an edit is visible. Phase 15 measures both before the interval is fixed.
 
 ## Behaviour
 
-**Connecting.** The production's data surface leads with one action, "Connect a Google Sheet". The
-operator pastes the link they would send a colleague and picks what the sheet is: values (one name
-and value per row) or, from phase 5, a list (one row per entry). NoaCG reads it at once and shows
-what it found, or says exactly what to change ("This sheet is not shared. In Google Sheets: Share,
-General access, Anyone with the link, Viewer.").
+**Connecting.** From a graphic or shared content view, paste a Sheet link, confirm the selected
+tab and format, preview the result, and save. Supply starter rows or CSV for ticker, schedule,
+standings, credits, guest rows and messages. A failed read gives a concrete fix; a missing tab is
+not silently replaced by another tab. Source/configuration details stay private to operators.
 
-**A values sheet** (the first shape, D2): column A is a name, column B its value, one
-row per value, a header row optional. `Home score | 3`. Each row becomes a production value with
-that name. A name containing dots nests as today (`match.home.score`) for people who want that.
+**Values.** One name and value per row; optional header. Existing nested paths remain available
+in Advanced. Most everyday scores use NoaCG's controls or the API rather than requiring Sheets.
 
-**A list sheet** (phase 5): a header row and one row per entry. It becomes a production table that
-stays in sync with the Sheet, used exactly as tables are used today (load a row into a cue's
-preview, then Take).
+**Lists.** One item per row, converted using the chosen graphic format. A schedule uses Time and
+Programme; standings need both row values and column headers; credits preserve section breaks.
+The format is previewed, not guessed by globally joining all cells with pipes.
 
-**Connecting fields.** When a sheet is connected, and whenever a graphic is added, every empty
-field whose title matches exactly one value name connects itself (today's "Bind all by title",
-done for the operator). The cue editor shows a connected field as its value with the source, for
-example "3, from Sheet: Home score", and one control to change or disconnect it. Every field also
-offers "Connect to…" with the list of names, so connecting never needs the Data tab. Matching keeps
-letters of every language: today's rule (`normalize` in `model/productionData.ts`) drops everything
-outside a-z and 0-9, so "Määrä" collides with "Mr" and a title written in Cyrillic never matches.
+**Selected rows.** Guest tables load one chosen row into a cue. Message tables use Name/Message
+and optional Source/Reference, with the same operator selection, editable broadcast text and
+safe staging as pasted or YouTube messages. Refresh changes candidates, never prepared cues.
+
+**Connecting fields.** Generated headers suggest mappings only inside the selected graphic.
+The operator sees which fields and cues will be affected before saving. Equal titles elsewhere
+never create connections. Stable identities survive renames; incompatible/deleted targets need
+attention. Shared content can be connected explicitly to other graphics. Unicode labels remain
+intact. A message field with a competing live binding needs a compatible unbound destination,
+without disconnecting another cue's source. Existing explicit bindings stay compatible.
 
 **While the show runs.** Each connected source has exactly one active reader (D1):
 
@@ -151,18 +127,17 @@ outside a-z and 0-9, so "Määrä" collides with "Mr" and a title written in Cyr
   when every operator page is closed or reloading. Publishing hands the source to the server and
   unpublishing hands it back; at no moment do both read.
 
-Either reader writes only the values that changed since its last good read, through the existing
+For live connections, either reader writes only values changed since its last good read, via the
 production data path: the local tree when unpublished, the same server-side patch that
 `PATCH /api/data/patch` uses when published. A failed read writes nothing, so the last good values
 stay on air and no field is blanked.
 
-**Status and Pause on the Playout tab.** One line per source says what it is doing: "Sheet: updated
-4 s ago", "Sheet: paused", or "Sheet: can't read it (not shared) since 20:14" with the fix. When no
-read has succeeded for three intervals (15 s), the line turns to a warning, "Sheet: last updated
-40 s ago, values on air may be old", and each connected field in the cue editor carries the same
-mark, until a read succeeds. Pause
-and Resume sit on that line. Published, the status and the pause live on the server, so a reload
-shows the true state and a pause holds with the page closed.
+**Status and Pause on the Playout tab.** One line per source distinguishes last checked from
+last changed, with its state: "Sheet: paused", or "Sheet: can't read it (not shared) since 20:14"
+with the fix. When no read has succeeded for three intervals (15 s), the line warns that values
+on air may be old and gives the last successful check time. Each connected field carries the
+same mark until a read succeeds. Pause and Resume sit on that line. Published, status and Pause
+live on the server, so a reload shows the true state and Pause holds with the page closed.
 
 **The operator wins (D4).** A connected value is one shared production value, whatever button
 moves it. Live numbers ±, a Goal or other graphic action that adjusts it, and typing it on the
@@ -176,35 +151,33 @@ Disconnect makes the field the cue's own again.
 
 A source is production state, never graphic code: a record on the production (`kind`, the sheet's
 id and tab, shape, interval, paused) plus, once published, a server copy with its read state
-(last good read, failing since, the error). Graphics only ever see production values through their
-existing bindings, so a template is unchanged and exports exactly as today.
+(last good read, failing since, the error). Graphics receive ordinary field values through live
+bindings or selected cue snapshots, so a template is unchanged and exports exactly as today.
 
-One shared core in `src/control/` turns a source's latest read into a production-data patch: parse,
-diff against the last good read, and the reader's states. It runs in Node, so the browser reader
-and the server reader are two thin runners of the same code. A source kind supplies only "fetch and
-parse to values or rows"; a second kind (another spreadsheet service, a JSON URL, a venue bridge)
-adds that one function and nothing else. Phase 1 proves this with a second, test-only kind.
+Shared source management tracks identity, status, ownership and Pause. Sheets use a common
+parse/diff core with thin browser and server runners. A live connection receives a production-data
+writer; message intake receives only a candidate writer. Fetching one tab can serve both uses
+without granting message candidates a live writer. Other source kinds may use push or
+subscriptions rather than inheriting the same polling loop.
 
-**The server reader** (derived, revisit in phase 3 on evidence): a scheduled tick reads every due,
-unpaused source of every published production and writes through the database's existing data
-patch. The tick runs only while at least one published source is active, so a quiet week costs
-nothing. Candidates: Supabase `pg_cron` at seconds scale calling a route under the existing
-`api/data/[...path].ts` catch-all (no new function against the Hobby cap of twelve), or the
-database fetching directly with `pg_net`. Vercel cron is daily on this plan and cannot be the
-clock. Phase 3 measures the run cost per active source per hour before it is switched on.
+**The server reader.** Phase 15 qualifies the seconds-scale scheduler and records active/idle
+cost, invocation duration and database load on the actual hosting plan. Phase 18 implements the
+qualified choice and remeasures published behavior. A database scheduler can dispatch bounded
+reads but cannot itself host an open chat connection. Earlier Hobby-function and daily-cron
+assumptions are historical, not current limits. Do not claim zero idle cost without measuring it.
 
-**Safety.** The server never fetches a URL the user typed: it stores the sheet id and tab and
-builds the Google export URL itself. A sheet link grants reading the sheet, so the source record is
-readable only by the production's operators, never by the output or the audience page.
+**Sheet safety.** The Sheet reader stores the sheet id and tab and builds the Google export URL
+itself. A Sheet link grants reading the Sheet, so the source record is readable only by the
+production's operators, never by the output or the audience page.
 
 **One vocabulary on the default surface:** values, names, connected, Sheet, tables. Seed, Raw
 JSON, paths, Move numbers and per-field binding rows move behind one "Advanced" disclosure and keep
-working there. Setup keeps one stable item for the data view whether or not a value exists.
+working there. A stable content entry stays available whether or not content exists.
 
 **The old graphic-level Sheet panel** is no longer offered for new graphics; its place says that
 Sheets connect on the production. A graphic that already carries the block keeps running it.
 
-## Owner decisions (all answered 2026-10-16)
+## Historical owner decisions (answered 2026-10-16)
 
 - **D1. Who reads the sheet (decided, owner 2026-10-16).** The server for published productions,
   so a connected Sheet keeps updating the output when the operator closes or reloads the playout
@@ -240,24 +213,25 @@ phases 15-26 of `/plan-run production-page`, after the cleanup's fourteen phases
 audience in 23-25, then the combined rehearsal. The cleanup moves the cue editor and press verbs,
 so it stays first. The readers and their rules live in `src/control/` and are Node-tested; page
 changes wire that behavior. No continuation starts until the data-sources readiness gate passes.
+Message preparation uses the shared contracts in 16 and Sheet rows in 21, with safe staging in 23.
 
 ## Acceptance criteria
 
 ### AC-1: A shared Sheet connects from its ordinary link
-A production with no data accepts a Google Sheets share link ("Anyone with the link can view") and
-lists the sheet's names and values within 10 seconds, with no "Publish to web" step, no account, and
-no code. Layer: Node test for link parsing and CSV-to-values; a journey in
+A production accepts a Google Sheets share link ("Anyone with the link can view") and previews
+its selected tab and content within 10 seconds, with no "Publish to web", NoaCG sign-in, Google
+OAuth or code. Lists lead the journey; value and selected-row formats stay available. Creating
+a Sheet is separate from reading one. Layer: Node link/CSV/format tests; a journey in
 `e2e/production-data.spec.ts` against a stub sheet; one scenario run against a real Sheet.
 
-### AC-2: Fields connect themselves
-After connecting, each empty field whose title matches exactly one name is connected, in every
-graphic in the production and in any graphic added later; a field matching two names stays
-unconnected and the reason is shown. The cue editor shows each connected field's value and source
-name. Titles and names with letters outside a-z ("Määrä", Cyrillic) match like any other. Layer:
-Node test on the matching; the journey above.
+### AC-2: Previewed connections only affect selected destinations
+The selected tab and format preview the chosen graphic's fields. Saving persists that mapping;
+equal titles in other graphics and newly added graphics never connect by themselves. Reuse on a
+second graphic is explicit. Unicode labels, renames and stable identities behave as specified in
+data AC-12. The cue editor names the source. Layer: Node contracts and connection journey.
 
 ### AC-3: A cell edit reaches the output without a Take
-With a connected graphic on air, editing its cell changes the output within 10 seconds (D3),
+With a live-connected graphic on air, editing its cell changes the output within 10 seconds (D3),
 measured over at least 20 real edits of a real Sheet with the slowest reported, not the average;
 nothing is taken, advanced or removed by the sheet. Unpublished it changes the local program;
 published it changes the published output exactly once. Layer: Node test with a fake clock and fetch
@@ -278,7 +252,7 @@ unpublish.
 
 ### AC-6: Failure and staleness are visible and safe
 An unshared, deleted or unreachable sheet shows the status line with a plain fix and the time it
-started; the values on air stay as they were. With no good read for 15 seconds the line and the
+started; live values on air stay as they were. With no good read for 15 seconds the line and
 connected fields show the data as stale, and the mark clears on the next good read. Reading resumes
 on its own once the sheet answers. Layer: Node test on the reader's states; journey for the message.
 
@@ -290,10 +264,11 @@ the override, published also with the page closed; Resume writes only cells that
 paused. Disconnect returns the field to the cue. Layer: Node test; journey; configured suite for the
 published pause.
 
-### AC-8: Sources are separate from graphics
-A connected source changes no graphic's template or export. The browser and server readers run one
-shared core, and a second, test-only source kind runs through it by adding only its fetch and parse.
-Layer: Node tests.
+### AC-8: Sources are separate from graphics and use is explicit
+A source changes no template or export. Browser and server Sheet runners share the parse/diff
+core; management supports other lifecycles without assuming all sources poll. The same tab can
+provide live content and message candidates through distinct writers, without duplicate fetching.
+No message import can use the live writer. Layer: Node contracts and handover cases.
 
 ### AC-9: One vocabulary
 The default data surface shows no "path", "seed", "Raw JSON" or "binding"; those tools sit behind
@@ -304,16 +279,22 @@ New graphics are not offered the graphic-level Sheet panel; existing graphics wi
 update. `/docs` describes the production-level flow. Layer: journey; Node test on an existing
 block's template output.
 
-### AC-11: A list sheet stays in sync as a table
-A list sheet connected as a table updates its rows within the D3 target; loading a row into preview
-works as today. Layer: Node test; journey.
+### AC-11: Tables stay fresh and selected rows stay put
+A Sheet table updates candidate rows within D3; loading a guest row or staging a message copies
+the selected revision into a cue. Later row changes, reorders and deletes cannot rewrite that
+cue. Message import follows audience AC-8's identity, persistence and original/broadcast rules;
+message staging follows audience AC-1/2/6. Layer: Node contracts and two-cue refresh journey.
 
 ### AC-12: A newcomer does it unaided
-Someone who has not used the Data tab connects a Sheet to a scoreboard and puts a changed score on
-air in under five minutes without reading documentation. Layer: scenario run, recorded in
-`evidence/`.
+A newcomer connects a Sheet list to a ticker and puts a changed item on air in under five minutes
+without documentation. Also run audience AC-7's Sheet-message task through the shared workflow.
+Record time, errors, assistance and starting account state; automation alone is not usability
+proof. Layer: phase 15 prototype and phase 26 recorded trials.
 
-## Phases
+## Historical six-phase breakdown (not executable)
+
+Use the current phases 15-26 in data-sources. This records the original implementation split;
+its global matching and values-first details are superseded by the current criteria above.
 
 1. **The shared core** (AC-1 reading half, AC-6 states, AC-8): the source contract, the Google
    Sheets kind (link to sheet id and tab, export CSV to values), the diff against the last good

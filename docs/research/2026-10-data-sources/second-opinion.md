@@ -1,5 +1,16 @@
 # Second opinion: connect content to graphics
 
+Latest owner clarification, 2026-10-17: the recommendations are included in the candidate plan,
+with manual messages from anywhere and Sheet message rows as primary routes, YouTube ahead of
+optional Twitch, and no mandatory separate Audience page. Current authority is in the four
+work specs; the original analysis below is retained as the earlier review, not a fixed design.
+Use [the whole-plan review brief](external-review-prompt.md) for the next independent opinions.
+
+Source kind and use behavior are separate: a Sheet can supply a live ticker or message
+candidates. All message candidates require selection and an immutable prepared cue version.
+The earlier diagram's split by provider is illustrative only and is superseded on that point.
+Current code reads YouTube live chat; ordinary video comments need separate qualification.
+
 1. Keep production data and the command log; the missing piece is an easy connection workflow.
 2. Start at the graphic: choose content, see it in preview, then connect it.
 3. Lead with tickers, schedules, standings and credits, not score cells in a Sheet.
