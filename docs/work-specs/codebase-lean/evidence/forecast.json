@@ -1,0 +1,40 @@
+{
+  "sourcePin": "3010e41134f1e3a6ebf3933582eb9b7e52055241",
+  "status": "conditional proposal, not a cap or approval",
+  "directPhase1": {
+    "srcTsTsx": 292678,
+    "e2eTsTsx": 96666,
+    "scriptsImplementation": 106976,
+    "scriptsTests": 55586,
+    "docsOriginalMinusNamedCandidates": 127845,
+    "docsIncludingThisReportBeforeRetainedSchemaAdditions": 128548,
+    "offlineSpecMinutes": 182.755
+  },
+  "laterConditional": {
+    "srcAfterAll35ResearchOnlyAiFilesRetire": 282112,
+    "scriptsAfterThreeProbeDeletions": 106783,
+    "offlineAfterRoutingAndScheduleMoveToNode": 181.84,
+    "creativePilotAlternativeBrowserMinutes": 2.061,
+    "qualificationRelocationCeilingMinutes": 12.979
+  },
+  "notCredited": {
+    "mixedSkippedCaseMinutes": null,
+    "buildSeconds": null,
+    "wholeCiJobs": 0,
+    "sourceFixtureBuilderLinesPendingReplacement": 395,
+    "partialStoreCssAndToolEdits": null,
+    "replacementNodeRuntime": null
+  },
+  "reportFootprint": {
+    "markdownFiles": 5,
+    "markdownLines": 703,
+    "filesExcludingForecast": 26,
+    "bytesExcludingForecast": 3643901
+  },
+  "notes": [
+    "Direct phase 1 is a measured removal scenario; retained schema text and new checks add lines.",
+    "Two live test fixture builders are kept until replacements are proved; source shrink is not total code shrink.",
+    "Node moves save browser time but add measured Node work; qualification relocation preserves scheduled validation cost.",
+    "No historical schema, public asset or experimental lane is approved for deletion by this forecast."
+  ]
+}
