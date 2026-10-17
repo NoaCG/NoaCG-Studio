@@ -140,6 +140,10 @@ export function earlierBriefIds(root, { passphraseFile = privatePassphraseFile(r
  *  and two others. Fixed before L1's first session. */
 export const RUNG_ORDER = ['boxing-night-matchup', 'collegiate-cs2-scorebug', 'charity-stream-alerts', 'film-fest-nominee-reveal', 'hockey-club-match-board', 'volleyball-set-board', 'school-quiz-secret-pick', 'ski-sprint-timing-tower'];
 export const SCREEN_SIZE = 4;
+/** D7's overfit check: a teaching round is re-measured on the tuning bank too, every brief of it a
+ *  library graphic can answer (the OGraf brief is not, 4.2), in the bank's order. Those figures
+ *  are reported beside the eight's; D5's screen and D6's match are the eight's alone. */
+export const tuningOrder = (bank) => bank.filter((b) => b.kind === 'noacg').map((b) => b.id);
 /** D5's screen and D6's match, as committed before the first rung. */
 export const RUNG_RULE = { screenNotUsableMax: 2, screenUsdPerUsableMax: 2, usableMin: 7, usdPerUsableMax: 1, medianWallSecondsMax: 600, lookAllMin: 7 };
 
@@ -163,10 +167,12 @@ const readingPasses = (j) => j.answer?.airable === true && !(j.answer?.basicMist
  * `total_cost_usd` (D2) over every session that ran, failed and stopped ones included, per usable
  * graphic. The screen (D5) reads the first four of `order`; the match (D6) needs all eight. A
  * rubber stamp is a delivered graphic whose review said `ok` to every frame and that the judge
- * failed (not airable, or a basic visible mistake). `flagsToRead` are the gate's missing actions
+ * failed (not airable, or a basic visible mistake). With `match` false (the tuning bank's
+ * figures, `tuningOrder`) there is no screen and no match: a complete set is `measured`.
+ * `flagsToRead` are the gate's missing actions
  * the judge's single did not also name, which H8's ruling reads against the operator surface.
  */
-export function tallyRung({ cells, judgements, fingerprint = null, readings = {}, order = RUNG_ORDER, rule = RUNG_RULE, repeat = SINGLE_READINGS }) {
+export function tallyRung({ cells, judgements, fingerprint = null, readings = {}, order = RUNG_ORDER, rule = RUNG_RULE, repeat = SINGLE_READINGS, match = true }) {
   const singles = judgements.filter((j) => j.task === 'single' && !j.error && (!fingerprint || j.judge === fingerprint));
   const ran = (brief) => cells.find((c) => c.brief === brief && c.outcome !== 'refused' && c.outcome !== 'paused') ?? null;
   const rows = order.map((brief) => {
@@ -219,7 +225,7 @@ export function tallyRung({ cells, judgements, fingerprint = null, readings = {}
   // A delivered graphic not yet judged is not counted either way.
   const screenNotUsable = screenRows.filter((r) => r.ran && !r.usable && !(r.delivered && !r.judged)).length;
   // Three not usable ends the rung as soon as they are known; the cost line needs the four.
-  const endsAt = screenNotUsable > rule.screenNotUsableMax ? 'not usable' : screenDone && (screen.usable === 0 || screen.usdPerUsable > rule.screenUsdPerUsableMax) ? 'cost' : null;
+  const endsAt = !match ? null : screenNotUsable > rule.screenNotUsableMax ? 'not usable' : screenDone && (screen.usable === 0 || screen.usdPerUsable > rule.screenUsdPerUsableMax) ? 'cost' : null;
   const all = figures(rows);
   const complete = rows.every((r) => r.ran) && !all.unjudged.length;
   const lines = [
@@ -229,7 +235,7 @@ export function tallyRung({ cells, judgements, fingerprint = null, readings = {}
     { rule: `every reviewed frame opened in at least ${rule.lookAllMin} sessions`, holds: all.lookAll >= rule.lookAllMin, figure: `${all.lookAll} of ${order.length}` },
   ];
   const restRan = rows.slice(SCREEN_SIZE).some((r) => r.ran);
-  const verdict = endsAt ? 'screened out' : !complete ? (screenDone && !restRan ? 'screen passed' : 'incomplete') : lines.every((l) => l.holds) ? 'MATCH' : 'no match';
+  const verdict = !match ? (complete ? 'measured' : 'incomplete') : endsAt ? 'screened out' : !complete ? (screenDone && !restRan ? 'screen passed' : 'incomplete') : lines.every((l) => l.holds) ? 'MATCH' : 'no match';
   return { verdict, screen: { ...screen, notUsable: screenNotUsable, endsAt, done: screenDone }, all, lines, rows };
 }
 

@@ -67,10 +67,12 @@
 //                                                    SUBSCRIPTION. The frozen judge on a run's cells;
 //                                                    for L1 and L2 the ladder's judge, singles only,
 //                                                    three readings a graphic (D8 as amended).
-//   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>]
+//   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>] [--order tuning]
 //                                                    FREE. 4.4's numbers and 4.5's verdict for an exam
 //                                                    run; for an L1 or L2 run, its rung's figures, D5's
-//                                                    screen and D6's match (tallyRung).
+//                                                    screen and D6's match (tallyRung). --order tuning
+//                                                    counts the run's tuning briefs instead (D7's
+//                                                    overfit check), figures only, in tally-tuning.json.
 //   node scripts/harness-bench.mjs --recapture <runDir> --rekey <file>
 //                                                    FREE. Move a misplaced stress value to its field
 //                                                    and capture both arms of that brief again.
@@ -99,7 +101,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, holdFor, HOLD_KINDS, isLadder, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, setHold, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
-import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, SINGLE_READINGS, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
+import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
@@ -890,13 +892,17 @@ if (isMain) {
       // readings of the gate's flags (`readings.json` beside its cells, when it has any).
       const readingsFile = path.resolve(value('readings', path.join(runDir, 'readings.json')));
       const readings = existsSync(readingsFile) ? JSON.parse(readFileSync(readingsFile, 'utf8')).readings : {};
-      const tally = tallyRung({ cells, judgements, fingerprint: orFail(() => ladderJudge(ROOT)).fingerprint, readings });
-      writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify(tally, null, 2)}\n`);
-      console.log(rungMarkdown(path.basename(runDir), tally));
+      const order = value('order', 'ladder');
+      if (!['ladder', 'tuning'].includes(order)) fail('--order is ladder (the eight, D5 and D6) or tuning (the tuning bank, figures only)');
+      const tuning = order === 'tuning';
+      const tally = tallyRung({ cells, judgements, fingerprint: orFail(() => ladderJudge(ROOT)).fingerprint, readings, ...(tuning ? { order: tuningOrder(JSON.parse(readFileSync(TUNING, 'utf8')).briefs), match: false } : {}) });
+      const tallyFile = path.join(runDir, tuning ? 'tally-tuning.json' : 'tally.json');
+      writeFileSync(tallyFile, `${JSON.stringify(tally, null, 2)}\n`);
+      console.log(rungMarkdown(`${path.basename(runDir)}${tuning ? ', tuning briefs' : ''}`, tally));
       const toRead = tally.rows.filter((r) => r.flagsToRead.length).map((r) => `${r.brief} (${r.flagsToRead.join(', ')})`);
       if (toRead.length) console.log(`\nGate flags the judge's single did not name, to read against the operator surface (phase-8.md): ${toRead.join('; ')}`);
       if (tally.all.unjudged.length) console.log(`\nNot judged yet (fewer than ${SINGLE_READINGS.count} readings; --judge asks the rest): ${tally.all.unjudged.join(', ')}`);
-      console.log(`\n${path.join(runDir, 'tally.json')}`);
+      console.log(`\n${tallyFile}`);
     } else {
       // The gate's flags read against the operator surface (3.5, phase-8.md), when the run has them.
       const readingsFile = path.resolve(value('readings', path.join(HARNESS, 'exam', 'action-readings.json')));

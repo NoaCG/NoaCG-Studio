@@ -32,7 +32,7 @@ import { readAgentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harn
 import { findTranscript, handInLine, ladderPrompt, subscriptionArm } from '../benchmarks/harness/lib/arms.mjs';
 import { examBriefs } from '../benchmarks/harness/lib/exam.mjs';
 import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, sealCommittedAt, SINGLE_READINGS, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
+import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, sealCommittedAt, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
 import { admit, appendEntry, emptyLedger, heldCents, LEDGER_FILE, readLedger, remainingCents, setHold, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readHash, readSealed, sealedShape, sha256 } from '../benchmarks/harness/lib/sealed.mjs';
@@ -476,6 +476,22 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
   const read = tallyRung({ cells: flagged, judgements: goodSingles, fingerprint: 'fp', readings: { [`${RUNG_ORDER[5]}.${arm}`]: { undoPoint: 'undoA/undoB' } } });
   assert.equal(read.all.usable, 8);
   assert.deepEqual([...RUNG_ORDER].sort(), [...LADDER_SET].sort(), 'the rung order is the ladder set');
+});
+
+test("a teaching round's tuning briefs are counted the same way, with no screen and no match (D7)", () => {
+  const bank = JSON.parse(readFileSync(path.join(ROOT, 'benchmarks', 'harness', 'tuning', 'briefs.json'), 'utf8')).briefs;
+  const order = tuningOrder(bank);
+  assert.equal(order.length, 15, 'the bank\'s 16 less the OGraf brief, which no library graphic answers');
+  assert.ok(!order.includes('third-party-ograf'));
+  const cell = (brief) => ({ brief, arm: 'subscription', outcome: 'delivered', validation: { ok: true, errors: [] }, shape: { ok: true }, operator: { missing: [] }, notionalUsd: 0.5, wallSeconds: 400, look: { reviewed: 10, opened: 10, unopened: [], all: true, fixed: 0 } });
+  const single = (brief, answer = {}) => ({ judge: 'fp', task: 'single', brief, answer: { airable: true, basicMistakes: [], missingActions: [], ...answer } });
+  // The first four not usable would end a rung's screen; here they are only counted.
+  const judgements = order.flatMap((b, i) => [0, 1, 2].map(() => single(b, { airable: i >= 4 })));
+  const t = tallyRung({ cells: order.map(cell), judgements, fingerprint: 'fp', order, match: false });
+  assert.deepEqual([t.verdict, t.screen.endsAt, t.all.usable, t.all.usdPerUsable], ['measured', null, 11, 0.68]);
+  // The ladder cells of the same run are not among them.
+  assert.equal(tallyRung({ cells: [...order.map(cell), cell(RUNG_ORDER[0])], judgements, fingerprint: 'fp', order, match: false }).all.ran, 15);
+  assert.equal(tallyRung({ cells: order.slice(1).map(cell), judgements, fingerprint: 'fp', order, match: false }).verdict, 'incomplete');
 });
 
 test('the ladder judge reads each graphic three times: usable on two passing readings, and the tally says how often it agreed (D8 as amended)', () => {
