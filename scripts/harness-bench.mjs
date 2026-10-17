@@ -44,8 +44,10 @@
 //                                                    FREE. 5.2's arithmetic: the exam reserve R, what
 //                                                    is left for tuning and the rounds that fit, and
 //                                                    R recorded in the ledger for the wall to hold.
-//   node scripts/harness-bench.mjs --close <H#> [--note "..."]
-//                                                    Record a phase as completed in the ledger.
+//   node scripts/harness-bench.mjs --close <H#> [--verdict PASSED|MISSED|INCONCLUSIVE] [--note "..."]
+//                                                    Record a phase as completed in the ledger; the
+//                                                    exam's close carries --tally's verdict, and no
+//                                                    later phase builds unless it PASSED.
 //   node scripts/harness-bench.mjs --judge <runDir> [--phase <H#>] [--delivered-only] [--concurrency <1-4>] [--briefs id,..]
 //                                                    SUBSCRIPTION. The frozen judge on a run's cells.
 //   node scripts/harness-bench.mjs --tally <runDir>  FREE. 4.4's numbers and 4.5's verdict for an exam run.
@@ -149,7 +151,19 @@ export function refuseBuild(ledger, phase) {
   }
   const exam = examPending(ledger);
   if (exam && phase !== exam) return `tuning is closed and ${exam}'s exam is pending: the bench is frozen for it until it closes`;
+  // Product integration starts only after the exam passed (spec, Phases); a miss stops the run (5.5).
+  const reserved = ledger.reserve?.phase;
+  if (reserved && phaseNumber(phase) > phaseNumber(reserved) && phaseCompleted(ledger, reserved)) {
+    const verdict = examVerdict(ledger);
+    if (verdict !== 'PASSED') return `${phase} starts only after ${reserved}'s exam passed, and it closed ${verdict ?? 'with no verdict'}: the run stops (5.5)`;
+  }
   return null;
+}
+
+/** The verdict the exam phase was closed with (`--close <H#> --verdict`), or null. */
+export function examVerdict(ledger) {
+  const exam = ledger.reserve?.phase;
+  return ledger.entries.find((e) => e.phase === exam && e.kind === 'phase' && e.outcome === 'completed')?.verdict ?? null;
 }
 
 /** The per-graphic session budget default (5.2's `B`), which agents/noacg-harness/agent.md carries. */
@@ -739,7 +753,11 @@ if (isMain) {
     if (!PHASE.test(phase)) fail('--close needs a phase like H3');
     const ledger = readLedger(LEDGER_FILE);
     if (phaseCompleted(ledger, phase)) fail(`${phase} is already completed in the ledger`);
-    appendEntry(ledger, { kind: 'phase', phase, stage: 'close', funding: 'none', listCostCents: 0, outcome: 'completed', ...(value('note') ? { note: value('note') } : {}) });
+    // The exam is closed with --tally's verdict; only PASSED lets a later phase build (refuseBuild).
+    const verdict = value('verdict');
+    if (phase === ledger.reserve?.phase && !['PASSED', 'MISSED', 'INCONCLUSIVE'].includes(verdict)) fail(`--close ${phase} closes the exam: add --verdict PASSED, MISSED or INCONCLUSIVE, as --tally gave it`);
+    if (verdict !== undefined && phase !== ledger.reserve?.phase) fail('--verdict is only for the exam phase');
+    appendEntry(ledger, { kind: 'phase', phase, stage: 'close', funding: 'none', listCostCents: 0, outcome: 'completed', ...(verdict ? { verdict } : {}), ...(value('note') ? { note: value('note') } : {}) });
     writeLedger(LEDGER_FILE, ledger);
     printLedger(ledger);
   } else if (has('judge')) {

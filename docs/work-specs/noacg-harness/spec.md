@@ -956,6 +956,65 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H8, finished (2026-10-17): MISSED; the run stops
+
+- **Check's findings (H8 check, on `e759c100c`):** FAIL blocked. Everything checkable before the
+  judge returned held at $0; the verdict waited on the frozen judge. Three text slips, fixed here:
+  the volleyball ruling claimed a judge answer that did not yet exist (`phase-8.md` now says only
+  the notice's single was answered, marked corrected); the ledger's paused judge note said 18
+  singles and 30 calls, now 19 and 31 (marked corrected; the run commit `ca79a245e`'s message also
+  says 30, and a landed message is not rewritten); the report's "1 of 8" defect row counted the
+  void single (the report is rewritten from the final tally).
+- **Status: MISSED, H8 closed.** The Fable cap was reset on 2026-10-17 (owner). The frozen judge
+  `claude-fable-5-1` answered the 31 waiting calls (19 singles, 6 pairs in both orders) on the
+  subscription, 07:03Z to 07:36Z, no pause or error, fingerprint `60bfb08e18a4`, $134.48 notional.
+  Then the readings (instruments.md 18 and 19), `--tally`, the gallery, `exam/REPORT.md`,
+  `docs/AI_ATTEMPTS.md` and `--close H8`.
+- **The verdict, both figures:** line 1 fails with the action readings (harness 12 usable,
+  Claude Code 15) and holds by the gate alone (Claude Code 10); line 3 fails either way (Claude
+  Code preferred in 13 of 20 pairs, 8 of them by delivery; harness 6; 1 flip tie). Lines 2 and 4
+  hold (0 basic mistakes, 0 missing actions in the harness's 12; median 527 s; nothing accepted
+  over 194 cents). So the verdict does not turn on a reading.
+- **Cause and retry condition (section 9):** the session budget, a cause on the host's side, not
+  the model's: on the 12 briefs both arms delivered the judge preferred the harness 6, Claude
+  Code 5, tie 1, and all 12 harness graphics were airable with nothing missing. The 8 budget stops
+  (every one a brief with 2 to 5 operator actions) decided it. Section 9's RETRY WHEN fires on
+  exactly this: a next plan with the per-graphic budget set from briefs as dense as the exam's, or
+  the fallback path (our own loop), examined on newly sealed briefs with this exam's counting.
+- **What the next phase must allow for:** none starts. 5.5 stops the run; H9 to H11 do not run
+  and `harness_open` stays off. A next plan starts from `exam/REPORT.md` ("What a retry needs")
+  and the `docs/AI_ATTEMPTS.md` entry, and must not reuse these 20 briefs as held-out: they have
+  been read and judged. The exam's freeze ended with the close, so `refuseBuild` now refuses every
+  phase after H8 unless the exam's close entry says `verdict: PASSED` (new here: `--close <exam>
+  --verdict`, required for the exam phase); `--build H9 --dry` answers "H9 starts only after H8's
+  exam passed, and it closed MISSED: the run stops (5.5)". H5 to H7 stay refused as completed.
+- **Decisions** (each revertible in the merge):
+  - DECIDED: the five open missing-action flags read as offered (volleyball, matchup,
+    head-to-head, podiums, bracket), by the ruling fixed before the tally: on each the judge's
+    single named nothing missing and a button does the action. It costs the harness line 1; the
+    report gives the gate-only figure. Revert: drop those five entries from
+    `exam/action-readings.json` and tally again (MISSED either way, on line 3).
+  - DECIDED: the gallery's ten by the fixed rule, Claude Code's judged wins before its wins by
+    delivery, each in brief order (the rule did not say which comes first among wins). Revert:
+    rebuild with `--review --briefs` on another ten.
+  - DECIDED: the gallery also built into the archive run directory (`owner-gallery\`), because the
+    worktree copy at `benchmarks/harness/exam/gallery/` goes when the worktree is cleaned.
+  - DECIDED: a `completed` judge entry in the ledger for the 31 calls ($0 credit, $134.48
+    notional), beside the paused one, so the ledger states the judge stage ended.
+- **Traps:** a worktree-isolated session cannot take a branch another worktree holds; this
+  phase's branch is `claude/plan-noacg-harness-p9-build-row`. In 5 of the 12 judged pairs the
+  pair's airability for a graphic differs from its single in at least one order, both ways and
+  for both arms; the counting takes airability from singles, so no figure moves, but the report
+  names it as a limit of one judgement. `judgeRun` ledgers only pauses, so the `completed` judge
+  entry was added by hand; a future paused judge stage needs the same. Two bench tests read the committed ledger and asserted the exam still open; they now
+  assert H8 closed (refused, nothing held) and keep every open-exam assertion on a copy with the
+  close removed. Tests 49 of 49.
+- **Spend:** $0 credit; the ledger at $54.68 of $100 with nothing held ($45.32 left after the
+  close released the $13.26). Subscription, notional: judge $134.48 today, $259.10 for the exam.
+  **Shas:** built on `0854925a8`; the merge sha is the one the queue records. **Revert:** `git
+  revert -m 1` the merge; that reopens H8 in the ledger (the paused entry stays) and drops the
+  verdict.
+
 ### H8 check (2026-10-15, on `e759c100c`)
 
 - **Verdict: FAIL blocked.** Everything that can be checked before the judge returns holds; the

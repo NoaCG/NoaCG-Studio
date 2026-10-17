@@ -2,93 +2,132 @@
 
 `docs/work-specs/noacg-harness/spec.md` sections 4.4 to 4.6, AC-7. Agent v7 as tuned (Opus 5.5 at
 effort `high`, no critic, a 194-cent session budget, the skill of `@noacg/cli` 0.11.0) against
-Claude Code with the published plugin on the same model, on the 20 sealed briefs, run on
-2026-10-15. How every figure is counted was fixed before the first session
-(`evidence/phase-8.md`); the per-session figures are there too.
+Claude Code with the published plugin on the same model, on the 20 sealed briefs. The sessions ran
+on 2026-10-15; the frozen judge answered 26 calls that day and the last 31 on 2026-10-17, after
+the subscription's Fable cap was reset. How every figure is counted was fixed before the first
+session (`evidence/phase-8.md`); the per-session figures are there too.
 
-## Verdict: not decided yet
+## Verdict: MISSED
 
-**The exam has not passed and has not missed: its judging is paused.** Every session ran and
-every graphic is captured, but the frozen judge (`claude-fable-5-1`) answered 26 calls and was
-then refused by the subscription's own seven-day Fable cap until **2026-10-20 05:00 UTC**. The
-judge is frozen (4.3), so no other model takes its place, and nothing moves to the credit. 19
-single judgements and 6 pairs remain; the verdict is computed when they are answered. One of the
-26 answers is void: the judge read Claude Code's esports scorebug before its brief was
-re-captured (its frames did not change, but no answer on replaced frames counts), so it is kept
-apart in `evidence/phase-8/judgements.void.jsonl` and asked again.
+**The harness did not pass 4.5.** Two of the four lines fail:
 
-Where it stands on 4.5's four lines, read as written:
-
-| 4.5 line | so far | what the remaining judgements decide |
+| 4.5 line | holds | figure |
 |---|---|---|
-| usable delivery within one graphic of Claude Code's | harness at most 12 usable (8 sessions stopped at the budget); Claude Code 5 judged usable, 2 judged not, 13 unjudged | holds only if at least 5 of Claude Code's 13 unjudged graphics fail |
-| zero basic visible mistakes and zero missing actions in the delivered graphics | 0 in the 6 judged harness graphics; no missing action in any of its 12 | the other 6 harness graphics' singles |
-| Claude Code preferred in at most 10 of 20 pairs | **10 already**: 2 judged, 8 where only Claude Code delivered; harness 3, tie 1 | fails if Claude Code wins any of the 6 unjudged pairs |
-| median wall at most 10 minutes, no accepted graphic over the budget | median 527 s; no accepted graphic over 194 cents | settled |
+| usable delivery within one graphic of Claude Code's | **no** (yes by the gate alone) | harness 12 of 20; Claude Code 15 of 20 (10 by the gate alone) |
+| zero basic visible mistakes and zero missing operator actions in the delivered graphics | yes | 0 of the harness's 12 delivered graphics with a basic visible mistake or a missing action |
+| Claude Code preferred in no more than 10 of the 20 pairs, ties not preferred | **no** | Claude Code 13, harness 6, tie 1 |
+| median wall at most 10 minutes, no accepted graphic over the session budget | yes | median 527 s; no accepted graphic over 194 cents |
+| more than 5 order-flip ties makes it inconclusive | no | 1 flip tie (the Spanish flood alert) |
 
-So the exam passes only if the harness wins or ties all six remaining pairs and Claude Code
-fails on at least five of its thirteen unjudged graphics. The plain reading: **the harness
-delivered 12 of 20**, because 8 sessions ran out of the 194-cent budget while still working,
-and that alone puts the exam close to a miss.
+Line 3 fails either way, so the verdict does not turn on a reading. Line 1 turns on one: by the
+missing-action gate alone Claude Code has 10 usable graphics and the line holds; with the six
+readings of `exam/action-readings.json` (actions Claude Code's graphics offer under other names,
+which the judge did not call missing, the ruling in `evidence/phase-8.md`) it has 15 and the line
+fails. Both figures are given throughout.
 
-## The numbers so far (4.4)
+**The cause is the session budget, not the model.** Both arms ran Opus 5.5 on the same skill. On
+the 12 briefs where both delivered, the judge preferred the harness 6 times, Claude Code 5 times,
+with 1 tie, and every one of the harness's 12 delivered graphics was judged airable with no basic
+mistake and no missing action. The miss comes from the other 8: those sessions reached the
+194-cent budget while still revising and handed in records marked not ready, so each of those
+pairs went to Claude Code by delivery. 8 of Claude Code's 13 preferences are those.
 
-Out of 20 requests each, Wilson 95% intervals. "Usable" and the defect counts cover only what the
-judge has read.
+**The run stops here (5.5).** H9 does not start, and the plan does not ship a harness that failed.
+What a next plan changes first, and when to try again, is under "What a retry needs" below.
+
+## The numbers (4.4)
+
+Out of 20 requests each, Wilson 95% intervals.
 
 | | harness | Claude Code |
 |---|---|---|
 | delivered | 12 (39% to 78%) | 20 (84% to 100%) |
 | not ready at the session budget | 8 | none (no budget) |
-| usable, judged so far | 6 (14% to 52%) | 5 (11% to 47%) |
-| delivered with a basic visual defect, of those judged | 0 of 6 | 1 of 8 (community bug: 3 defects) |
-| delivered with a functional failure | 1 of 12: an event that did not move the machine | 7 of 20: 5 with a missing action by the gate (one read as offered under other names), 3 with an unmoved event |
+| usable | 12 (39% to 78%) | 15 (53% to 89%); 10 (30% to 70%) by the gate alone |
+| delivered with a basic visual defect | 0 of 12 (0% to 24%) | 3 of 20 (5% to 36%): 8 defects (matchup 4, community bug 3, auction board 1) |
+| judged not airable | 0 of 12 | 5 of 20: matchup, community bug, auction board, quiz board, ski timing tower |
+| delivered with a functional failure | 1 of 12 (2% to 35%): one event that did not move the machine | 3 of 20 (5% to 36%): 3 unmoved events; by the gate alone 8 of 20 (22% to 61%), 6 of them with 8 missing actions |
 | validator errors | 0 | 0 |
-| preferred in its pair | 3 (5% to 36%) | 10 (30% to 70%), 8 of them by delivery |
+| preferred in its pair | 6 (14% to 52%) | 13 (43% to 82%), 8 of them by delivery |
 | tie (order flip) | 1 (1% to 24%) | |
-| cost | $33.34 credit, $1.67 a session; $5.56 per usable graphic so far | $45.22 notional on the subscription, $2.26 a session |
+| cost per usable graphic | $33.34 credit over 12 usable: $2.78 (capped sessions included) | $45.22 notional over 15 usable: $3.01 ($4.52 over 10 by the gate alone) |
 | wall time, median / 90th percentile | 527 s / 744 s; 7 of 20 over ten minutes | 453.5 s / 595 s; 2 of 20 over ten minutes |
 
-Order flips: 1 of the 6 judged pairs (the Spanish flood alert), against the more than 5 that
-would make the exam inconclusive.
+Four unmoved events in delivered graphics: the harness's award reveal `settle`, and Claude Code's
+award reveal `settle`, auction `sold` and podiums `resume` (the harness's auction `sold` and
+volleyball `undo` were in not-ready sessions, which the judge did not read). The judge described
+the harness's settle, Claude Code's sold stamp and its resume working, and named nothing missing
+on Claude Code's award reveal (`evidence/instruments.md` entry 19). They stay counted as fixed
+before the run.
 
-The missing-action gate alone (without reading Claude Code's bilingual notice's `holdFi` and
-`holdSv` as its two language actions, `evidence/instruments.md` entry 18) gives Claude Code 4
-usable so far instead of 5; nothing else moves.
+The judge also named one missing action the gate did not flag: Claude Code's ski timing tower
+offers `focus`, but no frame shows a focused row. It is already not usable (not airable); the
+gate's missing-action figures above do not include it.
 
 ### Per brief
 
 | brief | type | harness | Claude Code | pair |
 |---|---|---|---|---|
-| alumni-hall-of-fame-reveal | award-reveal | delivered, not yet judged; `settle` did not move the machine | delivered, not yet judged; same | not yet judged |
+| alumni-hall-of-fame-reveal | award-reveal | usable; `settle` unmoved | usable; `settle` unmoved | harness |
 | borga-bilingual-notice | public-notice | usable | usable; `lang1`/`lang2` offered as `holdFi`/`holdSv` | harness |
-| boxing-night-matchup | matchup | not ready (budget) | not yet judged; gate: `select` | Claude Code, by delivery |
-| charity-stream-alerts | event-notification | not yet judged | not yet judged | not yet judged |
+| boxing-night-matchup | matchup | not ready (budget) | not airable, 4 basic mistakes; `select` offered as `winRed`/`winBlue` | Claude Code, by delivery |
+| charity-stream-alerts | event-notification | usable | usable | Claude Code |
 | collegiate-cs2-scorebug | esports-score | not ready (budget) | usable | Claude Code, by delivery |
 | community-tv-station-bug | station-bug | usable | not airable, 3 basic mistakes | harness |
 | film-fest-nominee-reveal | nominee-reveal | usable | usable | Claude Code |
 | fun-run-sponsor-rotation | sponsor-rotator | usable | usable | Claude Code |
 | hockey-club-match-board | match-board | not ready (budget) | usable | Claude Code, by delivery |
-| library-conference-now-next | now-next | not yet judged | not yet judged | not yet judged |
-| parish-prayer-request | community-request | not yet judged | not yet judged | not yet judged |
-| school-auction-board | typeless | not ready (budget) | not yet judged; `sold` did not move the machine | Claude Code, by delivery |
-| school-quiz-secret-pick | quiz-board | not yet judged | not yet judged | not yet judged |
-| school-table-tennis-bracket | bracket | not ready (budget) | not yet judged; gate: `advance` | Claude Code, by delivery |
-| ski-sprint-timing-tower | timing-tower | usable | not airable | harness |
+| library-conference-now-next | now-next | usable | usable | harness |
+| parish-prayer-request | community-request | usable | usable | harness |
+| school-auction-board | typeless | not ready (budget) | not airable, 1 basic mistake; `sold` unmoved | Claude Code, by delivery |
+| school-quiz-secret-pick | quiz-board | usable | not airable | Claude Code |
+| school-table-tennis-bracket | bracket | not ready (budget) | usable; `advance` offered as the round buttons | Claude Code, by delivery |
+| ski-sprint-timing-tower | timing-tower | usable | not airable; the judge named `focus` missing (no focused row shown) | harness |
 | spanish-news-flood-alert | alert-level | usable | usable | tie (order flip) |
-| volleyball-set-board | typeless | not ready (budget) | not yet judged; gate: `undoPoint`, `endSet` | Claude Code, by delivery |
-| welsh-chapel-reading | statement-card | not yet judged | not yet judged | not yet judged |
-| womens-derby-head-to-head | head-to-head | not ready (budget) | not yet judged; gate: `highlight` | Claude Code, by delivery |
-| youth-game-show-podiums | podium-score | not ready (budget) | not yet judged; gate: `spotlight`; `resume` did not move the machine | Claude Code, by delivery |
+| volleyball-set-board | typeless | not ready (budget) | usable; `undoPoint`/`endSet` offered as `undoA`/`undoB`, `setA`/`setB` | Claude Code, by delivery |
+| welsh-chapel-reading | statement-card | usable | usable | Claude Code |
+| womens-derby-head-to-head | head-to-head | not ready (budget) | usable; `highlight` offered as `leadA`/`leadB` | Claude Code, by delivery |
+| youth-game-show-podiums | podium-score | not ready (budget) | usable; `spotlight` offered as `spot1` to `spot4`; `resume` unmoved | Claude Code, by delivery |
+
+By the gate alone, Claude Code's notice, bracket, volleyball board, head-to-head and podiums are
+not usable (the matchup is not usable either way).
+
+### What the judge's answers say about the judge
+
+- **One order flip in 12 judged pairs**, against the more than 5 that would make the exam
+  inconclusive.
+- **The single and the pair can disagree on airability, both ways.** In 5 of the 12 judged pairs
+  the pair's airability for a graphic differs from that graphic's single in at least one order:
+  the harness's charity alert, chapel reading and quiz board, and Claude Code's notice, were
+  airable alone and not airable in one order of their pair (for the harness: the donor message
+  shown only with the long values, the question line cut by its mask for one frame of the Take);
+  Claude Code's community bug and quiz board were not airable alone and airable in a pair (the
+  quiz board in both orders, and preferred there). The counting fixed before the run takes
+  airability from the single and preference from the pair, so none of this changes a figure; it
+  says how firm one judgement is, from a judge calibrated on stills.
+- Every answer carries the frozen fingerprint `60bfb08e18a4`; the judge's files still hash to
+  `judge.lock.json`.
 
 ### What the budget stops say
 
-The reserve's `B` (194 cents, 1.5 times H5's mean on the five v1 briefs) sat 5 cents above the
-dearest tuning graphic. On the exam's briefs, several with 8 to 12 fields and up to 16 buttons,
-the twelve delivered sessions cost $0.92 to $1.87, and the eight capped ones were still
-revising when they reached the cap. Each handed in a validator-clean interim record; they were
-stopped by money, not by an error. A product budget has to be set from briefs as dense as these,
-whatever the judge says next.
+The reserve's `B` (194 cents, 1.5 times the $1.29 mean of six Opus graphics: H3's one and H5's
+five on the v1 briefs) sat 5 cents above the dearest tuning graphic. On the exam's briefs, several with 8 to 12 fields and up to 16 buttons,
+the twelve delivered sessions cost $0.92 to $1.87, and the eight capped ones were still revising
+when they reached the cap. Each handed in a validator-clean interim record; they were stopped by
+money, not by an error. All eight are boards an operator drives (two to five actions each, up to
+16 buttons); the four briefs with no operator action all delivered.
+
+## What a retry needs
+
+- **Change first: the per-graphic budget**, set from briefs as dense as the exam's rather than
+  from six graphics on the light v1 briefs, and checked against the dearest dense brief before the exam's reserve
+  is computed (5.2). On the judged pairs the loop already matches Claude Code on one model.
+- **When to retry (section 9).** This miss has a cause on the host's side (the session budget the
+  harness runs under), not the model's. That is the section's condition for a next attempt: a
+  next plan with the budget changed, or the fallback path (our own loop) on the same kind of
+  exam. A cheaper arm that passes the same exam at a lower cost per accepted graphic is the other.
+- **New sealed briefs.** These twenty have now been read and judged; a retry is examined on a new
+  held-out set written the same way (4.1), with this exam's counting rules.
 
 ## Spend (4.4's last line)
 
@@ -103,17 +142,24 @@ From `benchmarks/harness/ledger.json`, list price, credit:
 | H8 exam | Opus 5.5 | 20 | $33.34 |
 | **total** | | 40 | **$54.68** of $100 |
 
-The exam spent $33.34 of its $46.60 reserve; $13.26 of it stays held, and $32.06 is left for
-everything else. Per usable harness graphic across the whole plan: computed once the exam's
-usable count is final. Subscription, notional: the exam's reference arm $45.22, its judge
-$124.62 so far (26 calls, about $4.80 a call).
+The exam spent $33.34 of its $46.60 reserve. Closing H8 releases the $13.26 it did not spend, so
+$45.32 of the $100 is unspent. Per usable harness graphic: $2.78 in the exam, $4.56 across the
+whole plan ($54.68 over 12). Subscription, notional, no credit: the exam's reference arm $45.22;
+its judge $259.10 over 57 answered calls (26 on 2026-10-15, one of them void, and 31 on
+2026-10-17).
 
 ## The owner gallery (4.6)
 
-Built once the judge has answered, from the ten pairs the rule in `evidence/phase-8.md` picks:
-`benchmarks/harness/exam/gallery/review.html` on this machine, never committed.
+Ten pairs, chosen by the rule fixed before the run (the flip tie, then the pairs Claude Code won,
+judged before by delivery, each in brief order): the Spanish flood alert; the charity alert, film
+festival, fun run, quiz board and chapel reading; then the matchup, esports scorebug, hockey board
+and auction board, where the harness's side is its not-ready interim record. On this machine at
+`C:\claude\noacg-bench-archive\harness-exam-2026-10-15\owner-gallery\review.html`, never
+committed, arms hidden, `key.json` beside it, `notes.md` for a verdict. The owner's verdict
+overrides the judge's; the exam stops either way.
 
 ## What twenty briefs can show
 
-This is a pilot: a 10 of 20 split carries an interval of roughly 30% to 70%. A pass would earn
-the owner-only launch, not a claim of broad reliability.
+This is a pilot: a 10 of 20 split carries an interval of roughly 30% to 70%. On the judged pairs
+the two hosts are close to even; what the miss measures is the loop under a 194-cent budget on
+dense briefs.
