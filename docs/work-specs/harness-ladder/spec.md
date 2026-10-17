@@ -71,9 +71,9 @@ configuration; a miss reports the cost and quality of each rung tried, which is 
   `record` without `--review` behaves as today.
 - **D2. The subscription arm.** `claude -p` with the local CLI build and the skill as a plugin,
   `--model` and `--effort` per rung, no web tools, in the parent's section 5.4 isolation
-  (`CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, a bare home), with
-  the harness's system prompt as the task's instructions so the loop matches the real host. A
-  session stops at 20 minutes. Its cost is Claude Code's notional `total_cost_usd`, an estimate:
+  (`CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, a bare home): the
+  parent's reference-arm runner, with the harness's hand-in steps (validate, record, coverage,
+  review) on local paths so the loop matches the real host. A session stops at 20 minutes. Its cost is Claude Code's notional `total_cost_usd`, an estimate:
   Claude Code's own prompt and caching differ from Managed Agents', which L3 measures. Revert: run
   a rung on Managed Agents instead, from the credit.
 - **D3. One variable per rung: model and effort.** The skill, instructions, tools and forced look
@@ -90,20 +90,21 @@ configuration; a miss reports the cost and quality of each rung tried, which is 
   eight. Revert: name other briefs before the first ladder session.
 - **D5. Rungs, in order:** Haiku 5.5 `high`; Sonnet 5.5 `medium`; Sonnet 5.5 `high`; Opus 5.5
   `low`; Opus 5.5 `medium`. Each rung's first four briefs are a screen (two dense boards, two
-  others): two not usable, or an estimated cost per usable already over $1.50, ends the rung there.
-  The ladder stops at the first matching rung.
+  others): three not usable, or an estimated cost per usable already over $2.00, ends the rung
+  there. The ladder stops at the first matching rung.
 - **D6. A rung matches** when, on its 8 briefs: at least 7 delivered and usable (the parent's H8
   counting: delivered, airable in the judge's single, no basic visible mistake, no missing
   operator action, with its action-reading rule), an estimated cost of at most $1.00 per usable
   graphic, median wall at most 10 minutes, and the agent opened every frame it gave a verdict for
   in at least 7 sessions. The first matching rung is the winner. Revert: a different rule,
   committed before the rung's first session.
-- **D7. Teaching.** If no rung matches, the cheapest rung with at least 5 of 8 usable is taught:
-  up to five rounds, each with its hypothesis (which failure, which skill or CLI change, what
+- **D7. Teaching.** Taught is the cheapest rung below the winner (or of all rungs, when none
+  matched) with at least 4 of 8 usable, or 2 of its first 4 when the screen ended it: up to five
+  rounds, each with its hypothesis (which failure, which skill or CLI change, what
   should move) committed before its first session, each re-measured on the 8 briefs and on the
   16 tuning briefs. A round that moves nothing is reverted. If the taught rung matches, it is the
-  winner; if no rung reaches 5 of 8, or five rounds end without a match, the plan stops with the
-  curve. The parent's AC-16 holds: improvements go into the CLI or the skill, never an
+  winner. Without an L1 winner, if no rung qualifies or five rounds end without a match, the plan
+  stops with the curve; with one, L1's winner stands. The parent's AC-16 holds: improvements go into the CLI or the skill, never an
   Anthropic-only prompt.
 - **D8. Judging.** The exam is judged by the frozen Fable judge (`judge.lock.json`, fingerprint
   `60bfb08e18a4`): 20 singles and 20 pairs against Claude Code, each pair in one order with the
@@ -208,10 +209,10 @@ ladder or teaching cost is on the credit.
    sealed exam beside the parent's, the ladder judge's lock, `benchmarks/harness/ladder/` evidence.
 2. **L1. The ladder** (AC-4, AC-8; $0 credit). Rungs per D5 on the subscription, stopping at the
    first match per D6.
-3. **L2. Teaching** (AC-4, AC-8; $0 credit). Only if L1 found no winner: rounds per D7. If no rung
-   is taught to a match, the plan stops after this phase's check, with the curve as its report.
-   If L1 found a winner, this phase's build only records "not needed" in the phase notes, and its
-   check confirms that nothing ran.
+3. **L2. Teaching** (AC-4, AC-8; $0 credit). Rounds per D7. If L1 found no winner and no rung is
+   taught to a match, the plan stops after this phase's check, with the curve as its report. If
+   L1's winner is the cheapest rung, or no cheaper rung qualifies, this phase's build only records
+   "not needed" in the phase notes, and its check confirms that nothing ran.
 4. **L3. Confirmation on Managed Agents** (AC-5, AC-8; at most $8.00). The winner as a synced
    agent version on the bench workspace, 4 ladder briefs, the exam's `B` set.
 5. **L4. The exam** (AC-6, AC-7, AC-8; at most $30.00): run, judge, tally, report, gallery,
