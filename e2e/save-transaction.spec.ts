@@ -3,12 +3,13 @@
 // covers: src/components/wizard/shell/walkState.ts
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 6): a write REFUSED once, then the door pressed
-// again or the page reloaded, and the reservation and link both refused (#1383, sixth check S6).
+// again or the page reloaded, and the reservation and link both refused (#1383, sixth check S6);
+// then whose the reservation is, across two tabs, a duplicated tab and a new tab (#1402, repair 8).
 // Row map and shared helpers: e2e/_saveMatrix.ts.
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
-import { source } from './_layerProperty';
-import { type Door, type Write, acted, arm, body, editFor, errors, install, landed, library, link, newAsks, prepare, press, refusedHere, retry, saved, settledClean, writesOf } from './_saveMatrix';
+import { draw, open, source } from './_layerProperty';
+import { type Door, type Write, acted, arm, body, editFor, errors, flush, install, landed, library, link, newAsks, prepare, press, refusedHere, retry, saved, settledClean, writesOf } from './_saveMatrix';
 
 // ── Refuse once, then retry ──────────────────────────────────────────────────────────────────
 
