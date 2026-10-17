@@ -89,3 +89,9 @@ test('a dead wake chain is visible without automatically granting a second owner
   assert.equal(wakeHealth({ ...health, dueAt: new Date(now + 60_000).toISOString() }, now).state, 'pending');
   assert.equal(wakeHealth({ ...health, terminal: true }, now).state, 'stop');
 });
+
+test('a wake at or beyond the fixed deadline is invalid before the window expires', () => {
+  for (const dueAt of ['2026-10-17T11:00:00Z', '2026-10-17T11:30:00Z']) {
+    assert.equal(wakeHealth({ dueAt, deadline: '2026-10-17T11:00:00Z' }, now).state, 'unknown');
+  }
+});

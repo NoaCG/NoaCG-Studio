@@ -83,7 +83,8 @@ export function rearmNative({ authorization, target, previous, next, terminal = 
 /** A missing re-arm is an observation to surface, never authority to launch another owner. */
 export function wakeHealth({ dueAt, firedAt, nextNativeId, terminal = false, deadline }, now = Date.now(), graceMs = 60_000) {
   if (terminal || now >= timestamp(deadline)) return { state: 'stop' };
-  if (![timestamp(dueAt), timestamp(deadline), graceMs].every(Number.isFinite) || graceMs < 0) return unknown('invalid wake bounds');
+  if (![timestamp(dueAt), timestamp(deadline), graceMs].every(Number.isFinite) || graceMs < 0
+      || timestamp(dueAt) >= timestamp(deadline)) return unknown('invalid wake bounds');
   if (firedAt && (!Number.isFinite(timestamp(firedAt)) || timestamp(firedAt) > now)) return unknown('invalid delivery time');
   if (firedAt && nonempty(nextNativeId)) return { state: 'rearmed' };
   const since = firedAt ? timestamp(firedAt) : timestamp(dueAt);
