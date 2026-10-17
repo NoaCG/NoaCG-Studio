@@ -3,7 +3,7 @@
   "sessionId": "01a14608-30d3-7654-9c71-4d57555c505d",
   "identityEvidence": "qualification.md: actual scheduled prompt and same-thread probe write/read-back",
   "since": "2026-10-17T09:54:30.349Z",
-  "until": "2026-10-17T09:59:52.176Z",
+  "until": "2026-10-17T10:58:33.276Z",
   "packetBytes": 1825,
   "retrievedBytes": null,
   "planningTurns": null,

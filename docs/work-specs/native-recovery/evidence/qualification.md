@@ -10,7 +10,9 @@ existing provider schedulers first in this session. No hosting, credentials or p
 
 The local worktree activity scan found no competing local work. Work is isolated in
 `codex/native-recovery-adapter`, `/workspace/noacg-native-adapter`; `run-wake*` stays untouched.
-Read-only fetch reconciled the branch with main `3010e41134f1e3a6ebf3933582eb9b7e52055241`.
+The first read-only fetch reconciled the branch with main
+`3010e41134f1e3a6ebf3933582eb9b7e52055241`. After the idle wake, a fresh fetch and merge
+reconciled `6d66070e19644cbaeca01531b951dd7188c65296`, preserving the concurrent work.
 The earlier review-request against stale `origin/main` `1e9ff904` was discarded before review;
 its 639-file scope was not treated as this change. No other run or PR owner was adopted.
 
@@ -60,9 +62,20 @@ Run `native-wake-20261017-0954`, original window 09:53:57.766Z to **11:15:00Z**.
    09:55:47.245325Z: **the same task and thread**, DTSTART **10:55:46Z**, before the unchanged end.
    The offset is one hour from the accepted update, about 41 seconds after arrival recording.
    It is not claimed to be exactly one hour from the fire. No duplicate automation was created.
-5. Second delivery and terminal disable: pending in the live probe at this receipt's first
-   revision. The second actual turn must be recorded separately; acknowledgement alone does
-   not close AC-3. No third re-arm is authorized.
+5. The re-armed prompt actually arrived after this session's previous response ended, without
+   an intervening human prompt. Native read-back reports the second run at **10:58:10.553853Z**,
+   versus the requested 10:55:46Z. The resumed turn first read the original probe at executor
+   time **10:58:16.249Z**. It verified the same native thread, worktree, Node version and preserved
+   branch/commits, then wrote/read back the second delivery at **10:58:32.418Z**. This is real
+   idle-session continuation and bounded re-arm evidence, not just an acknowledgement.
+6. `automations.update(is_enabled=false)` confirmed the same task/thread disabled at
+   **10:58:33.276341Z**, before the unchanged 11:15Z end. Scratch state is completed with two
+   deliveries and `delivered-and-disabled`. No third wake, new worker or renewed window.
+
+The resumed runtime reports the same managed environment as before the pause, current
+observations and enforced restricted networking. No VM-reclamation or filesystem-replacement
+event was established. Native AC-3's stated two-delivery/re-arm/stop scenario passes; the
+broader parent recovery protocol remains partially unqualified.
 
 Actual file access is observed, but no native effective-permission introspection or pending
 approval continuation is exposed. Those parts of native permission equivalence remain open.
@@ -82,6 +95,16 @@ files, excludes other owners/sidechains and rejects conflicting counters. Codex 
 deltas with a pre-window baseline, never sums repeated last-token counters, and refuses resets
 or a mismatched native session. Bytes are not converted into tokens; planning turns require an
 explicit observation. This phase cannot establish a before/after provider-context saving.
+
+## Source CI and landing
+
+Initial draft source CI [39023671160](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39023671160)
+passed Build, Factory gates, E2E plan and CI gate. Browser/catalog jobs were skipped, not run.
+The workflow concluded failure solely because Reviewed lacked the remote review status while
+the PR was deliberately draft. The resumed owner read the whole failed job log (117370321941):
+the missing-status wait ended after 149 seconds. No source assertion failed and no test was
+changed. The final reviewed source receives a fresh stamp and uses the unchanged queue flow;
+final CI/merge/post-land observations belong in the PR's sole-owner receipt.
 
 ## Remaining qualification
 
