@@ -1,0 +1,145 @@
+{
+  "costUnread": false,
+  "brief": "film-fest-nominee-reveal",
+  "arm": "subscription",
+  "model": "claude-opus-5-5",
+  "effort": "low",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "9010c33e-2209-42a6-a8b7-81aeae9995f4",
+  "costCents": 0,
+  "notionalUsd": 1.5235048000000002,
+  "wallSeconds": 208,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs hand-in",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design nm03 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c0b7f26a23742a0e4cfd435e5f23ef29badb8628b4a6404ed6ff4514f342d6f0"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c0b7f26a23742a0e4cfd435e5f23ef29badb8628b4a6404ed6ff4514f342d6f0"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:3f0723daed7e4c76ef9e2c1b5560beacabe0fe11e3caa706df4aa3728708a894"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:f9a2c2a62b363e9e726ffcabe52547c0aaf936813555ba655f3388e272b40527"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:f9a2c2a62b363e9e726ffcabe52547c0aaf936813555ba655f3388e272b40527"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:6a9d8797e8ffed083cd6aa2100d4e3bfbd83191b9ed7d63c62ce562bf8047402"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:6a9d8797e8ffed083cd6aa2100d4e3bfbd83191b9ed7d63c62ce562bf8047402"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:6a9d8797e8ffed083cd6aa2100d4e3bfbd83191b9ed7d63c62ce562bf8047402"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\opus-5-5-low\\cells\\film-fest-nominee-reveal.claude-opus-5-5-low\\frames",
+    "frames": 43,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:6a9d8797e8ffed083cd6aa2100d4e3bfbd83191b9ed7d63c62ce562bf8047402"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "suspense",
+      "reveal"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:6a9d8797e8ffed083cd6aa2100d4e3bfbd83191b9ed7d63c62ce562bf8047402",
+    "benchValidated": "sha256:6a9d8797e8ffed083cd6aa2100d4e3bfbd83191b9ed7d63c62ce562bf8047402",
+    "reviewed": "sha256:6a9d8797e8ffed083cd6aa2100d4e3bfbd83191b9ed7d63c62ce562bf8047402",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 40,
+    "opened": 8,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "take-00020ms.jpg",
+      "take-00120ms.jpg",
+      "take-00300ms.jpg",
+      "take-00600ms.jpg",
+      "take-01500ms.jpg",
+      "take-10000ms.jpg",
+      "event-suspense-00020ms.jpg",
+      "event-suspense-00120ms.jpg",
+      "event-suspense-00300ms.jpg",
+      "event-suspense-00600ms.jpg",
+      "event-suspense-01500ms.jpg",
+      "event-reveal-00020ms.jpg",
+      "event-reveal-00120ms.jpg",
+      "event-reveal-00600ms.jpg",
+      "event-reveal-01500ms.jpg",
+      "next-2-00120ms.jpg",
+      "next-2-00600ms.jpg",
+      "update-00020ms.jpg",
+      "update-00120ms.jpg",
+      "update-00600ms.jpg",
+      "update-01500ms.jpg",
+      "out-00020ms.jpg",
+      "out-00120ms.jpg",
+      "out-00600ms.jpg",
+      "out-01500ms.jpg"
+    ],
+    "all": false,
+    "fixed": 11
+  }
+}

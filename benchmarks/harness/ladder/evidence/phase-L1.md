@@ -129,3 +129,28 @@ graphic it delivered was usable), and `low` keeps the session short, but its tok
 higher than Sonnet's and the dense boards still take most of the work. Expected: it passes the
 screen, delivers 5 to 7 usable of 8, and misses D6 on cost (more than $1.00 per usable). What
 would refute it: a match (7 usable at at most $1.00), or a screen out on "not usable".
+
+**Result: screened out on cost, earlier than predicted.** Sessions 13:52Z to 14:03Z, two at a
+time. 3 delivered, 2 usable of 4, $6.60 notional ($3.30 per usable), median wall 245 s, frames
+opened 81 of 230 reviewed (every one in 1 session). One rubber stamp. Neither refutation
+happened, but the prediction that it passes the screen was wrong: the cost line ended it.
+Evidence: `benchmarks/harness/ladder/L1/opus-5-5-low/`.
+
+| brief | outcome | single | basic mistakes | usable | notional | wall s | opened/reviewed | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| boxing-night-matchup | delivered | not airable | empty-or-broken (4: select and lock never show a winner) | no | $1.49 | 282 | 3/57 | yes |
+| collegiate-cs2-scorebug | not-ready: said NOT READY, "65 of 72 frames were marked `ok` without being opened", the look and logos unfinished | - | - | no | $0.48 | 111 | 6/69 | |
+| charity-stream-alerts | delivered | airable | - | yes | $3.10 | 402 | 64/64, 2 fixed | |
+| film-fest-nominee-reveal | delivered | airable | - | yes | $1.52 | 208 | 8/40, 11 fixed | |
+
+Opus at `low` is the first rung to write `fixed:` verdicts (13 in two graphics), and the first to
+say outright that it stamped frames it had not opened; it then handed in as not ready rather than
+record a review it called false. It opened few frames where it did not fix anything.
+
+### Rung 5: Opus 5.5 `medium` (`claude-opus-5-5`)
+
+**Hypothesis**, committed before its first session: `medium` looks and fixes more than `low`, so
+the quality is at least `low`'s, but every rung so far spent more than $1.50 a session on the
+boards that pass, and Opus at `medium` spends more than at `low` ($1.65 a session). Expected:
+screened out on cost (over $2.00 per usable). What would refute it: three or four usable in the
+screen at at most $2.00 each, and then a match.

@@ -1,0 +1,203 @@
+{
+  "costUnread": false,
+  "brief": "boxing-night-matchup",
+  "arm": "subscription",
+  "model": "claude-opus-5-5",
+  "effort": "low",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "3a8256b7-20d0-4676-ac41-245e6ac87731",
+  "costCents": 0,
+  "notionalUsd": 1.4891022,
+  "wallSeconds": 282,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design mu01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:77b8281cbfb78fe7fedef216363a72eb7e51867434f66b5f50633523690a08ff"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:77b8281cbfb78fe7fedef216363a72eb7e51867434f66b5f50633523690a08ff"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:e5e955dee6e8b7b0644a92e71b14692f116a3dfd4fdd81b62477ec457409d0d6"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:a42f9ef1e18502fd9daae720a4e6f8c020348999f77837e1aa04e756a8e7a38c"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:a42f9ef1e18502fd9daae720a4e6f8c020348999f77837e1aa04e756a8e7a38c"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:69cae16527d99c1ee3ec6f7b6b284f774670a0407081055e2d4d9e4adb3997dd"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:69cae16527d99c1ee3ec6f7b6b284f774670a0407081055e2d4d9e4adb3997dd"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:56400baf7889a5e7c325127c0b71f5640668d71672383ac1d4b5b145d9b48222"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state stress --data f5=B --event select --event lock --out ./shots/x.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:56400baf7889a5e7c325127c0b71f5640668d71672383ac1d4b5b145d9b48222"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:05870dc1aa5dbfb61f02c88d4aad728a2570ff4468ecadfa741ed5b75843c9fe"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:05870dc1aa5dbfb61f02c88d4aad728a2570ff4468ecadfa741ed5b75843c9fe"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:05870dc1aa5dbfb61f02c88d4aad728a2570ff4468ecadfa741ed5b75843c9fe"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\opus-5-5-low\\cells\\boxing-night-matchup.claude-opus-5-5-low\\frames",
+    "frames": 57,
+    "crops": 7,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:05870dc1aa5dbfb61f02c88d4aad728a2570ff4468ecadfa741ed5b75843c9fe"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "clear"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:05870dc1aa5dbfb61f02c88d4aad728a2570ff4468ecadfa741ed5b75843c9fe",
+    "benchValidated": "sha256:05870dc1aa5dbfb61f02c88d4aad728a2570ff4468ecadfa741ed5b75843c9fe",
+    "reviewed": "sha256:05870dc1aa5dbfb61f02c88d4aad728a2570ff4468ecadfa741ed5b75843c9fe",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 57,
+    "opened": 3,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "long-side-1-video.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg",
+      "take-00020ms.jpg",
+      "take-00120ms.jpg",
+      "take-00300ms.jpg",
+      "take-00600ms.jpg",
+      "take-01500ms.jpg",
+      "take-10000ms.jpg",
+      "event-select-00020ms.jpg",
+      "event-select-00120ms.jpg",
+      "event-select-00300ms.jpg",
+      "event-select-00600ms.jpg",
+      "event-select-01500ms.jpg",
+      "event-select-10000ms.jpg",
+      "event-lock-00020ms.jpg",
+      "event-lock-00120ms.jpg",
+      "event-lock-00300ms.jpg",
+      "event-lock-00600ms.jpg",
+      "event-lock-01500ms.jpg",
+      "event-lock-10000ms.jpg",
+      "event-clear-00020ms.jpg",
+      "event-clear-00120ms.jpg",
+      "event-clear-00300ms.jpg",
+      "event-clear-00600ms.jpg",
+      "event-clear-01500ms.jpg",
+      "event-clear-10000ms.jpg",
+      "update-00020ms.jpg",
+      "update-00120ms.jpg",
+      "update-00300ms.jpg",
+      "update-00600ms.jpg",
+      "update-01500ms.jpg",
+      "out-00020ms.jpg",
+      "out-00300ms.jpg",
+      "out-00600ms.jpg",
+      "out-01500ms.jpg",
+      "event-lock-after-select-00020ms.jpg",
+      "event-lock-after-select-00120ms.jpg",
+      "event-lock-after-select-00300ms.jpg",
+      "event-lock-after-select-00600ms.jpg",
+      "event-lock-after-select-10000ms.jpg",
+      "event-clear-after-select-00020ms.jpg",
+      "event-clear-after-select-00120ms.jpg",
+      "event-clear-after-select-00300ms.jpg",
+      "event-clear-after-select-00600ms.jpg",
+      "event-clear-after-select-01500ms.jpg",
+      "event-clear-after-select-10000ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}
