@@ -3,8 +3,9 @@
 Baseline: main `70fad3a94`, 2026-10-11; every line number below is of that revision. Authority:
 owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen sequential
 phases, each built by one session and checked by another on `main`, then (owner, 2026-10-16) the
-Sheet data flow's six phases as phases 15-20 and audience after them; see "After the refactor, in
-the same run". Replaces the phase map of
+data and audience continuation; see "After the refactor, in the same run". Its current candidate
+is phases 15-26, pending the data-sources spec and proposed second-opinion revisions. Replaces
+the phase map of
 [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) (its phases 0-2 are done; its old
 phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
 
@@ -656,21 +657,45 @@ one run in this order: "production page cleanup first, then Sheet data, then aud
 one run." The Sheet work changes the cue editor and the press verbs that phases 12 and 13 move, so
 it follows phase 14 rather than interleaving.
 
-15-20. **Sheet data flow, its phases 1-6**, in order, as written in
-    `docs/work-specs/sheet-data-flow/spec.md` `## Phases`. Each phase's scope, files and
-    acceptance criteria are that spec's, not this spec's file lists; its findings go under that
-    spec's `## Phase notes`. Built and checked by the same rules (§8, §9). That spec's own stop
-    rule holds: a miss on its D3 freshness target stops the run for the owner.
+The original Sheet-only phases 15-20 were superseded by data-sources DS16 on 2026-10-17.
+The owner then accepted the second-opinion improvements for inclusion and clarified the outcome:
+messages from anywhere, including manual paste and Sheets, share the content workflow; YouTube
+matters now; Twitch remains optional. Separate Data and Audience pages are not a requirement.
+This latest direction supersedes the earlier fixed-tab wording above, not the refactor's safety
+contracts. No implementation run starts from this documentation update.
 
-Audience phases are added here as 21 onward once an audience spec is agreed; until then the run
-ends after phase 20.
+The candidate continuation lives once in `docs/work-specs/data-sources/spec.md` under `## Phases`,
+with the Sheet and message criteria linked there. Current summary:
 
-**Answered 2026-10-17 (data sources DS16, as recommended).** `docs/work-specs/data-sources/spec.md`
-holds one model for every data source and audience input, and phases 15-22 in place of 15-20:
-they carry the Sheet data flow's six phases, re-ordered with lists first, plus RSS feeds and the
-data API made visible. Audience is then 23 onward. That list replaces the two paragraphs above
-once the data sources spec is agreed after its second opinion; no phase from 15 starts before the
-readiness item below.
+| Phase | Result |
+| --- | --- |
+| 15 | Prototype shared content and manual/Sheet messages; qualify sources and verification |
+| 16 | Scoped connections, source/use separation, message identity and snapshot contracts |
+| 17 | Native lists, starter rows and local Sheet connections |
+| 18 | Published source ownership, durable connections and closed-page updates |
+| 19 | Direct RSS/Atom feeds |
+| 20 | Custom API setup, status and server-enforced Pause |
+| 21 | Selected table rows, manual/Sheet message intake and broadcast preview |
+| 22 | Data journeys, old-graphic compatibility and docs |
+| 23 | Safe message destinations, reliable staging and exact cue snapshots |
+| 24 | Shared message workflow and optional joining, votes and presenter controls |
+| 25 | Qualified YouTube intake; retain Twitch compatibility and extension path |
+| 26 | Combined rehearsal, including paste/Sheet messages and separate provider evidence |
+
+Phases 1-14 remain the candidate baseline. The owner now requests independent review of **all
+phases**, not just the continuation. Reviewers may challenge the extraction scope, maintenance
+phases, dependencies, UI separation and timing of the first useful message workflow. The review
+brief is `docs/research/2026-10-data-sources/external-review-prompt.md`; accepted changes must be
+reconciled into the specs before execution. Do not preserve this sequence merely because it is
+numbered. Research, prototypes and reviews can precede phase 1; production feature changes stay
+outside the behavior-preserving refactor unless the reviewed plan explicitly changes its fence.
+
+Each continuation phase uses §8/§9 and relevant checks. §6's matrix only covers 1-14; phase 15
+must record the concrete 15-26 verification matrix before dependent implementation. The existing
+D3 stop rule holds. No phase 15 begins until readiness below, and no new source is implemented
+merely by landing research. Phase 26 integrates the changed workflows; phase 14 remains the
+refactor rehearsal. Required manual, Sheet and qualified YouTube outcomes are reported separately
+from optional Twitch deferral and hardware checks.
 
 ## What the plan can demonstrate, and what stays uncertain
 
@@ -685,6 +710,10 @@ answers do not reproduce; the hosted page's fitness for the core (not in scope).
 
 ## Readiness
 
+Before the next run: the requested independent whole-plan opinions are compared, accepted
+changes reconciled across all four specs, and the owner agrees the resulting plan. This is a
+planning review gate, not authorization to start a run or a requirement to repeat accepted P1-P5.
+
 Before starting phase 1 (the start instruction): this spec and `work.json` landed on `main`,
 `work-spec.mjs status` clean and the "Runnable plans" line present; `origin/main` CI, the latest
 configured-suite run and deploy-verify green; the local Supabase stack or the dispatch route
@@ -696,12 +725,14 @@ Added 2026-10-16: the phase 1 builder reads `evidence/reconcile-2026-10-16.md` f
 here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reused. The owner
 answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settled.
 
-Before starting phase 15: phase 14 checked PASS on `main`, and `node scripts/work-spec.mjs status
-docs/work-specs/sheet-data-flow/work.json` shows the spec agreed. Added 2026-10-17 (owner): the
-owner has agreed `docs/work-specs/data-sources/spec.md` (its `work.json` authority `agreed`, its
-decisions answered, and, owner 2026-10-17, its second opinion reviewed) before phases 15 onward
-start; phase 15 then follows the phase list the owner's
-answer to its DS16 names.
+Before starting phase 15: phase 14 checked PASS on `main`; data-sources and audience-flow
+have agreed authority after review; sheet-data-flow remains agreed with the reconciled criteria;
+all digests are current and `work-spec.mjs status` reports no problems. P1-P5 and the latest
+message priorities are included for planning; remaining independent-review decisions are recorded
+before execution. Phase 15 qualifies measurements, provider scope and the continuation check
+matrix before dependent implementation. Phase 26 records integrated acceptance separately from
+the phase 14 behavior-preserving refactor. A manual YouTube copy is useful but does not prove a
+promised direct connector; optional Twitch work is not a completion gate.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with
