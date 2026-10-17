@@ -4,7 +4,7 @@
 Save's own library write is refused, but the leave decision continues to Graphics. The edit is not
 in the library, the link is marked clean, and the app-level notice says "Your work is still open
 here" over Home. It reproduces intermittently with the original independent assertion, unchanged
-(`leave-checker.spec.ts:24`): CI 1 of 2 runs, locally 1 of 5 and 1 of 15. Everything else checked
+(`leave-checker.spec.ts:24`): in CI it failed 1 of 3 executions; locally 1 of 5 and 1 of 15. Everything else checked
 passes. This is the third failed check of Phase 1, so Phase 2 does not start.
 
 ## Scope
