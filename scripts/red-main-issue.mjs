@@ -25,11 +25,10 @@
 // about it." So: say each distinct problem loudly, once. Never say nothing about a new one.
 
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describeFailureSet, fetchFailureSet, ghJsonLines, jobIdentity, mainPushRuns } from './ci-failure-set.mjs';
+import { describeFailureSet, fetchFailureSet, ghJsonLines, jobIdentity, mainPushRuns, setHash } from './ci-failure-set.mjs';
 import { spawnRunner } from './queue-pr.mjs';
 import { revertLanding } from './revert-landing.mjs';
 
@@ -158,7 +157,7 @@ export function marker(hash) {
 export function alarmSet({ items = [], hash = 'unknown', cancelled = [] } = {}) {
   if (cancelled.length === 0) return { items, hash };
   const all = [...new Set([...items, ...cancelled.map((name) => `time limit: ${jobIdentity(name)}`)])].sort();
-  return { items: all, hash: createHash('sha1').update(all.join('\n')).digest('hex').slice(0, 12) };
+  return { items: all, hash: setHash(all) };
 }
 
 /**

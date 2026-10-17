@@ -305,9 +305,12 @@ directory rather than from the table, so an unmeasured spec is packed at the med
 dropped, the assignment asserts that its bins are exactly the suite, and the plan job prints a
 warning naming every spec it had to guess at.
 `npm run check:e2e-durations` reports drift, and **`npm run record:e2e-durations` re-records the
-whole table** - it picks the newest green FULL run of ci.yml on `main`, downloads its shard blob
-reports, merges them and rewrites the file, stamping which run it came from. Pass a run id
-(`npm run record:e2e-durations -- <run-id>`) to use a particular one. A run whose shards are not all
+whole table** - it picks the six newest green FULL runs of ci.yml on `main`, downloads and merges
+each run's shard blob reports, and records every spec at its 80th percentile across them (its time
+on a slow runner: GitHub hands out a fast and a slow kind, see the header of
+`scripts/e2e-durations.mjs`), stamping which runs it came from. Pass a run id
+(`npm run record:e2e-durations -- <run-id>`) to record from that one run alone, which carries
+that run's runner lottery in every entry. A run whose shards are not all
 `(full)`, or that is missing a shard, is REFUSED rather than recorded: it measured a subset, and
 writing that would drop every spec it skipped back to the median. Blob artifacts expire after seven
 days, so re-record from a recent run. Re-record whenever `check:e2e-durations` reports unmeasured

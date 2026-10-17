@@ -65,7 +65,10 @@
 // 38997059058 packed equal 15.1 table-minute bins, and one was cancelled at 20 while the fastest
 // finished in 12.6. A runner moves all the files of its shard together, so a spec's 80th
 // percentile over six runs is its time on a slow runner whatever bins it shared, and one hung test
-// cannot set it.
+// cannot set it. Two limits: a spec only one or two of the runs carried (a new one) keeps what
+// those runs measured until more do, and only green runs are sampled, which leans fast while
+// shards are still dying at the cap - MAX_SHARDS (scripts/e2e-affected.mjs) was checked against
+// every runner speed measured, cancelled runs included, for that reason.
 //
 // A HALF-RUN IS REFUSED, not silently recorded: a run whose E2E jobs are not all `(full)`, or that
 // is missing a shard, measures a SUBSET, and writing that would drop every unmeasured spec back to
