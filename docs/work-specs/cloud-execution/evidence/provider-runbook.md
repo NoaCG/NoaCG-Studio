@@ -34,8 +34,9 @@ Each provider launches its own workers in existing environments and subscription
 
 Numerical policy approved in #1301 comment 6223002051 (execute via the canonical verify workflow):
 small affected browser selection <=5 minutes; one relevant broader selection or
-maintained shard <=12 minutes; <=4 browser workers with lower executing-worker
-limits respected; unknown limits permit conservative targeted work only. Build only
+maintained shard <=12 minutes. Browser workers follow the executing machine's CPUs
+and memory, falling back to its totals when a reading fails (owner, 2026-10-17,
+replacing this comment's worker defaults). Build only
 for bundle/dependency/entrypoint/packaging risk, once per reviewed source state,
 <=5 minutes Codex or <=10 minutes Claude. Avoid checks duplicated by the build;
 docs/copy need no build unless build inputs. Larger selections stay in GitHub Actions.

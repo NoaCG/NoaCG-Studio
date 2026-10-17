@@ -196,11 +196,11 @@
       "id": "claude-cloud-rows-cannot-launch-subagents",
       "harness": "Claude Code",
       "kind": "observation",
-      "measuredOn": "2.1.283",
-      "measuredAt": "2026-09-28",
-      "claim": "A cloud session sets CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1, and a wave-row subagent there has NO Agent tool although its tools: allowlist names Agent - so a cloud row cannot consult, cannot call design-consult and cannot delegate to a subagent. Skill forks still run at spawn depth 2: three general-purpose forks (one of them the /check code-review leg) ran under three rows.",
-      "reprobe": "In a cloud wave row, ToolSearch select:Agent, and echo $CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH; a loaded Agent tool retires this.",
-      "source": "Row F (claude/f-cloud-orchestrator-parity), 2026-09-28: its own tool list and environment, and the subagent meta files (spawnDepth, agentType) of the same session"
+      "measuredOn": "2.1.302",
+      "measuredAt": "2026-10-17",
+      "claim": "A cloud session sets CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1, and a wave-row subagent there has NO Agent tool although its tools: allowlist names Agent - so a cloud row cannot launch design-consult or delegate to a subagent itself. Skill forks still run at spawn depth 2: three general-purpose forks (one of them the /check code-review leg) ran under three rows. A cloud row CAN consult from Bash: on 2.1.302 (2026-10-17) a probe wave-row (select:Agent: 'No matching deferred tools found', spawn depth 1) ran `claude -p --agent design-consult --output-format json \"<question>\"` as a plain command in its worktree and got an answer on claude-fable-5-1 in 99 s, is_error false, about $0.93; the same command chained with cd and redirects was refused by the worktree-isolation guard. That is the path .claude/agents/wave-row.md gives a row with no Agent tool.",
+      "reprobe": "In a cloud wave row, ToolSearch select:Agent, and echo $CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH; a loaded Agent tool retires the first half. Then run the wave-row.md consult command with --output-format json and a short question: an answer with claude-fable-5-1 among the modelUsage keys and is_error false keeps the second half.",
+      "source": "Row F (claude/f-cloud-orchestrator-parity), 2026-09-28: its own tool list and environment, and the subagent meta files (spawnDepth, agentType) of the same session; the 2026-10-17 probe wave-row of the cloud-resources change: its ToolSearch result, spawn depth and the claude -p JSON result"
     },
     {
       "id": "claude-cloud-worktree-base-is-the-session-branch",

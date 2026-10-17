@@ -52,9 +52,10 @@ unsupported child launch until authenticated access AND environment mapping are 
 
 On the worker that runs commands, run `node scripts/execution-profile.mjs` and follow
 `.agent-workflows/verify.md`. Never inherit the laptop/coordinator resource profile.
-The shared detector reads v1/v2 controller mounts, quota/affinity, ancestor memory
-headroom and incomplete visibility. Unknown limits stay conservative; they do not
-become host-sized RAM. Use the existing queue, affected planner and worker selector.
+The shared detector reads v1/v2 controller mounts, quota/affinity and ancestor memory
+headroom; an unlimited ancestor is no cap, and a failed reading falls back to the
+machine's own CPUs and memory. The worker runs its own browser and e2e checks through
+the existing queue, affected planner and worker selector before /queue-merge.
 Commit each verified phase, /check, then /queue-merge. Return native status, exact SHA,
 useful result and retrievable artifacts; a submission acknowledgement is insufficient.
 Record failed, skipped and incomplete verification as observed, not passing evidence.

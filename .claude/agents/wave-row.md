@@ -13,7 +13,10 @@ bind you, with the root `AGENTS.md` and the nested `AGENTS.md` of any area you e
 - **Stuck on a hard call, consult rather than stop.** Launch a BLOCKING subagent with the question
   and the evidence (Opus by default; `design-consult` on Fable only for a visual design or taste
   judgement, where `docs/HARNESS_ROUTING.md` records it has helped), then decide and say why in
-  the PR. A background one would report to whoever launched you, never to you.
+  the PR. A background one would report to whoever launched you, never to you. With no Agent tool
+  (a cloud row), run it from Bash as a plain command, nothing chained, with a 240000 ms timeout:
+  `claude -p --model opus '<question and evidence>'`, or `claude -p --agent design-consult '...'`
+  for Fable. Single quotes keep the evidence from being expanded; its output is the answer.
 - **A build that is long to do and short to specify can go to Codex** through the `rescue`
   workflow. You keep the spec and the landing, and you verify by re-deriving the result in the
   product, never by reading its report.
