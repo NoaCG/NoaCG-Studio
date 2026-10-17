@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "af0fca887163f4a5292f23dc8dada5d235249a614b5da3208b42c96a221a6225",
+  "specSha256": "88beee759f0da663b5a0b8964c342d581e83bef0451182f57a9b990be093987e",
   "authority": {
     "status": "draft",
-    "source": "owner, 2026-10-16: \"The playout dashboard, our playout system, is top priority right now, and I think everything that has to do with the playout system is important. That means also the data and the audience tabs.\" Then: \"production page cleanup first, then Sheet data, then audience, all in the one run.\" Drafted overnight from the 2026-10-16 walk; decisions A1 to A5 await the owner. 2026-10-17, owner research brief: \"Revisions to sheet-data-flow and audience-flow so the three agree.\" Where the audience fits is asked in docs/work-specs/data-sources/spec.md DS11-DS14. 2026-10-17, owner: \"For me it's too difficult now to answer those questions before I actually can try it out so let's go with your recommendations. Record those as answers.\" and \"Before we start planning the phase let's research how this should be done a bit further,\" with a second opinion from another agent. DS11-DS14 answered; A1-A5 stay open, since the owner's answer named the data sources list only."
+    "source": "owner, 2026-10-16: \"The playout dashboard, our playout system, is top priority right now, and I think everything that has to do with the playout system is important. That means also the data and the audience tabs.\" Then: \"production page cleanup first, then Sheet data, then audience, all in the one run.\" Drafted overnight from the 2026-10-16 walk; decisions A1 to A5 await the owner. 2026-10-17, owner research brief: \"Revisions to sheet-data-flow and audience-flow so the three agree.\" Where the audience fits is asked in docs/work-specs/data-sources/spec.md DS11-DS14. 2026-10-17, owner: \"For me it's too difficult now to answer those questions before I actually can try it out so let's go with your recommendations. Record those as answers.\" and \"Before we start planning the phase let's research how this should be done a bit further,\" with a second opinion from another agent. DS11-DS14 answered. A1-A5, same day, owner: \"yes, use your recommendations for A1-A5 too.\""
   },
   "review": null
 }
