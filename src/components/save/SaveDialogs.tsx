@@ -25,6 +25,8 @@ import { getSyncState, onSyncState } from '../../backend/syncController';
  *   (opening another graphic, creating a new project, the wizard's mid-walk start-over).
  *   Save first, discard, or cancel.
  */
+const SAVE_FAILED = 'Could not save. Your changes are still open. Try again.';
+
 export default function SaveDialogs() {
   const saveDialog = useSaveUi((s) => s.saveDialog);
   const confirmSwitch = useSaveUi((s) => s.confirmSwitch);
@@ -92,7 +94,7 @@ function SaveDialog() {
       // A new name is adopted by the draft too, as the first attempt adopted its own.
       if (now.name !== chosen) useTemplateStore.setState({ template: { ...now, name: chosen } });
       const r = await saveCurrentGraphic({ name: chosen });
-      if (r !== 'needs-name') return { ok: r === 'saved', error: r === 'saved' ? null : 'Could not save. Your changes are still open. Try again.' };
+      if (r !== 'needs-name') return { ok: r === 'saved', error: r === 'saved' ? null : SAVE_FAILED };
     }
     const res = await saveGraphicAs(chosen, { kind: 'standalone' });
     minted.current = res.graphicId ?? null;
@@ -188,7 +190,7 @@ function ConfirmSwitchDialog() {
       busyRef.current = true;
       setBusy(true);
       void saveCurrentGraphic().then((r) => {
-        if (r === 'failed') { setError('Could not save. Your changes are still open. Try again.'); return; }
+        if (r === 'failed') { setError(SAVE_FAILED); return; }
         // Saved, but an edit accepted during the wait is not in that copy (#1359).
         if (r === 'saved' && useTemplateStore.getState().saved.dirty) {
           setError('The graphic changed while saving. Your newer changes are still open. Try again.');
