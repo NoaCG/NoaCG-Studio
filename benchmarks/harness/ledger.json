@@ -12,6 +12,24 @@
     "at": "2026-10-15T14:48:55.119Z",
     "note": "H7 kept Opus 5.5 (Sonnet 5.5 did not match: 2 of 5 accepted, 3 graphics with a basic visual defect): B stays round-up(1.5 x $1.29) = 194 and o 39 from H5's six Opus graphics; agent.md's budget set to 194 (agent v7) so an exam session's cap is the B the reserve holds (evidence/phase-7.md)"
   },
+  "holds": [
+    {
+      "phase": "L4",
+      "kind": "exam",
+      "cents": 3000,
+      "setBy": "L0",
+      "at": "2026-10-17T11:25:15.567Z",
+      "note": "D9: the exam reserve of the harness ladder, held before any ladder session; L3 sets the exam's B = min(round-up(1.5 m), 130) with o 20 cents, so R = 20 (B + o) is at most this"
+    },
+    {
+      "phase": "L3",
+      "kind": "ceiling",
+      "cents": 800,
+      "setBy": "L0",
+      "at": "2026-10-17T11:25:15.943Z",
+      "note": "D9: the confirmation ceiling, the winner's four Managed Agents sessions (AC-5); held before any ladder session"
+    }
+  ],
   "entries": [
     {
       "at": "2026-10-14T00:00:00.000Z",
@@ -1227,6 +1245,34 @@
       "outcome": "completed",
       "verdict": "MISSED",
       "note": "the held-out exam, MISSED (evidence/phase-8.md, exam/REPORT.md): 4.5 lines 1 and 3 fail. Harness 12 of 20 delivered and usable (8 stopped at the 194-cent budget, not ready), Claude Code 15 usable with the action readings (10 by the gate alone, where line 1 holds); Claude Code preferred in 13 of 20 pairs (8 by delivery), harness 6, 1 flip tie; 0 basic mistakes and 0 missing actions in the harness's delivered graphics; median wall 527 s. 20 credit sessions, $33.34 of the $46.60 reserve; the frozen judge 57 answered calls on the subscription ($259.10 notional, no credit). The run stops (5.5); H9 does not start"
+    },
+    {
+      "at": "2026-10-17T11:25:43.030Z",
+      "listCostCents": 0,
+      "kind": "session",
+      "phase": "L0",
+      "stage": "briefs",
+      "arm": "brief-writer",
+      "model": "claude-opus-5-5",
+      "funding": "subscription",
+      "sessionId": "3fcd81b3-013c-4766-a8b2-33e5265e69dc",
+      "notionalUsd": 1.3,
+      "wallSeconds": 280,
+      "outcome": "completed",
+      "note": "the ladder exam: 20 briefs written by one claude -p child on the subscription (a prompt, then two corrections in the same session), sealed in benchmarks/harness/ladder/exam/; no credit (ladder/evidence/phase-L0.md)"
+    },
+    {
+      "at": "2026-10-17T11:28:28.920Z",
+      "listCostCents": 0,
+      "kind": "session",
+      "phase": "L0",
+      "stage": "judge-calibration",
+      "arm": "judge",
+      "model": "claude-opus-5-5",
+      "funding": "subscription",
+      "notionalUsd": 7.91,
+      "outcome": "completed",
+      "note": "the ladder judge (D8): Opus 5.5 at high on the exam judge's frozen prompt and rubric, the H2 held-back part, 57 answered claude -p calls on the subscription, no pause, no error: agreement 38 of 41 with no basic-defect FAIL aired, pairwise 16 of 16 with no flip, PASS, so it is frozen as the ladder judge (ladder/judge.lock.json); no credit"
     }
   ]
 }

@@ -62,10 +62,19 @@ export function labelStress(brief, types) {
 export function examBriefs({ root, ledger, phase, passphraseFile = privatePassphraseFile(root) }) {
   const exam = examPending(ledger);
   if (!exam || phase !== exam) throw new Error(`the sealed briefs open only for the exam, once tuning is closed and before the exam is (${phase} is not that phase)`);
-  if (!passphraseFile) throw new Error('the sealed briefs need the passphrase in the main checkout\'s docs/private/harness-exam/ (D7): not on this machine');
-  const plain = openSealed(readSealed(path.join(root, EXAM_DIR, 'briefs.sealed')), readFileSync(passphraseFile, 'utf8').trim());
+  return openBriefSet({ root, dir: EXAM_DIR, passphraseFile, folder: 'harness-exam' });
+}
+
+/**
+ * A sealed set of twenty library briefs, decrypted in memory and verified against its committed
+ * hash: the parent's exam (`dir` benchmarks/harness/exam) or the ladder's (benchmarks/harness/
+ * ladder/exam). Whoever calls it has already decided the phase may open it.
+ */
+export function openBriefSet({ root, dir, passphraseFile, folder }) {
+  if (!passphraseFile) throw new Error(`the sealed briefs need the passphrase in the main checkout's docs/private/${folder}/: not on this machine`);
+  const plain = openSealed(readSealed(path.join(root, dir, 'briefs.sealed')), readFileSync(passphraseFile, 'utf8').trim());
   try {
-    if (sha256(plain) !== readHash(path.join(root, EXAM_DIR, 'briefs.sha256'))) throw new Error('the sealed briefs decrypt to something other than the committed hash: the exam does not run on them');
+    if (sha256(plain) !== readHash(path.join(root, dir, 'briefs.sha256'))) throw new Error('the sealed briefs decrypt to something other than the committed hash: the exam does not run on them');
     const briefs = JSON.parse(plain.toString('utf8')).briefs;
     if (!Array.isArray(briefs) || briefs.length !== EXAM_BRIEF_COUNT) throw new Error(`the sealed set holds ${Array.isArray(briefs) ? briefs.length : 'no list of'} briefs, not ${EXAM_BRIEF_COUNT}`);
     const ids = new Set(briefs.map((b) => b.id));

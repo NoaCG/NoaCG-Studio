@@ -44,12 +44,26 @@
 //                                                    FREE. 5.2's arithmetic: the exam reserve R, what
 //                                                    is left for tuning and the rounds that fit, and
 //                                                    R recorded in the ledger for the wall to hold.
+//   node scripts/harness-bench.mjs --build <L#> --arms subscription --model <id> --effort <level>
+//                                  --briefs id,.. [--stage <round>] [--out <dir>]
+//                                                    SUBSCRIPTION. The harness ladder
+//                                                    (docs/work-specs/harness-ladder/spec.md, lib/
+//                                                    ladder.mjs): one `claude -p` per brief with this
+//                                                    checkout's CLI and skill, the rung's model and
+//                                                    effort, 20 minutes, the forced look required.
+//                                                    L0 to L2 run nothing else; L3 and L4 spend credit
+//                                                    only inside what the ledger holds for them, and
+//                                                    no phase starts before the one before it closed.
+//   node scripts/harness-bench.mjs --hold <L#> --kind exam|ceiling --cents <n> --by <L#> [--note "..."]
+//                                                    FREE. Hold money in the ledger for a later phase
+//                                                    (D9), refused when it does not fit.
 //   node scripts/harness-bench.mjs --close <H#> [--verdict PASSED|MISSED|INCONCLUSIVE] [--note "..."]
 //                                                    Record a phase as completed in the ledger; the
 //                                                    exam's close carries --tally's verdict, and no
 //                                                    later phase builds unless it PASSED.
 //   node scripts/harness-bench.mjs --judge <runDir> [--phase <H#>] [--delivered-only] [--concurrency <1-4>] [--briefs id,..]
-//                                                    SUBSCRIPTION. The frozen judge on a run's cells.
+//                                                    SUBSCRIPTION. The frozen judge on a run's cells;
+//                                                    for L1 and L2 the ladder's judge, singles only (D8).
 //   node scripts/harness-bench.mjs --tally <runDir>  FREE. 4.4's numbers and 4.5's verdict for an exam run.
 //   node scripts/harness-bench.mjs --recapture <runDir> --rekey <file>
 //                                                    FREE. Move a misplaced stress value to its field
@@ -73,12 +87,13 @@ import { fileURLToPath } from 'node:url';
 import { devPort } from './dev-port.mjs';
 import { mainEnv } from './lite-eval-paths.mjs';
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
-import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
+import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli, subscriptionArm } from '../benchmarks/harness/lib/arms.mjs';
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, holdFor, HOLD_KINDS, isLadder, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, setHold, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
+import { ladderBriefs, ladderJudge, LADDER_SET, refuseLadderBuild } from '../benchmarks/harness/lib/ladder.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
@@ -136,12 +151,34 @@ async function sealedRunBriefs({ cli, ledger, phase, ids }) {
   return chosen;
 }
 
+/** A ladder phase's briefs (lib/ladder.mjs): tuning briefs by id, the eight ladder briefs from the
+ *  closed H8 exam, and in L4 the ladder's own sealed exam; the sealed ones with their positional
+ *  stress named by field label, as the exam named it. Said by id and type only. */
+async function ladderRunBriefs({ cli, ledger, phase, ids }) {
+  if (phase !== 'L4' && !ids.length) fail(`--build ${phase} needs --briefs: the ladder set (${LADDER_SET.join(', ')}) or tuning brief ids`);
+  const bank = JSON.parse(readFileSync(TUNING, 'utf8')).briefs;
+  const chosen = orFail(() => ladderBriefs({ root: ROOT, ledger, phase, ids, tuning: bank }));
+  for (const b of chosen) if (!isLibraryBrief(b)) fail(`${b.id} is not a library graphic brief (4.2)`);
+  const sealed = chosen.filter((b) => phase === 'L4' || LADDER_SET.includes(b.id));
+  let types = null;
+  if (sealed.length) {
+    const r = await cli(['types', '--json']);
+    if (r.code !== 0 || !Array.isArray(r.json?.types)) fail(`noacg types --json failed, so the sealed briefs' stress cannot be named by field: ${r.stderr.slice(-300)}`);
+    types = r.json.types;
+  }
+  const briefs = chosen.map((b) => (sealed.includes(b) ? labelStress(b, types) : b));
+  console.log(`  briefs: ${briefs.map((b) => `${b.id} (${b.type ?? 'typeless'}${sealed.includes(b) ? phase === 'L4' ? ', ladder exam' : ', ladder set' : ', tuning'})`).join(', ')}`);
+  return briefs;
+}
+
 /** `--build` may create sessions only for a paid phase the ledger does not already hold as
  *  completed; after H4 only once the exam is reserved (5.2), so tuning never spends the exam; the
  *  exam itself only once every tuning phase before it is closed; and from then until the exam
  *  closes, nothing but the exam, since the bench is frozen for it. */
-export function refuseBuild(ledger, phase) {
+export function refuseBuild(ledger, phase, arms = []) {
   if (!PHASE.test(phase ?? '')) return `--build needs a phase like H3, got "${phase}"`;
+  // The harness-ladder plan's phases have their own order and money (lib/ladder.mjs).
+  if (isLadder(phase)) return refuseLadderBuild(ledger, phase, arms);
   if (ZERO_CREDIT_PHASES.includes(phase)) return `${phase} spends nothing (5.1): it creates no session`;
   if (phaseCompleted(ledger, phase)) return `the ledger already holds ${phase} as completed; a completed phase never spends again`;
   if (phaseNumber(phase) > phaseNumber(RESERVING_PHASE) && !ledger.reserve) return `the ledger holds no exam reserve: ${RESERVING_PHASE} reserves the exam before any tuning spends (5.2)`;
@@ -205,6 +242,19 @@ export function recordReserve(file, { by, budget, overshoot, critic = '0', note 
   return { fit, written: true };
 }
 
+/**
+ * `--hold`: keep money in the ledger for one later phase (docs/work-specs/harness-ladder/spec.md
+ * D9: L4's exam reserve, L3's confirmation ceiling). Refused, with nothing written, when it does
+ * not fit in what is left past the spend and every other hold.
+ */
+export function recordHold(file, { phase, kind, cents, by, note } = {}) {
+  if (!PHASE.test(phase ?? '') || !PHASE.test(by ?? '')) throw new Error(`--hold <phase> --by <phase>, like --hold L4 --by L0, got "${phase ?? ''}" by "${by ?? ''}"`);
+  if (!HOLD_KINDS.includes(kind)) throw new Error(`--kind ${kind ?? ''}: ${HOLD_KINDS.join(' or ')}`);
+  const ledger = setHold(readLedger(file), { phase, kind, cents: parseCents(cents, 'cents'), setBy: by, note });
+  writeLedger(file, ledger);
+  return ledger;
+}
+
 /** `--agent-version`: an earlier version than the lock's, or nothing (the lock's own). */
 export function controlVersion(raw, current) {
   if (raw === undefined) return null;
@@ -227,8 +277,11 @@ export function adoptions(pairs, briefIds) {
 /** The cells of a `--build` the ledger does not already hold for that phase. A cell that ran
  *  (delivered, not ready or failed) on the same model is never paid twice; a refused or paused one
  *  runs again, and another model on the same brief is another cell. */
-export function pendingCells(ledger, phase, cells) {
-  const ran = (c) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === c.brief.id && e.arm === c.arm.id && (e.model ?? null) === (c.arm.model ?? null) && !['refused', 'paused'].includes(e.outcome));
+export function pendingCells(ledger, phase, cells, stage = null) {
+  // A ladder rung is a model and an effort (D3), and each of its rounds a stage: another effort, or
+  // a teaching round re-measuring the same rung, is another cell.
+  const sameRung = (e, c) => !isLadder(phase) || ((e.effort ?? null) === (c.arm.effort ?? null) && (stage === null || e.stage === stage));
+  const ran = (c) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === c.brief.id && e.arm === c.arm.id && (e.model ?? null) === (c.arm.model ?? null) && sameRung(e, c) && !['refused', 'paused'].includes(e.outcome));
   return cells.filter((c) => !ran(c));
 }
 
@@ -248,9 +301,12 @@ export function packagesProofRefusal(ledger, phase, proofIds) {
 
 function printLedger(ledger) {
   const s = summary(ledger);
-  const reserve = ledger.reserve;
-  const held = reserve ? `, ${dollars(s.heldCents)} held for ${reserve.phase}'s exam (${reserveTerms(reserve)}, set by ${reserve.setBy})` : '';
-  console.log(`Ledger ${path.relative(ROOT, LEDGER_FILE)}: ${dollars(s.spentCents)} of ${dollars(ledger.runBudgetCents)} credit spent${held}, ${dollars(s.remainingCents)} left${reserve ? ' for everything else' : ''}.`);
+  const reserve = ledger.reserve && !phaseCompleted(ledger, ledger.reserve.phase) ? ledger.reserve : null;
+  const holds = (ledger.holds ?? []).filter((h) => !phaseCompleted(ledger, h.phase));
+  const whom = [...(reserve ? [`${reserve.phase}'s exam (${reserveTerms(reserve)}, set by ${reserve.setBy})`] : []), ...holds.map((h) => `${h.phase}'s ${h.kind === 'exam' ? 'exam' : 'ceiling'}`)];
+  const held = whom.length ? `, ${dollars(s.heldCents)} held for ${whom.join(' and ')}` : '';
+  console.log(`Ledger ${path.relative(ROOT, LEDGER_FILE)}: ${dollars(s.spentCents)} of ${dollars(ledger.runBudgetCents)} credit spent${held}, ${dollars(s.remainingCents)} left${whom.length ? ' for everything else' : ''}.`);
+  for (const h of ledger.holds ?? []) console.log(`  held for ${h.phase}: ${dollars(h.cents)} (${h.kind === 'exam' ? 'the exam reserve' : 'its ceiling'}, set by ${h.setBy}), ${dollars(phaseSpentCents(ledger, h.phase))} of it spent${phaseCompleted(ledger, h.phase) ? ', closed' : ''}`);
   for (const r of s.rows) console.log(`  ${r.phase} ${r.stage ?? '-'} ${r.model ?? '-'} (${r.funding}): ${r.sessions} session(s), ${dollars(r.listCostCents)}`);
   for (const e of ledger.entries.filter((x) => x.kind === 'phase')) console.log(`  ${e.phase} ${e.outcome}${e.note ? ` - ${e.note}` : ''}`);
 }
@@ -319,7 +375,8 @@ function describe(cell) {
     `${cell.capture.frames} frame(s), ${cell.capture.crops} crop(s)`,
     `digests ${cell.digest.ok ? 'one version' : cell.digest.problems.join('; ')}`,
     cell.operator.missing.length ? `MISSING ${cell.operator.missing.join('/')}` : 'actions ok',
-    dollars(cell.costCents ?? 0),
+    cell.look?.reviewed ? `opened ${cell.look.opened} of ${cell.look.reviewed} reviewed frame(s)` : 'no review',
+    cell.notionalUsd ? `${dollars(cell.costCents ?? 0)} credit, $${Number(cell.notionalUsd).toFixed(2)} notional` : dollars(cell.costCents ?? 0),
   ];
   if (cell.cleanup) parts.push(`cleanup ${cell.cleanup.sessionGone && cell.cleanup.filesLeft === 0 ? 'gone' : 'LEFT SOMETHING'}`);
   return parts.join(', ');
@@ -401,7 +458,10 @@ async function control() {
     };
     writeFileSync(path.join(runDir, 'summary.json'), `${JSON.stringify(report, null, 2)}\n`);
     const live = done.filter((d) => d.cell.validation);
-    const ok = live.length === done.length && live.every((d) => d.cell.shape.ok && d.cell.validation.ok && d.cell.digest.ok && d.cell.capture.frames > 0) && done.filter((d) => d.cell.cleanup).every((d) => d.cell.cleanup.sessionGone && d.cell.cleanup.filesLeft === 0) && wall.refused && wall.sessionsCreated === 0 && report.spentCents === 0;
+    // The fake arm hands in as the forced look asks (D1): every frame reviewed, and every one opened.
+    const looked = done.filter((d) => d.arm === 'fake').every((d) => d.cell.look?.all);
+    console.log(`  ${'the forced look (fake arm)'.padEnd(40)} ${looked ? 'every record reviewed, every reviewed frame opened' : 'A FAKE HAND-IN WITHOUT A COMPLETE REVIEW'}`);
+    const ok = looked && live.length === done.length && live.every((d) => d.cell.shape.ok && d.cell.validation.ok && d.cell.digest.ok && d.cell.capture.frames > 0) && done.filter((d) => d.cell.cleanup).every((d) => d.cell.cleanup.sessionGone && d.cell.cleanup.filesLeft === 0) && wall.refused && wall.sessionsCreated === 0 && report.spentCents === 0;
     console.log(`\nSpend recorded by this run: ${dollars(report.spentCents)} (ledger copy ${ledgerCopy}).`);
     console.log(`Judge: ${judge.frozen ? `frozen on ${judge.lock.model}` : `not frozen yet - ${judge.reason}`}.`);
     console.log(`Gallery: ${gallery.review}\nKey (open after notes.md): ${gallery.key}\nSummary: ${path.join(runDir, 'summary.json')}`);
@@ -416,10 +476,11 @@ async function control() {
 
 async function build(phase) {
   const ledger = readLedger(LEDGER_FILE);
-  const refusal = refuseBuild(ledger, phase);
-  if (refusal) fail(refusal);
   const proofIds = list('proof');
   const arms = proofIds.length && !list('arms').length ? ['managed-agents'] : list('arms');
+  const refusal = refuseBuild(ledger, phase, arms);
+  if (refusal) fail(refusal);
+  const ladder = isLadder(phase);
   const ids = list('briefs');
   // The exam names its own briefs, the sealed twenty (4.1); `--briefs` may pick some of them.
   const examPhase = examPending(ledger) === phase;
@@ -430,7 +491,8 @@ async function build(phase) {
   const margin = orFail(() => ({ overshootCents: flagCents('overshoot-cents'), criticCents: flagCents('critic-cents') }));
   const model = value('model', '');
   const effort = value('effort', '');
-  const ceilingCents = value('ceiling-cents') === undefined ? null : Number(value('ceiling-cents'));
+  // A ladder phase's ceiling is what the ledger holds for it (D9) unless the run names a lower one.
+  const ceilingCents = value('ceiling-cents') === undefined ? (ladder ? holdFor(ledger, phase)?.cents ?? null : null) : Number(value('ceiling-cents'));
   // --dry makes every check that comes before the first session, then stops: nothing uploaded, no
   // session, $0. It needs no briefs; in the exam it opens and verifies the sealed ones, which is
   // the check before the exam's first session. Any spelling of it (`--dry=1`, `--dry-run`) counts,
@@ -446,11 +508,13 @@ async function build(phase) {
     if (effort || value('agent-version') !== undefined) fail("the exam runs the lock's agent as tuned: no --effort or --agent-version");
   }
   if (arms.includes('claude-code') && !model) fail('--build with claude-code needs --model, the exact model id the reference session runs');
+  if (arms.includes('subscription') && !model) fail("--build with subscription needs --model, the rung's exact model id, and --effort (D3: one variable per rung)");
   // Every paid phase has its own ceiling (5.1): a run that does not name it is refused, never
   // admitted against the whole run budget.
   if (!dry && arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
   if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
-  for (const a of arms) if (!['managed-agents', 'claude-code', 'august'].includes(a)) fail(`unknown arm ${a}`);
+  for (const a of arms) if (!['managed-agents', 'claude-code', 'august', 'subscription'].includes(a)) fail(`unknown arm ${a}`);
+  if (arms.includes('subscription') && !ladder) fail("the subscription arm is the ladder's (L0 to L2)");
   if (proofIds.length && (phase !== 'H3' || arms.join() !== 'managed-agents')) fail('--proof is H3\'s, on the managed-agents arm alone');
   for (const id of proofIds) if (!PROOFS[id]) fail(`no H3 proof ${id} (${Object.keys(PROOFS).join(', ')})`);
   const pairRefusal = packagesProofRefusal(ledger, phase, proofIds);
@@ -459,7 +523,7 @@ async function build(phase) {
   const url = process.env.NOACG_URL || 'https://noacg.studio';
   const cli = makeCli({ url });
   await ensureBridge(cli);
-  const briefs = examPhase ? await sealedRunBriefs({ cli, ledger, phase, ids }) : tuningBriefs(ids);
+  const briefs = examPhase ? await sealedRunBriefs({ cli, ledger, phase, ids }) : ladder ? await ladderRunBriefs({ cli, ledger, phase, ids }) : tuningBriefs(ids);
   const runDir = path.resolve(value('out', path.join(os.tmpdir(), 'noacg-harness', `${phase}-${stamp()}`)));
   if (runDir.startsWith(ROOT + path.sep)) fail(`--out must be outside the repository (${ROOT}): a reference session there would load this repo's instructions`);
   mkdirSync(runDir, { recursive: true });
@@ -522,6 +586,13 @@ async function build(phase) {
       const auth = orFail(() => reference.preflight(path.join(runDir, 'preflight')));
       console.log(`  reference: claude-code on ${model}, the subscription's ${auth.authMethod}${pluginDir ? `, plugin cli/plugin with the lock's skill in ${pluginDir}` : ''}`);
     }
+    // The ladder's arm (D2): the rung's model and effort on the subscription, this checkout's CLI and skill.
+    let rung = null;
+    if (arms.includes('subscription')) {
+      rung = orFail(() => subscriptionArm({ claude: claudeExecutable(), token: mainEnv().CLAUDE_CODE_OAUTH_TOKEN, model, effort: effort || null, url }));
+      const auth = orFail(() => rung.preflight(path.join(runDir, 'preflight')));
+      console.log(`  subscription: ${model}${effort ? ` at ${effort}` : ''}, the subscription's ${auth.authMethod}, this checkout's CLI (cli/dist) and skill (cli/plugin)`);
+    }
     if (dry) {
       console.log(`DRY ${phase}: every check before the first session passed. Nothing uploaded, no session created, $0.`);
       return;
@@ -553,16 +624,17 @@ async function build(phase) {
       }
     }
     if (reference) for (const brief of briefs) all.push({ id: `${brief.id}.claude-code`, brief, arm: reference });
+    if (rung) for (const brief of briefs) all.push({ id: `${brief.id}.${rung.model}${rung.effort ? `-${rung.effort}` : ''}`, brief, arm: rung });
     if (arms.includes('august')) {
       // The v1 briefs' reference (4.2): the August round's Claude Code cells, re-captured at $0.
       const reference = archivedArm({ configuration: value('august-config', 'A') });
       for (const brief of briefs) all.push({ id: `${brief.id}.${reference.id}`, brief, arm: reference, entry: { stage: 'reference' } });
     }
     const runId = `${phase}-${stamp()}`;
-    const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, ...margin, ceilingCents };
+    const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, ...margin, ceilingCents, ...(ladder ? { requireReview: true } : {}) };
     // A resumed run skips what the ledger already holds for this phase: a cell that ran (delivered,
     // not ready or failed) is never paid twice; only a refused or paused one runs again.
-    const cells = pendingCells(ledger, phase, all);
+    const cells = pendingCells(ledger, phase, all, entry.stage);
     if (cells.length < all.length) console.log(`  ${all.length - cells.length} cell(s) already in the ledger for ${phase}, not run again: ${all.filter((c) => !cells.includes(c)).map((c) => c.id).join(', ')}`);
     console.log(`BUILD ${phase}: ${cells.length} cell(s), ${dollars(remainingCents(ledger, phase))} left on the ledger for ${phase}${ceilingCents ? `, ${dollars(ceilingCents - phaseSpentCents(ledger, phase))} under ${phase}'s ceiling` : ''} -> ${runDir}`);
     // Each cell's entry is written to the committed ledger as soon as it is known: a crash
@@ -605,8 +677,9 @@ async function build(phase) {
  * exam: a graphic not handed in as ready is not one a pair weighs, phase-8.md); `concurrency`
  * judgements run at once.
  */
-export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), phase = null, claude, env, run, log = console.log, deliveredOnly = false, concurrency = 1, briefs = null }) {
-  const judge = loadJudge(judgeDir);
+export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), judge: given = null, singlesOnly = false, phase = null, claude, env, run, log = console.log, deliveredOnly = false, concurrency = 1, briefs = null }) {
+  // `judge` names another frozen judge than the exam's (the ladder's, D8); `singlesOnly` judges no pair.
+  const judge = given ?? loadJudge(judgeDir);
   if (!judge.frozen) throw new Error(`the exam judges only with a frozen judge: ${judge.reason}`);
   const cellsDir = path.join(runDir, 'cells');
   const cells = readdirSync(cellsDir)
@@ -643,7 +716,7 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
   });
   const byBrief = new Map();
   for (const c of cells) byBrief.set(c.cell.brief, [...(byBrief.get(c.cell.brief) ?? []), c]);
-  for (const [brief, list] of byBrief) {
+  for (const [brief, list] of singlesOnly ? [] : byBrief) {
     for (let i = 0; i < list.length; i++) {
       for (let j = i + 1; j < list.length; j++) {
         if (list[i].cell.arm === list[j].cell.arm) continue;
@@ -748,6 +821,9 @@ if (isMain) {
     if (!result.written) fail(`the exam no longer fits in what is left (${dollars(budget - spent)}): the reserve is not recorded, and the run stops for the owner (5.2)`);
     if (rounds.every((x) => x.rounds === 0)) console.log('No tuning round fits even at the smallest ceiling: the run stops with needs: decision (5.2, 5.5).');
     printLedger(readLedger(LEDGER_FILE));
+  } else if (has('hold')) {
+    const ledger = orFail(() => recordHold(LEDGER_FILE, { phase: value('hold'), kind: value('kind'), cents: value('cents'), by: value('by'), note: value('note') }));
+    printLedger(ledger);
   } else if (has('close')) {
     const phase = value('close', '');
     if (!PHASE.test(phase)) fail('--close needs a phase like H3');
@@ -770,7 +846,10 @@ if (isMain) {
     const phase = value('phase', null);
     const concurrency = Number(value('concurrency', '1'));
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) fail('--concurrency takes 1 to 4 judgements at once');
-    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, claude, env, deliveredOnly: has('delivered-only'), concurrency, briefs: list('briefs').length ? list('briefs') : null }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+    // The ladder and its teaching rounds are judged in singles by the ladder's judge (D8); the exam
+    // phases by the exam's frozen judge, in singles and pairs.
+    const ladderRound = ['L1', 'L2'].includes(phase);
+    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, ...(ladderRound ? { judge: orFail(() => ladderJudge(ROOT)), singlesOnly: true } : {}), claude, env, deliveredOnly: has('delivered-only'), concurrency, briefs: list('briefs').length ? list('briefs') : null }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
     console.log(`Judged with ${r.judge.model} (${r.judge.fingerprint.slice(0, 12)}): ${r.file}`);
   } else if (has('tally')) {
     // 4.4's numbers and 4.5's verdict for an exam run, as phase-8.md fixed the counting.

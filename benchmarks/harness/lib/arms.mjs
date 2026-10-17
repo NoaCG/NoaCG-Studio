@@ -18,11 +18,11 @@
 // equal (section 6, proof 2).
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, CLI_ENTRY } from './cli.mjs';
 import { checkSubscriptionAuth, runClaudeAsync, subscriptionEnv } from './subscription.mjs';
-import { traceMetrics } from './trace.mjs';
+import { traceMetrics, transcriptReads, transcriptUsd } from './trace.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -55,10 +55,18 @@ export async function fakeAgentWork({ brief, workDir, outputsDir, cli }) {
   if (scaffold.code !== 0) throw new Error(`scaffold failed: ${scaffold.stderr.slice(-400)}`);
   const validate = await step(['validate', graphic, '--json']);
   if (validate.code !== 0) throw new Error(`the scaffold does not validate: ${validate.stderr.slice(-400)}`);
+  // The forced look (docs/work-specs/harness-ladder/spec.md D1), as a perfect agent does it: the
+  // coverage, every frame it lists opened and found airable, the record handed in with the review.
+  const coverageDir = path.join(outputsDir, 'coverage');
+  const coverage = await step(['coverage', graphic, '--out', coverageDir, '--json']);
+  if (!existsSync(path.join(coverageDir, 'review.json'))) throw new Error(`coverage wrote no review.json: ${coverage.stderr.slice(-400)}`);
+  const review = JSON.parse(readFileSync(path.join(coverageDir, 'review.json'), 'utf8'));
+  const reads = review.frames.map((f) => path.join(coverageDir, f.file));
+  writeFileSync(path.join(coverageDir, 'review.json'), `${JSON.stringify({ ...review, frames: review.frames.map((f) => ({ ...f, verdict: 'ok' })) }, null, 2)}\n`);
   const recordFile = path.join(outputsDir, 'record.json');
-  const record = await step(['record', graphic, '--out', recordFile, '--json']);
-  if (record.code !== 0) throw new Error(`record failed: ${record.stderr.slice(-400)}`);
-  return { commands, reviewedDigest: validate.json?.digest ?? null, recordFile, zipFile: record.json?.zip ?? path.join(outputsDir, 'record.zip') };
+  const record = await step(['record', graphic, '--out', recordFile, '--review', path.join(coverageDir, 'review.json'), '--json']);
+  if (record.code !== 0) throw new Error(`record failed: ${(record.json?.problems ?? []).join('; ') || record.stderr.slice(-400)}`);
+  return { commands, reviewedDigest: coverage.json?.digest ?? validate.json?.digest ?? null, recordFile, zipFile: record.json?.zip ?? path.join(outputsDir, 'record.zip'), reads };
 }
 
 export function fakeArm() {
@@ -75,6 +83,7 @@ export function fakeArm() {
         zipFile: work.zipFile,
         trace: work.commands.map(({ command, code, digest }) => ({ command, code, digest })),
         reviewedDigest: work.reviewedDigest,
+        reads: work.reads,
         costCents: 0,
         notionalUsd: 0,
         wallSeconds: Math.round((Date.now() - started) / 1000),
@@ -399,6 +408,120 @@ export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join
         wallSeconds: Math.round(r.ms / 1000),
         sessionId: r.sessionId,
         model,
+        saveAttempts: calls.filter((c) => c.args[0] === 'save' || c.args[0] === 'login').length,
+        cleanup: null,
+      };
+    },
+  };
+}
+
+// ── the subscription arm (docs/work-specs/harness-ladder/spec.md D2) ──────────────────────────
+
+/**
+ * What a ladder session receives: the brief as the harness's user message carries it
+ * (api/_lib/harness/client.ts `briefMessage`), then the system prompt's plumbing on local paths
+ * (agents/noacg-harness/agent.md): the same hand-in, the same ten-minute aim.
+ */
+export function ladderPrompt(brief) {
+  return [
+    `Brief: ${brief.prompt.trim()}`,
+    ...(brief.type ? [`Graphic type: ${brief.type} (the user chose it).`] : []),
+    '',
+    'You make this one broadcast graphic for NoaCG Studio. The `noacg-graphic` skill is how; the `noacg` CLI is on PATH and already points at the deployment to use. Work in `./graphic`. Never run `noacg save` or `noacg login`: nothing is saved from here; the host saves what you hand in.',
+    '',
+    'Aim to finish within ten minutes; the session stops at twenty.',
+    '',
+    "Hand in as the skill's `references/hand-in.md` says: the coverage with `noacg coverage ./graphic --out ./outputs/coverage`, the record with `noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json`. The last record is what the host takes. End with one line: `DELIVERED`, or `NOT READY: <why>`.",
+  ].join('\n');
+}
+
+/** The session's own transcript, which Claude Code keeps under the child's config directory. A
+ *  session stopped at its time limit printed no id, and its fresh home holds its one transcript. */
+export function findTranscript(configDir, sessionId) {
+  const projects = path.join(configDir, 'projects');
+  if (!existsSync(projects)) return null;
+  const all = readdirSync(projects).flatMap((dir) => readdirSync(path.join(projects, dir)).filter((f) => f.endsWith('.jsonl')).map((f) => path.join(projects, dir, f)));
+  if (sessionId) return all.find((f) => path.basename(f) === `${sessionId}.jsonl`) ?? null;
+  return all.length === 1 ? all[0] : null;
+}
+
+/** What the session said it handed in: its last line, `DELIVERED` or `NOT READY: <why>`. */
+export function handInLine(result) {
+  const last = String(result ?? '').trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop() ?? '';
+  return /^\**DELIVERED\b/.test(last) ? 'delivered' : /^\**NOT READY\b/.test(last) ? 'not-ready' : null;
+}
+
+/**
+ * The ladder's arm: one `claude -p` per brief on the owner's subscription, the checkout's CLI build
+ * on PATH behind the call-keeping shim, the checkout's skill as the plugin, `--model` and
+ * `--effort` the rung's, no web, in the 5.4 isolation, outside the repository; stopped at 20
+ * minutes. Its cost is Claude Code's notional `total_cost_usd`, never the credit's. The frames it
+ * opened come from its transcript.
+ */
+export function subscriptionArm({ claude, token, model, effort = null, url, pluginDir = path.join(ROOT, 'cli', 'plugin'), timeoutMinutes = 20, run } = {}) {
+  if (!model) throw new Error('the subscription arm needs --model, the rung\'s model id');
+  const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
+  const envFor = (home, binDir) => subscriptionEnv({ token, home, noacgUrl: url, pathDirs: [binDir, path.dirname(process.execPath), path.dirname(claude), system] });
+  let authChecked = false;
+  return {
+    id: 'subscription',
+    funding: 'subscription',
+    model,
+    effort,
+    requireReview: true,
+    preflight(dir) {
+      return checkSubscriptionAuth({ claude, env: envFor(path.join(dir, 'home'), null), run });
+    },
+    async run({ brief, cellDir }) {
+      const sessionDir = path.join(cellDir, 'session');
+      if (path.resolve(sessionDir).startsWith(ROOT + path.sep)) throw new Error(`a ladder session runs outside the repository (${ROOT}), or it loads this repo's instructions`);
+      const work = path.join(sessionDir, 'work');
+      const binDir = path.join(sessionDir, 'bin');
+      const home = path.join(sessionDir, 'home');
+      const ledgerFile = path.join(sessionDir, 'calls.jsonl');
+      mkdirSync(path.join(work, 'outputs'), { recursive: true });
+      writeShim(binDir, ledgerFile);
+      const env = envFor(home, binDir);
+      if (!authChecked) {
+        checkSubscriptionAuth({ claude, env, ...(run ? { run } : {}) });
+        authChecked = true;
+      }
+      const prompt = ladderPrompt(brief);
+      writeFileSync(path.join(sessionDir, 'prompt.md'), prompt);
+      const args = ['--permission-mode', 'acceptEdits', '--allowedTools', 'Bash,Read,Write,Edit,Glob,Grep', '--disallowedTools', 'WebFetch,WebSearch', '--plugin-dir', pluginDir, '--strict-mcp-config', '--model', model, ...(effort ? ['--effort', effort] : [])];
+      const r = await runClaudeAsync({ claude, args, env, cwd: work, input: prompt, timeoutMs: timeoutMinutes * 60_000, ...(run ? { run } : {}) });
+      writeFileSync(path.join(sessionDir, 'claude.json'), r.stdout);
+      const transcript = findTranscript(env.CLAUDE_CONFIG_DIR, r.sessionId);
+      const transcriptText = transcript ? readFileSync(transcript, 'utf8') : '';
+      const reads = transcriptReads(transcriptText);
+      // A session stopped at its limit printed no cost: its transcript's usage at list prices stands in.
+      const notionalUsd = r.notionalUsd ?? (transcript ? transcriptUsd(transcriptText, model) : null);
+      const calls = readShimLedger(ledgerFile);
+      const recordFile = path.join(work, 'outputs', 'record.json');
+      const recorded = existsSync(recordFile);
+      const said = handInLine(r.result);
+      const outcome = r.paused ? 'paused' : !recorded ? 'failed' : said === 'delivered' && !r.timedOut ? 'delivered' : 'not-ready';
+      const reason = r.paused
+        ? `the subscription's usage limit${r.paused.resetsAt ? `, resets ${r.paused.resetsAt}` : ''}`
+        : r.timedOut ? `stopped at ${timeoutMinutes} minutes` : !recorded ? 'no record handed in' : outcome === 'not-ready' ? (said === 'not-ready' ? 'the session said NOT READY' : 'the session ended without DELIVERED') : null;
+      return {
+        outcome,
+        reason,
+        resetsAt: r.paused?.resetsAt ?? null,
+        recordFile: recorded ? recordFile : null,
+        zipFile: recorded ? path.join(work, 'outputs', 'record.zip') : null,
+        trace: calls.map((c) => ({ command: `noacg ${c.args.join(' ')}`, code: c.exit, digest: c.digest })),
+        reviewedDigest: lastReviewed(calls),
+        reads,
+        transcript,
+        costCents: 0,
+        notionalUsd,
+        ...(r.notionalUsd === null && notionalUsd !== null ? { notionalFrom: 'transcript' } : {}),
+        wallSeconds: Math.round(r.ms / 1000),
+        sessionId: r.sessionId,
+        model,
+        effort,
+        turns: r.turns,
         saveAttempts: calls.filter((c) => c.args[0] === 'save' || c.args[0] === 'login').length,
         cleanup: null,
       };
