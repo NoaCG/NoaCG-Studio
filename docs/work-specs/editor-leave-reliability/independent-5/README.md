@@ -45,8 +45,8 @@ The carried checker files are byte-identical to independent-4. Each run records 
 original `28988d71…`, second `ef78c1eb…`, third `71f8378b…`, fourth `95317231…`, references
 `8aaf0a47…` and `2447cef0…`. This check's own specs are in [probe.patch](probe.patch):
 `e2e/leave-fifth-checker.spec.ts` (`145756a7…`), `e2e/leave-reference-fifth.spec.ts`
-(`bae58ddb…`) and the diagnosis copy `e2e/leave-fifth-diag.spec.ts` (`4a32e3e5…`). A repair can
-carry them unchanged.
+(`bae58ddb…`) are the challenges a repair carries unchanged. The same patch holds a diagnosis
+aid, `e2e/leave-fifth-diag.spec.ts` (`933d4b8e…`). It is not a carried challenge.
 
 ## How the write family was searched
 
@@ -60,6 +60,11 @@ proves which write it acted on: `persistLink` for K, the `templateStore` timer f
 act on a write in three ways. **hold** defers the completion notice. **refuse** throws
 `QuotaExceededError` once. **late** keeps the transaction open with reads and then aborts it, so
 the refusal arrives after whatever happened meanwhile.
+
+The operations were sampled across the writes, not crossed with every one of them. K got all five
+operations. L got hold, late refusal and double submission. A and N got refusal only. Discard's
+slot write got refusal with reload. The rest of the combinations are untried, and they stay open
+for the next check.
 
 | Case | Door / write | Operation | Result on main |
 | --- | --- | --- | --- |
@@ -116,7 +121,10 @@ guard's approval calling `history.go(1)` with the forward `#/home` entry in plac
 name kept, it passed 10 of 10. The measured correlate is the name adoption, a template change that
 rebuilds the preview just before `go(1)`. The exact browser mechanism is not established. Browser
 Back left in all its sampled runs (j-0006, 2 of 2 each for renamed and kept). The j-0006 job itself
-was cancelled on a checker bug, and the facts it wrote are in [runs.json](runs.json).
+was cancelled on a checker bug: it read the save status after the editor had unmounted. The facts
+it wrote are in [runs.json](runs.json). With the bug fixed (`290c38a7`), j-0007 left in all 12
+runs: 3 each for Back and hash, renamed and kept. The hash-plus-renamed failure is intermittent, so
+a passing run proves nothing.
 
 ## Criteria
 

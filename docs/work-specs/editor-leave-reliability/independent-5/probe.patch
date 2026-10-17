@@ -604,7 +604,7 @@ index 000000000..df7792979
 +});
 diff --git a/e2e/leave-fifth-diag.spec.ts b/e2e/leave-fifth-diag.spec.ts
 new file mode 100644
-index 000000000..63c282154
+index 000000000..66b6d70b6
 --- /dev/null
 +++ b/e2e/leave-fifth-diag.spec.ts
 @@ -0,0 +1,160 @@
@@ -763,7 +763,7 @@ index 000000000..63c282154
 +  await page.getByTestId('save-confirm').click();
 +  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
 +  await page.waitForTimeout(1500);
-+  const facts = { via, naming, url: page.url(), left: page.url() !== editorUrl, editor: await page.getByTestId('editor-foundation').count(), status: await page.getByTestId('save-status').textContent().catch(() => null) };
++  const facts = { via, naming, url: page.url(), left: page.url() !== editorUrl, editor: await page.getByTestId('editor-foundation').count(), status: (await page.getByTestId('save-status').count()) ? await page.getByTestId('save-status').textContent() : null };
 +  out(`diag-leave-${via}-${naming}.json`, facts);
 +  expect(facts.left, 'the leave did not continue after the first Save landed').toBe(true);
 +});

@@ -17,7 +17,8 @@
    "fa744600": "E2 asserts the draft source (the first cut read an undefined inspection field)",
    "1c1257eb": "logged copy of the carried :228 and a diag scope",
    "3258d651": "merge of main fc9dcc63 (scripts only), for the VM job queue",
-   "a7c3397c": ":228 naming variants and leave-continuation variants"
+   "a7c3397c": ":228 naming variants and leave-continuation variants",
+   "290c38a7": "diag reads the save status only while it is mounted (the j-0006 checker bug)"
   },
   "mutation": {
    "claude/probe-editor-p2-check-5-mut dfe624eb": "fa744600 + saveActions commitLink: the link write is made but neither waited for nor claimed (the #1367 regression)"
@@ -31,7 +32,7 @@
    "leave-reference-fourth.spec.ts": "2447cef0eb2455da65fb0208fc83f30b55c49d6505f714f0f93adac67910d9cd",
    "leave-fifth-checker.spec.ts (final; 88d126ed had 6403d8f9...)": "145756a70880f2b3d2394e01650e37932f40c9f2c1592de04cd89c568f708f51",
    "leave-reference-fifth.spec.ts": "bae58ddbd1743207a6c2acc29004a82bc7f34dfd441369d193c5b415c3d23d7e",
-   "leave-fifth-diag.spec.ts": "4a32e3e5dd62f3719c26ae8c81f3da8be5fcdd730b4f663bd122eb75bf8df854"
+   "leave-fifth-diag.spec.ts (diagnosis aid, not carried; 4a32e3e5... before the 290c38a7 fix)": "933d4b8e33258cf396edb11ee1e94a6fea795bae4415c1b1e9d59ee75a0efbb3"
   },
   "flags": "CI: --workers=1 --retries=0; VM queue: --workers=4 --retries=0"
  },
@@ -59,6 +60,7 @@
  "vm": [
   { "job": "j-0004", "checkout": "probe 3258d651", "command": "e2e/leave-fifth-checker.spec.ts --workers=4 --retries=0", "result": "15 passed, 5 failed: A1, B1, B2, C1, H1-renamed (same as CI)" },
   { "job": "j-0005", "checkout": "probe 3258d651 + diag naming variants", "command": "leave-fifth-diag.spec.ts + leave-fourth-checker.spec.ts:228 --repeat-each=10 --workers=4", "result": "24 passed, 6 failed: carried :228 3/10 failed; logged copy renamed 3/10 failed; logged copy with the name kept 10/10 passed" },
-  { "job": "j-0006", "checkout": "probe a7c3397c", "command": "leave-fifth-diag.spec.ts -g 'diag leave' --repeat-each=8", "result": "cancelled after 4 min: a checker bug (textContent on an unmounted status waits out the test timeout). Facts written before it: hash+renamed stayed in the editor 1 of 3; hash+kept 2/2, back+renamed 2/2, back+kept 2/2 left" }
+  { "job": "j-0006", "checkout": "probe a7c3397c", "command": "leave-fifth-diag.spec.ts -g 'diag leave' --repeat-each=8", "result": "cancelled after 4 min: a checker bug (textContent on an unmounted status waits out the test timeout). Facts written before it: hash+renamed stayed in the editor 1 of 3; hash+kept 2/2, back+renamed 2/2, back+kept 2/2 left" },
+  { "job": "j-0007", "checkout": "probe 290c38a7", "command": "leave-fifth-diag.spec.ts -g 'diag leave' --repeat-each=3 --workers=4", "result": "12 passed: back/hash x renamed/kept all left (the hash+renamed failure is intermittent)" }
  ]
 }
