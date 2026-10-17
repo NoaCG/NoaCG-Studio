@@ -424,10 +424,10 @@ index 0000000..9d0bec7
 +});
 diff --git a/e2e/leave-reference-fourth.spec.ts b/e2e/leave-reference-fourth.spec.ts
 new file mode 100644
-index 0000000..b4a7416
+index 0000000..562a8d2
 --- /dev/null
 +++ b/e2e/leave-reference-fourth.spec.ts
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,88 @@
 +// covers: none - disposable fourth independent leave-editor check, reference executions; never land
 +//
 +// The two reference tasks closest to this check's new challenges: an edit accepted while a Save
@@ -503,12 +503,16 @@ index 0000000..b4a7416
 +    await create('refused');
 +    await expect(items).toHaveCount(2);
 +    const shown = await page.getByText(/Failed to save|not be persisted|storage/i).count();
++    const toast = await page.getByText('Template "refused" created successfully').count();
 +    const events = await page.evaluate(() => (window as unknown as { refusedEvents: number }).refusedEvents);
 +    await page.screenshot({ path: test.info().outputPath('eyevinn-refused.png') });
 +    await page.reload(); await expect(items.first()).toBeVisible();
 +    const after = await items.evaluateAll(n => n.map(e => (e as HTMLElement).dataset.templateId));
 +    writeFileSync(test.info().outputPath('eyevinn-refused.json'), JSON.stringify({ pin: '616841bd949e3a21137579451123f66c292543f0', refusedEvents: events,
-+      visibleMessage: shown, consoleErrors: errors.length, listedBeforeReload: 2, afterReload: after }, null, 2));
-+    expect(events).toBe(1);
++      visibleMessage: shown, successToast: toast, consoleErrors: errors.length, listedBeforeReload: 2, afterReload: after }, null, 2));
++    expect(events).toBe(1); expect(errors.length, 'the refusal is logged').toBe(1);
++    expect(shown, 'Eyevinn shows the refusal to the user').toBe(0);
++    expect(toast, 'Eyevinn reported the refused create as successful').toBe(1);
++    expect(after, 'the refused template survived a reload').toEqual(['kept']);
 +  } finally { child.kill(); }
 +});

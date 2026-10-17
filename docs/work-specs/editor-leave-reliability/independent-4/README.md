@@ -32,7 +32,7 @@ The carried checker files are compared byte for byte. The sha256 hashes are reco
 - `e2e/leave-second-checker.spec.ts`: `ef78c1eb394c0c24…`.
 - `e2e/leave-third-checker.spec.ts`: `71f8378b2bbb5ab0…`.
 - This check's `e2e/leave-fourth-checker.spec.ts` (`953172315c885923…`) and
-  `e2e/leave-reference-fourth.spec.ts` (`bce939422786e5fb…`) are in [probe.patch](probe.patch),
+  `e2e/leave-reference-fourth.spec.ts` (`2447cef0eb2455da…`) are in [probe.patch](probe.patch),
   so a repair can carry them unchanged.
 
 ## The failure
@@ -66,7 +66,7 @@ itself still holds.
 | AC 2: Save/first Save keep source; discard mints nothing; saved copies byte-equal; no repeated question | **Fail** on the refused link write (above). Otherwise passes: held topbar Save, Save As (the original record is byte-equal) and the wizard door keep the exact sources, and reopening asks nothing. |
 | AC 3: New/Open/Back/hash share the boundary; failed write and double submit cannot navigate early or duplicate; no resurrection | **Fail** on the refused link write (above). Otherwise passes. During a held Save, a drag, Ctrl+Z, Ctrl+S, Escape, double clicks, Back and a hash change move nothing, and exactly one library put is made. A refused first Save mints nothing, and a double-submitted retry makes one put and one record. |
 | AC 4: baseline guard, wizard walk, library links, cloud separation, production copies; mutation of the guard | Pass. The maintained selection, including every `new-graphic-guard` case from #1333, #1355 and #1359: 80 passed, 0 failed, with the same 8 legacy skips ([39016116396](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016116396)). The two-graphic export passes 1/1. The signed-in localhost task passes ([39016120901](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016120901)), against a disposable local Supabase only. The mutations are in the next table. |
-| AC 5: fresh Studio `3142fc7d` / Eyevinn `616841bd` executions, hashes, no copied source | Pass. The carried lifecycles pass 2/2 ([39016117794](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016117794)) and with two new tasks 4/4 ([39016426816](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016426816)). [reference.json](reference.json) hashes the same 17 files as independent-3 with identical sha256, the Studio pin is identical to its release, and the binary is `9ba1de31…`. |
+| AC 5: fresh Studio `3142fc7d` / Eyevinn `616841bd` executions, hashes, no copied source | Pass. The carried lifecycles pass 2/2 ([39016117794](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016117794)) and with two new tasks 4/4. The first run of the new tasks ([39016426816](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016426816)) wrote the Eyevinn outcomes to the artifact without asserting them. Review caught this, and the task now asserts them. It passed again 4/4 ([39017238181](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39017238181), probe `82150a57`). [reference.json](reference.json) hashes the same 17 files as independent-3 with identical sha256, the Studio pin is identical to its release, and the binary is `9ba1de31…`. |
 | AC 6: desktop/laptop/native 125% cumulative text, artwork, animation, save/reopen, outputs | Pass, 4/4 ([39016119294](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016119294)). Nine SPX/CasparCG/OGraf outputs, 0 errors. Native 125%: 1093x545 CSS content, 196px canvas, 180px timeline, 280px inspector. |
 | #1359: a newer edit during each Save's wait stays unsaved | Pass. The cases hold the Save's own put and assert its value: leave Save, topbar Save with a real canvas drag, Save As, first Save via Back, the wizard New door, and Open-saved-graphics followed by Discard after the stale refusal. Reload keeps the newer draft, and the second Save writes into the same record. |
 | #1351: refusal of the Save's own library write vs another write's | Pass. A refused topbar Save while the autosave put is held reads "Save failed" and stays dirty, and Home asks. An autosave refused during a held Save is announced by the app, while the Save lands its exact source and continues. |
@@ -90,8 +90,8 @@ challenges. The stubs are this probe's own:
   no dirty tracking, so New always asks, and it never treats an edit as saved. NoaCG matches the
   outcome: the edit stays unsaved and leaving asks.
 - Eyevinn (`616841bd`) saves to localStorage synchronously. With that write refused once, the editor
-  still says "Template created successfully". It dispatches a storage event that no UI listens to,
-  logs one console error, and after a reload the template is gone. NoaCG deliberately differs: a
+  still says "Template created successfully" and shows no error. It dispatches one storage event
+  and logs one console error, and after a reload the template is gone. All of these are asserted. NoaCG deliberately differs: a
   refused Save must be Save's own answer, and it must not leave. The fourth case fails exactly
   there.
 
@@ -110,7 +110,7 @@ No upstream source was copied.
 
 ## Captures
 
-[captures.json](captures.json) lists all 59 captures with their hashes. None is committed. The 16
+[captures.json](captures.json) lists all 63 captures with their hashes. None is committed. The 16
 marked `opened` were looked at: every finding, refusal, reference and native-zoom capture among
 them. The maintained selection's own captures were not reviewed one by one beyond the
 `autosave-newer-edit` refusal. The `:298` captures show the "Could not save … still open here" notice over Home, then after

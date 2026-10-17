@@ -20,7 +20,8 @@
   "branch": "claude/probe-editor-p2-check-4-ci",
   "commits": {
    "16e52beb": "main 8e4358db + carried checker specs, fourth checker, dispatch-only workflow recipes",
-   "63f492ee": "+ e2e/leave-reference-fourth.spec.ts"
+   "63f492ee": "+ e2e/leave-reference-fourth.spec.ts",
+   "82150a57": "Eyevinn reference outcomes asserted (review of #1369)"
   },
   "mutations": {
    "claude/probe-editor-p2-check-4-mut1 bc9a2d11": "saveActions: dirty false after Save/Save As (the #1359 regression)",
@@ -31,7 +32,7 @@
    "leave-second-checker.spec.ts": "ef78c1eb394c0c24abd7766a850c5dc980424eb6ca74cbf7bde0467226c8b162",
    "leave-third-checker.spec.ts": "71f8378b2bbb5ab00736c7811e51ac3b2ed4741f0ce28d2561039c929b0f1dab",
    "leave-fourth-checker.spec.ts": "953172315c885923c32c90c0fd5cf6ff050fc07378f03dc288a4c519e7ca9abd",
-   "leave-reference-fourth.spec.ts": "bce939422786e5fbe6cb29083e745d3199b60a493b7cc589a45ab051d88b828a"
+   "leave-reference-fourth.spec.ts": "2447cef0eb2455da65fb0208fc83f30b55c49d6505f714f0f93adac67910d9cd"
   },
   "flags": "--workers=1 --retries=0"
  },
@@ -102,7 +103,16 @@
    "scope": "references",
    "conclusion": "success",
    "steps": {
-    "leave-reference.spec.ts + leave-reference-fourth.spec.ts": "4 passed"
+    "leave-reference.spec.ts + leave-reference-fourth.spec.ts": "4 passed (Eyevinn outcomes recorded, not yet asserted)"
+   }
+  },
+  {
+   "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39017238181",
+   "sha": "82150a57",
+   "scope": "references",
+   "conclusion": "success",
+   "steps": {
+    "leave-reference.spec.ts + leave-reference-fourth.spec.ts (Eyevinn outcomes asserted)": "4 passed"
    }
   },
   {
@@ -133,8 +143,10 @@
    "newerKeptAfterCancel": true
   },
   "eyevinn-refused.json": {
+   "run": 39017238181,
    "refusedEvents": 1,
    "visibleMessage": 0,
+   "successToast": 1,
    "consoleErrors": 1,
    "listedBeforeReload": 2,
    "afterReload": [

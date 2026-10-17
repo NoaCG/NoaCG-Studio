@@ -352,5 +352,29 @@
   "capture": "new-graphic-guard-second-c-87e70-e-already-requested-discard-chromium/autosave-newer-edit.png",
   "sha256": "399d29d6d8e021087416b8a589208c86ffc6bcd839b976ba3f4fd3940d6636da",
   "opened": true
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-Eyevinn-sw-6bda3--confirms-explicit-deletion-chromium/eyevinn-kept.png",
+  "sha256": "05ec2e4f1c473a9a465bf24c805ba4b1a8e650bf3455d5f3c7b7390522d61e7f",
+  "opened": false
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-Studio-can-9b0b6-New-and-reopen-saved-source-chromium/studio-reopened.png",
+  "sha256": "d9501c35300d2043864d97b1b7c90c9d9facb9ce38a5aba69424e9cf5170baa6",
+  "opened": false
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-fourth-Eye-5afe0-mplate-is-gone-after-reload-chromium/eyevinn-refused.png",
+  "sha256": "b6bad31086c7d1fc72fdef366d611fd04a2360c3dd4623d4be8c707902ae8423",
+  "opened": false
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-fourth-Stu-cd134-ved-file-and-New-still-asks-chromium/studio-held-save.png",
+  "sha256": "c19154454448f1805db48620b8b73f549a5f2b595a6b227438bc9146c91c6627",
+  "opened": false
  }
 ]
