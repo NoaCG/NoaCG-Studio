@@ -13,7 +13,7 @@ phase 2 until those gates are recorded here and in issue #1314.
 - Runtime source: ea98f7d1593c3663a537fb6302163e0b1693c848, followed by the
   selected CSS edit committed as 3df52b05906d0ccb06242d7e7f8eb697bd782b87.
 - Preserved runtime: C:/Users/ahonemi/.codex/worktrees/codex-graphic-preview-p1/NoaCG-Studio.
-  It remains locked because the installed launcher imports its runtime and ignored dependencies.
+  It remains locked temporarily to preserve the earlier draft; 0.1.1 has now been uninstalled.
 
 The restarted native tool returned the actual lower-third PNG and its source
 identity. The owner opened the conversation side-panel entry and clicked Alex
@@ -96,6 +96,26 @@ without serverTools. Focused regression tests failed before those fixes and
 passed afterward. The private version and UI cache URI advance to 0.1.2 so an
 existing installation cannot silently retain old assets. This updated adapter
 has not yet been claimed as native-tested.
+
+Version 0.1.2 is now installed/enabled from the locked runtime
+C:/Users/ahonemi/.codex/worktrees/graphic-preview-resume/NoaCG-Studio at
+f150845b0c519dfba4f0a8655f7d2ae56ea1abe6. Its baseline fixture is normalized to
+LF bytes and has the recorded before revision. The supported CLI rejected a
+same-version cache backup while Windows held its directory; after verifying the
+trial's unique cached launch.mjs and its child process identities, only those
+trial Node servers and their owned headless renderer were stopped. Supported
+remove, marketplace replacement and install then succeeded. This task's tool
+still returned Transport closed after the update, so a final app restart/reopen
+was requested. No other app or browser was stopped.
+
+Independent review on f150845b0 matched all 25 changed paths and reported zero
+findings, with no simplification needed. Selected local gates passed after
+installing the worktree's locked development dependencies: 12 tests across two
+files and all affected checks, including workflow validation; ESLint also passed.
+[Corrected-adapter CI run 39064907042](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064907042)
+passed the 11 unit/protocol tests, a Chromium host that refuses unqualified tool
+names, and the same exact-revision NoaCG validation. These checks do not replace
+the pending 0.1.2 native recheck.
 
 The trial remains excluded from CLI npm/toolkit distribution. Source is the four
 fixture files; graphic code runs in an opaque-origin allow-scripts iframe without
