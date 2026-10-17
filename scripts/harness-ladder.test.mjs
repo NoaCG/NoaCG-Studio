@@ -32,7 +32,7 @@ import { readAgentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harn
 import { findTranscript, handInLine, ladderPrompt, subscriptionArm } from '../benchmarks/harness/lib/arms.mjs';
 import { examBriefs } from '../benchmarks/harness/lib/exam.mjs';
 import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge } from '../benchmarks/harness/lib/ladder.mjs';
+import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
 import { admit, appendEntry, emptyLedger, heldCents, LEDGER_FILE, readLedger, remainingCents, setHold, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readHash, readSealed, sealedShape, sha256 } from '../benchmarks/harness/lib/sealed.mjs';
@@ -418,4 +418,50 @@ test('the ladder judge is Opus 5.5 on the exam judge\'s own prompt and rubric, a
   assert.throws(() => secondLock(path.join('benchmarks', 'harness', 'judge', 'judge.lock.json')), /not judge\.lock\.json/);
   assert.equal(secondLock(LADDER_JUDGE_LOCK).tag, '-ladder');
   assert.equal(sameFiles({ sha256: { 'prompt.md': 'x' } }, exam), false);
+});
+
+test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches only on all eight", () => {
+  const arm = 'subscription';
+  const cell = (brief, o = {}) => ({ brief, arm, outcome: 'delivered', validation: { ok: true, errors: [] }, shape: { ok: true }, operator: { missing: [] }, notionalUsd: 0.5, wallSeconds: 400, look: { reviewed: 10, opened: 10, unopened: [], all: true, fixed: 0 }, ...o });
+  const single = (brief, answer = {}) => ({ judge: 'fp', task: 'single', id: `${brief}.${arm}`, answer: { airable: true, basicMistakes: [], missingActions: [], ...answer } });
+  const eight = RUNG_ORDER.map((b) => cell(b));
+  const goodSingles = RUNG_ORDER.map((b) => single(b));
+
+  const match = tallyRung({ cells: eight, judgements: goodSingles, fingerprint: 'fp' });
+  assert.equal(match.verdict, 'MATCH');
+  assert.equal(match.all.usdPerUsable, 0.5);
+  assert.equal(match.all.lookAll, 8);
+  assert.match(rungMarkdown('haiku-high', match), /MATCH; 8 delivered, 8 usable/);
+
+  // The screen: its first four only; nothing after it run yet.
+  assert.equal(tallyRung({ cells: eight.slice(0, 4), judgements: goodSingles, fingerprint: 'fp' }).verdict, 'screen passed');
+  assert.equal(tallyRung({ cells: eight.slice(0, 4), judgements: [], fingerprint: 'fp' }).verdict, 'incomplete', 'a delivered graphic not judged decides nothing');
+
+  // Three not usable end the rung: a not-airable single, a basic mistake (both rubber-stamped), a not-ready session.
+  const [b0, b1, b2, b3] = RUNG_ORDER;
+  const bad = [single(b0, { airable: false }), single(b1, { basicMistakes: [{ kind: 'text-overlap' }] }), ...goodSingles.slice(2)];
+  const out = tallyRung({ cells: [cell(b0), cell(b1), cell(b2, { outcome: 'not-ready', look: null }), cell(b3)], judgements: bad, fingerprint: 'fp' });
+  assert.equal(out.verdict, 'screened out');
+  assert.equal(out.screen.endsAt, 'not usable');
+  assert.deepEqual(out.all.rubberStamps, [b0, b1], 'every verdict ok, and the judge failed it');
+  // A judgement by another judge is not counted.
+  assert.equal(tallyRung({ cells: eight, judgements: goodSingles.map((j) => ({ ...j, judge: 'other' })), fingerprint: 'fp' }).verdict, 'incomplete');
+
+  // The cost line: two usable of four at $4.40 notional is $2.20 a usable, over $2.00.
+  const dear = [b0, b1, b2, b3].map((b) => cell(b, { notionalUsd: 1.1 }));
+  const costly = tallyRung({ cells: dear, judgements: [single(b0, { airable: false }), single(b1, { airable: false }), ...goodSingles.slice(2)], fingerprint: 'fp' });
+  assert.equal(costly.screen.endsAt, 'cost');
+  assert.equal(costly.screen.usdPerUsable, 2.2);
+
+  // All eight run but one line fails: no match. A missing action read as offered counts as offered.
+  const slow = tallyRung({ cells: eight.map((c) => ({ ...c, wallSeconds: 700 })), judgements: goodSingles, fingerprint: 'fp' });
+  assert.equal(slow.verdict, 'no match');
+  assert.deepEqual(slow.lines.map((l) => l.holds), [true, true, false, true]);
+  const flagged = eight.map((c, i) => (i === 5 ? { ...c, operator: { missing: ['undoPoint'] } } : c));
+  const gate = tallyRung({ cells: flagged, judgements: goodSingles, fingerprint: 'fp' });
+  assert.equal(gate.all.usable, 7);
+  assert.deepEqual(gate.rows[5].flagsToRead, ['undoPoint'], "the judge's single did not name it, so it is read against the operator surface");
+  const read = tallyRung({ cells: flagged, judgements: goodSingles, fingerprint: 'fp', readings: { [`${RUNG_ORDER[5]}.${arm}`]: { undoPoint: 'undoA/undoB' } } });
+  assert.equal(read.all.usable, 8);
+  assert.deepEqual([...RUNG_ORDER].sort(), [...LADDER_SET].sort(), 'the rung order is the ladder set');
 });

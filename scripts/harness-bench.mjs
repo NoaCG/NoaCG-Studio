@@ -45,7 +45,7 @@
 //                                                    is left for tuning and the rounds that fit, and
 //                                                    R recorded in the ledger for the wall to hold.
 //   node scripts/harness-bench.mjs --build <L#> --arms subscription --model <id> --effort <level>
-//                                  --briefs id,.. [--stage <round>] [--out <dir>]
+//                                  --briefs id,.. [--stage <round>] [--out <dir>] [--lanes <1-2>]
 //                                                    SUBSCRIPTION. The harness ladder
 //                                                    (docs/work-specs/harness-ladder/spec.md, lib/
 //                                                    ladder.mjs): one `claude -p` per brief with this
@@ -54,6 +54,8 @@
 //                                                    L0 to L2 run nothing else; L3 and L4 spend credit
 //                                                    only inside what the ledger holds for them, and
 //                                                    no phase starts before the one before it closed.
+//                                                    --lanes 2 runs two sessions at once; one --out
+//                                                    per rung gathers its screen and its rest.
 //   node scripts/harness-bench.mjs --hold <L#> --kind exam|ceiling --cents <n> --by <L#> [--note "..."]
 //                                                    FREE. Hold money in the ledger for a later phase
 //                                                    (D9), refused when it does not fit.
@@ -64,7 +66,10 @@
 //   node scripts/harness-bench.mjs --judge <runDir> [--phase <H#>] [--delivered-only] [--concurrency <1-4>] [--briefs id,..]
 //                                                    SUBSCRIPTION. The frozen judge on a run's cells;
 //                                                    for L1 and L2 the ladder's judge, singles only (D8).
-//   node scripts/harness-bench.mjs --tally <runDir>  FREE. 4.4's numbers and 4.5's verdict for an exam run.
+//   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>]
+//                                                    FREE. 4.4's numbers and 4.5's verdict for an exam
+//                                                    run; for an L1 or L2 run, its rung's figures, D5's
+//                                                    screen and D6's match (tallyRung).
 //   node scripts/harness-bench.mjs --recapture <runDir> --rekey <file>
 //                                                    FREE. Move a misplaced stress value to its field
 //                                                    and capture both arms of that brief again.
@@ -93,7 +98,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, holdFor, HOLD_KINDS, isLadder, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, setHold, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
-import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild } from '../benchmarks/harness/lib/ladder.mjs';
+import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
@@ -167,7 +172,7 @@ async function ladderRunBriefs({ cli, ledger, phase, ids }) {
     types = r.json.types;
   }
   const briefs = chosen.map((b) => (sealed.includes(b) ? labelStress(b, types) : b));
-  console.log(`  briefs: ${briefs.map((b) => `${b.id} (${b.type ?? 'typeless'}${sealed.includes(b) ? phase === 'L4' ? ', ladder exam' : ', ladder set' : ', tuning'})`).join(', ')}`);
+  console.log(`  briefs: ${briefs.map((b) => `${b.id} (${b.type ?? 'typeless'}${sealed.some((s) => s.id === b.id) ? phase === 'L4' ? ', ladder exam' : ', ladder set' : ', tuning'})`).join(', ')}`);
   return briefs;
 }
 
@@ -345,7 +350,9 @@ export async function runCells({ cells, runDir, cli, ledger, entry, api, runId, 
       return;
     }
   };
-  const groups = lanes ? [...new Set(cells.map((c) => c.arm.id))].map((id) => cells.filter((c) => c.arm.id === id)) : [cells];
+  // A cell may name its own lane (a subscription rung run two at a time); else its arm is its lane.
+  const laneOf = (c) => c.lane ?? c.arm.id;
+  const groups = lanes ? [...new Set(cells.map(laneOf))].map((id) => cells.filter((c) => laneOf(c) === id)) : [cells];
   // A lane that stops (a cost that could not be read) stops the run: every other lane finishes only
   // the cell it is running, so nothing it started is left without its cleanup, and starts no more.
   let halted = false;
@@ -512,6 +519,9 @@ async function build(phase) {
   // Every paid phase has its own ceiling (5.1): a run that does not name it is refused, never
   // admitted against the whole run budget.
   if (!dry && arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
+  const rungLanes = Number(value('lanes', '1'));
+  if (!Number.isInteger(rungLanes) || rungLanes < 1 || rungLanes > 2) fail('--lanes takes 1 or 2 subscription sessions at once');
+  if (rungLanes > 1 && arms.join() !== 'subscription') fail("--lanes is the subscription arm's alone: the credit arm runs one session at a time");
   if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
   for (const a of arms) if (!['managed-agents', 'claude-code', 'august', 'subscription'].includes(a)) fail(`unknown arm ${a}`);
   if (arms.includes('subscription') && !ladder) fail("the subscription arm is the ladder's (L0 to L2)");
@@ -624,7 +634,8 @@ async function build(phase) {
       }
     }
     if (reference) for (const brief of briefs) all.push({ id: `${brief.id}.claude-code`, brief, arm: reference });
-    if (rung) for (const brief of briefs) all.push({ id: `${brief.id}.${rung.model}${rung.effort ? `-${rung.effort}` : ''}`, brief, arm: rung });
+    // `--lanes 2`: the rung's sessions two at a time, the briefs dealt in turn so the order holds.
+    if (rung) briefs.forEach((brief, i) => all.push({ id: `${brief.id}.${rung.model}${rung.effort ? `-${rung.effort}` : ''}`, brief, arm: rung, ...(rungLanes > 1 ? { lane: `subscription-${i % rungLanes}` } : {}) }));
     if (arms.includes('august')) {
       // The v1 briefs' reference (4.2): the August round's Claude Code cells, re-captured at $0.
       const reference = archivedArm({ configuration: value('august-config', 'A') });
@@ -865,16 +876,31 @@ if (isMain) {
     const file = path.join(runDir, 'judgements.jsonl');
     const judgements = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
     const ledger = readLedger(LEDGER_FILE);
-    // The gate's flags read against the operator surface (3.5, phase-8.md), when the run has them.
-    const readingsFile = path.resolve(value('readings', path.join(HARNESS, 'exam', 'action-readings.json')));
-    const readings = existsSync(readingsFile) ? JSON.parse(readFileSync(readingsFile, 'utf8')).readings : {};
-    const args = { briefIds: [...new Set(cells.map((c) => c.brief))].sort(), cells, judgements, budgetCents: ledger.reserve?.sessionBudgetCents ?? null, fingerprint: loadJudge(path.join(HARNESS, 'judge')).fingerprint };
-    const tally = tallyExam({ ...args, readings });
-    const gateOnly = tallyExam(args);
-    writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify({ ...tally, gateOnly: { verdict: gateOnly.verdict, lines: gateOnly.lines, harnessUsable: gateOnly.harness.usable, referenceUsable: gateOnly.reference.usable } }, null, 2)}\n`);
-    console.log(tallyMarkdown(tally));
-    console.log(`\nBy the missing-action gate alone (no readings): ${gateOnly.verdict}; ${gateOnly.lines.map((l) => `${l.holds ? 'holds' : 'FAILS'}: ${l.figure}`).join('; ')}`);
-    console.log(`\n${path.join(runDir, 'tally.json')}`);
+    const summaryFile = path.join(runDir, 'summary.json');
+    const ranAs = existsSync(summaryFile) ? JSON.parse(readFileSync(summaryFile, 'utf8')).phase ?? null : null;
+    if (LADDER_JUDGED.includes(ranAs)) {
+      // A rung (D5, D6): counted as H8 counted, with the ladder judge's singles and the rung's own
+      // readings of the gate's flags (`readings.json` beside its cells, when it has any).
+      const readingsFile = path.resolve(value('readings', path.join(runDir, 'readings.json')));
+      const readings = existsSync(readingsFile) ? JSON.parse(readFileSync(readingsFile, 'utf8')).readings : {};
+      const tally = tallyRung({ cells, judgements, fingerprint: orFail(() => ladderJudge(ROOT)).fingerprint, readings });
+      writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify(tally, null, 2)}\n`);
+      console.log(rungMarkdown(path.basename(runDir), tally));
+      const toRead = tally.rows.filter((r) => r.flagsToRead.length).map((r) => `${r.brief} (${r.flagsToRead.join(', ')})`);
+      if (toRead.length) console.log(`\nGate flags the judge's single did not name, to read against the operator surface (phase-8.md): ${toRead.join('; ')}`);
+      console.log(`\n${path.join(runDir, 'tally.json')}`);
+    } else {
+      // The gate's flags read against the operator surface (3.5, phase-8.md), when the run has them.
+      const readingsFile = path.resolve(value('readings', path.join(HARNESS, 'exam', 'action-readings.json')));
+      const readings = existsSync(readingsFile) ? JSON.parse(readFileSync(readingsFile, 'utf8')).readings : {};
+      const args = { briefIds: [...new Set(cells.map((c) => c.brief))].sort(), cells, judgements, budgetCents: ledger.reserve?.sessionBudgetCents ?? null, fingerprint: loadJudge(path.join(HARNESS, 'judge')).fingerprint };
+      const tally = tallyExam({ ...args, readings });
+      const gateOnly = tallyExam(args);
+      writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify({ ...tally, gateOnly: { verdict: gateOnly.verdict, lines: gateOnly.lines, harnessUsable: gateOnly.harness.usable, referenceUsable: gateOnly.reference.usable } }, null, 2)}\n`);
+      console.log(tallyMarkdown(tally));
+      console.log(`\nBy the missing-action gate alone (no readings): ${gateOnly.verdict}; ${gateOnly.lines.map((l) => `${l.holds ? 'holds' : 'FAILS'}: ${l.figure}`).join('; ')}`);
+      console.log(`\n${path.join(runDir, 'tally.json')}`);
+    }
   } else if (has('recapture')) {
     // FREE. Re-key a stress value the label rule misplaced, and capture both arms of its brief again.
     const runDir = path.resolve(value('recapture', ''));
