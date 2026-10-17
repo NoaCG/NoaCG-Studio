@@ -41,7 +41,7 @@
   { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025540639", "sha": "fa744600", "scope": "fifth", "conclusion": "failure",
     "steps": { "leave-fifth-checker.spec.ts": "15 passed, 5 failed: A1, B1, B2, C1, H1-renamed" } },
   { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025542073", "sha": "dfe624eb", "scope": "mutation", "conclusion": "failure (expected)",
-    "steps": { "leave-fifth-checker.spec.ts": "6 passed, 14 failed: the five findings plus A2, A3, A4, D1, D2, E1, E2, F-late, H3 (timed out). Still green: D3, F-hold, R1, G1, H1-again, H2 (they pin other writes)" } },
+    "steps": { "leave-fifth-checker.spec.ts": "6 passed, 14 failed: the five findings plus A2, A3, A4, D1, D2, E1, E2, F-late, H3 (timed out). Still green: R1, G1, H1-again, H2 (other writes) and D3, F-hold (they hold K, but their outcome does not depend on the Save waiting for it, so this mutation does not discriminate them)" } },
   { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025101795", "sha": "88d126ed", "scope": "unchanged", "conclusion": "failure",
     "steps": { "leave-checker.spec.ts": "3 passed", "leave-second-checker.spec.ts": "4 passed", "leave-third-checker.spec.ts": "10 passed",
       "leave-checker.spec.ts:24 --repeat-each=20 (regression only)": "20 passed", "leave-fourth-checker.spec.ts": "10 passed, 1 failed: :228 (Home never mounted after the retried first Save landed)" } },

@@ -90,7 +90,9 @@ failed** (A1, B1, B2, C1, H1-renamed). This VM gave the same result through the 
 15 passed, the same 5 failed. The mutation run
 [39025542073](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025542073) turns A2, A3, A4, D1,
 D2, E1, E2, F-late and H3 red as well. That is 14 failed in all, so those cases do pin the link
-write. D3, F-hold, R1, G1, H1-again and H2 pin other writes and stay green under it.
+write. R1, G1, H1-again and H2 act on other writes and stay green under it. D3 and F-hold hold K
+but stay green too: their outcome, an unsaved copy or the replacement owning the link, is the same
+whether or not the Save waits for K. So this mutation does not show them non-vacuous.
 
 The facts each case recorded are written to its artifact (`*.json`). A1:
 `slotBeforeReload {graphicId: null}`, `afterReloadLink {graphicId: null, dirty: true}`,
