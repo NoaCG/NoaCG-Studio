@@ -263,6 +263,22 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   after opening 3 of 57 or 8 of 40 frames); NOT READY at the review. Minor: the ledger's L1 close
   note still said Sonnet `medium` 4 of 8 at $2.74; a correcting entry now follows it (the note
   itself stays, the ledger being append-only).
+- **Checkpoint 2026-10-17 20:15Z (paused by the subscription's usage limit, resets 21:50Z):**
+  round 1's tuning run reached 6 of its 15 briefs, all delivered (news lower third $0.72,
+  school scoreboard $1.26, lecture countdown $1.07, live vote $1.00, market reporter $0.62, debate
+  clock $1.55; their `cell.json` copied into `benchmarks/harness/ladder/L2/round-1/cells/`, not
+  yet judged). The basketball scorebug and the darts duel were paused by the limit and run again;
+  the other seven have not started. Resume, after `npm ci` at the root and `npm ci && npm run
+  build` in `cli/`: `node scripts/harness-bench.mjs --build L2 --arms subscription --model
+  claude-sonnet-5-5 --effort high --stage round-1 --lanes 2 --out
+  C:/claude/noacg-bench-archive/harness-ladder-L2/round-1 --briefs
+  basketball-club-scorebug,pub-darts-duel,brass-band-sponsor-strip,youth-summit-event-bug,choir-final-audience-vote,campus-news-ticker,christmas-mass-holding,futsal-cup-winner-card,cross-country-race-clock`,
+  then `--judge <that dir> --phase L2 --delivered-only --concurrency 2` and `--tally <that dir>
+  --phase L2 --order tuning`. Round 2's candidate (`coverage --strips` brought back, plus each
+  action's, step's and update's settled moment kept as a full frame beside its strip, with tests)
+  is saved, uncommitted, as `C:/claude/noacg-bench-archive/harness-ladder-L2/round-2-candidate.patch`
+  against `524bedab1`; its hypothesis is not written yet. D6's cost line for L2 is now $1.35
+  estimated (owner, see D6).
 - **Status: paused where the window ended. Baseline done; round 1 ran on the eight (4 of 8
   usable, from 2; $4.08 per usable, from $8.15) and waits for its 15 tuning briefs before it is
   kept or reverted.**
