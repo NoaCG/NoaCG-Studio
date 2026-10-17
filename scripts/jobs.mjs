@@ -24,7 +24,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
 import { freemem, homedir } from 'node:os';
-import { buildRisk, cloudJobPolicy, executionProfile, limitsNote, workerRequestsInCommand, queuedVerificationProblem } from './execution-profile.mjs';
+import { buildRisk, cloudJobPolicy, executionProfile, machineSummary, workerRequestsInCommand, queuedVerificationProblem } from './execution-profile.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { activeRuns, allProcesses, browserWorkBelow, descendantsOf, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
@@ -743,7 +743,7 @@ async function cmdList() {
   const worker = executionProfile();
   if (worker.kind === 'cloud') {
     console.log(`Schedule: cloud budget, ${budget.slots} suite-equivalent - ${budget.why}; `
-      + `${worker.freeMb} MB headroom${limitsNote(worker)}; `
+      + `${machineSummary(worker)}; `
       + `${worker.workers} browser worker ceiling; one browser-driving job per VM`);
   } else {
     console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`

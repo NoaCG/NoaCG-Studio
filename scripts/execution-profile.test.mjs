@@ -75,11 +75,13 @@ test('v1 hybrid ignores a cgroup2 mount that does not carry the controller (#136
   const r = readResources(env);
   assert.equal(r.limitsObserved, true); assert.equal(r.effectiveCpus, 4);
   assert.equal(r.memoryLimitBytes, 14343688192); assert.equal(r.availableMemoryBytes, 14343688192 - 45 * MiB);
-  // The session's hooks run in the parent of claude-code-bash, which reads as unlimited: they
-  // still report the limit the session's commands run under.
+  // The session's hooks run in the parent of claude-code-bash, which reads as unlimited; naming
+  // the child reports the limit the session's commands run under.
   files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace(leaf, id));
-  assert.equal(readResources(env).memoryLimitBytes, 14343688192);
-  assert.equal(executionProfile({ platform: 'linux', env: { CLAUDE_CODE_REMOTE: 'true' }, resources: readResources(env), freeBytes: 15 * GiB }).workers, 2);
+  assert.equal(readResources(env).memoryLimitBytes, 16 * GiB);
+  const hook = readResources({ ...env, child: 'claude-code-bash' });
+  assert.equal(hook.memoryLimitBytes, 14343688192); assert.equal(cloud(hook, 'claude').workers, 2);
+  files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace(id, leaf));
   // Once cpu is not held through v1, the cgroup2 mount carries it: a missing reading there is
   // reported, and the affinity stands in for it.
   files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace('1:cpu:/\n', ''));

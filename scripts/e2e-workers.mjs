@@ -33,7 +33,7 @@ import { freemem } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { jobsDir, readJobs } from './jobs-store.mjs';
-import { cloudBrowserAdmission, cloudJobPolicy, requestedWorkerCounts, executionProfile, limitsNote } from './execution-profile.mjs';
+import { cloudBrowserAdmission, cloudJobPolicy, requestedWorkerCounts, executionProfile, machineSummary } from './execution-profile.mjs';
 
 /**
  * A STEP TABLE, not a formula, because the cost of a worker is not linear and pretending it is
@@ -98,7 +98,7 @@ export function chooseWorkers({ freeMb = Math.round(freemem() / (1024 * 1024)), 
   const pinned = Number(override);
   if (profile.kind === 'cloud') {
     const workers = Math.min(profile.workers, Number.isInteger(pinned) && pinned > 0 ? pinned : profile.workers);
-    return { workers, reason: `${profile.provider} cloud, ${Math.floor(profile.limits.effectiveCpus)} CPUs and ${profile.freeMb} MB free${limitsNote(profile)}` };
+    return { workers, reason: `${profile.provider} cloud, ${machineSummary(profile)}` };
   }
   if (Number.isInteger(pinned) && pinned > 0) {
     return { workers: pinned, reason: `E2E_WORKERS=${pinned} (pinned)` };

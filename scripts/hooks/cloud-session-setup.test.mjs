@@ -332,8 +332,8 @@ test('a cloud session starts by naming its CPUs, memory, e2e workers and that br
   // The 4 vCPU, 13.36 GiB VM this was measured on, through the profile its commands get.
   const limits = { effectiveCpus: 4, memoryLimitBytes: 14343688192, availableMemoryBytes: 14 * 2 ** 30, limitsObserved: true };
   const at = (resources) => executionProfile({ platform: 'linux', env: { CLAUDE_CODE_REMOTE: 'true' }, resources, freeBytes: 15 * 2 ** 30 });
-  assert.equal(resourcesLine(at(limits)), 'Cloud machine: 4 CPUs, 13.4 GiB memory, 2 e2e workers. Browser/e2e checks: run here.');
-  assert.match(resourcesLine(at({ ...limits, limitsObserved: false })), /machine totals; .* 2 e2e workers/);
+  assert.equal(resourcesLine(at(limits)), 'Cloud machine: 4 CPUs, 13.4 GiB memory, 14336 MB free, 2 e2e workers. Browser/e2e checks: run here.');
+  assert.match(resourcesLine(at({ ...limits, limitsObserved: false })), /machine totals stand in .*, 2 e2e workers/);
   assert.equal(resourcesLine({ kind: 'local' }), '');
 });
 

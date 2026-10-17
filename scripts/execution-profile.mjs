@@ -30,7 +30,9 @@ export function cgroupDirectories(mount, membership) {
   return dirs;
 }
 
-export function readResources({ read = readText, affinity = availableParallelism(), hostMemoryBytes = totalmem(), hostFreeBytes = freemem() } = {}) {
+// `child` names a memory cgroup below this process's own that its caller speaks for: a Claude
+// cloud SessionStart hook runs in the parent of claude-code-bash, where the session's commands run.
+export function readResources({ read = readText, affinity = availableParallelism(), hostMemoryBytes = totalmem(), hostFreeBytes = freemem(), child } = {}) {
   const memberships = (read('/proc/self/cgroup') ?? '').split('\n').flatMap((line) => {
     const m = /^(\d+):([^:]*):(\/.*)$/.exec(line);
     return m ? [{ controllers: m[2].split(','), member: m[3] }] : [];
@@ -59,10 +61,8 @@ export function readResources({ read = readText, affinity = availableParallelism
       const dirs = cgroupDirectories(mount, membership.member);
       if (!dirs.length) continue;
       seen = true;
-      // Claude cloud runs the session's commands in this child of the session's memory cgroup,
-      // and its hooks in the parent: read the child too, so a hook reports what commands get.
-      const commands = `${dirs[0]}/claude-code-bash`;
-      if (controller === 'memory' && read(`${commands}/${mount.v2 ? 'memory.max' : 'memory.limit_in_bytes'}`) !== null) dirs.unshift(commands);
+      const limitFile = mount.v2 ? 'memory.max' : 'memory.limit_in_bytes';
+      if (controller === 'memory' && child && read(`${dirs[0]}/${child}/${limitFile}`) !== null) dirs.unshift(`${dirs[0]}/${child}`);
       // Hidden ancestors may impose a lower limit than any visible file; the profile says it
       // could not see them, and the machine's totals stand in for them.
       if (mount.root !== '/') { valid = false; reasons.push(`${controller}: hidden ancestors above ${mount.root}`); }
@@ -74,25 +74,23 @@ export function readResources({ read = readText, affinity = availableParallelism
           if (raw === null || !(period > 0) || !(q === 'max' || (!mount.v2 && quota === -1) || quota > 0)) valid = false;
           else if (quota > 0) cpus = Math.min(cpus, quota / period);
         } else {
-          const raw = read(`${dir}/${mount.v2 ? 'memory.max' : 'memory.limit_in_bytes'}`);
+          const raw = read(`${dir}/${limitFile}`);
           const used = number(read(`${dir}/${mount.v2 ? 'memory.current' : 'memory.usage_in_bytes'}`));
-          const limit = number(raw);
+          const limit = number(raw), usedOk = used !== null && used >= 0;
           const unlimited = raw === 'max' || (!mount.v2 && limit >= 2 ** 60);
-          if (raw === null || !(unlimited || limit > 0)) valid = false;
-          else if (!unlimited) {
-            memory = Math.min(memory, limit);
-            available = Math.min(available, limit);
-          }
+          if (raw === null || !(unlimited || limit > 0) || !usedOk) valid = false;
           // Without the usage beside it, the limit still holds; only the headroom is unknown.
-          if (used === null || used < 0) valid = false;
-          else if (!unlimited && limit > 0) available = Math.min(available, Math.max(0, limit - used));
+          if (!unlimited && limit > 0) {
+            memory = Math.min(memory, limit);
+            available = Math.min(available, Math.max(0, limit - (usedOk ? used : 0)));
+          }
         }
       }
     }
     if (controller === 'cpu') cpuSeen = seen; else memorySeen = seen;
   }
   valid &&= cpuSeen && memorySeen;
-  if (!valid) reasons.push('some cgroup readings failed; the machine totals stand in for them');
+  if (!valid) reasons.push('the machine totals stand in for what could not be read');
   return { effectiveCpus: cpus, memoryLimitBytes: memory, availableMemoryBytes: Math.max(0, available), limitsObserved: valid, reasons };
 }
 
@@ -121,13 +119,17 @@ export function executionProfile({ env = process.env, platform = process.platfor
 //   - Memory (cloud-execution evidence/claude-measurements.md): cgroup peak 3.33 / 4.55 / 5.62 GiB
 //     at 2 / 4 / 6 workers, so about 2.1 GiB of dev server, runner and cache plus 0.53-0.61 GiB a
 //     worker. The base carries about half a gigabyte of margin; a worker is the measured high end.
-export const CLOUD_BASE_MB = 2560, CLOUD_WORKER_MB = 640;
-export function cloudWorkers(cpus, freeMb) {
+const CLOUD_BASE_MB = 2560, CLOUD_WORKER_MB = 640;
+function cloudWorkers(cpus, freeMb) {
   return Math.max(1, Math.min(Math.floor(cpus / 2), Math.floor((freeMb - CLOUD_BASE_MB) / CLOUD_WORKER_MB)));
 }
 
-/** What a cloud line adds when a reading failed and the machine's totals stood in. */
-export const limitsNote = (profile) => (profile.known ? '' : ' (machine totals; some cgroup readings failed)');
+/** The cloud machine in one phrase, for every line that reports it. */
+export function machineSummary(profile) {
+  const { effectiveCpus, memoryLimitBytes } = profile.limits;
+  return `${Math.floor(effectiveCpus)} CPUs, ${(memoryLimitBytes / 2 ** 30).toFixed(1)} GiB memory, ${profile.freeMb} MB free`
+    + (profile.known ? '' : ' (machine totals stand in for cgroup limits it could not read)');
+}
 
 export function buildRisk(files) {
   return files.some((file) => /^(?:src\/(?:main\.tsx|(?:admin|output|join|ograf|bridge)\/main\.tsx?|docs\/docs\.ts|downloads\/downloads\.ts|landing\/motion\.ts)|package(?:-lock)?\.json|(?:vite|tsconfig|eslint)[^/]*\.[^/]+|(?:app|admin|output|join|ograf|bridge|index|docs|downloads)\.html|(?:cli|render-worker|player-host)\/(?:package(?:-lock)?\.json|(?:vite|tsconfig|eslint)[^/]*\.[^/]+|index\.html|src\/(?:main|index|worker)\.[cm]?[jt]sx?)|scripts\/(?:build[^/]*|gates|compile-contracts)\.mjs)$/.test(file));
