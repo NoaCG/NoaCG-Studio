@@ -90,7 +90,8 @@ async function backUntilAsked(page: Page) {
 }
 const out = (name: string, value: unknown) => writeFileSync(test.info().outputPath(name), JSON.stringify(value, null, 2));
 
-test('diag: hash change -> refused first Save stays with nothing minted; Escape keeps the editor; a double-submitted retry mints one record', async ({ page }) => {
+for (const naming of ['renamed', 'kept'] as const) test(`diag ${naming}: hash change -> refused first Save stays with nothing minted; Escape keeps the editor; a double-submitted retry mints one record`, async ({ page }) => {
+  const named = (n: string) => naming === 'renamed' ? n : '';
   test.setTimeout(150_000);
   await page.addInitScript(() => {
     if (window.top !== window) return;
@@ -107,7 +108,7 @@ test('diag: hash change -> refused first Save stays with nothing minted; Escape 
   await page.evaluate(() => { location.hash = '#/home'; });
   await expect(page.getByTestId('confirm-switch')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
   expect(page.url()).toBe(editorUrl);
-  await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Fourth hash');
+  await page.getByTestId('switch-save').click(); if (naming === 'renamed') await page.getByTestId('save-name').fill('Fourth hash');
   await install(page); await refuse(page, 'spx-gfx-graphics');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog').locator('.status-bad')).toBeVisible();
@@ -118,7 +119,7 @@ test('diag: hash change -> refused first Save stays with nothing minted; Escape 
   await page.keyboard.press('Escape'); await expect(page.getByTestId('save-dialog')).toHaveCount(0);
   expect(page.url()).toBe(editorUrl); expect(await source(page)).toEqual(edited); expect((await inspection(page)).history).toEqual(history);
   await page.evaluate(() => { location.hash = '#/home'; }); await expect(page.getByTestId('confirm-switch')).toBeVisible();
-  await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Fourth hash');
+  await page.getByTestId('switch-save').click(); if (naming === 'renamed') await page.getByTestId('save-name').fill('Fourth hash');
   await hold(page, 'spx-gfx-graphics');
   await page.getByTestId('save-name').press('Enter'); await page.getByTestId('save-name').press('Enter', { timeout: 2000 }).catch(() => undefined);
   await page.getByTestId('save-confirm').click({ force: true, timeout: 2000 }).catch(() => undefined);
@@ -130,14 +131,30 @@ test('diag: hash change -> refused first Save stays with nothing minted; Escape 
   const diag = await page.evaluate(async () => ({ log: (window as unknown as { navlog: unknown[] }).navlog, url: location.href, route: (await import('/src/app/router.ts')).useRouter.getState().route,
     ui: (({ saveDialog, confirmSwitch }) => ({ saveDialog: !!saveDialog, confirmSwitch: !!confirmSwitch }))((await import('/src/store/saveActions.ts')).useSaveUi.getState()),
     saved: (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved }));
-  out('diag-228.json', { navBefore, home: await page.getByTestId('home-page').count(), ...diag });
+  out(`diag-228-${naming}.json`, { navBefore, home: await page.getByTestId('home-page').count(), ...diag });
   await expect(page.getByTestId('home-page')).toBeVisible(); await expect(page).toHaveURL(/#\/home$/);
   const kept = await library(page);
-  expect(kept).toHaveLength(1); expect(kept[0].template).toEqual({ ...edited, name: 'Fourth hash' });
+  expect(kept).toHaveLength(1); expect(kept[0].template).toEqual({ ...edited, name: named('Fourth hash') || edited.name });
   await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
   expect(await library(page)).toHaveLength(1);
   await page.locator('[data-door="new-graphic"]').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   out('hash-refused-first-save.json', { refusedStayed: true, nothingMinted: true, escapeKeptEditor: true, doubleSubmitOnePut: true, records: 1 });
+});
+
+for (const via of ['back', 'hash'] as const) for (const naming of ['renamed', 'kept'] as const) test(`diag leave ${via} ${naming}: first Save from the leave dialog then continues the leave`, async ({ page }) => {
+  test.setTimeout(90_000);
+  await open(page); await draw(page, .3); await settleDurableWrites(page);
+  const editorUrl = page.url();
+  if (via === 'back') await backUntilAsked(page);
+  else { await page.evaluate(() => { location.hash = '#/home'; }); await expect(page.getByTestId('confirm-switch')).toBeVisible(); }
+  await page.getByTestId('switch-save').click();
+  if (naming === 'renamed') await page.getByTestId('save-name').fill(`Fifth ${via}`);
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await page.waitForTimeout(1500);
+  const facts = { via, naming, url: page.url(), left: page.url() !== editorUrl, editor: await page.getByTestId('editor-foundation').count(), status: await page.getByTestId('save-status').textContent().catch(() => null) };
+  out(`diag-leave-${via}-${naming}.json`, facts);
+  expect(facts.left, 'the leave did not continue after the first Save landed').toBe(true);
 });
 
