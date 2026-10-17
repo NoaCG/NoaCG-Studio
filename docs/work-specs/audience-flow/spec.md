@@ -1,13 +1,13 @@
 # Audience flow: viewer messages reach the right graphic in a few plain steps
 
 Authority: owner, 2026-10-16 (see `work.json`). **Draft**: the decisions under "Owner decisions"
-are open, each with a recommendation; nothing is built until they are answered. Once agreed, its
-phases join `/plan-run production-page` after the page cleanup (1-14) and the data phases: 21
-onward after the Sheet data flow (15-20) as agreed, or 23 onward if the data sources spec's draft
-phases 15-22 replace them (its DS16). Parent: `docs/GOALS.md` outcome 5 (the playout dashboard,
-with its Data and Audience tabs); the model it shares with data is
-`docs/work-specs/data-sources/spec.md` (draft). Built on: `docs/INTERACTIVE_PLAYOUT_PLAN.md`
-phases 5 and 6 and its audience backend design.
+are open, each with a recommendation; the owner's 2026-10-17 answers named the data sources list
+only, so these wait for their own answer. Nothing is built before then or before the data sources
+spec is agreed after its second opinion. Its phases then join `/plan-run production-page` as 23
+onward, after the page cleanup (1-14) and the data sources phases 15-22 (DS16). Parent:
+`docs/GOALS.md` outcome 5 (the playout dashboard, with its Data and Audience tabs); the model it
+shares with data is `docs/work-specs/data-sources/spec.md` (draft). Built on:
+`docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6 and its audience backend design.
 
 ## Problem
 
@@ -52,16 +52,17 @@ and the broadcast text editable. A message never lands in a graphic not made for
 
 ## Where the audience fits (2026-10-17)
 
-The data sources spec asks whether the audience is just another data source (DS11-DS14). Its
-recommendation, C: audience sources (the join page, Twitch, YouTube) sit on the same sources line
-as data sources, with status and Pause, and run on the same source core (A4 below), but they write
-only to the inbox; a message reaches air only as a cue the operator takes. Votes stay staged by
-the operator. The research behind it (`docs/research/2026-10-data-sources/README.md` §2.6, §5)
-also found, for A4: reading Twitch chat anonymously works but is not documented (the documented
-way needs a user token); YouTube's daily quota is per Google project, and its streaming method
-costs far less than polling; and a listener that must stay connected does not fit a serverless
-function, so the published half of A4 needs a worker that stays connected or the database's
-scheduler. Phase 4 settles that design; nothing here decides it.
+The data sources spec asks whether the audience is just another data source (DS11-DS14); the owner
+accepted its recommendations on 2026-10-17. The answer, C: audience sources (the join page, Twitch,
+YouTube) sit on the same sources line as data sources, with status and Pause, and run on the same
+source core (A4 below), but they write only to the inbox; a message reaches air only as a cue the
+operator takes. Votes stay staged by the operator. The research behind it
+(`docs/research/2026-10-data-sources/README.md` §2.6, §5) also found, for A4: reading Twitch chat
+anonymously works but is not documented (the documented way needs a user token); YouTube's daily
+quota is per Google project, and its streaming method costs far less than polling; and a listener
+that must stay connected does not fit a serverless function, so the published half of A4 needs a
+worker that stays connected or the database's scheduler. Phase 4 settles that design; nothing here
+decides it.
 
 ## Owner decisions (open; recommendation first)
 
