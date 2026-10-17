@@ -136,7 +136,9 @@ export function findRetired(text, retired) {
  * mechanism named there is history by construction, however the sentence is worded.
  */
 export function isRetiredRule(file, text) {
-  return file.startsWith('contracts/rules/') && /^---\n(?:[^\n]*\n)*?status:\s*retired\s*\n(?:[^\n]*\n)*?---/.test(String(text).replace(/\r\n/g, '\n'));
+  if (!file.startsWith('contracts/rules/')) return false;
+  const frontMatter = /^---\n([\s\S]*?)\n---/.exec(String(text).replace(/\r\n/g, '\n'));
+  return Boolean(frontMatter) && /^status:\s*retired\s*$/m.test(frontMatter[1]);
 }
 
 /** Is this repository path part of the loaded or invoked instruction surface? */
