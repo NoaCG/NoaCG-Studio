@@ -30,10 +30,10 @@ The disposable branch `claude/probe-editor-p2-check-6-ci` holds tests and CI rec
 no pull request and must never be queued. It contains main plus the carried checker files and the
 repair-6 probe's dispatch recipes, plus two scopes (`sixth`, and a bounded B1 step in `fifth`).
 Commits: `00cdbf60` (the carried runs), then `12129544` (the sixth spec's three checker fixes,
-below). The carried files are byte-identical to independent-5 and repair-6. Each CI run records
+below), then `7ed477b9` (S4 asserts its destination unconditionally, from review). The carried files are byte-identical to independent-5 and repair-6. Each CI run records
 their sha256: original `28988d71…`, second `ef78c1eb…`, third `71f8378b…`, fourth `95317231…`,
 fifth `145756a7…`, references `8aaf0a47…`, `2447cef0…`, `bae58ddb…`. This check's spec is in
-[probe.patch](probe.patch): `e2e/leave-sixth-checker.spec.ts` (`68698bc6…`). It is the challenge
+[probe.patch](probe.patch): `e2e/leave-sixth-checker.spec.ts` (`0b5207f2…`). It is the challenge
 a repair carries unchanged. The bounded B1 copy, `e2e/leave-fifth-b1-bounded.spec.ts`
 (`32b0d289…`), is the fifth file with line 262 changed and nothing else:
 `.textContent()` became `.textContent({ timeout: 1000 })`.
@@ -64,7 +64,7 @@ caller's stack, and holds, refuses or late-refuses one chosen put.
 | S2 | linked topbar Save / L | held; Home asks; Discard queued behind it | Pass: Discard does not leave before the Save answers, then leaves; one record with the source; no notice; nothing asks after |
 | S3-hold | leave first Save / L | held; reload mid-transaction | Pass: the source is kept; the next Save leaves one record |
 | S3-late | leave first Save / L | late refusal; reload mid-transaction | Pass: the source is kept; the next Save leaves one record |
-| S4 | linked Save & continue / L | held; `history.back()` while busy | Pass: the Back is absorbed; the Save lands and the leave reaches Home once; the URL matches; no question is left open |
+| S4 | linked Save & continue / L | held; `history.back()` while busy | Pass: the Back is absorbed; the Save lands and the leave reaches Home once (Home shown, no editor or wizard, URL `#/home`); no question is left open |
 | S5 | first Save in tab A; tab B idle on the same draft | none | Pass: B writes nothing to the slot; A reloads clean; one record |
 | S6 | first Save, kept name / R and K | both refused once; reload; Save again | **Fail** (#1383 residual, repair-6's disclosed limit): `afterReloadLink {graphicId: null}`, 2 records |
 
@@ -81,7 +81,10 @@ in that tab, so it is recorded and not counted.
 Checker bugs fixed between j-0028 and j-0029, all three in this spec: S3-late read the raw slot
 while the late-refused transaction was still open, so the read queued behind it. S4 used
 `page.goBack()`, which waits for a load that a guarded hash entry never fires. S6 kept only
-160 characters of each stack. The S1 and S6 assertions are unchanged.
+160 characters of each stack. The S1 and S6 assertions are unchanged. Review then found S4's
+destination assertions conditional. `7ed477b9` makes them unconditional (Home shown, no editor or
+wizard, `#/home`). S4 still passes: VM j-0031 and CI
+[39038386996](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39038386996).
 
 Not attacked, and why: a wizard door during a running transaction is modal (repair-6 (e)); no
 door was found that saves outside the three functions. Discard during Save & continue is not
@@ -133,7 +136,9 @@ or ask.
 - Sixth spec: VM j-0028 (5 failed: S1 x2 and S6, which are findings, plus S3-late and S4, which
   were checker bugs), then j-0029 on `12129544` (**7 passed, 3 failed**: S1-home-late,
   S1-hash-late, S6). CI [39037645885](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037645885)
-  on `12129544` gives the same 7/3 with the same facts.
+  on `12129544` gives the same 7/3 with the same facts. On `7ed477b9` (S4 tightened): VM j-0031
+**7 passed, 3 failed**, the same three, and CI
+[39038386996](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39038386996) gives the same 7/3.
 
 ## Captures
 

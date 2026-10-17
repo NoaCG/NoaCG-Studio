@@ -1,9 +1,9 @@
 diff --git a/e2e/leave-sixth-checker.spec.ts b/e2e/leave-sixth-checker.spec.ts
 new file mode 100644
-index 000000000..0c7b755ef
+index 000000000..7235ce6ca
 --- /dev/null
 +++ b/e2e/leave-sixth-checker.spec.ts
-@@ -0,0 +1,350 @@
+@@ -0,0 +1,352 @@
 +// covers: none - disposable sixth independent leave-editor check (Phase 2, check 6); never land
 +//
 +// Adversarial challenges written by the sixth checker against repair-6's ONE save transaction
@@ -291,9 +291,11 @@ index 000000000..0c7b755ef
 +  expect(facts.link).toMatchObject({ graphicId: record.id, dirty: false });
 +  expect(facts.alert).toBe(0);
 +  expect(facts.dialogsAfter, 'no question is left open after the Save landed').toBe(0);
-+  // The visible surface and the address agree.
-+  if (facts.home) expect(hash).toMatch(/^#\/home/);
-+  if (facts.editorAfter) expect(hash).not.toMatch(/^#\/home/);
++  // The leave the user chose completes at Home, and the address agrees.
++  expect(facts.home, 'the leave reached Home').toBe(1);
++  expect(facts.editorAfter, 'the editor is gone').toBe(0);
++  expect(facts.wizard, 'no wizard opened').toBe(0);
++  expect(hash).toMatch(/^#\/home/);
 +});
 +
 +// ── A second tab on the same working draft ─────────────────────────────────────────────────────
