@@ -86,12 +86,11 @@ on:
 #
 # Left as it is, deliberately. The fix would be a per-SHA group on main so no two main runs
 # ever share one, and that trades a verdict nothing reads for queue time on the branch gates
-# that everyone waits on: a full main run is 25 jobs (15 of them E2E shards, since 2026-10-17;
-# the shards start after the plan, so a run's own peak was 11 to 14 concurrent jobs at 13 shards
-# and is 13 to 16 at 15) against a 20-concurrent-job ceiling, and runs starting while two
-# branches were mid-gate have been measured waiting 22 to 45 minutes for a shard (see the
-# shard-count comment below). The
-# dropped verdict costs nothing real - landings are `--ff-only`, so the superseded SHA was
+# that everyone waits on: a full main run is 25 jobs (15 of them E2E shards, which start after
+# the plan, so a run's own peak is 13 to 16 concurrent jobs) against a 20-concurrent-job
+# ceiling, and runs starting while two branches were mid-gate have been measured waiting 22 to
+# 45 minutes for a shard (see the shard-count comment below). The dropped verdict costs
+# nothing real - landings are `--ff-only`, so the superseded SHA was
 # already green on its branch, and the run that supersedes it tests a tree that CONTAINS it. A
 # cancelled run also raises no notification, so this is not an inbox problem either
 # (docs/VERIFICATION.md, "What a red run means, and what actually emails").

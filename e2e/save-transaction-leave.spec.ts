@@ -3,9 +3,9 @@
 // covers: src/components/wizard/shell/walkState.ts
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repairs 6 and 7): the leave continues once the save
-// lands (#1386), and a leave started while a topbar Save or Ctrl+S is still writing (#1392).
-// One of the five save-transaction*.spec.ts files: the fault injector, the doors and the case
-// list's home are in e2e/_saveMatrix.ts (and why the matrix is split across files).
+// lands (#1386), and a leave started while a topbar Save is still writing (#1392). Ctrl+S, the
+// same rows through the shortcut, is save-transaction-leave-shortcut.spec.ts.
+// Row map and shared helpers: e2e/_saveMatrix.ts.
 import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { open, draw, source } from './_layerProperty';
@@ -46,8 +46,9 @@ for (const how of ['hash', 'back', 'back without the Navigation API'] as const) 
 }
 
 // The topbar Save and Ctrl+S leave the editor usable while they write: the leave asks over the
-// editor, says the save is running, and answers with the save's own answer.
-for (const door of ['topbar', 'ctrl+s'] as const) for (const how of LEAVES) for (const outcome of OUTCOMES) {
+// editor, says the save is running, and answers with the save's own answer. The two doors share
+// this body; one door per file keeps each file under a shard's budget (e2e/_saveMatrix.ts).
+for (const door of ['topbar'] as ('topbar' | 'ctrl+s')[]) for (const how of LEAVES) for (const outcome of OUTCOMES) {
   test(`matrix in-flight leave: ${door} / K ${outcome}, ${how}`, async ({ page }) => {
     test.setTimeout(120_000);
     const { before } = await prepare(page, 'topbar');

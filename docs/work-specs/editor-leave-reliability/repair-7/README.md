@@ -66,8 +66,9 @@ goes on, once.
 
 ## The matrix (`e2e/save-transaction.spec.ts`)
 
-Since 2026-10-17 the matrix is five files, `e2e/save-transaction*.spec.ts` (#1405; the row map is
-in `e2e/_saveMatrix.ts`). The in-flight leave rows below are `save-transaction-leave.spec.ts` and
+Since 2026-10-17 the matrix is six files, `e2e/save-transaction*.spec.ts` (#1405; the row map is
+in `e2e/_saveMatrix.ts`). The in-flight leave rows below are `save-transaction-leave.spec.ts`
+(topbar), `save-transaction-leave-shortcut.spec.ts` (Ctrl+S) and
 `save-transaction-leave-modal.spec.ts`; the double refusal and the two review cases are in
 `save-transaction.spec.ts` and `save-transaction-leave.spec.ts`.
 

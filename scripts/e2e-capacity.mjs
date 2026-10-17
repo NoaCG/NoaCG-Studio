@@ -23,8 +23,10 @@
 // table-minutes - and raising it is a reviewed decision that cites the measured peak concurrency
 // (evidence/cost-and-growth.md: the account sat at exactly twenty running jobs for 17% of all busy
 // time). It is not the count a full run holds: since 2026-10-17 a full run holds MAX_SHARDS (15)
-// runners against a budget of 13, and that gap IS the overrun the line reports. A shard count
-// that creeps up must not quietly raise the budget, so the two constants are separate on purpose.
+// runners against a budget of 13, because the packer places whole files and keeps a margin for
+// the slowest runner, which this fluid-fill line does not see; the line itself reads 98%. A shard
+// count that creeps up must not quietly raise the budget, so the two constants are separate on
+// purpose.
 //
 // WHAT IT REFUSES, AND WHAT IT CANNOT. Above HARD_SHARE a change that ADDS measured spec-minutes
 // needs an exception line in a work spec (format below), with the spec file, the minutes, what it

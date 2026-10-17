@@ -194,12 +194,15 @@ shard p50/p90, and detection p50/p90 before and after.
 The save-transaction matrix (editor Phase 2 repairs 6 and 7, #1391 and #1397) added 26.7 measured
 minutes the line never saw: the file was unmeasured, so it counted at the median, and no green full
 run ever recorded it. These entries put those minutes on the record (run 39048521384's retry job)
-while the five split files carry hand-added table weights until the weekly refresh records them.
+while the six split files carry hand-added table weights until the weekly refresh records them.
+They are the record of what was added, not what the gate consumed: the same change carries the
+table rows, so the gate's own before/after reads the split files at zero delta.
 
 - e2e/save-transaction.spec.ts: 7.5 min, protects a Save's refused record, link and flush writes retried or reloaded on every door, expires 2026-11-16
 - e2e/save-transaction-holds.spec.ts: 4.0 min, protects a Save whose write is held while the user edits, replaces the document or presses again, expires 2026-11-16
 - e2e/save-transaction-wizard.spec.ts: 1.1 min, protects the wizard's Finish doors against a refused or doubled record write, expires 2026-11-16
-- e2e/save-transaction-leave.spec.ts: 9.2 min, protects a leave started while a topbar Save or Ctrl+S is still writing, and the leave replay after the save lands, expires 2026-11-16
+- e2e/save-transaction-leave.spec.ts: 5.1 min, protects a leave started while a topbar Save is still writing, and the leave replay after the save lands, expires 2026-11-16
+- e2e/save-transaction-leave-shortcut.spec.ts: 4.1 min, protects a leave started while Ctrl+S is still writing, expires 2026-11-16
 - e2e/save-transaction-leave-modal.spec.ts: 4.9 min, protects a browser leave absorbed under Save As, the naming dialog and Discard while they write, expires 2026-11-16
 
 ## Test maintenance
@@ -207,7 +210,7 @@ while the five split files carry hand-added table weights until the weekly refre
 Each entry: date, spec files, behaviours preserved, replacement check, evidence receipt, measured
 saving.
 
-- 2026-10-17 `e2e/save-transaction.spec.ts`: 78 of its 107 matrix cases moved unchanged (same titles, same assertions, same fault injector) into `e2e/save-transaction-holds.spec.ts`, `-wizard`, `-leave` and `-leave-modal.spec.ts`, with the shared helpers in `e2e/_saveMatrix.ts`; every row of the repair-6 and repair-7 matrices (docs/work-specs/editor-leave-reliability) stays protected by the same case. Replacement check: `npx playwright test --list` over the five files declares exactly the 107 titles the one file declared. Receipt: issue #1405; the file measured 26.7 minutes on one runner in run 39048521384's retry job, above the 20-minute shard cap, so no shard could ever carry it. Measured saving: none - the same 26.7 minutes, split so the packer can place them.
+- 2026-10-17 `e2e/save-transaction.spec.ts`: 78 of its 107 matrix cases moved unchanged (same titles, same assertions, same fault injector) into `e2e/save-transaction-holds.spec.ts`, `-wizard`, `-leave`, `-leave-shortcut` and `-leave-modal.spec.ts`, with the shared helpers in `e2e/_saveMatrix.ts`; every row of the repair-6 and repair-7 matrices (docs/work-specs/editor-leave-reliability) stays protected by the same case. Replacement check: `npx playwright test --list` over the six files declares exactly the 107 titles the one file declared. Receipt: issue #1405; the file measured 26.7 minutes on one runner in run 39048521384's retry job, above the 20-minute shard cap, so no shard could ever carry it. Measured saving: none - the same 26.7 minutes, split so the packer can place them.
 
 ## Completed maintenance
 

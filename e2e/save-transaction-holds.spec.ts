@@ -5,8 +5,7 @@
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 6): a write HELD while the user edits, replaces
 // the document or presses the door again, an autosave between the reservation and the link, and an
 // autosave already in flight when the Save starts.
-// One of the five save-transaction*.spec.ts files: the fault injector, the doors and the case
-// list's home are in e2e/_saveMatrix.ts (and why the matrix is split across files).
+// Row map and shared helpers: e2e/_saveMatrix.ts.
 import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { open, draw, source, ready } from './_layerProperty';

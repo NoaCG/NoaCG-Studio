@@ -4,11 +4,21 @@
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 6): the wizard's Finish doors, a write refused
 // on the production door and the export door pressed twice while its record write is held.
-// One of the five save-transaction*.spec.ts files: the fault injector, the doors and the case
-// list's home are in e2e/_saveMatrix.ts (and why the matrix is split across files).
-import { test, expect } from '@playwright/test';
+// Row map and shared helpers: e2e/_saveMatrix.ts.
+import { test, expect, type Page } from '@playwright/test';
+import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
-import { type Write, acted, arm, errors, library, release, releasable, toFinish } from './_saveMatrix';
+import { type Write, acted, arm, errors, install, library, release, releasable } from './_saveMatrix';
+
+async function toFinish(page: Page, name: string) {
+  await page.goto('/app#/new');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-name').fill(name);
+  await install(page);
+}
 
 for (const w of ['R', 'L', 'K', 'F'] as Write[]) {
   test(`matrix wizard production door refuse+retry: ${w}`, async ({ page }) => {

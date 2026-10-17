@@ -4,8 +4,7 @@
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 6): a write REFUSED once, then the door pressed
 // again or the page reloaded, and the reservation and link both refused (#1383, sixth check S6).
-// One of the five save-transaction*.spec.ts files: the fault injector, the doors and the case
-// list's home are in e2e/_saveMatrix.ts (and why the matrix is split across files).
+// Row map and shared helpers: e2e/_saveMatrix.ts.
 import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { source } from './_layerProperty';

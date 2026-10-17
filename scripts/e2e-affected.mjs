@@ -743,7 +743,7 @@ export const SHARD_TARGET_MINUTES = 3;
  * 107 cases at the 0.4-minute median while they cost 26.7 minutes on one runner - the retry job of
  * run 39048521384 is the complete measurement, and shard 7 of that run and of 39046375406 died
  * carrying them. No shard count fits a 26.7-minute file under a 20-minute cap, so the matrix is
- * five files now (e2e/_saveMatrix.ts says which rows went where), each weighted in the table from
+ * six files now (e2e/_saveMatrix.ts says which rows went where), each weighted in the table from
  * that retry. The suite is then 209.9 table-minutes: thirteen bins of 16.15 reach 19.1 on the
  * slowest runner measured (0.9 of margin), fourteen of 15.0 reach 17.7 (2.3), fifteen of 14.0
  * reach 16.6 (3.4) - so fifteen by the rule above. MAIN_RUNNERS (scripts/e2e-capacity.mjs) does
@@ -895,9 +895,8 @@ export function packShards(specs, shardCount, table = readTable()) {
 
   // Longest-processing-time-first: heaviest spec onto the lightest bin. A 4/3-approximation in
   // the worst case and far better than that here, where no single spec is a large fraction of a
-  // bin - the slowest file in the table is 9.2 min (save-transaction-leave) against a 14-min bin,
-  // and a file heavier than a bin can never fit, however many bins there are: that is why the
-  // save-transaction matrix is five files (e2e/_saveMatrix.ts).
+  // bin - the slowest file in the table is 7.5 min against a 14-min bin. A file heavier than a
+  // bin never fits, however many bins there are (MAX_SHARDS, 2026-10-17).
   const packed = Array.from({ length: bins }, () => ({ total: 0, files: [] }));
   const order = [...files].sort((a, b) => weight(b) - weight(a) || a.localeCompare(b));
   for (const spec of order) {

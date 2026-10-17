@@ -4,8 +4,7 @@
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 7): a browser leave (a hash change, Back) under
 // Save As, the first Save's naming dialog and Discard while they write (#1392).
-// One of the five save-transaction*.spec.ts files: the fault injector, the doors and the case
-// list's home are in e2e/_saveMatrix.ts (and why the matrix is split across files).
+// Row map and shared helpers: e2e/_saveMatrix.ts.
 import { test, expect } from '@playwright/test';
 import { source } from './_layerProperty';
 import { type Leave, type Write, OUTCOMES, arm, body, errors, landed, leave, left, library, nothingAsks, prepare, press, release, releasable, saved, settledClean, stayed } from './_saveMatrix';

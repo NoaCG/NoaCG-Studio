@@ -1,4 +1,4 @@
-// THE SAVE-TRANSACTION MATRIX: its fault injector and its doors, shared by the five
+// THE SAVE-TRANSACTION MATRIX: its fault injector and its doors, shared by the six
 // save-transaction*.spec.ts files (Phase 2, repairs 6 and 7). Five independent checks each failed
 // on a new ordering of a Save's separate durable writes, so the matrix crosses every write the
 // transaction makes or settles with every way storage can treat it, across every door that runs
@@ -20,24 +20,24 @@
 // repair-6/README.md beside the case list; repair-7/README.md adds the LEAVE (Home, hash, Back,
 // Open, New) started while a transaction is still writing (#1392, #1383).
 //
-// WHY FIVE FILES AND NOT ONE. The 107 cases measured 26.7 minutes on one runner (run 39048521384,
+// WHY SIX FILES AND NOT ONE. The 107 cases measured 26.7 minutes on one runner (run 39048521384,
 // the retry job that ran them after shard 7 died at the 20-minute cap), and CI assigns whole spec
 // files to shards (scripts/e2e-affected.mjs packShards), so one file could never fit a shard
 // whatever the shard count. The rows are split by operation; every case keeps its title and
 // assertions, and this module keeps the helpers in one place so the files cannot drift apart:
 //
-//   save-transaction.spec.ts              refuse+retry, refuse+reload, the double refusal (R and K)
-//   save-transaction-holds.spec.ts        hold+edit, the reservation kept, replace, double, in-flight
-//   save-transaction-wizard.spec.ts       the wizard's Finish doors
-//   save-transaction-leave.spec.ts        the leave replay and the in-flight leave, non-modal doors
-//   save-transaction-leave-modal.spec.ts  the in-flight leave under the modal doors
+//   save-transaction.spec.ts                 refuse+retry, refuse+reload, the double refusal (R and K)
+//   save-transaction-holds.spec.ts           hold+edit, the reservation kept, replace, double, in-flight
+//   save-transaction-wizard.spec.ts          the wizard's Finish doors (its walk helper lives there)
+//   save-transaction-leave.spec.ts           the leave replay and the in-flight leave under the topbar Save
+//   save-transaction-leave-shortcut.spec.ts  the in-flight leave under Ctrl+S
+//   save-transaction-leave-modal.spec.ts     the in-flight leave under the modal doors
 import { expect, type Page } from '@playwright/test';
-import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 import { open, draw } from './_layerProperty';
 
 export type Write = 'R' | 'L' | 'K' | 'F' | 'I' | 'D';
-export type Action = 'hold' | 'refuse' | 'late';
+type Action = 'hold' | 'refuse' | 'late';
 const LIB = 'spx-gfx-graphics', SLOT = 'spx-gfx-project';
 /** How each write is recognised: its key, and frames its put's stack must (not) carry. */
 const WRITES: Record<Write, { key: string; has: string[]; not: string[] }> = {
@@ -194,22 +194,10 @@ export const writesOf = (door: Door): Write[] => door === 'first-kept' ? ['R', '
 /** A linked door's F comes from an edit made in the same turn as the press. */
 export const editFor = (door: Door, w: Write) => w === 'F' && !['first-named', 'save-as'].includes(door);
 
-// ── The wizard's Finish doors ────────────────────────────────────────────────────────────────
-
-export async function toFinish(page: Page, name: string) {
-  await page.goto('/app#/new');
-  await expect(page.getByTestId('creation-wizard')).toBeVisible({ timeout: 30_000 });
-  await page.locator('[data-entry="template"]').click();
-  await pickDesign(page, 'Hairline');
-  await page.getByTestId('wz-skip-to-finish').click();
-  await page.getByTestId('wz-finish-name').fill(name);
-  await install(page);
-}
-
 // ── A leave started while a transaction is still writing (#1392, repair 7) ─────────────────────
 
 export type Leave = 'home' | 'hash' | 'back' | 'open' | 'new';
-export type Outcome = 'held' | 'refused' | 'refused+retry';
+type Outcome = 'held' | 'refused' | 'refused+retry';
 export const LEAVES: Leave[] = ['home', 'hash', 'back', 'open', 'new'];
 export const OUTCOMES: Outcome[] = ['held', 'refused', 'refused+retry'];
 /** Start a leave. Back first walks the preview frame's own entries (no route event), so it is
