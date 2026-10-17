@@ -554,3 +554,74 @@ for (const restore of ['confirmed', 'refused'] as const) {
     }
   });
 }
+
+// A REFUSED SAVE WHILE AN AUTOSAVE IS STILL IN FLIGHT (#1351). Save used to wait for every
+// pending write, and the working draft's autosave can settle long after the library put was
+// refused, so the app-level notice took the refusal first and Save answered 'saved'. The
+// refusal must be Save's own answer, so leaving with Save stays in the editor. The autosave's
+// completion is held here so the order is forced.
+test('a linked save refused while an autosave write is in flight keeps the editor and its draft', async ({ page }) => {
+  await open(page); await draw(page, .23);
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Held autosave');
+  await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+  const saved = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+  await holdWrites(page, 1); await commandEdit(page); await ready(page);
+  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+  await expect.poll(async () => (await probe(page)).released).toEqual([true]);
+  const edited = await source(page), history = (await inspection(page)).history, selection = await selected(page);
+  await page.evaluate(() => {
+    const seen = { refused: false, errors: [] as unknown[] };
+    Object.assign(window, { heldSave: seen });
+    window.addEventListener('spx-storage-error', e => seen.errors.push((e as CustomEvent).detail));
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-graphics') {
+        IDBObjectStore.prototype.put = put; seen.refused = true;
+        throw new DOMException('Refused beside a held autosave', 'QuotaExceededError');
+      }
+      return put.call(this, value, key);
+    };
+  });
+  type Seen = { heldSave: { refused: boolean; errors: unknown[] } };
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  // The refused put has been answered (its rollback restores the mirror just before it reports),
+  // while the autosave is still held; then give every timer a turn.
+  await expect.poll(() => page.evaluate(() => (window as unknown as Seen).heldSave.refused)).toBe(true);
+  await expect.poll(() => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  await page.evaluate(() => new Promise(r => setTimeout(r, 100)));
+  await release(page, 0);
+  await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toBeVisible();
+  await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
+  expect(await page.evaluate(() => (window as unknown as Seen).heldSave.errors), 'Save claims its own refusal').toEqual([]);
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved))
+    .toMatchObject({ dirty: true, status: 'failed' });
+  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  expect(await source(page)).toEqual(edited); expect((await inspection(page)).history).toEqual(history); expect(await selected(page)).toEqual(selection);
+  await page.keyboard.press('Escape'); await undo(page); await redo(page); expect(await source(page)).toEqual(edited);
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const kept = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+  expect(kept).toHaveLength(1); expect(kept[0].id).toBe(saved[0].id); expect(kept[0].template).toEqual(edited);
+});
+
+// The other half of the claim: a refused write nobody waits on is still announced by the app.
+test('a refused autosave nobody waits on still raises the app-level storage notice', async ({ page }) => {
+  await open(page); await draw(page, .3); await settleDurableWrites(page);
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-project') {
+        IDBObjectStore.prototype.put = put;
+        throw new DOMException('Unclaimed autosave refusal', 'QuotaExceededError');
+      }
+      return put.call(this, value, key);
+    };
+  });
+  await commandEdit(page);
+  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+  await expect(page.getByTestId('storage-alert-action')).toContainText('Saving to this browser');
+  await expect(page.getByTestId('storage-alert-error')).toContainText(/storage is full/i);
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved.status)).toBe('failed');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+});

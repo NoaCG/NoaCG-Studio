@@ -196,10 +196,30 @@ export function lastDurableWrite(key: string): DurableWriteReceipt | undefined {
   return receipts.get(key);
 }
 
+/** How many callers wait on each write sequence (`commitDurableReceipt`). */
+const claimed = new Map<number, number>();
+
+/**
+ * Wait for exactly this write and CLAIM its failure. The claim is taken before the first await,
+ * so a write still pending when it is claimed is never announced generically, however long the
+ * caller waits. One that already failed is taken back from `unclaimedFailure` below.
+ * Counted, because two callers can wait on one write. A caller that must know whether ITS write
+ * landed uses this rather than `commitDurableWrites`: that waits for every pending write, and an
+ * unrelated slower one (an autosave of the working draft) can outlast the announcement's
+ * macrotask, so a refused Save was announced generically and Save was told it landed (#1351).
+ */
 export async function commitDurableReceipt(receipt: DurableWriteReceipt): Promise<string | null> {
-  const error = await receipt.settled;
-  if (unclaimedFailure?.sequence === receipt.sequence) unclaimedFailure = null;
-  return error;
+  const { sequence } = receipt;
+  claimed.set(sequence, (claimed.get(sequence) ?? 0) + 1);
+  try {
+    const error = await receipt.settled;
+    if (unclaimedFailure?.sequence === sequence) unclaimedFailure = null;
+    return error;
+  } finally {
+    const left = (claimed.get(sequence) ?? 1) - 1;
+    if (left > 0) claimed.set(sequence, left);
+    else claimed.delete(sequence);
+  }
 }
 
 /**
@@ -207,14 +227,15 @@ export async function commitDurableReceipt(receipt: DurableWriteReceipt): Promis
  * - "Adding “Clean Clock” to a production" says far more than "a write failed" - awaits
  * `commitDurableWrites()` and CLAIMS the message, reporting it in its own words. Everything
  * else (autosaves, background writes) leaves it unclaimed, and it is announced generically a
- * tick later. The ordering is what makes this reliable rather than a race: awaiting the pending
- * writes resumes on a MICROTASK, while the announcement is scheduled as a MACROTASK, so a
- * claimer always gets there first.
+ * tick later. The macrotask gives `commitDurableWrites` a turn to take a failure, but it is a
+ * race whenever another pending write settles later than the refused one; a caller that has to
+ * know about its own write claims that write's receipt instead (`commitDurableReceipt`).
  */
 let unclaimedFailure: { key: string; message: string; sequence?: number } | null = null;
 
 /** Hold the failure open for one macrotask so a caller can claim it, then announce what is left. */
 function reportError(key: string, message: string, sequence?: number): void {
+  if (sequence !== undefined && claimed.has(sequence)) return;
   unclaimedFailure = { key, message, sequence };
   setTimeout(() => {
     if (!unclaimedFailure) return;
