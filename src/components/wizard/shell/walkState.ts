@@ -615,7 +615,8 @@ export async function saveBuiltGraphic(
       if (minted.graphicId) noteMade(memory, { name, graphicId: minted.graphicId, production: null, landedOn: null });
       return minted;
     });
-    const minting = run.then(() => { if (memory.minting === minting) memory.minting = undefined; }, () => { if (memory.minting === minting) memory.minting = undefined; });
+    const done = () => { if (memory.minting === minting) memory.minting = undefined; };
+    const minting: Promise<void> = run.then(done, done);
     memory.minting = minting;
     return run;
   };

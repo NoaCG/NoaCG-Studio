@@ -334,9 +334,11 @@ function withParsedFields(template: SpxTemplate): SpxTemplate {
 const initialProject = loadProject();
 // A first Save reserves its record's id in the slot before minting it. When the link write that
 // followed was refused, the record exists while the slot still reads unlinked, so the reserved id
-// links it back and the next Save writes into it rather than minting a duplicate (#1383).
+// links it back and the next Save writes into it rather than minting a duplicate (#1383). It
+// reads unsaved, as the refused save left it: the slot never said the link landed.
 const reservedId = initialProject?.reservedGraphicId;
-const initialGraphicId = reservedId && graphicById(reservedId) ? reservedId : initialProject?.graphicId ?? null;
+const relinked = !!reservedId && !!graphicById(reservedId);
+const initialGraphicId = relinked ? reservedId! : initialProject?.graphicId ?? null;
 const initialTemplate = initialProject?.template ?? createDefaultTemplate();
 // The pristine state Reset returns to: the saved baseline if we have one, else the loaded
 // template (so Reset on a pre-baseline project at least returns to how it opened).
@@ -387,7 +389,7 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   canvasTool: 'select',
   saved: {
     graphicId: initialGraphicId,
-    dirty: initialProject?.dirty ?? false,
+    dirty: relinked || (initialProject?.dirty ?? false),
     status: 'idle',
   },
   aiSpec: initialProject?.aiSpec ?? null,
