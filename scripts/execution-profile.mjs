@@ -46,7 +46,10 @@ export function readResources({ read = readText, affinity = availableParallelism
   let cpus = affinity, memory = hostMemoryBytes, available = hostFreeBytes;
   let cpuSeen = false, memorySeen = false, valid = true;
   for (const controller of ['cpu', 'memory']) {
-    const candidates = mounts.filter((m) => m.v2 || m.controllers.includes(controller));
+    // A v1 hybrid can mount an empty cgroup2 beside its controllers. A cgroup2 mount only
+    // carries a controller its root lists; an unreadable list keeps the mount (stays unknown).
+    const carries = (m) => { const listed = read(`${path.posix.resolve('/', m.point)}/cgroup.controllers`); return listed === null || listed.split(/\s+/).includes(controller); };
+    const candidates = mounts.filter((m) => m.v2 ? carries(m) : m.controllers.includes(controller));
     let seen = false;
     for (const mount of candidates) {
       const membership = memberships.find((m) => mount.v2 ? m.controllers[0] === '' : m.controllers.includes(controller));
