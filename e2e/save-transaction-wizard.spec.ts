@@ -1,6 +1,6 @@
 // covers: src/store/saveActions.ts, src/model/durableStore.ts, src/model/project.ts, src/store/templateStore.ts
-// covers: src/components/save/SaveDialogs.tsx, src/components/save/SaveControls.tsx, src/app/router.ts
-// covers: src/components/wizard/shell/walkState.ts, src/components/wizard/shell/doors.ts
+// covers: src/components/wizard/shell/walkState.ts, src/components/wizard/shell/doors.ts, src/components/wizard/steps/FinishStep.tsx
+// covers: src/components/save/StorageAlertDialog.tsx, src/app/router.ts
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 6): the wizard's Finish doors, a write refused
 // on the production door and the export door pressed twice while its record write is held.

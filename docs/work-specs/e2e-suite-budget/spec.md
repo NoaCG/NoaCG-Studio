@@ -191,7 +191,16 @@ shard p50/p90, and detection p50/p90 before and after.
 
 ## Budget exceptions
 
-None.
+The save-transaction matrix (editor Phase 2 repairs 6 and 7, #1391 and #1397) added 26.7 measured
+minutes the line never saw: the file was unmeasured, so it counted at the median, and no green full
+run ever recorded it. These entries put those minutes on the record (run 39048521384's retry job)
+while the five split files carry hand-added table weights until the weekly refresh records them.
+
+- e2e/save-transaction.spec.ts: 7.5 min, protects a Save's refused record, link and flush writes retried or reloaded on every door, expires 2026-11-16
+- e2e/save-transaction-holds.spec.ts: 4.0 min, protects a Save whose write is held while the user edits, replaces the document or presses again, expires 2026-11-16
+- e2e/save-transaction-wizard.spec.ts: 1.1 min, protects the wizard's Finish doors against a refused or doubled record write, expires 2026-11-16
+- e2e/save-transaction-leave.spec.ts: 9.2 min, protects a leave started while a topbar Save or Ctrl+S is still writing, and the leave replay after the save lands, expires 2026-11-16
+- e2e/save-transaction-leave-modal.spec.ts: 4.9 min, protects a browser leave absorbed under Save As, the naming dialog and Discard while they write, expires 2026-11-16
 
 ## Test maintenance
 

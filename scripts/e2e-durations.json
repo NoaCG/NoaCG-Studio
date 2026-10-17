@@ -15,7 +15,20 @@
     "branch": "main",
     "sha": "ea3ef9a1d4837111fb24382f514877a713a27a80",
     "mode": "full",
-    "recordedAt": "2026-10-17"
+    "recordedAt": "2026-10-17",
+    "supplement": {
+      "run": "39048521384",
+      "job": "E2E retry (failed specs, same commit)",
+      "sha": "905fabec19a19246a8155d18147c86263dd2ff0b",
+      "specs": [
+        "save-transaction.spec.ts",
+        "save-transaction-holds.spec.ts",
+        "save-transaction-wizard.spec.ts",
+        "save-transaction-leave.spec.ts",
+        "save-transaction-leave-modal.spec.ts"
+      ],
+      "why": "Hand-added 2026-10-17 (#1405): the matrix was never in a green full run, so these five are the retry job’s complete per-case timings mapped onto the split files; that runner ran the 17 other files it carried at a median 1.15x their table value, so the weights err slow. The next recording from green full runs replaces them."
+    }
   },
   "overhead": {
     "jobMinutes": 0.38,

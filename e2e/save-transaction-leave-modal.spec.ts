@@ -1,6 +1,6 @@
 // covers: src/store/saveActions.ts, src/model/durableStore.ts, src/model/project.ts, src/store/templateStore.ts
-// covers: src/components/save/SaveDialogs.tsx, src/components/save/SaveControls.tsx, src/app/router.ts
-// covers: src/components/wizard/shell/walkState.ts, src/components/wizard/shell/doors.ts
+// covers: src/components/save/SaveDialogs.tsx, src/components/save/SaveControls.tsx, src/components/save/StorageAlertDialog.tsx, src/app/router.ts
+// covers: src/components/wizard/shell/walkState.ts
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 7): a browser leave (a hash change, Back) under
 // Save As, the first Save's naming dialog and Discard while they write (#1392).

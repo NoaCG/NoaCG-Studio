@@ -18,11 +18,13 @@
 // this script watches it on every pull request and merge group.
 //
 // THE ENVELOPE IS FIXED, NOT DERIVED FROM THE SHARD COUNT. `MAX_SHARDS` in e2e-affected.mjs may
-// follow the table so a full run fits its cap; MAIN_RUNNERS here is the share of the account's
-// twenty concurrent runners one full run is allowed to hold, and raising it is a reviewed decision
-// that cites the measured peak concurrency (evidence/cost-and-growth.md: the account sat at exactly
-// twenty running jobs for 17% of all busy time). A shard count that creeps up must not quietly
-// raise the budget, so the two constants are separate on purpose.
+// follow the table so a full run fits its cap; MAIN_RUNNERS here is the BUDGET LINE - the share
+// of the account's twenty concurrent runners a full run is budgeted, in runners' worth of
+// table-minutes - and raising it is a reviewed decision that cites the measured peak concurrency
+// (evidence/cost-and-growth.md: the account sat at exactly twenty running jobs for 17% of all busy
+// time). It is not the count a full run holds: since 2026-10-17 a full run holds MAX_SHARDS (15)
+// runners against a budget of 13, and that gap IS the overrun the line reports. A shard count
+// that creeps up must not quietly raise the budget, so the two constants are separate on purpose.
 //
 // WHAT IT REFUSES, AND WHAT IT CANNOT. Above HARD_SHARE a change that ADDS measured spec-minutes
 // needs an exception line in a work spec (format below), with the spec file, the minutes, what it

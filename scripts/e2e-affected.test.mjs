@@ -661,7 +661,7 @@ const FAKE_TABLE = { minutes: { 'a.spec.ts': 8, 'b.spec.ts': 4, 'c.spec.ts': 2, 
 // needs a fake suite beside it - the third argument the real callers fill from `specFilesOnDisk`.
 const FAKE_SUITE = ['a.spec.ts', 'b.spec.ts', 'c.spec.ts', 'd.spec.ts'];
 
-test('shard count follows measured minutes, and the full plan uses thirteen runners', () => {
+test('shard count follows measured minutes, and the full plan uses fifteen runners', () => {
   // 15 measured minutes over the whole fake suite -> ceil(15 / 3) = 5.
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, FAKE_SUITE), 5);
   // A spec on disk the table has never measured counts as the MEDIAN (4 here), not as zero -
@@ -669,8 +669,9 @@ test('shard count follows measured minutes, and the full plan uses thirteen runn
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, [...FAKE_SUITE, 'new.spec.ts']), 7);
   // ...and an entry left behind by a deleted spec is not counted for work nobody will do.
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, ['a.spec.ts', 'b.spec.ts']), 4);
-  // The real suite reaches the measured ceiling: at the slow-runner percentile, fourteen bins
-  // left the heaviest inside the three-minute margin on the slowest runner measured (MAX_SHARDS).
+  // The real suite reaches the measured ceiling: at the slow-runner percentile, fourteen bins put
+  // the heaviest at 17.7 minutes on the slowest runner measured, inside the three-minute margin
+  // under the 20-minute cap; fifteen keep it out, at 16.6 (MAX_SHARDS says how that is scored).
   assert.equal(shardsFor({ mode: 'full', specs: [] }), 15);
 
   // A subset is sized by ITS OWN minutes, so a heavy plan gets more runners than a light one.
