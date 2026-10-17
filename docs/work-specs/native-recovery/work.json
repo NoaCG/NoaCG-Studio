@@ -5,5 +5,60 @@
     "status": "agreed",
     "source": "Owner continuation of #1301 / PR #1307; existing provider schedulers first, confirmed 2026-10-17 in this session"
   },
-  "review": null
+  "review": {
+    "revision": "df8d14b969addfbf6910a1eb572589656ae108dd",
+    "specSha256": "a306939cd87210ce1fc37691acef536da9c149d5dee03f26c27009e62045a358",
+    "evidence": [
+      {
+        "path": "docs/work-specs/native-recovery/evidence/review.md",
+        "sha256": "3c0a460b279250c9aa4dc733e596e3537c0c31365fbf3b5bde4c5c0d7463afb4"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/native-recovery/evidence/qualification.md",
+            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/native-recovery/evidence/qualification.md",
+            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/native-recovery/evidence/qualification.md",
+            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/native-recovery/evidence/context.json",
+            "sha256": "fcbfa8a79a316f17c19d0919aabc90a29cc2e569858c5483a77dbc5ff7b9d540"
+          },
+          {
+            "path": "docs/work-specs/native-recovery/evidence/qualification.md",
+            "sha256": "fba036d336a09e72678d5946457e89d95757a508a92b41bcee315b39f0f6874a"
+          }
+        ]
+      }
+    ]
+  }
 }
