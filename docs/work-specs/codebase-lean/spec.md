@@ -1,6 +1,7 @@
 # Make the codebase lean, starting with the retired editor
 
-Status: **old-editor implementation not started; admin retirement merged and deployed in PR #1396**.
+Status: **approved and running; the seven-file old-shell deletion is this report's first
+implementation PR; admin retirement merged and deployed in PR #1396**.
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
 `3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
@@ -116,7 +117,7 @@ remaining source candidates, retained helpers and tests requiring subject review
 
 | Scope | Current evidence | Decision |
 |---|---|---|
-| First source PR | AppShell, WorkspaceDock, CodeEditor, SidePanel and the three teach files: 7 files, 1,230 lines | Ready to propose; no test-body deletion, shared state or CSS edit |
+| First source PR | AppShell, WorkspaceDock, CodeEditor, SidePanel and the three teach files: 7 files, 1,230 lines | Done in this branch (receipt below); no test-body deletion, shared state or CSS edit |
 | Remaining whole-source candidates | 20 further files, 9,530 lines; total 27 files / 10,760 lines | Delete in small dependent groups after last live consumer is checked on fresh main |
 | System notices | 2 files, 115 lines | Recheck consumers after #1396; remove with old-editor UI if unused |
 | Current fixture helpers | lottieInsert and machineEdit: 395 lines | Keep their active OGraf and mutator tests; no replacement project for its own sake |
@@ -141,6 +142,22 @@ Checks: rules for the actual changed paths before editing; targeted gates; affec
 Node tests; contract freshness/evidence; copy and E2E protection checks. Inspect the resulting
 browser selection. Production build and full authoritative validation run on GitHub through
 `/check` and `/queue-merge`, not a full local suite. Nothing is described as zero-risk.
+
+### Phase 1 receipt: the seven-file first PR
+
+Measured on main `c1e02c6e9` (2026-10-17): `src` TS/TSX went from 299,461 to 298,231 physical
+lines, the seven files' 1,230. Nothing imported them: `src/App.tsx` had not imported AppShell
+since 2026-09-24, and the other six were reached only through it. With them went the two
+copy-baseline rows they held, the `teach/` row of ARCHITECTURE's layer table and its import
+edge, the covers line of `e2e/no-old-editor.spec.ts` that named them (every test body is intact,
+including the module-request guard), the AppShell/CodeEditor scopes of the two active contract
+rules that still named them, and the root retirement rule's wording, which now says the shell is
+deleted and never comes back under the same identity and spec. `contracts/retired.json` records
+the shell, its dock, its Monaco pane and its teaching layer as a retired mechanism, so a contract
+that instructs them again fails the build. Instruction prose that described AppShell as live
+(the store, canvas, timeline and video contracts, FORMATTING, the Monaco setup comment) now says
+so as history. No store, router, prefs or CSS line changed; the orphaned panels, canvas and
+timeline files are the next groups.
 
 ### Remaining order and the #800 exit condition
 

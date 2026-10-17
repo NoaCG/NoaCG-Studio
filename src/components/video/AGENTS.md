@@ -63,5 +63,5 @@ to its `Pick` or the wizard's choice is silently dropped - pinned by e2e/image-p
 manifest kind through the shared render service, with an upload-budget meter; plus the engine's
 source download, standalone and plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
 (explicit saves; the current slot autosaves separately). The shell binds the same global
-undo/redo keys as AppShell with the same guard. AI chat gates on `needsSignIn` (hosted mode)
+undo/redo keys the retired AppShell used to bind, with the same guard. AI chat gates on `needsSignIn` (hosted mode)
 exactly like AIPromptPanel; everything else stays open.

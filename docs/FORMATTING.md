@@ -22,11 +22,10 @@ other systems and must never be silently rewritten:
 
 ## Where it is wired today
 
-- **Explicit format** - a `Format` button in the code editor's tab bar, plus Monaco's built-in
-  right-click "Format Document" and `Shift+Alt+F`. All three run the same
-  `registerDocumentFormattingEditProvider` in `src/components/CodeEditor.tsx`, which returns a
-  **minimal edit** (only the changed span, via `minimalTextChange`) so the cursor and selection
-  stay put and Monaco keeps the change on its own undo stack.
+- **Explicit format** - the old code editor's `Format` button and Monaco's "Format Document"
+  ran a `registerDocumentFormattingEditProvider` returning a **minimal edit** (only the changed
+  span, via `minimalTextChange`); that editor was retired on 2026-10-17 with its provider, and
+  the video workspace's code pane has no document formatter.
 - **After an AI Generate** - `AIPromptPanel` formats the proposed template's **HTML only** before
   showing it for review (`formatTemplate`, HTML default). Modify / Fix / Make-SPX-ready stay
   byte-faithful to the AI's surgical edit so the review diff stays focused.
