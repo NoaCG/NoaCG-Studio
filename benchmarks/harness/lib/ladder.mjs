@@ -141,7 +141,8 @@ export function tallyRung({ cells, judgements, fingerprint = null, readings = {}
   const ran = (brief) => cells.find((c) => c.brief === brief && c.outcome !== 'refused' && c.outcome !== 'paused') ?? null;
   const rows = order.map((brief) => {
     const cell = ran(brief);
-    const single = cell ? singles.get(`${brief}.${cell.arm}`) : undefined;
+    // A rung is one arm, so its single is the one judgement of the brief (judged by cell id).
+    const single = cell ? [...singles.values()].find((j) => j.brief === brief) : undefined;
     const g = graphicOf(cell, single, null, readings);
     if (!cell) return { brief, ...g, look: null, rubberStamp: false, flagsToRead: [] };
     const judgeMissing = (single?.answer?.missingActions ?? []).map(String);

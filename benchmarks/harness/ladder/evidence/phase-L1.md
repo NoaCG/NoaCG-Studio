@@ -44,3 +44,30 @@ proof delivered a lower third in 315 s for $0.60 with every frame opened, but th
 it hands in a board the judge fails, with every verdict `ok`. Expected: the screen ends the rung
 on "not usable" (three of the first four), with at least one rubber stamp. What would refute it:
 two or more usable in the screen at at most $2.00 per usable.
+
+**Result: screened out on "not usable"; the hypothesis held.** Sessions 12:38Z to 12:56Z, two at
+a time. 3 delivered, 1 usable of 4, $2.13 notional ($2.13 per usable, also over the $2.00 line),
+median wall 502.5 s, frames opened 119 of 161 reviewed (every one in 1 session). Two rubber
+stamps. Evidence: `benchmarks/harness/ladder/L1/haiku-5-5-high/`.
+
+| brief | outcome | single | basic mistakes | usable | notional | wall s | opened/reviewed | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| boxing-night-matchup | delivered | not airable | empty-or-broken (2), text-over-text; the judge also names `select` and `lock` showing nothing | no | $0.44 | 485 | 18/57 | yes |
+| collegiate-cs2-scorebug | failed: said NOT READY (no logos supplied, an Out frame it would not air), `record --review` refused with that frame open | - | - | no | $0.66 | 520 | - | |
+| charity-stream-alerts | delivered | not airable (no hard defect: the resting state is a wide dark bar with the text crammed left) | - | no | $0.65 | 536 | 61/64 | yes |
+| film-fest-nominee-reveal | delivered | airable | - | yes | $0.39 | 264 | 40/40 | |
+
+What the judge failed: on the matchup, the brief's own sample values show no boxer at all, and two
+actions change nothing on screen, which the bench's action gate (it reads the operator surface,
+not the pixels) passed; Haiku opened 18 of its 57 frames and set all 57 to `ok`. On the alerts it
+opened 61 of 64 and still passed a design the judge would not air: looking is not judging. Its one
+honest refusal (the scorebug) cost a graphic: the review gate refuses an open frame, and Haiku
+did not fix it in time.
+
+### Rung 2: Sonnet 5.5 `medium` (`claude-sonnet-5-5`)
+
+**Hypothesis**, committed before its first session: Sonnet at `medium` delivers more of the
+dense boards than Haiku (H7: Sonnet at `high` delivered 5 of 5 tuning briefs at $0.47), but its
+H7 failure, basic visible mistakes it did not see, survives the forced look at a lower effort.
+Expected: it passes the screen's cost line (under $2.00 per usable) but not D6: at most 5 of 8
+usable, so no match. What would refute it: 7 or more of 8 usable at at most $1.00 each.

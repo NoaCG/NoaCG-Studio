@@ -423,7 +423,7 @@ test('the ladder judge is Opus 5.5 on the exam judge\'s own prompt and rubric, a
 test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches only on all eight", () => {
   const arm = 'subscription';
   const cell = (brief, o = {}) => ({ brief, arm, outcome: 'delivered', validation: { ok: true, errors: [] }, shape: { ok: true }, operator: { missing: [] }, notionalUsd: 0.5, wallSeconds: 400, look: { reviewed: 10, opened: 10, unopened: [], all: true, fixed: 0 }, ...o });
-  const single = (brief, answer = {}) => ({ judge: 'fp', task: 'single', id: `${brief}.${arm}`, answer: { airable: true, basicMistakes: [], missingActions: [], ...answer } });
+  const single = (brief, answer = {}) => ({ judge: 'fp', task: 'single', id: `${brief}.claude-haiku-5-5-high`, brief, answer: { airable: true, basicMistakes: [], missingActions: [], ...answer } });
   const eight = RUNG_ORDER.map((b) => cell(b));
   const goodSingles = RUNG_ORDER.map((b) => single(b));
 
