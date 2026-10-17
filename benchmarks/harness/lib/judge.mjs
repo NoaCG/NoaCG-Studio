@@ -34,9 +34,8 @@ const fingerprintOf = (hashes, model, effort) => createHash('sha256').update(JSO
  * The frozen judge, or why there is none. `{ frozen: false }` with no lock; a throw when the lock
  * exists and a file under it changed.
  */
-export function loadJudge(judgeDir) {
-  const lockFile = path.join(judgeDir, 'judge.lock.json');
-  if (!existsSync(lockFile)) return { frozen: false, reason: 'no judge.lock.json yet: H2 writes, calibrates and freezes the judge' };
+export function loadJudge(judgeDir, { lockFile = path.join(judgeDir, 'judge.lock.json') } = {}) {
+  if (!existsSync(lockFile)) return { frozen: false, reason: `no ${path.basename(lockFile)} yet: H2 writes, calibrates and freezes the judge` };
   const lock = JSON.parse(readFileSync(lockFile, 'utf8'));
   if (!lock.model || typeof lock.model !== 'string') throw new Error(`${lockFile} pins no model id`);
   for (const name of JUDGE_FILES) {
