@@ -33,6 +33,25 @@ export const LADDER_SET = ['boxing-night-matchup', 'collegiate-cs2-scorebug', 'h
 export const CLOSED_EXAM = 'H8';
 export const LADDER_EXAM_DIR = path.join('benchmarks', 'harness', 'ladder', 'exam');
 export const LADDER_JUDGE_LOCK = path.join('benchmarks', 'harness', 'ladder', 'judge.lock.json');
+/** The commit that added the sealed exam, and its commit time (phase-L0.md), recorded so a shallow
+ *  checkout, where git cannot see that commit, still checks every ladder session against it. */
+export const LADDER_SEAL_COMMIT = { sha: '6c8a1954acd4bff2f5fced503f04e2ac47365e70', at: '2026-10-17T11:16:00Z' };
+
+/**
+ * When the sealed exam was committed. `git(args)` runs git in the repository and returns its
+ * stdout, or null when git fails. With the history at hand, the commit that added the seal must be
+ * the recorded one, at the recorded time. In a shallow checkout (CI's) the oldest commit fetched
+ * has no parent and looks as if it added every file, so such a commit is not taken for the
+ * sealing commit: the recorded time stands.
+ */
+export function sealCommittedAt(git, recorded = LADDER_SEAL_COMMIT) {
+  const added = (git(['log', '--diff-filter=A', '--format=%H %cI', '--', path.join(LADDER_EXAM_DIR, 'briefs.sealed')]) ?? '').trim().split('\n').filter(Boolean).pop();
+  const [sha, at] = (added ?? '').split(' ');
+  const boundary = sha && git(['rev-parse', '--is-shallow-repository'])?.trim() === 'true' && git(['rev-parse', '--verify', '--quiet', `${sha}^`]) === null;
+  if (!sha || boundary) return { at: recorded.at, from: 'recorded' };
+  if (sha !== recorded.sha || Date.parse(at) !== Date.parse(recorded.at)) throw new Error(`the seal was added by ${sha} at ${at}, not by the recorded ${recorded.sha} at ${recorded.at}`);
+  return { at, from: 'git' };
+}
 
 /** Does the ledger hold what D9 fixes before any ladder session: L4's reserve and L3's ceiling? */
 export function ladderHeld(ledger) {

@@ -32,7 +32,7 @@ import { readAgentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harn
 import { findTranscript, handInLine, ladderPrompt, subscriptionArm } from '../benchmarks/harness/lib/arms.mjs';
 import { examBriefs } from '../benchmarks/harness/lib/exam.mjs';
 import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
+import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, sealCommittedAt, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
 import { admit, appendEntry, emptyLedger, heldCents, LEDGER_FILE, readLedger, remainingCents, setHold, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readHash, readSealed, sealedShape, sha256 } from '../benchmarks/harness/lib/sealed.mjs';
@@ -354,16 +354,26 @@ test('the ladder exam decrypts to its hash and holds section 2\'s mix, no id of 
 });
 
 test('the seal was committed before any ladder session', () => {
-  const at = (() => {
+  const git = (args) => {
     try {
-      return execFileSync('git', ['log', '--diff-filter=A', '--format=%cI', '--', path.join(LADDER_EXAM_DIR, 'briefs.sealed')], { cwd: ROOT, encoding: 'utf8', windowsHide: true }).trim().split('\n').pop();
+      return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
     } catch {
-      return '';
+      return null;
     }
-  })();
+  };
+  // In a full history the sealing commit is the recorded one; in a shallow checkout the recorded time stands.
+  const { at } = sealCommittedAt(git);
   const sessions = readLedger(LEDGER_FILE).entries.filter((e) => /^L[1-4]$/.test(e.phase) && e.kind === 'session');
-  if (!at) return; // a shallow clone without the sealing commit: the ledger check below the holds still stands
+  assert.ok(sessions.length > 0, 'L1 ran');
   for (const e of sessions) assert.ok(Date.parse(e.at) > Date.parse(at), `${e.phase} ${e.brief} ran after the seal`);
+
+  // A shallow checkout's oldest commit has no parent and seems to add every file: not the seal.
+  const recorded = { sha: 'a'.repeat(40), at: '2026-10-17T11:16:00Z' };
+  const fake = ({ added, shallow, parent }) => (args) => (args[0] === 'log' ? added : args[1] === '--is-shallow-repository' ? `${shallow}\n` : parent ? 'p\n' : null);
+  assert.deepEqual(sealCommittedAt(fake({ added: `${'b'.repeat(40)} 2026-10-17T15:00:00Z\n`, shallow: true, parent: false }), recorded), { at: recorded.at, from: 'recorded' });
+  assert.deepEqual(sealCommittedAt(fake({ added: `${'a'.repeat(40)} 2026-10-17T14:16:00+03:00\n`, shallow: false, parent: true }), recorded), { at: '2026-10-17T14:16:00+03:00', from: 'git' });
+  assert.throws(() => sealCommittedAt(fake({ added: `${'b'.repeat(40)} 2026-10-17T15:00:00Z\n`, shallow: false, parent: true }), recorded), /not by the recorded/, 'with the history, a different sealing commit is refused');
+  assert.throws(() => sealCommittedAt(fake({ added: `${'b'.repeat(40)} 2026-10-17T15:00:00Z\n`, shallow: true, parent: true }), recorded), /not by the recorded/, 'a shallow checkout that holds the real history is checked too');
 });
 
 test('the ladder exam opens only in L4, and the ladder set only from H8\'s closed exam', () => {
