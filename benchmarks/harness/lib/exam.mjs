@@ -93,7 +93,7 @@ export function openBriefSet({ root, dir, passphraseFile, folder }) {
  *  of 20 pairs; a median wall of at most ten minutes; more than 5 order-flip ties is inconclusive. */
 export const PASS_RULE = { usableGap: 1, referencePreferredMax: 10, medianWallSeconds: 600, flipTiesMax: 5 };
 
-const median = (xs) => {
+export const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b);
   if (!s.length) return null;
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
@@ -105,7 +105,7 @@ const percentile = (xs, p) => {
 };
 
 /** The latest good answer per judgement: a re-judged cell or pair keeps its last answer. */
-function answers(judgements, fingerprint) {
+export function answers(judgements, fingerprint) {
   const singles = new Map();
   const pairs = new Map();
   for (const j of judgements) {
@@ -117,7 +117,7 @@ function answers(judgements, fingerprint) {
 }
 
 /** One arm's graphic for one brief, counted as the tuning rounds counted it (phase-8.md). */
-function graphicOf(cell, single, budgetCents, readings = {}) {
+export function graphicOf(cell, single, budgetCents, readings = {}) {
   if (!cell) return { ran: false, delivered: false, usable: false, judged: false, defects: [], missing: [], unmoved: [], validatorErrors: [] };
   const delivered = cell.outcome === 'delivered';
   const defects = (single?.answer?.basicMistakes ?? []).filter((m) => m.kind !== 'missing-action');

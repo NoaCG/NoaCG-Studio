@@ -1233,6 +1233,21 @@ test('a build runs each arm in its own lane, side by side, and a paused referenc
   const three = ['a', 'b', 'c'].flatMap((id) => [{ id: `${id}.managed-agents`, brief: { id }, arm: credit }, { id: `${id}.claude-code`, brief: { id }, arm: reference }]);
   await assert.rejects(() => runCells({ cells: three, runDir: tmp(), cli: null, ledger: emptyLedger(), entry: ENTRY, api: { shape: null }, runId: 'halt', lanes: true, cellRunner: failing }), /cost unread/);
   assert.deepEqual(started, ['a.managed-agents', 'a.claude-code'], 'the reference lane ran only its running cell');
+
+  // A ladder rung's cells may name their own lanes (--lanes 2): two sessions of one arm at once.
+  const rungOrder = [];
+  const rungRunner = async ({ arm, brief }) => {
+    rungOrder.push(`start ${brief.id}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    rungOrder.push(`end ${brief.id}`);
+    return { brief: brief.id, arm: arm.id, outcome: 'delivered' };
+  };
+  const rungArm = { id: 'subscription', funding: 'subscription' };
+  const rung = ['a', 'b', 'c', 'd'].map((id, i) => ({ id: `${id}.rung`, brief: { id }, arm: rungArm, lane: `subscription-${i % 2}` }));
+  const rungDone = await runCells({ cells: rung, runDir: tmp(), cli: null, ledger: emptyLedger(), entry: ENTRY, api: { shape: null }, runId: 'rung', lanes: true, cellRunner: rungRunner });
+  assert.deepEqual(rungOrder.slice(0, 2), ['start a', 'start b'], 'two sessions of the rung at once');
+  assert.ok(rungOrder.indexOf('start c') > rungOrder.indexOf('end a'), 'each lane one session at a time');
+  assert.equal(rungDone.length, 4);
 });
 
 test('a misplaced stress value is moved by hand, and both arms of its brief are captured again', async () => {

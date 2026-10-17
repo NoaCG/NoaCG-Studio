@@ -233,6 +233,100 @@ The owner starts it with `/plan-run harness-ladder until <time>`.
 Each phase's pull request adds its notes here, newest first: the last check's findings, what the
 next phase must allow for, decisions, traps, spend, shas and the revert.
 
+### L1. The ladder (built 2026-10-17)
+
+- **Check's findings (L0's check, PASS on `3f6cd2687`):** the `record --review` gate refuses
+  incomplete, open, stale and untouched reviews and accepts a complete one; `--control` passed at
+  $0; the sealed exam `0a81eda9a14b` with 20 briefs, its seal pushed before any session; holds L3
+  $8 and L4 $30, credit 5,468 cents; the Opus 5.5 ladder judge re-derived 38/41, 16/16 pairs, 0
+  flips, its lock pushed before its first answer; the subscription arm on Haiku `high`
+  (`futsal-cup-winner-card`) delivered in 427 s at $0.52 notional with 52/52 reviewed frames
+  opened. Carried: that Haiku set all 52 verdicts to `ok` in one script; the gate cannot tell a
+  look from a rubber stamp (D1), so a rung whose verdicts say `ok` on frames the judge fails is a
+  finding, counted per rung below.
+- **Status: AC-4's ladder half and AC-8 hold for L1. No rung matched.**
+  (`benchmarks/harness/ladder/evidence/phase-L1.md`, the cells and singles in
+  `benchmarks/harness/ladder/L1/<rung>/`). Every rung's hypothesis, briefs and the match rule were
+  pushed before its first session (`10d92bd46` 12:37:52Z before rung 1 at 12:38Z; `723a3a799`
+  12:58:11Z before rung 2; `e7a5f4d80` 13:29:36Z before rung 3; `9f791d3a9` 13:51:36Z before
+  rung 4; `98182bd5a` 14:06:40Z before rung 5).
+
+  | rung | verdict | delivered | usable | notional per usable | median wall | opened / reviewed (every one) | all ok, judge failed |
+  |---|---|---|---|---|---|---|---|
+  | Haiku 5.5 `high` | screened out: not usable | 3 of 4 | 1 | $2.13 | 502.5 s | 119/161 (1) | 2 |
+  | Sonnet 5.5 `medium` | ran all eight, no match | 8 of 8 | 4 | $2.74 | 318 s | 363/507 (4) | 4 |
+  | Sonnet 5.5 `high` | screened out: cost | 4 of 4 | 2 | $3.75 | 457 s | 242/242 (4) | 2 |
+  | Opus 5.5 `low` | screened out: cost | 3 of 4 | 2 | $3.30 | 245 s | 81/230 (1) | 1 |
+  | Opus 5.5 `medium` | screened out: cost | 3 of 4 | 2 | $5.49 | 336.5 s | 173/173 (3) | 1 |
+
+  Each single is in the evidence file's per-rung tables. The nominee reveal was usable on every
+  rung and the alerts on all but Haiku; the matchup and the scorebug on none. The hypotheses held
+  for rungs 1, 2, 3 and 5; rung 4 (Opus `low`) was predicted to pass the screen and ended on cost.
+  L1 is closed in the ledger (`--close L1`).
+
+- **What L2 must allow for:**
+  - **Taught is Sonnet 5.5 `medium`**, the cheapest rung that qualifies under D7 (4 of 8 usable).
+    Haiku `high` does not qualify (1 of its first 4). Sonnet `high` and Opus `low` qualify on 2 of
+    their first 4 but are dearer, and so does Opus `medium`. With no winner, D7 stops the plan
+    after L2 if five rounds do not make Sonnet `medium` match.
+  - **What the judge failed**, for the teaching rounds' hypotheses:
+    - *Empty sample state.* On the matchup three rungs handed in a graphic whose own defaults are
+      empty, so the on-air frames show no boxer at all (H8's Claude Code cell failed the same way);
+      the scorebug's empty logo slots read as broken. The skill never says the graphic's defaults
+      are what airs first and what the judge sees as "the brief's own values".
+    - *Actions that change nothing on screen.* `select` and `lock` on the matchup passed the
+      bench's action gate (it reads the operator surface, not pixels) and the agents' own `ok`,
+      and showed nothing.
+    - *Design calls the look does not make.* Sonnet opened every frame of the hockey board (81 of
+      81) and of the volleyball board (69 of 69) and passed a near-invisible crest and a wrapped
+      Polish name whose ogonek runs into the next line. Looking is not judging: a forced look
+      without a question to ask of each frame becomes a stamp.
+    - *Rubber stamps:* 10 delivered graphics the judge failed had every verdict `ok` (Haiku 2,
+      Sonnet `medium` 4, Sonnet `high` 2, Opus `low` 1, Opus `medium` 1). The reverse also
+      happened three times: Haiku and Opus `low` on the scorebug and Opus `medium` on the matchup
+      said NOT READY, the last two because they had not opened every frame, and stopped rather
+      than finish the look (Opus `medium` after 6 minutes and $2.28). The hand-in reference does
+      not say that an unfinished review is to be finished, not reported.
+  - **The cost is the hard line.** A usable simple graphic cost $0.39 to $2.92 notional; the
+    boards Sonnet `medium` made usable cost $1.83 and $1.84 each; a dense board that cost under
+    $0.50 was one the agent barely opened (3 and 13 frames). To match, Sonnet `medium` needs 7 of 8
+    usable for at most $7.00 in all, against $10.96 for its 4. A round that only adds looking
+    will raise the cost; one that wins must also cut work (fewer frames to open, fewer re-covers,
+    a stronger first draft).
+  - The bench now gives a rung's whole tally: `--tally <rung dir>` (D5's screen, D6's lines, the
+    stamps, and gate flags the judge did not name), and `--lanes 2` runs two sessions at once. A
+    round is `--build L2 ... --stage <round>`, its own `--out`; L1 is closed, so L2 may build.
+    `--tally` counts the ladder eight in `RUNG_ORDER`; a round's run on the 16 tuning briefs needs
+    `tallyRung`'s `order` set to those ids (the CLI does not do that yet).
+    The 16 tuning briefs D7 re-measures on have no committed Sonnet `medium` baseline yet: L2's
+    first round needs one before its change, or it cannot show what moved there.
+- **Decisions** (each revertible):
+  - DECIDED: every rung runs the eight in one order (`RUNG_ORDER`), the screen first: the matchup,
+    the scorebug, the alerts, the nominee reveal. Revert: another order, before a rung's first
+    session only.
+  - DECIDED: the screen's cost line is read once its four are judged; the not-usable line as soon
+    as three are known. A rung that passed the screen ran all eight even when it could no longer
+    match (Sonnet `medium`), since D7's teaching rule counts usable of all eight. Revert:
+    `tallyRung` in `lib/ladder.mjs`.
+  - DECIDED: a gate flag the judge did not name is read against the operator surface only when it
+    could change "usable"; on a graphic the single already fails, it is listed, not read.
+  - DECIDED: the judge saw only delivered graphics (`--delivered-only`), as H8 judged.
+  - DECIDED: each rung's `cell.json` and the judge's answers are committed, as H8 committed its
+    cells; no brief, prompt or stress file is. The judge's reasons quote a few short values (a
+    name, a label) the way H8's committed answers do; a scan of the L1 evidence for every ladder
+    brief's prompt opening and stress value of eight characters or more finds no prompt and only
+    such fragments. Revert: drop the `judgements.jsonl` files and keep the tallies.
+- **Traps:**
+  - The one-bench-per-machine guard blocks `--judge` while a rung runs; the judge drives no
+    browser, so `NOACG_ALLOW_PARALLEL_E2E=1` lets it judge finished cells during the run.
+  - The judge records a single under the cell's id (`<brief>.<model>-<effort>`), not
+    `<brief>.subscription`; the rung tally finds it by brief.
+- **Spend:** $0 credit; the ledger still at 5,468 cents spent with $30.00 held for L4 and $8.00
+  for L3. Subscription, notional: $71.72 (24 sessions $38.16; the ladder judge's 21 singles
+  $33.56).
+  **Shas:** built on `3f6cd2687`. **Revert:** `git revert -m 1` the merge; that drops the rung
+  tally, `--lanes`, the L1 evidence and the ledger's L1 entries (all notional, no credit).
+
 ### L0. The forced look, the sealed exam, the reservation and the ladder judge (built 2026-10-17)
 
 - **Check's findings:** none; this is the plan's first phase. Context: the parent's H8 exam closed

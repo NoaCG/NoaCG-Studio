@@ -1,0 +1,124 @@
+{
+  "costUnread": false,
+  "brief": "charity-stream-alerts",
+  "arm": "subscription",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "37026b25-eae0-46cc-ad63-1d0ad4adf713",
+  "costCents": 0,
+  "notionalUsd": 2.9225352,
+  "wallSeconds": 279,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type event-notification --design sn01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:f4d023f7657d8fa99860d982166115c503ac7a01402bc5e401fb79bc83a5374b"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Ölüdeniz_Größenwahnsinniger_Bärenführer_Müllerlüdenscheidt --data f4=images/avatar.png --data f2=€1.250,00 --data f0=DONATION --background video --out ./shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:186afafc148eed86ef6032f45e2ef36b140cf2b5f98706b3a303162d3ec2727a"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Ölüdeniz_Größenwahnsinniger_Bärenführer_Müllerlüdenscheidt --data f4=images/avatar.png --data f2=€1.250,00 --background video --out ./shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:8824508ebd0aaeba09e56d5dbedb88456060fd52a8742bcd0677f10537eb2395"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:8824508ebd0aaeba09e56d5dbedb88456060fd52a8742bcd0677f10537eb2395"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:8824508ebd0aaeba09e56d5dbedb88456060fd52a8742bcd0677f10537eb2395"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\opus-5-5-medium\\cells\\charity-stream-alerts.claude-opus-5-5-medium\\frames",
+    "frames": 67,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:8824508ebd0aaeba09e56d5dbedb88456060fd52a8742bcd0677f10537eb2395"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "hold",
+      "resume",
+      "replay",
+      "skip"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:8824508ebd0aaeba09e56d5dbedb88456060fd52a8742bcd0677f10537eb2395",
+    "benchValidated": "sha256:8824508ebd0aaeba09e56d5dbedb88456060fd52a8742bcd0677f10537eb2395",
+    "reviewed": "sha256:8824508ebd0aaeba09e56d5dbedb88456060fd52a8742bcd0677f10537eb2395",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 64,
+    "opened": 64,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

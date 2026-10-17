@@ -17,7 +17,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { EXAM_DIR, openBriefSet } from './exam.mjs';
+import { answers, EXAM_DIR, graphicOf, median, openBriefSet } from './exam.mjs';
 import { loadJudge } from './judge.mjs';
 import { holdFor, phaseCompleted, phaseNumber } from './ledger.mjs';
 import { privatePassphraseFile } from './sealed.mjs';
@@ -33,6 +33,25 @@ export const LADDER_SET = ['boxing-night-matchup', 'collegiate-cs2-scorebug', 'h
 export const CLOSED_EXAM = 'H8';
 export const LADDER_EXAM_DIR = path.join('benchmarks', 'harness', 'ladder', 'exam');
 export const LADDER_JUDGE_LOCK = path.join('benchmarks', 'harness', 'ladder', 'judge.lock.json');
+/** The commit that added the sealed exam, and its commit time (phase-L0.md), recorded so a shallow
+ *  checkout, where git cannot see that commit, still checks every ladder session against it. */
+export const LADDER_SEAL_COMMIT = { sha: '6c8a1954acd4bff2f5fced503f04e2ac47365e70', at: '2026-10-17T11:16:00Z' };
+
+/**
+ * When the sealed exam was committed. `git(args)` runs git in the repository and returns its
+ * stdout, or null when git fails. With the history at hand, the commit that added the seal must be
+ * the recorded one, at the recorded time. In a shallow checkout (CI's) the oldest commit fetched
+ * has no parent and looks as if it added every file, so such a commit is not taken for the
+ * sealing commit: the recorded time stands.
+ */
+export function sealCommittedAt(git, recorded = LADDER_SEAL_COMMIT) {
+  const added = (git(['log', '--diff-filter=A', '--format=%H %cI', '--', path.join(LADDER_EXAM_DIR, 'briefs.sealed')]) ?? '').trim().split('\n').filter(Boolean).pop();
+  const [sha, at] = (added ?? '').split(' ');
+  const boundary = sha && git(['rev-parse', '--is-shallow-repository'])?.trim() === 'true' && git(['rev-parse', '--verify', '--quiet', `${sha}^`]) === null;
+  if (!sha || boundary) return { at: recorded.at, from: 'recorded' };
+  if (sha !== recorded.sha || Date.parse(at) !== Date.parse(recorded.at)) throw new Error(`the seal was added by ${sha} at ${at}, not by the recorded ${recorded.sha} at ${recorded.at}`);
+  return { at, from: 'git' };
+}
 
 /** Does the ledger hold what D9 fixes before any ladder session: L4's reserve and L3's ceiling? */
 export function ladderHeld(ledger) {
@@ -113,4 +132,91 @@ export function earlierBriefIds(root, { passphraseFile = privatePassphraseFile(r
   for (const f of EARLIER_BRIEF_FILES) walk(JSON.parse(readFileSync(path.join(root, f), 'utf8')));
   if (passphraseFile) walk(openBriefSet({ root, dir: EXAM_DIR, passphraseFile, folder: 'harness-exam' }));
   return ids;
+}
+
+// ── L1: a rung's tally (D5, D6) ─────────────────────────────────────────────────────────────────
+
+/** D5: the order every rung runs the ladder set in; the first four are its screen, two dense boards
+ *  and two others. Fixed before L1's first session. */
+export const RUNG_ORDER = ['boxing-night-matchup', 'collegiate-cs2-scorebug', 'charity-stream-alerts', 'film-fest-nominee-reveal', 'hockey-club-match-board', 'volleyball-set-board', 'school-quiz-secret-pick', 'ski-sprint-timing-tower'];
+export const SCREEN_SIZE = 4;
+/** D5's screen and D6's match, as committed before the first rung. */
+export const RUNG_RULE = { screenNotUsableMax: 2, screenUsdPerUsableMax: 2, usableMin: 7, usdPerUsableMax: 1, medianWallSecondsMax: 600, lookAllMin: 7 };
+
+const perUsable = (usd, usable) => (usable ? Number((usd / usable).toFixed(2)) : null);
+
+/**
+ * One rung's figures from its cells (`cell.json`) and the ladder judge's singles, counted as H8
+ * counted (phase-8.md: delivered, validator clean, shape ok, no missing action after the readings,
+ * and the judge's single airable with no basic visible mistake). The cost is Claude Code's notional
+ * `total_cost_usd` (D2) over every session that ran, failed and stopped ones included, per usable
+ * graphic. The screen (D5) reads the first four of `order`; the match (D6) needs all eight. A
+ * rubber stamp is a delivered graphic whose review said `ok` to every frame and that the judge
+ * failed (not airable, or a basic visible mistake). `flagsToRead` are the gate's missing actions
+ * the judge's single did not also name, which H8's ruling reads against the operator surface.
+ */
+export function tallyRung({ cells, judgements, fingerprint = null, readings = {}, order = RUNG_ORDER, rule = RUNG_RULE }) {
+  const { singles } = answers(judgements, fingerprint);
+  const ran = (brief) => cells.find((c) => c.brief === brief && c.outcome !== 'refused' && c.outcome !== 'paused') ?? null;
+  const rows = order.map((brief) => {
+    const cell = ran(brief);
+    // A rung is one arm, so its single is the one judgement of the brief (judged by cell id).
+    const single = cell ? [...singles.values()].find((j) => j.brief === brief) : undefined;
+    const g = graphicOf(cell, single, null, readings);
+    if (!cell) return { brief, ...g, look: null, rubberStamp: false, flagsToRead: [] };
+    const judgeMissing = (single?.answer?.missingActions ?? []).map(String);
+    const judgeFailed = g.judged && (g.airable !== true || g.defects.length > 0);
+    return {
+      brief,
+      ...g,
+      look: cell.look ?? null,
+      rubberStamp: g.delivered && judgeFailed && Boolean(cell.look?.reviewed) && !cell.look?.fixed,
+      flagsToRead: g.missing.filter((a) => !judgeMissing.some((m) => m.includes(a))),
+    };
+  });
+  const figures = (rs) => {
+    const run = rs.filter((r) => r.ran);
+    const usable = rs.filter((r) => r.usable).length;
+    const notionalUsd = Number(run.reduce((k, r) => k + (r.notionalUsd ?? 0), 0).toFixed(2));
+    return {
+      briefs: rs.length,
+      ran: run.length,
+      delivered: rs.filter((r) => r.delivered).length,
+      usable,
+      notionalUsd,
+      usdPerUsable: perUsable(notionalUsd, usable),
+      medianWallSeconds: median(run.map((r) => r.wallSeconds).filter((w) => Number.isFinite(w))),
+      lookAll: rs.filter((r) => r.look?.all).length,
+      framesReviewed: rs.reduce((k, r) => k + (r.look?.reviewed ?? 0), 0),
+      framesOpened: rs.reduce((k, r) => k + (r.look?.opened ?? 0), 0),
+      rubberStamps: rs.filter((r) => r.rubberStamp).map((r) => r.brief),
+      unjudged: rs.filter((r) => r.delivered && !r.judged).map((r) => r.brief),
+    };
+  };
+  const screenRows = rows.slice(0, SCREEN_SIZE);
+  const screen = figures(screenRows);
+  const screenDone = screenRows.every((r) => r.ran) && !screen.unjudged.length;
+  // A delivered graphic not yet judged is not counted either way.
+  const screenNotUsable = screenRows.filter((r) => r.ran && !r.usable && !(r.delivered && !r.judged)).length;
+  // Three not usable ends the rung as soon as they are known; the cost line needs the four.
+  const endsAt = screenNotUsable > rule.screenNotUsableMax ? 'not usable' : screenDone && (screen.usable === 0 || screen.usdPerUsable > rule.screenUsdPerUsableMax) ? 'cost' : null;
+  const all = figures(rows);
+  const complete = rows.every((r) => r.ran) && !all.unjudged.length;
+  const lines = [
+    { rule: `at least ${rule.usableMin} of ${order.length} delivered and usable`, holds: all.usable >= rule.usableMin, figure: `${all.usable} of ${order.length}` },
+    { rule: `at most $${rule.usdPerUsableMax.toFixed(2)} notional per usable graphic`, holds: all.usdPerUsable !== null && all.usdPerUsable <= rule.usdPerUsableMax, figure: all.usdPerUsable === null ? `$${all.notionalUsd.toFixed(2)}, none usable` : `$${all.usdPerUsable.toFixed(2)}` },
+    { rule: `median wall at most ${rule.medianWallSecondsMax / 60} minutes`, holds: all.medianWallSeconds !== null && all.medianWallSeconds <= rule.medianWallSecondsMax, figure: `${all.medianWallSeconds ?? '-'} s` },
+    { rule: `every reviewed frame opened in at least ${rule.lookAllMin} sessions`, holds: all.lookAll >= rule.lookAllMin, figure: `${all.lookAll} of ${order.length}` },
+  ];
+  const restRan = rows.slice(SCREEN_SIZE).some((r) => r.ran);
+  const verdict = endsAt ? 'screened out' : !complete ? (screenDone && !restRan ? 'screen passed' : 'incomplete') : lines.every((l) => l.holds) ? 'MATCH' : 'no match';
+  return { verdict, screen: { ...screen, notUsable: screenNotUsable, endsAt, done: screenDone }, all, lines, rows };
+}
+
+/** A rung's tally as the evidence's heading line and table. */
+export function rungMarkdown(rung, t) {
+  const usd = (x) => (x === null || x === undefined ? '-' : `$${Number(x).toFixed(2)}`);
+  const head = `${rung}: ${t.verdict}${t.screen.endsAt ? ` (the screen: ${t.screen.endsAt})` : ''}; ${t.all.delivered} delivered, ${t.all.usable} usable of ${t.all.ran} run, ${usd(t.all.notionalUsd)} notional, ${usd(t.all.usdPerUsable)} per usable, median wall ${t.all.medianWallSeconds ?? '-'} s, frames opened ${t.all.framesOpened} of ${t.all.framesReviewed} reviewed (every one in ${t.all.lookAll} sessions)`;
+  const rows = t.rows.filter((r) => r.ran).map((r) => `| ${r.brief} | ${r.outcome} | ${r.judged ? (r.airable ? 'airable' : 'not airable') : '-'} | ${r.defects.map((d) => d.kind).join(', ') || '-'} | ${r.missing.join(', ') || '-'} | ${r.usable ? 'yes' : 'no'} | ${usd(r.notionalUsd)} | ${r.wallSeconds ?? '-'} | ${r.look ? `${r.look.opened}/${r.look.reviewed}${r.look.fixed ? `, ${r.look.fixed} fixed` : ''}` : '-'} | ${r.rubberStamp ? 'yes' : ''} |`);
+  return [head, '', '| brief | outcome | single | basic mistakes | missing | usable | notional | wall s | opened/reviewed | all ok, judge failed |', '|---|---|---|---|---|---|---|---|---|---|', ...rows].join('\n');
 }

@@ -1,0 +1,204 @@
+{
+  "costUnread": false,
+  "brief": "ski-sprint-timing-tower",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "cdb81b7b-97d2-41ea-8aea-5fa469d353ac",
+  "costCents": 0,
+  "notionalUsd": 1.8434699999999997,
+  "wallSeconds": 520,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type timing-tower --design tt01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:abc40915e616d30b7ac74603f7e66307e6c349740446f0bafd99484766128ffa"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c83e63ab011e034b80d78d915c06be6524a6af45b4cb14412fda26c410a6cab9"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:842ae05d0a45de913a9b39da5d3220f80c9149b1720efb4f3bceafb1ec55f871"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 1,
+      "digest": "sha256:a690fcc985142b72342b8bfe6c20fd5db1ca7a8cac751cfb61e2f2a21b14f648"
+    },
+    {
+      "command": "noacg scaffold --type timing-tower --design tt01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c83e63ab011e034b80d78d915c06be6524a6af45b4cb14412fda26c410a6cab9"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:842ae05d0a45de913a9b39da5d3220f80c9149b1720efb4f3bceafb1ec55f871"
+    },
+    {
+      "command": "noacg scaffold --type timing-tower --design tt01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:db5d19bf9064c45c3b07fcfcef7ca59a1def325f700a5cc5cdc7109fb1a65ae0"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:2bac96f6d7994af48f8035cac75fa825da50f9a2f6086479f3532e30e5983cbe"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:2bac96f6d7994af48f8035cac75fa825da50f9a2f6086479f3532e30e5983cbe"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:be2a24a65a7d1fa3d9b1942ca8e16350d03bce26ce11ddbaee033a2731c74b75"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:be2a24a65a7d1fa3d9b1942ca8e16350d03bce26ce11ddbaee033a2731c74b75"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c0c9abbe93f24106d1b7225bdf19d3407fa9e76187095e527dd23693e4dfd6f8"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c0c9abbe93f24106d1b7225bdf19d3407fa9e76187095e527dd23693e4dfd6f8"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event focus --at 1500 --background video --out ./shots/f.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f3=2 --event focus --at 1500 --background video --out ./shots/f2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f3=3 --event focus --at 500 --out ./shots/f3.png",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f3=3 --event focus --at 500 --out ./shots/f3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:d5d80d70ed3811fdebe0bf43dfc54e87d207ca732434a7d76eb9527bbcfb33ff"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f3=2 --event focus --at 800 --background video --out ./shots/f3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d5d80d70ed3811fdebe0bf43dfc54e87d207ca732434a7d76eb9527bbcfb33ff"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:d5d80d70ed3811fdebe0bf43dfc54e87d207ca732434a7d76eb9527bbcfb33ff"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\sonnet-5-5-medium\\cells\\ski-sprint-timing-tower.claude-sonnet-5-5-medium\\frames",
+    "frames": 62,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:d5d80d70ed3811fdebe0bf43dfc54e87d207ca732434a7d76eb9527bbcfb33ff"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "focus",
+      "clear",
+      "final",
+      "provisional"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:d5d80d70ed3811fdebe0bf43dfc54e87d207ca732434a7d76eb9527bbcfb33ff",
+    "benchValidated": "sha256:d5d80d70ed3811fdebe0bf43dfc54e87d207ca732434a7d76eb9527bbcfb33ff",
+    "reviewed": "sha256:d5d80d70ed3811fdebe0bf43dfc54e87d207ca732434a7d76eb9527bbcfb33ff",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 59,
+    "opened": 59,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

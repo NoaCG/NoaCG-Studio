@@ -1,0 +1,147 @@
+{
+  "costUnread": false,
+  "brief": "film-fest-nominee-reveal",
+  "arm": "subscription",
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "d4305dd3-af1b-4d3f-88d5-25094500177c",
+  "costCents": 0,
+  "notionalUsd": 2.3951838,
+  "wallSeconds": 312,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design neutral --out ./graphic",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design nm01 --out ./try/nm01",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./try/nm01 --screenshots ./try/shots-nm01",
+      "code": 0,
+      "digest": "sha256:34289ca752739db77adb55df016e198cd92e949e785e3be7e2c588becedbc87e"
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design nm02 --out ./try/nm02",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./try/nm02 --screenshots ./try/shots-nm02",
+      "code": 0,
+      "digest": "sha256:2a391a4e0af59107972bd9795217889b758865c1670ca17210a72c5312390ef7"
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design nm03 --out ./try/nm03",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./try/nm03 --screenshots ./try/shots-nm03",
+      "code": 0,
+      "digest": "sha256:c0b7f26a23742a0e4cfd435e5f23ef29badb8628b4a6404ed6ff4514f342d6f0"
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design nm04 --out ./try/nm04",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./try/nm04 --screenshots ./try/shots-nm04",
+      "code": 0,
+      "digest": "sha256:3494982ff2eb1b3fb55272327d5cee61b3afa3cc6264e587a2307301deb9f9e1"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:34289ca752739db77adb55df016e198cd92e949e785e3be7e2c588becedbc87e"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots --background video",
+      "code": 0,
+      "digest": "sha256:901852e8b411951ee31d769ac90322e960bd943fb239f80056848dbdc5b1264f"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots --background video",
+      "code": 0,
+      "digest": "sha256:c477ea8a10bedf72a6e5ec5e553c9ad21731eb5453a3b0ac201765232fa55289"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c477ea8a10bedf72a6e5ec5e553c9ad21731eb5453a3b0ac201765232fa55289"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:c477ea8a10bedf72a6e5ec5e553c9ad21731eb5453a3b0ac201765232fa55289"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\opus-5-5-medium\\cells\\film-fest-nominee-reveal.claude-opus-5-5-medium\\frames",
+    "frames": 43,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c477ea8a10bedf72a6e5ec5e553c9ad21731eb5453a3b0ac201765232fa55289"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "suspense",
+      "reveal"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:c477ea8a10bedf72a6e5ec5e553c9ad21731eb5453a3b0ac201765232fa55289",
+    "benchValidated": "sha256:c477ea8a10bedf72a6e5ec5e553c9ad21731eb5453a3b0ac201765232fa55289",
+    "reviewed": "sha256:c477ea8a10bedf72a6e5ec5e553c9ad21731eb5453a3b0ac201765232fa55289",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 40,
+    "opened": 40,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}
