@@ -66,7 +66,7 @@ goes on, once.
 
 ## The matrix (`e2e/save-transaction.spec.ts`)
 
-Repair-6's 54 cases stay. Two of them change, and 51 are added.
+Repair-6's 54 cases stay. Two of them change, and 53 are added (107 in all).
 
 - **matrix replace: topbar / K, F.** These replaced the document while a topbar Save waited, by
   opening another graphic. The guard now prevents that: Open asks while the save writes. The cases
@@ -90,6 +90,16 @@ Repair-6's 54 cases stay. Two of them change, and 51 are added.
   with R and K both refused, then a reload and another Save. The reload is linked to the minted
   record, and the next Save writes into it: one record.
 
+- **from review on #1397** (2 cases). (a) A topbar Save of a graphic with nothing unsaved has its
+  record write refused while the leave asks. `dirty` stays false, so the first cut showed "is
+  saved", and Continue skipped the retry. Now the dialog and `saveBeforeLeave` treat status
+  `failed` as unsettled. (b) A reload before the first Save left the module reservation empty, so
+  the mint took an id the slot's earlier writes never named, and a double refusal then could not
+  relink. Boot now resumes the slot's reservation (`resumeReservation`). Without these fixes, both
+  cases fail in VM j-0040: (a) "a refused save read as landed", with the dialog text "is
+  saved.Could not save…"; (b) the reload is not linked to the minted record. With the fixes, both
+  pass in j-0039.
+
 A new write class, D (Discard's slot replacement), is recognised by `discardDraft` on its stack.
 
 ## Results
@@ -103,13 +113,13 @@ sixth `0b5207f2…`, and the earlier ones as in independent-6.
 | --- | --- |
 | Sixth checker on the fix, VM j-0032 and CI [39042493167](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042493167) | **10/10**. S1-home-late, S1-hash-late and S6 pass, and so do the other seven. On main's product code the same file gives 7 passed and 3 failed: independent-6, CI [39038386996](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39038386996). |
 | `:228` x20, CI [39042491216](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042491216) | **20/20**. |
-| Unchanged checkers, CI [39042487378](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042487378) | UNCHANGED_RESULT |
-| Fifth, and fifth B1 bounded, CI [39042489221](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042489221) | FIFTH_RESULT |
-| Maintained selection and export, CI [39042495020](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042495020) | MAINTAINED_RESULT |
+| Unchanged checkers, CI [39042487378](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042487378) | Original **3/3**, second **4/4**, third **10/10**, `:24` x20 **20/20**, fourth **11/11**. |
+| Fifth, and fifth B1 bounded, CI [39042489221](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042489221) | **17 passed, 3 failed**: B1 (its known unbounded read, as in repair-6 and independent-6) and **F-hold, F-late**. Bounded B1 **1/1**. See "The fifth F cases" below. |
+| Maintained selection and export, CI [39042495020](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042495020) | **85 passed**, the same **8 legacy skips**. Two-graphic export **1/1**. |
 | References, CI [39042502601](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39042502601) | **6/6**. |
 | Repair-6's 54 cases, VM j-0033 | **52/54** before the two replace cases were updated: those two failed exactly where the guard now asks. After the update they pass (j-0035). |
 | The new rows and the updated replace cases, VM j-0035 | **53/53**, 3.1 min with 4 workers. |
-| Whole matrix on the final head, CI | MATRIX_RESULT |
+| Whole matrix, CI | Dispatched on `3e473f1c` (105 cases, before the two review cases), [39043090071](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39043090071). Its result, and the final head's PR CI, are recorded on the pull request. Sixth checker on `3e473f1c`: **10/10**, [39043091937](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39043091937). |
 
 Mutations, each run in this VM and then reverted:
 
@@ -122,7 +132,22 @@ Mutations, each run in this VM and then reverted:
   an autosave that relinks the draft on its own, which is repair-6's note (h). Only the kept name
   isolates the reservation.
 
-Captures: the sixth checker's own S1 screenshots, looked at and not committed. CAPTURES
+Captures: the sixth checker's own S1 screenshots (VM j-0038), looked at and not committed. During the held or late K write, the dialog reads "Saving “…”…" over the editor. After the late refusal, it shows the question with "Could not save. Your changes are still open. Try again." After the held write lands, it reads "“…” is saved." with Cancel and Continue. Its title follows its state (Saving, Saved, Unsaved changes), which the first capture showed was needed.
+
+## The fifth F cases conflict with the owner's scope
+
+The carried fifth checker's F-hold and F-late (`leave-fifth-checker.spec.ts:447`) press the topbar
+Save, hold or late-refuse its link write, and then open another graphic through **Open saved
+graphics…** while the write waits. If that Open asks, they press Cancel, then wait for a library
+row that a cancelled leave never shows, until their 150 s timeout (CI 39042489221, `:464`). They
+passed on main only because the guard read `dirty`, which is #1392 itself. The owner's scope for
+this repair names Open among the leaves that must wait or ask while a Save is unsettled. So these
+two cases cannot pass as written with any fix of #1392. This is a conflict between two acceptance
+items, and the owner's own wording wins. Their scenario, the document replaced mid-save through
+the UI, is no longer reachable, and the matrix's `replace` cases now pin the guard on that path
+instead. Their assertions still hold once the Open is answered: the saved record holds its source,
+and the opened graphic owns the link, before and after a reload. The seventh check should carry
+them knowing this, as it does for B1. Nothing else in the carried checkers changed result.
 
 ## Limits
 
