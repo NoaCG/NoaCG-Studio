@@ -118,4 +118,20 @@ Mutations, each run in this VM and reverted:
   names the record, unmarked; the boot rule then decides by content, so it is not trusted.
 - A draft whose source is byte-equal to another tab's record (B undid back to exactly what A
   saved) is relinked to it. Its Save writes the same source; the owner's rule calls that matching.
+- An unmarked slot is trusted only while the record still holds what it was minted with. If the
+  record changes before the reload (another tab saves or renames it), or the slot's last landed
+  write is older than the record (an edit's autosave was still pending when Save was pressed, and
+  R, K and that autosave were all refused), the reload asks for a name, and the Save mints a
+  second record beside the first. That is the owner's rule applied: nothing is overwritten, at
+  the cost of a duplicate in a triple-refusal case. Before #1397 every double refusal did this.
+- From review: two tabs that resumed the same id and both first-save inside the mirror's adoption
+  window both mint it. In that window the library's whole-list write already drops one tab's
+  record whatever its id (`model/durableStore.ts` names the window), so this repair neither opens
+  nor closes it. The same window, with tab A's record write refused after its marked reservation
+  write landed, A gone, and tab B's reservation and link writes both refused, would leave a marked
+  slot naming B's record. Three refusals across two tabs; not reproduced.
+- Budget: the eight rows add about 1.3 minutes (local, two workers) to `e2e/save-transaction.spec.ts`,
+  which the duration table weighs at 7.5 minutes against a 14-minute shard. The table does not see
+  minutes added to an existing file until its next recording; the suite already reads 98% of its
+  envelope (`scripts/e2e-capacity.mjs`, #1405).
 - Not rerun: repair-7's leave mutations (M1/M2 there), which this change does not touch.
