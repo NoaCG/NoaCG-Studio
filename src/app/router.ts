@@ -231,8 +231,13 @@ if (typeof window !== 'undefined') {
   if (depthOf(window.history.state) === null) {
     window.history.replaceState(withDepth(window.history.state, 0), '');
   }
-  let restoring: { depth: number; delta: number; guard: NavigationGuard } | null = null;
+  let restoring: { depth: number; delta: number; guard: NavigationGuard; route: Route; key?: string } | null = null;
   let approvedDepth: number | null = null;
+  // The Navigation API names an entry by key; where it exists, Back is replayed onto that entry.
+  type Traversal = { committed: Promise<unknown>; finished: Promise<unknown> };
+  const navigation = (window as unknown as { navigation?: {
+    currentEntry: { key: string } | null; entries(): { key: string }[]; traverseTo(key: string): Traversal;
+  } }).navigation;
   const sync = () => {
     if (depthOf(window.history.state) === null) {
       window.history.replaceState(withDepth(window.history.state, lastDepth + 1), '');
@@ -242,9 +247,25 @@ if (typeof window !== 'undefined') {
       if (depth !== restoring.depth) return;
       const pending = restoring;
       restoring = null;
+      // Approval replays the attempted move onto the attempted DESTINATION, never by counting
+      // entries from here: while the guard asks, the editor's preview frame can navigate (a
+      // save's name adoption rebuilds it), and a subframe navigation inserts a session-history
+      // entry after this one. That drops the forward entry a hash change or Forward made, so
+      // `go(1)` silently did nothing and the leave never continued (#1386), and it puts an entry
+      // between this one and a Back destination that `go(-1)` would land on instead.
       pending.guard(() => {
+        if (pending.delta < 0) {
+          writeHash(pending.route, 'push');
+          useRouter.setState({ route: pending.route });
+          return;
+        }
         approvedDepth = pending.depth - pending.delta;
-        window.history.go(-pending.delta);
+        const key = pending.key;
+        if (key && navigation?.entries().some(entry => entry.key === key)) {
+          const traversal = navigation.traverseTo(key);
+          // A refused traversal (another navigation won) leaves the editor up, as a cancel does.
+          traversal.committed.catch(() => undefined); traversal.finished.catch(() => undefined);
+        } else window.history.go(-pending.delta);
       });
       return;
     }
@@ -262,7 +283,7 @@ if (typeof window !== 'undefined') {
       if (delta) {
         // Restore the original history entry before asking. Cancel leaves Back/Forward
         // intact; approval replays exactly the attempted traversal once.
-        restoring = { depth: lastDepth, delta, guard: navigationGuard };
+        restoring = { depth: lastDepth, delta, guard: navigationGuard, route, key: navigation?.currentEntry?.key };
         window.history.go(delta);
       } else {
         const previous = useRouter.getState().route;

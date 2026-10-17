@@ -241,12 +241,14 @@ export function createGraphic(
     fromPack?: GraphicDoc['fromPack'];
     /** Provenance: an agent package's graphic keeps its tool and delivered item identity. */
     origin?: GraphicDoc['origin'];
+    /** An id the caller reserved before minting (store/saveActions.ts `saveGraphicAs`). */
+    id?: string;
   },
 ): { doc: GraphicDoc; error: string | null } {
   // ONE shape, minted by the pure builder every other writer uses (the bridge, the save API).
   const doc: GraphicDoc = newGraphicDoc<GenerationSpec, AiThread, ProjectLegibility>(template, {
     ...opts,
-    id: uuid(),
+    id: opts.id ?? uuid(),
     now: nowIso(),
   });
   const all = rawGraphics();

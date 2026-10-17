@@ -38,6 +38,11 @@ export interface SavedProject {
    *  serializes to NOTHING (normalizeLegibility), so an untouched project's record is
    *  unchanged. */
   legibility?: ProjectLegibility | null;
+  /** The id a first Save or Save As is about to mint, written BEFORE its record (#1383). The
+   *  link write that follows can be refused; a reload then finds the record by this id instead
+   *  of minting a second one (templateStore's initial link). Every later slot write drops it,
+   *  since it carries the live link. Additive optional. */
+  reservedGraphicId?: string;
   /** Soft-delete tombstone (for cloud sync parity — see Packet.deleted). */
   deleted?: boolean;
 }
@@ -73,6 +78,7 @@ export function saveProject(
   aiSpec?: GenerationSpec | null,
   aiThread?: AiThread | null,
   legibility?: ProjectLegibility | null,
+  reservedGraphicId?: string,
 ): void {
   try {
     const existing = loadProject();
@@ -91,6 +97,7 @@ export function saveProject(
       aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
       // Same rule again; an explicit null (the default state) drops the key entirely.
       legibility: (legibility === undefined ? existing?.legibility : legibility) ?? undefined,
+      ...(reservedGraphicId ? { reservedGraphicId } : {}),
     };
     durable.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();

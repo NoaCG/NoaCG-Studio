@@ -9,6 +9,7 @@ import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
 import { loadProject, saveProject } from '../model/project';
+import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
 import { normalizeLegibility, type ProjectLegibility } from '../model/designRules';
@@ -331,6 +332,11 @@ function withParsedFields(template: SpxTemplate): SpxTemplate {
 // a fresh blank on first-ever load. Whether the wizard opens on top follows from this: a restored
 // project means a returning user, who lands straight back in their work (galleryOpen below).
 const initialProject = loadProject();
+// A first Save reserves its record's id in the slot before minting it. When the link write that
+// followed was refused, the record exists while the slot still reads unlinked, so the reserved id
+// links it back and the next Save writes into it rather than minting a duplicate (#1383).
+const reservedId = initialProject?.reservedGraphicId;
+const initialGraphicId = reservedId && graphicById(reservedId) ? reservedId : initialProject?.graphicId ?? null;
 const initialTemplate = initialProject?.template ?? createDefaultTemplate();
 // The pristine state Reset returns to: the saved baseline if we have one, else the loaded
 // template (so Reset on a pre-baseline project at least returns to how it opened).
@@ -380,7 +386,7 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   canvasGestureActive: false,
   canvasTool: 'select',
   saved: {
-    graphicId: initialProject?.graphicId ?? null,
+    graphicId: initialGraphicId,
     dirty: initialProject?.dirty ?? false,
     status: 'idle',
   },
