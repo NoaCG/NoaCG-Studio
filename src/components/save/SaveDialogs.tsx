@@ -93,7 +93,9 @@ function SaveDialog() {
         return;
       }
       closeDialog();
-      dialog.then?.();
+      // The continuation goes back through the guard, which asks again only if an edit
+      // arrived while the save waited: the record holds the source it wrote, not that edit.
+      if (dialog.then) useSaveUi.getState().requestSwitch(dialog.then);
     }).finally(() => { busyRef.current = false; setBusy(false); });
   };
 
@@ -171,6 +173,11 @@ function ConfirmSwitchDialog() {
       setBusy(true);
       void saveCurrentGraphic().then((r) => {
         if (r === 'failed') { setError('Could not save. Your changes are still open. Try again.'); return; }
+        // Saved, but an edit accepted during the wait is not in that copy (#1359).
+        if (r === 'saved' && useTemplateStore.getState().saved.dirty) {
+          setError('The graphic changed while saving. Your newer changes are still open. Try again.');
+          return;
+        }
         settleConfirm();
         if (r === 'needs-name') openSaveDialog('first', proceed);
         else proceed();
