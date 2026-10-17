@@ -153,7 +153,7 @@ for (const via of ['back', 'hash'] as const) for (const naming of ['renamed', 'k
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toHaveCount(0);
   await page.waitForTimeout(1500);
-  const facts = { via, naming, url: page.url(), left: page.url() !== editorUrl, editor: await page.getByTestId('editor-foundation').count(), status: await page.getByTestId('save-status').textContent().catch(() => null) };
+  const facts = { via, naming, url: page.url(), left: page.url() !== editorUrl, editor: await page.getByTestId('editor-foundation').count(), status: (await page.getByTestId('save-status').count()) ? await page.getByTestId('save-status').textContent() : null };
   out(`diag-leave-${via}-${naming}.json`, facts);
   expect(facts.left, 'the leave did not continue after the first Save landed').toBe(true);
 });
