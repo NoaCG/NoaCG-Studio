@@ -216,10 +216,13 @@ was the recommendation. A change the second opinion proposes goes back to the ow
   only until any row of the source changes, not just the edited line. Answer: accept it
   and say so where the list is edited; to keep a fix, edit the Sheet or press Pause.
 - **DS20. Pause on pushed data.** Today nothing in NoaCG can stop a sender: "freeze" means the
-  sender stops writing. Answer: Pause on "Another system" makes the server refuse writes
-  from the data key with an answer that says the production paused it, while the operator's own
-  presses still work; nothing sent while paused is kept, and since pushes carry absolute values,
-  the sender's next write after Resume brings it up to date.
+  sender stops writing. Answer: Pause on "Another system" stops the data key's writes from moving
+  anything on air, and the server's answer says the production paused it, while the operator's
+  own presses still work. What arrives while paused is held, newest value per name, and Resume
+  applies only what changed while paused, as a paused Sheet does (D4). Corrected 2026-10-17 after
+  review: the answer first said pushes made while paused were dropped and the sender's next write
+  would catch up, but a sender that sends only what changed (as `/patch` invites) would then
+  leave a value stale after Resume.
 
 ## Owner input, second round (2026-10-17)
 
@@ -311,7 +314,8 @@ resolves public then private; configured suite for the route.
 A published production's data view shows the address, the key behind Reveal and a ready example
 built from this production's own names; a push shows "Another system: updated N s ago" within
 5 s; the first push of a new name connects the empty fields titled with it, with every page
-closed; while the source is paused a push moves nothing and its answer says it was paused (DS20);
+closed; while the source is paused a push moves nothing and its answer says it was held, and
+Resume brings the held change to air (DS20);
 an unpublished production says publishing is the step. Layer: journey for the unpublished card;
 configured suite for a published push, a first push into a fresh production, and a paused push.
 
@@ -359,8 +363,9 @@ adds its notes under this spec's `## Phase notes`. Numbers are the production-pa
     fetcher, the publish and unpublish handover, connections that reach the server at once; the
     server cost of one active source for an hour is measured and recorded first.
 19. **The other-system door** (AC-6, AC-7): the "Another system" card, last-received status,
-    connecting a name on its first push, Pause enforced by the server (DS20), the source of each
-    value, and `DATA_API.md` and `/docs` leading with names and `/patch`.
+    connecting a name on its first push, Pause enforced by the server with pushes held until Resume
+    (DS20), the source of each value, and `DATA_API.md` and `/docs` leading with names and
+    `/patch`.
 20. **One vocabulary and one shared value** (AC-8 for data sources; sheet AC-7 presses, sheet
     AC-9): the default words, the Advanced disclosure, the stable Setup item for the data view.
 21. **Tables from a Sheet** (sheet AC-11).

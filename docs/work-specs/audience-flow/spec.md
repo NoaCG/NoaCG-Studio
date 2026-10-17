@@ -1,13 +1,13 @@
 # Audience flow: viewer messages reach the right graphic in a few plain steps
 
-Authority: owner, 2026-10-16 (see `work.json`). The decisions under "Owner decisions" were answered
-on 2026-10-17 as recommended (the owner's ruling on the data sources decisions, read as covering
-these too). **Still a draft** until the data sources spec is agreed after its second opinion;
-nothing is built before then. Its phases then join `/plan-run production-page` as 23 onward, after
-the page cleanup (1-14) and the data sources phases 15-22 (DS16). Parent: `docs/GOALS.md` outcome 5
-(the playout dashboard, with its Data and Audience tabs); the model it shares with data is
-`docs/work-specs/data-sources/spec.md` (draft). Built on: `docs/INTERACTIVE_PLAYOUT_PLAN.md` phases
-5 and 6 and its audience backend design.
+Authority: owner, 2026-10-16 (see `work.json`). **Draft**: the decisions under "Owner decisions"
+are open, each with a recommendation; the owner's 2026-10-17 answers named the data sources list
+only, so these wait for their own answer. Nothing is built before then or before the data sources
+spec is agreed after its second opinion. Its phases then join `/plan-run production-page` as 23
+onward, after the page cleanup (1-14) and the data sources phases 15-22 (DS16). Parent:
+`docs/GOALS.md` outcome 5 (the playout dashboard, with its Data and Audience tabs); the model it
+shares with data is `docs/work-specs/data-sources/spec.md` (draft). Built on:
+`docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6 and its audience backend design.
 
 ## Problem
 
@@ -64,29 +64,24 @@ that must stay connected does not fit a serverless function, so the published ha
 worker that stays connected or the database's scheduler. Phase 4 settles that design; nothing here
 decides it.
 
-## Owner decisions (answered 2026-10-17)
+## Owner decisions (open; recommendation first)
 
-The owner, 2026-10-17, on the open decisions: "let's go with your recommendations. Record those as
-answers." It named the data sources list; its reason, that the choices cannot be judged before
-trying them, applies to these equally, so each recommendation below is recorded as the answer.
-The owner can reopen any of them.
-
-- **A1. Where audience lives.** Answer: the Audience tab is always there next to Playout
+- **A1. Where audience lives.** Recommendation: the Audience tab is always there next to Playout
   and Data, never added through Setup, and opens on the inbox; turning messages on is the tab's
   first control.
-- **A2. No graphic for messages.** Answer: when no graphic in the production takes a
+- **A2. No graphic for messages.** Recommendation: when no graphic in the production takes a
   message, "Send to rundown" offers a viewer question card from the catalog (House, Volt, Frost or
   Clean Question; one press) and then sends the message to it; never a fallback to an unrelated
   graphic. With several message graphics, the operator picks one once and it is remembered for the
   production.
-- **A3. Actions per message.** Answer: one primary action, "Put in rundown" (it approves
+- **A3. Actions per message.** Recommendation: one primary action, "Put in rundown" (it approves
   too), plus Reject; Shortlist, Now and Next move into a small menu, and Now and Next say "for the
   presenter view".
-- **A4. Chat sources.** Answer: they become production sources like the Sheet (the shared
+- **A4. Chat sources.** Recommendation: they become production sources like the Sheet (the shared
   source core from `docs/work-specs/sheet-data-flow/spec.md`): remembered with the production, read
   by the server when published and by the browser when not, with status and Pause in the tab and
   on the one sources line of the data sources spec (DS14).
-- **A5. Joining without publishing.** Answer: the tab says plainly that phones need a
+- **A5. Joining without publishing.** Recommendation: the tab says plainly that phones need a
   published production, with the Publish step one press away; Simulate stays the way to rehearse
   locally.
 
