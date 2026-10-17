@@ -6,6 +6,20 @@ just another data source. The draft spec built from this is
 `docs/work-specs/data-sources/spec.md`. The owner answered its decisions DS1-DS20 on 2026-10-17 by
 accepting every recommendation, and asked for a second opinion before the phases are planned.
 
+**Second opinion, 2026-10-17:** [the follow-up](second-opinion.md) checks the code independently,
+reads primary documentation directly, supplies six starter layouts, and proposes scoped
+connections, explicit list formats and a smaller operator workflow. Its proposed P1-P5 and
+phases 15-26 are in the data-sources spec. Original owner answers stay recorded; changes remain
+draft. The source-access note below describes this first research pass, not the follow-up.
+
+Corrections from the follow-up: standings need a separate column-header update; blank credit
+rows can be section breaks; a CSV read does not discover other tabs. Google's import help names
+only IMPORTDATA/HTML/XML in its hourly-while-open sentence, while its settings page separately
+lists IMPORTFEED as hourly. IMPORTRANGE's own page says hourly checks while open as well as
+describing reload behavior; the settings page still says 30 minutes. A database scheduler is not
+itself a durable chat listener. `DATA_API.md` already documents finding the key in the Data tab;
+the stale SQL-key instruction mentioned below has been corrected in that guide.
+
 **How the outside facts were read.** The cloud environment's network policy denied the hosts
 (support.google.com, developers.google.com, rssboard.org, dev.twitch.tv, owasp.org), so no page
 was opened directly. Each outside claim comes from a search engine's extract of the cited page

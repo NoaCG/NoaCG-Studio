@@ -5,6 +5,31 @@ decisions" the same day. Parent direction: `docs/GOALS.md` outcome 7 (one data m
 design), which this spec pulls forward from "later". Architecture it builds on:
 `docs/PRODUCTION_DATA_PLAN.md` and `docs/CLOUD_PLAYOUT.md` §7.
 
+## Second-opinion proposal, 2026-10-17
+
+The agreed D1-D4 baseline below is retained. The proposed continuation is now data-sources phases
+15-22, with Audience in 23-25 and integration in 26. P1-P5 in
+`docs/work-specs/data-sources/spec.md` require owner agreement before replacing this baseline.
+`docs/research/2026-10-data-sources/second-opinion.md` gives the starter layouts and source checks.
+
+The proposed Sheet journey starts at the graphic, prioritizes lists, and supplies starter rows
+from its current content. The operator confirms the selected format and rendered preview. One
+tab holds one reusable content set; each tab's link is connected once. NoaCG does not infer all
+tabs from one CSV or require a Google account connection to read a link-shared tab. Creating the
+user's own Sheet remains a Google account workflow. Native paste/edit stays available without it.
+
+Proposed changes to the original criteria: AC-1 covers list-first connection; AC-2 maps generated
+headers only within the selected destination and requires explicit reuse for other graphics;
+AC-8 shares source management but uses different polling/push/subscription runners; AC-9 keeps a
+stable Data tab; AC-11 calls selected-row content a table; AC-12 uses a ticker, not a scoreboard.
+Data-sources AC-11 through AC-14 add scoped identity, exact list formatting and compatibility.
+Do not execute the original global title-matching rule when implementing the revised proposal.
+
+Keep D1's ownership, D3's measured freshness and D4's shared manual values. A connection already
+on air can change the output when applied, so setup previews the affected graphics. A valid empty
+source is distinct from failure; credits preserve internal blank sections, and standings update
+rows and column headers together. These are adapters beside production data, not template code.
+
 ## Revision, 2026-10-17 (answered; applied when the data sources spec is agreed)
 
 The owner, 2026-10-17: this spec's main use case is wrong. It leads with values and uses scores
@@ -209,13 +234,12 @@ Sheets connect on the production. A graphic that already carries the block keeps
 
 ## Sequencing
 
-Not a run of its own (owner, 2026-10-16): these six phases run as phases 15-20 of
-`/plan-run production-page`, after the page cleanup's fourteen phases and before audience
-(`docs/work-specs/production-page-refactor/spec.md`, "After the refactor, in the same run"). The
-cleanup moves the cue editor and the press verbs this work changes, so it goes first. The readers
-and their rules live in `src/control/` and are Node-tested; the page change is wiring only.
-Answered 2026-10-17 (data sources DS16): these phases run inside that spec's phases 15-22 once it
-is agreed.
+Not a run of its own (owner, 2026-10-16). The original six-phase breakdown below is retained as
+the agreed baseline, not a second executable schedule. Data-sources P5 proposes the current
+phases 15-26 of `/plan-run production-page`, after the cleanup's fourteen phases: data in 15-22,
+audience in 23-25, then the combined rehearsal. The cleanup moves the cue editor and press verbs,
+so it stays first. The readers and their rules live in `src/control/` and are Node-tested; page
+changes wire that behavior. No continuation starts until the data-sources readiness gate passes.
 
 ## Acceptance criteria
 

@@ -9,6 +9,49 @@ Child specs: `docs/work-specs/sheet-data-flow/spec.md` (agreed, D1-D4) and
 `docs/work-specs/audience-flow/spec.md` (draft, A1-A5); each keeps its own criteria, and this spec
 owns the model they share and the criteria that cross them.
 
+## Second opinion, 2026-10-17: proposed revision
+
+Read `docs/research/2026-10-data-sources/second-opinion.md` for the code findings, concrete Sheet
+layouts, primary sources and user journeys. The current request asks for research and a plan for
+the production refactor, with easier data binding and Audience in the same run. No implementation
+is authorized by this document change.
+
+The original model and DS answers below record the accepted starting direction. P1-P5 are proposed
+amendments, not new owner answers. Where they differ, they identify what must change in the model
+and existing criteria before implementation. The phase list is a candidate continuation only.
+
+- **P1. Start with the graphic and keep a small native editor?** Recommend yes. A list field
+  offers typing/paste, existing content, a Sheet or a feed, with a rendered preview. Data remains
+  a stable overview tab beside Playout and Audience; paths and bindings stay in Advanced. This
+  refines DS1, DS10 and DS14. It does not add a spreadsheet engine or another scoring console.
+- **P2. Scope automatic connections to the selected destination?** Recommend yes. Generated
+  headers map within the chosen graphic/format; existing content is shared explicitly. A first
+  API push never connects unrelated fields just because their titles match. Persist stable
+  source/output and graphic/field identities; labels are display text. New source-managed keys
+  are isolated, while old paths and the API wire format remain compatible. This revises DS7,
+  DS9 and sheet AC-2. D4 still governs manual edits and the next changed source value.
+- **P3. Use generated starter rows and a few explicit list formats?** Recommend yes. Copy rows
+  or download CSV from the selected graphic's current content. One tab per reusable content set;
+  paste each tab's link once. Schedule columns, standings rows plus column headers, and credit
+  headings/section breaks have small format adapters. This revises DS3. No anonymous all-tab
+  discovery, universal workbook, Google OAuth, expression language or arbitrary JSON mapping.
+- **P4. Share source management, but use separate polling, push and chat runners?** Recommend
+  yes. Status, ownership and Pause are shared; only data adapters receive a production writer,
+  and audience adapters receive only the inbox writer. A4's closed-page chat behavior needs a
+  measured subscription runner, provider access and cost before implementation. No silent new
+  platform sign-in. The existing production data key represents one API source, not one per sender.
+- **P5. Use the revised phases 15-26 below?** Recommend yes. Prototype Data and Audience together
+  first, implement data then audience after the refactor, and finish with the combined rehearsal.
+  Keep phases 1-14 intact, D1/D3/D4 intact, and every source outside graphic template code.
+
+Proposed default: **Choose what the graphic shows. Edit it here or connect a source.** A saved
+connection compiles source content to ordinary fields; a picked table row or approved audience
+message is copied into a cue. A graphic-wide live connection affects all cues of that graphic;
+the preview names that scope. An already on-air graphic may change when the connection is applied.
+
+Before accepting these amendments, resolve P1-P5 as a group or record exceptions. Do not reopen
+DS1-DS20 and A1-A5 wholesale. This research does not promote any ledger to agreed.
+
 ## Problem
 
 Nobody can say today, in one sentence, how data from outside NoaCG reaches a graphic; even the
@@ -275,6 +318,12 @@ Child criteria stay in their own specs and are named in the phases as "sheet AC-
 "audience AC-n". These are the criteria that cross them. They follow the answers; a change the
 second opinion proposes and the owner accepts rewrites the criterion that names its decision.
 
+P1-P5 propose these specific substitutions for the original criteria below: AC-1 uses separate
+runner lifecycles and explicit format adapters; AC-3 saves a previewed, scoped connection; AC-6
+connects only destinations already selected during API setup; AC-7 reports actual source identity
+and requires explicit sharing/replacement. Existing global title matching is not an acceptance
+requirement of the proposed phases. AC-11 through AC-15 define the additional proposed outcomes.
+
 ### AC-1: A source writes names, never graphics
 Each source kind (Sheet, feed, pushed, a test kind) produces named values, lists or table rows
 through the one source core; none addresses a graphic, a cue or an air verb. A list that reads
@@ -338,43 +387,109 @@ On a fresh production, without documentation: a Sheet list onto a ticker, an RSS
 ticker, and a push from a test sender onto a scoreboard, each on air in under five minutes.
 Layer: scenario runs recorded in `evidence/`.
 
+### AC-11: A person starts from real content without reading a binding guide
+From a ticker field, a newcomer pastes three rows, sees the rendered result and takes it without
+opening Advanced or creating a Sheet. Data and Audience remain in the same navigation positions.
+The Data view names each content set, its source and the graphics using it. Layer: disposable
+prototype task run before implementation; journey in `e2e/production-data.spec.ts` afterwards.
+
+### AC-12: Connections remain correct when names collide or change
+Two graphics with a Name field do not connect to the same person unless explicitly selected.
+One score intentionally connected to two boards updates both. A source or graphic display rename
+preserves a saved connection; a deleted/replaced target or incompatible field contract is flagged
+and never silently redirected. Existing explicit paths still work, including Unicode labels.
+Connecting names affected graphics/cues, and published success follows durable persistence.
+Layer: Node contract tests; existing production-data journey; configured published scenarios.
+
+### AC-13: Starter rows fit the actual graphic and selected tab
+Generated starter rows carry current values and headers for ticker, schedule, standings, credits,
+lower third and scoreboard. A tab link previews the selected tab; a missing gid does not pretend
+to discover other tabs. One tab reused by two graphics has one reader. A renamed tab keeps its
+identity; a missing tab holds last good values and asks for reconnection. Standings rows and
+headers update together; credit section breaks survive. Unsupported delimiters, formula errors
+and malformed rows are diagnosed rather than silently rearranged. Layer: Node fixtures for all
+six shapes; Sheet import journey and real-Sheet scenario receipt.
+
+### AC-14: Failure, empty content and overrides have distinct outcomes
+A failed or malformed read holds the last good value; valid empty source content clears its
+managed target; legacy missing paths and empty arrays keep their compatibility behavior.
+Unchanged polls retain manual edits. A changed list replaces the whole list. Pause/Resume uses
+the last applied snapshot; held partial API patches retain all changes and null deletions.
+Late reads cannot write after disconnect or publish handover. Source status distinguishes last
+checked from last changed and does not mark an event-driven push stale solely from silence.
+No data-key write route bypasses Pause. Interleaved `/patch` and legacy `/update` writes resume
+with a documented order that preserves the latest held write to each affected field.
+Layer: shared Node and database conformance cases, controlled races, configured output scenarios.
+
+### AC-15: Audience input cannot cross into the live-data writer
+Polling, push and subscription adapters share management without sharing write capabilities.
+An audience message cannot bind to a live field, mutate an approved cue or trigger a playout
+command. A compatible message graphic is required. Persisted chat ownership, reconnect identity,
+Pause and closed-page delivery are demonstrated before A4 is called complete. Layer: structural
+Node contracts; audience and chat journeys; configured published run with operator pages closed.
+
 ## Phases (draft; production-page phases 15 onward once agreed)
 
-These wait for the second opinion and R1-R5 (owner, 2026-10-17), which may reorder or reshape them.
+This is P5's proposed replacement, based on R1-R5 and the second opinion. It is not a started run.
+Scope is sequential: refactor first, then data, then audience. Both pages are designed in phase 15.
 
 Each phase runs `/check` and the production-page spec's §6 matrix, lands with `/queue-merge`, and
 adds its notes under this spec's `## Phase notes`. Numbers are the production-page run's.
 
-15. **The source core** (AC-1; sheet AC-1 reading half, sheet AC-6 states, sheet AC-8): the
-    source contract with the three shapes; the Sheet kind (list and values); the feed kind's
-    parser (RSS 2.0, Atom); a test-only kind; rows to lines; the diff and the reader states.
-    Measures, before any UI: Sheet edit-to-read over at least 20 real edits and one hour of
-    reading every 5 s (the sheet D3 stop rule), and conditional-request support on five public
-    feeds. Node tests only.
-16. **Sheet lists and values in a local production** (AC-2, AC-3 for Sheets, AC-8 local; sheet
-    AC-1, sheet AC-2, sheet AC-3 unpublished, sheet AC-5 tabs, sheet AC-6 message, sheet AC-7
-    unpublished): connect from the data view and from a field, the browser reader under a lock,
-    connecting by name, the sources line with Pause, the local override and Resume (D4).
-17. **Feeds** (AC-3 for feeds, AC-4, AC-5): the fetch route (DS5) and the feed kind on a local
-    production, with the ticker journey.
-18. **Published productions** (AC-4 published; sheet AC-3 published, sheet AC-4, sheet AC-5
-    handover, sheet AC-6, sheet AC-7 published; AC-3 published half, DS17): the server copy of
-    sources with its row security, the scheduled tick for Sheets and for feeds through phase 17's
-    fetcher, the publish and unpublish handover, connections that reach the server at once; the
-    server cost of one active source for an hour is measured and recorded first.
-19. **The other-system door** (AC-6, AC-7): the "Another system" card, last-received status,
-    connecting a name on its first push, Pause enforced by the server with pushes held until Resume
-    (DS20), the source of each value, and `DATA_API.md` and `/docs` leading with names and
-    `/patch`.
-20. **One vocabulary and one shared value** (AC-8 for data sources; sheet AC-7 presses, sheet
-    AC-9): the default words, the Advanced disclosure, the stable Setup item for the data view.
-21. **Tables from a Sheet** (sheet AC-11).
-22. **Retire the graphic-level Sheet panel, update `/docs`, the newcomer runs** (AC-10; sheet
-    AC-10, sheet AC-12).
+15. **Prove the interaction and external constraints** (AC-10/11 prototype; sheet D3; audience
+    AC-5 findings). Prototype native list editing, Sheet connection, API sample setup and an
+    audience message through a compatible graphic. A newcomer completes the tasks without a
+    binding lesson. Measure 20 real Sheet edits and one hour of five-second polling, report the
+    slowest edit and throttling; check five public feeds' conditional requests. Qualify the
+    published scheduler cost and chat provider/listener options. Missing access is unverified,
+    not pass; a D3 miss stops under its existing rule. A chat blocker holds its dependent phase,
+    not independent data work. No durable product behavior changes yet.
+16. **Content and connection contracts** (AC-1/12/13/14 structural; sheet AC-8). Reuse the tree,
+    datasets and bindings. Add scoped identity, the small format registry, separate runner
+    interfaces and typed destinations. Pin legacy compatibility, clear/hold, pause baselines,
+    late responses and handover with Node conformance fixtures. No general mapping language.
+17. **Native lists and local Sheets** (AC-2/3 local/11/12/13; sheet AC-1/2 revised/3 local/5 tabs/
+    6/7 local/9). Build the field-led preview, starter-row copy and CSV fallback, selected-tab
+    connection, small native editor, stable Data tab and local owner lock. Prove schedule,
+    standings and credit formats, shared content, Pause and manual changes end to end.
+18. **Published data ownership** (AC-3 published/12/14; sheet AC-3 published/4/5 handover/6/7
+    published). Persist sources and connections with operator access controls. Prove ordered
+    binding changes without republish, one writer through handover, closed-page updates and
+    manual presses. Record server cost and repeat D3's real edit measurement. Keep source
+    credentials and configuration out of outputs and viewer pages.
+19. **Direct feeds** (AC-3 feeds/4/5/14). Add the guarded cached fetcher and RSS/Atom parser on
+    local and published paths, using the ownership infrastructure from phase 18. Prove empty,
+    failed, duplicate and undated feeds, backoff and the running-ticker journey.
+20. **Custom API setup and pause** (AC-6 revised/7/12/14). Generate a sample from explicitly
+    selected destinations, show last receipt, and enforce server Pause for every data-key write
+    route, including legacy `/update`. Define held state for `/patch` and legacy field writes;
+    operator controls still work. Prove partial patches, deletes, Resume and no unsolicited
+    bindings with all pages closed. Update `DATA_API.md` and `/docs` to lead with `/patch`.
+21. **Selected rows and source management** (sheet AC-11; AC-7/8/12/13). Sync Sheet tables and
+    load selected guests/teams into preview as snapshots. Reuse source status and explicit
+    sharing/replacement, distinguish last checked/changed, and retain the copied cue on refresh.
+22. **Finish data journeys and compatibility** (AC-10/11; sheet AC-7 presses/9/10/12 revised).
+    Retire the new-graphic Sheet panel while keeping old embedded blocks working. Run the
+    newcomer journeys, validate exports, publish transitions and the shared score controls.
+    No data phase is complete merely because its new screen exists.
+23. **Safe audience destinations** (AC-9/15; audience AC-1/5). Reproduce #1313, remove unrelated
+    graphic fallbacks, offer a compatible question card and retain broadcast edits and original
+    text. Prove that putting a message in rundown does not air it or alter an existing cue.
+24. **Audience inbox and joining** (audience AC-2/3/5, A5). Keep Audience stable, simplify message
+    actions, make the publish/join step clear and walk phone join, presenter and vote flows.
+    Votes keep their deliberate staging and explicit live-update toggle.
+25. **Persistent chat sources** (AC-8 audience/15; audience AC-4). Implement only the provider
+    access and subscription runner qualified in phase 15. Prove reconnect deduplication, Pause,
+    reload and closed-page arrival with a single owner and no data-writer capability. If provider
+    authorization or hosting remains unresolved, record the blocker; do not claim A4 complete.
+26. **Combined production rehearsal** (AC-10/15; sheet AC-12; audience AC-1 through AC-5). In one
+    production run a Sheet ticker, schedule, standings and credits; shared API scoreboards;
+    guest rows; an approved audience message and staged votes. Exercise source failure, Pause,
+    reconnect, reload and operator-page closure. Record timing, the owner look and remaining
+    provider/device limits before calling the whole continuation complete.
 
-Audience follows as phases 23 onward: `audience-flow` phases 1-4, its chat sources on the core of
-phase 15 and on the sources line (A4; AC-8 for audience sources, AC-9). JSON addresses are not in
-this run (DS6).
+JSON URL mapping and Google account creation/discovery remain outside this run. Each phase is
+split into bounded work items by the existing plan runner, not by a new scheduler or ledger.
 
 ## Readiness
 
@@ -382,6 +497,9 @@ Before phase 15: phase 14 checked PASS on `main`; the second opinion reviewed an
 changes folded in; the owner has agreed this spec (`work.json` authority `agreed`), with DS1-DS20
 answered; `sheet-data-flow` and `audience-flow` updated to the
 answers in the same change, with their digests current; `node scripts/work-spec.mjs status`
-reports no problems for all three.
+reports no problems for all three. For the proposed revision, P1-P5 must be answered and the
+affected original criteria reconciled in all three specs before agreement. Phase 15 qualifies
+external constraints before any dependent implementation; phase 26 is integration acceptance,
+not a claim that research has already demonstrated working product behavior.
 
 ## Phase notes

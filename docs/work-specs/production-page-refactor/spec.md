@@ -3,8 +3,9 @@
 Baseline: main `70fad3a94`, 2026-10-11; every line number below is of that revision. Authority:
 owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen sequential
 phases, each built by one session and checked by another on `main`, then (owner, 2026-10-16) the
-Sheet data flow's six phases as phases 15-20 and audience after them; see "After the refactor, in
-the same run". Replaces the phase map of
+data and audience continuation; see "After the refactor, in the same run". Its current candidate
+is phases 15-26, pending the data-sources spec and proposed second-opinion revisions. Replaces
+the phase map of
 [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) (its phases 0-2 are done; its old
 phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
 
@@ -656,21 +657,30 @@ one run in this order: "production page cleanup first, then Sheet data, then aud
 one run." The Sheet work changes the cue editor and the press verbs that phases 12 and 13 move, so
 it follows phase 14 rather than interleaving.
 
-15-20. **Sheet data flow, its phases 1-6**, in order, as written in
-    `docs/work-specs/sheet-data-flow/spec.md` `## Phases`. Each phase's scope, files and
-    acceptance criteria are that spec's, not this spec's file lists; its findings go under that
-    spec's `## Phase notes`. Built and checked by the same rules (§8, §9). That spec's own stop
-    rule holds: a miss on its D3 freshness target stops the run for the owner.
+The original Sheet-only phases 15-20 were superseded in direction by data-sources DS16 on
+2026-10-17: lists first, feeds and API setup alongside Sheets, then audience. The second opinion
+now proposes the following continuation as P5. It is a draft, not a running or approved phase
+queue. Scope and acceptance criteria live once in `docs/work-specs/data-sources/spec.md` under
+`## Phases`, including references to the Sheet and Audience child criteria.
 
-Audience phases are added here as 21 onward once an audience spec is agreed; until then the run
-ends after phase 20.
+| Phase | Result |
+| --- | --- |
+| 15 | Prototype both pages and qualify Sheets, feeds and chat constraints |
+| 16 | Scoped connections, list formats and shared source-management contracts |
+| 17 | Native list editing, starter rows and local Sheet connections |
+| 18 | Published ownership, live connection persistence and closed-page updates |
+| 19 | Direct RSS/Atom feeds |
+| 20 | Custom API setup, status and server-enforced Pause |
+| 21 | Selected table rows and shared source management |
+| 22 | Data journeys, old-graphic compatibility and docs |
+| 23 | Compatible audience destinations and the #1313 fix |
+| 24 | Stable audience inbox, joining and vote/presenter flows |
+| 25 | Persistent chat on a qualified subscription runner |
+| 26 | Combined production rehearsal and acceptance |
 
-**Answered 2026-10-17 (data sources DS16, as recommended).** `docs/work-specs/data-sources/spec.md`
-holds one model for every data source and audience input, and phases 15-22 in place of 15-20:
-they carry the Sheet data flow's six phases, re-ordered with lists first, plus RSS feeds and the
-data API made visible. Audience is then 23 onward. That list replaces the two paragraphs above
-once the data sources spec is agreed after its second opinion; no phase from 15 starts before the
-readiness item below.
+Phases 1-14 stay unchanged. Each continuation phase uses §8/§9, the relevant §6 checks, and
+records findings under its owning spec's Phase notes. The existing D3 stop rule holds. No phase
+15 begins until the readiness gate below; no new source is implemented merely by landing research.
 
 ## What the plan can demonstrate, and what stays uncertain
 
@@ -700,8 +710,11 @@ Before starting phase 15: phase 14 checked PASS on `main`, and `node scripts/wor
 docs/work-specs/sheet-data-flow/work.json` shows the spec agreed. Added 2026-10-17 (owner): the
 owner has agreed `docs/work-specs/data-sources/spec.md` (its `work.json` authority `agreed`, its
 decisions answered, and, owner 2026-10-17, its second opinion reviewed) before phases 15 onward
-start; phase 15 then follows the phase list the owner's
-answer to its DS16 names.
+start. The second-opinion proposal P1-P5 must be answered, affected criteria reconciled across
+data-sources, sheet-data-flow and audience-flow, and all three digests current. Audience authority
+must also be agreed before its implementation phases. Phase 15 then follows the accepted P5
+phase list; external measurements are prerequisites for the dependent implementation, and phase
+26 records integrated acceptance separately from the phase 14 behavior-preserving refactor.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with

@@ -2,11 +2,26 @@
 
 Authority: owner, 2026-10-16 (see `work.json`). The decisions under "Owner decisions" were answered
 on 2026-10-17: the owner took every recommendation. **Still a draft** until the data sources spec
-is agreed after its second opinion; nothing is built before then. Its phases then join
-`/plan-run production-page` as 23 onward, after the page cleanup (1-14) and the data sources
-phases 15-22 (DS16). Parent: `docs/GOALS.md` outcome 5 (the playout dashboard, with its Data and
+is agreed after its second opinion; nothing is built before then. The proposed phases join
+`/plan-run production-page` as 23-25, with integration in 26, after the page cleanup (1-14) and
+the data sources phases 15-22 (DS16, proposed P5). Parent: `docs/GOALS.md` outcome 5 (Data and
 Audience tabs); the model it shares with data is `docs/work-specs/data-sources/spec.md` (draft).
 Built on: `docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6 and its audience backend design.
+
+## Second-opinion proposal, 2026-10-17
+
+See `docs/research/2026-10-data-sources/second-opinion.md` and data-sources P1-P5. These are
+proposed refinements, not new owner answers. A1-A3 and A5 stand. A4 keeps production persistence,
+one reader, status and Pause, but its shared core means shared management and narrow destination
+interfaces, not one identical polling loop. Chat uses a subscription runner; a database scheduler
+cannot itself hold an IRC or streaming connection. Qualify provider access, reconnect behavior,
+runtime lifetime and cost before promising closed-page delivery. No silent new platform OAuth.
+
+Audience remains an inbox. Neither an equal field title nor an approved message creates a live
+data binding. The message is copied into a compatible cue, and later viewer edits or arrivals
+cannot mutate it. Keep the existing deliberate vote staging and explicit live-tally switch.
+The Data and Audience interaction is prototyped together in phase 15; the safe destination fix,
+inbox/join flow and chat work follow sequentially in 23-25, with combined acceptance in 26.
 
 ## Problem
 
@@ -59,9 +74,9 @@ operator takes. Votes stay staged by the operator. The research behind it
 (`docs/research/2026-10-data-sources/README.md` §2.6, §5) also found, for A4: reading Twitch chat
 anonymously works but is not documented (the documented way needs a user token); YouTube's daily
 quota is per Google project, and its streaming method costs far less than polling; and a listener
-that must stay connected does not fit a serverless function, so the published half of A4 needs a
-worker that stays connected or the database's scheduler. Phase 4 settles that design; nothing here
-decides it.
+that must stay connected needs an explicitly supported runtime and recovery strategy. A database
+scheduler may dispatch bounded reads but is not a replacement for an open chat connection.
+Data-sources phase 15 qualifies the options and phase 25 implements the qualified choice.
 
 ## Owner decisions (answered 2026-10-17)
 
@@ -113,10 +128,15 @@ local stack; each finding is fixed in this plan or filed. Layer: scenario run in
 
 ## Phases
 
-1. **Walk the published flow** on the local stack (AC-5, findings only) and fix #1313 (AC-1).
-2. **The tab and the actions** (AC-2, AC-3), per A1 and A3.
-3. **Joining** (A5) and the viewer question card offer (A2, AC-1 rest).
-4. **Chat sources as production sources** (AC-4), after the shared source core (data sources
-   phase 15).
+The candidate schedule is defined once, in `data-sources/spec.md` P5 and its phase list:
+
+- 15: prototype Data and Audience journeys and walk the published flow (AC-5 findings).
+- 23: fix #1313, require compatible targets and offer a question card (AC-1, AC-5).
+- 24: stable inbox, simpler actions, publishing/joining and vote/presenter flows (AC-2/3/5, A5).
+- 25: persistent chat with the qualified subscription runner (AC-4).
+- 26: combined production rehearsal, including closed-page intake and moderation (AC-1 to AC-5).
+
+AC-4 remains unverified if provider access or runtime feasibility is blocked. Other completed
+flows may be recorded individually; a blocked provider never becomes a claim of full acceptance.
 
 ## Phase notes

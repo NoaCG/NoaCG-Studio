@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "d28c6810feb761e2483e67ee0bcdb8f85036195884bd03a37d22624c2dc9f5d3",
+  "specSha256": "632582800edd5d3c9006a9937816294f69534219cf35f99dc07cb55ab53d70c7",
   "authority": {
     "status": "draft",
-    "source": "2026-10-17, owner research brief: \"Research only, no product code. Goal: one clear model for how outside data and audience input reach graphics in a NoaCG production, written up as draft specs and draft phases for the production page plan run, with every decision left open for the owner.\" Drafted the same day from docs/research/2026-10-data-sources/README.md; decisions DS1 to DS20 await the owner. 2026-10-17, owner: \"For me it's too difficult now to answer those questions before I actually can try it out so let's go with your recommendations. Record those as answers.\" and \"Before we start planning the phase let's research how this should be done a bit further,\" with a second opinion from another agent. DS1-DS20 recorded as the recommendations; R1-R5 added from the owner's second-round input; authority stays draft until the second opinion is reviewed."
+    "source": "2026-10-17, owner research brief: \"Research only, no product code. Goal: one clear model for how outside data and audience input reach graphics in a NoaCG production, written up as draft specs and draft phases for the production page plan run, with every decision left open for the owner.\" Drafted the same day from docs/research/2026-10-data-sources/README.md; decisions DS1 to DS20 await the owner. 2026-10-17, owner: \"For me it's too difficult now to answer those questions before I actually can try it out so let's go with your recommendations. Record those as answers.\" and \"Before we start planning the phase let's research how this should be done a bit further,\" with a second opinion from another agent. DS1-DS20 recorded as the recommendations; R1-R5 added from the owner's second-round input; authority stays draft until the second opinion is reviewed. 2026-10-17, current owner request: research both supplied prompts and propose a simpler data-binding, Sheets, API and audience plan for the production-page run. The second opinion and P1-P5 are proposed revisions only; existing answers and this authority status are retained. The proposed phase list is not execution authorization."
   },
   "review": null
 }
