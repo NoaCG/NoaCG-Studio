@@ -699,6 +699,12 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-17: third independent leave-editor check failed
+
+- [Third independent receipt](work-specs/editor-leave-reliability/independent-3/README.md) on main `5ccdbbc4` (contains #1333): a refused linked Save is sometimes reported as saved. The leave continues to Graphics, the edit is missing from the library and the link is marked clean. This breaks AC 3. Reproduced with the unchanged `leave-checker.spec.ts:24`: CI 38994640363, then locally 1 of 5 and 1 of 15.
+- The trap note below is wrong. The refused put is the Save's own; no other library write occurs ([linked-save-race.json](work-specs/editor-leave-reliability/independent-3/linked-save-race.json)). Likely cause: `commitDurableWrites` awaits a concurrent slot write, so `reportError`'s `setTimeout(0)` dispatches the failure unclaimed before Save can claim it. Fault-inject that window when repairing. Do not repeat the spec harder.
+- Everything else passes: the newer-edit challenges in both waits, Redo, reload and retry after refusal, ordinary Discard, Back/hash, wizard/export continuations, references, signed-in localhost, and 125% cumulative (196/180/280px, 9 outputs). Phase 3 (save/cloud-status) waits for a repair and a fresh check; this is the third failed check, so follow the coordinator's owner-direction procedure.
+
 ### 2026-10-16: newer-edit discard repair (#1147)
 
 - Last check's findings: [#1147](https://github.com/NoaCG/NoaCG-Studio/issues/1147). A command edit accepted while Discard drained the pending autosave was discarded without refusal, because `before` was captured after `await commitDurableWrites()`. The original failure was run 38486709664 on probe `39a900183` (`e2e/leave-second-checker.spec.ts:106`, assertion `:135`). Fresh reproduction was run 38798506098 (`fbb83d01`).
