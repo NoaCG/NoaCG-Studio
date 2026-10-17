@@ -701,8 +701,8 @@ export function planFor(
  * the 52 s of per-shard setup costs more than it saves" was understating its own case. Making a
  * shard cheap is what makes sharding finely correct.
  *
- * The full plan is now 169.4 measured minutes (2026-10-11, run 38144735534), so this target
- * asks for 57 shards and the ceiling below holds it. Whatever the target says, a full run always
+ * The full plan is now 183.3 slow-runner minutes (2026-10-17, six runs to 39000659873), so this
+ * target asks for 62 shards and the ceiling below holds it. Whatever the target says, a full run always
  * gets exactly MAX_SHARDS runners, so that ceiling is what decides whether the suite fits.
  */
 export const SHARD_TARGET_MINUTES = 3;
@@ -722,8 +722,21 @@ export const SHARD_TARGET_MINUTES = 3;
  * 16.0, and 15.7 when packed by that run and replayed on run 38149569873's file costs. When
  * `emitJson` warns that the plan does not fit again, re-record the table first and raise this
  * only if the re-recorded plan still does not fit.
+ *
+ * ELEVEN TO THIRTEEN on 2026-10-17, and the margin is now checked against the SLOWEST RUNNER, not
+ * the table. Eleven lost a shard at the cap on 32 of the 55 full main runs from 2026-10-15 04:00
+ * to 2026-10-17 04:00 while the table said 15.6 minutes: a one-run table hid the runner lottery (scripts/e2e-durations.mjs header).
+ * Re-recorded at the slow-runner percentile over six runs, the suite is 183.3 table-minutes, not
+ * 165.9. Twelve bins then predict 15.8 and pass the rule above, but scored with each spec's fitted
+ * cost at every runner speed seen in 152 shards (14 full main runs to 2026-10-17), the heaviest of
+ * twelve reaches 18.4 on the slowest runner and is inside the three-minute band for 10% of
+ * shard-runner pairs; the heaviest of thirteen reaches 16.7, outside it for all of them. So the
+ * rule is now: the smallest count whose heaviest bin keeps three minutes on the slowest runner
+ * measured. Two more shards cost about one runner-minute per full run (each adds ~0.4 of setup
+ * and ~0.15 of Playwright start; the tests are the same minutes split thinner), against the
+ * ~45 a shard killed at the cap costs in its dead 20 minutes and the retry's re-run.
  */
-export const MAX_SHARDS = 11;
+export const MAX_SHARDS = 13;
 
 /**
  * HOW MANY RUNNERS THIS PLAN IS WORTH, from measured minutes rather than from a file count.

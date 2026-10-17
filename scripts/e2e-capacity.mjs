@@ -50,8 +50,22 @@ import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Runners one full main run may hold; see the header before changing it. */
-export const MAIN_RUNNERS = 11;
+/**
+ * Runners one full main run may hold; see the header before changing it.
+ *
+ * 11 -> 13 on 2026-10-17, with MAX_SHARDS, because the 11 was sized on a table that read 10%
+ * light: recorded from one run, it priced specs measured on fast runners as if every runner were
+ * fast (scripts/e2e-durations.mjs header). At the slow-runner percentile the suite is 183.3
+ * table-minutes, 101% of eleven runners - it had not fitted for days, which 32 of the 55 full
+ * main runs from 2026-10-15 04:00 to 2026-10-17 04:00 showed by losing a shard at the cap. Against the twenty-job ceiling: the
+ * full run's shards hold about the same slot-minutes as before (the same tests split thinner, plus
+ * ~0.5 per added shard), two more slots for two to three fewer minutes. A main run's own peak was
+ * 11, 13 and 14 concurrent jobs on runs 38986504813, 38990305985 and 38997059058 (the shards
+ * start after build, factory and the Vercel wait have mostly finished), so 13-16 from now on.
+ * This restores the fit; it is not the long-term answer the suite budget spec asks for
+ * (docs/work-specs/e2e-suite-budget/spec.md), which is holding and then cutting the minutes.
+ */
+export const MAIN_RUNNERS = 13;
 /** Usage above which every pull request is warned. */
 export const WARN_SHARE = 0.85;
 /** Usage above which added spec-minutes need a recorded, expiring exception. */

@@ -49,9 +49,26 @@
 //
 // HOW TO REFRESH IT. `npm run record:e2e-durations` does the whole thing. The numbers come from a
 // real CI run's shard reports, because that is the hardware they are used on - a laptop's timings
-// are a different machine's - so the command picks the newest GREEN FULL run of ci.yml on `main`
-// (main always runs full), downloads its blob reports, merges them and rewrites the table,
-// stamping which run it came from. Name a run id to use that one instead.
+// are a different machine's - so the command picks the newest GREEN FULL runs of ci.yml on `main`
+// (main always runs full), up to `RECORD_RUNS` of them, downloads and merges each run's blob
+// reports, and records every spec at its `RECORD_PERCENTILE` across those runs, stamping which runs
+// it came from. Name a run id to record from that one run alone.
+//
+// WHY SEVERAL RUNS AND A HIGH PERCENTILE, NOT THE NEWEST RUN. GitHub hands a shard one of two
+// kinds of runner, and they are not close: fitted over the 152 shards of 14 full main runs to
+// 2026-10-17 (every file's time = its shard's runner speed x the file's own cost, which fits
+// each shard's total within 0.3%), the shard speeds split into a fast group at 0.68-0.95 and a slow
+// group at 1.00-1.10, 45% and 55% of shards. A spec measured on a fast runner is under-weighted by
+// up to a third, so a table recorded from ONE run carries that run's runner lottery in every
+// entry: bins that balance on it are 0.7x to 1.4x apart in truth. The planner's 17-minute line
+// (the 20-minute cap less 3 of safety) was met on paper while shards ran 12 to 20+ minutes: run
+// 38997059058 packed equal 15.1 table-minute bins, and one was cancelled at 20 while the fastest
+// finished in 12.6. A runner moves all the files of its shard together, so a spec's 80th
+// percentile over six runs is its time on a slow runner whatever bins it shared, and one hung test
+// cannot set it. Two limits: a spec only one or two of the runs carried (a new one) keeps what
+// those runs measured until more do, and only green runs are sampled, which leans fast while
+// shards are still dying at the cap - MAX_SHARDS (scripts/e2e-affected.mjs) was checked against
+// every runner speed measured, cancelled runs included, for that reason.
 //
 // A HALF-RUN IS REFUSED, not silently recorded: a run whose E2E jobs are not all `(full)`, or that
 // is missing a shard, measures a SUBSET, and writing that would drop every unmeasured spec back to
@@ -108,6 +125,40 @@ export function readTable() {
   } catch {
     return { source: {}, minutes: {}, overhead: { ...DEFAULT_OVERHEAD } };
   }
+}
+
+/** How many recent green full runs a recording reads. See the header for why more than one. */
+export const RECORD_RUNS = 6;
+/** The percentile across those runs a spec is recorded at: its time on a slow runner. */
+export const RECORD_PERCENTILE = 0.8;
+/**
+ * The fewest runs a default recording accepts. Fewer, and it refuses rather than writing a table
+ * that carries one or two runs' runner lottery again; name a run id to record one on purpose.
+ */
+export const MIN_RECORD_RUNS = 3;
+/** Blob reports are kept 7 days; only runs younger than this are picked, so each still has them. */
+const REPORT_DAYS = 6;
+
+/**
+ * ONE TABLE FROM SEVERAL RUNS: each spec at the `p`-th percentile (nearest rank) of the runs that
+ * measured it. A spec only some runs carried is recorded from those; none is dropped or invented.
+ * Pure, so the rule is pinned by a test rather than by a week of CI.
+ *
+ * @param {Array<Record<string, number>>} perRun one `minutesByFile` map per run
+ * @param {number} [p]
+ * @returns {Record<string, number>}
+ */
+export function slowRunnerMinutes(perRun, p = RECORD_PERCENTILE) {
+  const samples = new Map();
+  for (const minutes of perRun) {
+    for (const [file, value] of Object.entries(minutes)) {
+      if (!samples.has(file)) samples.set(file, []);
+      samples.get(file).push(value);
+    }
+  }
+  return Object.fromEntries(
+    [...samples].map(([f, values]) => [f, Number(percentile(values, p).toFixed(3))]).sort(([a], [b]) => (a < b ? -1 : 1)),
+  );
 }
 
 /**
@@ -444,14 +495,16 @@ export function quietBody({ facts }) {
 /** The pull request body, as markdown - the whole case for landing it, or for not opening it. */
 export function refreshBody(before, after, verdict, balance) {
   const { facts } = verdict;
-  const stamp = (table) => `run ${table.source.run ?? '?'} (${table.source.recordedAt ?? '?'})`;
+  const runs = (table) => (table.source.runs ? `runs ${table.source.runs.join(', ')}` : `run ${table.source.run ?? '?'}`);
+  const stamp = (table) => `${runs(table)} (${table.source.recordedAt ?? '?'})`;
   const row = (label, a, b) => `| ${label} | ${a} | ${b} |`;
   return [
-    `# The E2E durations table, re-recorded from run ${after.source.run ?? '?'}`,
+    `# The E2E durations table, re-recorded from ${runs(after)}`,
     '',
     '`scripts/e2e-durations.json` is the measured per-spec table `packShards` divides the E2E suite',
     'with, and the per-job overhead the plan judges a shard against its 20-minute cap with. This',
-    'branch re-records it from the newest green FULL `ci.yml` run on `main`.',
+    'branch re-records it from the newest green FULL `ci.yml` runs on `main`, each spec at its 80th',
+    'percentile across them: its time on a slow runner.',
     '',
     '## Why it is worth landing',
     '',
@@ -468,7 +521,7 @@ export function refreshBody(before, after, verdict, balance) {
     row('test factor', before.overhead.testFactor, after.overhead.testFactor),
     row('a shard can carry', `${budgetMinutes(before).toFixed(1)} table-min`, `${budgetMinutes(after).toFixed(1)} table-min`),
     row(
-      'slowest of the nine bins, both scored with this recording',
+      'slowest bin, both scored with this recording',
       `${balance.before.slowest.toFixed(1)} table-min`,
       `${balance.after.slowest.toFixed(1)} table-min`,
     ),
@@ -490,7 +543,7 @@ export function refreshBody(before, after, verdict, balance) {
     'on it. `Reviewed` stays red until the review stamp exists, and `/queue-merge` re-runs it once it',
     'has posted the stamp. Auto-merge takes it from there.',
     '',
-    `Opened by \`.github/workflows/e2e-durations-refresh.yml\`; \`node scripts/e2e-durations.mjs --refresh ${after.source.run ?? ''}\` reproduces it.`,
+    `Opened by \`.github/workflows/e2e-durations-refresh.yml\`; \`node scripts/e2e-durations.mjs --refresh\` reproduces it while those runs' reports last.`,
   ].join('\n');
 }
 
@@ -501,6 +554,7 @@ function writeTable(minutes, source, overhead) {
     $comment: 'GENERATED - do not hand-edit. See scripts/e2e-durations.mjs for how to refresh it and why it exists.',
     source: {
       run: source.run,
+      ...(source.runs ? { runs: source.runs, percentile: RECORD_PERCENTILE } : {}),
       workflow: 'ci.yml',
       branch: source.branch,
       sha: source.sha,
@@ -545,27 +599,67 @@ export function fullRunRefusal(jobs) {
   return null;
 }
 
-/** The newest green FULL ci.yml run on `main`, as `{ id, sha }`. Throws if none is in reach. */
-function newestFullRun() {
+/**
+ * The newest green FULL ci.yml runs on `main` young enough to still have their blob reports,
+ * newest first, as `{ id, sha }` - at most `count`. Sixty are listed because most main runs are
+ * superseded or cancelled.
+ */
+function newestFullRuns(count) {
+  const since = Date.now() - REPORT_DAYS * 86_400_000;
   const candidates = JSON.parse(
-    run('gh', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '20',
-      '--json', 'databaseId,conclusion,headSha']),
-  ).filter((r) => r.conclusion === 'success');
+    run('gh', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--event', 'push', '--limit', '60',
+      '--json', 'databaseId,conclusion,headSha,createdAt']),
+  ).filter((r) => r.conclusion === 'success' && Date.parse(r.createdAt) >= since);
+  const found = [];
   for (const candidate of candidates) {
+    if (found.length >= count) break;
     const { jobs } = JSON.parse(run('gh', ['run', 'view', String(candidate.databaseId), '--json', 'jobs']));
     const refusal = fullRunRefusal(jobs);
     if (refusal) {
       console.log(`e2e-durations: skipping run ${candidate.databaseId} - ${refusal}.`);
       continue;
     }
-    return { id: String(candidate.databaseId), sha: candidate.headSha };
+    found.push({ id: String(candidate.databaseId), sha: candidate.headSha });
   }
-  throw new Error('no green FULL ci.yml run on main in the last 20 - name a run id, or push one.');
+  return found;
 }
 
-/** Download a run's shard reports, merge them, and rewrite the table from what they measured. */
+/**
+ * One run's per-spec minutes: its shard reports downloaded and merged. Any failure THROWS: a run
+ * quietly skipped would leave a recording of fewer runs than it says, and the refresh restores the
+ * table it started with on a throw.
+ */
+function measureRun(runId, work) {
+  const blobs = join(work, `blobs-${runId}`);
+  const flat = join(work, `flat-${runId}`);
+  mkdirSync(flat, { recursive: true });
+  run('gh', ['run', 'download', runId, '--pattern', 'blob-report-*', '--dir', blobs], { stdio: 'inherit' });
+  // merge-reports wants every zip in ONE directory; `gh` gives each artifact its own.
+  let zips = 0;
+  for (const dir of readdirSync(blobs)) {
+    for (const file of readdirSync(join(blobs, dir))) {
+      if (!file.endsWith('.zip')) continue;
+      copyFileSync(join(blobs, dir, file), join(flat, `${dir}-${file}`));
+      zips += 1;
+    }
+  }
+  if (zips === 0) throw new Error(`run ${runId} has no blob reports left - they expire after 7 days.`);
+  // The merged report goes to a FILE, never stdout. Playwright's JSON reporter prints to stdout
+  // and `merge-reports` exits the moment it returns; on Linux a write to a pipe is asynchronous,
+  // so the exit cut the report off mid-string (at 146 KB of about 2 MB on run 35591672899, the
+  // first scheduled refresh) and JSON.parse threw. On Windows, where this was first run by hand,
+  // the same pipe is synchronous, which is why it worked there and never in the workflow.
+  const report = join(work, `merged-${runId}.json`);
+  run('npx', ['playwright', 'merge-reports', '--reporter=json', flat], {
+    stdio: 'inherit',
+    env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: report },
+  });
+  return minutesByFile(JSON.parse(readFileSync(report, 'utf8')));
+}
+
+/** Download recent runs' shard reports and rewrite the table from what they measured. */
 function record(runId) {
-  let target;
+  let targets;
   if (runId) {
     const view = JSON.parse(run('gh', ['run', 'view', String(runId), '--json', 'jobs,headSha']));
     const refusal = fullRunRefusal(view.jobs);
@@ -573,58 +667,53 @@ function record(runId) {
       console.error(`e2e-durations: run ${runId} is not a whole full suite - ${refusal}. Refusing to record it.`);
       return 1;
     }
-    target = { id: String(runId), sha: view.headSha };
+    targets = [{ id: String(runId), sha: view.headSha }];
   } else {
-    target = newestFullRun();
+    targets = newestFullRuns(RECORD_RUNS);
+    if (targets.length < MIN_RECORD_RUNS) {
+      console.error(
+        `e2e-durations: only ${targets.length} green full run(s) on main in the last ${REPORT_DAYS} days, ` +
+          `and a recording needs ${MIN_RECORD_RUNS} - refusing. Name a run id to record one run on purpose.`,
+      );
+      return 1;
+    }
   }
-  console.log(`e2e-durations: recording from run ${target.id} (${target.sha.slice(0, 8)}).`);
 
   const work = mkdtempSync(join(tmpdir(), 'e2e-durations-'));
   try {
-    const blobs = join(work, 'blobs');
-    const flat = join(work, 'flat');
-    mkdirSync(flat, { recursive: true });
-    run('gh', ['run', 'download', target.id, '--pattern', 'blob-report-*', '--dir', blobs], { stdio: 'inherit' });
-    // merge-reports wants every zip in ONE directory; `gh` gives each artifact its own.
-    let zips = 0;
-    for (const dir of readdirSync(blobs)) {
-      for (const file of readdirSync(join(blobs, dir))) {
-        if (!file.endsWith('.zip')) continue;
-        copyFileSync(join(blobs, dir, file), join(flat, `${dir}-${file}`));
-        zips += 1;
-      }
-    }
-    if (zips === 0) throw new Error(`run ${target.id} has no blob reports left - they expire after 7 days.`);
-    // The merged report goes to a FILE, never stdout. Playwright's JSON reporter prints to stdout
-    // and `merge-reports` exits the moment it returns; on Linux a write to a pipe is asynchronous,
-    // so the exit cut the report off mid-string (at 146 KB of about 2 MB on run 35591672899, the
-    // first scheduled refresh) and JSON.parse threw. On Windows, where this was first run by hand,
-    // the same pipe is synchronous, which is why it worked there and never in the workflow.
-    const report = join(work, 'merged.json');
-    run('npx', ['playwright', 'merge-reports', '--reporter=json', flat], {
-      stdio: 'inherit',
-      env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: report },
+    const measuredRuns = targets.map((target) => {
+      console.log(`e2e-durations: measuring run ${target.id} (${target.sha.slice(0, 8)}).`);
+      return { ...target, minutes: measureRun(target.id, work) };
     });
-    const minutes = minutesByFile(JSON.parse(readFileSync(report, 'utf8')));
+    if (measuredRuns.some((r) => Object.keys(r.minutes).length === 0)) {
+      console.error('e2e-durations: a run merged to no test results - refusing to write the table.');
+      return 1;
+    }
+    const newest = measuredRuns[0];
+    const minutes = measuredRuns.length === 1 ? newest.minutes : slowRunnerMinutes(measuredRuns.map((r) => r.minutes));
+    console.log(
+      `e2e-durations: recording ${Object.keys(minutes).length} specs from ${measuredRuns.length} run(s)` +
+        (measuredRuns.length > 1 ? ` at the ${Math.round(RECORD_PERCENTILE * 100)}th percentile.` : '.'),
+    );
 
-    // The per-job OVERHEAD, from the same run. `gh run view --json jobs` does not carry step
-    // timings, so this asks the REST endpoint that does; a failure here is not fatal, because a
-    // refreshed per-spec table with last week's overhead is strictly better than no refresh.
-    const totalMinutes = totalOf(minutes);
+    // The per-job OVERHEAD, from the newest run, against that run's OWN test total: the test factor
+    // is what a step costs beyond its tests on the same runner, not a comparison across runners.
+    // `gh run view --json jobs` does not carry step timings, so this asks the REST endpoint that
+    // does; a failure here is not fatal, because a refreshed per-spec table with last week's
+    // overhead is strictly better than no refresh.
     let overhead = null;
     try {
       // `per_page=100` rather than `--paginate`: this endpoint answers with an OBJECT, and
       // `--paginate` concatenates one JSON document per page, which `JSON.parse` refuses the
       // moment a run has more than 30 jobs. That failure would land in the catch below and read
       // as "no job timings in reach", quietly freezing the overhead at whatever was last
-      // recorded. A ci.yml run is ~16 jobs against a 20-concurrent-job account ceiling, so one
-      // page of 100 is the whole answer with room to spare.
+      // recorded. A ci.yml run is ~20 jobs, so one page of 100 is the whole answer.
       const payload = JSON.parse(
-        run('gh', ['api', `repos/{owner}/{repo}/actions/runs/${target.id}/jobs?per_page=100`]),
+        run('gh', ['api', `repos/{owner}/{repo}/actions/runs/${newest.id}/jobs?per_page=100`]),
       );
-      overhead = overheadFrom(payload.jobs, totalMinutes);
+      overhead = overheadFrom(payload.jobs, totalOf(newest.minutes));
     } catch (error) {
-      console.log(`e2e-durations: could not read run ${target.id}'s job timings (${error.message.split('\n')[0]}).`);
+      console.log(`e2e-durations: could not read run ${newest.id}'s job timings (${error.message.split('\n')[0]}).`);
     }
     if (overhead) {
       console.log(
@@ -635,10 +724,9 @@ function record(runId) {
       console.log('e2e-durations: no shard job timings in reach - keeping the overhead already recorded.');
     }
 
-    if (writeTable(minutes, { run: target.id, branch: 'main', sha: target.sha }, overhead) === 0) {
-      console.error(`e2e-durations: run ${target.id} merged to no test results - refusing to write an empty table.`);
-      return 1;
-    }
+    const source = { run: newest.id, branch: 'main', sha: newest.sha };
+    if (measuredRuns.length > 1) source.runs = measuredRuns.map((r) => r.id);
+    writeTable(minutes, source, overhead);
     return 0;
   } finally {
     rmSync(work, { recursive: true, force: true });

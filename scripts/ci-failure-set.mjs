@@ -136,12 +136,17 @@ export function failureSet(jobs, annotationsFor = () => []) {
     reason: sorted.length > 0 ? null : emptyReason({ jobs, anyFailed, derivedFailed, cancelled }),
     // `unknown` is load-bearing - see the header. It is NOT a hash of the empty string, because a
     // caller comparing hashes must never find two unclassifiable runs equal to each other.
-    hash: sorted.length === 0 ? 'unknown' : createHash('sha1').update(sorted.join('\n')).digest('hex').slice(0, 12),
+    hash: setHash(sorted),
     /** Jobs that were cancelled - a shard at its cap, or a run superseded mid-flight. */
     cancelled,
     /** Nothing reported a fault, and at least one job never got to finish. */
     exhausted: !anyFailed && cancelled.length > 0,
   };
+}
+
+/** The stable short hash of a sorted set; `unknown` for an empty one, which never equals another. */
+export function setHash(sorted) {
+  return sorted.length === 0 ? 'unknown' : createHash('sha1').update(sorted.join('\n')).digest('hex').slice(0, 12);
 }
 
 /**

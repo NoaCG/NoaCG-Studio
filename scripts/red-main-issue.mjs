@@ -28,7 +28,7 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describeFailureSet, fetchFailureSet, ghJsonLines, mainPushRuns } from './ci-failure-set.mjs';
+import { describeFailureSet, fetchFailureSet, ghJsonLines, jobIdentity, mainPushRuns, setHash } from './ci-failure-set.mjs';
 import { spawnRunner } from './queue-pr.mjs';
 import { revertLanding } from './revert-landing.mjs';
 
@@ -139,30 +139,35 @@ export function marker(hash) {
 }
 
 /**
+ * A JOB THAT RAN OUT OF TIME IS NAMED, NEVER CALLED GREEN. GitHub records a job killed by its own
+ * `timeout-minutes` as `cancelled`. Until 2026-10-17 the alarm filed nothing for such a run, and
+ * when the E2E retry re-ran the files of a shard killed at its cap and they passed, the gate passed
+ * and the issue was closed "Green again" - issue #1348, after shard 6 of run 38990305985 was
+ * cancelled twice at 20 minutes. 32 of the 55 full main runs in the two days to then lost a shard
+ * at the cap, and the alarm said nothing about any of them, because nothing had FAILED.
+ *
+ * Both halves of the 2026-09-04 lesson still hold. Issue #52 reported "something this gate could
+ * not name" for four shards killed at the cap: an invented fault. So the set names the job that hit
+ * its limit, as such, and claims no test failed; and a run that only ran out of time reverts
+ * nothing (`shouldRevert`). The shard index is left out of the identity (`jobIdentity`), so the
+ * next commit's timeout on a different shard is a repeat, not news.
+ *
+ * @returns {{ items: string[], hash: string }} the set the issue reports and deduplicates on
+ */
+export function alarmSet({ items = [], hash = 'unknown', cancelled = [] } = {}) {
+  if (cancelled.length === 0) return { items, hash };
+  const all = [...new Set([...items, ...cancelled.map((name) => `time limit: ${jobIdentity(name)}`)])].sort();
+  return { items: all, hash: setHash(all) };
+}
+
+/**
  * What this run should do about the rolling issue.
  *
  * `bodies` is the issue body followed by its comments, oldest first - the issue as a reader sees
  * it. Pure, because this is the decision that either keeps the owner informed or quietly stops
  * telling him things, and it must be checkable without a repository or a network.
  */
-export function planRedMainComment({ existing = null, bodies = [], sha = '', hash = 'unknown', exhausted = false, cancelled = [] } = {}) {
-  // NOTHING FAILED, SO THERE IS NOTHING TO REPORT. Checked before every other rule, including the
-  // create branch, because this is the one case where the alarm's own message would be false.
-  //
-  // On 2026-09-04 run 33829325663 had four E2E shards killed at the job's 20-minute cap and every
-  // other job green. GitHub records a job killed by its own timeout as `cancelled`, one cancelled
-  // job makes the RUN cancelled, and the gate read that as red and opened issue #52: "Failing:
-  // something this gate could not name - open the run". It could not name one because there was
-  // none. That is not the eyes-closed failure the dedup rules below are written against - it is
-  // the opposite, an alarm inventing a fault - and the fix for a run that ran out of clock is to
-  // make the shards fit, which is ci.yml's business, not the owner's inbox.
-  if (exhausted) {
-    const what = cancelled.length ? cancelled.join(', ') : 'a job';
-    return {
-      action: 'withhold',
-      reason: `no job reported a fault - the run ran out of time (${what}). Nothing to name, so nothing is filed; the run is still not a pass`,
-    };
-  }
+export function planRedMainComment({ existing = null, bodies = [], sha = '', hash = 'unknown' } = {}) {
   if (!existing) return { action: 'create', reason: 'no open red-main issue yet' };
 
   // THE EXISTING REFUSAL, kept exactly as it was: a re-run of a commit already reported adds
@@ -192,8 +197,18 @@ export function planRedMainComment({ existing = null, bodies = [], sha = '', has
 }
 
 /** The issue body / comment text. The failing specs are IN it, so the alarm names the fault. */
-export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', retried = 0, rerun = 'skipped', revert = null }) {
-  const lines = [`Commit ${sha} failed CI: ${runUrl}`, '', `Failing: ${describeFailureSet(items, { max: 12 })}`];
+export function issueBody({ sha, runUrl, items, hash, cancelled = [], retry = 'skipped', retried = 0, rerun = 'skipped', revert = null }) {
+  const outOfTime = items.length === 0 && cancelled.length > 0;
+  const lines = [`Commit ${sha} ${outOfTime ? 'did not finish CI inside its time limits' : 'failed CI'}: ${runUrl}`];
+  if (!outOfTime) lines.push('', `Failing: ${describeFailureSet(items, { max: 12 })}`);
+  if (cancelled.length > 0) {
+    lines.push('', `Out of time: ${cancelled.join(', ')} hit the job time limit and ${cancelled.length === 1 ? 'was' : 'were'} cancelled.`);
+    if (outOfTime && retry === 'success') {
+      lines.push('', 'The retry job ran what never reported on this same commit and it passed, so no test is known to be broken and the gate passed on that answer. This is still not green: the full run no longer fits its time limit. Make the shards fit (`MAX_SHARDS` in scripts/e2e-affected.mjs, a re-recorded scripts/e2e-durations.json); a longer limit is not the fix.');
+    } else if (outOfTime) {
+      lines.push('', 'No job reported a fault, so nothing is named as broken and nothing is reverted; what ran out of time has no verdict.');
+    }
+  }
   // One sentence per kind of failure that is present, each saying what its second run found.
   // Neither sentence may claim a second run the other kind had.
   if (items.some(isSpecItem)) {
@@ -203,7 +218,7 @@ export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', retried
     else if (retry === 'cancelled') lines.push('', 'The retry job ran out of time, so the failed specs have no second verdict.');
     else lines.push('', 'No second run of the failed specs: this was not a main push.');
   }
-  if (items.length === 0 || items.some((i) => !isSpecItem(i))) {
+  if ((items.length === 0 && !outOfTime) || items.some((i) => !isSpecItem(i))) {
     if (rerun === 'failure') lines.push('', 'The failed job was re-run once on this same commit and failed again, so this is not a flake.');
     else if (rerun === 'success') lines.push('', 'The failed job passed when re-run on this same commit: a flaky test, not this landing. Nothing is reverted for it; the test needs fixing.');
     else if (rerun === 'cancelled') lines.push('', 'The re-run of the failed job ran out of time, so it has no second verdict.');
@@ -211,12 +226,14 @@ export function issueBody({ sha, runUrl, items, hash, retry = 'skipped', retried
   }
   if (revert?.status === 'queued') {
     lines.push('', `Reverting the batch: ${revert.url} - queued through the merge queue; main is green again when it lands, and this issue closes on that run.`);
-  } else if (revert) {
+  } else if (revert && !outOfTime) {
     lines.push('', `Not reverted automatically: ${revert.reason}.`);
   }
   lines.push(
     '',
-    'Main stays red until this is fixed or the revert lands. A repeat of this exact failure set',
+    outOfTime
+      ? 'This closes on the next main run that finishes every job in time. A repeat of this exact set'
+      : 'Main stays red until this is fixed or the revert lands. A repeat of this exact failure set',
     'will NOT comment again - a new or changed one always will.',
     '',
     marker(hash),
@@ -245,11 +262,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const repo = process.env.GH_REPO;
   const retry = process.env.RETRY_RESULT ?? 'skipped';
   const { items, hash, exhausted, cancelled } = fetchFailureSet(process.env.RUN_ID, { repo });
+  // What the issue reports and deduplicates on: the failures plus any job that hit its time limit.
+  // The revert below reads the failures alone - running out of time names no culprit.
+  const alarm = alarmSet({ items, hash, cancelled });
   const existing = findIssue();
   // `readBodies` on a live issue returns the body plus every comment; joined with newlines by the
   // jq filter above, so a comment is one element per line - which is enough for both the substring
   // checks the decision makes, and cheaper than paging structured comment objects.
-  const decision = planRedMainComment({ existing, bodies: existing ? readBodies(existing) : [], sha, hash, exhausted, cancelled });
+  const decision = planRedMainComment({ existing, bodies: existing ? readBodies(existing) : [], sha, hash: alarm.hash });
 
   // THE REVERT, decided before the issue is written so the issue can name it. The last verdict
   // is looked up lazily, only once the cheaper rules have not already said no.
@@ -275,14 +295,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     revert = { status: 'skipped', reason: verdict.reason };
     console.log(`::notice title=Revert::not reverting - ${verdict.reason}`);
   }
-  const body = issueBody({ sha, runUrl, items, hash, retry, retried, revert });
+  const body = issueBody({ sha, runUrl, items, hash: alarm.hash, cancelled, retry, retried, revert });
 
   if (decision.action === 'create') {
     console.log(`Filing the red-main issue: ${decision.reason}`);
     gh(['issue', 'create', '--title', TITLE, '--body', body]);
   } else if (decision.action === 'comment') {
     console.log(`Commenting on issue #${existing}: ${decision.reason}`);
-    gh(['issue', 'comment', String(existing), '--body', `Still red. ${body}`]);
+    gh(['issue', 'comment', String(existing), '--body', `${items.length === 0 && cancelled.length > 0 ? 'Still not green.' : 'Still red.'} ${body}`]);
   } else {
     // A notice rather than silence: whoever opens the run must be able to see that the alarm
     // CHOSE not to comment, and why. An alarm that suppresses invisibly is indistinguishable

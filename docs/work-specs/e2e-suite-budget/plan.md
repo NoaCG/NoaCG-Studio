@@ -122,3 +122,20 @@ What the next phase must allow for:
   miss count from #1043's weekly step is what the batched-validation rollout (phase 2) waits on.
 - Before/after for AC-10 is not yet measurable: the first full week under these changes is the
   week of 2026-10-13. Re-run `evidence/scripts/analyze-jobs.mjs` and `replay-cadence.mjs` over it.
+
+### 2026-10-17, the table was measured on the fast runners
+
+- 32 of the 55 full main runs from 2026-10-15 04:00 to 2026-10-17 04:00 lost a shard at the
+  20-minute cap; the retry answered for each, so the gate stayed green and the red-main issue was
+  closed "Green again" (#1348). Cause: GitHub gives a shard a fast or a slow runner (fitted shard
+  speeds 0.68-0.95 and 1.00-1.10 over 152 shards of 14 runs), and a table recorded from one run
+  priced the specs that ran on fast runners in that run as if every runner were fast.
+- `scripts/e2e-durations.mjs` now records each spec at its 80th percentile over the six newest
+  green full runs: 183.3 table-minutes where the one-run table said 165.9. Capacity readings
+  before and after this change are not comparable; the old 92% was 101% of eleven runners.
+- `MAX_SHARDS` and `MAIN_RUNNERS` went 11 -> 13: the heaviest of thirteen bins keeps 3.3 minutes
+  on the slowest runner measured, twelve would not. Usage is 85.7% of the new envelope, still
+  above the warning line. Phase 3 maintenance is what brings it under; the first candidate
+  (`candidates.md` #1, 7.4 minutes) alone would make it about 82%.
+- A job killed at its time limit on main is now reported in the red-main issue as out of time and
+  keeps it open (`alarmSet` in `scripts/red-main-issue.mjs`); it never names a failure or reverts.
