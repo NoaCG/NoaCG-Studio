@@ -300,7 +300,9 @@ export function validateAgainstTree(rule, root, files = []) {
   // refused only an EMPTY scope, so nothing said a word.
   // No listing means no checkout to check against - a test fixture, a tarball - and a gate that
   // fires where it cannot see is worse than no gate. Stand down rather than refuse everything.
-  for (const glob of files.length === 0 ? [] : rule.scope) {
+  // A RETIRED rule never loads by design and is never deleted (contracts/README.md), so its scope
+  // is history: the code it pinned is routinely gone, and that is not the silent failure above.
+  for (const glob of files.length === 0 || rule.status === 'retired' ? [] : rule.scope) {
     if (glob === '**') continue;
     if (!files.some((file) => globMatches(glob, file))) {
       problems.push(
@@ -665,7 +667,10 @@ function renderIndex(rules) {
   for (const rule of [...rules].sort((a, b) => a.id.localeCompare(b.id))) {
     const carried = rule.carried ? ' (carried)' : '';
     const first = oneLine(rule.body).split(/(?<=[.!?])\s/)[0].replace(/\|/g, '\\|');
-    lines.push(`| \`${rule.id}\` | ${rule.kind} | ${rule.fires}${carried} | ${rule.status} | ${rule.scope.map((s) => `\`${s}\``).join(', ')} | ${first} |`);
+    // A retired rule's scope is printed as plain text: it may name files that no longer exist,
+    // which is history here and a dangling reference to the freshness gate when backticked.
+    const scope = rule.status === 'retired' ? rule.scope.join(', ') : rule.scope.map((s) => `\`${s}\``).join(', ');
+    lines.push(`| \`${rule.id}\` | ${rule.kind} | ${rule.fires}${carried} | ${rule.status} | ${scope} | ${first} |`);
   }
   lines.push('');
   return lines.join('\n');

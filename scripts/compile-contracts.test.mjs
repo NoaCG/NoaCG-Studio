@@ -427,6 +427,10 @@ test('a scope that matches no file is refused, because that rule would never loa
   assert.deepEqual(withFiles([]), [], 'no listing means no checkout - the check stands down rather than refusing everything');
   const everywhere = parseRule('contracts/rules/a/b.md', GOOD.replace(/scope: .*/, 'scope: **')).rule;
   assert.deepEqual(validateAgainstTree(everywhere, '/tmp', ['anything.ts']), [], '** always matches');
+  // A RETIRED rule keeps its scope as history and never loads anyway, so the code it pinned may
+  // be gone: the old code editor's rules outlived AppShell.tsx on 2026-10-17 by design.
+  const retired = parseRule('contracts/rules/a/b.md', rule.replace(/status: .*/, 'status: retired')).rule;
+  assert.deepEqual(validateAgainstTree(retired, '/tmp', ['src/real/thing.ts']), [], 'a retired rule may name files that are gone');
 });
 
 test('only a ** rule reaches the root contract; a rule spanning two owned folders goes to each', () => {
