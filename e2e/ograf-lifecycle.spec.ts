@@ -6,6 +6,9 @@
 // as a component of a page that loaded long ago and outlives it, so graphic.mjs gives the
 // template both halves back: its DOM-ready code runs after its whole script (#964), and dispose()
 // stops the timers its code started (#989) and removes the listeners and observers it added (#998).
+// A graphic set to leave by itself after N ms leaves after its entrance and that hold, as it does
+// in the studio preview, SPX and the HTML overlay, unless a later action or dispose() cancels it
+// (#1012).
 //
 // Every package is built by the real OGraf target from a template the real generators made, and
 // mounted the way a renderer mounts it: import graphic.mjs, define the element, append it, load().
@@ -19,15 +22,22 @@ const ORIGIN = 'http://ograf-lifecycle.local';
 const START = new Date('2026-10-11T12:00:00Z');
 const PAUSED_AT = new Date('2026-10-11T12:00:30Z');
 
-type Result = { statusCode: number; statusMessage?: string };
-type Driver = HTMLElement & Record<'load' | 'playAction' | 'dispose', (p: unknown) => Promise<Result>>;
+type Result = { statusCode: number; statusMessage?: string; currentStep?: number };
+type Action = 'load' | 'playAction' | 'stopAction' | 'dispose';
+type Driver = HTMLElement & Record<Action, (p: unknown) => Promise<Result>>;
+/** A graphic to build, with its SPX `out` setting when the case sets one. */
+type Source = GraphicSource & { out?: string };
 
-/** Build each source's package in the app, then open a bare renderer page serving each under `/<key>/`. */
-async function openRenderer(page: Page, sources: Record<string, GraphicSource>) {
+/**
+ * Build each source's package in the app, then open a bare renderer page serving each under
+ * `/<key>/`. Answers the packages' files by key.
+ */
+async function openRenderer(page: Page, sources: Record<string, Source>) {
   await page.goto('/app');
   const packages = new Map<string, Map<string, Buffer>>();
   for (const [key, source] of Object.entries(sources)) {
-    const files = await ografFiles(page, await graphicTemplate(page, source));
+    const template = (await graphicTemplate(page, source)) as { settings: Record<string, string> };
+    const files = await ografFiles(page, source.out ? { ...template, settings: { ...template.settings, out: source.out } } : template);
     if (typeof files !== 'object') throw new Error(`${key} did not build: ${files}`);
     packages.set(key, files);
   }
@@ -43,10 +53,11 @@ async function openRenderer(page: Page, sources: Record<string, GraphicSource>) 
   await page.clock.install({ time: START });
   await page.goto(`${ORIGIN}/`);
   await page.clock.pauseAt(PAUSED_AT);
+  return packages;
 }
 
 /** Mount one package and call `action` on it; `load` mounts it first. Answers the ReturnPayload. */
-async function act(page: Page, key: string, action: 'load' | 'playAction' | 'dispose'): Promise<Result> {
+async function act(page: Page, key: string, action: Action): Promise<Result> {
   return page.evaluate(async ({ origin, key, action }) => {
     let el = document.querySelector(`[data-key="${key}"]`) as Driver | null;
     if (!el) {
@@ -57,8 +68,8 @@ async function act(page: Page, key: string, action: 'load' | 'playAction' | 'dis
       document.body.appendChild(el);
     }
     const params = action === 'load' ? { data: {}, renderType: 'realtime', renderCharacteristics: {} } : {};
-    const { statusCode, statusMessage } = await el[action](params);
-    return { statusCode, statusMessage };
+    const { statusCode, statusMessage, currentStep } = await el[action](params);
+    return { statusCode, statusMessage, currentStep };
   }, { origin: ORIGIN, key, action });
 }
 
@@ -211,4 +222,59 @@ test('dispose() removes the listeners and observers the template added (#998)', 
   const disposed = await counts();
   await fire();
   expect(await counts(), 'a listener or observer the template added still answers after dispose()').toEqual(disposed);
+});
+
+/** Counts each exit the graphic plays: the template's own stop(), wrapped where it is declared. */
+const EXIT_PROBE_JS = `
+var exitProbeStop = stop;
+stop = function () {
+  var probe = document.getElementById('exit-probe');
+  probe.setAttribute('data-exits', String(Number(probe.getAttribute('data-exits') || 0) + 1));
+  return exitProbeStop.apply(this, arguments);
+};`;
+
+test('a graphic set to leave by itself leaves after its entrance and hold, unless a later action cancels it (#1012)', async ({ page }) => {
+  const HOLD = 3_000;
+  const outs: Record<string, string> = { timed: String(HOLD), manual: 'manual', stopped: String(HOLD), replayed: String(HOLD), disposed: String(HOLD) };
+  const keys = Object.keys(outs);
+  const packages = await openRenderer(page, Object.fromEntries(keys.map((key): [string, Source] => [
+    key,
+    { kind: 'probe', name: `Exit Probe ${key}`, html: '<div id="exit-probe"></div>', css: '', js: EXIT_PROBE_JS, out: outs[key] },
+  ])));
+  // The entrance, read off the manifest: a timed playAction lasts the entrance, the hold and the exit.
+  const manifestOf = (key: string) => {
+    const files = packages.get(key)!;
+    const name = [...files.keys()].find((file) => file.endsWith('.ograf.json'))!;
+    return JSON.parse(files.get(name)!.toString('utf8')) as { stepCount: number; actionDurations: Array<{ type: string; duration: number }> };
+  };
+  const timed = manifestOf('timed');
+  const duration = (type: string) => timed.actionDurations.find((d) => d.type === type)!.duration;
+  const entrance = duration('playAction') - HOLD - duration('stopAction');
+  expect(timed.stepCount, 'a timed graphic plays in and out by itself').toBe(0);
+  expect(manifestOf('manual').stepCount).toBe(1);
+  expect(entrance, 'the probe has no entrance, so nothing proves the hold starts after it').toBeGreaterThan(0);
+
+  for (const key of keys) expect(await act(page, key, 'load'), `${key} did not load`).toEqual({ statusCode: 200 });
+  // Each probe element is held from the start, so it can still count once dispose() has taken it off the page.
+  const probes = await page.evaluateHandle((keys) => keys.map((key) => graphicBody(document.querySelector(`[data-key="${key}"]`)!).querySelector('#exit-probe')!), keys);
+  const exits = () => probes.evaluate((els, keys) => Object.fromEntries(els.map((el, i) => [keys[i], Number(el.getAttribute('data-exits') || 0)])), keys);
+
+  expect(await act(page, 'timed', 'playAction'), 'a timed graphic has no step to report').toEqual({ statusCode: 200 });
+  expect(await act(page, 'manual', 'playAction')).toEqual({ statusCode: 200, currentStep: 0 });
+  for (const key of ['stopped', 'replayed', 'disposed']) expect(await act(page, key, 'playAction')).toEqual({ statusCode: 200 });
+  await page.clock.runFor(1_000);
+  expect(await act(page, 'stopped', 'stopAction')).toEqual({ statusCode: 200 });
+  expect(await act(page, 'disposed', 'dispose')).toEqual({ statusCode: 200 });
+  await page.clock.runFor(1_000);
+  expect(await act(page, 'replayed', 'playAction')).toEqual({ statusCode: 200 });
+  // 2 s in. The first plays' holds end HOLD after their entrances have landed.
+  await page.clock.runFor(entrance + HOLD - 2_000 - 50);
+  expect(await exits(), 'a timed graphic left before its entrance and hold were over').toEqual({ timed: 0, manual: 0, stopped: 1, replayed: 0, disposed: 0 });
+  await page.clock.runFor(100);
+  expect(await exits(), 'the timed graphic did not leave by itself, or a cancelled exit still ran').toEqual({ timed: 1, manual: 0, stopped: 1, replayed: 0, disposed: 0 });
+  // The second play scheduled an exit of its own, 2 s after the first one's.
+  await page.clock.runFor(2_000);
+  expect(await exits(), 'a replayed graphic did not leave after its second hold').toEqual({ timed: 1, manual: 0, stopped: 1, replayed: 1, disposed: 0 });
+  await page.clock.runFor(10_000);
+  expect(await exits(), 'a graphic waiting for Stop left by itself, or an exit ran twice').toEqual({ timed: 1, manual: 0, stopped: 1, replayed: 1, disposed: 0 });
 });

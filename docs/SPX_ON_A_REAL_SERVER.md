@@ -383,7 +383,8 @@ controller's own functions and buttons, with a second page on `/renderer` at 192
 **What changed, all in `src/export/targets/ograf.ts`, and why that shape.**
 
 - **Manifest hints.** A manifest-level `v_spx` gives `playlayer` and `webplayout` (the native SPX
-  export's layer, `spxLayerFor`) and `out: manual`; each property gets a `v_spx` with its SPX
+  export's layer, `spxLayerFor`) and `out: manual` (since issue #1012 the graphic's own out mode,
+  not yet measured here for one that leaves by itself); each property gets a `v_spx` with its SPX
   field type (`items` for a dropdown, `assetfolder` and `extension` for a file list). A checkbox
   gets none, because SPX's own boolean conversion is the one that writes "1"/"0". `v_` keys are
   the spec's vendor door: the official schema check (`node scripts/check-ograf-schema.mjs --from`

@@ -113,7 +113,9 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
         };
         const max5 = (n: unknown) => String(Math.min(5, parseInt(String(n))));
         const layers = [max5(manifest.v_spx?.playlayer) || '1', max5(manifest.v_spx?.webplayout) || '1'];
-        if (!layers.every((l) => ['1', '2', '3', '4', '5'].includes(l)) || layers[0] !== layers[1] || manifest.v_spx?.out !== 'manual') {
+        // The out mode is the design's own, so SPX times one that leaves by itself (#1012).
+        const out = template.settings.out || 'manual';
+        if (!layers.every((l) => ['1', '2', '3', '4', '5'].includes(l)) || layers[0] !== layers[1] || manifest.v_spx?.out !== out) {
           failures.push(`${template.name} (SPX import): layers ${layers.join('/')}, out ${manifest.v_spx?.out}`);
         }
         for (const field of template.fields) {
