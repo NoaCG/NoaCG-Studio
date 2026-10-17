@@ -191,8 +191,9 @@ for (const door of ['topbar', 'leave', 'first-named', 'first-kept', 'save-as'] a
     await arm(page, w, 'refuse');
     await press(page, door, editFor(door, w));
     await expect.poll(() => acted(page)).toEqual([`refuse ${w}`]);
-    if (w === 'F') {
-      // F carries what K already made durable: the save stands, and nothing is announced.
+    if (w === 'F' || w === 'R') {
+      // F carries what K already made durable, and K names the record R reserved: either
+      // refusal loses nothing, so the save stands and nothing is announced.
       await landed(page, door);
     } else {
       await refusedHere(page, door);
@@ -218,13 +219,16 @@ for (const [door, w] of [['leave', 'L'], ['leave', 'K'], ['leave', 'F'], ['first
     await arm(page, w, 'refuse');
     await press(page, door, editFor(door, w));
     await expect.poll(() => acted(page)).toEqual([`refuse ${w}`]);
-    if (w === 'F') await landed(page, door); else await refusedHere(page, door);
+    const stands = w === 'F' || w === 'R';
+    if (stands) await landed(page, door); else await refusedHere(page, door);
     const requested = await source(page);
     await page.evaluate(() => new Promise(r => setTimeout(r, 1000)));
     await settleDurableWrites(page); await page.reload();
     await expect(page.getByTestId('editor-foundation').or(page.getByTestId('home-page')).first()).toBeVisible();
-    if (w === 'F') {
-      expect(await link(page)).toMatchObject({ graphicId: before[0].id, dirty: false });
+    if (stands) {
+      const record = await saved(page, door, before);
+      expect(body(record.template)).toEqual(body(requested));
+      expect(await link(page)).toMatchObject({ graphicId: record.id, dirty: false });
       expect(await newAsks(page)).toBe(0);
       return;
     }
@@ -275,6 +279,42 @@ for (const [door, w] of [['leave', 'L'], ['leave', 'K'], ['leave', 'F'], ['first
     const again = await saved(page, door, before);
     expect(again.id).toBe(record.id); expect(body(again.template)).toEqual(body(newer));
     await settledClean(page, leaves(door) ? 'leave' : 'topbar', record.id);
+  });
+}
+
+// ── An autosave that fires between the reservation and the link, then K refused and a reload ──
+
+// The kept name: a new name's adoption schedules a later autosave that relinks on its own.
+for (const door of ['first-kept'] as Door[]) {
+  test(`matrix reservation kept: ${door} / L held, an autosave fires, K refused, reload`, async ({ page }) => {
+    test.setTimeout(120_000);
+    const { before } = await prepare(page, door);
+    await arm(page, 'L', 'hold');
+    await arm(page, 'K', 'refuse');
+    await press(page, door);
+    await releasable(page);
+    // An edit while the record waits: its 800 ms autosave fires before the link write is made.
+    const slotPuts = () => page.evaluate(() => performance.getEntriesByName('matrix-slot').length);
+    await page.evaluate(() => {
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(value, key) { if (key === 'spx-gfx-project') performance.mark('matrix-slot'); return put.call(this, value, key); };
+    });
+    await commandEdit(page);
+    await expect.poll(slotPuts, { timeout: 5000 }).toBeGreaterThan(0);
+    await release(page);
+    await expect.poll(() => acted(page)).toEqual(['hold L', 'refuse K']);
+    await refusedHere(page, door);
+    const minted = (await library(page)).find(g => !before.some(b => b.id === g.id))!;
+    await page.evaluate(() => new Promise(r => setTimeout(r, 1000)));
+    await settleDurableWrites(page); await page.reload();
+    await expect(page.getByTestId('editor-foundation')).toBeVisible();
+    expect(await link(page), 'the autosave dropped the reservation, so the reload lost the minted record').toMatchObject({ graphicId: minted.id, dirty: true });
+    const newer = await source(page);
+    await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    const all = await library(page);
+    expect(all, 'a second record was minted for the same work').toHaveLength(before.length + 1);
+    expect(body(all.find(g => g.id === minted.id)!.template)).toEqual(body(newer));
   });
 }
 
@@ -379,7 +419,7 @@ for (const w of ['R', 'L', 'K', 'F'] as Write[]) {
     const go = async () => { await page.getByTestId('wz-finish-production-go').click(); await page.getByTestId('wz-finish-production-confirm-go').click(); };
     await go();
     await expect.poll(() => acted(page)).toEqual([`refuse ${w}`]);
-    if (w !== 'F') {
+    if (w !== 'F' && w !== 'R') {
       await expect(page.getByTestId('storage-alert')).toBeVisible();
       expect(await library(page)).toHaveLength(w === 'K' ? 1 : 0);
       await page.getByTestId('storage-alert-close').click();
@@ -415,9 +455,11 @@ for (const renamed of [false, true]) {
 
 // ── The leave continues once the save lands, however it was asked for (#1386) ──────────────
 
-for (const how of ['hash', 'back'] as const) {
+for (const how of ['hash', 'back', 'back without the Navigation API'] as const) {
   test(`matrix leave replay: ${how} -> first Save under a new name -> leaves`, async ({ page }) => {
     test.setTimeout(120_000);
+    // Browsers without `window.navigation` replay Back by counting, then check it arrived.
+    if (how !== 'hash' && how !== 'back') await page.addInitScript(() => { Object.defineProperty(window, 'navigation', { value: undefined, configurable: true }); });
     await open(page); await draw(page, .3); await settleDurableWrites(page);
     const editorUrl = page.url();
     if (how === 'hash') await page.evaluate(() => { location.hash = '#/home'; });

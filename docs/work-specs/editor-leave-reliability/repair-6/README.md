@@ -37,12 +37,20 @@ doors (`saveBuiltGraphic` through `LIBRARY_IO`). Every one calls `saveCurrentGra
 ## The design: one ordering rule, implemented once
 
 `src/store/saveActions.ts` runs each Save, Save As and Discard as one transaction, one at a time
-(`transaction`, a promise chain owned by the store, which every caller awaits). A save's order:
+(`transaction`, a promise chain owned by the store, which every caller awaits). An idle store starts
+the operation in the caller's turn, so its record is in the mirror when the call returns, as it
+always was. The maintained `project-format.spec.ts:277` reads it straight after an unawaited
+`saveGraphicAs`, and PR CI caught a first cut that deferred it. A save's order:
 
 1. Claim the slot writes already in flight (I, `unsettledWrites` in `durableStore`).
-2. First Save / Save As only: **reserve** the record's id in the slot (`reservedGraphicId`) and wait
-   for it. Refused, the save fails and nothing is minted.
-3. Write the record (L) under that id and wait.
+2. First Save / Save As only: **reserve** the record's id in the slot (`reservedGraphicId`), queued
+   in the same turn as the record. IndexedDB commits readwrite transactions on one store in the
+   order they were made, so R lands first. Every slot write carries the reservation until the
+   link write, autosaves that fire meanwhile included (`holdReservation` in `model/project.ts`).
+   This answers a Codex review finding: an autosave firing during the record wait dropped it. A
+   write of a replaced document never carries it, because the baseline must match. R's refusal is
+   claimed and fails nothing, since K names the record too.
+3. Write the record (L) under that id and wait for both.
 4. Wait for the writes claimed in 1, so the link lands after them.
 5. Write the link (K) and wait.
 6. Flush the source's pending autosave (A or N) and wait: `settleTrailingAutosave`. It carries
@@ -97,9 +105,11 @@ Fix, in `src/app/router.ts`: approval replays the attempted move onto its destin
 counting entries. A forward attempt (a hash change or Forward) pushes the attempted route. Back
 traverses to the attempted entry's Navigation API key where the browser has one, since an entry
 inserted after the restored one would put the editor's own previous frame entry under `go(-1)`.
-Otherwise it uses `go(-delta)` as before. The matrix's "leave replay" cases hold the link write
-until the renamed preview has loaded, which forces the losing order, for a hash change and for
-Back.
+Without the Navigation API (older Safari and Firefox), it counts with `go(-delta)` and then checks
+that the route moved within a second (`BACK_REPLAY_MS`). If it did not, it pushes the destination.
+This answers the second Codex finding. The matrix's "leave replay" cases hold the link write until
+the renamed preview has loaded, which forces the losing order. They cover a hash change, Back, and
+Back with `window.navigation` removed.
 
 ## The case matrix (`e2e/save-transaction.spec.ts`)
 
@@ -117,7 +127,8 @@ nothing, and the link after a reload.
 | replace during | K, F | (e) | (e) | (e) | (e) | (e) |
 | double submission | L | L | R, L | (c) | L | L, same name and renamed (export door) |
 | in flight at start (I, late refusal) | (f) | I | I | (c) | (f) | (g) |
-| leave replay after the frame navigated | – | – | hash, Back | (c) | – | – |
+| an autosave between R and K, K refused, reload | – | – | (h) | L held | (h) | (d) |
+| leave replay after the frame navigated | – | – | hash, Back, Back without Navigation API | (c) | – | – |
 
 Reasons for the cells without a case:
 
@@ -136,6 +147,9 @@ Reasons for the cells without a case:
   the draft still reads unsaved, so Open asks first.
 - (f) In-flight I at the start of a topbar Save or Save As is the same claim, made by the same
   function, as the two cases that run. Those two prove it is claimed before the record write.
+- (h) A new name's adoption schedules a later autosave that relinks the draft on its own (A2's
+  mechanism), so only the kept name isolates the reservation. Under the mutation that stops
+  carrying it, that case fails with its own message.
 - (g) The wizard writes no autosave of its own before the door: on `#/new` the template changes
   only through the door's apply.
 

@@ -15,7 +15,7 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { saveProject } from '../model/project';
+import { holdReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { uuid } from '../model/id';
@@ -33,9 +33,9 @@ function prepareEmptyOut() {
 
 /** Persist the working slot's save link NOW — the autosave subscription only fires on a
  *  template change, and a Save that changes nothing else must still survive a reload. */
-function persistLink(reservedGraphicId?: string): void {
+function persistLink(): void {
   const s = useTemplateStore.getState();
-  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, reservedGraphicId);
+  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
 }
 
 const LIBRARY_KEY = 'spx-gfx-graphics' as const;
@@ -64,8 +64,9 @@ async function settleClaimed(claims: Promise<string | null>[]): Promise<string |
 // once, for every caller:
 //
 //   1. claim the working-slot writes already in flight (an autosave whose timer had fired);
-//   2. first Save / Save As only: RESERVE the record's id in the slot and wait for it (#1383);
-//   3. write the library record and wait for it;
+//   2. first Save / Save As only: RESERVE the record's id in the slot, queued before the record
+//      (#1383);
+//   3. write the library record and wait for both;
 //   4. wait for the writes claimed in 1, so the link write lands after them;
 //   5. write the draft's link and wait for it;
 //   6. flush the source's pending autosave (an edit's timer, or the one the name adoption
@@ -75,10 +76,14 @@ async function settleClaimed(claims: Promise<string | null>[]): Promise<string |
 // or claimed has settled, and their refusals are the operation's own, answered by its dialog
 // rather than by the app's notice once the leave has gone on (#1382). Writes that anything else
 // makes meanwhile stay theirs, announced by the app.
-let lastTransaction: Promise<unknown> = Promise.resolve();
+// An idle store starts the operation in the caller's turn, as these functions always did: its
+// writes reach the mirror before the call returns (e2e/project-format.spec.ts reads the record
+// straight after an unawaited `saveGraphicAs`). A busy one queues it behind the running one.
+let running: Promise<void> | null = null;
 function transaction<T>(operation: () => Promise<T>): Promise<T> {
-  const run = lastTransaction.then(operation);
-  lastTransaction = run.catch(() => undefined);
+  const run = running ? running.then(operation) : operation();
+  const settled: Promise<void> = run.then(() => undefined, () => undefined).then(() => { if (running === settled) running = null; });
+  running = settled;
   return run;
 }
 
@@ -216,23 +221,24 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
  *  answer carries the record's id whenever one was minted, whether or not its link landed, so a
  *  caller that retries writes into it rather than minting again. */
 export function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
-  return transaction(() => mintGraphic(name));
+  return transaction(async () => {
+    try { return await mintGraphic(name); } finally { holdReservation(null); }
+  });
 }
 
 async function mintGraphic(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
   prepareEmptyOut();
   const s = useTemplateStore.getState();
   const inFlight = claimInFlight();
-  // Step 2: the id is durable in the slot BEFORE its record exists. A refused link write after
-  // a landed record used to leave the slot unlinked, and after a reload the next Save minted a
-  // second record (#1383). Refused here, nothing is minted.
+  // Step 2: the id is in the slot BEFORE its record exists. A refused link write after a landed
+  // record used to leave the slot unlinked, and after a reload the next Save minted a second
+  // record (#1383). Every slot write carries it until the link write, the autosaves that fire
+  // meanwhile included. It is queued in the same turn as the record, and IndexedDB commits
+  // transactions on one store in the order they were made, so it lands first. Its refusal is
+  // claimed and fails nothing: the link write names the record too.
   const id = uuid();
-  const reserveFailure = await commitSaveWrites(captureDurableWrites(SLOT_KEY, () => persistLink(id)).receipts);
-  if (reserveFailure) {
-    markSaveFailed(s);
-    await inFlight;
-    return { ok: false, error: reserveFailure };
-  }
+  holdReservation({ id, baseline: s.baseline });
+  const reserved = captureDurableWrites(SLOT_KEY, persistLink).receipts.map(commitDurableReceipt);
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
     id,
     name,
@@ -245,7 +251,7 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
     fromPack: s.saved.graphicId ? graphicById(s.saved.graphicId)?.fromPack ?? null : null,
   }));
   const failure = error ?? (await commitSaveWrites(receipts));
-  await inFlight;
+  await Promise.all([inFlight, settleClaimed(reserved)]);
   if (failure) {
     markSaveFailed(s);
     return { ok: false, error: failure };
@@ -259,6 +265,8 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   }
   // An unknown catalogue format is not a broken document, so the save lands and reports it.
   const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
+  // The link write names the record itself, so the reservation ends where it begins.
+  holdReservation(null);
   const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
   return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };

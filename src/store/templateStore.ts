@@ -337,7 +337,7 @@ const initialProject = loadProject();
 // links it back and the next Save writes into it rather than minting a duplicate (#1383). It
 // reads unsaved, as the refused save left it: the slot never said the link landed.
 const reservedId = initialProject?.reservedGraphicId;
-const relinked = !!reservedId && !!graphicById(reservedId);
+const relinked = !!reservedId && reservedId !== initialProject?.graphicId && !!graphicById(reservedId);
 const initialGraphicId = relinked ? reservedId! : initialProject?.graphicId ?? null;
 const initialTemplate = initialProject?.template ?? createDefaultTemplate();
 // The pristine state Reset returns to: the saved baseline if we have one, else the loaded

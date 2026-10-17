@@ -173,6 +173,8 @@ function withDepth(state: unknown, depth: number): Record<string, unknown> {
 }
 
 type NavigationGuard = (proceed: () => void) => void;
+/** How long a replayed Back may take to reach its app entry before the router pushes it. */
+const BACK_REPLAY_MS = 1000;
 let navigationGuard: NavigationGuard | null = null;
 let lastDepth = currentDepth();
 
@@ -254,18 +256,26 @@ if (typeof window !== 'undefined') {
       // `go(1)` silently did nothing and the leave never continued (#1386), and it puts an entry
       // between this one and a Back destination that `go(-1)` would land on instead.
       pending.guard(() => {
-        if (pending.delta < 0) {
+        const arrive = () => {
           writeHash(pending.route, 'push');
           useRouter.setState({ route: pending.route });
-          return;
-        }
-        approvedDepth = pending.depth - pending.delta;
+        };
+        if (pending.delta < 0) { arrive(); return; }
+        const target = pending.depth - pending.delta;
+        approvedDepth = target;
+        // Back reached no app entry (the traversal was refused, or a counted `go` landed on the
+        // frame's entry, which fires no route event): the destination is reached by pushing it.
+        const missed = () => { if (approvedDepth === target) { approvedDepth = null; arrive(); } };
         const key = pending.key;
         if (key && navigation?.entries().some(entry => entry.key === key)) {
           const traversal = navigation.traverseTo(key);
-          // A refused traversal (another navigation won) leaves the editor up, as a cancel does.
-          traversal.committed.catch(() => undefined); traversal.finished.catch(() => undefined);
-        } else window.history.go(-pending.delta);
+          traversal.committed.catch(() => undefined);
+          traversal.finished.catch(missed);
+        } else {
+          // No Navigation API (older Safari/Firefox): count, then check that the route moved.
+          window.history.go(-pending.delta);
+          setTimeout(missed, BACK_REPLAY_MS);
+        }
       });
       return;
     }

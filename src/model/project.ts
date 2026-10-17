@@ -49,6 +49,16 @@ export interface SavedProject {
 
 const STORAGE_KEY = 'spx-gfx-project';
 
+/** The record id a first Save / Save As is minting, carried by EVERY slot write until its link
+ *  write has settled (store/saveActions.ts). An autosave that fires while the save waits must not
+ *  drop it, or a refused link write followed by a reload could not find the record (#1383). It
+ *  is the document's only while its baseline is the one the save started from: a write of a
+ *  replaced document never carries it. */
+let reservation: { id: string; baseline: SpxTemplate | undefined } | null = null;
+export function holdReservation(next: { id: string; baseline: SpxTemplate | undefined } | null): void {
+  reservation = next;
+}
+
 function notifyDataChanged(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
 }
@@ -78,7 +88,6 @@ export function saveProject(
   aiSpec?: GenerationSpec | null,
   aiThread?: AiThread | null,
   legibility?: ProjectLegibility | null,
-  reservedGraphicId?: string,
 ): void {
   try {
     const existing = loadProject();
@@ -97,7 +106,7 @@ export function saveProject(
       aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
       // Same rule again; an explicit null (the default state) drops the key entirely.
       legibility: (legibility === undefined ? existing?.legibility : legibility) ?? undefined,
-      ...(reservedGraphicId ? { reservedGraphicId } : {}),
+      ...(reservation && reservation.baseline === baseline ? { reservedGraphicId: reservation.id } : {}),
     };
     durable.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();
