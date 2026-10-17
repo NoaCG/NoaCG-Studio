@@ -3,7 +3,7 @@
 // pure arithmetic over one input, so it is cheap to pin exactly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseWorkers } from './e2e-workers.mjs';
+import { chooseWorkers, validateCloudWorkerRequest } from './e2e-workers.mjs';
 import { POLICY } from './jobs-store.mjs';
 
 // What one targeted spec took out of free memory at each count, worst measured (e2e-workers.mjs).
@@ -99,4 +99,16 @@ test('the count is never zero or negative, however full the machine is', () => {
 test('the reason always names the free memory it decided from', () => {
   // A variable worker count with no explanation makes every "why was that run slow?" a guess.
   assert.match(chooseWorkers({ freeMb: 4535 }).reason, /4535 MB free/);
+});
+
+// Catalog's legacy CI default must obey the executing cloud worker even with CI=true.
+test('cloud configuration ceiling constrains CI-shaped defaults without changing local or Actions', () => {
+  for (const workers of [1, 2, 4]) {
+    const limits = validateCloudWorkerRequest({ profile: { kind: 'cloud', workers }, args: ['--list'], override: '' });
+    assert.equal(Math.min(4, limits.workers ?? Infinity), workers);
+  }
+  for (const kind of ['local', 'ci']) {
+    const limits = validateCloudWorkerRequest({ profile: { kind }, args: ['--list'], override: '' });
+    assert.equal(Math.min(4, limits.workers ?? Infinity), 4);
+  }
 });

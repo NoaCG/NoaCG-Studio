@@ -20,10 +20,18 @@ execution and repair latency. Planner timing alone is not test execution.
 
 ### AC-2: The owner approves a precise local/cloud verification default
 
-Present a numerical recommendation before changing the shared rule. Preserve
+Owner approval is recorded in #1301 comment 6223002051. Implement the approved
+5-minute small / 12-minute broader browser budgets and at most four workers,
+reduced for lower effective resources. A risk-triggered production build runs
+once per reviewed source state, bounded at five minutes on measured Codex or ten
+on measured Claude; do not duplicate checks already included in that build.
+Docs/copy do not trigger builds unless build inputs. Larger selections remain CI. Preserve
 local guards; select cloud policy on the executing worker rather than inheriting
-its coordinator's profile. Node tests cover guards and execution-profile selection.
-Until approval, measurements are an explicit bounded exception authorized above.
+its coordinator's profile. Node tests cover preserved local guards, worker-side profile selection independent
+of coordinator hints, cgroup v1/v2 mount roots and ancestor limits, lower/unknown
+resources and the four-worker cap. Unknown limits permit conservative targeted
+work, never an unlimited-memory profile.
+Reuse historical measurements; their explicit exception does not authorize new benchmarks.
 
 ### AC-3: Both providers return a revision-bound cloud worker result
 
@@ -93,8 +101,16 @@ and relaxing tests or gates.
   fresh click-free exact-head queue landing. Its main workflow was cancelled
   after a shard cap; recovery and CI gate passed. See the dated continuation receipt.
 - The measured 5-minute small selection, 12-minute broader selection, four-worker
-  cap and conditional 5/10-minute Codex/Claude build budgets remain a proposal.
-  Explicit approval in #1301 precedes any shared numerical rule change.
+  cap and conditional 5/10-minute Codex/Claude build budgets were approved
+  in #1301 comment 6223002051; the policy phase implements these limits.
 - Codex current-UI coordinator runs at the pinned #1307 source. Native CLI child
   qualification remains blocked by cloud authentication and unproven saved/runtime
   binding relationship. #1307 inert-process tests are not native recovery evidence.
+
+- Approved policy implementation phase: reuse the existing affected planner, worker
+  count selector and job queue. Add one shared resource/profile helper, bounded
+  queue admission and a discoverable cloud-delegate skill pointing to one canonical
+  procedure. Keep local-only tasks local and unsupported/uncertain native launches
+  explicit; no replacement scheduler, state store or credential path. Node tests
+  and an independent same-VM forward evaluation verify this slice; they do not
+  qualify a separately resourced child or durable recovery. AC-3/AC-4 stay open.

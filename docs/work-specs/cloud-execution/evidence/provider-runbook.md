@@ -32,14 +32,14 @@ Each provider launches its own workers in existing environments and subscription
    Land through /check and /queue-merge. Stop wakes at terminal state/window expiry;
    do not claim archived revival or indefinite monitoring.
 
-Numerical policy proposal remains pending explicit owner approval in #1301:
+Numerical policy approved in #1301 comment 6223002051 (execute via the canonical verify workflow):
 small affected browser selection <=5 minutes; one relevant broader selection or
 maintained shard <=12 minutes; <=4 browser workers with lower executing-worker
 limits respected; unknown limits permit conservative targeted work only. Build only
 for bundle/dependency/entrypoint/packaging risk, once per reviewed source state,
 <=5 minutes Codex or <=10 minutes Claude. Avoid checks duplicated by the build;
 docs/copy need no build unless build inputs. Larger selections stay in GitHub Actions.
-No shared verification rule is changed by this runbook.
+The canonical verify workflow, shared resource helper, planner and job queue implement these defaults.
 
 Claude local launch automation must omit CLAUDE_CODE_OAUTH_TOKEN from the child
 process while preserving the parent's configuration. Normal claude.ai login worked;
