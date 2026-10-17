@@ -295,6 +295,8 @@ trial run or recurring collection is designed or launched here.
 Preparation and registration are authorized; no execution window has been supplied and no phase
 has started. A future bounded invocation authorizes the three documentation phases. The owner
 still decides the exact production-plan D8/AC-11 reconciliation before that plan runs.
+Answered 2026-10-17: the owner dropped D8's page limit and AC-11's line count, keeping the
+compiled rule (production plan D8, AC-11).
 Recommendation: accept responsibility/behavior proof and omit the uninstalled size gate. Existing
 wizard budgets stay unchanged by the explicit answer above; a future exception requires its actual
 case. The implementation window is not supplied. These are approval boundaries, not open executions.

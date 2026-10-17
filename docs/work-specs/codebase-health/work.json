@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "0a656a2d350261cad35f9d35caac18eacdbbe470f51732842f6c08d56df62f9e",
+  "specSha256": "a3aa35c6c804402a1d4784c66e6975a5fea263eaa9d885b913c2350e0230d531",
   "authority": {
     "status": "agreed",
     "source": "Owner, this session, 2026-10-15. Initial authorization: \"Research and prepare a NoaCG codebase-health work spec. Do not implement the proposed guardrails or launch an automated execution run.\" Research-stage answers: \"Use pinned main as the baseline\" (50ce0911d9f37f5d1116e51a1cb34541ed03aef5) and \"Keep existing budgets pending evidence\" (the two wizard budgets). Later authorization: \"Can you prepare it so I can just use the `plan run` command? What should I avoid running at the same time?\" The later message authorizes preparing/landing this documentation plan and its existing command registration, superseding the initial no-registration/no-merge restriction for preparation only. No run, window, worker, wake task, product implementation or policy exception is authorized now. A future /plan-run codebase-health invocation with an explicit window authorizes its three documentation phases; reserved policy decisions, including exact production-plan D8/AC-11 reconciliation, still require the owner."
