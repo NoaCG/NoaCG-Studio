@@ -1,0 +1,64 @@
+{
+ "main": {
+  "checked": "0b98590417875e7eb833099017d393df77b6e53d",
+  "contains": "#1376 (merge 0b985904), #1363, #1355, #1333",
+  "laterMain": "fc9dcc63 (#1379) changes only scripts/execution-profile.mjs and its test; the VM jobs ran on the probe merged with it, product code identical",
+  "ci": {
+   "0b985904 push 39024082606": "success",
+   "0b985904 post-landing 39024082659": "success",
+   "0b985904 quarantine 39024082646": "success",
+   "0b985904 configured-suite 39024082735": "in progress when read"
+  }
+ },
+ "probe": {
+  "branch": "claude/probe-editor-p2-check-5-ci",
+  "commits": {
+   "88d126ed": "main 0b985904 + carried checker specs (byte-identical) + fifth checker + fifth references + dispatch-only workflow recipes",
+   "fa744600": "E2 asserts the draft source (the first cut read an undefined inspection field)",
+   "1c1257eb": "logged copy of the carried :228 and a diag scope",
+   "3258d651": "merge of main fc9dcc63 (scripts only), for the VM job queue",
+   "a7c3397c": ":228 naming variants and leave-continuation variants"
+  },
+  "mutation": {
+   "claude/probe-editor-p2-check-5-mut dfe624eb": "fa744600 + saveActions commitLink: the link write is made but neither waited for nor claimed (the #1367 regression)"
+  },
+  "specHashes": {
+   "leave-checker.spec.ts": "28988d718686064e747d2bcda910d8d9a23b2fd62d3609ee044963780952d982",
+   "leave-second-checker.spec.ts": "ef78c1eb394c0c24abd7766a850c5dc980424eb6ca74cbf7bde0467226c8b162",
+   "leave-third-checker.spec.ts": "71f8378b2bbb5ab00736c7811e51ac3b2ed4741f0ce28d2561039c929b0f1dab",
+   "leave-fourth-checker.spec.ts": "953172315c885923c32c90c0fd5cf6ff050fc07378f03dc288a4c519e7ca9abd",
+   "leave-reference.spec.ts": "8aaf0a47cb11f261f07515b739d2e69c4b8e18a7178dcdaa5bb8c14372f403b3",
+   "leave-reference-fourth.spec.ts": "2447cef0eb2455da65fb0208fc83f30b55c49d6505f714f0f93adac67910d9cd",
+   "leave-fifth-checker.spec.ts (final; 88d126ed had 6403d8f9...)": "145756a70880f2b3d2394e01650e37932f40c9f2c1592de04cd89c568f708f51",
+   "leave-reference-fifth.spec.ts": "bae58ddbd1743207a6c2acc29004a82bc7f34dfd441369d193c5b415c3d23d7e",
+   "leave-fifth-diag.spec.ts": "4a32e3e5dd62f3719c26ae8c81f3da8be5fcdd730b4f663bd122eb75bf8df854"
+  },
+  "flags": "CI: --workers=1 --retries=0; VM queue: --workers=4 --retries=0"
+ },
+ "ci": [
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025100026", "sha": "88d126ed", "scope": "fifth", "conclusion": "failure",
+    "steps": { "leave-fifth-checker.spec.ts": "14 passed, 6 failed: A1, B1, B2, C1, H1-renamed (findings) and E2 (a checker bug, fixed in fa744600)" } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025540639", "sha": "fa744600", "scope": "fifth", "conclusion": "failure",
+    "steps": { "leave-fifth-checker.spec.ts": "15 passed, 5 failed: A1, B1, B2, C1, H1-renamed" } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025542073", "sha": "dfe624eb", "scope": "mutation", "conclusion": "failure (expected)",
+    "steps": { "leave-fifth-checker.spec.ts": "6 passed, 14 failed: the five findings plus A2, A3, A4, D1, D2, E1, E2, F-late, H3 (timed out). Still green: D3, F-hold, R1, G1, H1-again, H2 (they pin other writes)" } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025101795", "sha": "88d126ed", "scope": "unchanged", "conclusion": "failure",
+    "steps": { "leave-checker.spec.ts": "3 passed", "leave-second-checker.spec.ts": "4 passed", "leave-third-checker.spec.ts": "10 passed",
+      "leave-checker.spec.ts:24 --repeat-each=20 (regression only)": "20 passed", "leave-fourth-checker.spec.ts": "10 passed, 1 failed: :228 (Home never mounted after the retried first Save landed)" } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025894976", "sha": "1c1257eb", "scope": "diag", "conclusion": "failure",
+    "steps": { "leave-fourth-checker.spec.ts:228 --repeat-each=12 (unchanged; frequency only)": "5 passed, 7 failed", "leave-fifth-diag.spec.ts --repeat-each=12 (logged copy)": "11 passed, 1 failed; the failure logs history.go(1) with no popstate/hashchange after it" } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025103178", "sha": "88d126ed", "scope": "maintained", "conclusion": "success",
+    "steps": { "maintained selection": "85 passed, 8 legacy skips (library.spec.ts x7, project.spec.ts x1)", "ograf-conformance two DIFFERENT graphics": "1 passed" } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025104537", "sha": "88d126ed", "scope": "references", "conclusion": "success",
+    "steps": { "leave-reference + leave-reference-fourth + leave-reference-fifth": "6 passed", "source hashes": "17 files, sha256 identical to independent-4; Studio pin identical to release; binary 9ba1de31..." } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025105765", "sha": "88d126ed", "scope": "visual", "conclusion": "success",
+    "steps": { "interaction-probe-task + interaction-checker-nested": "4 passed; 9 SPX/CasparCG/OGraf outputs, 0 errors; native 125%: 1093x545 CSS, 196px canvas, 180px timeline, 280px inspector" } },
+  { "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39025107529", "sha": "88d126ed", "scope": "signed-in localhost (configured-suite recipe, disposable local Supabase)", "conclusion": "success",
+    "steps": { "e2e/configured/leave-probe.spec.ts": "1 passed: saveConfirmed, cloudMatchesSave, discardKeptCloudRecord, reloadKeptSavedSource, cancelledNamingKeptDraft, neverSavedDiscardAddedNoCloudRecord" } }
+ ],
+ "vm": [
+  { "job": "j-0004", "checkout": "probe 3258d651", "command": "e2e/leave-fifth-checker.spec.ts --workers=4 --retries=0", "result": "15 passed, 5 failed: A1, B1, B2, C1, H1-renamed (same as CI)" },
+  { "job": "j-0005", "checkout": "probe 3258d651 + diag naming variants", "command": "leave-fifth-diag.spec.ts + leave-fourth-checker.spec.ts:228 --repeat-each=10 --workers=4", "result": "24 passed, 6 failed: carried :228 3/10 failed; logged copy renamed 3/10 failed; logged copy with the name kept 10/10 passed" },
+  { "job": "j-0006", "checkout": "probe a7c3397c", "command": "leave-fifth-diag.spec.ts -g 'diag leave' --repeat-each=8", "result": "cancelled after 4 min: a checker bug (textContent on an unmounted status waits out the test timeout). Facts written before it: hash+renamed stayed in the editor 1 of 3; hash+kept 2/2, back+renamed 2/2, back+kept 2/2 left" }
+ ]
+}
