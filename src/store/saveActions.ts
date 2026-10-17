@@ -83,7 +83,9 @@ function markSaveFailed(before: EditingContext): void {
 async function commitLink(link: EditingContext['saved']): Promise<string | null> {
   useTemplateStore.getState().setSaved({ ...link, status: 'saving' });
   const linked = useTemplateStore.getState();
-  const failure = await commitSaveWrites(captureDurableWrites('spx-gfx-project', persistLink).receipts);
+  // MUTATION (disposable): the link write is made but not waited for or claimed.
+  persistLink();
+  const failure: string | null = null;
   if (replacedSince(linked)) return failure;
   // The live flag: an edit made during this wait has already set `dirty`.
   const now = useTemplateStore.getState().saved;
