@@ -56,7 +56,11 @@
 //      (`mainRef` already answers origin/main for it), and so is one strictly AHEAD, whose extra
 //      commits may be someone's work. Any git failure prints one line and moves nothing.
 //
-//   5. Nothing else.
+//   5. WHAT THIS MACHINE RUNS. One line with the CPUs, memory and e2e workers the session's
+//      commands get (scripts/execution-profile.mjs), and that browser/e2e checks run here: a
+//      cloud session runs them itself before landing, not only in GitHub Actions.
+//
+//   6. Nothing else.
 //
 // Everything here is idempotent and prints one line per thing it changed; SessionStart output
 // becomes part of the session's context, so a quiet run means there was nothing to do.
@@ -66,6 +70,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from 'n
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readHookInput } from './lib.mjs';
+import { executionProfile } from '../execution-profile.mjs';
 
 const BROWSERS_DIR = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers';
 
@@ -310,6 +315,14 @@ export function realignStaleMain(root, { git = runGit } = {}) {
   }
 }
 
+/** Step 5: what this cloud machine gives the session's commands, and that browser checks run here. */
+export function resourcesLine(profile) {
+  if (profile.kind !== 'cloud') return '';
+  const { effectiveCpus, memoryLimitBytes } = profile.limits;
+  return `Cloud machine: ${Math.floor(effectiveCpus)} CPUs, ${(memoryLimitBytes / 2 ** 30).toFixed(1)} GiB memory`
+    + `${profile.known ? '' : ' (machine totals; some cgroup readings failed)'}, ${profile.workers} e2e workers. Browser/e2e checks: run here.`;
+}
+
 /**
  * `npm ci` in `dir` when it has a lockfile and no FINISHED install, or when `force` says the
  * lockfile just changed under an existing install. npm writes node_modules/.package-lock.json
@@ -351,5 +364,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     if (linked.length > 0) {
       console.log(`Cloud setup: Playwright's pinned Chromium pointed at the image's build (${linked.join(', ')}).`);
     }
+    console.log(resourcesLine(executionProfile()));
   }
 }

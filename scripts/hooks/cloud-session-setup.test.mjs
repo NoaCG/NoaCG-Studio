@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { aliasPinnedChromium, freshen, GITHUB_PROBE_TIMEOUT_MS, githubAccessLine, realignStaleMain } from './cloud-session-setup.mjs';
+import { aliasPinnedChromium, freshen, GITHUB_PROBE_TIMEOUT_MS, githubAccessLine, realignStaleMain, resourcesLine } from './cloud-session-setup.mjs';
 
 /** A browsers folder shaped like the cloud image's: build 1194 in the old `chrome-linux` layout. */
 function imageWith1194() {
@@ -325,5 +325,13 @@ test('the real probe is quiet on a reachable origin, and a hung one is killed at
     // until the sleeping transport exits. Keep the timeout assertions above intact.
     await rm(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
+});
+
+test('a cloud session starts by naming its CPUs, memory, e2e workers and that browser checks run here', () => {
+  const limits = { effectiveCpus: 4, memoryLimitBytes: 14343688192 };
+  assert.equal(resourcesLine({ kind: 'cloud', limits, known: true, workers: 4 }),
+    'Cloud machine: 4 CPUs, 13.4 GiB memory, 4 e2e workers. Browser/e2e checks: run here.');
+  assert.match(resourcesLine({ kind: 'cloud', limits, known: false, workers: 4 }), /machine totals/);
+  assert.equal(resourcesLine({ kind: 'local' }), '');
 });
 

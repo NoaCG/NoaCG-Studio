@@ -1,5 +1,5 @@
-// Execution-site resources and the owner-approved cloud verification policy (#1301).
-// Read this worker's kernel/runtime, never a coordinator-supplied profile or host RAM alone.
+// Execution-site resources and the cloud verification policy (#1301; resources by the owner's
+// decision of 2026-10-17). Read this worker's kernel/runtime, never a coordinator-supplied profile.
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { availableParallelism, freemem, totalmem } from 'node:os';
@@ -42,7 +42,9 @@ export function readResources({ read = readText, affinity = availableParallelism
     if (!['cgroup', 'cgroup2'].includes(fs[0])) return [];
     return [{ root: unescapeMount(fields[3]), point: unescapeMount(fields[4]), v2: fs[0] === 'cgroup2', controllers: fs.slice(1).join(',').split(',') }];
   });
-  const result = { effectiveCpus: null, memoryLimitBytes: null, availableMemoryBytes: null, limitsObserved: false, reasons: [] };
+  // The machine's own totals stand in for any reading that fails, so a cloud worker is never
+  // sized below what it has. A cgroup reading only ever lowers them; an unlimited one is no cap.
+  const reasons = [];
   let cpus = affinity, memory = hostMemoryBytes, available = hostFreeBytes;
   let cpuSeen = false, memorySeen = false, valid = true;
   for (const controller of ['cpu', 'memory']) {
@@ -57,9 +59,13 @@ export function readResources({ read = readText, affinity = availableParallelism
       const dirs = cgroupDirectories(mount, membership.member);
       if (!dirs.length) continue;
       seen = true;
-      // Hidden ancestors may impose a lower limit than any visible file. Do not claim a
-      // complete profile when the mount hides them; retain the readings as unknown.
-      if (mount.root !== '/') { valid = false; result.reasons.push(`${controller}: hidden ancestors above ${mount.root}`); }
+      // Claude cloud runs the session's commands in this child of the session's memory cgroup,
+      // and its hooks in the parent: read the child too, so a hook reports what commands get.
+      const commands = `${dirs[0]}/claude-code-bash`;
+      if (controller === 'memory' && read(`${commands}/${mount.v2 ? 'memory.max' : 'memory.limit_in_bytes'}`) !== null) dirs.unshift(commands);
+      // Hidden ancestors may impose a lower limit than any visible file; the profile says it
+      // could not see them, and the machine's totals stand in for them.
+      if (mount.root !== '/') { valid = false; reasons.push(`${controller}: hidden ancestors above ${mount.root}`); }
       for (const dir of dirs) {
         if (controller === 'cpu') {
           const raw = mount.v2 ? read(`${dir}/cpu.max`) : read(`${dir}/cpu.cfs_quota_us`);
@@ -82,10 +88,9 @@ export function readResources({ read = readText, affinity = availableParallelism
     }
     if (controller === 'cpu') cpuSeen = seen; else memorySeen = seen;
   }
-  valid &&= cpuSeen && memorySeen && cpus > 0 && memory > 0 && Number.isFinite(available);
-  if (valid) Object.assign(result, { effectiveCpus: cpus, memoryLimitBytes: memory, availableMemoryBytes: Math.max(0, available), limitsObserved: true });
-  else result.reasons.push('CPU, memory and all visible ancestor readings must be complete');
-  return result;
+  valid &&= cpuSeen && memorySeen;
+  if (!valid) reasons.push('some cgroup readings failed; the machine totals stand in for them');
+  return { effectiveCpus: cpus, memoryLimitBytes: memory, availableMemoryBytes: Math.max(0, available), limitsObserved: valid, reasons };
 }
 
 export function executionProfile({ env = process.env, platform = process.platform, exists = existsSync, resources, freeBytes = freemem() } = {}) {
@@ -98,11 +103,16 @@ export function executionProfile({ env = process.env, platform = process.platfor
   if (!provider) return { kind: 'local' };
   const limits = resources ?? readResources();
   const known = limits.limitsObserved === true;
-  const freeMb = Math.floor(Math.min(freeBytes, known ? limits.availableMemoryBytes : 2048 * MiB) / MiB);
-  const memoryWorkers = freeMb >= 7168 ? 4 : freeMb >= 5632 ? 3 : freeMb >= 4096 ? 2 : 1;
-  const workers = known ? Math.max(1, Math.min(4, Math.floor(limits.effectiveCpus), memoryWorkers)) : 1;
-  return { kind: 'cloud', provider, limits, known, freeMb, workers, smallMinutes: 5,
-    broaderMinutes: known ? 12 : 5, buildMinutes: known ? (provider === 'claude' ? 10 : 5) : null };
+  const freeMb = Math.floor(Math.min(freeBytes, limits.availableMemoryBytes) / MiB);
+  return { kind: 'cloud', provider, limits, known, freeMb, workers: cloudWorkers(limits.effectiveCpus, freeMb), smallMinutes: 5,
+    broaderMinutes: 12, buildMinutes: provider === 'claude' ? 10 : 5 };
+}
+
+// A cloud worker spends everything it has (owner, 2026-10-17): one browser worker per visible CPU,
+// as many as its memory headroom holds after a reserve. Only the laptop keeps the memory ladder.
+export const CLOUD_RESERVE_MB = 1024, CLOUD_WORKER_MB = 1024;
+export function cloudWorkers(cpus, freeMb) {
+  return Math.max(1, Math.min(Math.floor(cpus), Math.floor((freeMb - CLOUD_RESERVE_MB) / CLOUD_WORKER_MB)));
 }
 
 export function buildRisk(files) {
@@ -137,7 +147,6 @@ export function cloudBrowserAdmission({ profile, args = [], job, source, dirty =
   if (!args.includes('test') && !job) return {}; // inspection/import, not a Playwright execution
   const problem = cloudPlanAdmission({ profile, boundMinutes: job?.capMinutes ?? 5, job, source });
   if (problem) throw Error(problem);
-  if (!profile.known) throw Error('Unknown execution-site headroom: browser execution stays in GitHub Actions');
   const admission = cloudJobPolicy({ profile, browser: true, requestedCap: job.capMinutes });
   const stateProblem = queuedVerificationProblem(job, admission, { head: source, dirty });
   if (stateProblem) throw Error(stateProblem);
@@ -169,7 +178,6 @@ export function cloudJobPolicy({ command, browser = false, build = false, reques
   for (const workers of requestedWorkers) if (!Number.isInteger(Number(workers)) || Number(workers) < 1 || Number(workers) > profile.workers) {
     throw Error(`Cloud browser worker count must be 1..${profile.workers} on the executing worker`);
   }
-  if (build && !profile.buildMinutes) throw Error('Unknown execution limits: leave production build to GitHub Actions');
   const maximum = build ? profile.buildMinutes : browser ? profile.broaderMinutes : null;
   const capMinutes = requestedCap ?? (browser ? 5 : maximum ?? 45);
   if (!Number.isFinite(capMinutes) || capMinutes <= 0 || (maximum && capMinutes > maximum)) throw Error(`Cloud ${build ? 'build' : 'browser'} cap exceeds ${maximum} minutes`);

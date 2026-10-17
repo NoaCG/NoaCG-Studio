@@ -743,7 +743,7 @@ async function cmdList() {
   const worker = executionProfile();
   if (worker.kind === 'cloud') {
     console.log(`Schedule: cloud budget, ${budget.slots} suite-equivalent - ${budget.why}; `
-      + `${worker.known ? `${worker.freeMb} MB observed headroom` : 'headroom unknown; cheap targeted gates only'}; `
+      + `${worker.freeMb} MB ${worker.known ? 'observed headroom' : 'free by the machine totals (some cgroup readings failed)'}; `
       + `${worker.workers} browser worker ceiling; one browser-driving job per VM`);
   } else {
     console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`

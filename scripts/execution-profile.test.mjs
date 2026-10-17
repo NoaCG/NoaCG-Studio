@@ -30,6 +30,7 @@ function fixture(v2 = true) {
   return { files, read: (file) => files.get(file) ?? null, affinity: 8, hostMemoryBytes: 64 * GiB, hostFreeBytes: 32 * GiB };
 }
 const known = (cpus = 4, free = 12 * GiB) => ({ effectiveCpus: cpus, memoryLimitBytes: 16 * GiB, availableMemoryBytes: free, limitsObserved: true });
+const unread = (cpus = 4, free = 12 * GiB) => ({ ...known(cpus, free), limitsObserved: false });
 const cloud = (resources = known(), provider = 'codex', extra = {}) => executionProfile({ platform: 'linux', exists: () => true, freeBytes: 32 * GiB, resources,
   env: provider === 'codex' ? { CODEX_ENVIRONMENT_ID: 'ccarenv_worker', ...extra } : { CLAUDE_CODE_REMOTE: 'true', ...extra } });
 
@@ -43,13 +44,16 @@ test('v1 independent controller mounts, unlimited sentinels and fractional ances
   assert.equal(r.limitsObserved, true); assert.equal(r.effectiveCpus, 1.5);
   assert.equal(r.memoryLimitBytes, 3 * GiB); assert.equal(r.availableMemoryBytes, 2 * GiB);
 });
-test('mount roots map membership without escaping and hidden ancestors stay unknown', () => {
+test('mount roots map membership without escaping and hidden ancestors are reported', () => {
   assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg' }, '/team/job'), ['/cg/job', '/cg']);
   assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg' }, '/other/job'), []);
   assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg' }, '/'), ['/cg']);
   assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg/' }, '/team/job'), ['/cg/job', '/cg']);
   const f = fixture(); f.files.set('/proc/self/mountinfo', '1 0 0:1 /team /cg rw - cgroup2 cgroup rw');
-  assert.equal(readResources(f).limitsObserved, false);
+  const r = readResources(f);
+  assert.equal(r.limitsObserved, false); assert.match(r.reasons.join(), /hidden ancestors/);
+  // Nothing is readable under the mapped path, so the machine's own totals stand.
+  assert.equal(r.effectiveCpus, 8); assert.equal(r.memoryLimitBytes, 64 * GiB);
 });
 test('v1 hybrid ignores a cgroup2 mount that does not carry the controller (#1361)', () => {
   // Measured in a Claude Code cloud VM: v1 controllers plus an empty cgroup2 at /sys/fs/cgroup/unified.
@@ -71,23 +75,51 @@ test('v1 hybrid ignores a cgroup2 mount that does not carry the controller (#136
   const r = readResources(env);
   assert.equal(r.limitsObserved, true); assert.equal(r.effectiveCpus, 4);
   assert.equal(r.memoryLimitBytes, 14343688192); assert.equal(r.availableMemoryBytes, 14343688192 - 45 * MiB);
-  // Once cpu is not held through v1, the cgroup2 mount carries it: a missing reading there stays unknown.
+  // The session's hooks run in the parent of claude-code-bash, which reads as unlimited: they
+  // still report the limit the session's commands run under.
+  files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace(leaf, id));
+  assert.equal(readResources(env).memoryLimitBytes, 14343688192);
+  assert.equal(executionProfile({ platform: 'linux', env: { CLAUDE_CODE_REMOTE: 'true' }, resources: readResources(env), freeBytes: 15 * GiB }).workers, 4);
+  // Once cpu is not held through v1, the cgroup2 mount carries it: a missing reading there is
+  // reported, and the affinity stands in for it.
   files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace('1:cpu:/\n', ''));
-  assert.equal(readResources(env).limitsObserved, false);
+  assert.equal(readResources(env).limitsObserved, false); assert.equal(readResources(env).effectiveCpus, 4);
   files.set(`${cg}/unified/cpu.max`, '200000 100000');
   assert.equal(readResources(env).effectiveCpus, 2);
 });
-test('missing or malformed ancestor readings never become host-sized cloud memory', () => {
-  for (const [file, raw] of [['/cg/team/cpu.max', null], ['/cg/memory.current', null], ['/cg/team/memory.max', 'garbage']]) {
+test('a failed reading falls back to the machine totals, never to one worker', () => {
+  for (const [file, raw, cpus, memory] of [['/cg/team/cpu.max', null, 4, 4 * GiB], ['/cg/memory.current', null, 2, 4 * GiB], ['/cg/team/memory.max', 'garbage', 2, 16 * GiB]]) {
     const f = fixture(); if (raw === null) f.files.delete(file); else f.files.set(file, raw);
-    const r = readResources(f); assert.equal(r.limitsObserved, false); assert.equal(r.memoryLimitBytes, null);
-    const p = cloud(r); assert.equal(p.workers, 1); assert.equal(p.broaderMinutes, 5); assert.equal(p.buildMinutes, null); assert.ok(p.freeMb <= 2048);
+    const r = readResources(f); assert.equal(r.limitsObserved, false, file);
+    assert.equal(r.effectiveCpus, cpus, file); assert.equal(r.memoryLimitBytes, memory, file);
+    const p = cloud(r); assert.equal(p.known, false); assert.equal(p.broaderMinutes, 12); assert.equal(p.buildMinutes, 5);
+    // What was read still sizes the run; the failure itself costs no worker.
+    assert.equal(p.workers, cloud({ ...r, limitsObserved: true }).workers, file);
   }
+  // Nothing readable at all: the whole machine.
+  const none = readResources({ read: () => null, affinity: 8, hostMemoryBytes: 64 * GiB, hostFreeBytes: 32 * GiB });
+  assert.deepEqual([none.limitsObserved, none.effectiveCpus, none.memoryLimitBytes, none.availableMemoryBytes], [false, 8, 64 * GiB, 32 * GiB]);
+  assert.equal(cloud(none).workers, 8);
+});
+test('cloud workers spend every CPU and the memory past a one-gigabyte reserve', () => {
+  // This machine: 4 CPUs, 13.36 GiB in claude-code-bash. A 60 GB machine is not held to four.
+  assert.equal(cloud(known(4, 14343688192), 'claude').workers, 4);
+  assert.equal(cloud(known(16, 56 * GiB), 'claude').workers, 16);
+  assert.equal(cloud(known(16, 6 * GiB)).workers, 5);
+  assert.equal(cloud(known(1.5)).workers, 1); assert.equal(cloud(known(8, GiB)).workers, 1);
+});
+test('the laptop profile is unchanged: no cloud marker means local, whatever the machine', () => {
+  for (const platform of ['win32', 'darwin', 'linux']) {
+    assert.deepEqual(executionProfile({ env: { CI: 'true', E2E_WORKERS: '3' }, platform, exists: () => true, resources: known(64, 512 * GiB) }), { kind: 'local' });
+  }
+  assert.deepEqual(chooseWorkers({ freeMb: 4900 }), { workers: 4, reason: '4900 MB free' });
+  assert.deepEqual(chooseWorkers({ freeMb: 3200 }), { workers: 2, reason: '3200 MB free' });
+  assert.equal(schedule([], { freeMemMb: 32000, now: Date.parse('2026-10-16T07:00:00Z') }).budget.mode, 'modest');
 });
 test('resource selection belongs to the executing worker, not coordinator hints', () => {
   const p = cloud(known(), 'codex', { NOACG_EXECUTION_PROFILE: 'local', NOACG_COORDINATOR_PROFILE: 'laptop', E2E_WORKERS: '20' });
   assert.equal(p.kind, 'cloud'); assert.equal(p.workers, 4);
-  assert.equal(cloud(known(2)).workers, 2); assert.equal(cloud(known(4, 4 * GiB)).workers, 2);
+  assert.equal(cloud(known(2)).workers, 2); assert.equal(cloud(known(4, 4 * GiB)).workers, 3);
   assert.equal(cloud(known(1)).workers, 1); assert.equal(cloud(known(), 'claude').buildMinutes, 10);
   assert.equal(executionProfile({ env: { CODEX_ENVIRONMENT_ID: 'ccarenv_coordinator' }, platform: 'linux', exists: () => false }).kind, 'local');
   assert.equal(executionProfile({ env: { NOACG_EXECUTION_PROFILE: 'cloud', CI: 'true' }, platform: 'win32' }).kind, 'local');
@@ -100,23 +132,23 @@ test('cloud worker caps cannot be inflated by overrides; local ladder remains un
   assert.throws(() => cloudJobPolicy({ browser: true, profile: cloud(), requestedWorkers: ['8'] }), /worker count/);
   assert.throws(() => cloudJobPolicy({ browser: true, profile: cloud(), requestedWorkers: ['50%'] }), /worker count/);
 });
-test('cloud time bounds, unknown limits and build triggers preserve CI/local policies', () => {
+test('cloud time bounds and build triggers preserve CI/local policies', () => {
   assert.equal(cloudJobPolicy({ browser: true, profile: cloud() }).capMinutes, 5);
   assert.equal(cloudJobPolicy({ browser: true, profile: cloud(), requestedCap: 12 }).verification, 'broader');
   assert.throws(() => cloudJobPolicy({ browser: true, profile: cloud(), requestedCap: 13 }), /exceeds/);
-  assert.throws(() => cloudJobPolicy({ build: true, profile: cloud({ limitsObserved: false }) }), /Unknown/);
+  assert.equal(cloudJobPolicy({ build: true, profile: cloud(unread()) }).capMinutes, 5);
   assert.equal(cloudJobPolicy({ build: true, profile: cloud(known(), 'claude') }).capMinutes, 10);
   assert.equal(cloudJobPolicy({ browser: true, profile: { kind: 'local' }, requestedCap: 20 }).capMinutes, 20);
   assert.equal(buildRisk(['docs/note.md', 'src/copy.ts']), false);
   assert.equal(buildRisk(['package-lock.json']), true); assert.equal(buildRisk(['vite.config.ts']), true);
   assert.equal(buildRisk(['app.html']), true); assert.equal(buildRisk(['scripts/build-player-host.mjs']), true);
 });
-test('affected planner leaves larger/unknown selections and whole suites to CI', () => {
+test('affected planner leaves larger selections and whole suites to CI', () => {
   const plan = { mode: 'subset', specs: ['e2e/downloads.spec.ts'] };
   assert.equal(localRunPolicy(plan, { profile: cloud(), minutes: 4 }).boundMinutes, 5);
   assert.equal(localRunPolicy(plan, { profile: cloud(), minutes: 8 }).boundMinutes, 12);
   assert.match(localRunPolicy(plan, { profile: cloud(), minutes: 13 }).refusal, /GitHub Actions/);
-  assert.match(localRunPolicy(plan, { profile: cloud({ limitsObserved: false }), minutes: 8 }).refusal, /5-minute/);
+  assert.equal(localRunPolicy(plan, { profile: cloud(unread()), minutes: 8 }).boundMinutes, 12);
   assert.equal(localRunPolicy(plan, { minutes: 100 }).refusal, null);
   assert.ok(localRunPolicy({ mode: 'full' }, { profile: cloud() }).refusal);
   assert.equal(localRunPolicy({ mode: 'full' }, { ci: true, profile: cloud() }).refusal, null);
@@ -126,9 +158,11 @@ test('scheduler uses executing-worker headroom and ignores laptop presence/clock
   const opts = { freeMemMb: 32000, now: Date.parse('2026-10-16T07:00:00Z'), presence: 'present' };
   const a = schedule([job], { ...opts, execution: cloud() });
   assert.equal(a.start.length, 1); assert.equal(a.budget.mode, 'cloud');
-  assert.equal(schedule([job], { ...opts, execution: cloud(known(4, GiB)) }).start.length, 0);
-  const unknown = schedule([job], { ...opts, execution: cloud({ limitsObserved: false }) });
-  assert.equal(unknown.start.length, 0); assert.equal(unknown.dead.length, 1);
+  // No RAM floor in the cloud, and failed readings no longer refuse browser work.
+  assert.equal(schedule([job], { ...opts, freeMemMb: 900, execution: cloud(known(4, GiB)) }).start.length, 1);
+  assert.equal(schedule([job], { ...opts, execution: cloud(unread()) }).start.length, 1);
+  // The laptop keeps its floor.
+  assert.equal(schedule([job], { ...opts, freeMemMb: 900 }).start.length, 0);
   assert.equal(schedule([job], opts).budget.mode, 'modest');
 });
 
@@ -208,7 +242,7 @@ test('direct Playwright execution needs running queue admission and a bounded gl
   assert.deepEqual(cloudBrowserAdmission({ profile: cloud(), args, job }), { globalTimeout: 300000 });
   for (const more of [['--global-timeout=0'], ['--global-timeout', '720000'], ['--global-timeout=bad']]) assert.throws(() => cloudBrowserAdmission({ profile: cloud(), args: [...args, ...more], job }), /global timeout/);
   assert.throws(() => cloudBrowserAdmission({ profile: cloud(), args, job: { state: 'done', capMinutes: 5 } }), /queue/);
-  assert.throws(() => cloudBrowserAdmission({ profile: cloud({ limitsObserved: false }), args, job }), /Unknown/);
+  assert.deepEqual(cloudBrowserAdmission({ profile: cloud(unread()), args, job }), { globalTimeout: 300000 });
   assert.throws(() => cloudBrowserAdmission({ profile: cloud(), args, source, job: { state: 'running', capMinutes: 12 } }), /reviewed source/);
   assert.deepEqual(cloudBrowserAdmission({ profile: cloud(), args, source, job: { state: 'running', capMinutes: 12, verification: { kind: 'broader', source } } }), { globalTimeout: 720000 });
   assert.deepEqual(cloudBrowserAdmission({ profile: cloud(), args: [...args, '--list'] }), {});

@@ -98,7 +98,7 @@ export function chooseWorkers({ freeMb = Math.round(freemem() / (1024 * 1024)), 
   const pinned = Number(override);
   if (profile.kind === 'cloud') {
     const workers = Math.min(profile.workers, Number.isInteger(pinned) && pinned > 0 ? pinned : profile.workers);
-    return { workers, reason: `${profile.provider} execution-site limits${profile.known ? '' : ' unknown; targeted only'}` };
+    return { workers, reason: `${profile.provider} cloud, ${Math.floor(profile.limits.effectiveCpus)} CPUs and ${profile.freeMb} MB free${profile.known ? '' : ' (machine totals; some cgroup readings failed)'}` };
   }
   if (Number.isInteger(pinned) && pinned > 0) {
     return { workers: pinned, reason: `E2E_WORKERS=${pinned} (pinned)` };
