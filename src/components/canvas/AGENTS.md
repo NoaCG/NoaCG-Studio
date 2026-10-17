@@ -94,7 +94,7 @@ docs/TIMELINE_INTERACTION_MODEL.md.
   under it never fires. The canvas also owns a CONTEXT MENU (right-click; the right button
   never starts a gesture): one action for now - "Add template graphic…", opening the same
   InsertTemplateDialog the Assets panel's button does (its open flag is the shared
-  useInsertTemplateUi store; the dialog itself mounts once in AppShell).
+  useInsertTemplateUi store; the dialog used to mount once in the retired AppShell).
 - **TEXT TOOLS** (the stage toolbar's ↖ / T / boxed-T switch, PreviewFrame; placed-design
   templates only - the designBoxInfo gate, code-derived): store `canvasTool` arms them
   ('select' | 'text' | 'area-text'; T is the keyboard shortcut, Escape disarms). The T tool

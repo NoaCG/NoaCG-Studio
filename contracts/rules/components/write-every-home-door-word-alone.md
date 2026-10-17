@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/AppShell.tsx, src/components/video/VideoAppShell.tsx, src/components/auth/AuthStatus.tsx
+scope: src/components/video/VideoAppShell.tsx, src/components/auth/AuthStatus.tsx
 kind: rule
 fires: contract
 status: active

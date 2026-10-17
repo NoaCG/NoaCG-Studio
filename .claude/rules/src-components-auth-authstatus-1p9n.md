@@ -1,6 +1,5 @@
 ---
 paths:
-  - "src/components/AppShell.tsx"
   - "src/components/auth/AuthStatus.tsx"
   - "src/components/video/VideoAppShell.tsx"
 ---

@@ -56,7 +56,7 @@ has no wrapper, because Claude Code loads the same rules from `.claude/rules/` b
 | 2 services | `audience/` | the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE `AudienceBackend` interface, the in-memory rehearsal provider, the Supabase provider over migration 0035's slug-keyed RPCs, and the framework-free join renderer | `audienceTypes` (the interface + limits), `localAudience`, `audienceData` (`createSupabaseAudience`), `joinSurface` |
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |
 | 3 app | `app/` | hash router | `router` |
-| 3 app | `components/` *, `landing/` *, `teach/` | the React shell, landing, tooltips | (top of the graph - nothing imports these) |
+| 3 app | `components/` *, `landing/` * | the React shell, landing | (top of the graph - nothing imports these) |
 | 3 app | `output/` | the browser-output RENDERER: its own MPA entry (`output.html` -> `/output`), a capability URL loaded by CasparCG/OBS/vMix (docs/CLOUD_PLAYOUT.md) | (top of the graph - nothing imports these) |
 | 3 app | `join/` | the public AUDIENCE page: its own MPA entry (`join.html` -> `/join`), the capability URL a viewer's phone opens. It reads the slug off the URL and mounts `audience/joinSurface` - every decision about what a viewer may see lives in `audience/` and in migration 0035 | (top of the graph - nothing imports these) |
 | 3 app | `ograf/` | the free OGraf STARTERS page: its own MPA entry (`ograf.html` -> `/ograf`, docs/OGRAF.md) - curated catalog graphics as downloadable OGraf packages, built by the real exporter at click time | (top of the graph - nothing imports these) |
@@ -75,7 +75,7 @@ here and not in §6 are wrong - fix the code, not the table.
 - `templates` -> blocks (`animData`, `animMachine`, shared runtime)
 - `blocks` -> templates (preset data tables + `shared/animRuntime`, `shared/textFit`)
 - `validation` -> blocks, templates, preview
-- `preview`, `editor`, `format`, `backend`, `landing`, `teach` -> (kernel only)
+- `preview`, `editor`, `format`, `backend`, `landing` -> (kernel only)
 - `preview/composeDocument.ts` -> `blocks/animMigration.ts` only: compose the same supported legacy Out runtime upgrade as save/export on a transient copy, preserving read-only source and runtime parity.
 - `store` -> blocks, validation, templates (`defaultTemplate` only - the store's initial document,
   when no project is saved, is the first catalog variant)
@@ -327,8 +327,9 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
   export/ *    the export registry - 6 targets + whole-SHOW export + packaging conventions
   render/ *    RenderManifest, HOLD schedule, tier limits, virtual clock, job store (docs/RENDER.md)
   landing/ *   the landing page's GSAP motion system. POLICY: never fakes product UI
-  components/ * the React app: AppShell, CodeEditor, timeline dock, Inspector, canvas/, wizard/,
-               auth/, save/, home/, video/, icons.tsx
+  components/ * the React app: editorFoundation/ (the editor), home/, wizard/, video/, canvas/,
+               timeline dock, Inspector, auth/, save/, icons.tsx. The old code editor shell
+               (AppShell, CodeEditor, their dock and teaching layer) was retired on 2026-10-17
     wizard/ *  the creation wizard (§5): CreationWizard.tsx is the thin shell over shell/ (the
                walks, the walk state, the Finish doors, open and close) and template/ * (the
                template and kit walks, the kit plan, its tray, moves and confirms, reached only
@@ -382,7 +383,6 @@ public/fonts/  the 17 bundled woff2 fonts (served at /fonts, copied into exports
 src/assets/    bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source) + asset helpers
 src/docs/ *    the PUBLIC docs page's stylesheet and its one progressive module (the page itself
                is docs.html at the root; the AGENTS.md here is the contract for both)
-src/teach/     the Monaco tooltips
 scripts/       admin.mjs (roles), admin-report.sql (read-only operations brief),
                dev-port + port-registry (the per-worktree RESERVATION), the catalog quality gates,
                ai-compare + ai-bench (both SPEND TOKENS), render-smoke, worktree-activity (who else

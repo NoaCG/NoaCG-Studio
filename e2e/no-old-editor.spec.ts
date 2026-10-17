@@ -5,13 +5,10 @@
 // (`// focus`).
 // covers: src/components/{SettingsDialog,home/{HomePage,GraphicRow,GraphicControlPage},editorFoundation/{EditorFoundation,openNewEditor},video/VideoAppShell,wizard/{CreationWizard,shell/doors,steps/{EntryStep,FinishStep}}}.ts{,x}
 //
-// THE OLD CODE EDITOR ITSELF, and what only it reads: its shell, its dock, its Monaco pane and
-// the pane's teaching layer. No route renders any of it any more (owner, 2026-09-24), so no
-// reachable surface can show a change here, and escalating to the whole suite would test code
-// nobody can open. The spec that pins the old editor shut is the honest and cheap answer - it
-// fails if anything starts loading AppShell again. The source stays until the new editor has
-// taken over what is worth keeping.
-// covers: src/components/{AppShell,WorkspaceDock,CodeEditor}.tsx, src/teach/**
+// THE OLD CODE EDITOR ITSELF is gone: its shell, its dock, its Monaco pane and the pane's teaching
+// layer were deleted on 2026-10-17 (docs/work-specs/codebase-lean/spec.md), after no route had
+// rendered any of it since 2026-09-24. The module-request test below still pins that nothing asks
+// the dev server for the old shell, so a file brought back under the old name fails here too.
 //
 // NOBODY REACHES THE OLD CODE EDITOR (owner, 2026-09-24). A student on a shared lab computer must
 // never land in AppShell, whatever an earlier visitor ticked, and src/App.tsx - where the boot
@@ -25,9 +22,8 @@ import * as rules from '../scripts/rules.mjs';
 
 // NOBODY CAN REACH THE OLD CODE EDITOR (owner, 2026-09-24).
 //
-// The old editor (src/components/AppShell.tsx) stays in the repository until the new editor has
-// taken over what is worth keeping, but no route, door or setting opens it. The reason this file
-// exists is a classroom: Advanced mode was a setting in the BROWSER, not the account, so one
+// The old editor (AppShell) was closed on 2026-09-24 and deleted on 2026-10-17; no route, door or
+// setting opens it, and nothing may bring it back. The reason this file exists is a classroom: Advanced mode was a setting in the BROWSER, not the account, so one
 // student ticking it on a shared lab computer sent every later student into the old editor. The
 // owner reproduced it on noacg.studio: with the setting on, the wizard's ✕ opened AppShell.
 //
@@ -39,7 +35,7 @@ import * as rules from '../scripts/rules.mjs';
 
 const PREFS_KEY = 'spx-gfx-prefs';
 
-/** Two markers only AppShell renders: its topbar's code toggle and its centre stage. */
+/** Two markers only AppShell rendered: its topbar's code toggle and its centre stage. */
 const OLD_EDITOR = '[data-testid="toggle-code"], [data-testid="center-stage"]';
 
 /**
@@ -297,9 +293,9 @@ test('/app, /app#/ and a hash the app does not own all land on Home', async ({ p
 });
 
 test('the old editor\'s module is never even loaded', async ({ page }) => {
-  // App.tsx does not import AppShell, so the dev server is never asked for it: not at boot, and
-  // not on the way through the wizard to Home. A request here means something imports it again
-  // and every visitor downloads it (the production bundle is measured in the row's handoff).
+  // Nothing imports AppShell (the file is deleted), so the dev server is never asked for it: not
+  // at boot, and not on the way through the wizard to Home. A request here means something brought
+  // it back under the old name and every visitor downloads it.
   const requested: string[] = [];
   page.on('request', (request) => {
     if (/\/src\/components\/AppShell\.tsx/.test(request.url())) requested.push(request.url());

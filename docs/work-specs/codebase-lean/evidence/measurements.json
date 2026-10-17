@@ -1,0 +1,89 @@
+{
+  "pin": "3010e41134f1e3a6ebf3933582eb9b7e52055241",
+  "date": "2026-10-17",
+  "lineDefinition": "Physical LF-normalized lines, including blanks and comments; tracked tree at pin; TS/TSX/JS/MJS/CJS code, docs markdown; no node_modules, generated untracked files or this report.",
+  "totals": {
+    "src": {
+      "files": 1361,
+      "lines": 303553
+    },
+    "srcAllCode": {
+      "files": 1369,
+      "lines": 307229
+    },
+    "srcCss": {
+      "files": 46,
+      "lines": 13255
+    },
+    "e2e": {
+      "files": 358,
+      "lines": 116035
+    },
+    "e2eAllCode": {
+      "files": 369,
+      "lines": 122978
+    },
+    "scripts": {
+      "files": 395,
+      "lines": 106976
+    },
+    "scriptTests": {
+      "files": 253,
+      "lines": 55586
+    },
+    "docs": {
+      "files": 615,
+      "lines": 129125
+    }
+  },
+  "sourceClassifications": {
+    "reachable-keep": {
+      "files": 345,
+      "lines": 89379
+    },
+    "shared-keep": {
+      "files": 956,
+      "lines": 195904
+    },
+    "unreachable-review": {
+      "files": 38,
+      "lines": 10755
+    },
+    "old-editor-exclusive": {
+      "files": 30,
+      "lines": 11191
+    }
+  },
+  "durationSource": {
+    "run": "39000659873",
+    "runs": [
+      "39000659873",
+      "38986504813",
+      "38959501921",
+      "38934093246",
+      "38913853396",
+      "38906812069"
+    ],
+    "percentile": 0.8,
+    "workflow": "ci.yml",
+    "branch": "main",
+    "sha": "ea3ef9a1d4837111fb24382f514877a713a27a80",
+    "mode": "full",
+    "recordedAt": "2026-10-17"
+  },
+  "offline": {
+    "files": 233,
+    "minutes": 183.252,
+    "staticDeclarations": 2073
+  },
+  "retired": {
+    "fullFiles": 36,
+    "fullFileLines": 10715,
+    "fullFileMinutes": 0.4970000000000001,
+    "mixedFiles": 41,
+    "staticDeclarations": 474
+  },
+  "testFiles": 605,
+  "testDeclarations": 6061,
+  "nonliteralImports": 319
+}
