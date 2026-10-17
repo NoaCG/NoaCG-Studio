@@ -133,3 +133,18 @@ through the queue.
 - Post-merge terminal results (merge SHA, the merge SHA's PR, merge-group, main CI and post-land
   conclusions) cannot be in the file that lands. They go in the coordinator's PR comment and the
   checker's receipt.
+
+## Verification
+
+Run by the builder on the reviewed source state (docs only; `origin/main`
+`c1e02c6e9aff6f6556c7aabdd3560193fd4a3a78` already contained, nothing to merge):
+
+- Review: inline (the diff is three docs files). Checked every value in this record against the
+  builder's own `get_session`, git and shell output. 0 findings.
+- Simplify: inline, no changes.
+- Verify: inline. `npm run gates -- run --changed origin/main` exit 0 (contract-freshness,
+  contract-citations, docs-index, client-secrets, copy all ok).
+  `node scripts/work-spec.mjs status` reports 0 problems; its one gap is the convergence review,
+  left null on purpose because the checker is independent.
+- Not run: production build and browser checks (docs only, no build inputs). Full checks run in
+  GitHub Actions.
