@@ -1,7 +1,11 @@
 # Make the codebase lean, starting with the retired editor
 
-Status: **research complete; removal plan awaiting owner approval**. Prepared 2026-10-17
-against `3010e41134f1e3a6ebf3933582eb9b7e52055241`. No deletion phase has started.
+Status: **revised after independent review; no deletion or plan run started**.
+The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
+codebase over speculative retention. The original inventory is pinned to
+`3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
+`ea71261c97a7bca8c8fd3b68adef1307561588dd` (2026-10-17).
+The current scope below supersedes the original broad test-deletion draft.
 
 ## Why
 
@@ -23,16 +27,17 @@ size and timing. This report supplies the inventory and order, not implementatio
 - No local full-suite run or production build. This documentation task has no build risk;
   this cloud worker also reports unknown ancestor CPU/memory limits.
 - No removal based only on filenames, lack of clicks, a missing package script or Knip output.
-- No replacement of skipped old-editor tests on another surface. New-editor needs get their
-  own tests when that behavior is implemented, as the owner decided.
+- No port of retired old-editor interactions. Tests of current product behavior are resolved
+  under #800: retain an existing equivalent check or implement the smallest missing check.
 - No source refactor before retirement; no new size limits, exemptions or scheduler.
 
 ## Decisions and authority
 
-1. The owner's 2026-10-17 request retires the old editor completely, including its skipped tests.
-   It supersedes [issue #800](https://github.com/NoaCG/NoaCG-Studio/issues/800), which was still
-   open with the opposite wording when read. Update that issue only when explicitly authorized
-   to communicate there; this report records the overriding decision.
+1. Retire the old editor and tests whose subject is its UI. Following independent review, the
+   owner accepted retaining [issue #800](https://github.com/NoaCG/NoaCG-Studio/issues/800) for
+   skipped tests of live features. A call to an old bootstrap proves a test is disabled, not
+   that its subject is obsolete. Resolve #800 inside this cleanup run, not as an indefinite
+   follow-up. No issue comment or change has been sent from this research task.
 2. Saved graphics and projects keep loading. Retain live readers/migrations and ask before
    dropping any stored format. The separate old dock-layout record is an explicit pending question.
 3. Keep the live video workspace, CLI/Bridge, exports, public output, audience, account and
@@ -44,6 +49,12 @@ size and timing. This report supplies the inventory and order, not implementatio
    smaller validation set, raised limit or budget exception substitutes for a reviewed removal.
 6. Finish the approved deletions before the codebase-health documentation run and any source
    cleanup on the same files. Disjoint E2E infrastructure research may continue.
+7. Keep the system-notice reader and bar pending the separate admin decision. Their only mount
+   is retired, but the live admin page still publishes notices. Do not build a new mount during
+   shell deletion. Keep machineEdit, lottieInsert and the animation runtime with their current
+   tests; moving a working helper just to reduce the app directory is not required cleanup.
+8. The admin page is under review at the owner's request. No admin deletion, database change,
+   routine creation or purchase is authorized. See [admin assessment](evidence/admin-audit.md).
 
 ## Measured baseline
 
@@ -73,56 +84,87 @@ typecheck/lint/bundle step took 157 seconds. Full logs were denied by the networ
 per-test skip durations and individual build substep costs are unknown. No local build was run
 to fill that gap. See [measurement receipt](evidence/README.md) and [CI metadata](evidence/ci-baseline.json).
 
-## Phase 1: remove the old editor
+## Phase 1: remove the old editor and resolve #800
 
-The [ownership and compatibility audit](evidence/audit.md) is the detailed plan.
-[The manifest](evidence/removal-manifest.json) names exact full files, partial files and totals.
+The [review reconciliation](evidence/second-opinion-response.md) explains corrections to both
+reports. The [manifest](evidence/removal-manifest.json) distinguishes the seven-file first PR,
+remaining source candidates, retained helpers and tests requiring subject review.
 
-| Change | Proven footprint | Credited time saving |
-|---|---:|---:|
-| AppShell-only source plus unused Learn reference | 29 files; 10,875 TS/TSX lines; two further files (395 lines) need live-fixture replacements | Build saving unknown; already absent from the current app import path |
-| Entire retired test files | 36 files; 10,715 lines | 0.497 offline spec-minutes per full run |
-| Retired declarations inside mixed specs | 41 files; 8,654 declaration lines | Unknown; the active remainder must stay |
-| Shared store, route names, dock preferences and CSS | 81 store fields/actions inventoried; 12 CSS files reviewed as candidates | No speculative line/time credit |
-| Four old timeline/WYSIWYG stubs and four archived plans | 8 files; 1,280 Markdown lines before any retained schema text is moved | No CI job removed |
-
-The 474 old-helper declarations are deleted, not ported. All unlisted assertions remain.
-`e2e/no-old-editor.spec.ts` remains a current routing/compatibility suite; selectively replace
-its vacuous module-request assertion after AppShell disappears. Its name is not a reason to
-delete wizard exits, saved-link routing, boot recovery or preference migration protection.
-
-Keep the shared template store, library/project readers, old embedded-packet migration,
-animation formats, runtime upgrades, export gates and new-editor session/command code.
-Keep Monaco because the current video workspace imports it. Keep registered templates and
-the common render/control engines. The saved-data table in the audit lists every relevant
-key, shape, reader and required behavior.
-
-### Order of small pull requests
-
-Approval of this plan authorizes Phase 1 only; it does not approve later candidates or data loss.
-Each row may split by one surface/test family if the diff is hard to review. Delete files and
-their exclusively related tests/docs in the same PR; partial shared files get their own named
-retired behavior and retained checks. Re-pin and re-inventory before each row.
-
-| Order | One coherent change | Verification and dependencies |
+| Scope | Current evidence | Decision |
 |---|---|---|
-| 1A | Remove AppShell, CodeEditor, SidePanel, WorkspaceDock, SystemNoticeBar/backend notice client and teaching code; remove the “retain the old source” decision and obsolete shell documentation | No current import reaches them; update the no-old-editor module assertion with its own maintenance entry; retain all navigation cases |
-| 1B | Remove PreviewFrame/ProjectFormatMeta, old canvas components and their fully retired canvas/selection/text/keyboard test families; keep partLocks until 1C | Keep CanvasGuides and new-editor geometry tests; retire matching canvas instructions and selectors only |
-| 1C | Remove old timeline/Inspector/MachineGraph, partLocks, layerTimeline/stepAssign and fully retired tests; preserve the two active fixture builders pending replacements | Keep animation parsing/playback/export and new-editor timeline protection; update old planner examples and schema references |
-| 1D | Remove remaining old panels, simulator and moderation UI; delete the remaining entirely retired files by family | Keep current AssetsPanel, InsertTemplateDialog, ExportSurface, FieldControl and production chat; delete SpxFieldRow only with its old panels; retain the live remainder in mixed specs |
-| 1E | Remove skipped declarations from mixed wizard/import files, then mixed library/playout/video/configured files as separate PRs | Exact titles/lines in retired-test-cases; 77 per-spec draft entries; no current behavior rewrite or shortened assertion |
-| 1F | Remove dead state and stale calls in shared modules; rename the router fallback without changing URL behavior | Saved slot/library load, dirty state, save/reopen, wizard exit, auth hash and stale graphic link checks; stop before dropping dock-format support without its answer |
-| 1G | Close remaining helpers, CSS regions, contract clauses and document links exposed by those removals | Delete `_create`'s old wrappers only when no callers remain; replace lottieInsert/machineEdit fixture construction without weakening live OGraf/animation assertions before removing those source files; preserve live helper bodies; compiler, dependency graph, contract and protection gates must still hold |
+| First source PR | AppShell, WorkspaceDock, CodeEditor, SidePanel and the three teach files: 7 files, 1,230 lines | Ready to propose; no test-body deletion, shared state or CSS edit |
+| Remaining whole-source candidates | 20 further files, 9,530 lines; total 27 files / 10,760 lines | Delete in small dependent groups after last live consumer is checked on fresh main |
+| System notices | 2 files, 115 lines | Excluded from deletion pending the admin decision |
+| Current fixture helpers | lottieInsert and machineEdit: 395 lines | Keep their active OGraf and mutator tests; no replacement project for its own sake |
+| Old-helper test discovery | 474 static declarations in 77 specs at the original pin | Classification input, not a deletion list; retired UI and live-product subjects are different |
+| Old timeline/WYSIWYG documents | 8 files, 1,280 lines | Remove only after current schema facts and live references have a maintained home |
 
-The later rows are cleanup of still-shared files, not a reason to leave whole dead feature files
-or their tests behind in 1A–1D. Remove the retired plan documents as their owning surfaces go;
-repair all live links in that PR. No new editor implementation runs concurrently on shared paths.
+The former 30,244-line source/test removal total is withdrawn. The old 36 whole-file plus
+41 mixed-file grouping describes where an unconditional skip occurs, not approved retirement.
+The independent review's 20-file UI starting list also contains live-feature subjects in flows,
+images, ux, assets and template-insert. Judge individual behavior and replacement evidence;
+never make an entire file disposable from its title or its helper.
 
-Before every PR: `node scripts/worktree-activity.mjs`, fetch/reconcile main, inspect remote PR
-and plan allocations, run rules for actual changed paths, and reserve one writer for App/store/
-shared CSS/ARCHITECTURE/contracts. `/check` verifies affected checks locally within cloud bounds;
-the full build and suites run on GitHub through `/queue-merge`. Capture the exact landed SHA,
-remaining file counts and fresh duration-table/run receipt. Keep recovered minutes as headroom.
+### One bounded first pull request
+
+Delete only the seven named source files. Preserve every test body, including no-old-editor's
+module request guard and its navigation/prefs checks. Repair that spec's obsolete covers paths,
+keep the existing root retirement rule active with amended wording, retire/narrow obsolete
+contract clauses through the normal rule mechanism, regenerate compiled guidance, remove only
+stale copy-baseline rows and update ARCHITECTURE's teaching/shell references.
+
+Checks: rules for the actual changed paths before editing; targeted gates; affected-planner
+Node tests; contract freshness/evidence; copy and E2E protection checks. Inspect the resulting
+browser selection. Production build and full authoritative validation run on GitHub through
+`/check` and `/queue-merge`, not a full local suite. Nothing is described as zero-risk.
+
+### Remaining order and the #800 exit condition
+
+1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
+   Give each old-helper case one disposition: retired interaction; current behavior already
+   protected by a named check; or a current protection gap. Record the evidence, not just a
+   filename mapping. The issue's historic section count is not a current execution inventory.
+2. **Delete exclusive panels/canvas/timeline and their retired UI tests in small groups.**
+   Remove PreviewFrame before its imported canvas children; keep partLocks until its final
+   consumer goes. Keep CanvasGuides/video, AssetsPanel, InsertTemplateDialog and current export
+   surfaces. Update all covers headers naming removed paths, including live playout-baseline;
+   update affected-planner examples without weakening their selection properties. Delete the
+   pasteboard helper only with its skipped old-UI checks. Its three test imports are not live.
+3. **Resolve #800 by product family in the same run.** Handle pure formatting/runtime cases in
+   Node where suitable; keep real import, wizard, playout, library, export and persistence
+   journeys in the browser. Reuse current coverage and retain historical defect cases. Where
+   coverage already exists, demonstrate equivalence and remove the duplicate instead of
+   porting every old test. Where protection is missing, add a minimal current-surface check
+   and prove its relevant failure. Each removal has its reviewed per-spec maintenance entry.
+4. **Schedule mixed editor specs after the editor phase releases them.** library, project and
+   wizard-finish contain the eight legacy skips carried in the repair receipts. Leave those
+   files and the carried challenges untouched until editor Phase 2 closes or its owner
+   explicitly hands over the paths. Record the changed baseline in the editor phase note.
+5. **Remove obsolete helpers only after #800's consumers are resolved.** No remaining test may
+   call skipOldEditor, enableAdvancedMode, switchToAdvancedMode, finishIntoEditor or createProject.
+   Keep _create's live exports, including bootstrapGraphic and addToProductionFromFinish.
+   Delete unused _code/_ai-notice helpers only after checking all remaining callers. Update
+   VERIFICATION's old bootstrap instructions.
+6. **Finish selective shared cleanup last.** Store, router, saved-data/prefs and CSS remain
+   reserved during editor repair. Preserve URL behavior and stored shapes; a supported format
+   needs its own owner decision before removal. Review CSS rule by rule. No wholesale parts.
+
+**#800 is part of completion, not a reason to delay the isolated first PR.** The run is not done
+until every original live-subject case has either a running current check or evidence that a
+named existing check covers it; all retired skip-helper callers are gone; and CI passes on the
+landed result. Then update/close #800 under the implementation task's issue authorization.
+Restoring missing protection may increase active test time; measure it rather than promising
+that all restored tests save minutes. Do not leave skipped tests indefinitely "just in case".
+
+For every subsequent PR: run worktree-activity, fetch main, inspect remote PR/plan allocations,
+reserve shared paths, and recheck the actual diff. CORE changes such as PreviewFrame or shared
+styles trigger the existing broad CI selection. Bank only removed copy/evidence baseline rows;
+never loosen a gate. Capture the landed SHA and fresh size/time receipt.
+
+Current concurrency evidence: harness-ladder and cloud-recovery work have no direct overlap
+with the seven-file first PR. Editor repair #1391 has now landed and changes store, router,
+project/library and durable state. Its independent acceptance is not inferred from merging.
+Keep those paths reserved. No code-health refactor runs on files awaiting retirement.
 
 ## Remaining candidates, ranked by saving and confidence
 
@@ -133,7 +175,7 @@ whole-spec costs or explicitly historical estimates; they are not promised net s
 
 | Rank | Action | Candidate and current footprint | Confidence, proof needed and saving |
 |---|---|---|---|
-| 1 | delete | Old tests and source above: 30,244 named source/test lines | High; retired surface + import/helper graph. 0.497 min credited; mixed-case saving unknown |
+| 1 | delete / resolve | 27 exclusive source candidates: 10,760 lines; test subjects reviewed under #800 | High for isolated shell; conditional for remaining groups. No blanket test-line/time credit |
 | 2 | move / consolidate | Proposal/command task walks (7.014 min), drawing task (1.541), two transform/property qualifications (2.347), SVG example walk (2.077) | Medium; up to 12.979 browser-minutes can move out of the frequent suite, less retained short journeys. Keep all in scheduled validation; zero total-validation saving claimed. Fault-inject command apply, proposal normalization, pen persistence and transform save first |
 | 3 | delete, pending product decision | 35 research-only AI modules, 10,566 src lines; linked creative/spike/Pro tools and tests | Medium for reachability, low for retirement. Owner decides promised lanes; measured whole cluster is not a deletion list. Keep shared live AI modules |
 | 4 | move | creative-routing and render-schedule pure checks (0.915 min) | High candidate confidence; preserve every branch/negative pair in new Node tests. Net CI saving awaits Node timing |
@@ -156,29 +198,26 @@ Use [audit details](evidence/audit.md) for no-UI false positives, Node discovery
 
 ## Expected end size and savings
 
-These are explicit scenarios for the original pinned contents, not a promised target or a cap.
-Partial edits can remove more; fixture replacements, moved retained schema text and new regression checks can add lines. The two test-fixture builders (395 lines) receive no deletion credit until replacements exist.
-`forecast.json` records the arithmetic and the report's separate footprint.
+Scenarios use the original source pin so comparisons remain like-for-like; current main has
+additional unrelated work. Re-pin before implementation. Revised forecast:
 
-| Area | Baseline | After named Phase 1 cuts | Further conditional change |
-|---|---:|---:|---|
-| src TS/TSX | 303,553 | 292,678 | 282,112 only if all 35 research-only AI modules are retired; moving blank fixture reduces src another 104 but adds it to tests |
-| e2e TS/TSX | 116,035 | 96,666 | Exact retained/new test bodies and moved cases determine further size; not forecast as a percentage |
-| scripts implementation | 106,976 | 106,976 before partial planner edits | 106,783 after the three approved-later probe deletions; Node moves add replacement code |
-| scripts tests | 55,586 | 55,586 before partial selection-example edits | No whole Node test deletion established |
-| docs Markdown | 129,125 | 127,845 before this report/retained text | Add the measured report Markdown and any schema text kept; no blanket archive purge |
+| Area | Original baseline | Supported scenario |
+|---|---:|---|
+| src TS/TSX | 303,553 | 302,323 after the seven-file first PR; 292,793 if all 27 source candidates are retired |
+| e2e TS/TSX | 116,035 | Unchanged by the first PR; final net size depends on #800 classification and replacement checks |
+| scripts implementation | 106,976 | No whole-file deletion in Phase 1; planner edits and later approved probe removal measured separately |
+| scripts tests | 55,586 | No whole Node test file proved obsolete |
+| docs Markdown | 129,125 | 127,845 after the eight conditional document cuts, before this report and retained schema text |
 
-Offline frequent-suite budget after the known whole-file retirements: **182.755 minutes**,
-plus an unmeasured reduction from mixed skipped cases. After the two pure Node moves it would
-be **181.840 browser-minutes**, before their Node cost. Creative-pilot contributes at most
-another 2.061 once, if retired or successfully moved. Qualification relocation has a separate
-12.979-minute ceiling; it does not remove scheduled/full-validation cost and depends on the
-other study's validated selection/cadence design.
+No test minutes are credited to the first PR. The historical 0.497 minutes is the cost of the
+36 helper-skipped files, not the saving now approved. The review's 20-file starting list totals
+4,561 lines / 0.268 minutes, but its live subjects still require classification. Keep these as
+context, not promised reductions. Later Node/consolidation candidates remain separate.
 
-**Whole CI jobs saved: zero proved. Build seconds saved: unknown.** Existing JS tree-shaking
-already excludes AppShell. Removing CSS/dead checking inputs may help, but only the same CI
-job/step on before-and-after commits, with cache and setup noted, can measure it. The current
-157-second build step is a baseline, not an amount that can be claimed back.
+**Whole CI jobs saved: zero proved. Build seconds saved: unknown.** AppShell is already absent
+from the production app path. No Monaco/dependency saving is proposed. The admin assessment
+has separate measured shipped assets and costs; no admin removal is included in this forecast.
+See forecast.json for arithmetic, excluded costs and the report's own footprint.
 
 ## Stop the bloat returning
 
@@ -195,8 +234,8 @@ fail-then-pass check for accidental reintroduction and for an unlisted test remo
 `check-retired-names`, dependency checks and protection gates enabled.
 
 Maintenance entries are authored only in the removal's reviewed work spec and name exact
-retired behavior or replacement/fault evidence. The [drafts](evidence/test-maintenance-draft.md)
-are deliberately not active blanket gate approvals. Do not add a rule demanding more
+retired behavior or replacement/fault evidence. The [maintenance procedure](evidence/test-maintenance-draft.md)
+contains no active blanket gate approval; the former broad drafts have been withdrawn. Do not add a rule demanding more
 process for every unrelated change; use the existing feature-removal/review path.
 
 ## Acceptance criteria
@@ -205,8 +244,9 @@ process for every unrelated change; use the existing feature-removal/review path
   script, doc and asset in the stated scopes; static inference and runtime measurements differ.
 - AC2: Every proposed whole old-editor source deletion has no current entry-point consumer,
   including dynamic/SSR/string registry checks; shared modules have a named retained consumer.
-- AC3: Every retired test declaration has a title, line range, skip-helper chain and per-spec
-  draft maintenance entry. Current tests in mixed specs remain explicitly protected.
+- AC3: Every discovered old-helper declaration has a title, line range and skip chain. Before
+  removal, its subject disposition and exact per-spec maintenance entry are reviewed; #800
+  ends with current protection or demonstrated duplicate coverage, not unresolved skips.
 - AC4: Saved-data keys/shapes/readers are mapped; no stored format is dropped without its own
   owner decision, and deletion implementation must run real compatibility cases.
 - AC5: Each phase states order, affected boundaries, required checks and conflict handling;
@@ -218,17 +258,19 @@ process for every unrelated change; use the existing feature-removal/review path
 - AC8: This research changes only this report directory, passes targeted documentation/evidence
   checks and requests the first owner decision before any implementation.
 
-## Owner questions, asked one at a time
+## Owner decisions still needed
 
-1. Approve the Phase 1 old-editor plan while retaining all saved graphics/project compatibility
-   and the live video workspace? **Recommend yes.** No later retirement is included.
-2. May the unused `spx-gfx-layout` old dock-format reader/writer be retired after preserving
-   video's clamp helper, leaving stored bytes untouched? **Recommend yes.** Until answered,
-   retain that compatibility code; never clear the record as cleanup.
-3. Are Creative pilot, Pro custom/harness and spike lanes still promised work, or finished
-   experiments that may be retired with their tools/tests? **Recommend retire only finished
-   lanes, keep the live wizard AI and shared validators.** Take one named lane at a time.
+The narrower #800 policy is accepted. The owner does not use the current admin page and wants
+its weight measured before deciding its future; cleanliness takes priority over speculative
+retention. No deletion or plan-run window has been authorized in this update.
 
-These are pending decisions, not approvals inferred from elapsed time. Low-value public asset
-retirement can wait; it does not block the editor work. Validation results and remaining
-measurement limits are recorded in [evidence/verification.md](evidence/verification.md).
+The next product question is which admin actions need an accessible control. Recommend a
+periodic report for spending, failures, feedback and actual external usage; keep only a small
+emergency/support surface if the owner needs one. The exact choice follows the
+[admin assessment](evidence/admin-audit.md), not a blanket promise to preserve ten sections.
+A reporting routine reports; it does not silently change access, budgets or model policy.
+
+Before deleting support for the old dock-layout format, ask that separate stored-data question.
+Do not ask about retiring AI experiments during the active harness work; they are outside this
+phase. The first seven-file source PR needs no further technical discovery from the owner.
+Approval of that PR's scope and an execution window remain distinct from this research update.

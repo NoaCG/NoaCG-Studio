@@ -1,7 +1,9 @@
 # What can go, and what must stay
 
 Source pin: `3010e41134f1e3a6ebf3933582eb9b7e52055241`, inspected 2026-10-17.
-This is a removal proposal. No product file, test, instruction or stored record was changed.
+This is the original pinned ownership analysis. No product file, test, instruction or stored record was changed.
+The current spec and second-opinion-response.md supersede its broad test-retirement and fixture-replacement proposals.
+Raw skip counts below are discovery evidence, not current deletion authorization.
 
 ## Old editor: evidence and boundary
 
@@ -16,8 +18,8 @@ server/CLI/worker imports into `src`, build inputs, type imports, literal dynami
 The 30-file AppShell-only closure is 11,191 lines. `src/teach/cssReference.ts` adds 79 lines:
 it has no incoming import or string-registry reader, and describes the retired Learn/property
 chip UI. Of those 31 candidates, lottieInsert (124 lines) and machineEdit (271 lines) still build
-fixtures for live tests. The manifest therefore proposes **29 direct deletions, 10,875 TS/TSX
-lines**, plus two removals conditional on proven fixture replacements.
+fixtures for live tests. The manifest therefore proposes **27 source candidates, 10,760 TS/TSX
+lines**, after excluding the two system-notice files. Keep the two current fixture helpers; no replacement is required merely to move code between folders.
 All 31 candidates are also flagged by Knip, demonstrating why a tool finding alone is insufficient. These are whole-file candidates, not a proposal to remove
 the 195,904 lines of shared dependencies that the old shell happens to import.
 
@@ -27,7 +29,7 @@ the 195,904 lines of shared dependencies that the old shell happens to import.
 | Old canvas | CanvasInteraction, CanvasSelection, partLocks, pasteboard | CanvasGuides is used by VideoPlayerFrame; new-editor canvas and transform adapters remain |
 | Old timeline and state graph | Inspector, StepTimeline, LegacyTimeline, MachineGraph, PlayoutSimulator; layerTimeline and stepAssign after their last source callers disappear | animData, animMachine, animImport, animMigration, timelineModel and editorAnimation are shared with templates, playout, export or the new editor |
 | Panels | AIPromptPanel, ControlPanel, ExportPanel, SampleDataPanel, StylePanel | AssetsPanel and InsertTemplateDialog are used by the new editor; ExportSurface/ExportWindow, FieldControl and StyleControls are current wizard/control surfaces |
-| Notices and teaching | SystemNoticeBar, backend/systemNotice, showchat/ModerationPanel, teach/explain, teach/knowledge, teach/cssReference | showchat/SendIn and the production chat-intake controls are live; do not delete the showchat domain |
+| Notices and teaching | showchat/ModerationPanel, teach/explain, teach/knowledge, teach/cssReference | Keep SystemNoticeBar/backend notice reader pending admin decision; showchat/SendIn and production chat data remain live |
 | Workspace preferences | Dock-only types, constants and read/write functions in model/layout after the storage decision | `clampRatio` is used by both VideoAppShell and model/videoLayout; extract/reuse it before removing dock code |
 
 ### Shared state is a selective edit
@@ -79,10 +81,8 @@ No partial-store line saving is included in the forecast.
 `e2e/_ografBuild.ts:113` calls lottieInsert for current OGraf isolation, lifecycle, parity and
 conformance coverage. Four unskipped cases in machine-graph.spec.ts at lines 279, 735, 786 and
 852 call machineEdit while checking runtime upgrades, step rehoming and animation semantics.
-Keep those cases and assertions. A later small Phase 1 PR must supply fixture construction
-independent of the old authoring UI and prove identical stored-template/animation outcomes
-before deleting the two source helpers. No line or time saving is credited yet. Do not copy
-all unused mutators into tests merely to make imports compile.
+Keep those cases and assertions. These are current consumers, so retain the helpers. Do not create replacement fixtures merely
+to move code out of src; no removal saving is credited. Runtime and schema behavior remain protected.
 
 ## Saved data: compatibility that survives
 
@@ -104,9 +104,8 @@ out by a zero-row server query.
 Current checks to retain include no-old-editor's prefs, unknown-hash and stale-link cases;
 project, library, account-library, storage-full, project-format, library-productions;
 editor-foundation and the new-editor save/reopen suites; configured library-arrival;
-anim-engine's surviving pure parity case and current export/runtime checks. Existing tests
-that are themselves skipped old-editor walks are retired per the owner, even if their titles
-name a still-useful operation. They do not become evidence that today's operation is protected.
+anim-engine's surviving pure parity case and current export/runtime checks. Tests of retired UI interactions are removed; skipped tests of current operations are resolved
+under #800. A skip is not evidence that today's operation is protected or obsolete.
 The deletion PR must prove the retained compatibility fixtures actually run; missing current
 compatibility protection gets its own current-surface test, not a port of an old editor walk.
 
@@ -122,7 +121,7 @@ Helper functions are not counted as test files. Runtime enumeration was not run 
 Windows-only process tests, selected catalog scopes and unavailable private fixtures remain
 valid conditional checks; they are not turned into retirement candidates by this audit.
 
-The old-helper closure identifies **474 declarations in 77 files**: 36 entirely retired files
+The old-helper closure identifies **474 declarations in 77 files**: 36 entirely helper-skipped files
 (10,715 lines; 0.497 table-minutes), plus 41 mixed files (39 offline and two configured).
 The marked declaration spans in mixed files total 8,654 lines; surrounding imports/helpers
 are not counted. Keep the unmarked tests. This conservative, current-source list replaces
@@ -133,16 +132,15 @@ they contain active checks. No per-case attribution is available. Do not prorate
 The older 2.6-minute import-svg waste estimate is historical, not a fresh measurement.
 Configured old cases have no offline-table duration and receive no invented saving.
 
-`test-maintenance-draft.md` has one complete entry per affected spec. It deliberately lives
-outside the gate's global `spec.md` scan until a deletion PR fulfills the entry. The current
+`test-maintenance-draft.md` now withdraws the former broad entries. Subject classification and
+exact replacement/retirement evidence must precede each removal's entry in the active work spec. The current
 gate matches by spec filename, not test identity; `/check` must compare the actual removed
 declarations to the receipt, including every retained assertion. No automatic repair may
 turn these drafts into permissions to pass a failure.
 
 Keep `e2e/no-old-editor.spec.ts` as a current navigation/compatibility check. Its ten tests
-protect wizard exits, Home, new-editor doors, diagnostic boot, old links and prefs. Consolidate
-its obsolete AppShell module-request assertion into a cheap source/import check when deleting
-the module; keep the behavior checks. Draft a separate, exact maintenance entry for that edit.
+protect wizard exits, Home, new-editor doors, diagnostic boot, old links and prefs. Keep
+its module-request guard and behavior checks in the first PR; only obsolete covers paths change.
 
 Node tests are not dead because package.json does not list them: gates.mjs discovers every
 `scripts/**/*.test.mjs`. `gates-build.tsv` and `gates-factory.tsv` record actual discovery.
