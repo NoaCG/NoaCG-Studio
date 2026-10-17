@@ -10,6 +10,7 @@ import type { AiThread } from './aiThread';
 import type { ProjectLegibility } from './designRules';
 import { durable } from './durableStore';
 import { uuid } from './id';
+import { graphicIdTaken } from './library';
 
 export interface SavedProject {
   id: string;
@@ -44,6 +45,12 @@ export interface SavedProject {
    *  by this id instead of minting a second one (templateStore's initial link). The link write
    *  of a mint carries a fresh one. Additive optional. */
   reservedGraphicId?: string;
+  /** Set on a slot write made while this tab's save was minting `reservedGraphicId` for this
+   *  draft (the save's own reservation write, and an autosave that fired during it). Only such a
+   *  write proves the record is this draft's own, edited since or not; any other slot naming an
+   *  existing record is trusted only when it holds that record's source (templateStore's initial
+   *  link, #1402). Additive optional. */
+  mintingReserved?: boolean;
   /** Soft-delete tombstone (for cloud sync parity — see Packet.deleted). */
   deleted?: boolean;
 }
@@ -55,19 +62,36 @@ const STORAGE_KEY = 'spx-gfx-project';
  *  by the save itself was lost when that write and the link write were both refused, and a
  *  reload then minted a second record (#1383, sixth check S6). It belongs to the document whose
  *  baseline it was taken for: a replaced document's writes take a fresh one, so they never point
- *  at a record minted for another document. */
-let reservation: { id: string; baseline: SpxTemplate | undefined } | null = null;
+ *  at a record minted for another document.
+ *
+ *  It is a pointer to a record that does not exist YET. Two tabs on one draft both resume it
+ *  from the slot, and once one of them mints it, the other's writes must stop naming it, or a
+ *  reload links the other tab's draft to that record and its Save overwrites it (#1402). So an
+ *  id a record already holds is dropped for a fresh one, unless this tab is minting it now. */
+let reservation: { id: string; baseline: SpxTemplate | undefined; minting: boolean } | null = null;
 export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
-  if (!reservation || reservation.baseline !== baseline) reservation = { id: uuid(), baseline };
+  if (!reservation || reservation.baseline !== baseline || (!reservation.minting && graphicIdTaken(reservation.id))) {
+    reservation = { id: uuid(), baseline, minting: false };
+  }
   return reservation.id;
 }
 /** Boot: the slot's persisted reservation is the document's, so a reload before its first Save
  *  keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
  *  the mint never takes, and a double refusal after the reload could not relink. */
 export function resumeReservation(id: string, baseline: SpxTemplate | undefined): void {
-  reservation = { id, baseline };
+  reservation = { id, baseline, minting: false };
 }
-/** A mint took the reserved id (or found it taken): the document's next mint reserves a fresh one. */
+/** A first Save / Save As takes the reserved id. Until `endMint`, this tab's slot writes say so
+ *  (`mintingReserved`), so a reload after its link write was refused trusts the record. */
+export function mintReservedGraphicId(baseline: SpxTemplate | undefined): string {
+  const id = reservedGraphicId(baseline);
+  reservation!.minting = true;
+  return id;
+}
+export function endMint(): void {
+  if (reservation) reservation.minting = false;
+}
+/** A mint took the reserved id: the document's next mint reserves a fresh one. */
 export function releaseReservation(): void {
   reservation = null;
 }
@@ -120,6 +144,7 @@ export function saveProject(
       // Same rule again; an explicit null (the default state) drops the key entirely.
       legibility: (legibility === undefined ? existing?.legibility : legibility) ?? undefined,
       reservedGraphicId: reservedGraphicId(baseline),
+      ...(reservation?.minting ? { mintingReserved: true } : {}),
     };
     durable.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();
