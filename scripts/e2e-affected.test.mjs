@@ -395,7 +395,7 @@ test('a script test plans nothing, while the script it tests still escalates', (
 // derivation finds every module the issue named, and none of them plans nothing.
 test('every module vite.config.ts loads at startup plans specs, and the set is derived from its imports', () => {
   const startup = devServerModules();
-  const named = ['eventsDevPlugin', 'adminDevPlugin', 'meDevPlugin', 'panelBackendPlugin', 'site-nav', 'whats-new', 'roadmap'];
+  const named = ['eventsDevPlugin', 'meDevPlugin', 'panelBackendPlugin', 'site-nav', 'whats-new', 'roadmap'];
   for (const name of named) assert.ok(startup.has(`scripts/${name}.mjs`), `${name} is found from vite.config.ts`);
   assert.ok(startup.has('scripts/measured.mjs'), 'and what those modules import, two levels down');
   const specsOnDisk = specFilesOnDisk();
@@ -405,7 +405,6 @@ test('every module vite.config.ts loads at startup plans specs, and the set is d
     }
   }
   // A startup module the headers name keeps that subset; one they do not name escalates.
-  assert.deepEqual(planFor(['scripts/adminDevPlugin.mjs']).unmapped, []);
   assert.equal(planFor(['scripts/eventsDevPlugin.mjs']).mode, 'full');
   // A script the dev server never loads is still ignored.
   assert.equal(planFor(['scripts/check-workflows.mjs']).mode, 'none');

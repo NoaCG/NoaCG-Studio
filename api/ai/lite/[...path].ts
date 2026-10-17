@@ -1,4 +1,4 @@
-// NoaCG Lite's one serverless function (see api/admin/[...path].ts for the why).
+// NoaCG Lite's one serverless function (see docs/DEPLOYMENT.md for the function budget).
 //
 // The handlers live in api/_lib/lite/, which is not routed and so costs nothing against the
 // deployment's function cap. Paths, methods and bodies are unchanged.

@@ -1,4 +1,4 @@
-// The light /api/render routes in one function (see api/admin/[...path].ts for the why).
+// The light /api/render routes in one function (see docs/DEPLOYMENT.md for the function budget).
 //
 // start.ts and cleanup.ts stay FUNCTIONS OF THEIR OWN and are deliberately absent here.
 // start carries maxDuration 300 AND includeFiles for the Remotion bundle; merging it in would

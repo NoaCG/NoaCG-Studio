@@ -5,8 +5,8 @@
 // answered the first from a hand-kept ALLOWLIST, and that list has now hidden a whole surface
 // three times - the imported-graphic-analysis task, hosted Pro (a dev 404 in every dev server
 // and the entire e2e suite while production served it), and `/api/ai/consent`, which no dev
-// server has ever routed. `adminDevPlugin` and `meDevPlugin` already refuse to keep a list, and
-// say why: "a second copy in the dev server would be a second thing to keep in step". They can
+// server has ever routed. `meDevPlugin` already refuse to keep a list, and
+// say why: "a second copy in the dev server would be a second thing to keep in step". It can
 // simply forward everything because each mounts ONE function. `api/ai` mounts four, so the
 // choice cannot be skipped - it has to be DERIVED instead.
 //
@@ -116,7 +116,7 @@ function clientSources(repoRoot) {
 /**
  * The `/api/...` paths one source names, each reduced to the SEGMENTS the router sees. A template
  * literal counts an interpolation as exactly one segment - which is the claim a path builder
- * makes and the thing worth checking: `/api/admin/${path}` is legal, and `/api/admin/${a}/detail`
+ * makes and the thing worth checking: `/api/me/${path}` is legal, and `/api/me/${a}/detail`
  * is a platform 404 however `a` resolves. Anything unrecognisable inside the braces is still one
  * segment, because a builder that splices a slash in is a path this cannot answer and must not
  * pretend to.

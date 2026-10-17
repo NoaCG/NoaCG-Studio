@@ -56,9 +56,11 @@ directory it searched and what each held; a page in that state has lost the week
 directory was empty and whether the store itself is missing - the plans went missing exactly this
 way in the 2026-09-01 window, before the store existed.
 
-`feedback:count` counts the last 168 hours - total, negative against positive, how many carried a
+The Codex product brief (`.agent-workflows/noacg-product-brief.md`) now carries product metrics
+and model candidates. Reference it when available instead of repeating its feedback counts.
+`feedback:count` remains an on-demand fallback and counts the last 168 hours - total, negative against positive, how many carried a
 written note, how many are still at status `new`. **It never reads the message column**, so what
-people wrote stays behind the admin login; that is deliberate and it is why the number can be read
+people wrote stays in private operator sessions; that is deliberate and it is why the number can be read
 out in chat at all. If it fails on a missing `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`, say the
 checkout's `.env` lost the pair. Never substitute a zero for an error.
 

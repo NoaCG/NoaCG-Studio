@@ -108,7 +108,7 @@ module.exports = {
       comment:
         'Everything may import entitlements/ - a layer-0 PURE contract that imports nothing ' +
         'in return (§2). It is the one answer to "what may this user do", shared by the ' +
-        'browser, api/ and the admin page; a second copy of that answer is the bug it exists ' +
+        'browser and api/; a second copy of that answer is the bug it exists ' +
         'to prevent. Its own outgoing edges are absent from this table on purpose.',
       from: { path: '^src/' },
       to: { path: '^src/entitlements/' },
@@ -118,7 +118,7 @@ module.exports = {
         'Everything may import feedback/ - the second layer-0 PURE contract, same shape and ' +
         'same reasoning as entitlements/ (§2). It is the one vocabulary for a rating, a ' +
         'reason code and a triage state, and it has FOUR consumers that must agree: the ' +
-        'browser form, the API validator, the admin inbox and the CHECK constraints in ' +
+        'browser form, the API validator, operator reporting and the CHECK constraints in ' +
         'migration 0028. Four copies of one enumeration is the bug it exists to prevent - ' +
         'the discard-reason list was already living in three places before it. It imports ' +
         'nothing in return.',
@@ -307,14 +307,6 @@ module.exports = {
         'builds it with the same function the bridge scaffold uses, so the two cannot drift.',
       from: { path: '^src/packs/' },
       to: { path: '^src/templates/types/recipeTemplate' },
-    },
-    {
-      comment:
-        '§3: admin -> backend (getAccessToken + isBackendConfigured only). The admin page is ' +
-        'its own MPA entry, so it needs the session token to authorize its API calls; it ' +
-        'reads no other domain, because every fact it shows comes from api/admin/*.',
-      from: { path: '^src/admin/' },
-      to: { path: '^src/backend/' },
     },
     {
       comment: '§3: showchat -> backend, control',

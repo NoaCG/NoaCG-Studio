@@ -1,4 +1,4 @@
-// The light /api/ai routes in one function (see api/admin/[...path].ts for the why).
+// The light /api/ai routes in one function (see docs/DEPLOYMENT.md for the function budget).
 //
 // api/ai/generate.ts stays a FUNCTION OF ITS OWN and is deliberately absent from this table:
 // it carries maxDuration 300 and reads bodies up to 12 MB, and folding it in here would give
