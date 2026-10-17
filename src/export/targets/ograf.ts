@@ -160,11 +160,34 @@ function spxFieldHint(f: SpxField): Record<string, unknown> | null {
  * truthy string "NaN", so the `|| "1"` default never applies) and Play shows nothing, in
  * silence (docs/SPX_ON_A_REAL_SERVER.md §3). The layer is the one the native SPX export gives
  * the same graphic (`spxLayerFor`), so the two packages land alike, inside SPX Solo's five.
- * SPX also bakes this layer into every custom-action button it generates.
+ * SPX also bakes this layer into every custom-action button it generates. The out mode is the
+ * graphic's own (`manual`, `none`, or the hold in ms), so SPX times a graphic that leaves by
+ * itself as its native package does.
  */
 function spxManifestHint(template: SpxTemplate): Record<string, string> {
   const layer = String(spxLayerFor(template));
-  return { playlayer: layer, webplayout: layer, out: 'manual' };
+  const out = /^(\d+|none)$/.test(template.settings.out ?? '') ? template.settings.out : 'manual';
+  return { playlayer: layer, webplayout: layer, out };
+}
+
+/**
+ * The hold in ms of a graphic set to leave by itself (the SPX `out` setting as a number), else
+ * null: `manual` waits for Stop and `none` stays.
+ */
+function timedOutMs(template: SpxTemplate): number | null {
+  return /^\d+$/.test(template.settings.out ?? '') ? Number(template.settings.out) : null;
+}
+
+/**
+ * The entrance's length in ms, read off the graphic's own timeline as `actionDurations` reads it,
+ * or null for a timeline we cannot read (hand-written GSAP), which the Graphic then measures.
+ * The hold of a graphic that leaves by itself starts when its entrance has landed.
+ */
+function entranceMs(template: SpxTemplate): number | null {
+  const data = parseAnimData(template.js);
+  if (!data || data.steps.length < 2) return null;
+  const speed = data.speed > 0 ? data.speed : 1;
+  return Math.max(0, Math.round((data.steps[0].duration / speed) * 1000));
 }
 
 /**
@@ -260,14 +283,17 @@ function actionDurations(template: SpxTemplate, stepCount: number, actionIds: st
   const steps = data.steps;
   const perStep: Array<{ step: number; duration: number }> = [];
   for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: ms(steps[i].duration) });
+  const exit = ms(steps[steps.length - 1].duration);
+  const hold = timedOutMs(template);
   return [
     {
       type: 'playAction',
-      // The action-level value is the fallback for any step the list below does not name.
-      duration: perStep[0]?.duration ?? 0,
+      // The action-level value is the fallback for any step the list below does not name. A
+      // graphic with no steps plays its entrance, its hold and its exit in this one action.
+      duration: hold !== null ? (entranceMs(template) ?? 0) + hold + exit : perStep[0]?.duration ?? 0,
       ...(perStep.length ? { steps: perStep } : {}),
     },
-    { type: 'stopAction', duration: ms(steps[steps.length - 1].duration) },
+    { type: 'stopAction', duration: exit },
     // update() writes field values into the DOM; nothing animates on a data change.
     { type: 'updateAction', duration: 0 },
     ...actionIds.map((id) => ({ type: 'customAction', customActionId: id, duration: -1 })),
@@ -385,14 +411,16 @@ export interface OgrafManifestOptions {
 
 /** The .ograf.json manifest (required fields per spec §2 + the field-driven data schema). */
 /**
- * The manifest's `stepCount`, which the Graphic's step walk uses too: the default path's length,
- * at least 1. The standard's other two answers never fit what the Graphic does today. `0` is a
- * graphic that animates in and out by itself, which one set to leave by itself after N ms would
- * be if the Graphic ran that timed exit (it does not yet, issue #1012), and NoaCG's "it stays"
- * (`out: 'none'`) never leaves, which is 1. `-1` is an unknown count, and a default path is a
- * fixed list.
+ * The manifest's `stepCount`, which the Graphic's step walk uses too. A graphic set to leave by
+ * itself after N ms is `0`, the standard's graphic that animates in and out by itself: its
+ * playAction plays the entrance, holds N ms and plays the exit, as the studio preview, SPX and
+ * the HTML overlay do with no operator pressing Continue, so the walk's further steps are not
+ * offered. Every other graphic is the default path's length, at least 1: NoaCG's "it stays"
+ * (`out: 'none'`) never leaves, which is 1, not 0. `-1` is an unknown count, and a default path
+ * is a fixed list.
  */
 function ografStepCount(template: SpxTemplate): number {
+  if (timedOutMs(template) !== null) return 0;
   return Math.max(1, Number(template.settings.steps) || 1);
 }
 
@@ -411,6 +439,10 @@ function ografStepCount(template: SpxTemplate): number {
  * the arrow INTO its exit) ends it at -1; and a target past the last step plays the exit, the
  * OGraf step model's "go to the end". Answers the step the graphic is on, -1 once it has left.
  * `ografOffAir` is the machine's answer to "has it left": every group back at its initial state.
+ *
+ * `ografEntranceMs` is the entrance's length when the export could not read it (`entranceMs`):
+ * read off a paused throwaway copy of the entrance timeline as the HTML overlay reads it, 0 when
+ * there is none or GSAP reports one that loops forever.
  */
 const STEP_WALK_JS = `function ografPlayStep(step, params, count, graphic) {
   var target = params.goto != null && params.goto >= 0 ? params.goto : step + (params.delta != null ? params.delta : 1);
@@ -425,6 +457,15 @@ const STEP_WALK_JS = `function ografPlayStep(step, params, count, graphic) {
 }
 function ografOffAir(groups, offStates) {
   return Object.keys(groups).every(function (id) { return groups[id] === offStates[id]; });
+}
+function ografEntranceMs(build) {
+  if (typeof build !== 'function') return 0;
+  var probe = build();
+  if (!probe || typeof probe.duration !== 'function') return 0;
+  probe.pause();
+  var seconds = probe.duration();
+  probe.kill();
+  return seconds >= 1e7 ? 0 : seconds * 1000;
 }`;
 
 /**
@@ -543,9 +584,14 @@ function offlineDocument(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB
   const lottie = templateUsesLottie(template)
     ? `<script src="${lib.lottie}"></script>`
     : '';
+  // A graphic set to leave by itself schedules its exit on this document's virtual clock, so a
+  // seek past the hold renders it gone, as the real-time Graphic is.
   const bridge = `
 ${STEP_WALK_JS}
 var __ografStep = -1;
+var __ografOutMs = ${timedOutMs(template)};
+var __ografEntranceMs = ${entranceMs(template)};
+var __ografExit = null;
 var __ografOffStates = ${JSON.stringify(offStatesOf(template))};
 var __ografGraphic = {
   play: function () { play(); },
@@ -563,6 +609,7 @@ window.__noacgScheduledAction = function (entry) {
     update(JSON.stringify(params.data || {}));
     return;
   }
+  if (__ografExit !== null) { clearTimeout(__ografExit); __ografExit = null; }
   if (action.type === 'stopAction') {
     stop(); __ografStep = -1; return;
   }
@@ -571,6 +618,12 @@ window.__noacgScheduledAction = function (entry) {
     return;
   }
   if (action.type !== 'playAction') return;
+  if (__ografOutMs !== null) {
+    var wait = (__ografEntranceMs !== null ? __ografEntranceMs : ografEntranceMs(typeof buildInTimeline === 'function' ? buildInTimeline : null)) + __ografOutMs;
+    play(); __ografStep = 0;
+    __ografExit = setTimeout(function () { __ografExit = null; stop(); __ografStep = -1; }, wait);
+    return;
+  }
   __ografStep = ografPlayStep(__ografStep, params, ${ografStepCount(template)}, __ografGraphic);
 };`;
   return `<!doctype html><html><head>
@@ -1102,7 +1155,7 @@ export function graphicSources(template: SpxTemplate): { html: string; css: stri
 const WRAPPER_BINDINGS = new Set([
   'ensureGsap', 'ensureFlexGap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
   'scopedDocument', 'standIn', 'scopedListeners', 'scopedTimers', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
-  'ografPlayStep', 'ografOffAir', 'spxTyped',
+  'ografPlayStep', 'ografOffAir', 'ografEntranceMs', 'spxTyped',
 ]);
 
 /**
@@ -1335,6 +1388,13 @@ const OFF_STATES = ${JSON.stringify(offStates)};
 
 // The step walk playAction runs, the same source the non-real-time document runs.
 ${STEP_WALK_JS}
+
+// The manifest's stepCount, and the hold in ms of a graphic set to leave by itself (null when it
+// waits for stopAction or stays), which declares stepCount 0. Its hold starts once the entrance
+// has landed, ENTRANCE_MS after play (null when the export could not read the timeline).
+const STEP_COUNT = ${stepCount};
+const OUT_MS = ${timedOutMs(template)};
+const ENTRANCE_MS = ${entranceMs(template)};
 
 // The machine's custom-action vocabulary (the manifest's customActions[].id list), plus the
 // main group's walk — how the wrapper re-derives its step pointer after an event moved the
@@ -1713,6 +1773,8 @@ ${
   // DISPATCH the operator events the manifest declares as custom actions.
   return {
     play: play, stop: stop, update: update, next: next,
+    // The entrance timeline's builder, which a graphic set to leave by itself measures its wait by.
+    entrance: (typeof buildInTimeline === 'function') ? buildInTimeline : null,
     machineState: (typeof noacgMachineState === 'function') ? noacgMachineState : null,
     dispatch: (typeof noacgDispatch === 'function') ? noacgDispatch : null,
     // How a skipAnimation action lands instantly: noacgSnap() composes a state's settled pose
@@ -1744,6 +1806,7 @@ class Graphic extends HTMLElement {
     this._fromSpx = false;
     this._schedule = [];
     this._step = -1;
+    this._exit = null;
     this._disposed = false;
     this._made = null;
     this._endTemplate = null;
@@ -1903,6 +1966,7 @@ class Graphic extends HTMLElement {
   }
 
   async _dispose() {
+    this._cancelExit();
     if (this._runtime && this._runtime.soundDispose) this._runtime.soundDispose();
     // What the template's code started on the page: a countdown's interval would go on ticking, and
     // a font-set listener would go on refitting a canvas that is no longer there.
@@ -2002,18 +2066,50 @@ class Graphic extends HTMLElement {
     if (notReady) return notReady;
     if (this._renderType === 'non-realtime') {
       await this._applyOfflineAction('playAction', params);
-      return { statusCode: 200, currentStep: this._offlineStep >= 0 ? this._offlineStep : undefined };
+      return { statusCode: 200, currentStep: this._currentStep(this._offlineStep) };
     }
+    this._cancelExit();
     const runtime = this._runtime;
-    this._step = ografPlayStep(this._step, params, ${stepCount}, {
+    if (OUT_MS !== null) return this._playTimed(runtime, params);
+    this._step = ografPlayStep(this._step, params, STEP_COUNT, {
       play: () => runtime.play(),
       next: () => runtime.next(),
       stop: () => runtime.stop(),
       offAir: () => this._offAir(),
     });
     if (params.skipAnimation) this._settle();
-    // OGraf reports no current step off air.
-    return { statusCode: 200, currentStep: this._step >= 0 ? this._step : undefined };
+    return { statusCode: 200, currentStep: this._currentStep(this._step) };
+  }
+
+  // A graphic set to leave by itself (stepCount 0): every playAction plays the entrance, holds
+  // OUT_MS, then plays the exit through the action chain, as the studio preview, SPX and the HTML
+  // overlay do. A later play, stop or custom action, or dispose(), cancels the exit still waiting.
+  // An update does not: it moves nothing, so a corrected name still leaves on time.
+  _playTimed(runtime, params) {
+    const entrance = ENTRANCE_MS !== null ? ENTRANCE_MS : ografEntranceMs(runtime.entrance);
+    const wait = (params.skipAnimation ? 0 : entrance) + OUT_MS;
+    runtime.play();
+    this._step = 0;
+    if (params.skipAnimation) this._settle();
+    const exit = setTimeout(() => this._serial(() => {
+      if (this._exit !== exit) return { statusCode: 200 }; // an action since then cancelled it
+      this._exit = null;
+      runtime.stop();
+      this._step = -1;
+      return { statusCode: 200 };
+    }), wait);
+    this._exit = exit;
+    return { statusCode: 200, currentStep: undefined };
+  }
+
+  _cancelExit() {
+    if (this._exit !== null) clearTimeout(this._exit);
+    this._exit = null;
+  }
+
+  // The ReturnPayload's step: none off air, and none ever for a graphic with no steps.
+  _currentStep(step) {
+    return STEP_COUNT > 0 && step >= 0 ? step : undefined;
   }
 
   // A real-time payload as the template should get it: as typed when SPX escaped it, with the
@@ -2036,6 +2132,7 @@ class Graphic extends HTMLElement {
       await this._applyOfflineAction('stopAction', params);
       return { statusCode: 200 };
     }
+    this._cancelExit();
     this._runtime.stop();
     this._step = -1;
     if (params.skipAnimation) this._settle();
@@ -2050,12 +2147,13 @@ class Graphic extends HTMLElement {
         return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + params.id + '".' };
       }
       await this._applyOfflineAction('customAction', params);
-      return { statusCode: 200, currentStep: this._offlineStep >= 0 ? this._offlineStep : undefined };
+      return { statusCode: 200, currentStep: this._currentStep(this._offlineStep) };
     }
     const id = params.id;
     if (!this._runtime || !this._runtime.dispatch || CUSTOM_ACTION_IDS.indexOf(id) === -1) {
       return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + id + '".' };
     }
+    this._cancelExit();
     // Fire the operator event through the template's own SERIAL queue. The payload is the
     // flat {field: value} map the action's schema declares — applied only if the machine
     // accepts the event (the structural guard), exactly like every other control surface.
@@ -2072,7 +2170,7 @@ class Graphic extends HTMLElement {
       }
     }
     if (params.skipAnimation) this._settle();
-    return { statusCode: 200, currentStep: this._step >= 0 ? this._step : undefined };
+    return { statusCode: 200, currentStep: this._currentStep(this._step) };
   }
 
   async _applyOfflineAction(type, params) {
