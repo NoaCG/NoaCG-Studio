@@ -43,9 +43,16 @@ save dialog + the unsaved-changes guard). `saveCurrentGraphic()` writes the link
 / into a package / into a new package; `openGraphicDoc` loads a record as the working
 document (applies its ACTIVE control entry into sample data) and re-links. Every path calls
 `persistLink()` so the slot's `graphicId`/`dirty` survive a reload even when no template
-change follows. A save makes TWO durable writes, the record and that link, and answers only
-once both landed: a refused link write is a failed save, and the draft stays linked to the
-record so a retry writes into it (#1367). `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
+change follows. Save, Save As, Discard and every caller of them (the leave guard, the naming
+dialog, the wizard's Finish doors) run as ONE TRANSACTION each, one at a time, in a fixed order
+written once in saveActions.ts: claim the slot writes in flight, reserve a minted record's id in
+the slot (`reservedGraphicId`, so a reload after a refused link write relinks instead of
+minting a duplicate, #1383), the record, the link, then the source's pending autosave. It answers
+only after every one of them settled and claims their refusals, so nothing of the saved source
+can be refused after the answer and raise the app notice over Home (#1382); a refused record or
+link write is a failed save, and the draft stays linked to a minted record so a retry writes
+into it (#1367). Writes anything else makes meanwhile stay theirs. A new door that saves goes
+through these functions, never through its own sequence of writes. `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
 working document (open another graphic, create new) goes through it. The mounted editor
 also guards leaving its route before Home/control/video renders. Other surfaces do not
 ask merely because a working document exists. Discard restores the linked library copy
