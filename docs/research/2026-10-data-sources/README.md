@@ -3,7 +3,7 @@
 Research date 2026-10-17. Asked by the owner before anything is built: what the data API does
 today, which source kinds NoaCG should accept and where each enters, and whether the audience is
 just another data source. The draft spec built from this is
-`docs/work-specs/data-sources/spec.md`; its open decisions DS1-DS16 are the owner's.
+`docs/work-specs/data-sources/spec.md`; its open decisions DS1-DS19 are the owner's.
 
 **How the outside facts were read.** The cloud environment's network policy denied the hosts
 (support.google.com, developers.google.com, rssboard.org, dev.twitch.tv, owasp.org), so no page
@@ -50,10 +50,12 @@ label and skips production data entirely.
 **What it does.** Three verbs on `api/data/[...path].ts`, all on a published production, all
 authorised by the production's data key (`docs/DATA_API.md`):
 
-- `PATCH /api/data/patch` merges JSON into the production's values (RFC 7386: objects merge,
-  `null` deletes, arrays replace). Every field bound to a changed path follows; only changed
-  fields become log rows, so re-sending the same value costs nothing. An array of strings
-  becomes lines in the field. A name with spaces is a valid path, so `{"Home score": 3}` works.
+- `PATCH /api/data/patch` merges JSON into the production's values (RFC 7386: objects merge, `null`
+  deletes, arrays replace). Every field bound to a changed path follows; only changed fields become
+  log rows, so re-sending the same value writes nothing, though each request still counts toward
+  the per-production limit below. An array of strings becomes lines in the field; an empty one
+  writes nothing, so it cannot clear a field. A name with spaces is a valid path, so
+  `{"Home score": 3}` works.
 - `GET /api/data/state` reads back the values and bindings, for a sender recovering after a
   restart.
 - `POST /api/data/update` writes one graphic's fields by their labels, named by graphic or cue.
@@ -97,7 +99,8 @@ kicker. `f0` is titled "Ticker items" on nine designs and "Headlines", "Items", 
 ticker runs does not restart it: a marquee keeps its position and continues into the new items, a
 flip finishes the item on screen, a rotator swaps the current slot (`tickerMotion.ts`).
 
-Other list graphics read the same way, one line per row, parts separated by " | ":
+A ticker reads " | " as plain text; only the bilingual ticker (tk17) splits on it, between its
+two languages. Other list graphics read one line per row with parts separated by " | ":
 
 | Graphic | Field | Line |
 | --- | --- | --- |
@@ -316,10 +319,10 @@ name in column A connects itself. *Today:* not possible without code.
 
 **Scores from another system.** Sign in and publish once. On the Data tab, "Another system": copy
 the address and key, with an example that uses this production's own names. Paste them into the
-other system or an automation tool's HTTP step, or hand them over. The first push shows "updated
-2 s ago" and connects fields with matching titles. Take. *Today:* steps one and two exist behind
-"Data key"; then paths to bind, a second publish if bound after the first, no sign that a push
-arrived, and a guide that leads with a different endpoint.
+other system or an automation tool's HTTP step, or hand them over. The first push shows "updated 2
+s ago" and connects fields with matching titles, at once (DS17). Take. *Today:* steps one and two
+exist behind "Data key"; then paths to bind, a second publish if bound after the first, no sign
+that a push arrived, and a guide that leads with a different endpoint.
 
 **Typed in NoaCG.** Select the cue and type in its field, or press ± on a connected score.
 *Today:* the same; this is already the shortest path for a score or a name.
@@ -369,7 +372,7 @@ switch, which is an operator's choice made per production (`INTERACTIVE_PLAYOUT_
 **Recommended.** Values, lists and tables; each from one source; fields connect by name, by
 themselves or from the field; the data API is the "Another system" source; feeds are read by the
 server; audience sources share the line but write only the inbox. Spelled out in the spec, with
-its sixteen open decisions. A Sheet driving a ticker is also the first experiment
+its nineteen open decisions. A Sheet driving a ticker is also the first experiment
 `CLOUD_PLAYOUT.md` §7 named in 2026-08, before scores took over the plan.
 
 **Alternatives considered.**

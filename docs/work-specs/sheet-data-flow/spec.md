@@ -22,6 +22,11 @@ the owner agrees it:
   ticker, a schedule, credits), which this spec does not cover yet.
 - Production-page phase 15 waits for that spec to be agreed. Its draft phases 15-22 carry all six
   phases below, re-ordered, with feeds and the data API beside them.
+- Its DS5 would have the server fetch a feed address a person pasted, which "Safety" below rules
+  out for Sheets; Sheets keep that rule either way.
+- Since this was written: the account is on Vercel Pro (`api/AGENTS.md`, 2026-08-16), so the
+  twelve-function budget under "The server reader" is house discipline, not a platform cap, and
+  its cron limit needs checking again when phase 3 chooses the clock.
 
 ## Problem
 

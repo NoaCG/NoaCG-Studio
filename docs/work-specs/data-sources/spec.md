@@ -78,10 +78,12 @@ which:
 - **Audience (join page, Twitch, YouTube):** viewer messages and votes. They go to the inbox,
   never to a value (DS11).
 
-A source writes names, never graphics: it produces values or lists (or table rows) through the
-shared source core of `sheet-data-flow`, and a kind supplies only "fetch and parse". The core
-diffs against the last good read, writes only what changed through the existing production data
-path, keeps the last good values on failure, and reports one status with Pause.
+A source writes names, never graphics. The shared source core of `sheet-data-flow` has two
+halves. The reader half is shared by every kind: it schedules reads, keeps the last good read,
+diffs against it, and reports one status with Pause; a kind supplies only "fetch and parse". The
+writer half is given per destination: a data source gets the production data path (the local tree,
+or the server's data patch) and writes only what changed; an audience source gets only the inbox's
+submit door, and no writer that reaches values or the command log exists in its reach.
 
 **Connecting.** A field connects to a value or a list by name:
 
@@ -93,13 +95,14 @@ path, keeps the last good values on failure, and reports one status with Pause.
   Pasting there creates the source, names the list after the field and connects it.
 - **From the data view:** the same records, source first.
 
-**In the rundown.** A connection belongs to the graphic, not to a cue. Every cue of that graphic
-shows the connected value in its preview, Take airs it, and later changes reach air without a new
-Take (published: the server's own log rows; local: the page's dispatch). A connected field is not
-a cue value, so a prepared cue never re-airs a stale figure (`PRODUCTION_DATA_PLAN.md` §2.7). The
-operator overrides by changing the shared value (sheet D4) or by disconnecting the field. Tables
-and audience messages differ on purpose: the operator picks a row or a message, it is copied into
-a cue, and nothing follows afterwards.
+**In the rundown.** A connection belongs to the graphic, not to a cue, and takes effect at once, on
+a published production too (DS17; today the server waits for the next publish). Every cue of that
+graphic shows the connected value in its preview, Take airs it, and later changes reach air without
+a new Take (published: the server's own log rows; local: the page's dispatch). A connected field is
+not a cue value, so a prepared cue never re-airs a stale figure (`PRODUCTION_DATA_PLAN.md` §2.7).
+The operator overrides by changing the shared value (sheet D4) or by disconnecting the field.
+Tables and audience messages differ on purpose: the operator picks a row or a message, it is copied
+into a cue, and nothing follows afterwards.
 
 **The data API's role.** It is the door for anything outside NoaCG that can send an HTTP request:
 a scoring or timing system, a results service, an automation tool's HTTP step, a script behind a
@@ -113,11 +116,11 @@ graphic by name.
 **Where the audience fits (DS11, recommendation C).** Viewers are a source of candidates, not of
 values. A viewer sends a message from the production's join page (a link or QR code, published
 productions only) or in the chat of a Twitch channel or YouTube stream the operator connected.
-Every message lands in the Audience inbox; the operator approves, edits the broadcast text and
-puts it in the rundown as a cue on a graphic made for messages (audience A2, A3); Take airs it.
-Audience sources sit on the same sources line as data sources, with status and Pause, and run on
-the same source core (audience A4), but they can write only to the inbox. Votes are counted in the
-Audience tab and staged onto a vote board cue by the operator (`INTERACTIVE_PLAYOUT_PLAN.md` D5).
+Every message lands in the Audience inbox; the operator approves, edits the broadcast text and puts
+it in the rundown as a cue on a graphic made for messages (audience A2, A3); Take airs it. Audience
+sources sit on the same sources line as data sources, with status and Pause, and run on the core's
+reader half (audience A4), but their writer is the inbox's submit door alone. Votes are counted in
+the Audience tab and staged onto a vote board cue by the operator (interactive plan D5).
 
 ## Preserved
 
@@ -139,7 +142,11 @@ Audience tab and staged onto a vote board cue by the operator (`INTERACTIVE_PLAY
   shape (D2's rule stays); the sheet spec's examples and its newcomer run (AC-12) move from a
   scoreboard to a ticker.
 - **DS3. A row with several cells.** Recommendation: its cells join with " | ", the separator
-  schedules, standings, fixtures and credits already read; empty cells at the row's end drop.
+  schedules, standings, fixtures and credits split on; empty cells at the row's end drop. A ticker
+  reads " | " as plain text (the bilingual ticker as its language split) and a tab or ": " as a
+  kicker, so a ticker's sheet keeps one cell per row, with "SPORT: United win" for a kicker.
+  Alternative: join with a tab, which tickers read as a kicker but the other list graphics do not
+  split on.
 - **DS4. RSS and Atom feeds.** Recommendation: accept a pasted feed address as a list source:
   each item's title is one line, newest first, the newest 20, markup and entities turned into
   plain text, read every 5 minutes with conditional requests, and slower when the feed asks
@@ -147,8 +154,10 @@ Audience tab and staged onto a vote board cue by the operator (`INTERACTIVE_PLAY
 - **DS5. Who reads a feed for a local production.** Most feeds do not allow a browser on another
   site to read them, so a local production cannot read one by itself. Options: a NoaCG route the
   browser asks to fetch the feed (a new public server path: public addresses only, size and time
-  caps, one cached read per feed address), or feeds only once published. Recommendation: the
-  route, as a segment of an existing catch-all, so a feed works before anyone signs in.
+  caps, a limit per client and per address, one cached read per feed address), or feeds only once
+  published. Either way the server fetches an address a person pasted, which reverses the sheet
+  spec's rule that it never does (sheet "Safety"). Recommendation: the route, as a segment of an
+  existing catch-all, so a feed works before anyone signs in.
 - **DS6. JSON addresses.** Recommendation: not in this run. Later, only for JSON whose shape NoaCG
   can read without a selector (an object of names to values or lists), behind the same guards;
   anything else reaches NoaCG through the data API with a small connector or an automation tool.
@@ -176,8 +185,8 @@ Audience tab and staged onto a vote board cue by the operator (`INTERACTIVE_PLAY
   the existing "Update the percentages on air while voting" switch; tallies are not production
   values.
 - **DS14. Where sources show.** Recommendation: one line per source on the Playout tab, data and
-  audience alike, with status and Pause (the sheet spec's status line, for every kind); the Data
-  and Audience tabs always present beside Playout (A1).
+  audience alike, with status and Pause (the sheet spec's status line, for every kind). Where the
+  Data and Audience views live stays with the sheet spec (one stable Setup item) and audience A1.
 - **DS15. How fresh each kind is (revisits sheet D3 in part).** Recommendation: keep D3 for
   Sheets (read every 5 s, on screen within 10 s); feeds every 5 minutes (DS4); a push is as fast
   as its sender. A Sheet's own import formulas refresh far more slowly than 5 s (research README),
@@ -185,6 +194,17 @@ Audience tab and staged onto a vote board cue by the operator (`INTERACTIVE_PLAY
 - **DS16. The run order.** Recommendation: the phases below replace production-page phases 15-20
   (they carry all six Sheet phases, re-ordered), audience follows, and the run waits before phase
   15 until this spec is agreed.
+- **DS17. A connection on a published production.** Today the server resolves the bindings pinned
+  at the last publish, so a field connected afterwards moves nothing on air until the production
+  is published again. Recommendation: connecting or disconnecting a field on a published
+  production reaches the server at once, as a value edit does; publishing is never the hidden
+  second step.
+- **DS18. An emptied list.** Today an empty list writes nothing, so the old lines stay on air.
+  Recommendation: a read that succeeds and finds no rows clears the field and the sources line
+  says "empty"; a read that fails keeps the last good list, as now.
+- **DS19. A manual change to a list.** A list is one value, so under D4 an operator's edit holds
+  only until any row of the source changes, not just the edited line. Recommendation: accept it
+  and say so where the list is edited; to keep a fix, edit the Sheet or press Pause.
 
 ## Risks the research found
 
@@ -204,12 +224,14 @@ Audience tab and staged onto a vote board cue by the operator (`INTERACTIVE_PLAY
 ## Acceptance criteria
 
 Child criteria stay in their own specs and are named in the phases as "sheet AC-n" and
-"audience AC-n". These are the criteria that cross them.
+"audience AC-n". These are the criteria that cross them. They are written for the
+recommendations; an answer that differs rewrites the criterion that names its decision.
 
 ### AC-1: A source writes names, never graphics
 Each source kind (Sheet, feed, pushed, a test kind) produces named values, lists or table rows
-through the one source core; none addresses a graphic, a cue or an air verb. Layer: Node test over
-the core's contract, run for every kind.
+through the one source core; none addresses a graphic, a cue or an air verb. A list that reads
+empty clears its field, and a failed read writes nothing (DS18). Layer: Node test over the core's
+contract, run for every kind.
 
 ### AC-2: A list fills a field that takes lines
 A Sheet list of 12 rows reaches a ticker's items field as 12 lines in sheet order; a two-column
@@ -220,8 +242,9 @@ continues the scroll rather than restarting it. Layer: Node test on rows to line
 ### AC-3: A field connects where it is
 In the cue editor, a field that takes lines offers the production's lists and "Paste a Sheet or
 feed link"; a single-line field offers values. Pasting a link there creates the source, names the
-list after the field and connects it, with no visit to the Data tab. Layer: journey in
-`e2e/production-data.spec.ts`.
+list after the field and connects it, with no visit to the Data tab. On a published production
+the connection moves the output at once, with no new publish (DS17). Layer: journey in
+`e2e/production-data.spec.ts`; configured suite for the published half.
 
 ### AC-4: A pasted feed becomes a list
 An RSS 2.0 or Atom address lists its newest headlines within 10 s of pasting; markup, entities and
@@ -232,8 +255,10 @@ fixtures; journey against a stub feed; one scenario on a real public feed in `ev
 ### AC-5: Feed reading is safe and polite
 The server fetches only http and https addresses that resolve to public IP addresses, checks
 every redirect the same way, stops at a size and a time cap, returns parsed headlines only, sends
-conditional requests, and serves one cached read per feed address to every reader. Layer: Node
-test with a fake resolver and fetch; configured suite for the route.
+conditional requests, serves one cached read per feed address to every reader, and refuses a
+client or an address over its limit. Every server read of a feed, the published tick's included,
+goes through this fetcher. Layer: Node test with a fake resolver and fetch; configured suite for
+the route.
 
 ### AC-6: The other-system door is visible
 A published production's data view shows the address, the key behind Reveal and a ready example
@@ -250,8 +275,9 @@ The Playout tab shows one line per source, data and audience alike, each with it
 Pause; a stale or failing source is marked there and on its connected fields. Layer: journey.
 
 ### AC-9: Viewer input never becomes a value
-No audience path (join page, chat reader) can write a production value or a command-log row; a
-message reaches air only as a cue the operator takes. Layer: Node test on the audience interface
+No audience path (join page, chat reader) can write a production value or a command-log row: an
+audience source is handed the inbox's submit door and no other writer. A message reaches air only
+as a cue the operator takes. Layer: Node test on the audience interface
 and the source core (structural); the existing journey in `e2e/production-audience.spec.ts`.
 
 ### AC-10: A newcomer does each journey unaided
@@ -270,20 +296,22 @@ adds its notes under this spec's `## Phase notes`. Numbers are the production-pa
     Measures, before any UI: Sheet edit-to-read over at least 20 real edits and one hour of
     reading every 5 s (the sheet D3 stop rule), and conditional-request support on five public
     feeds. Node tests only.
-16. **Sheet lists and values in a local production** (AC-2, AC-3, AC-8 local; sheet AC-1, sheet
-    AC-2, sheet AC-3 unpublished, sheet AC-5 tabs, sheet AC-6 message): connect from the data
-    view and from a field, the browser reader under a lock, connecting by name, the sources line
-    with Pause.
-17. **Feeds** (AC-4, AC-5): the fetch route (DS5) and the feed kind on a local production, with
-    the ticker journey. If DS5 answers "published only", this phase joins phase 18.
+16. **Sheet lists and values in a local production** (AC-2, AC-3 for Sheets, AC-8 local; sheet
+    AC-1, sheet AC-2, sheet AC-3 unpublished, sheet AC-5 tabs, sheet AC-6 message, sheet AC-7
+    unpublished): connect from the data view and from a field, the browser reader under a lock,
+    connecting by name, the sources line with Pause, the local override and Resume (D4).
+17. **Feeds** (AC-3 for feeds, AC-4, AC-5): the fetch route (DS5) and the feed kind on a local
+    production, with the ticker journey. If DS5 answers "published only", this phase joins phase
+    18, and a feed pasted on a local production says publishing is the step.
 18. **Published productions** (AC-4 published; sheet AC-3 published, sheet AC-4, sheet AC-5
-    handover, sheet AC-6, sheet AC-7 published): the server copy of sources with its row
-    security, the scheduled tick for Sheets and feeds, the publish and unpublish handover; the
+    handover, sheet AC-6, sheet AC-7 published; AC-3 published half, DS17): the server copy of
+    sources with its row security, the scheduled tick for Sheets and for feeds through phase 17's
+    fetcher, the publish and unpublish handover, connections that reach the server at once; the
     server cost of one active source for an hour is measured and recorded first.
 19. **The other-system door** (AC-6, AC-7): the "Another system" card, last-received status, the
     source of each value, and `DATA_API.md` and `/docs` leading with names and `/patch`.
 20. **One vocabulary and one shared value** (AC-8 for data sources; sheet AC-7 presses, sheet
-    AC-9): the default words, the Advanced disclosure, the stable tabs (DS14).
+    AC-9): the default words, the Advanced disclosure, the stable Setup item for the data view.
 21. **Tables from a Sheet** (sheet AC-11).
 22. **Retire the graphic-level Sheet panel, update `/docs`, the newcomer runs** (AC-10; sheet
     AC-10, sheet AC-12).
@@ -295,7 +323,7 @@ JSON now", a JSON phase follows phase 17 with its own criteria added here first.
 ## Readiness
 
 Before phase 15: phase 14 checked PASS on `main`; the owner has agreed this spec (`work.json`
-authority `agreed`) and answered DS1-DS16; `sheet-data-flow` and `audience-flow` updated to the
+authority `agreed`) and answered DS1-DS19; `sheet-data-flow` and `audience-flow` updated to the
 answers in the same change, with their digests current; `node scripts/work-spec.mjs status`
 reports no problems for all three.
 
