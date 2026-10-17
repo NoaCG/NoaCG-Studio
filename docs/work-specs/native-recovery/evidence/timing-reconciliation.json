@@ -1,0 +1,19 @@
+{
+  "source": "docs/work-specs/native-recovery/evidence/qualification.md",
+  "method": "Differences of recorded historical UTC timestamps; no new provider experiment",
+  "automationId": "6ad345b6664c8191b783f603378f134b",
+  "sessionId": "01a14608-30d3-7654-9c71-4d57555c505d",
+  "firstExecutorObservation": "2026-10-17T09:55:04.389Z",
+  "rearmAcknowledgedAt": "2026-10-17T09:55:47.245325Z",
+  "secondRequestedDueAt": "2026-10-17T10:55:46Z",
+  "secondProviderFiredAt": "2026-10-17T10:58:10.553853Z",
+  "secondExecutorArrival": "2026-10-17T10:58:32.418Z",
+  "requestedDueMinusFirstObservationSeconds": 3641.611,
+  "requestedDueMinusAcknowledgedUpdateSeconds": 3598.754675,
+  "requestedDueErrorFromObservationPlusHourSeconds": 41.611,
+  "secondProviderFireAfterRequestedDueSeconds": 144.553853,
+  "secondExecutorArrivalAfterRequestedDueSeconds": 166.418,
+  "executorObservationIntervalSeconds": 3808.029,
+  "exactHourlyCadenceQualified": false,
+  "limits": "Different provider/executor clock domains; historical recorded observations are not a latency SLA or a new delivery qualification. Original trial remains completed and disabled."
+}
