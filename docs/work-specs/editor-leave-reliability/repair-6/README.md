@@ -177,8 +177,13 @@ sha256, byte-identical to independent-5: original `28988d71…`, second `ef78c1e
 | `:228` x20 on the fix, [39030411353](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030411353) | **20/20**. In this VM, j-0017 gives **20/20**. |
 | Unchanged checkers on the fix, [39030408693](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030408693) | Original **3/3**, second **4/4**, third **10/10**, `:24` x20 **20/20**, fourth **11/11** (`:228` and both `:298` included). |
 | Maintained selection on the fix, [39030412630](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030412630) | **85 passed**, the same **8 legacy skips** (new-graphic-guard, library, wizard-draft-guard and the preserved editor selections). Two-graphic export **1/1**. |
-| Matrix on the fix, [39030414011](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030414011) | **52/52**, one worker, 9.3 min, every case under 30 s. In this VM: j-0016 52/52, and j-0020 52/52 on the final head after review. |
-| Matrix on main, [39030465479](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030465479) | **22 failed / 30 passed**. The behaviour failures are first-kept K reload (#1383, A1's shape), in-flight I for leave and first Save (late refusal announced after the save), the renamed export double (#1384), and the leave replay for **hash and Back** (#1386; Back was lost the same way). The R and F cases fail on main because those writes do not exist there: no reservation, and the trailing autosave fired after the answer. |
+| Matrix on the fix, [39030414011](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030414011) | **52/52**, one worker, 9.3 min, every case under 30 s. In this VM: j-0016 52/52, and j-0020 52/52 on `242c0099`. |
+| Matrix on main (the 52-case version), [39030465479](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39030465479) | **22 failed / 30 passed**. The behaviour failures are first-kept K reload (#1383, A1's shape), in-flight I for leave and first Save (late refusal announced after the save), the renamed export double (#1384), and the leave replay for **hash and Back** (#1386; Back was lost the same way). The R and F cases fail on main because those writes do not exist there: no reservation, and the trailing autosave fired after the answer. |
+| **Final head `7177d222`** (after the two Codex findings and the PR-CI regression below), probe `6ab98d98`: fifth checker [39033186983](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39033186983) | **19 passed / 1 failed** (B1, the same timeout). |
+| `:228` x20 on the final head, [39033188399](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39033188399) | **20/20**. In this VM, j-0026 gives **20/20**. |
+| Unchanged checkers on the final head, [39033185315](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39033185315) | Original **3/3**, second **4/4**, third **10/10**, `:24` x20 **20/20**, fourth **11/11**. |
+| Matrix on the final head, [39033191343](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39033191343) | **54/54**. In this VM, j-0025 passes it together with `project-format`. |
+| Maintained selection on the final head, [39033189803](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39033189803) | **85 passed**, the same **8 legacy skips**. Two-graphic export **1/1**. |
 | Walk-state and door Node tests | **53/53** (`scripts/wizard-walk-state.test.mjs`, `scripts/wizard-doors.test.mjs`), including "held writes: … neither waits on the other". |
 
 Mutations, each run on the matrix in this VM and then reverted:
@@ -186,6 +191,10 @@ Mutations, each run on the matrix in this VM and then reverted:
 - M1, the answer before settle: `commitLink` answers without waiting for K or F (j-0018). **16
   failed / 36 passed**: every K refusal and K hold case, leave/F and first-named/F hold+edit, wizard
   K, and both leave-replay cases.
+- M4: the reservation is not carried past R (j-0024). The kept-name "reservation kept" case
+  fails with "the autosave dropped the reservation, so the reload lost the minted record".
+- M5: the no-Navigation-API Back does not check that it arrived (j-0023). "back without the
+  Navigation API" fails, and the editor stays.
 - M2 and M3 together: no step-6 flush, and no reservation (j-0019). **10 failed / 42 passed**:
   every F case (M2) and first-kept/K reload (M3, A1's shape).
 
@@ -194,6 +203,12 @@ origin/main` passes, and `eslint` on the changed files and `tsc --noEmit -p .` a
 
 Captures: none committed. The fix's change is not visual. The dialogs, the copy and the notice are
 unchanged, and only which writes reach them changed.
+
+PR CI on `242c0099` caught a regression in a maintained spec. `project-format.spec.ts:277` calls
+`saveGraphicAs` without awaiting it and reads the record at once, and the first cut started every
+transaction a microtask late and awaited the reservation before writing the record. The final head
+starts an idle transaction in the caller's turn and queues the reservation with the record. The
+spec is unchanged, and it passes in j-0022 and j-0025.
 
 ## Limits
 
@@ -204,6 +219,10 @@ unchanged, and only which writes reach them changed.
   (`e2e/diag-b1.spec.ts`, scratch) passes B1 and every other case, 60/60 (j-0013, 3 repeats).
   Its assertions hold on the fix: the refused put is the timer flush (no `persistLink`), there is
   no alert, and New asks nothing. The matrix's F cases pin the same thing.
+- The record's identity can still be lost in one ordering: the reservation AND the link write are
+  both refused, and the page is reloaded without a retry. Each one alone is recovered.
+- Without the Navigation API, a Back replay that takes longer than one second to reach its app
+  entry is also pushed. No browser in the suite takes that path; the case removes the API.
 - A refused trailing autosave (F) is not reported when K landed. That is by design: K holds the
   same source and link, and the mirror rolls back to it.
 - Studio and Eyevinn reference tasks were not rerun. The change touches neither rendering nor
