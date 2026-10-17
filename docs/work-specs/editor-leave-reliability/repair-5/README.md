@@ -32,8 +32,8 @@ identical to the final ones):
 
 ## Change
 
-`src/store/saveActions.ts`, `src/components/save/SaveDialogs.tsx`, and one sentence in
-`src/store/AGENTS.md`.
+`src/store/saveActions.ts`, `src/components/save/SaveDialogs.tsx`, one sentence in
+`src/store/AGENTS.md`, and the wizard's mint in `src/components/wizard/shell/walkState.ts` (below).
 
 - `commitLink` is a save's second durable write. It links the draft to the record that landed
   (status `saving`), captures the working-slot put that `persistLink` makes, and commits that
@@ -46,8 +46,15 @@ identical to the final ones):
   Nothing reaches the app notice, because the write was claimed before its first await.
 - Saving into the record the refused attempt minted: `saveGraphicAs` returns that record's id with
   its failure. The naming dialog's retry then saves into it (`saveCurrentGraphic`, adopting a
-  changed name) rather than minting a second record. The wizard's Finish doors need nothing: their
-  retry resolves the name to the same record.
+  changed name) rather than minting a second record.
+- Found in Codex review on this PR: a wizard Finish door whose mint hit a refused link write
+  dropped the record's id, so pressing the door again under a NEW name minted a second record.
+  This path is new here, because main reported such a save as landed. `saveBuiltGraphic`
+  (`src/components/wizard/shell/walkState.ts`, touched only to carry the id) now notes that
+  record as the walk's own, so the retry writes over it. It is covered by a walk-state Node case
+  (dropping the note fails it locally, 28/29) and by an export-door journey in
+  `new-graphic-guard`. The journey passes on main too, where the door took the save as landed;
+  it guards the path this repair opens.
 - Found in review: when the draft was replaced while the link write waited, the save answers
   `saved`. The slot then belongs to the replacement, whose write comes after.
 - Unchanged: the library-write claim (#1351), the stale-edit check (#1359), Discard, the wizard,
@@ -67,9 +74,11 @@ the slot on disk does not yet say "saved".
 | [39019988668](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39019988668), same probe, scope `maintained` | **84 passed, 0 failed**, with the same 8 legacy skips. That is the checker's 80 plus the 4 cases added here, across `new-graphic-guard` (every #1333, #1355 and #1359 case), library, wizard-draft and the other preserved selections. The two-graphic export passes 1/1. |
 | Mutation, draft [#1374](https://github.com/NoaCG/NoaCG-Studio/pull/1374), `9010a02c`: the link write is made but neither awaited nor claimed | [CI 39019281915](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39019281915): E2E 11/13 **4 failed / 70 passed**. Both `:298` variants and both retry legs fail. Every other shard passes. |
 
-The probes ran on the fix as of `e46c871` (mutation) and `1029ec5` (dispatch, product files
-identical to this PR's final source). This PR's own CI runs the final head, `new-graphic-guard`
-included.
+| Rerun on probe `b727a511`, after the wizard fix: product files identical to this PR's final source | Fourth [39021458448](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39021458448): **11/11**. Unchanged [39021460723](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39021460723): **3/3, 4/4, 10/10, `:24` 20/20**, hashes as above. Maintained [39021462738](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39021462738): **85 passed**, 8 legacy skips, the export-door journey included. Export 1/1. |
+
+The first three rows ran on the fix at `1029ec5`, before the wizard fix. The mutation ran on
+`e46c871`. This PR's own CI runs the final head, `new-graphic-guard` and the walk-state Node
+tests included.
 
 The after-fix captures from 39019986900 were inspected and not committed. The first Save leaves
 the naming dialog over the editor with "Browser storage is full …". The linked Save leaves the
