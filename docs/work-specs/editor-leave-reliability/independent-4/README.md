@@ -5,8 +5,9 @@ the question comes back there** ([#1367](https://github.com/NoaCG/NoaCG-Studio/i
 After its library write lands, Save and Save As persist the working draft's link (`persistLink`).
 That write is neither awaited nor claimed. When storage refuses it, the leave dialog has already
 continued to Home. The app-level notice then says "Your work is still open here" over Home and
-marks the draft unsaved. The next New graphic asks again about the graphic that was just saved,
-with or without a reload. The library record holds the exact source, so no edit is lost. Two
+marks the draft unsaved. After a reload, the next New graphic asks again about the graphic that was
+just saved. Measured after a reload only; before one, the live link is already dirty, which is what
+the guard reads. The library record holds the exact source, so no edit is lost. Two
 criteria fail: "a failed durable write … cannot navigate early" (AC 3) and "a later New/Open does
 not repeat the question" (AC 2). So does the owner's outcome, "avoid a delayed repeat question at
 the destination". Both #1351 and #1359 hold under fault injection, and everything else checked
