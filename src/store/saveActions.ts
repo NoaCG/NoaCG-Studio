@@ -231,7 +231,9 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
  *  answer carries the record's id whenever one was minted, whether or not its link landed, so a
  *  caller that retries writes into it rather than minting again. */
 export function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
-  return transaction(() => mintGraphic(name));
+  // Failed, replaced or linked, the mint is over: this tab's later writes no longer speak for
+  // its record.
+  return transaction(() => mintGraphic(name).finally(endMint));
 }
 
 async function mintGraphic(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
@@ -249,43 +251,38 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   // too. An id another record already holds (a second tab minted it) is never minted again, and
   // only this tab's writes made during the mint say that the record is this draft's (#1402).
   const id = mintReservedGraphicId(s.baseline);
-  try {
-    const reserved = captureDurableWrites(SLOT_KEY, persistLink).receipts.map(commitDurableReceipt);
-    const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
-      id,
-      name,
-      packageId: null,
-      baseline: s.baseline,
-      aiSpec: s.aiSpec,
-      aiThread: s.aiThread,
-      legibility: s.legibility,
-      // A copy of a community pack's graphic is still the pack's (spec AC-5), as Duplicate keeps it.
-      fromPack: s.saved.graphicId ? graphicById(s.saved.graphicId)?.fromPack ?? null : null,
-    }));
-    const failure = error ?? (await commitSaveWrites(receipts));
-    await Promise.all([inFlight, settleClaimed(reserved)]);
-    if (failure) {
-      markSaveFailed(s);
-      return { ok: false, error: failure };
-    }
-    if (replacedSince(s)) return { ok: true, error: null, graphicId: doc.id };
-    const dirty = changedSince(s), now = useTemplateStore.getState().template;
-    // The working template adopts the saved name so the topbar and the record agree. It is the
-    // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
-    if (doc.template.name !== now.name && now.name === s.template.name) {
-      useTemplateStore.setState({ template: { ...now, name: doc.name } });
-    }
-    // An unknown catalogue format is not a broken document, so the save lands and reports it.
-    const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
-    // The record took the id: the link write names it, and carries the document's next one.
-    releaseReservation();
-    const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
-    // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
-    return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
-  } finally {
-    // Failed, replaced or linked: this tab's later writes no longer speak for the record.
-    endMint();
+  const reserved = captureDurableWrites(SLOT_KEY, persistLink).receipts.map(commitDurableReceipt);
+  const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
+    id,
+    name,
+    packageId: null,
+    baseline: s.baseline,
+    aiSpec: s.aiSpec,
+    aiThread: s.aiThread,
+    legibility: s.legibility,
+    // A copy of a community pack's graphic is still the pack's (spec AC-5), as Duplicate keeps it.
+    fromPack: s.saved.graphicId ? graphicById(s.saved.graphicId)?.fromPack ?? null : null,
+  }));
+  const failure = error ?? (await commitSaveWrites(receipts));
+  await Promise.all([inFlight, settleClaimed(reserved)]);
+  if (failure) {
+    markSaveFailed(s);
+    return { ok: false, error: failure };
   }
+  if (replacedSince(s)) return { ok: true, error: null, graphicId: doc.id };
+  const dirty = changedSince(s), now = useTemplateStore.getState().template;
+  // The working template adopts the saved name so the topbar and the record agree. It is the
+  // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
+  if (doc.template.name !== now.name && now.name === s.template.name) {
+    useTemplateStore.setState({ template: { ...now, name: doc.name } });
+  }
+  // An unknown catalogue format is not a broken document, so the save lands and reports it.
+  const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
+  // The record took the id: the link write names it, and carries the document's next one.
+  releaseReservation();
+  const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
+  // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
+  return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
 }
 
 

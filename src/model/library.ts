@@ -86,13 +86,10 @@ export function graphicById(id: string): GraphicDoc | null {
 }
 
 /** Does any record, a tombstone included, hold `id`? Every working-slot write asks it
- *  (model/project.ts `reservedGraphicId`), so the ids are kept per stored text rather than
- *  parsed again on each autosave. */
-let takenIds: { raw: string | null; ids: Set<string> } | null = null;
+ *  (model/project.ts `reservedGraphicId`), so the stored text is searched first and parsed only
+ *  when the id appears in it, which happens once: the reservation is then replaced. */
 export function graphicIdTaken(id: string): boolean {
-  const raw = durable.getItem(GRAPHICS_KEY);
-  if (takenIds?.raw !== raw) takenIds = { raw, ids: new Set(rawGraphics().map((g) => g.id)) };
-  return takenIds.ids.has(id);
+  return !!durable.getItem(GRAPHICS_KEY)?.includes(id) && rawGraphics().some((g) => g.id === id);
 }
 
 /** As much of a live record as the name question needs: who holds a name, and what a save
