@@ -10,13 +10,14 @@ phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
 
 ## Verdict
 
-Do it, as fourteen small sequential phases, each independently releasable and revertible, the
-safety net first and the on-air ownership moves (liveCue, then the draft) late and alone. The
-playout system works and stays: its wire, formats and operator behaviour do not change. What
-changes is where the rules live and how they are proved: the on-air rules run and are tested in
-Node with controlled clocks and held answers, the page holds screen state and rendering, one
-owner holds liveCue, and a size gate stops regrowth. Not promised: that this makes the next show
-safer by itself. It makes regressions cheaper to find and changes smaller to review.
+Do it, as fourteen small sequential phases, each independently releasable and revertible, the safety
+net first and the on-air ownership moves (liveCue, then the draft) late and alone. The playout
+system works and stays: its wire, formats and operator behaviour do not change. What changes is
+where the rules live and how they are proved: the on-air rules run and are tested in Node with
+controlled clocks and held answers, the page holds screen state and rendering, one owner holds
+liveCue, and a compiled rule sends new playout behaviour to `src/control/`. Not promised: that this
+makes the next show safer by itself. It makes regressions cheaper to find and changes smaller to
+review.
 
 Biggest risk: a verb reading a stale selection, draft or bound value against a fresh live map
 while an owner moves, which airs the wrong cue or value and shows nothing on screen. Second: the
@@ -95,13 +96,12 @@ keeping today's numbers; fixing behaviour inside an extraction (§1.3).
   otherwise; browser-only modules (`hostedControl.ts`, `playoutLink.ts`, `productionDataApi.ts`,
   the arm RPC, `model/shows.ts` writes) arrive through an `io` argument. `templates/picture` and
   `export/outputEmbed` stay in the components hooks.
-- **D8 Size gate.** `scripts/check-file-budgets.mjs` with header `// gate: build` and
-  `// guards: src/components/home/ProductionPage.tsx, scripts/file-budgets.json` (so a baseline
-  edit reaches the gate under `gates.mjs run --changed`), reporting `measured(n, 'budgeted files')`
-  (`scripts/measured.mjs`), baseline `scripts/file-budgets.json`, package.json
-  `check:file-budgets`; `node scripts/gates.mjs audit` must accept it. The number never rises; a
-  phase that shrinks the page lowers it to the actual count; a phase that does not shrink it
-  leaves it. Revert: delete the gate.
+- **D8 No size gate (owner, 2026-10-17).** The page gets no line budget: "drop the page size limit
+  and the line-count half of AC-11; keep the compiled rule that playout behaviour lands in
+  src/control/." It follows his codebase-health ruling (no new hard ceiling or blocking size
+  policy). Regrowth is guarded by where code goes (AC-11's compiled rule), not by a number. The
+  earlier design, a `scripts/check-file-budgets.mjs` entry for `ProductionPage.tsx` lowered by
+  each shrinking phase, is withdrawn; the wizard's existing budgets are not this plan's.
 - **D9 Never weaken.** A phase pull request may change a selector in a characterisation spec,
   never an assertion; the pre-merge assessor diffs the e2e files for that.
 - **D10 Secondary guardrails.** Line, effect and ref counts are watched, and the design is not
@@ -529,9 +529,8 @@ rehearsal; this spec names no show date and claims no waiting period makes it sa
 ## 11. Acceptance criteria
 
 ### AC-1: The safety net exists before any move
-The §5.3 phase-1 tests, the `// covers:` header on `dashboard-operator-walk`, the size gate
-(registered; `node scripts/gates.mjs audit` accepts it), two perf baselines and the inventory
-exist on `main` before phase 2 lands.
+The §5.3 phase-1 tests, the `// covers:` header on `dashboard-operator-walk`, two perf baselines
+and the inventory exist on `main` before phase 2 lands.
 
 ### AC-2: Behaviour is identical at every phase
 Every §5.3 inventory spec and every phase-1 spec passes at every phase with unchanged
@@ -569,9 +568,8 @@ Each phase's `evidence/phase-<n>.md` records the shas, commands, run URLs and th
 the ledger shows `landed` only after it; the final tip carries the stamp.
 
 ### AC-11: The guardrail stands
-The gate's number never rose and was lowered by each page-shrinking phase; a compiled rule
-(`npm run learn`, scope `src/components/home/ProductionPage.tsx`) says playout behaviour lands in
-`src/control/`.
+A compiled rule (`npm run learn`, scope `src/components/home/ProductionPage.tsx`) says playout
+behaviour lands in `src/control/`. No line count is part of it (D8).
 
 ### AC-12: The docs follow the code
 The split section of `src/components/home/AGENTS.md` is rewritten; `docs/ARCHITECTURE.md` §2
@@ -602,19 +600,16 @@ state; each is removed in the phase that moves that state.
    `e2e/configured/playout-switch-mid-flight.spec.ts`,
    `e2e/configured/production-data-key-dispatch.spec.ts`, `e2e/configured/expected-run.json`,
    `e2e/dashboard-operator-walk.spec.ts` (header), `scripts/command-roads.test.mjs`,
-   `scripts/check-file-budgets.mjs`, `scripts/check-file-budgets.test.mjs`,
-   `scripts/file-budgets.json`, `package.json` (one script line), `evidence/*`. No `src/`. The
-   budget is installed at 5,676. A confirmed S1 or S3 fix is a separate pull request landed
-   before this phase's tests are declared green.
+   `evidence/*`. No `src/`. A confirmed S1 or S3 fix is a separate pull request landed before
+   this phase's tests are declared green.
 2. **Infrastructure and pure helpers** (AC-3, AC-6, AC-8). Files: `src/control/storePart.ts`,
    `src/control/playoutSession.ts` (skeleton: key, alive, apply, dispose; no parts),
    `src/control/liveCue.ts`, `src/control/cueItems.ts`, `src/control/serverPlayoutStore.ts`
    (re-export), `src/control/hostedControl.ts` (re-exports only),
    `src/components/home/useStorePart.ts`, `src/components/home/ProductionPage.tsx` (creates the
-   session keyed on `id`, disposes on change; nothing reads it yet), tests. Moves no state; the
-   budget is unchanged.
+   session keyed on `id`, disposes on change; nothing reads it yet), tests. Moves no state.
 3. **ProductionShell.tsx and CueActions.tsx** (AC-2, AC-8). Files: the two new files,
-   `ProductionPage.tsx`. Props only; derives nothing. Budget lowered.
+   `ProductionPage.tsx`. Props only; derives nothing.
 4. **useProductionPublish.ts** (AC-2, AC-8). Files: the hook, `ProductionPage.tsx`. Temporary
    interface: `onFirstPublish(rehearsed)` keeps `applyProgram` and `setLiveCue({})` in the page.
 5. **takeBlockers.ts and serverVerbs.ts** (AC-2, AC-3, AC-8). Files: the two modules,
@@ -650,7 +645,7 @@ state; each is removed in the phase that moves that state.
     subscription), `PlayoutMonitors.tsx` (its own draft subscription for `settleData`, D12),
     tests. Removes the last temporary interfaces.
 14. **Close-out** (AC-9 final, AC-11, AC-12, AC-14). Files: `ProductionPage.tsx` (imports),
-    `scripts/file-budgets.json`, `contracts/rules/...` through `npm run learn`,
+    `contracts/rules/...` through `npm run learn`,
     `src/components/home/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CLIP_PLAYBACK_PLAN.md`,
     `e2e/*` covers headers, evidence. `Closes #766`.
 
@@ -675,7 +670,8 @@ ends after phase 20.
 Demonstrable: behaviour identical on every pinned scenario (the offline suite, the configured
 suite on the local stack, Node contracts with held and reordered answers); one owner for liveCue
 within the page and its modules; the core running in Node; wire-side and monitor latency and
-render comparisons on the owner's machine under §7's rule; a guard that fails on regrowth.
+render comparisons on the owner's machine under §7's rule; a compiled rule that sends new playout
+behaviour to `src/control/`.
 Uncertain: real CasparCG, Bridge-on-server and hardware panel behaviour; hosted-staging latency
 (twice-weekly runs, not per phase); output-side render latency (excluded); timings the held
 answers do not reproduce; the hosted page's fitness for the core (not in scope).
@@ -689,12 +685,9 @@ confirmed, `gh auth status` ok, the browser queue idle, `wave-row` and `wave-row
 available; no open wave or plan run and the runner revalidated as it stands then; the owner's
 window supplied.
 
-Added 2026-10-16, before phase 1: the owner's answer on D8 is recorded here. His codebase-health
-ruling ("No new hard ceiling or blocking size policy; an arbitrary number must not block a valuable
-change", `docs/work-specs/codebase-health/spec.md`) reserves this size policy for him, and as
-written D8 would install 5,676 on a page that is now 5,744 lines. The phase 1 builder reads
-`evidence/reconcile-2026-10-16.md` first: line numbers here are of `70fad3a94`, the budget script
-already exists for the wizard, and code that landed since (#1057's boot replay) is reused.
+Added 2026-10-16: the phase 1 builder reads `evidence/reconcile-2026-10-16.md` first: line numbers
+here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reused. The owner
+answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settled.
 
 Before starting phase 15: phase 14 checked PASS on `main`, and `node scripts/work-spec.mjs status
 docs/work-specs/sheet-data-flow/work.json` shows the spec agreed.
