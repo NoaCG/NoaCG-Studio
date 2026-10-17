@@ -649,6 +649,7 @@ test('a newer edit during a held linked Save stays unsaved, and leaving asks aga
   const newer = await source(page); expect(newer).not.toEqual(requested);
   await release(page, 0);
   await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toContainText('changed while saving');
+  await page.screenshot({ path: test.info().outputPath('after.png') }); expect(0, 'disposable probe: capture the after state').toBe(1);
   await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
   expect(await saveLink(page)).toMatchObject({ graphicId: record.id, dirty: true, status: 'idle' });
   const saved = await library(page);
@@ -681,6 +682,7 @@ test('a newer edit during a held first Save is kept unsaved, and leaving asks ag
   await release(page, 0);
   await expect(page.getByTestId('save-dialog')).toHaveCount(0);
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('after.png') }); expect(0, 'disposable probe: capture the after state').toBe(1);
   await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
   const saved = await library(page);
   expect(saved).toHaveLength(1); expect(saved[0].id).toBe(minted.id); expect(saved[0].template).toEqual(minted.template);
