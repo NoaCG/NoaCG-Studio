@@ -120,7 +120,24 @@
     "exactHourlyCadenceQualified": false,
     "uncertainSubmissionOccurred": false,
     "knownSuccessfulResponsesRetained": true,
-    "noRelativeFallback": true
+    "noRelativeFallback": true,
+    "laterReadback": {
+      "id": "6ad3c17be9f88191a54cabd11a1e83ad",
+      "team_id": null,
+      "title": "Qualify exact native timing",
+      "prompt": "Continue the ONE disposable NoaCG #1301/#805 native timing qualification in this SAME native coding thread. Trial native-timing-20261017T183947Z; fixed start 2026-10-17T18:39:47Z; absolute deadline 2026-10-17T20:09:47Z, never extend. Your FIRST executor command must record raw UTC arrival with new Date().toISOString() before reading files, then read /workspace/native-timing-20261017T183947Z/probe.json and recovery.json. Preserve that raw timestamp; do not call scheduling acknowledgement delivery. Verify CODEX_THREAD_ID=01a14b29-5c96-71e6-929e-066e1915905e, environment ccarenv_b64_Y2NhcmVudl9jYWVjOTBjYjE4MDA4MTkxODZmZDMxNWI2NGYwZmEzNw, worktree /workspace/noacg-native-recovery-next, branch codex/native-recovery-next. Count and hash exact bytes explicitly retrieved. Read the persisted native automation ID and request hash; only act on that same ID. Preserve provider fire separately via automations.peek. On FIRST actual delivery, persist ONE absolute re-arm intent for exactly raw executor arrival +3600 seconds. Use Europe/Kiev DTSTART with the supported scheduler precision; record raw due, serialization/rounding, accepted due and target independently. Make only ONE re-arm request. If rejected or accepted target/due differs, preserve known response, disable this probe and verify no next run. Never substitute a relative hour from update, retry or create another task. On SECOND actual delivery disable immediately and verify no next run. Also disable on mismatch, terminal state or deadline; no third re-arm. If submission/update is uncertain retain intent/hash/native ID and inspect the SAME action without replay. Keep active stopping responsibility. Never touch old automation 6ad345b6664c8191b783f603378f134b, run-wake files, concurrent Claude files, another PR owner, credentials or hosting. Missing policy/usage/context/planning counters remain null; harmless access does not qualify native permission continuation. Resume the original authorized task, commit/push honest evidence and use /check; open no PR without terminal repair ownership.",
+      "schedule": "BEGIN:VEVENT\nDTSTART;TZID=Europe/Kiev:20261017T224239\nEND:VEVENT",
+      "timing_mode": "exact_schedule",
+      "display_schedule": null,
+      "is_enabled": false,
+      "conversation_id": null,
+      "thread_id": "01a14b29-5c96-71e6-929e-066e1915905e",
+      "default_timezone": "Europe/Kiev",
+      "next_run_time": null,
+      "last_run_time": "2026-10-17T18:42:30.571483+00:00",
+      "updated_at": "2026-10-17T18:44:22.316502+00:00"
+    },
+    "laterReadbackNote": "Post-push lookup still disabled/no next run, same first last_run_time. Provider updated_at advanced to 18:44:22.316502Z without another agent update; cause unobserved. Preserve it separately from the successful disable acknowledgement."
   },
   "context": {
     "measurement": {
