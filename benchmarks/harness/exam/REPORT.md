@@ -53,10 +53,16 @@ Out of 20 requests each, Wilson 95% intervals.
 | cost per usable graphic | $33.34 credit over 12 usable: $2.78 (capped sessions included) | $45.22 notional over 15 usable: $3.01 ($4.52 over 10 by the gate alone) |
 | wall time, median / 90th percentile | 527 s / 744 s; 7 of 20 over ten minutes | 453.5 s / 595 s; 2 of 20 over ten minutes |
 
-The three unmoved events (both award reveals' `settle`, Claude Code's auction `sold` and its
-podiums' `resume`; the harness's volleyball `undo` was in a not-ready session) are the state
-rule's blind spot: the judge saw each change the picture (`evidence/instruments.md` entry 19).
-They stay counted as fixed before the run.
+Four unmoved events in delivered graphics: the harness's award reveal `settle`, and Claude Code's
+award reveal `settle`, auction `sold` and podiums `resume` (the harness's auction `sold` and
+volleyball `undo` were in not-ready sessions, which the judge did not read). The judge described
+the harness's settle, Claude Code's sold stamp and its resume working, and named nothing missing
+on Claude Code's award reveal (`evidence/instruments.md` entry 19). They stay counted as fixed
+before the run.
+
+The judge also named one missing action the gate did not flag: Claude Code's ski timing tower
+offers `focus`, but no frame shows a focused row. It is already not usable (not airable); the
+gate's missing-action figures above do not include it.
 
 ### Per brief
 
@@ -76,7 +82,7 @@ They stay counted as fixed before the run.
 | school-auction-board | typeless | not ready (budget) | not airable, 1 basic mistake; `sold` unmoved | Claude Code, by delivery |
 | school-quiz-secret-pick | quiz-board | usable | not airable | Claude Code |
 | school-table-tennis-bracket | bracket | not ready (budget) | usable; `advance` offered as the round buttons | Claude Code, by delivery |
-| ski-sprint-timing-tower | timing-tower | usable | not airable | harness |
+| ski-sprint-timing-tower | timing-tower | usable | not airable; the judge named `focus` missing (no focused row shown) | harness |
 | spanish-news-flood-alert | alert-level | usable | usable | tie (order flip) |
 | volleyball-set-board | typeless | not ready (budget) | usable; `undoPoint`/`endSet` offered as `undoA`/`undoB`, `setA`/`setB` | Claude Code, by delivery |
 | welsh-chapel-reading | statement-card | usable | usable | Claude Code |
@@ -90,21 +96,22 @@ not usable (the matchup is not usable either way).
 
 - **One order flip in 12 judged pairs**, against the more than 5 that would make the exam
   inconclusive.
-- **The single and the pair can disagree on airability.** In two pairs Claude Code won (the
-  charity alert and the quiz board), the judge called the harness's graphic not airable in one
-  of the two orders (the donor message shown only with the long values; the question line cut by
-  its mask for one frame of the Take), where its single had called the same graphic airable. In
-  the quiz pair it preferred Claude Code's board, which its single had called not airable (the
-  pick reveal shows the tick before the answer is judged). The counting fixed before the run takes
-  airability from the single and preference from the pair, so neither changes a figure; it says
-  how firm one judgement is, from a judge calibrated on stills.
+- **The single and the pair can disagree on airability, both ways.** In 5 of the 12 judged pairs
+  the pair's airability for a graphic differs from that graphic's single in at least one order:
+  the harness's charity alert, chapel reading and quiz board, and Claude Code's notice, were
+  airable alone and not airable in one order of their pair (for the harness: the donor message
+  shown only with the long values, the question line cut by its mask for one frame of the Take);
+  Claude Code's community bug and quiz board were not airable alone and airable in a pair (the
+  quiz board in both orders, and preferred there). The counting fixed before the run takes
+  airability from the single and preference from the pair, so none of this changes a figure; it
+  says how firm one judgement is, from a judge calibrated on stills.
 - Every answer carries the frozen fingerprint `60bfb08e18a4`; the judge's files still hash to
   `judge.lock.json`.
 
 ### What the budget stops say
 
-The reserve's `B` (194 cents, 1.5 times H5's mean on the five v1 briefs) sat 5 cents above the
-dearest tuning graphic. On the exam's briefs, several with 8 to 12 fields and up to 16 buttons,
+The reserve's `B` (194 cents, 1.5 times the $1.29 mean of six Opus graphics: H3's one and H5's
+five on the v1 briefs) sat 5 cents above the dearest tuning graphic. On the exam's briefs, several with 8 to 12 fields and up to 16 buttons,
 the twelve delivered sessions cost $0.92 to $1.87, and the eight capped ones were still revising
 when they reached the cap. Each handed in a validator-clean interim record; they were stopped by
 money, not by an error. All eight are boards an operator drives (two to five actions each, up to
@@ -113,7 +120,7 @@ money, not by an error. All eight are boards an operator drives (two to five act
 ## What a retry needs
 
 - **Change first: the per-graphic budget**, set from briefs as dense as the exam's rather than
-  from the five v1 briefs, and checked against the dearest dense brief before the exam's reserve
+  from six graphics on the light v1 briefs, and checked against the dearest dense brief before the exam's reserve
   is computed (5.2). On the judged pairs the loop already matches Claude Code on one model.
 - **When to retry (section 9).** This miss has a cause on the host's side (the session budget the
   harness runs under), not the model's. That is the section's condition for a next attempt: a

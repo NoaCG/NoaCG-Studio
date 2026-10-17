@@ -1225,6 +1225,7 @@
       "stage": "close",
       "funding": "none",
       "outcome": "completed",
+      "verdict": "MISSED",
       "note": "the held-out exam, MISSED (evidence/phase-8.md, exam/REPORT.md): 4.5 lines 1 and 3 fail. Harness 12 of 20 delivered and usable (8 stopped at the 194-cent budget, not ready), Claude Code 15 usable with the action readings (10 by the gate alone, where line 1 holds); Claude Code preferred in 13 of 20 pairs (8 by delivery), harness 6, 1 flip tie; 0 basic mistakes and 0 missing actions in the harness's delivered graphics; median wall 527 s. 20 credit sessions, $33.34 of the $46.60 reserve; the frozen judge 57 answered calls on the subscription ($259.10 notional, no credit). The run stops (5.5); H9 does not start"
     }
   ]

@@ -40,7 +40,8 @@ re-shot frames named.
     five the judge named no missing action, and a button does each action, so all five are read as
     offered: the volleyball board (`undoA`/`undoB` "Undo A/B" for `undoPoint`, `setA`/`setB` "Set
     A/B" in the "End set" group for `endSet`; the judge notes the operator picks the set's winner,
-    "the function is there, but it is a different mechanic"), the matchup (`winRed`/`winBlue` "Red
+    "the function is there, but it is a different mechanic"; this board is the ruling's own
+    example), the matchup (`winRed`/`winBlue` "Red
     wins"/"Blue wins" for `select`; the judge: "the operator surface does cover select"), the
     head-to-head (`leadA`/`leadB` "Lead Home"/"Lead Away" for `highlight`; the judge: they "cover
     the highlight and clear actions"), the podiums (`spot1` to `spot4` "Spot P1" to "Spot P4" for
@@ -56,10 +57,11 @@ re-shot frames named.
     with the judge's single before it is called a failure; counted in the report's functional
     failures, not in "usable", as tuning counted. Read with the singles (2026-10-17): the judge saw
     the harness's settle return the card to calm, Claude Code's sold stamp and its podiums' resume
-    "back to game", and named nothing missing on Claude Code's award reveal. So each is the state
-    rule's blind spot (the event changes the look without changing a state group), not a broken
-    event. The two auction boards are not usable for other reasons (the harness's not ready,
-    Claude Code's not airable), and the harness's volleyball board was not ready. They stay counted
+    "back to game", and named nothing missing on Claude Code's award reveal. So in the delivered
+    graphics none is shown to be a broken event: the event changes the look without changing a
+    state group, the state rule's blind spot. The harness's auction board and volleyball board
+    were not ready, so the judge never read them, and Claude Code's auction board is not airable
+    for other reasons. They stay counted
     as functional failures, as fixed before the run.
 
 ## H7 (2026-10-15): tuning round 3

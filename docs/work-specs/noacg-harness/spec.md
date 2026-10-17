@@ -984,8 +984,10 @@ the spend added to the ledger, and the check's findings.
 - **What the next phase must allow for:** none starts. 5.5 stops the run; H9 to H11 do not run
   and `harness_open` stays off. A next plan starts from `exam/REPORT.md` ("What a retry needs")
   and the `docs/AI_ATTEMPTS.md` entry, and must not reuse these 20 briefs as held-out: they have
-  been read and judged. The bench is unfrozen (`examPending` is null), so `--build` of a tuning
-  phase would no longer be refused for the exam; nothing of this plan should run one.
+  been read and judged. The exam's freeze ended with the close, so `refuseBuild` now refuses every
+  phase after H8 unless the exam's close entry says `verdict: PASSED` (new here: `--close <exam>
+  --verdict`, required for the exam phase); `--build H9 --dry` answers "H9 starts only after H8's
+  exam passed, and it closed MISSED: the run stops (5.5)". H5 to H7 stay refused as completed.
 - **Decisions** (each revertible in the merge):
   - DECIDED: the five open missing-action flags read as offered (volleyball, matchup,
     head-to-head, podiums, bracket), by the ruling fixed before the tally: on each the judge's
@@ -1000,10 +1002,11 @@ the spend added to the ledger, and the check's findings.
   - DECIDED: a `completed` judge entry in the ledger for the 31 calls ($0 credit, $134.48
     notional), beside the paused one, so the ledger states the judge stage ended.
 - **Traps:** a worktree-isolated session cannot take a branch another worktree holds; this
-  phase's branch is `claude/plan-noacg-harness-p9-build-row`. In two pairs the judge called the
-  harness's graphic not airable in one order where its single had called it airable; the counting
-  takes airability from singles, so no figure moves, but the report names it as a limit of one
-  judgement. Two bench tests read the committed ledger and asserted the exam still open; they now
+  phase's branch is `claude/plan-noacg-harness-p9-build-row`. In 5 of the 12 judged pairs the
+  pair's airability for a graphic differs from its single in at least one order, both ways and
+  for both arms; the counting takes airability from singles, so no figure moves, but the report
+  names it as a limit of one judgement. `judgeRun` ledgers only pauses, so the `completed` judge
+  entry was added by hand; a future paused judge stage needs the same. Two bench tests read the committed ledger and asserted the exam still open; they now
   assert H8 closed (refused, nothing held) and keep every open-exam assertion on a copy with the
   close removed. Tests 49 of 49.
 - **Spend:** $0 credit; the ledger at $54.68 of $100 with nothing held ($45.32 left after the

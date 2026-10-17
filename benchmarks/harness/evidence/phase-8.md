@@ -228,8 +228,9 @@ node scripts/harness-bench.mjs --tally C:\claude\noacg-bench-archive\harness-exa
   volleyball board, matchup, head-to-head, podiums and bracket the judge's single named no missing
   action and a button does each flagged action, so all five are read as offered in
   `exam/action-readings.json`, as the ruling above says. They can only raise Claude Code's count.
-  The unmoved events were each seen to change the picture; they stay counted as functional
-  failures, as fixed.
+  None of the four unmoved events in delivered graphics is shown broken by the judge's singles
+  (entry 19); they stay counted as functional failures, as fixed. The judge also named `focus`
+  missing on Claude Code's ski timing tower, already not airable; the gate had not flagged it.
 - **The tally: MISSED.** Line 1 fails with the readings (harness 12 usable, Claude Code 15) and
   holds by the gate alone (Claude Code 10). Line 3 fails either way: Claude Code preferred in 13
   of 20 pairs (5 judged, 8 by delivery), harness 6, 1 tie on an order flip. Lines 2 and 4 hold:
@@ -241,9 +242,10 @@ node scripts/harness-bench.mjs --tally C:\claude\noacg-bench-archive\harness-exa
   before by delivery, each in brief order), built into `benchmarks/harness/exam/gallery/` and,
   to outlive the worktree, into `C:\claude\noacg-bench-archive\harness-exam-2026-10-15\owner-gallery\`
   (`review.html`, `key.json`, `notes.md`); never committed.
-- **Closed:** `--close H8` recorded the phase as completed, which ends the bench's freeze and
-  releases the $13.26 of the reserve the exam did not spend: $54.68 spent, $45.32 left. The run
-  stops (5.5); H9 does not start. The report, `docs/AI_ATTEMPTS.md` and the spec's phase notes
+- **Closed:** `--close H8` recorded the phase as completed with `verdict: MISSED`, which ends the
+  bench's freeze and releases the $13.26 of the reserve the exam did not spend: $54.68 spent,
+  $45.32 left. The run stops (5.5); `--build` now refuses H9 and every later phase because the
+  exam did not pass. The report, `docs/AI_ATTEMPTS.md` and the spec's phase notes
   say what a retry needs.
 
 Checks after the verdict: `node --test scripts/harness-bench.test.mjs` 49 of 49.

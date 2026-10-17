@@ -16,8 +16,8 @@ Live contract: `src/ai/AGENTS.md`. Deadline plan: `docs/AI_LITE_PLAN.md`.
 **2026-10-15 to 10-17 · Opus 5.5 on Managed Agents (agent v7, no critic, 194-cent session budget)
 against Claude Code with the plugin on the same model and skill, 20 sealed briefs · $33.34 credit
 for the exam, $54.68 for the plan · MISSED.** The harness delivered 12 of 20; the other 8 reached
-the session budget while still revising. Every delivered graphic was judged airable with no basic
-mistake and no missing action, and on the 12 briefs both arms delivered the frozen judge preferred
+the session budget while still revising. Every graphic the harness delivered was judged airable
+with no basic mistake and no missing action (5 of Claude Code's 20 were not airable), and on the 12 briefs both arms delivered the frozen judge preferred
 the harness 6, Claude Code 5, with 1 tie. But the 8 budget stops went to Claude Code by delivery,
 so it was preferred in 13 of 20 pairs (the pass allowed 10), and it had 15 usable graphics to the
 harness's 12 (10 by the missing-action gate alone). The loop matched; the budget, set from five

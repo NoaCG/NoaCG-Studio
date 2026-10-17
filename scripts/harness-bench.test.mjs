@@ -52,7 +52,7 @@ import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySeale
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
-import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, packagesProofRefusal, pendingCells, recaptureCells, recordReserve, refuseBuild, runCells, tuningBriefs } from './harness-bench.mjs';
+import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, examVerdict, judgeRun, packagesProofRefusal, pendingCells, recaptureCells, recordReserve, refuseBuild, runCells, tuningBriefs } from './harness-bench.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown, typelessLabels } from '../benchmarks/harness/lib/exam.mjs';
 import { agentReadBack, applySync, readDefinitions, syncPlan, workspacePlan } from './harness-agent-sync.mjs';
 
@@ -182,6 +182,13 @@ test('--build refuses a $0 phase, a completed one, tuning before the exam is res
   assert.match(refuseBuild(ledger, 'H8'), /already holds H8 as completed/, 'the exam is closed and never spends again');
   const beforeH8Closed = { ...ledger, entries: ledger.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H8' && e.outcome === 'completed')) };
   assert.equal(refuseBuild(beforeH8Closed, 'H8'), null, 'tuning is closed and the reserve held, so the exam may spend it');
+  assert.equal(examVerdict(ledger), 'MISSED');
+  assert.match(refuseBuild(ledger, 'H9'), /H9 starts only after H8's exam passed, and it closed MISSED: the run stops/, 'a missed exam stops the run');
+  assert.match(refuseBuild(ledger, 'H11'), /closed MISSED/);
+  const closedWith = (verdict) => ({ ...ledger, entries: ledger.entries.map((e) => (e.kind === 'phase' && e.phase === 'H8' ? { ...e, verdict } : e)) });
+  assert.match(refuseBuild(closedWith(undefined), 'H9'), /closed with no verdict/, 'a close that names no verdict is no pass');
+  assert.match(refuseBuild(closedWith('INCONCLUSIVE'), 'H9'), /closed INCONCLUSIVE/);
+  assert.equal(refuseBuild(closedWith('PASSED'), 'H9'), null, 'only a passed exam opens the product half');
   const beforeH7Closed = { ...beforeH8Closed, entries: beforeH8Closed.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H7' && e.outcome === 'completed')) };
   assert.equal(refuseBuild(beforeH7Closed, 'H7'), null, 'with the reserve held, round 3 could spend before it closed');
   assert.match(refuseBuild(beforeH7Closed, 'H8'), /H8 spends its reserve only on the exam, after tuning: H7 not closed/);
