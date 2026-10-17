@@ -1,6 +1,6 @@
 # Make the codebase lean, starting with the retired editor
 
-Status: **old-editor implementation not started; admin retirement separately approved and in PR #1396**.
+Status: **old-editor implementation not started; admin retirement merged and deployed in PR #1396**.
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
 `3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
@@ -58,9 +58,13 @@ separate admin removal is explicitly authorized under decision 8 below.
    tests; moving a working helper just to reduce the app directory is not required cleanup.
 8. The owner explicitly approved removing the entire admin page and replacing it with
    commands/sessions and routines. [PR #1396](https://github.com/NoaCG/NoaCG-Studio/pull/1396)
-   implements the dashboard and unused HTTP-handler retirement, preserves deployed data and
+   landed the dashboard and unused HTTP-handler retirement, preserves deployed data and
    live access enforcement, and adds aggregate reporting plus a weekly Codex brief. Its scope
-   and verification live in `docs/work-specs/admin-command-operations/spec.md` on that branch.
+   and verification live in `docs/work-specs/admin-command-operations/spec.md` on main.
+   Production reports merge `6f91096350150627887bbd81886b1042410731a3`; `/admin` and
+   `/api/admin/session` return 404, while `/app` and `/api/me/entitlement` return 200.
+   Deployment verification and post-landing migration/advisor checks passed. The PR's repair
+   receipt tracks the remaining CI results and the SVG quarantine follow-up in #1400.
    Future role-management UI waits for a real need; no speculative dashboard is kept. No paid
    benchmarks, model promotions or database mutations are authorized by the reporting routine.
 
@@ -269,9 +273,9 @@ process for every unrelated change; use the existing feature-removal/review path
 ## Owner decisions still needed
 
 The narrower #800 policy and complete admin-page retirement are accepted. The admin decision
-is being implemented separately in #1396; the weekly report is enabled and the live aggregate
+landed separately in #1396; the weekly report is enabled and the live aggregate
 query was checked read-only. No further admin product decision is required. The first scheduled
-report has not yet run, and the PR's merge/deployment status is the source of truth for removal.
+report has not yet run; its first delivery is scheduled for Tuesday 2026-10-20 in the morning.
 
 Before deleting support for the old dock-layout format, ask that separate stored-data question.
 Do not ask about retiring AI experiments during the active harness work; they are outside this
