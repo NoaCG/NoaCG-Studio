@@ -8,9 +8,9 @@ accepting every recommendation, and asked for a second opinion before the phases
 
 **Second opinion, 2026-10-17:** [the follow-up](second-opinion.md) checks the code independently,
 reads primary documentation directly, supplies six starter layouts, and proposes scoped
-connections, explicit list formats and a smaller operator workflow. Its proposed P1-P5 and
-phases 15-26 are in the data-sources spec. Original owner answers stay recorded; changes remain
-draft. The source-access note below describes this first research pass, not the follow-up.
+connections, explicit list formats and a smaller operator workflow. Its proposed P1-P5 shaped
+the candidate that the two reviews below then reconciled. Original owner answers stay recorded;
+changes remain draft. The source-access note below describes this first research pass only.
 
 ## Latest owner direction and full-plan review, 2026-10-17
 
@@ -31,15 +31,24 @@ reviewer separately before sharing other opinions. It includes the owner's outco
 phases, constraints, source paths and a requested review structure. It asks for an independent
 model first and permits replacing the proposed design.
 
-The full-plan read found these questions worth challenging before implementation:
+**Reviews received and reconciled, 2026-10-17.** Two independent reviews of PR #1390 at
+`7313cd8` are stored as received in `reviews/`. The decision record
+[synthesis-2026-10-17.md](synthesis-2026-10-17.md) checks their claims against the code,
+reconciles them in one table, and rewrites the four specs into one proposal: the cue editor as
+the home of "Fill from…" and "Connect…", paste landing first, three refactor phases in this
+window, destination hygiene instead of snapshot flags, a browser-led Sheet reader with a server
+tick, five format adapters, browser-side YouTube. Four decisions remain for the owner (its §7).
+The parent, Sheet and message specs carry the result; the plan is draft until he agrees it.
+
+The full-plan read found these questions worth challenging; the synthesis answers each:
 
 - Phases 1-14 have detailed command, lifecycle, rollback and verification contracts. Those are
   valuable; the number of extractions is not itself a user outcome. Review maintenance phases
   3/4/6/8/9 and any dependency on them before the first useful feature.
 - The manual message result currently waits until 23, after feed/API work. Review whether its
   smallest safe path can come earlier, while keeping feature changes out of refactor commits.
-- The old §6 matrix only covers 1-14. Phase 15 now explicitly requires a named verification
-  matrix for 15-26; citing the old matrix alone cannot verify the new features.
+- The old §6 matrix only covers 1-14. The data-sources spec now carries a named verification
+  matrix for C0-C7 and track Q; citing the old matrix alone cannot verify the new features.
 - Navigation, source kind, use policy and storage are distinct choices. A coherent workflow
   should not require a new generic platform, nor permit a Sheet message to bypass staging.
 - Existing live binding precedence can override prepared cue text. Prototype and verify two
@@ -48,8 +57,8 @@ The full-plan read found these questions worth challenging before implementation
   unproven. No quota or runtime claim should be inferred from fixtures or manual copying.
 
 No code, migration, browser walkthrough, provider trial or implementation phase was run in this
-update. The continuation remains draft pending the requested reviews and agreement. The parent
-run is updated in the draft PR; it is not yet an executable update on `main`.
+update or in the reconciliation. The continuation remains draft pending the owner's agreement on
+the reconciled plan. The parent run is updated in the draft PR; it is not yet on `main`.
 
 ## Earlier research and follow-up corrections
 
@@ -257,7 +266,7 @@ Google pages are under `support.google.com/docs/answer/` unless named.
 
 The owner's belief that import formulas refresh about hourly is right for IMPORTFEED, IMPORTXML,
 IMPORTHTML and IMPORTDATA, and the refresh is documented only while someone has the sheet open.
-Whether NoaCG reading the CSV export counts as "open" is unknown [unverified]; phase 15 can test
+Whether NoaCG reading the CSV export counts as "open" is unknown [unverified]; track Q can test
 it. So a sheet that pulls a feed or a web table by formula is right for slow lists (a schedule, a
 standings table updated after each match) and wrong for anything live. Scripts and automation
 tools add a minute or more and run on quotas. A score typed into a sheet is possible but slower
@@ -450,7 +459,7 @@ twenty decisions, answered as recommended. A Sheet driving a ticker is also the 
 ## 7. What was not verified
 
 - How soon a Sheet edit shows in the export, and how long Google lets one reader read every 5 s:
-  data sources phase 15 (sheet phase 1) measures both.
+  track Q of the data-sources spec measures both.
 - Whether reading the export makes import formulas refresh as if the sheet were open.
 - How many real feeds send conditional-request headers, and how many allow browsers.
 - Other tools' behaviour on a failed read (whether they keep the last good data), and a few of

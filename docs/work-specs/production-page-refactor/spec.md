@@ -1,10 +1,11 @@
 # Production page refactor: a thin screen over Node-tested playout modules
 
 Baseline: main `70fad3a94`, 2026-10-11; every line number below is of that revision. Authority:
-owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen sequential
-phases, each built by one session and checked by another on `main`, then (owner, 2026-10-16) the
-data and audience continuation; see "After the refactor, in the same run". Its current candidate
-is phases 15-26, pending the data-sources spec and proposed second-opinion revisions. Replaces
+owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen refactor
+phases, each built by one session and checked by another on `main`, and the content continuation
+C0-C7 of `docs/work-specs/data-sources/spec.md`. The run order reconciled on 2026-10-17 (see
+"Run order") runs refactor phases 1, 2+7 and 13a in this window with the content phases, and the
+other refactor phases in a later window; the owner has not yet agreed that order. Replaces
 the phase map of
 [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) (its phases 0-2 are done; its old
 phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
@@ -143,7 +144,9 @@ Each row is justified by a maintenance or testing benefit, not by size. Producti
 selection and range state, the session hook, the wires, the derived view, the render. Required
 for the testing benefit: phases 1, 2, 5, 7, 10, 11, 12, 13, 14. Maintenance-only and individually
 droppable before a window is authorised: 3, 4, 6, 8, 9 (each later phase takes the callbacks it
-needs from the page instead, see Phases).
+needs from the page instead, see Phases). In the reconciled run order only 1, 2+7 and the
+props-only half of 13 run in this window; 5, 10, 11, 12, the draft half of 13 and 14 keep their
+testing benefit and wait for the later window ("Run order").
 
 | Module | Responsibility | Owns | Runtime imports / injected IO | Interface | Benefit |
 |---|---|---|---|---|---|
@@ -644,58 +647,52 @@ state; each is removed in the phase that moves that state.
     Safety-sensitive: the draft decides what Take and Update air, and the preview shows it. Files:
     the module, the component, `playoutSession.ts`, `ProductionPage.tsx`, `CueRundown.tsx` (label
     subscription), `PlayoutMonitors.tsx` (its own draft subscription for `settleData`, D12),
-    tests. Removes the last temporary interfaces.
+    tests. Removes the last temporary interfaces. Reconciled 2026-10-17: split into **13a**, a
+    props-only move of the cue editor JSX into `CueEditor.tsx` in the phase-3 style (derives
+    nothing, moves no state; the Fill and Connect menus of C0 and C1 live there), run in this
+    window after 2+7 with phase 3's matrix row plus `production-data` and `playout-air-contract`;
+    and **13b**, the draft part as written here, in the later window.
 14. **Close-out** (AC-9 final, AC-11, AC-12, AC-14). Files: `ProductionPage.tsx` (imports),
     `contracts/rules/...` through `npm run learn`,
     `src/components/home/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CLIP_PLAYBACK_PLAN.md`,
     `e2e/*` covers headers, evidence. `Closes #766`.
 
-### After the refactor, in the same run (owner, 2026-10-16)
+### Run order (reconciled 2026-10-17; the owner's agreement pending)
 
-The owner made the playout dashboard the top priority, with its Data and Audience tabs, and ruled
-one run in this order: "production page cleanup first, then Sheet data, then audience, all in the
-one run." The Sheet work changes the cue editor and the press verbs that phases 12 and 13 move, so
-it follows phase 14 rather than interleaving.
+History. The owner made the playout dashboard the top priority with its data and audience flows
+and ruled on 2026-10-16 "production page cleanup first, then Sheet data, then audience, all in
+the one run". The Sheet-only phases 15-20 were superseded by data-sources DS16 on 2026-10-17,
+then a continuation 15-26 was drafted and sent for two independent whole-plan reviews. Both
+reviews found the order upside-down: the paste result depends on nothing in the refactor, and the
+content work needs the data session and a props-only cue editor move, not the press verbs. The
+reconciliation (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`) replaces the
+"cleanup first" order with the one below. The refactor's safety contracts (§4-§8) are unchanged.
 
-The original Sheet-only phases 15-20 were superseded by data-sources DS16 on 2026-10-17.
-The owner then accepted the second-opinion improvements for inclusion and clarified the outcome:
-messages from anywhere, including manual paste and Sheets, share the content workflow; YouTube
-matters now; Twitch remains optional. Separate Data and Audience pages are not a requirement.
-This latest direction supersedes the earlier fixed-tab wording above, not the refactor's safety
-contracts. No implementation run starts from this documentation update.
+One `/plan-run production-page`, sequential; the wave file names each step as
+`N. Phase <k> of the <spec> spec: <name>`:
 
-The candidate continuation lives once in `docs/work-specs/data-sources/spec.md` under `## Phases`,
-with the Sheet and message criteria linked there. Current summary:
+| Step | Phase | Spec | Result |
+| --- | --- | --- | --- |
+| 1 | C0 | data-sources | Paste a message and safe staging; #1313 fixed. A feature change outside the refactor fence, landed before phase 1 so the baseline includes it |
+| 2 | 1 | this spec | Safety net, S1 and S3 decided, two perf baselines |
+| 3 | 2+7 | this spec | Store part, session skeleton, the production-data session (one phase; phase 7's matrix row plus phase 2's Node tests) |
+| 4 | 13a | this spec | Props-only cue editor extraction |
+| 5 | C1 | data-sources | Native lists (paste rows), starter rows, local Sheets, the browser reader, the sources line, the Data overview with Advanced |
+| 6 | C2 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat |
+| 7 | C3 | data-sources | Published ownership: bindings and sources persist at once, the lease, the server tick, cost |
+| 8 | C4 | data-sources | Feeds |
+| 9 | C5 | data-sources | The another-system card and Pause |
+| 10 | C6 | data-sources | Journeys, compatibility, docs |
+| 11 | C7 | data-sources | Combined rehearsal, trials, Twitch and output-player checks |
 
-| Phase | Result |
-| --- | --- |
-| 15 | Prototype shared content and manual/Sheet messages; qualify sources and verification |
-| 16 | Scoped connections, source/use separation, message identity and snapshot contracts |
-| 17 | Native lists, starter rows and local Sheet connections |
-| 18 | Published source ownership, durable connections and closed-page updates |
-| 19 | Direct RSS/Atom feeds |
-| 20 | Custom API setup, status and server-enforced Pause |
-| 21 | Selected table rows, manual/Sheet message intake and broadcast preview |
-| 22 | Data journeys, old-graphic compatibility and docs |
-| 23 | Safe message destinations, reliable staging and exact cue snapshots |
-| 24 | Shared message workflow and optional joining, votes and presenter controls |
-| 25 | Qualified YouTube intake; retain Twitch compatibility and extension path |
-| 26 | Combined rehearsal, including paste/Sheet messages and separate provider evidence |
+Track Q (qualification and the trial) runs beside step 1 in its own session and is recorded
+before step 5. The later window, its own run with its own authorised time: phases 3, 4, 5, 6, 8,
+9, 10, 11, 12, 13b and 14 as written above, in that order, 11 alone.
 
-Phases 1-14 remain the candidate baseline. The owner now requests independent review of **all
-phases**, not just the continuation. Reviewers may challenge the extraction scope, maintenance
-phases, dependencies, UI separation and timing of the first useful message workflow. The review
-brief is `docs/research/2026-10-data-sources/external-review-prompt.md`; accepted changes must be
-reconciled into the specs before execution. Do not preserve this sequence merely because it is
-numbered. Research, prototypes and reviews can precede phase 1; production feature changes stay
-outside the behavior-preserving refactor unless the reviewed plan explicitly changes its fence.
-
-Each continuation phase uses §8/§9 and relevant checks. §6's matrix only covers 1-14; phase 15
-must record the concrete 15-26 verification matrix before dependent implementation. The existing
-D3 stop rule holds. No phase 15 begins until readiness below, and no new source is implemented
-merely by landing research. Phase 26 integrates the changed workflows; phase 14 remains the
-refactor rehearsal. Required manual, Sheet and qualified YouTube outcomes are reported separately
-from optional Twitch deferral and hardware checks.
+Each content phase uses §8 and §9 of this spec and the verification matrix in the data-sources
+spec; §6 here covers steps 2-4. The D3 stop rule holds. Required manual, Sheet and YouTube
+outcomes are reported separately from optional Twitch deferral and hardware checks. No run starts
+from this documentation update.
 
 ## What the plan can demonstrate, and what stays uncertain
 
@@ -710,9 +707,10 @@ answers do not reproduce; the hosted page's fitness for the core (not in scope).
 
 ## Readiness
 
-Before the next run: the requested independent whole-plan opinions are compared, accepted
-changes reconciled across all four specs, and the owner agrees the resulting plan. This is a
-planning review gate, not authorization to start a run or a requirement to repeat accepted P1-P5.
+Before the next run: the two independent reviews are reconciled
+(`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`), and the owner agrees the resulting
+plan, including the run order above and the four decisions in the synthesis §7. This is a
+planning review gate, not authorization to start a run.
 
 Before starting phase 1 (the start instruction): this spec and `work.json` landed on `main`,
 `work-spec.mjs status` clean and the "Runnable plans" line present; `origin/main` CI, the latest
@@ -725,14 +723,12 @@ Added 2026-10-16: the phase 1 builder reads `evidence/reconcile-2026-10-16.md` f
 here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reused. The owner
 answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settled.
 
-Before starting phase 15: phase 14 checked PASS on `main`; data-sources and audience-flow
-have agreed authority after review; sheet-data-flow remains agreed with the reconciled criteria;
-all digests are current and `work-spec.mjs status` reports no problems. P1-P5 and the latest
-message priorities are included for planning; remaining independent-review decisions are recorded
-before execution. Phase 15 qualifies measurements, provider scope and the continuation check
-matrix before dependent implementation. Phase 26 records integrated acceptance separately from
-the phase 14 behavior-preserving refactor. A manual YouTube copy is useful but does not prove a
-promised direct connector; optional Twitch work is not a completion gate.
+Before C0 (step 1): nothing from the refactor; C0 lands before phase 1's baseline, and phase 1's
+characterisation then covers it. Before C1 (step 5): phases 1, 2+7 and 13a checked PASS on
+`main`; track Q recorded with the Sheet measurement inside D3, or the plan stopped and asked; the
+data-sources and audience-flow specs agreed; digests current and `work-spec.mjs status` clean.
+Later readiness per content phase is in the data-sources spec. A manual YouTube copy does not
+prove a direct connector; optional Twitch work is not a completion gate.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with

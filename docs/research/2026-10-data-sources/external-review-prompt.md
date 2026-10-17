@@ -3,6 +3,10 @@
 Research and design review only. Do not implement, migrate, merge, publish or start a plan run.
 Return a self-contained Markdown review that I can bring back to the planning agent.
 
+Status, 2026-10-17: two reviews answered this brief (`reviews/`) and were reconciled in
+`synthesis-2026-10-17.md`. The brief is kept as they received it; its phase table is the plan as
+it stood at `7313cd8`, not the current one.
+
 ## Your task
 
 Challenge our entire production-page plan, all 26 phases, against the outcomes below. This is
