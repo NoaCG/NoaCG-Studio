@@ -46,3 +46,19 @@ deletions: shared loaders and enforcement remain. The admin entry's shipped JS/C
 102 KB raw / 26 KB gzip; the main app did not load them. Primary saving is maintenance surface,
 with one fewer serverless function and one fewer build entry. No ordinary-app bundle or large
 CI-speed claim. Report exact diff totals after verification.
+
+## Verification receipt
+
+Checked on 2026-10-17 against main 7bd9f79cd. Review/simplify/verify ran inline. Review retained
+the cache-reset seam used by live visibility tests, replaced legacy feedback-output links to
+the removed page, and made the report include reviewed-but-unresolved feedback as well as new
+items. Shared access tests: 44 pass; migration/execution-profile tests: 45 pass; feedback privacy
+and output tests: 26 pass; e2e planner: 87 pass. App/API TypeScript pass. Vercel routing accepts
+the config; routed functions decrease from 13 to 12 without changing the cap. Copy baseline
+regeneration produces no diff. No database mutations were made; the report SELECT succeeds
+against the connected production project. Live aggregates stay in private chat, outside git.
+
+The Codex product brief is enabled for Tuesday mornings in the owner's existing personal
+timezone, starting 2026-10-20. Tool readback confirms it targets this Codex chat. GitHub and
+Supabase read access were checked before creation. Scheduled delivery has not yet occurred.
+Unknown cloud ancestor limits leave the full build/browser run to GitHub CI as required.

@@ -36,8 +36,10 @@ select jsonb_build_object(
   'activity', (select jsonb_agg(to_jsonb(a) order by scope, period) from activity a),
   'state', (select jsonb_agg(to_jsonb(s) order by scope) from state s),
   'feedback_all_accounts', (select jsonb_agg(to_jsonb(f) order by period) from feedback f),
-  'feedback_backlog', (select jsonb_build_object('new', count(*), 'oldest', min(created_at))
-    from public.user_feedback where status = 'new'),
+  'feedback_backlog', (select jsonb_build_object(
+    'unresolved', count(*), 'new', count(*) filter (where status = 'new'),
+    'reviewed', count(*) filter (where status = 'reviewed'), 'oldest', min(created_at))
+    from public.user_feedback where status <> 'resolved'),
   'quality_all_accounts', coalesce((select jsonb_agg(to_jsonb(q) order by status) from quality q), '[]'::jsonb),
   'operator_changes', coalesce((select jsonb_agg(to_jsonb(a) order by action) from audit a), '[]'::jsonb),
   'disabled_features', (select value from public.system_settings where key = 'disabled_features'),
