@@ -108,11 +108,19 @@ export function executionProfile({ env = process.env, platform = process.platfor
     broaderMinutes: 12, buildMinutes: provider === 'claude' ? 10 : 5 };
 }
 
-// A cloud worker spends everything it has (owner, 2026-10-17): one browser worker per visible CPU,
-// as many as its memory headroom holds after a reserve. Only the laptop keeps the memory ladder.
-export const CLOUD_RESERVE_MB = 1024, CLOUD_WORKER_MB = 1024;
+// A cloud worker spends what it has (owner, 2026-10-17): no fixed cap, no RAM floor, as many
+// browser workers as its memory headroom holds and one for every two visible CPUs, because the dev
+// server compiles on the same CPUs and past that point a worker buys failures, not time. Only the
+// laptop keeps the memory ladder. Measured on a 4 vCPU, 13.36 GiB Claude VM:
+//   - CPU, 2026-10-17, wizard-shell + downloads (27 tests): 4 workers failed 4 boot checks (7 s)
+//     on both runs in 1.3 min; 3 workers failed 0, 1 and 1 in 1.4-1.5 min; 2 workers passed all
+//     27 twice in 1.5 min. Starved boots are the trap docs/VERIFICATION.md names.
+//   - Memory (cloud-execution evidence/claude-measurements.md): cgroup peak 3.33 / 4.55 / 5.62 GiB
+//     at 2 / 4 / 6 workers, so about 2.1 GiB of dev server, runner and cache plus 0.6 GiB a worker;
+//     each figure here carries about half a gigabyte more.
+export const CLOUD_BASE_MB = 2560, CLOUD_WORKER_MB = 640;
 export function cloudWorkers(cpus, freeMb) {
-  return Math.max(1, Math.min(Math.floor(cpus), Math.floor((freeMb - CLOUD_RESERVE_MB) / CLOUD_WORKER_MB)));
+  return Math.max(1, Math.min(Math.floor(cpus / 2), Math.floor((freeMb - CLOUD_BASE_MB) / CLOUD_WORKER_MB)));
 }
 
 export function buildRisk(files) {

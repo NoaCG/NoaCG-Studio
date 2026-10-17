@@ -79,7 +79,7 @@ test('v1 hybrid ignores a cgroup2 mount that does not carry the controller (#136
   // still report the limit the session's commands run under.
   files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace(leaf, id));
   assert.equal(readResources(env).memoryLimitBytes, 14343688192);
-  assert.equal(executionProfile({ platform: 'linux', env: { CLAUDE_CODE_REMOTE: 'true' }, resources: readResources(env), freeBytes: 15 * GiB }).workers, 4);
+  assert.equal(executionProfile({ platform: 'linux', env: { CLAUDE_CODE_REMOTE: 'true' }, resources: readResources(env), freeBytes: 15 * GiB }).workers, 2);
   // Once cpu is not held through v1, the cgroup2 mount carries it: a missing reading there is
   // reported, and the affinity stands in for it.
   files.set('/proc/self/cgroup', files.get('/proc/self/cgroup').replace('1:cpu:/\n', ''));
@@ -99,12 +99,12 @@ test('a failed reading falls back to the machine totals, never to one worker', (
   // Nothing readable at all: the whole machine.
   const none = readResources({ read: () => null, affinity: 8, hostMemoryBytes: 64 * GiB, hostFreeBytes: 32 * GiB });
   assert.deepEqual([none.limitsObserved, none.effectiveCpus, none.memoryLimitBytes, none.availableMemoryBytes], [false, 8, 64 * GiB, 32 * GiB]);
-  assert.equal(cloud(none).workers, 8);
+  assert.equal(cloud(none).workers, 4);
 });
-test('cloud workers spend every CPU and the memory past a one-gigabyte reserve', () => {
+test('cloud workers take one for every two CPUs and the memory headroom at the measured cost', () => {
   // This machine: 4 CPUs, 13.36 GiB in claude-code-bash. A 60 GB machine is not held to four.
-  assert.equal(cloud(known(4, 14343688192), 'claude').workers, 4);
-  assert.equal(cloud(known(16, 56 * GiB), 'claude').workers, 16);
+  assert.equal(cloud(known(4, 14343688192), 'claude').workers, 2);
+  assert.equal(cloud(known(16, 56 * GiB), 'claude').workers, 8);
   assert.equal(cloud(known(16, 6 * GiB)).workers, 5);
   assert.equal(cloud(known(1.5)).workers, 1); assert.equal(cloud(known(8, GiB)).workers, 1);
 });
@@ -118,15 +118,15 @@ test('the laptop profile is unchanged: no cloud marker means local, whatever the
 });
 test('resource selection belongs to the executing worker, not coordinator hints', () => {
   const p = cloud(known(), 'codex', { NOACG_EXECUTION_PROFILE: 'local', NOACG_COORDINATOR_PROFILE: 'laptop', E2E_WORKERS: '20' });
-  assert.equal(p.kind, 'cloud'); assert.equal(p.workers, 4);
-  assert.equal(cloud(known(2)).workers, 2); assert.equal(cloud(known(4, 4 * GiB)).workers, 3);
+  assert.equal(p.kind, 'cloud'); assert.equal(p.workers, 2);
+  assert.equal(cloud(known(2)).workers, 1); assert.equal(cloud(known(8, 4 * GiB)).workers, 2); assert.equal(cloud(known(4, 4 * GiB)).workers, 2);
   assert.equal(cloud(known(1)).workers, 1); assert.equal(cloud(known(), 'claude').buildMinutes, 10);
   assert.equal(executionProfile({ env: { CODEX_ENVIRONMENT_ID: 'ccarenv_coordinator' }, platform: 'linux', exists: () => false }).kind, 'local');
   assert.equal(executionProfile({ env: { NOACG_EXECUTION_PROFILE: 'cloud', CI: 'true' }, platform: 'win32' }).kind, 'local');
   assert.equal(executionProfile({ env: { GITHUB_ACTIONS: 'true' } }).kind, 'ci');
 });
 test('cloud worker caps cannot be inflated by overrides; local ladder remains unchanged', () => {
-  assert.equal(chooseWorkers({ freeMb: 32000, override: '8', profile: cloud(known(2)) }).workers, 2);
+  assert.equal(chooseWorkers({ freeMb: 32000, override: '8', profile: cloud(known(4)) }).workers, 2);
   assert.equal(chooseWorkers({ freeMb: 300, override: '8' }).workers, 8);
   assert.equal(chooseWorkers({ freeMb: 5300 }).workers, 6);
   assert.throws(() => cloudJobPolicy({ browser: true, profile: cloud(), requestedWorkers: ['8'] }), /worker count/);
