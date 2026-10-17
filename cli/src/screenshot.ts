@@ -485,6 +485,41 @@ async function runSequence(own: BenchContext, appOrigin: string, html: string, o
   return { image: strip[strip.length - 1].image, ran: ops.map(describeOp), atMs: at, machine, notes, unmoved, strip, crops };
 }
 
+/**
+ * The share of pixels that differ between two frames, a pixel counting when any channel moved by
+ * more than `tolerance` (JPEG noise stays under it). Frames of different sizes differ entirely.
+ * Read in a page of its own, which decodes both pictures; nothing in it reaches the network.
+ */
+export async function changedShare(a: Uint8Array, b: Uint8Array, tolerance = 24): Promise<number> {
+  const context = await (await launchBrowser()).newContext();
+  try {
+    const page = await context.newPage();
+    await context.route('**/*', (route) => route.abort('blockedbyclient'));
+    const url = (x: Uint8Array) => `data:${mimeTypeOf(x)};base64,${Buffer.from(x).toString('base64')}`;
+    return await page.evaluate(
+      async ({ a, b, tolerance }) => {
+        const pixels = async (src: string) => {
+          const bitmap = await createImageBitmap(await (await fetch(src)).blob());
+          const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+          const g = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
+          g.drawImage(bitmap, 0, 0);
+          return g.getImageData(0, 0, bitmap.width, bitmap.height);
+        };
+        const [p, q] = await Promise.all([pixels(a), pixels(b)]);
+        if (p.width !== q.width || p.height !== q.height) return 1;
+        let changed = 0;
+        for (let i = 0; i < p.data.length; i += 4) {
+          if (Math.abs(p.data[i] - q.data[i]) > tolerance || Math.abs(p.data[i + 1] - q.data[i + 1]) > tolerance || Math.abs(p.data[i + 2] - q.data[i + 2]) > tolerance || Math.abs(p.data[i + 3] - q.data[i + 3]) > tolerance) changed++;
+        }
+        return changed / (p.width * p.height);
+      },
+      { a: url(a), b: url(b), tolerance },
+    );
+  } finally {
+    await context.close();
+  }
+}
+
 /** Detail crops of field elements at native pixels: the element a field's value is written into
  *  (SPX binds a field to the element with its id), with a margin, inside the frame. A field with
  *  no element, or one with no size (hidden, empty), has no crop. */

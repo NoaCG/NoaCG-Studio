@@ -8,7 +8,9 @@ container, a bench). The host names the folders; this file says how. Never run `
    errors and you would air it.
 2. `noacg coverage <graphic> --out <coverage folder>` writes every frame worth looking at,
    `coverage.json` (what each frame shows) and `review.json` (every frame, each with an empty
-   verdict).
+   verdict). When it ends with a `Finding:` (an action the machine ignores, or one that shows no
+   change on screen), fix the sources and run it again before you review: a viewer sees nothing
+   when the operator presses that button.
 3. Open every frame `review.json` lists, one at a time, and only then set its verdict: `ok` when
    you would air that frame as it is. When one shows something you would not air, fix the
    sources, validate, and run coverage again: that writes a new `review.json` for the new

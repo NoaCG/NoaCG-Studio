@@ -3,23 +3,26 @@
 // and step, an update and Out as timed strips, and native-pixel crops of every field. It writes
 // the frames and `coverage.json` (what each frame shows, and the sources' digest) to --out, and
 // `review.json`, every frame with an empty verdict, which `noacg record --review` hands in only
-// once each is set (review.ts). An event that did not move the machine, or a graphic call that
-// threw, is a finding (exit 1).
+// once each is set (review.ts). An event that did not move the machine, one that moved it but
+// draws nothing on screen, or a graphic call that threw, is a finding (exit 1).
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient } from '../bridgeClient.js';
 import { cliVersion } from '../config.js';
-import { coveragePlan, frameFile, type CoverageRender, type Ground } from '../coverage.js';
+import { coveragePlan, frameFile, LATER_MS, STRIP_MS, type CoverageRender, type Ground } from '../coverage.js';
 import { sourceDigest } from '../digest.js';
 import { REVIEW_FILE, reviewFor } from '../review.js';
 import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { BUSY_PLATE, LIGHT_PLATE, mimeTypeOf, safe, shoot, shootSequence, VIDEO_PLATE, type SequenceShot } from '../screenshot.js';
+import { BUSY_PLATE, changedShare, LIGHT_PLATE, mimeTypeOf, safe, shoot, shootSequence, VIDEO_PLATE, type FrameOp, type SequenceShot } from '../screenshot.js';
 import { markFramesDir, readPackageInput } from '../workspace.js';
 
 const PLATES: Record<Ground, string> = { video: VIDEO_PLATE, light: LIGHT_PLATE, busy: BUSY_PLATE };
 /** Renders at once: each is a page of its own, and four is what `validate --screenshots` runs. */
 const PARALLEL = 4;
+/** Below this share of changed pixels, a press drew nothing: about 40 pixels of a full-HD frame.
+ *  The same moment rendered twice differs by none; a stopped clock's last digit by about 300. */
+const NO_CHANGE_SHARE = 0.00002;
 
 const extOf = (bytes: Uint8Array) => (mimeTypeOf(bytes) === 'image/jpeg' ? 'jpg' : 'png');
 
@@ -146,6 +149,40 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     }
     for (const [name, shot] of results) {
       for (const note of shot.notes) if (!shot.unmoved.some((u) => u.note === note)) findings.push(`${name}: ${note}`);
+    }
+
+    // An action that moves the machine but draws nothing: at every moment of its strip (20 ms to
+    // 10 s after the press) the frame is the one with no press at all, so a flash that fades
+    // still counts as drawn. It is tried from the settled Take and then after each action that
+    // moved the machine (Reveal may need a Pick first); a finding only when no start shows a
+    // change. The renders that decide it are compared, not kept: the frames stay the matrix's.
+    const moments = [...STRIP_MS, LATER_MS];
+    const settledWithout = (prefix: FrameOp[]) => renderOne({ name: 'unpressed', values: 'sample', ground: 'video', state: '', ops: [...prefix, { kind: 'wait', ms: 0 }], offsets: moments });
+    const shows = async (without: SequenceShot, pressed: SequenceShot) => {
+      if (without.strip.length !== pressed.strip.length) return true;
+      for (let k = 0; k < pressed.strip.length; k++) if ((await changedShare(without.strip[k].image, pressed.strip[k].image)) >= NO_CHANGE_SHARE) return true;
+      return false;
+    };
+    const unpressed = inspection.buttons.length ? await settledWithout([]).catch(() => null) : null;
+    for (const button of unpressed ? inspection.buttons : []) {
+      const first = eventRender(button.event);
+      const shot = results.get(first?.name ?? '');
+      if (!first || !shot) continue;
+      let moves = !stillAfter(shot, button.event);
+      if (moves && (await shows(unpressed!, shot))) continue;
+      let drawn = false;
+      for (const other of moved.filter((b) => b.event !== button.event).slice(0, PARALLEL)) {
+        const prefix: FrameOp[] = [{ kind: 'event', event: other.event }];
+        const [without, pressed] = await Promise.all([settledWithout(prefix), renderOne({ ...first, crops: undefined, ops: [...prefix, { kind: 'event', event: button.event }], offsets: moments })]).catch(() => [null, null]);
+        if (!without || !pressed || stillAfter(pressed, button.event)) continue;
+        moves = true;
+        if (await shows(without, pressed)) {
+          drawn = true;
+          break;
+        }
+      }
+      // An action that never moves the machine has its own finding above.
+      if (moves && !drawn) findings.push(`${first.name}: ${button.label || button.event} shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take${moved.length > 1 ? ' and after each other action tried' : ''}. Draw what it does, or the operator presses it and the viewer sees nothing.`);
     }
 
     const manifest = {
