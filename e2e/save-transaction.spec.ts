@@ -14,18 +14,21 @@
 //   F  the source's trailing autosave the transaction flushes after K (an edit's timer, or the
 //      one its own name adoption scheduled) (#1382)
 //   I  a working-slot autosave already in flight when the Save starts
+//   D  Discard's replacement of the working slot
 //
 // Operations: refuse once then retry; refuse then reload; hold and edit meanwhile; replace the
 // document meanwhile; double submission. Doors: topbar Save (linked), the leave's Save & continue
 // (linked), the first Save named / under the kept name, Save As, the wizard's Finish doors. The
 // combinations that cannot occur, and why, are in docs/work-specs/editor-leave-reliability/
-// repair-6/README.md beside this file's case list.
+// repair-6/README.md beside this file's case list. Repair 7 adds a LEAVE (Home, hash, Back, Open,
+// New) started while a transaction is still writing, and the reservation and link writes both
+// refused (#1392, #1383; repair-7/README.md).
 import { test, expect, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 import { open, draw, source, ready } from './_layerProperty';
 
-type Write = 'R' | 'L' | 'K' | 'F' | 'I';
+type Write = 'R' | 'L' | 'K' | 'F' | 'I' | 'D';
 type Action = 'hold' | 'refuse' | 'late';
 const LIB = 'spx-gfx-graphics', SLOT = 'spx-gfx-project';
 /** How each write is recognised: its key, and frames its put's stack must (not) carry. */
@@ -35,6 +38,7 @@ const WRITES: Record<Write, { key: string; has: string[]; not: string[] }> = {
   K: { key: SLOT, has: ['commitLink', 'persistLink'], not: [] },
   F: { key: SLOT, has: ['settleTrailingAutosave'], not: [] },
   I: { key: SLOT, has: [], not: ['saveActions.ts'] },
+  D: { key: SLOT, has: ['discardDraft'], not: ['persistLink'] },
 };
 type Probe = { rules: { w: Write; action: Action; used?: boolean }[]; acted: { w: Write; action: Action }[]; releases: (() => void)[]; errors: number };
 declare global { interface Window { matrix: Probe } }
@@ -319,6 +323,8 @@ for (const door of ['first-kept'] as Door[]) {
 }
 
 // ── Replace the document while a topbar Save waits (the only door that leaves the editor usable) ──
+// Since repair 7 the replacement cannot start mid-save: Open asks while the save writes (#1392),
+// and the other graphic opens only once the user continues after it landed.
 
 for (const w of ['K', 'F'] as Write[]) {
   test(`matrix replace: topbar / ${w}`, async ({ page }) => {
@@ -337,11 +343,14 @@ for (const w of ['K', 'F'] as Write[]) {
     await releasable(page);
     const requested = await source(page), record = (await library(page)).find(g => g.name === NAME)!;
     await page.getByTestId('save-menu').click(); await page.getByRole('menuitem', { name: 'Open saved graphics…', exact: true }).click();
-    if (await page.getByTestId('confirm-switch').count()) await page.getByTestId('switch-cancel').click();
+    await expect(page.getByTestId('confirm-switch'), 'Open asked while the save was writing').toContainText('Saving');
+    await expect(page.getByTestId('home-page')).toHaveCount(0);
+    await release(page);
+    await expect(page.getByTestId('confirm-switch')).toContainText('is saved');
+    await page.getByTestId('switch-save').click();
     await page.locator('.lib-row', { hasText: 'Matrix other' }).getByTestId('open-graphic').click();
     await page.getByTestId('control-open-editor').click();
     await expect(page.getByTestId('editor-foundation')).toBeVisible();
-    await release(page);
     await page.evaluate(() => new Promise(r => setTimeout(r, 500)));
     const all = await library(page);
     expect(all).toHaveLength(2);
@@ -484,5 +493,183 @@ for (const how of ['hash', 'back', 'back without the Navigation API'] as const) 
     expect(page.url()).not.toBe(editorUrl);
     if (how === 'hash') await expect(page).toHaveURL(/#\/home$/);
     expect(await library(page)).toHaveLength(1);
+  });
+}
+
+// ── A leave started while a transaction is still writing (#1392, repair 7) ─────────────────────
+
+type Leave = 'home' | 'hash' | 'back' | 'open' | 'new';
+type Outcome = 'held' | 'refused' | 'refused+retry';
+const LEAVES: Leave[] = ['home', 'hash', 'back', 'open', 'new'];
+const OUTCOMES: Outcome[] = ['held', 'refused', 'refused+retry'];
+/** Start a leave. Back first walks the preview frame's own entries (no route event), so it is
+ *  repeated until the guard answers; under a busy modal nothing answers, and the editor stays. */
+async function leave(page: Page, how: Leave) {
+  if (how === 'home') await page.getByTestId('open-home').click();
+  else if (how === 'hash') await page.evaluate(() => { location.hash = '#/home'; });
+  else if (how === 'open') { await page.getByTestId('save-menu').click(); await page.getByRole('menuitem', { name: 'Open saved graphics…', exact: true }).click(); }
+  else if (how === 'new') await page.getByTestId('editor-foundation').locator('[data-door="new-graphic"]').click();
+  else for (let i = 0; i < 4 && !(await page.getByTestId('confirm-switch').count()); i++) {
+    await page.evaluate(() => history.back()); await page.waitForTimeout(300);
+  }
+}
+/** The leave reached its destination and the editor is gone. */
+async function left(page: Page, how: Leave) {
+  await expect(page.getByTestId('editor-foundation')).toHaveCount(0);
+  if (how === 'new') await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  else if (how !== 'back') await expect(page.getByTestId('home-page')).toBeVisible();
+  if (how === 'home' || how === 'hash') await expect(page).toHaveURL(/#\/home$/);
+}
+/** Still in the editor, nothing of the destination mounted. */
+async function stayed(page: Page) {
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('home-page')).toHaveCount(0);
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
+}
+/** After the save landed and the leave went on: nothing announced, and nothing asks about the
+ *  saved graphic at Home, before or after a reload. */
+async function nothingAsks(page: Page, recordId: string) {
+  await page.evaluate(() => new Promise(r => setTimeout(r, 500)));
+  expect(await errors(page), 'a write of the saved source was announced by the app').toBe(0);
+  await expect(page.getByTestId('storage-alert')).toHaveCount(0);
+  expect(await link(page)).toMatchObject({ graphicId: recordId, dirty: false });
+  await settleDurableWrites(page);
+  await page.goto('/app#/home'); await page.reload();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(await newAsks(page), 'New asked about the graphic just saved').toBe(0);
+  expect(await link(page), 'after a reload the draft is the saved graphic').toMatchObject({ graphicId: recordId, dirty: false });
+}
+
+// The topbar Save and Ctrl+S leave the editor usable while they write: the leave asks over the
+// editor, says the save is running, and answers with the save's own answer.
+for (const door of ['topbar', 'ctrl+s'] as const) for (const how of LEAVES) for (const outcome of OUTCOMES) {
+  test(`matrix in-flight leave: ${door} / K ${outcome}, ${how}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    const { before } = await prepare(page, 'topbar');
+    await arm(page, 'K', outcome === 'held' ? 'hold' : 'late');
+    if (door === 'topbar') await page.getByTestId('save-graphic').click();
+    else await page.keyboard.press('Control+s');
+    await releasable(page);
+    const requested = await source(page);
+    await leave(page, how);
+    const ask = page.getByTestId('confirm-switch');
+    await expect(ask, 'the leave asked while the save was writing').toBeVisible();
+    await expect(ask).toContainText('Saving');
+    await stayed(page);
+    await release(page);
+    if (outcome === 'held') {
+      // Landed: the dialog says so and waits for the user, who continues.
+      await expect(ask).toContainText('is saved');
+      await stayed(page);
+      await page.getByTestId('switch-save').click();
+    } else {
+      // Refused: the failure is shown where the user is, and nothing left.
+      await expect(ask.locator('.status-bad')).toBeVisible();
+      await stayed(page);
+      expect(await errors(page), 'the refusal was announced by the app as well as the dialog').toBe(0);
+      expect(await link(page)).toMatchObject({ graphicId: before[0].id, dirty: true, status: 'failed' });
+      if (outcome === 'refused') {
+        await page.getByTestId('switch-cancel').click();
+        await expect(ask).toHaveCount(0);
+        await stayed(page);
+        await expect(page.getByTestId('save-status')).toHaveText('Save failed');
+        await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+        expect(await library(page), 'nothing minted').toHaveLength(1);
+        expect(await link(page), 'the reload tells the truth: linked, unsaved').toMatchObject({ graphicId: before[0].id, dirty: true });
+        expect(body(await source(page))).toEqual(body(requested));
+        return;
+      }
+      await page.getByTestId('switch-save').click();
+    }
+    await left(page, how);
+    const record = await saved(page, 'topbar', before);
+    expect(body(record.template)).toEqual(body(requested));
+    await nothingAsks(page, record.id);
+  });
+}
+
+// Save As, the first Save's naming dialog and Discard are modal while they write: a browser leave
+// (a hash change, Back) is absorbed, the address stays on the editor, and only the leave the user
+// had chosen before (first Save's and Discard's Home) goes on, once, after the answer.
+type ModalDoor = 'save-as' | 'first-named' | 'discard';
+for (const door of ['save-as', 'first-named', 'discard'] as ModalDoor[]) for (const how of ['hash', 'back'] as Leave[]) for (const outcome of OUTCOMES) {
+  test(`matrix in-flight leave: ${door} / ${door === 'discard' ? 'D' : 'K'} ${outcome}, ${how}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    const { before } = await prepare(page, door === 'discard' ? 'leave' : door);
+    const w: Write = door === 'discard' ? 'D' : 'K';
+    if (door === 'discard') {
+      await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+      await arm(page, w, outcome === 'held' ? 'hold' : 'late');
+      await page.getByTestId('switch-discard').click();
+    } else {
+      await arm(page, w, outcome === 'held' ? 'hold' : 'late');
+      await press(page, door);
+    }
+    await releasable(page);
+    const requested = await source(page);
+    const editorUrl = page.url();
+    await leave(page, how);
+    await page.waitForTimeout(300);
+    await stayed(page);
+    expect(page.url(), 'the address stayed on the editor').toBe(editorUrl);
+    await release(page);
+    const modal = page.getByTestId(door === 'discard' ? 'confirm-switch' : 'save-dialog');
+    if (outcome !== 'held') {
+      await expect(modal.locator('.status-bad')).toBeVisible();
+      await stayed(page);
+      expect(await errors(page)).toBe(0);
+      if (outcome === 'refused') {
+        await modal.getByRole('button', { name: 'Cancel' }).click();
+        await expect(modal).toHaveCount(0);
+        await stayed(page);
+        expect(await library(page), 'nothing minted twice').toHaveLength(before.length + (door === 'discard' ? 0 : 1));
+        return;
+      }
+      if (door === 'discard') await page.getByTestId('switch-discard').click(); else await page.getByTestId('save-confirm').click();
+    }
+    if (door === 'save-as') {
+      await landed(page, 'save-as');
+      await stayed(page);
+      const record = await saved(page, 'save-as', before);
+      expect(body(record.template)).toEqual(body(requested));
+      await settledClean(page, 'save-as', record.id);
+      return;
+    }
+    await left(page, 'home');
+    if (door === 'discard') {
+      expect(await library(page), 'Discard wrote no library copy').toEqual(before);
+      await nothingAsks(page, before[0].id);
+      return;
+    }
+    const record = await saved(page, 'first-named', before);
+    expect(body(record.template)).toEqual(body(requested));
+    await nothingAsks(page, record.id);
+  });
+}
+
+// ── The reservation and the link write both refused, then a reload (#1383, sixth check S6) ─────
+
+for (const door of ['first-kept', 'first-named', 'save-as'] as Door[]) {
+  test(`matrix double refusal: ${door} / R and K refused, reload, save again`, async ({ page }) => {
+    test.setTimeout(120_000);
+    const { before } = await prepare(page, door);
+    await arm(page, 'R', 'refuse');
+    await arm(page, 'K', 'refuse');
+    await press(page, door);
+    await expect.poll(() => acted(page)).toEqual(['refuse R', 'refuse K']);
+    await refusedHere(page, door);
+    const minted = (await library(page)).find(g => !before.some(b => b.id === g.id))!;
+    expect(minted, 'the record landed before both slot writes were refused').toBeTruthy();
+    const requested = await source(page);
+    await page.evaluate(() => new Promise(r => setTimeout(r, 1000)));
+    await settleDurableWrites(page); await page.reload();
+    await expect(page.getByTestId('editor-foundation')).toBeVisible();
+    expect(await link(page), 'the reload found the record by the reservation earlier writes carried').toMatchObject({ graphicId: minted.id, dirty: true });
+    if (door === 'save-as') { await page.getByTestId('save-graphic').click(); await landed(page, 'save-as'); }
+    else { await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible(); }
+    const all = await library(page);
+    expect(all, 'a second record was minted for the same work').toHaveLength(before.length + 1);
+    expect(body(all.find(g => g.id === minted.id)!.template)).toEqual(body(requested));
+    await settledClean(page, door, minted.id);
   });
 }
