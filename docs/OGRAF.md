@@ -162,7 +162,7 @@ package does not contain, fails the export rather than shipping.
 | `main` | `"graphic.mjs"` |
 | `supportsRealTime` | `true` unless the export was made post-production-only |
 | `supportsNonRealTime` | `true` when the export declares post-production intent (see below) |
-| `stepCount` | `0` (plays in and out by itself) for a graphic set to leave by itself after N ms: `playAction` plays the entrance, holds N ms and plays the exit, and any later play, stop or custom action cancels the exit still waiting. Otherwise the number of steps on the graphic's default path, at least 1; one set to stay never leaves, so it is 1. Never `-1` (unknown): the default path is a fixed list |
+| `stepCount` | `0` (plays in and out by itself) for a graphic set to leave by itself after N ms: `playAction` plays the entrance, holds N ms and plays the exit, and a later play or stop cancels the exit still waiting. Otherwise the number of steps on the graphic's default path, at least 1; one set to stay never leaves, so it is 1. Never `-1` (unknown): the default path is a fixed list |
 | `schema` | one property per data field, keyed by its SPX id (`f0`, `f1`, …), each with its JSON type, title, typed default and GDD type |
 | `customActions` | one action per operator event the graphic's state machine declares |
 | `actionDurations` | play/stop/update durations in ms, read off the graphic's own timeline |

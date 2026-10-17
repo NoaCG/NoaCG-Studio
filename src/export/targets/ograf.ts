@@ -12,7 +12,7 @@ import { flexGapShimSource } from '../../assets/flexGapSupport';
 import lottieSource from '../../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isLottieAsset, parseDataUrl } from '../../assets/assetUtils';
 import { templateUsesLottie } from '../../assets/lottieSupport';
-import { ANIM_CALL_NAME_RE, animSounds, parseAnimData, type AnimStep } from '../../blocks/animData';
+import { ANIM_CALL_NAME_RE, animSounds, parseAnimData, type AnimData, type AnimStep } from '../../blocks/animData';
 import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { hasProductionSound } from '../../assets/productionSounds';
 import { eventButtons, kindForField, type ControlButton } from '../../control/controlModel';
@@ -166,7 +166,7 @@ function spxFieldHint(f: SpxField): Record<string, unknown> | null {
  */
 function spxManifestHint(template: SpxTemplate): Record<string, string> {
   const layer = String(spxLayerFor(template));
-  const out = /^(\d+|none)$/.test(template.settings.out ?? '') ? template.settings.out : 'manual';
+  const out = timedOutMs(template) !== null || template.settings.out === 'none' ? template.settings.out : 'manual';
   return { playlayer: layer, webplayout: layer, out };
 }
 
@@ -174,8 +174,17 @@ function spxManifestHint(template: SpxTemplate): Record<string, string> {
  * The hold in ms of a graphic set to leave by itself (the SPX `out` setting as a number), else
  * null: `manual` waits for Stop and `none` stays.
  */
-function timedOutMs(template: SpxTemplate): number | null {
+export function timedOutMs(template: SpxTemplate): number | null {
   return /^\d+$/.test(template.settings.out ?? '') ? Number(template.settings.out) : null;
+}
+
+/**
+ * Speed-relative seconds of the graphic's own timeline as wall-clock ms: divided by the block's
+ * `speed` knob, the same arithmetic the interpreter does at playback.
+ */
+function wallMs(data: AnimData, seconds: number): number {
+  const speed = data.speed > 0 ? data.speed : 1;
+  return Math.max(0, Math.round((seconds / speed) * 1000));
 }
 
 /**
@@ -185,9 +194,7 @@ function timedOutMs(template: SpxTemplate): number | null {
  */
 function entranceMs(template: SpxTemplate): number | null {
   const data = parseAnimData(template.js);
-  if (!data || data.steps.length < 2) return null;
-  const speed = data.speed > 0 ? data.speed : 1;
-  return Math.max(0, Math.round((data.steps[0].duration / speed) * 1000));
+  return data && data.steps.length >= 2 ? wallMs(data, data.steps[0].duration) : null;
 }
 
 /**
@@ -278,8 +285,7 @@ function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
 function actionDurations(template: SpxTemplate, stepCount: number, actionIds: string[]): Array<Record<string, unknown>> {
   const data = parseAnimData(template.js);
   if (!data || data.steps.length < 2) return [];
-  const speed = data.speed > 0 ? data.speed : 1;
-  const ms = (seconds: number) => Math.max(0, Math.round((seconds / speed) * 1000));
+  const ms = (seconds: number) => wallMs(data, seconds);
   const steps = data.steps;
   const perStep: Array<{ step: number; duration: number }> = [];
   for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: ms(steps[i].duration) });
@@ -290,7 +296,7 @@ function actionDurations(template: SpxTemplate, stepCount: number, actionIds: st
       type: 'playAction',
       // The action-level value is the fallback for any step the list below does not name. A
       // graphic with no steps plays its entrance, its hold and its exit in this one action.
-      duration: hold !== null ? (entranceMs(template) ?? 0) + hold + exit : perStep[0]?.duration ?? 0,
+      duration: hold !== null ? ms(steps[0].duration) + hold + exit : perStep[0]?.duration ?? 0,
       ...(perStep.length ? { steps: perStep } : {}),
     },
     { type: 'stopAction', duration: exit },
@@ -442,7 +448,11 @@ function ografStepCount(template: SpxTemplate): number {
  *
  * `ografEntranceMs` is the entrance's length when the export could not read it (`entranceMs`):
  * read off a paused throwaway copy of the entrance timeline as the HTML overlay reads it, 0 when
- * there is none or GSAP reports one that loops forever.
+ * there is none or GSAP reports one that loops forever. Called AFTER play(), as the overlay calls
+ * it: building the copy renders a from() tween's start values, which the running entrance then
+ * paints over, where before play() the entrance would take them as its end values and never show.
+ * `ografExitDelay` is entrance plus hold, the entrance measured from `build` when the export could
+ * not read it, held under setTimeout's limit (about 24.8 days), past which a browser fires at once.
  */
 const STEP_WALK_JS = `function ografPlayStep(step, params, count, graphic) {
   var target = params.goto != null && params.goto >= 0 ? params.goto : step + (params.delta != null ? params.delta : 1);
@@ -466,6 +476,9 @@ function ografEntranceMs(build) {
   var seconds = probe.duration();
   probe.kill();
   return seconds >= 1e7 ? 0 : seconds * 1000;
+}
+function ografExitDelay(entranceMs, build, holdMs) {
+  return Math.min((entranceMs !== null ? entranceMs : ografEntranceMs(build)) + holdMs, 2147483647);
 }`;
 
 /**
@@ -609,8 +622,8 @@ window.__noacgScheduledAction = function (entry) {
     update(JSON.stringify(params.data || {}));
     return;
   }
-  if (__ografExit !== null) { clearTimeout(__ografExit); __ografExit = null; }
   if (action.type === 'stopAction') {
+    clearTimeout(__ografExit); __ografExit = null;
     stop(); __ografStep = -1; return;
   }
   if (action.type === 'customAction') {
@@ -618,9 +631,10 @@ window.__noacgScheduledAction = function (entry) {
     return;
   }
   if (action.type !== 'playAction') return;
+  clearTimeout(__ografExit); __ografExit = null;
   if (__ografOutMs !== null) {
-    var wait = (__ografEntranceMs !== null ? __ografEntranceMs : ografEntranceMs(typeof buildInTimeline === 'function' ? buildInTimeline : null)) + __ografOutMs;
     play(); __ografStep = 0;
+    var wait = ografExitDelay(__ografEntranceMs, typeof buildInTimeline === 'function' ? buildInTimeline : null, __ografOutMs);
     __ografExit = setTimeout(function () { __ografExit = null; stop(); __ografStep = -1; }, wait);
     return;
   }
@@ -1155,7 +1169,7 @@ export function graphicSources(template: SpxTemplate): { html: string; css: stri
 const WRAPPER_BINDINGS = new Set([
   'ensureGsap', 'ensureFlexGap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
   'scopedDocument', 'standIn', 'scopedListeners', 'scopedTimers', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
-  'ografPlayStep', 'ografOffAir', 'ografEntranceMs', 'spxTyped',
+  'ografPlayStep', 'ografOffAir', 'ografEntranceMs', 'ografExitDelay', 'spxTyped',
 ]);
 
 /**
@@ -2083,17 +2097,19 @@ class Graphic extends HTMLElement {
 
   // A graphic set to leave by itself (stepCount 0): every playAction plays the entrance, holds
   // OUT_MS, then plays the exit through the action chain, as the studio preview, SPX and the HTML
-  // overlay do. A later play, stop or custom action, or dispose(), cancels the exit still waiting.
-  // An update does not: it moves nothing, so a corrected name still leaves on time.
+  // overlay do. A later play or stop, or dispose(), cancels the exit still waiting. An update and
+  // a custom action do not, as SPX's own out timer does not stop for them: a renderer told
+  // stepCount 0 may never send stopAction, so the graphic would stay on air for good. A custom
+  // action that took the graphic off air leaves nothing to exit.
   _playTimed(runtime, params) {
-    const entrance = ENTRANCE_MS !== null ? ENTRANCE_MS : ografEntranceMs(runtime.entrance);
-    const wait = (params.skipAnimation ? 0 : entrance) + OUT_MS;
     runtime.play();
+    const wait = ografExitDelay(params.skipAnimation ? 0 : ENTRANCE_MS, runtime.entrance, OUT_MS);
     this._step = 0;
     if (params.skipAnimation) this._settle();
     const exit = setTimeout(() => this._serial(() => {
-      if (this._exit !== exit) return { statusCode: 200 }; // an action since then cancelled it
+      if (this._exit !== exit) return { statusCode: 200 }; // a play or stop since then cancelled it
       this._exit = null;
+      if (this._step < 0) return { statusCode: 200 };
       runtime.stop();
       this._step = -1;
       return { statusCode: 200 };
@@ -2153,7 +2169,6 @@ class Graphic extends HTMLElement {
     if (!this._runtime || !this._runtime.dispatch || CUSTOM_ACTION_IDS.indexOf(id) === -1) {
       return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + id + '".' };
     }
-    this._cancelExit();
     // Fire the operator event through the template's own SERIAL queue. The payload is the
     // flat {field: value} map the action's schema declares — applied only if the machine
     // accepts the event (the structural guard), exactly like every other control surface.

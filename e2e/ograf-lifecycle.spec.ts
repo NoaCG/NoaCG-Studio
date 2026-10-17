@@ -235,15 +235,12 @@ stop = function () {
 
 test('a graphic set to leave by itself leaves after its entrance and hold, unless a later action cancels it (#1012)', async ({ page }) => {
   const HOLD = 3_000;
-  const probe = (name: string, out: string): Source => ({ kind: 'probe', name, html: '<div id="exit-probe"></div>', css: '', js: EXIT_PROBE_JS, out });
-  const keys = ['timed', 'manual', 'stopped', 'replayed', 'disposed'];
-  const packages = await openRenderer(page, {
-    timed: probe('Timed Exit', String(HOLD)),
-    manual: probe('Manual Exit', 'manual'),
-    stopped: probe('Stopped Exit', String(HOLD)),
-    replayed: probe('Replayed Exit', String(HOLD)),
-    disposed: probe('Disposed Exit', String(HOLD)),
-  });
+  const outs: Record<string, string> = { timed: String(HOLD), manual: 'manual', stopped: String(HOLD), replayed: String(HOLD), disposed: String(HOLD) };
+  const keys = Object.keys(outs);
+  const packages = await openRenderer(page, Object.fromEntries(keys.map((key): [string, Source] => [
+    key,
+    { kind: 'probe', name: `Exit Probe ${key}`, html: '<div id="exit-probe"></div>', css: '', js: EXIT_PROBE_JS, out: outs[key] },
+  ])));
   // The entrance, read off the manifest: a timed playAction lasts the entrance, the hold and the exit.
   const manifestOf = (key: string) => {
     const files = packages.get(key)!;
