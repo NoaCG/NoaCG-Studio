@@ -15,9 +15,10 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { saveProject } from '../model/project';
+import { holdReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
-import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, type DurableWriteReceipt } from '../model/durableStore';
+import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
+import { uuid } from '../model/id';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
@@ -38,6 +39,7 @@ function persistLink(): void {
 }
 
 const LIBRARY_KEY = 'spx-gfx-graphics' as const;
+const SLOT_KEY = 'spx-gfx-project' as const;
 
 /** Wait for the puts this save made, and claim their failure. Never every pending write: a
  *  slower autosave can outlast the generic announcement, which then takes the Save's refusal
@@ -46,7 +48,58 @@ const LIBRARY_KEY = 'spx-gfx-graphics' as const;
 async function commitSaveWrites(receipts: DurableWriteReceipt[]): Promise<string | null> {
   // No put recorded means nothing reached storage, as Discard treats it.
   if (!receipts.length) return 'Your work could not be saved to browser storage.';
-  return (await Promise.all(receipts.map(commitDurableReceipt))).find(Boolean) ?? null;
+  return settleClaimed(receipts.map(commitDurableReceipt));
+}
+
+/** The first failure among writes already claimed (`commitDurableReceipt` claims on call). */
+async function settleClaimed(claims: Promise<string | null>[]): Promise<string | null> {
+  return (await Promise.all(claims)).find(Boolean) ?? null;
+}
+
+// ── The save transaction ─────────────────────────────────────────────────────────────────────
+//
+// Save, Save As, first-Save naming, the leave guard's Save & continue, the wizard's Finish doors
+// and Discard are ONE operation each, and they run one at a time (`transaction`). Five checks
+// each failed on a new ordering of their separate durable writes, so the order is fixed here,
+// once, for every caller:
+//
+//   1. claim the working-slot writes already in flight (an autosave whose timer had fired);
+//   2. first Save / Save As only: RESERVE the record's id in the slot, queued before the record
+//      (#1383);
+//   3. write the library record and wait for both;
+//   4. wait for the writes claimed in 1, so the link write lands after them;
+//   5. write the draft's link and wait for it;
+//   6. flush the source's pending autosave (an edit's timer, or the one the name adoption
+//      scheduled) and wait for it, so nothing of this source is written after the answer.
+//
+// The answer (saved / failed, with `saved.dirty` for stale) comes only after every write it made
+// or claimed has settled, and their refusals are the operation's own, answered by its dialog
+// rather than by the app's notice once the leave has gone on (#1382). Writes that anything else
+// makes meanwhile stay theirs, announced by the app.
+// An idle store starts the operation in the caller's turn, as these functions always did: its
+// writes reach the mirror before the call returns (e2e/project-format.spec.ts reads the record
+// straight after an unawaited `saveGraphicAs`). A busy one queues it behind the running one.
+let running: Promise<void> | null = null;
+function transaction<T>(operation: () => Promise<T>): Promise<T> {
+  const run = running ? running.then(operation) : operation();
+  const settled: Promise<void> = run.then(() => undefined, () => undefined).then(() => { if (running === settled) running = null; });
+  running = settled;
+  return run;
+}
+
+/** Step 1: the slot writes in flight now. The link write rewrites the slot after them, so a
+ *  refusal among them loses nothing once the save lands, and must not be announced after it. */
+function claimInFlight(): Promise<string | null> {
+  return settleClaimed(unsettledWrites(SLOT_KEY).map(commitDurableReceipt));
+}
+
+/** Step 6, once the link landed: the source's pending autosave would otherwise fire after the
+ *  answer, over Home, where its refusal read as an unsaved graphic (#1382). It carries what the
+ *  link write just made durable, so its refusal loses nothing and is claimed. A newer edit's
+ *  autosave is left to its own timer: that save is stale and its caller stays to ask again. */
+async function settleTrailingAutosave(linked: EditingContext): Promise<void> {
+  if (changedSince(linked)) return;
+  await settleClaimed(captureDurableWrites(SLOT_KEY, flushPendingProject).receipts.map(commitDurableReceipt));
 }
 
 type EditingContext = ReturnType<typeof useTemplateStore.getState>;
@@ -75,24 +128,28 @@ function markSaveFailed(before: EditingContext): void {
   now.setSaved({ ...now.saved, status: 'failed' });
 }
 
-/** A save's SECOND durable write: link the draft to the record that landed, persist the link
- *  and wait for it. Unwaited, its refusal reached the app's generic notice after the leave had
- *  gone on, and the next New asked about the graphic just saved (#1367). Refused, the draft
- *  stays linked to the record, so a retry writes into it rather than minting another, but it
- *  reads unsaved and the save reports the refusal as its own. */
+/** Steps 5 and 6: link the draft to the record that landed, persist the link and wait for it,
+ *  then settle the source's trailing autosave. Unwaited, the link's refusal reached the app's
+ *  generic notice after the leave had gone on (#1367). Refused, the draft stays linked to the
+ *  record, so a retry writes into it rather than minting another, but it reads unsaved and the
+ *  save reports the refusal as its own. */
 async function commitLink(link: Omit<EditingContext['saved'], 'status'>): Promise<string | null> {
   useTemplateStore.getState().setSaved({ ...link, status: 'saving' });
   const linked = useTemplateStore.getState();
-  const failure = await commitSaveWrites(captureDurableWrites('spx-gfx-project', persistLink).receipts);
+  const failure = await commitSaveWrites(captureDurableWrites(SLOT_KEY, () => persistLink()).receipts);
   // Replaced meanwhile: the slot is the new document's, written after this one, so the record
   // that landed is the whole answer.
   if (replacedSince(linked)) return null;
   // The live flag: an edit made during this wait has already set `dirty`.
   const now = useTemplateStore.getState().saved;
-  if (failure) linked.setSaved({ ...now, dirty: true, status: 'failed' });
+  if (failure) {
+    linked.setSaved({ ...now, dirty: true, status: 'failed' });
+    return failure;
+  }
   // Another write's refusal, announced during the wait, keeps its 'failed'.
-  else if (now.status === 'saving') linked.setSaved({ ...now, status: 'idle' });
-  return failure;
+  if (now.status === 'saving') linked.setSaved({ ...now, status: 'idle' });
+  await settleTrailingAutosave(linked);
+  return null;
 }
 
 /** Where a first save / Save As puts the graphic. Packages are retired (docs/GOALS_ARCHIVE.md
@@ -106,19 +163,23 @@ export type SaveDestination = { kind: 'standalone' };
  * document has never been saved — the caller opens the save dialog instead.
  *
  * ASYNC because the durable store confirms a write a moment after taking it
- * (model/durableStore.ts): `commitSaveWrites` waits for that confirmation of both its writes,
- * the record and the draft's link (`commitLink`), and CLAIMS their failure, so this still
- * answers 'failed' for a save that did not land — the caller makes the same decision it
+ * (model/durableStore.ts): the save transaction above waits for every write it made or claimed
+ * (the record, the draft's link and its trailing autosave) and CLAIMS their failure, so this
+ * still answers 'failed' for a save that did not land — the caller makes the same decision it
  * always did, one await later, rather than being told 'saved' and corrected by a dialog
  * afterwards.
  */
-export async function saveCurrentGraphic(opts?: {
+export function saveCurrentGraphic(opts?: {
   /** Write the record's NAME too. The wizard passes the name in its Finish field, which the
    *  reader may have changed since the record was made: without this the record would keep the
    *  old name while its template carried the new one, so Home, the topbar and the exported
    *  folder would disagree. ONE write, not two - `updateGraphic` sets `template.name` from it. */
   name?: string;
 }): Promise<'saved' | 'needs-name' | 'failed'> {
+  return transaction(() => saveLinked(opts?.name));
+}
+
+async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'failed'> {
   if (!useTemplateStore.getState().saved.graphicId) return 'needs-name';
   prepareEmptyOut();
   const s = useTemplateStore.getState();
@@ -126,22 +187,26 @@ export async function saveCurrentGraphic(opts?: {
   // A community pack's record keeps its design (spec AC-5). A working document still linked to
   // one (opened before the lock) saves as a new graphic instead, which Save As stamps the same.
   if (designLocked(graphicById(s.saved.graphicId))) return 'needs-name';
+  const inFlight = claimInFlight();
   s.setSaved({ ...s.saved, status: 'saving' });
   // The key is ADDED rather than set to undefined: `updateGraphic` copies the patch with
   // Object.assign, which would write an undefined name straight onto the record.
   const patch = { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility };
   const graphicId = s.saved.graphicId;
-  const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => updateGraphic(graphicId, opts?.name ? { ...patch, name: opts.name } : patch));
+  const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => updateGraphic(graphicId, name ? { ...patch, name } : patch));
   const failure = error ?? (await commitSaveWrites(receipts));
-  if (!doc || failure) {
+  if (!doc) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
-    if (!doc) {
-      s.setSaved({ graphicId: null, dirty: true, status: 'idle' });
-      return 'needs-name';
-    }
+    s.setSaved({ graphicId: null, dirty: true, status: 'idle' });
+    await inFlight;
+    return 'needs-name';
+  }
+  if (failure) {
     markSaveFailed(s);
+    await inFlight;
     return 'failed';
   }
+  await inFlight;
   // An unknown catalogue format is not a broken document, so the save LANDS and reports it.
   // Recorded on the save rather than derived live because the save word answers "what did the
   // write you just made carry", not "what is this document" - the format's own live surfaces are
@@ -152,11 +217,30 @@ export async function saveCurrentGraphic(opts?: {
   return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), formatIssues })) ? 'failed' : 'saved';
 }
 
-/** First save or Save As: mint a new library record and link the working document to it. */
-export async function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
+/** First save or Save As: mint a new library record and link the working document to it. The
+ *  answer carries the record's id whenever one was minted, whether or not its link landed, so a
+ *  caller that retries writes into it rather than minting again. */
+export function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
+  return transaction(async () => {
+    try { return await mintGraphic(name); } finally { holdReservation(null); }
+  });
+}
+
+async function mintGraphic(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
   prepareEmptyOut();
   const s = useTemplateStore.getState();
+  const inFlight = claimInFlight();
+  // Step 2: the id is in the slot BEFORE its record exists. A refused link write after a landed
+  // record used to leave the slot unlinked, and after a reload the next Save minted a second
+  // record (#1383). Every slot write carries it until the link write, the autosaves that fire
+  // meanwhile included. It is queued in the same turn as the record, and IndexedDB commits
+  // transactions on one store in the order they were made, so it lands first. Its refusal is
+  // claimed and fails nothing: the link write names the record too.
+  const id = uuid();
+  holdReservation({ id, baseline: s.baseline });
+  const reserved = captureDurableWrites(SLOT_KEY, persistLink).receipts.map(commitDurableReceipt);
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
+    id,
     name,
     packageId: null,
     baseline: s.baseline,
@@ -167,11 +251,12 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
     fromPack: s.saved.graphicId ? graphicById(s.saved.graphicId)?.fromPack ?? null : null,
   }));
   const failure = error ?? (await commitSaveWrites(receipts));
+  await Promise.all([inFlight, settleClaimed(reserved)]);
   if (failure) {
     markSaveFailed(s);
     return { ok: false, error: failure };
   }
-  if (replacedSince(s)) return { ok: true, error: null };
+  if (replacedSince(s)) return { ok: true, error: null, graphicId: doc.id };
   const dirty = changedSince(s), now = useTemplateStore.getState().template;
   // The working template adopts the saved name so the topbar and the record agree. It is the
   // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
@@ -180,10 +265,13 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
   }
   // An unknown catalogue format is not a broken document, so the save lands and reports it.
   const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
+  // The link write names the record itself, so the reservation ends where it begins.
+  holdReservation(null);
   const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
-  return linkFailure ? { ok: false, error: linkFailure, graphicId: doc.id } : { ok: true, error: null };
+  return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
 }
+
 
 /**
  * Load a library graphic into the editor as the working document. The caller has already
@@ -222,10 +310,15 @@ export function openGraphicById(id: string): boolean {
 
 /** Discard the working draft, never its library or production copies. A navigation does
  * not replace the document, so clearing only `dirty` would retain the discarded artwork. */
-export async function discardCurrentGraphic(): Promise<string | null> {
-  // The editing context the user chose to discard, taken before the first wait: an edit
-  // accepted during either wait below must refuse the discard rather than be erased (#1147).
+export function discardCurrentGraphic(): Promise<string | null> {
+  // The editing context the user chose to discard, taken at the click, before any wait: an
+  // edit accepted during a wait (a save ahead of it, or either wait below) must refuse the
+  // discard rather than be erased (#1147).
   const before = useTemplateStore.getState();
+  return transaction(() => discardDraft(before));
+}
+
+async function discardDraft(before: EditingContext): Promise<string | null> {
   // Drain a pending autosave before staging the replacement, otherwise its timer can
   // overwrite the discard while its durable confirmation is still pending.
   flushPendingProject();
@@ -235,7 +328,7 @@ export async function discardCurrentGraphic(): Promise<string | null> {
   const template = doc?.template ?? createDefaultTemplate();
   // Changing source or baseline clears the editor's private command history. Persist
   // first: rolling back the visible store cannot roll back a disposed editor session.
-  const { receipts } = captureDurableWrites('spx-gfx-project', () => saveProject(
+  const { receipts } = captureDurableWrites(SLOT_KEY, () => saveProject(
     template, doc?.baseline ?? template, { graphicId: doc?.id ?? null, dirty: false },
     doc?.aiSpec ?? null, normalizeThread(doc?.aiThread), doc?.legibility ?? null,
   ));
@@ -246,7 +339,7 @@ export async function discardCurrentGraphic(): Promise<string | null> {
   if (changedSince(before)) {
     // The slot now holds the replacement. Refuse only once the newer draft is durable again,
     // so a reload straight after the refusal cannot reopen the discarded copy.
-    const { receipts: restored } = captureDurableWrites('spx-gfx-project', persistLink);
+    const { receipts: restored } = captureDurableWrites(SLOT_KEY, () => persistLink());
     const restoreFailure = restored.length
       ? (await Promise.all(restored.map(commitDurableReceipt))).find(Boolean)
       : 'Could not save your changes to this browser. They are still open. Save them before leaving.';

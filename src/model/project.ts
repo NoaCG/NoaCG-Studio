@@ -38,11 +38,26 @@ export interface SavedProject {
    *  serializes to NOTHING (normalizeLegibility), so an untouched project's record is
    *  unchanged. */
   legibility?: ProjectLegibility | null;
+  /** The id a first Save or Save As is about to mint, written BEFORE its record (#1383). The
+   *  link write that follows can be refused; a reload then finds the record by this id instead
+   *  of minting a second one (templateStore's initial link). Every later slot write drops it,
+   *  since it carries the live link. Additive optional. */
+  reservedGraphicId?: string;
   /** Soft-delete tombstone (for cloud sync parity — see Packet.deleted). */
   deleted?: boolean;
 }
 
 const STORAGE_KEY = 'spx-gfx-project';
+
+/** The record id a first Save / Save As is minting, carried by EVERY slot write until its link
+ *  write has settled (store/saveActions.ts). An autosave that fires while the save waits must not
+ *  drop it, or a refused link write followed by a reload could not find the record (#1383). It
+ *  is the document's only while its baseline is the one the save started from: a write of a
+ *  replaced document never carries it. */
+let reservation: { id: string; baseline: SpxTemplate | undefined } | null = null;
+export function holdReservation(next: { id: string; baseline: SpxTemplate | undefined } | null): void {
+  reservation = next;
+}
 
 function notifyDataChanged(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
@@ -91,6 +106,7 @@ export function saveProject(
       aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
       // Same rule again; an explicit null (the default state) drops the key entirely.
       legibility: (legibility === undefined ? existing?.legibility : legibility) ?? undefined,
+      ...(reservation && reservation.baseline === baseline ? { reservedGraphicId: reservation.id } : {}),
     };
     durable.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();
