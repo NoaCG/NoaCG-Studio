@@ -268,10 +268,14 @@ test('the committed ledger holds the exam reserve the wall reads, and H4 closed 
   assert.equal(phaseSpentCents(ledger, 'H4'), 0);
   // The exam is closed (H8, 2026-10-17), so its unspent reserve is no longer held back.
   assert.equal(phaseCompleted(ledger, 'H8'), true);
-  assert.equal(heldCents(ledger, 'H9'), 0, 'a closed exam holds nothing back');
+  // The ledger now also holds the harness ladder's money (its L0, D9), which is not H8's reserve:
+  // the reserve's part is checked on the ledger without those holds, and the holds are all that is left.
+  const { holds = [], ...withoutHolds } = ledger;
+  assert.equal(heldCents(withoutHolds, 'H9'), 0, 'a closed exam holds nothing back');
+  assert.equal(heldCents(ledger, 'H9'), holds.filter((h) => !phaseCompleted(ledger, h.phase)).reduce((n, h) => n + h.cents - phaseSpentCents(ledger, h.phase), 0), 'only the ladder\'s holds are held');
   // The wall on a copy of the committed ledger as it stood with the exam open: spend tuning down to
-  // one cent short of a session beside the reserve.
-  const copy = structuredClone(ledger);
+  // one cent short of a session beside the reserve. Then, the ladder's holds did not exist yet.
+  const copy = structuredClone(withoutHolds);
   copy.entries = copy.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H8' && e.outcome === 'completed'));
   appendEntry(copy, { kind: 'session', phase: 'H5', funding: 'credit', sessionId: 'sesn_synthetic', listCostCents: remainingCents(copy, 'H5') - (r.sessionBudgetCents + r.overshootCents) + 1, outcome: 'delivered' });
   assert.equal(admit(copy, { budgetCents: r.sessionBudgetCents, overshootCents: r.overshootCents, phase: 'H6' }).ok, false);

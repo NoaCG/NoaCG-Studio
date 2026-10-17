@@ -159,7 +159,10 @@ subscription-arm proof below.
 - **Judging (D8).** `--judge <runDir> --phase L1|L2` uses the ladder judge, singles only.
 - Tests: `scripts/harness-ladder.test.mjs` (14, new) and `scripts/harness-bench.test.mjs` (49 of
   49; its stand-in CLI now writes `review.json` and checks `--review` as the real verb does, and
-  the first arm test also asserts the fake arm's look; no assertion was dropped or loosened).
+  the first arm test also asserts the fake arm's look; the committed-ledger test checks that H8's
+  closed reserve holds nothing on the ledger without the ladder's holds, and that the holds are
+  all the committed ledger holds, and its wall scenario runs on that copy as the ledger stood then;
+  no assertion was dropped or loosened).
 
 ## The ladder judge (AC-3)
 
