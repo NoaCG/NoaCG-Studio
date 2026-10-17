@@ -131,6 +131,13 @@ export function readTable() {
 export const RECORD_RUNS = 6;
 /** The percentile across those runs a spec is recorded at: its time on a slow runner. */
 export const RECORD_PERCENTILE = 0.8;
+/**
+ * The fewest runs a default recording accepts. Fewer, and it refuses rather than writing a table
+ * that carries one or two runs' runner lottery again; name a run id to record one on purpose.
+ */
+export const MIN_RECORD_RUNS = 3;
+/** Blob reports are kept 7 days; only runs younger than this are picked, so each still has them. */
+const REPORT_DAYS = 6;
 
 /**
  * ONE TABLE FROM SEVERAL RUNS: each spec at the `p`-th percentile (nearest rank) of the runs that
@@ -593,14 +600,16 @@ export function fullRunRefusal(jobs) {
 }
 
 /**
- * The newest green FULL ci.yml runs on `main`, newest first, as `{ id, sha }` - at most `count`.
- * Sixty are listed because most main runs are superseded or cancelled; throws if none is green.
+ * The newest green FULL ci.yml runs on `main` young enough to still have their blob reports,
+ * newest first, as `{ id, sha }` - at most `count`. Sixty are listed because most main runs are
+ * superseded or cancelled.
  */
 function newestFullRuns(count) {
+  const since = Date.now() - REPORT_DAYS * 86_400_000;
   const candidates = JSON.parse(
     run('gh', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--event', 'push', '--limit', '60',
-      '--json', 'databaseId,conclusion,headSha']),
-  ).filter((r) => r.conclusion === 'success');
+      '--json', 'databaseId,conclusion,headSha,createdAt']),
+  ).filter((r) => r.conclusion === 'success' && Date.parse(r.createdAt) >= since);
   const found = [];
   for (const candidate of candidates) {
     if (found.length >= count) break;
@@ -612,20 +621,19 @@ function newestFullRuns(count) {
     }
     found.push({ id: String(candidate.databaseId), sha: candidate.headSha });
   }
-  if (found.length === 0) throw new Error('no green FULL ci.yml run on main in the last 60 - name a run id, or push one.');
   return found;
 }
 
-/** One run's per-spec minutes: its shard reports downloaded and merged. Null once they expired. */
+/**
+ * One run's per-spec minutes: its shard reports downloaded and merged. Any failure THROWS: a run
+ * quietly skipped would leave a recording of fewer runs than it says, and the refresh restores the
+ * table it started with on a throw.
+ */
 function measureRun(runId, work) {
   const blobs = join(work, `blobs-${runId}`);
   const flat = join(work, `flat-${runId}`);
   mkdirSync(flat, { recursive: true });
-  try {
-    run('gh', ['run', 'download', runId, '--pattern', 'blob-report-*', '--dir', blobs], { stdio: 'inherit' });
-  } catch {
-    return null;
-  }
+  run('gh', ['run', 'download', runId, '--pattern', 'blob-report-*', '--dir', blobs], { stdio: 'inherit' });
   // merge-reports wants every zip in ONE directory; `gh` gives each artifact its own.
   let zips = 0;
   for (const dir of readdirSync(blobs)) {
@@ -635,7 +643,7 @@ function measureRun(runId, work) {
       zips += 1;
     }
   }
-  if (zips === 0) return null;
+  if (zips === 0) throw new Error(`run ${runId} has no blob reports left - they expire after 7 days.`);
   // The merged report goes to a FILE, never stdout. Playwright's JSON reporter prints to stdout
   // and `merge-reports` exits the moment it returns; on Linux a write to a pipe is asynchronous,
   // so the exit cut the report off mid-string (at 146 KB of about 2 MB on run 35591672899, the
@@ -662,19 +670,23 @@ function record(runId) {
     targets = [{ id: String(runId), sha: view.headSha }];
   } else {
     targets = newestFullRuns(RECORD_RUNS);
+    if (targets.length < MIN_RECORD_RUNS) {
+      console.error(
+        `e2e-durations: only ${targets.length} green full run(s) on main in the last ${REPORT_DAYS} days, ` +
+          `and a recording needs ${MIN_RECORD_RUNS} - refusing. Name a run id to record one run on purpose.`,
+      );
+      return 1;
+    }
   }
 
   const work = mkdtempSync(join(tmpdir(), 'e2e-durations-'));
   try {
-    const measuredRuns = [];
-    for (const target of targets) {
+    const measuredRuns = targets.map((target) => {
       console.log(`e2e-durations: measuring run ${target.id} (${target.sha.slice(0, 8)}).`);
-      const minutes = measureRun(target.id, work);
-      if (minutes && Object.keys(minutes).length > 0) measuredRuns.push({ ...target, minutes });
-      else console.log(`e2e-durations: run ${target.id} has no blob reports left - they expire after 7 days.`);
-    }
-    if (measuredRuns.length === 0) {
-      console.error('e2e-durations: no run had blob reports left to measure - refusing to write an empty table.');
+      return { ...target, minutes: measureRun(target.id, work) };
+    });
+    if (measuredRuns.some((r) => Object.keys(r.minutes).length === 0)) {
+      console.error('e2e-durations: a run merged to no test results - refusing to write the table.');
       return 1;
     }
     const newest = measuredRuns[0];
