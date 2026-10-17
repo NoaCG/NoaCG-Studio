@@ -695,3 +695,167 @@ test('a newer edit during a held first Save is kept unsaved, and leaving asks ag
   const kept = await library(page);
   expect(kept).toHaveLength(1); expect(kept[0].id).toBe(minted.id); expect(kept[0].template).toEqual({ ...newer, name: 'Held first save' });
 });
+
+// THE SAVE'S OWN LINK WRITE (#1367). Once its library put lands, a Save persists the draft's link
+// to the working slot: its second durable write. That write went unwaited, so when storage
+// refused it the leave had already gone to Home, the app's notice said "still open here" over
+// Home, and after a reload the next New asked about the graphic just saved. The probe helpers
+// and the two `:298` cases are the fourth independent checker's (independent-4/probe.patch),
+// carried with their assertions unchanged; only helper names differ, and the probe's put-holding
+// half, which these cases never use, is left out. The retry leg follows.
+type FourthRule = { key: string; after?: string; used?: boolean };
+type FourthProbe = { puts: Record<string, number>; refuse: FourthRule[]; refused: string[]; stacks: string[]; errors: unknown[] };
+declare global { interface Window { fourth: FourthProbe } }
+
+/** One wrapper around IndexedDB puts for the whole page: counts puts per key and refuses puts
+ *  by rule (`after`: only once a put on that key has been made). */
+async function installFourth(page: Page) {
+  await page.evaluate(() => {
+    if (window.fourth) return;
+    const p: FourthProbe = { puts: {}, refuse: [], refused: [], stacks: [], errors: [] };
+    window.fourth = p;
+    window.addEventListener('spx-storage-error', e => p.errors.push((e as CustomEvent).detail));
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const k = String(key);
+      const rule = p.refuse.find(r => !r.used && r.key === k && (!r.after || (p.puts[r.after] ?? 0) > 0));
+      p.puts[k] = (p.puts[k] ?? 0) + 1;
+      if (rule) { rule.used = true; p.refused.push(k); p.stacks.push(String(new Error().stack)); throw new DOMException('Fourth checker refusal', 'QuotaExceededError'); }
+      return original.call(this, value, key);
+    };
+  });
+}
+const refuseFourth = (page: Page, key: string, after?: string) => page.evaluate(([key, after]) => { window.fourth.refuse.push({ key, after: after || undefined }); }, [key, after ?? ''] as const);
+const fourthState = (page: Page) => page.evaluate(() => ({ puts: { ...window.fourth.puts }, refused: [...window.fourth.refused], stacks: [...window.fourth.stacks], errors: window.fourth.errors.length }));
+const raw = (page: Page, key: string) => page.evaluate(key => new Promise<string | null>((resolve, reject) => {
+  const request = indexedDB.open('noacg-studio');
+  request.onsuccess = () => {
+    const tx = request.result.transaction('kv', 'readonly'), get = tx.objectStore('kv').get(key);
+    tx.oncomplete = () => { const v = get.result; request.result.close(); resolve(v === undefined ? null : String(v)); };
+    tx.onerror = () => reject(tx.error);
+  };
+  request.onerror = () => reject(request.error);
+}), key);
+async function saveNamed(page: Page, name: string) {
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill(name);
+  await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+}
+const out = (name: string, value: unknown) => writeFileSync(test.info().outputPath(name), JSON.stringify(value, null, 2));
+
+for (const kind of ['first', 'linked'] as const) {
+  test(`fourth: the ${kind} Save's own link write refused after its library write landed`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await open(page); await draw(page, .26);
+    let recordId: string | null = null;
+    if (kind === 'linked') { await saveNamed(page, 'Fourth link linked'); recordId = (await library(page))[0].id; await draw(page, .52); }
+    await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+    await settleDurableWrites(page);
+    const requested = await source(page);
+    await installFourth(page);
+    await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+    // The first working-slot put AFTER the library put is refused: the link Save persists.
+    await refuseFourth(page, 'spx-gfx-project', 'spx-gfx-graphics');
+    await page.getByTestId('switch-save').click();
+    if (kind === 'first') { await page.getByTestId('save-name').fill('Fourth link first'); await page.getByTestId('save-confirm').click(); }
+    await expect.poll(async () => (await fourthState(page)).refused).toEqual(['spx-gfx-project']);
+    await page.waitForTimeout(800);
+    const facts = {
+      kind,
+      editorMounted: await page.getByTestId('editor-foundation').count(),
+      homeMounted: await page.getByTestId('home-page').count(),
+      url: page.url(),
+      alert: await page.getByTestId('storage-alert').count(),
+      guardError: await page.getByTestId('confirm-switch').locator('.status-bad').count(),
+      link: await saveLink(page),
+      records: (await library(page)).length,
+      refusedStack: (await fourthState(page)).stacks[0],
+    } as Record<string, unknown>;
+    await page.screenshot({ path: test.info().outputPath(`link-refused-${kind}.png`) });
+    if (await page.getByTestId('storage-alert').count()) await page.getByTestId('storage-alert-close').click();
+    const [saved] = await library(page);
+    expect(saved.template).toEqual(kind === 'first' ? { ...requested, name: 'Fourth link first' } : requested);
+    if (recordId) expect(saved.id).toBe(recordId);
+    await settleDurableWrites(page).catch(e => { facts.settle = String(e); });
+    const slot = JSON.parse((await raw(page, 'spx-gfx-project'))!);
+    facts.slot = { graphicId: slot.graphicId, dirty: slot.dirty, template: JSON.stringify(slot.template) === JSON.stringify(saved.template) ? 'saved source' : 'other' };
+    await page.reload(); await expect(page.getByTestId('home-page').or(page.getByTestId('editor-foundation'))).toBeVisible();
+    facts.afterReloadLink = await saveLink(page);
+    if (await page.getByTestId('home-page').count()) {
+      await page.locator('[data-door="new-graphic"]').click();
+      await expect(page.getByTestId('creation-wizard').or(page.getByTestId('confirm-switch')).first()).toBeVisible();
+      facts.newAskedAfterReload = await page.getByTestId('confirm-switch').count();
+    }
+    out(`link-refused-${kind}.json`, facts);
+    // AC 2/3: the user who saved and left is not asked about it again, and nothing invites a
+    // second record for the same work.
+    expect(facts.newAskedAfterReload ?? 0, 'after a reload, New asks again about the graphic that was saved').toBe(0);
+    expect(slot.graphicId, 'the working draft lost its link to the saved record').toBe(saved.id);
+  });
+
+  // The retry leg: the refusal is the Save's own answer, given in its dialog over the editor,
+  // and a retry writes into the record the refused attempt made, then leaves exactly once.
+  test(`a refused link write on the ${kind} Save stays in the editor; a retry leaves once with one record and asks nothing after`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await open(page); await draw(page, .26);
+    if (kind === 'linked') { await saveNamed(page, 'Link retry linked'); await draw(page, .52); }
+    await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+    await settleDurableWrites(page);
+    const requested = await source(page), editorUrl = page.url();
+    const expected = kind === 'first' ? { ...requested, name: 'Link retry first' } : requested;
+    await installFourth(page);
+    await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+    await refuseFourth(page, 'spx-gfx-project', 'spx-gfx-graphics');
+    await page.getByTestId('switch-save').click();
+    if (kind === 'first') { await page.getByTestId('save-name').fill('Link retry first'); await page.getByTestId('save-confirm').click(); }
+    await expect(page.getByTestId(kind === 'first' ? 'save-dialog' : 'confirm-switch').locator('.status-bad')).toBeVisible();
+    expect((await fourthState(page)).refused).toEqual(['spx-gfx-project']);
+    // Give a generic announcement its macrotask: none may follow, since the Save claimed it.
+    await page.evaluate(() => new Promise(r => setTimeout(r, 100)));
+    expect((await fourthState(page)).errors, 'the refused link write was also announced by the app').toBe(0);
+    await expect(page.getByTestId('storage-alert')).toHaveCount(0);
+    await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
+    expect(page.url()).toBe(editorUrl);
+    const refused = await library(page);
+    expect(refused).toHaveLength(1); expect(refused[0].template).toEqual(expected);
+    expect(await saveLink(page)).toMatchObject({ graphicId: refused[0].id, dirty: true, status: 'failed' });
+    await page.getByTestId(kind === 'first' ? 'save-confirm' : 'switch-save').click();
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    await expect(page.getByTestId('confirm-switch')).toHaveCount(0); await expect(page.getByTestId('storage-alert')).toHaveCount(0);
+    const kept = await library(page);
+    expect(kept).toHaveLength(1); expect(kept[0].id).toBe(refused[0].id); expect(kept[0].template).toEqual(expected);
+    expect(await saveLink(page)).toMatchObject({ graphicId: kept[0].id, dirty: false, status: 'idle' });
+    await page.locator('[data-door="new-graphic"]').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
+    await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+    await settleDurableWrites(page); await page.goto('/app#/home'); await page.reload();
+    await pressNewFromHome(page); await expect(page.getByTestId('creation-wizard')).toBeVisible();
+    await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+    expect(await library(page)).toHaveLength(1);
+  });
+}
+
+// The wizard's Finish doors save through the same mint. A record that landed while its link write
+// was refused is the walk's record, so pressing the door again under a NEW name writes over it
+// rather than minting a second one (raised in review of #1376).
+test('a refused link write on the wizard export door keeps its record: a renamed retry writes over it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await toFinish(page);
+  await page.getByTestId('wz-finish-name').fill('Door link first');
+  await installFourth(page);
+  await refuseFourth(page, 'spx-gfx-project', 'spx-gfx-graphics');
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('storage-alert')).toBeVisible();
+  expect((await fourthState(page)).refused).toEqual(['spx-gfx-project']);
+  const [minted] = await library(page);
+  expect(await library(page)).toHaveLength(1); expect(minted.name).toBe('Door link first');
+  await page.getByTestId('storage-alert-close').click();
+  await page.getByTestId('export-window').locator('.gallery-close').click();
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+  await page.getByTestId('wz-finish-name').fill('Door link renamed');
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible(); await expect(page.getByTestId('storage-alert')).toHaveCount(0);
+  const kept = await library(page);
+  expect(kept, 'the retry minted a second record').toHaveLength(1);
+  expect(kept[0].id).toBe(minted.id); expect(kept[0].name).toBe('Door link renamed');
+  expect(await saveLink(page)).toMatchObject({ graphicId: minted.id, dirty: false, status: 'idle' });
+});
