@@ -30,12 +30,38 @@
 // template's JS, so the import door strips it by its id and a re-exported graphic carries it once:
 // a second copy would decode twice and turn a typed `&amp;` into `&`.
 //
+// The OGraf package gets the same treatment from SPX 1.4, which escapes an OGraf item's values
+// the same way before handing them to load() and updateAction() (issue #1047). Its wrapper
+// (targets/ograf.ts) embeds SPX_TYPED_JS below, the same rule, and applies it only when SPX's own
+// `rundownData` came with load(), so another OGraf renderer's values are left as they were sent.
+//
 // ES5, for CasparCG 2.3.x's Chromium 71 (SPX can play a template there). Dependency-free, so
 // scripts/spx-text.test.mjs runs it in Node.
 
 import type { SpxTemplate } from '../model/types';
 
 export const SPX_TEXT_SCRIPT_ID = 'noacg-spx-text';
+
+/** The rule, as one ES5 declaration of the only name it adds: `spxTyped(fields, asText, files)`
+ *  returns a copy of `fields` with SPX's escaping undone once in every string value when `asText`
+ *  (the template writes values as text), and in the `files` (filelist field ids) always. */
+export const SPX_TYPED_JS = `var spxTyped = (function () {
+  var CHARS = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&#92;': '\\\\' };
+  function asTyped(value) {
+    if (typeof value !== 'string') return value;
+    return value
+      .replace(/&(?:amp|lt|gt|quot|#039|#92);/g, function (entity) { return CHARS[entity]; })
+      .replace(/<br>/g, '\\n');
+  }
+  return function (fields, asText, files) {
+    var typed = {};
+    for (var key in fields) {
+      if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
+      typed[key] = asText || files.indexOf(key) !== -1 ? asTyped(fields[key]) : fields[key];
+    }
+    return typed;
+  };
+})();`;
 
 /** The runtime, as the body of a classic script. `fileFields` are the ids of the template's
  *  filelist fields, whose paths are decoded whatever writer the template has. */
@@ -48,24 +74,14 @@ export function spxTextJs(fileFields: string[] = []): string {
   var asText = typeof window.setFieldValue === 'function';
   var FILES = ${files};
   if (typeof update !== 'function' || (!asText && !FILES.length)) return;
-  var CHARS = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&#92;': '\\\\' };
-  function asTyped(value) {
-    if (typeof value !== 'string') return value;
-    return value
-      .replace(/&(?:amp|lt|gt|quot|#039|#92);/g, function (entity) { return CHARS[entity]; })
-      .replace(/<br>/g, '\\n');
-  }
+${SPX_TYPED_JS.replace(/^/gm, '  ')}
   window.update = function (data) {
     var fields = data;
     if (typeof data === 'string') {
       try { fields = JSON.parse(data); } catch (e) { return update.apply(this, arguments); }
     }
     if (!fields || typeof fields !== 'object') return update.apply(this, arguments);
-    var typed = {};
-    for (var key in fields) {
-      if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
-      typed[key] = asText || FILES.indexOf(key) !== -1 ? asTyped(fields[key]) : fields[key];
-    }
+    var typed = spxTyped(fields, asText, FILES);
     return update.call(this, typeof data === 'string' ? JSON.stringify(typed) : typed);
   };
 })();`;

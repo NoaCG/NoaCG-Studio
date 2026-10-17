@@ -26,6 +26,7 @@ import { slug } from '../../model/slug';
 import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget, GraphicUsage } from '../registry';
 import { spxLayerFor } from './spxStarter';
+import { SPX_TYPED_JS } from '../spxText';
 import { OGRAF_SCHEMA_URL, validateOgrafManifest, validateOgrafPackage } from './ografSchema';
 
 export { OGRAF_SCHEMA_URL, validateOgrafManifest, validateOgrafPackage };
@@ -1101,7 +1102,7 @@ export function graphicSources(template: SpxTemplate): { html: string; css: stri
 const WRAPPER_BINDINGS = new Set([
   'ensureGsap', 'ensureFlexGap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
   'scopedDocument', 'standIn', 'scopedListeners', 'scopedTimers', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
-  'ografPlayStep', 'ografOffAir',
+  'ografPlayStep', 'ografOffAir', 'spxTyped',
 ]);
 
 /**
@@ -1316,6 +1317,14 @@ function withPackagePaths(data) {
   }
   return out;
 }
+
+// SPX 1.4 HTML-escapes every value it plays, OGraf items too, before handing them to load() and
+// updateAction(), so "Anna O'Brien & Sons" aired as "Anna O&#039;Brien &amp; Sons" and a line
+// break as a literal "&lt;br&gt;" (issue #1047, docs/SPX_ON_A_REAL_SERVER.md §13). The SPX-layout
+// packages undo that once (src/export/spxText.ts), and this is the same rule. It applies only
+// after a load() that carried SPX's own rundownData, which no other renderer sends, so values
+// from any other host are used exactly as sent.
+${SPX_TYPED_JS}
 
 // Non-real-time rendering runs in an isolated, virtual-clock document. The document is
 // recreated for every seek, so no prior playback, timer, GSAP state, or seek order can leak.
@@ -1712,7 +1721,10 @@ ${
     soundPrepare: (typeof noacgSoundPrepare === 'function') ? noacgSoundPrepare : null,
     soundStatus: (typeof noacgSoundStatus === 'function') ? noacgSoundStatus : null,
     soundQuiet: (typeof noacgSoundSetQuiet === 'function') ? noacgSoundSetQuiet : null,
-    soundDispose: (typeof noacgSoundDispose === 'function') ? noacgSoundDispose : null
+    soundDispose: (typeof noacgSoundDispose === 'function') ? noacgSoundDispose : null,
+    // The contract's text writer: values go in as text, so after SPX escaped them every one is
+    // decoded, not only the file-list paths.
+    asText: typeof setFieldValue === 'function'
   };
   })();
 }
@@ -1729,6 +1741,7 @@ class Graphic extends HTMLElement {
     this._runtime = null;
     this._renderType = 'realtime';
     this._initialData = {};
+    this._fromSpx = false;
     this._schedule = [];
     this._step = -1;
     this._disposed = false;
@@ -1857,6 +1870,7 @@ class Graphic extends HTMLElement {
     if (this._runtime || this._frame) await this._dispose();
     this._disposed = false;
     this._renderType = params.renderType || 'realtime';
+    this._fromSpx = Boolean(params.rundownData);
     this._initialData = Object.assign({}, params.data || {});
     this._schedule = [];
     if (this._renderType === 'non-realtime') {
@@ -1884,7 +1898,7 @@ class Graphic extends HTMLElement {
       return { statusCode: 500, statusMessage: String(e.message || e) };
     }
     this._step = -1; // not on air yet
-    if (params && params.data) this._runtime.update(JSON.stringify(withPackagePaths(params.data)));
+    if (params && params.data) this._runtime.update(JSON.stringify(this._asSent(params.data)));
     return { statusCode: 200 };
   }
 
@@ -1978,7 +1992,7 @@ class Graphic extends HTMLElement {
       await this._applyOfflineAction('updateAction', params);
       return { statusCode: 200 };
     }
-    this._runtime.update(JSON.stringify(withPackagePaths(params.data || {})));
+    this._runtime.update(JSON.stringify(this._asSent(params.data || {})));
     if (params.skipAnimation) this._settle();
     return { statusCode: 200 };
   }
@@ -2000,6 +2014,12 @@ class Graphic extends HTMLElement {
     if (params.skipAnimation) this._settle();
     // OGraf reports no current step off air.
     return { statusCode: 200, currentStep: this._step >= 0 ? this._step : undefined };
+  }
+
+  // A real-time payload as the template should get it: as typed when SPX escaped it, with the
+  // file-list paths resolved inside the package.
+  _asSent(data) {
+    return withPackagePaths(this._fromSpx ? spxTyped(data, this._runtime.asText, FILE_FIELDS) : data);
   }
 
   // True when the graphic's state machine says every group is back at its initial state.

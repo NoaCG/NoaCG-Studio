@@ -22,7 +22,9 @@ server; where a claim rests on reading SPX's source instead, it says so.
   custom actions fire once the project loads the handler script the package carries. Update
   still does nothing: that is SPX's. Rechecked on 2026-10-12 (§13): text with `' & < > " \` or a
   line break airs as HTML codes in this route, and only in this one
-  ([#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047)).
+  ([#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047)). The package now undoes SPX's
+  escaping once, the way the SPX export does, pinned against SPX's call sequence in
+  `e2e/ograf-conformance.spec.ts`; not yet rewalked on a real server.
 - **Text shows as typed in the SPX export and the production package**, seen on both servers on
   2026-10-12 (§13), also after a round trip through NoaCG's import.
 - **The output embed loads and frames the production on both servers, but puts an opaque dark
@@ -231,7 +233,7 @@ the native export works").
 | Runs the show in SPX 1.2 or 1.4, renderer in OBS, vMix or a browser | **SPX export** for one graphic, the **production package** for a whole production (a ready rundown, §11) | Works end to end on both versions: own layers, field types, Continue, Stop, text as typed (§13). Update works on 1.2; on 1.4 it is SPX's defect, so Save, then Stop and Play |
 | Plays out through CasparCG from SPX | **SPX export** or production package | SPX has no OGraf handling in its CasparCG path (§3) |
 | Runs cues from NoaCG's production page, control link or phone, SPX only puts the output up | **Output embed** | Transparent on both versions since §9; SPX sees one item. Cueing a published production through it is still the owner's check |
-| Has an SPX 1.4 OGRAF project, or standardises on OGraf across renderers | **OGraf package** | Plays as imported with SPX's controls and custom actions (§10), but text with `' & < > " \` or a line break airs as HTML codes ([#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047)) and Update does nothing. Prefer the SPX export until #1047 is fixed |
+| Has an SPX 1.4 OGRAF project, or standardises on OGraf across renderers | **OGraf package** | Plays as imported with SPX's controls and custom actions (§10), and, since [#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047), text as typed (not yet rewalked on a real server); Update does nothing |
 
 **What an SPX operator expects that we do not give.**
 
@@ -568,7 +570,7 @@ values in the exported `rundown.json`, the ticker's as `First story & more`, a l
   [#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047) (P2).** SPX escapes every value it
   plays, OGraf items included, and hands the result to `load`, `updateAction` and `playAction`.
   The OGraf package carries no decoding. §11 did not catch it because the §10 walk typed only
-  plain names.
+  plain names. Since fixed in the package (see the summary at the top); not yet rewalked.
 - **Update on SPX 1.4.1 is unchanged.** It fails in SPX's renderer for both routes (an SPX defect,
   §2 and §10). The packages' README says Save, then Stop and Play.
 - **The dual NoaCG package keeps the template's own layer** (Hairline: 7), so on 1.4 every dual
