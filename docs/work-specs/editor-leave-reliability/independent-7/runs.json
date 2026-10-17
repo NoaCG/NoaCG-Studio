@@ -7,9 +7,10 @@
   "branch": "claude/probe-editor-p2-check-7-ci",
   "commits": {
    "d3f39115": "main 0ea3b314 + the carried checker files and dispatch recipes, byte-identical from claude/probe-editor-p2-repair-7-ci 78b4d0d0, + scope 'seventh'",
-   "e27983ce": "seventh spec e2e/leave-seventh-checker.spec.ts (sha256 c11b49320d1d580fa21afbb7386ab825f6376b3bd206c2da8a037a2df1ee2fcf)"
+   "e27983ce": "seventh spec e2e/leave-seventh-checker.spec.ts (sha256 c11b49320d1d580fa21afbb7386ab825f6376b3bd206c2da8a037a2df1ee2fcf)",
+   "5aad888b": "review on #1403: the rest of the dialog state x answer grid (K, 6 cases); H also asserts the naming prompt, B's source in a record of its own, two records; harness no-this-alias lint fix, same behaviour (sha256 352905b1322a11278a412969e6d31d40c782beb56ae3c7842b88e676f2f10262, the carried challenge)"
   },
-  "control": { "branch": "claude/probe-editor-p2-check-7-pre", "commit": "f08bb306", "content": "main 6f910963 + the same seventh spec and recipe" },
+  "control": { "branch": "claude/probe-editor-p2-check-7-pre", "commits": { "f08bb306": "main 6f910963 + the seventh spec at e27983ce and recipe", "f96bcd7f": "+ the seventh spec at 5aad888b" } },
   "specHashes": {
    "leave-checker.spec.ts": "28988d718686064e747d2bcda910d8d9a23b2fd62d3609ee044963780952d982",
    "leave-second-checker.spec.ts": "ef78c1eb394c0c24abd7766a850c5dc980424eb6ca74cbf7bde0467226c8b162",
@@ -25,7 +26,9 @@
  },
  "vm": [
   { "job": "j-0041", "head": "e27983ce", "spec": "leave-seventh-checker", "result": "9 passed, 1 failed (H-reservation-two-tabs, #1402)" },
-  { "job": "j-0042", "head": "f08bb306 (main before #1397)", "spec": "leave-seventh-checker --grep H-reservation", "result": "1 passed" }
+  { "job": "j-0042", "head": "f08bb306 (main before #1397)", "spec": "leave-seventh-checker --grep H-reservation", "result": "1 passed" },
+  { "job": "j-0043", "head": "5aad888b", "spec": "leave-seventh-checker", "result": "15 passed, 1 failed (H, #1402)" },
+  { "job": "j-0044", "head": "f96bcd7f (main before #1397)", "spec": "leave-seventh-checker --grep H-reservation", "result": "1 passed (Beta holds B's source)" }
  ],
  "ci": [
   { "run": 39047553747, "scope": "unchanged", "result": "original 3/3, second 4/4, third 10/10, :24 x20 20/20, fourth 11/11" },
@@ -38,6 +41,8 @@
   { "run": 39047571000, "scope": "matrix", "result": "107/107 (regression only)" },
   { "run": 39047573162, "workflow": "configured-suite (signed-in localhost)", "result": "success" },
   { "run": 39047990848, "scope": "seventh", "head": "e27983ce", "result": "9 passed, 1 failed (H, #1402)" },
-  { "run": 39048135358, "scope": "seventh", "head": "f08bb306 (control, main before #1397)", "result": "2 passed (D-edit, H), 8 failed (A, B, C, E, F, G: the leave does not ask while the save writes, #1392)" }
+  { "run": 39048135358, "scope": "seventh", "head": "f08bb306 (control, main before #1397)", "result": "2 passed (D-edit, H), 8 failed (A, B, C, E, F, G: the leave does not ask while the save writes, #1392)" },
+  { "run": 39049589564, "scope": "seventh", "head": "5aad888b", "result": "15 passed, 1 failed (H, #1402)" },
+  { "run": 39049683109, "scope": "seventh", "head": "f96bcd7f (control, main before #1397)", "result": "2 passed (D-edit, H), 14 failed, all at line 165 (Home must ask while the save writes, #1392)" }
  ]
 }

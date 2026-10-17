@@ -1,9 +1,9 @@
 diff --git a/e2e/leave-seventh-checker.spec.ts b/e2e/leave-seventh-checker.spec.ts
 new file mode 100644
-index 000000000..dd8b5146b
+index 000000000..ce6f742b4
 --- /dev/null
 +++ b/e2e/leave-seventh-checker.spec.ts
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,469 @@
 +// covers: none - disposable seventh independent leave-editor check (Phase 2, check 7); never land
 +//
 +// Adversarial challenges written by the seventh checker against repair-7 (#1397): the leave
@@ -51,7 +51,7 @@ index 000000000..dd8b5146b
 +      if (rule?.action === 'late') {
 +        // Keep the transaction alive with reads until released, then abort it: the value never
 +        // lands and the refusal arrives after whatever happened meanwhile.
-+        const store = this, tx = this.transaction;
++        const tx = this.transaction, store = tx.objectStore(this.name);
 +        let done = false;
 +        const keep = () => { if (!done) store.get('__seventh_keepalive').onsuccess = keep; };
 +        keep();
@@ -255,6 +255,59 @@ index 000000000..dd8b5146b
 +  expect(facts.newAskedAfterReload).toBe(0);
 +});
 +
++// ── The rest of the state x answer grid (added from review on #1403) ──────────────────────────
++// A, B and C above press Cancel (held, refused), Discard (refused) and Save & continue (refused)
++// while the dialog says Saving. These press the remaining answers: Discard and Save & continue
++// while Saving with the write landing; Cancel, Discard and Save & continue once the refusal shows;
++// Cancel once the dialog says "is saved" (Continue there is E and G).
++
++type Grid = { state: 'saving' | 'refused' | 'landed'; action: Action; answer: 'cancel' | 'discard' | 'save' };
++const grid: Grid[] = [
++  { state: 'saving', action: 'hold', answer: 'discard' },
++  { state: 'saving', action: 'hold', answer: 'save' },
++  { state: 'refused', action: 'late', answer: 'cancel' },
++  { state: 'refused', action: 'late', answer: 'discard' },
++  { state: 'refused', action: 'late', answer: 'save' },
++  { state: 'landed', action: 'hold', answer: 'cancel' },
++];
++for (const { state, action, answer } of grid) {
++  test(`seventh K-${state}-${answer}: ${answer} pressed while the dialog ${state === 'saving' ? 'says Saving (the write then lands)' : state === 'refused' ? 'shows the refusal' : 'says "is saved"'}`, async ({ page }) => {
++    test.setTimeout(120_000);
++    const { record, requested, facts } = await saveThenHome(page, `Seventh K ${state} ${answer}`, action);
++    if (state !== 'saving') {
++      await release(page);
++      if (state === 'refused') await expect(dialog(page).locator('.status-bad')).toBeVisible();
++      else await expect(dialog(page)).toContainText('is saved');
++      facts.shown = await said(page);
++      facts.homeBeforeAnswer = await page.getByTestId('home-page').count();
++    }
++    await page.getByTestId(`switch-${answer}`).click();
++    if (state === 'saving') { await page.waitForTimeout(300); facts.homeBeforeRelease = await page.getByTestId('home-page').count(); await release(page); }
++    await expect(page.getByTestId(answer === 'cancel' ? 'editor-foundation' : 'home-page')).toBeVisible();
++    await expect(dialog(page)).toHaveCount(0);
++    await page.waitForTimeout(500);
++    Object.assign(facts, { home: await page.getByTestId('home-page').count(), alert: await alertCount(page), errors: (await probe(page)).errors, link: await link(page), status: answer === 'cancel' ? await status(page) : null });
++    if (answer === 'cancel') {
++      await page.getByTestId('open-home').click();
++      await homeOrAsk(page);
++      facts.homeAsked = await dialog(page).count();
++      if (facts.homeAsked) { await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible(); }
++    }
++    facts.recordHasRequested = same((await recordOf(page, record.id))?.template, requested);
++    facts.records = (await library(page)).length;
++    await nothingAsksAfter(page, facts);
++    out(`k-${state}-${answer}.json`, facts);
++    if (state === 'saving') expect(facts.homeBeforeRelease, 'the leave went on before the running save answered').toBe(0);
++    else expect(facts.homeBeforeAnswer, 'Home mounted before the user answered').toBe(0);
++    expect(facts.alert, 'an app notice for a refusal the Save owns').toBe(0);
++    if (answer === 'cancel') expect(facts.homeAsked, state === 'refused' ? 'after the refused save the next Home left without asking' : 'Home asked again about a save that landed').toBe(state === 'refused' ? 1 : 0);
++    expect(facts.recordHasRequested, 'the record holds the source the Save was given').toBe(true);
++    expect(facts.records).toBe(1);
++    expect(facts.newAsked, 'New asked at Home').toBe(0);
++    expect(facts.newAskedAfterReload, 'New asked at Home after a reload').toBe(0);
++  });
++}
++
 +// ── An edit accepted while the Save writes: the dialog must not say "is saved" ────────────────
 +
 +test('seventh D-edit: an edit lands while the topbar Save writes; Home asks; after the save the dialog does not call the newer edit saved', async ({ page }) => {
@@ -410,7 +463,13 @@ index 000000000..dd8b5146b
 +  await shot(b, 'h-b-after-save.png');
 +  const all = await library(b);
 +  const alphaNow = all.find(g => g.id === alpha.id)!;
-+  Object.assign(facts, { records: all.map(g => ({ id: g.id, name: g.name })), alphaUnchanged: same(alphaNow.template, alpha.template), alphaNowHoldsB: same(alphaNow.template, bSource) });
++  // A first Save adopts the name it was given, so B's source is compared without its name.
++  const unnamed = (t: unknown) => ({ ...(t as object), name: '' });
++  const bRecord = all.find(g => g.id !== alpha.id && same(unnamed(g.template), unnamed(bSource)));
++  Object.assign(facts, { records: all.map(g => ({ id: g.id, name: g.name })), alphaUnchanged: same(alphaNow.template, alpha.template), alphaNowHoldsB: same(alphaNow.template, bSource), bRecord: bRecord && { id: bRecord.id, name: bRecord.name } });
 +  out('h-reservation-two-tabs.json', facts);
 +  expect(facts.alphaUnchanged, 'a Save in another tab overwrote the graphic tab A saved, without asking for a name').toBe(true);
++  expect(facts.bNamingAsked, 'B\'s draft was never saved: its first Save asks for a name').toBe(1);
++  expect(bRecord, 'B\'s Save kept B\'s source in no record of its own').toBeTruthy();
++  expect(all, 'Alpha and B\'s new record').toHaveLength(2);
 +});

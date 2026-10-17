@@ -2,9 +2,10 @@
 
 **FAIL product: the durable reservation lets a second tab's older draft relink to the graphic
 another tab saved, and its Save overwrites that graphic.** Repair-7 (#1397) holds against every
-leave it changed: the dialog's three states, each answer pressed in each state, an edit made
-during the save, Back while the dialog is open, a reload while it is open and a second tab opened
-while it is open. Its reservation change introduced one regression.
+leave attack tried here. Each answer the dialog offers was pressed in each of its states:
+"Saving" with the write then held or refused, the refusal shown, and "is saved". The check also
+tried an edit made during the save, Back while the dialog is open, a reload while it is open and
+a second tab opened while it is open. Its reservation change introduced one regression.
 
 - [#1402](https://github.com/NoaCG/NoaCG-Studio/issues/1402) (P1). Tabs A and B have the same
   never-saved draft open. A edits again and first-saves it as "Alpha" (record X). B still holds
@@ -28,15 +29,18 @@ Disposable branches, tests and CI recipes only, no pull request, never to be que
 
 - `claude/probe-editor-p2-check-7-ci`: main plus the carried files and dispatch recipes taken
   byte-identical from `claude/probe-editor-p2-repair-7-ci` `78b4d0d0`, plus a `seventh` scope
-  (`d3f39115`), then this check's spec (`e27983ce`).
-- `claude/probe-editor-p2-check-7-pre` (`f08bb306`): main before #1397 (`6f910963`) plus the
-  same spec and recipe, the control for #1402.
+  (`d3f39115`), then this check's spec (`e27983ce`). From review on #1403, `5aad888b` adds the
+  rest of the state x answer grid (K) and makes H also assert that B's Save asks for a name and
+  keeps B's source in a record of its own. Without that, a fix that silently dropped B's draft
+  would pass.
+- `claude/probe-editor-p2-check-7-pre` (`f08bb306`, then `f96bcd7f` with the updated spec): main
+  before #1397 (`6f910963`) plus the same spec and recipe, the control for #1402.
 
 Every CI run records the carried files' sha256, identical to independent-6 and repair-7: original
 `28988d71…`, second `ef78c1eb…`, third `71f8378b…`, fourth `95317231…`, fifth `145756a7…`, bounded
 B1 `32b0d289…`, sixth `0b5207f2…`, references `8aaf0a47…`, `2447cef0…`, `bae58ddb…`. This check's
-spec is in [probe.patch](probe.patch): `e2e/leave-seventh-checker.spec.ts` (`c11b4932…`), the
-challenge a repair carries unchanged.
+spec is in [probe.patch](probe.patch): `e2e/leave-seventh-checker.spec.ts` (`352905b1…`, at
+`5aad888b`), the challenge a repair carries unchanged.
 
 ## How repair-7 was attacked
 
@@ -56,6 +60,9 @@ link write (stack `persistLink`) of a linked graphic with an edit.
 | A-cancel-hold | the same, the link write lands | Pass: "Saved"; the next Home leaves without asking; nothing asks after |
 | B-discard-late | Discard changes pressed while it says Saving; then refused | Pass: Discard waits for the save; Home only after it; the record holds the source; no notice; nothing asks after |
 | C-save-late | Save & continue pressed while it says Saving; then refused | Pass: the leave saves again and reaches Home; one record; nothing asks after |
+| K-saving-discard, K-saving-save | Discard, or Save & continue, pressed while it says Saving; the write then lands | Pass: nothing leaves before the save answers; then Home; one record with the source; nothing asks after |
+| K-refused-cancel, K-refused-discard, K-refused-save | the refusal shows in the dialog; Cancel, Discard or Save & continue | Pass: no Home before the answer, no notice. Cancel keeps the editor, and the next Home asks. Discard and Save & continue reach Home. One record with the source; nothing asks after |
+| K-landed-cancel | the dialog says "is saved"; Cancel | Pass: the editor stays; the next Home leaves without asking; nothing asks after |
 | D-edit | an edit accepted while the save writes; Home asks; the save lands | Pass: the dialog says "has unsaved changes", not "is saved"; Save & continue writes the newer edit; one record |
 | E-back | Home asks; `history.back()` while the dialog is open; the save lands | Pass: one dialog, the editor stays; "is saved"; Continue reaches `#/home` once, no editor or wizard |
 | F-reload-saving, F-reload-saved | reload while the dialog says Saving, or "is saved" | Pass: the source is kept, linked and clean; nothing asks after |
@@ -63,8 +70,9 @@ link write (stack `persistLink`) of a linked graphic with an edit.
 | H-reservation-two-tabs | A first-saves a draft B also has open; B edits, reloads, Saves | **Fail** (#1402): `slotReservationAfterB: X`, B linked to "Alpha" after its reload, `bNamingAsked: 0`, one record, `alphaUnchanged: false`, `alphaNowHoldsB: true` |
 
 Control: H on main before #1397 passes: `slotReservationAfterB: null`, B unlinked, the name asked,
-two records, "Alpha" unchanged. VM j-0042, CI
-[39048135358](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39048135358).
+two records, "Alpha" unchanged, and "Beta" holding B's source. VM j-0042 and, with the updated
+assertions, j-0044; CI [39048135358](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39048135358)
+and [39049683109](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39049683109) (H and D pass; the other 14 fail where Home must ask while the save writes).
 
 Not crossed here, and why: the modal doors (Save As, the naming dialog, Discard and the wizard's
 Finish doors) cannot be left while they write; the matrix pins hash and Back under them. New and
@@ -93,9 +101,9 @@ Open during a topbar Save are among the matrix's 30 non-modal rows.
 
 | Criterion | Result |
 | --- | --- |
-| AC 1: Home asks over the editor; Cancel/Escape/cancelled naming keep source, selection, history | Pass. Carried original, second, third, fourth; seventh A, E. |
-| AC 2: Save/first Save keep source; discard mints nothing; saved copies byte-equal; no repeated question | **Fail.** H: a saved graphic's content is overwritten by another tab's older draft after a reload, with no name asked (#1402). In one tab it passes: seventh A to G; fifth (B1 bounded); sixth 10/10. |
-| AC 3: New/Open/Back/hash share the boundary; a failed write and double submission cannot navigate early or duplicate; no resurrection | Pass in one tab: seventh A to G, `:228` 20/20, sixth S6 (the #1383 residual) passes. H is recorded under AC 2. |
+| AC 1: Home asks over the editor; Cancel/Escape/cancelled naming keep source, selection, history | Pass. Carried original, second, third, fourth; seventh A, E, K. |
+| AC 2: Save/first Save keep source; discard mints nothing; saved copies byte-equal; no repeated question | **Fail.** H: a saved graphic's content is overwritten by another tab's older draft after a reload, with no name asked (#1402). In one tab it passes: seventh A to G and K; fifth (B1 bounded); sixth 10/10. |
+| AC 3: New/Open/Back/hash share the boundary; a failed write and double submission cannot navigate early or duplicate; no resurrection | Pass in one tab: seventh A to G and K, `:228` 20/20, sixth S6 (the #1383 residual) passes. H is recorded under AC 2. |
 | AC 4: baseline guard, wizard walk, library links, cloud separation, production copies; mutation | Pass. The maintained selection gives 85 passed with the same 8 legacy skips, and the two-graphic export 1/1 ([39047563682](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047563682)). Signed-in localhost task passes ([39047573162](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047573162)). Mutation: repair-7's M1/M2 were not repeated; H's control on pre-#1397 main shows the failing assertion is not vacuous. |
 | AC 5: fresh Studio `3142fc7d` / Eyevinn `616841bd` executions, hashes, no copied source | Pass, 6/6 ([39047566239](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047566239)). [reference.json](reference.json): the same 17 files, sha256 identical to independent-6. Studio binary `9ba1de31…`. |
 | AC 6: desktop/laptop/native 125% cumulative text, artwork, animation, save/reopen, outputs | Pass, 4/4 ([39047568730](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047568730)). |
@@ -120,11 +128,15 @@ workers and `--retries=0`.
 
 - Seventh spec: VM j-0041 on `e27983ce`, **9 passed, 1 failed** (H). CI
   [39047990848](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047990848) gives the same
-  9/1 with the same facts.
+  9/1 with the same facts. On `5aad888b` (the grid added): VM j-0043, **15 passed, 1 failed** (H,
+  at the same first assertion); CI [39049589564](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39049589564) gives the same 15/1.
 - Control on `f08bb306` (main before #1397): VM j-0042, H passes. CI
   [39048135358](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39048135358): H and D pass, and
   the other 8 fail at the spec's line 165, where Home must ask while the save writes (#1392 on
-  that code). So those 8 cases are not vacuous.
+  that code). So those 8 cases are not vacuous. On `f96bcd7f` (the updated spec): VM j-0044, H
+  passes with its new assertions; CI
+  [39049683109](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39049683109): H and D pass, and
+  the other 14, the K grid included, fail at line 165.
 
 ## Captures
 
