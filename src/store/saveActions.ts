@@ -111,7 +111,7 @@ export async function saveCurrentGraphic(opts?: {
   const patch = { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility };
   const graphicId = s.saved.graphicId;
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => updateGraphic(graphicId, opts?.name ? { ...patch, name: opts.name } : patch));
-  const failure = error ?? (await commitLibraryWrite(receipts));
+  const failure = error ?? (await commitDurableWrites() /* MUTATION M2 */);
   if (!doc || failure) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
     if (!doc) {
