@@ -159,6 +159,19 @@ that instructs them again fails the build. Instruction prose that described AppS
 so as history. No store, router, prefs or CSS line changed; the orphaned panels, canvas and
 timeline files are the next groups.
 
+The review of this PR named what the deletion leaves for those groups, recorded here so none is
+lost: `InsertTemplateDialog` has no mount now (AppShell was its only one) while its two openers
+stay, so the next editor surface that offers "Add template graphic" mounts it or the openers go
+with the canvas group; `templateStore`'s `activePanel`, `setActivePanel` and `panelRevealNonce`
+have no reader left and wait for the store cleanup (step 6); `src/format/formatCode.ts`'s
+`minimalTextChange` and `monacoSetup`'s HTML/CSS workers served only the deleted pane; the code
+comments in `src/model/layout.ts`, `src/store/templateStore.ts`, `src/components/canvas/CanvasInteraction.tsx`
+and `src/components/editorFoundation/openNewEditor.ts` still describe the shell as live and belong
+to those reserved groups; and `e2e/_code.ts`'s `showCode` waits for markers only the deleted shell
+rendered, which is why the nine specs importing it are #800's code-pane cases (step 3), not live
+coverage. The compiler and the two instruction gates now treat a retired rule and the index's
+retired rows as history, so later deletions need no edit to the retired rules that pinned them.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.

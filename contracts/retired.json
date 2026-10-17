@@ -67,7 +67,7 @@
     },
     {
       "name": "the old code editor shell",
-      "pattern": "src/components/(AppShell|WorkspaceDock|CodeEditor|SidePanel)\\.tsx|src/teach/",
+      "pattern": "\\b(AppShell|WorkspaceDock|CodeEditor|SidePanel)\\b|src/teach/",
       "since": "2026-10-17",
       "replacement": "the new editor (src/components/editorFoundation/), the wizard's Finish doors and Home's control page; the video workspace keeps its own code pane (src/components/video/VideoCodeEditor.tsx)",
       "why": "No route, door or setting had opened AppShell since 2026-09-24 (root/render-old-code-editor-route-never), and docs/work-specs/codebase-lean/spec.md retires the shell, its dock, its Monaco pane and its teaching layer as the first of the old editor's deletions. A contract that still instructs one of them instructs code that is gone."

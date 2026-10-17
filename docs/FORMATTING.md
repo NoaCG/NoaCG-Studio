@@ -24,8 +24,9 @@ other systems and must never be silently rewritten:
 
 - **Explicit format** - the old code editor's `Format` button and Monaco's "Format Document"
   ran a `registerDocumentFormattingEditProvider` returning a **minimal edit** (only the changed
-  span, via `minimalTextChange`); that editor was retired on 2026-10-17 with its provider, and
-  the video workspace's code pane has no document formatter.
+  span, via `minimalTextChange`); that editor was retired on 2026-10-17 with its provider. The
+  video workspace's TSX pane keeps Monaco's built-in TypeScript formatter (`typescriptDefaults`
+  is left untouched in `src/monacoSetup.ts`).
 - **After an AI Generate** - `AIPromptPanel` formats the proposed template's **HTML only** before
   showing it for review (`formatTemplate`, HTML default). Modify / Fix / Make-SPX-ready stay
   byte-faithful to the AI's surgical edit so the review diff stays focused.

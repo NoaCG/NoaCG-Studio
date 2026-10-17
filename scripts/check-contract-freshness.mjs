@@ -56,6 +56,16 @@ function isPattern(token) {
   return /[*{}<>~$\s]/.test(token) || /\(new\)/i.test(token);
 }
 
+/**
+ * The rule index with its RETIRED rows removed. A retired rule keeps its scope as history
+ * (contracts/README.md), so the code it pinned is routinely gone, and the index prints that
+ * scope in backticks like every other row; those paths are the record of what was retired, not a
+ * fossil, and only the index's active rows are checked.
+ */
+export function withoutRetiredRows(markdown) {
+  return String(markdown).split('\n').filter((line) => !/^\|[^|]*\|[^|]*\|[^|]*\| retired \|/.test(line)).join('\n');
+}
+
 /** A reference under a transient-by-design directory is skipped - those files are meant to vanish. */
 function isTransient(ref) {
   return TRANSIENT_PREFIXES.some((prefix) => ref.startsWith(prefix));
@@ -148,7 +158,8 @@ function main() {
     // A file that is gone names nothing, so there is nothing in it to go stale.
     if (!existsSync(resolve(ROOT, file))) continue;
     scanned += 1;
-    const refs = extractRefs(readFileSync(resolve(ROOT, file), 'utf8'));
+    const text = readFileSync(resolve(ROOT, file), 'utf8');
+    const refs = extractRefs(file === 'contracts/index.md' ? withoutRetiredRows(text) : text);
     for (const stale of staleRefs(refs, { tracked, trackedDirs, definedScripts })) candidates.push({ file, ...stale });
   }
   measured(scanned, 'contract files');

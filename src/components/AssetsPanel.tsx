@@ -309,7 +309,8 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
   // list would need a new template field.
   const [pendingFolders, setPendingFolders] = useState<string[]>([]);
   // "Add template graphic" — insert a catalog graphic into THIS project (never replacing
-  // it). The dialog itself is mounted once in AppShell; this just opens it.
+  // it). This only raises the shared open flag; the dialog's one mount was the retired AppShell,
+  // so a new editor surface that offers this button mounts InsertTemplateDialog itself.
   const openInsertDialog = useInsertTemplateUi((s) => s.openDialog);
 
   const assets = template.assets;

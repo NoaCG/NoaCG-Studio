@@ -667,10 +667,7 @@ function renderIndex(rules) {
   for (const rule of [...rules].sort((a, b) => a.id.localeCompare(b.id))) {
     const carried = rule.carried ? ' (carried)' : '';
     const first = oneLine(rule.body).split(/(?<=[.!?])\s/)[0].replace(/\|/g, '\\|');
-    // A retired rule's scope is printed as plain text: it may name files that no longer exist,
-    // which is history here and a dangling reference to the freshness gate when backticked.
-    const scope = rule.status === 'retired' ? rule.scope.join(', ') : rule.scope.map((s) => `\`${s}\``).join(', ');
-    lines.push(`| \`${rule.id}\` | ${rule.kind} | ${rule.fires}${carried} | ${rule.status} | ${scope} | ${first} |`);
+    lines.push(`| \`${rule.id}\` | ${rule.kind} | ${rule.fires}${carried} | ${rule.status} | ${rule.scope.map((s) => `\`${s}\``).join(', ')} | ${first} |`);
   }
   lines.push('');
   return lines.join('\n');

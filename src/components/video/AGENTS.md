@@ -3,7 +3,7 @@
 ## Video editor shell (video/)
 
 The PARALLEL editor world for the AI video project kind (VideoProject, src/model/videoTypes.ts).
-App.tsx renders **VideoAppShell** instead of AppShell when docKindStore says 'video'; only the
+App.tsx renders **VideoAppShell** instead of the graphics editor when docKindStore says 'video'; only the
 wizard flips that switch. Every panel follows the project's ENGINE ('remotion' | 'hyperframes',
 picked at creation): the code pane, the preview bridge, the validator, the render manifest and
 the source download all branch on it, while the rest stay one surface.
