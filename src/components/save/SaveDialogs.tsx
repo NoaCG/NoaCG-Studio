@@ -246,7 +246,7 @@ function ConfirmSwitchDialog() {
     settleConfirm();
     useSaveUi.getState().requestSwitch(next, confirm.cancel);
   };
-  const title = walk ? 'Graphic in progress' : 'Unsaved changes';
+  const title = walk ? 'Graphic in progress' : saving ? 'Saving' : landed ? 'Saved' : 'Unsaved changes';
 
   return (
     <div
