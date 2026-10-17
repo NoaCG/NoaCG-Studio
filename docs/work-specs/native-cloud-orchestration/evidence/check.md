@@ -58,13 +58,21 @@ at 18:58 and disabled it a minute later; the PR timeline shows that pair (18:58:
 | PR #1408 | merged 19:14:13Z by the queue, head `1d130798e060c9c2282b46cddf23fd7f48064c67`, label `land` |
 | Timeline | auto_merge_enabled 18:58:03Z, auto_merge_disabled 18:58:24Z, added_to_merge_queue 19:08:41Z, merged 19:14:13Z (`0b3790fb`), removed_from_merge_queue by github-merge-queue[bot] 19:14:13Z |
 | `noacg/reviewed` on `1d130798` | success, 19:01:12Z |
-| Repair-owner comment issuecomment-6239053255 | coordinator, created 18:57:53Z, last updated UPDATED_AT |
+| Repair-owner comment issuecomment-6239053255 | coordinator, created 18:57:53Z, last updated 19:01:51Z (unchanged at 19:44Z) |
 | PR CI 39060617075 | pull_request on `1d130798`: completed, success |
 | Merge-group CI 39061191312 | merge_group on `0b3790fb`: completed, success |
 
-Post-land on `0b3790fb`, read at READ_AT:
+Post-land on `0b3790fb`, read at 19:44:35Z:
 
-POSTLAND
+| Run | Conclusion |
+| --- | --- |
+| main CI 39061580332 (push) | PENDING: in_progress. 17 jobs success, 4 skipped, `E2E 9/13 (full)` cancelled at 19:37:24Z, `E2E retry (failed specs, same commit)` still running |
+| Post-landing 39061580299 | success (19:15:21Z) |
+| configured-suite 39061580297 | success (19:41:45Z) |
+| Quarantine 39061580321 | success (19:25:11Z) |
+| deploy-verify | 4 deployment_status runs (39061584485, 39061585393, 39061630246, 39061666321), all skipped |
+
+`origin/main` had moved on to `a1c9efb5` by 19:44Z; this check is pinned to `0b3790fb` as asked.
 
 ## Ledger consistency (AC-1)
 
@@ -77,8 +85,18 @@ follow-up (18:53:43Z) before PR open (18:56:09Z) before queue entry (19:08:41Z) 
 
 ## Criteria
 
-ACLINES
+- AC-1 PASS so far: build, landed and check lines exist in the coordinator's `plan-run.mjs` output (its native events); the five build-time lines are copied verbatim into qualification.md (diffed against the follow-up text). The `pass` or `fail` line comes after this verdict.
+- AC-2 PASS: builder `get_session` and events show a separate session at `f41b0418`, with the nonce in its prompt and its reply, a resource profile, the push `db13997` and a challenge reply whose values match git.
+- AC-3 FAIL: `/check` stamp (`noacg/reviewed` success on `1d130798`) and the landing through the queue (timeline, merge-group CI 39061191312) hold, and the landed record names the PR, the reviewed SHA and the queue state at queue time. But AC-3 also puts the merge-queue entry, merge SHA and terminal conclusions in the repair-owner comment issuecomment-6239053255. At 19:44Z that comment still says "Auto-merge is off and there is no merge-queue entry" and names no merge SHA and no run results. The ownership acknowledgement itself (18:57:53Z, before the builder ended) holds.
+- AC-4 this receipt: a different native session (`session_01JKvaTpJJTCKavDDJ91zLdo`) checked `0b3790fb` from `get_session`, `list_events` and GitHub. Main CI is recorded as pending, not passed.
+- AC-5 NOT CHECKABLE YET: it is the coordinator's work after this verdict (ledger verdict, report, stopping wakes). Counters stay null rather than zero in qualification.md, which holds.
 
 ## Verdict
 
-VERDICT
+FAIL product: AC-3 repair-owner comment lacks the merge-queue entry, merge SHA and post-land conclusions; main CI on 0b3790fb still pending at 19:44Z
+
+Findings:
+1. issuecomment-6239053255 was last updated at 19:01:51Z and still reads "no merge-queue entry". AC-3 names it as the place that records the queue entry (19:08:41Z), merge SHA `0b3790fb` and terminal conclusions, and none of them are there.
+2. Main CI 39061580332 on `0b3790fb` had not finished: `E2E 9/13 (full)` was cancelled and `E2E retry (failed specs, same commit)` was still running at 19:44:35Z. That is a pass or fail still to come, not a pass.
+3. The queue entry came from the builder's `mcp__github__enable_pr_auto_merge` at 19:08:41Z, after the owner gave explicit permission in the builder session. Shell calls to the auto_merge route were refused as self-approval at 18:56:51Z and 19:08:37Z.
+4. AC-5 is the coordinator's step after this verdict, so it cannot be checked here.
