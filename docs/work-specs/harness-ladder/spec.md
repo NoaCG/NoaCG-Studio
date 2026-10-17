@@ -296,6 +296,8 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   - The bench now gives a rung's whole tally: `--tally <rung dir>` (D5's screen, D6's lines, the
     stamps, and gate flags the judge did not name), and `--lanes 2` runs two sessions at once. A
     round is `--build L2 ... --stage <round>`, its own `--out`; L1 is closed, so L2 may build.
+    `--tally` counts the ladder eight in `RUNG_ORDER`; a round's run on the 16 tuning briefs needs
+    `tallyRung`'s `order` set to those ids (the CLI does not do that yet).
     The 16 tuning briefs D7 re-measures on have no committed Sonnet `medium` baseline yet: L2's
     first round needs one before its change, or it cannot show what moved there.
 - **Decisions** (each revertible):
