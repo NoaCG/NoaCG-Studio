@@ -61,8 +61,16 @@ function changedSince(before: EditingContext): boolean {
     now.aiThread !== before.aiThread || now.legibility !== before.legibility;
 }
 
+/** Was the working document REPLACED meanwhile (another graphic opened, a new one made)? Its
+ *  link is then not the waiting save's to settle. */
+function replacedSince(before: EditingContext): boolean {
+  const now = useTemplateStore.getState();
+  return now.saved.graphicId !== before.saved.graphicId || now.baseline !== before.baseline;
+}
+
 /** A refused save leaves the link as it is NOW: an edit made during the wait stays dirty. */
-function markSaveFailed(): void {
+function markSaveFailed(before: EditingContext): void {
+  if (replacedSince(before)) return;
   const now = useTemplateStore.getState();
   now.setSaved({ ...now.saved, status: 'failed' });
 }
@@ -110,7 +118,7 @@ export async function saveCurrentGraphic(opts?: {
       s.setSaved({ graphicId: null, dirty: true, status: 'idle' });
       return 'needs-name';
     }
-    markSaveFailed();
+    markSaveFailed(s);
     return 'failed';
   }
   // An unknown catalogue format is not a broken document, so the save LANDS and reports it.
@@ -119,7 +127,7 @@ export async function saveCurrentGraphic(opts?: {
   // the topbar line and the canvas chip (components/ProjectFormatMeta.tsx). That is also why
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
-  s.setSaved({ graphicId: doc.id, dirty: changedSince(s), status: 'idle', formatIssues });
+  if (!replacedSince(s)) s.setSaved({ graphicId: doc.id, dirty: changedSince(s), status: 'idle', formatIssues });
   persistLink();
   return 'saved';
 }
@@ -140,19 +148,20 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
   }));
   const failure = error ?? (await commitLibraryWrite(receipts));
   if (failure) {
-    markSaveFailed();
+    markSaveFailed(s);
     return { ok: false, error: failure };
   }
-  const dirty = changedSince(s), now = useTemplateStore.getState().template;
-  // The working template adopts the saved name so the topbar and the record agree. It is the
-  // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
-  if (doc.template.name !== now.name && now.name === s.template.name) {
-    useTemplateStore.setState({ template: { ...now, name: doc.name } });
+  if (!replacedSince(s)) {
+    const dirty = changedSince(s), now = useTemplateStore.getState().template;
+    // The working template adopts the saved name so the topbar and the record agree. It is the
+    // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
+    if (doc.template.name !== now.name && now.name === s.template.name) {
+      useTemplateStore.setState({ template: { ...now, name: doc.name } });
+    }
+    // An unknown catalogue format is not a broken document, so the save lands and reports it.
+    const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
+    useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty, status: 'idle', formatIssues });
   }
-  // An unknown catalogue format is not a broken document, so the save lands and reports it.
-  const workingTemplate = useTemplateStore.getState().template;
-  const formatIssues = validateProjectFormat(workingTemplate.resolution, workingTemplate.fps);
-  useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty, status: 'idle', formatIssues });
   persistLink();
   return { ok: true, error: null };
 }
