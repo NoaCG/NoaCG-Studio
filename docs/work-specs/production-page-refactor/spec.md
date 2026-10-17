@@ -665,6 +665,12 @@ it follows phase 14 rather than interleaving.
 Audience phases are added here as 21 onward once an audience spec is agreed; until then the run
 ends after phase 20.
 
+**Proposed 2026-10-17, open (data sources DS16).** `docs/work-specs/data-sources/spec.md`
+(draft) proposes one model for every data source and audience input, and draft phases 15-22 in
+place of 15-20: they carry the Sheet data flow's six phases, re-ordered with lists first, plus RSS
+feeds and the data API made visible. Audience would then be 23 onward. Until the owner answers,
+15-20 stay as written above, and none starts before the readiness item below.
+
 ## What the plan can demonstrate, and what stays uncertain
 
 Demonstrable: behaviour identical on every pinned scenario (the offline suite, the configured
@@ -690,7 +696,10 @@ here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reu
 answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settled.
 
 Before starting phase 15: phase 14 checked PASS on `main`, and `node scripts/work-spec.mjs status
-docs/work-specs/sheet-data-flow/work.json` shows the spec agreed.
+docs/work-specs/sheet-data-flow/work.json` shows the spec agreed. Added 2026-10-17 (owner): the
+owner has agreed `docs/work-specs/data-sources/spec.md` (its `work.json` authority `agreed`, its
+decisions answered) before phases 15 onward start; phase 15 then follows the phase list the owner's
+answer to its DS16 names.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with

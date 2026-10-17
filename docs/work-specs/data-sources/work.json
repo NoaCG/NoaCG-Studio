@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "c000a4496d74211bcdcb8942a6074ff8abb02567095458c6c86132061030161c",
+  "authority": {
+    "status": "draft",
+    "source": "2026-10-17, owner research brief: \"Research only, no product code. Goal: one clear model for how outside data and audience input reach graphics in a NoaCG production, written up as draft specs and draft phases for the production page plan run, with every decision left open for the owner.\" Drafted the same day from docs/research/2026-10-data-sources/README.md; decisions DS1 to DS16 await the owner."
+  },
+  "review": null
+}
