@@ -1,0 +1,518 @@
+diff --git a/e2e/leave-fourth-checker.spec.ts b/e2e/leave-fourth-checker.spec.ts
+new file mode 100644
+index 0000000..9d0bec7
+--- /dev/null
++++ b/e2e/leave-fourth-checker.spec.ts
+@@ -0,0 +1,418 @@
++// covers: none - disposable fourth independent leave-editor check (Phase 2, check 4); never land
++//
++// Adversarial challenges written by the fourth checker, not copies of the builder's cases. Every
++// race is FORCED: the completion notice of the slower IndexedDB put is held by this file's own
++// probe, and the held value is asserted, so another write cannot stand in for the one held.
++// Cases: real input during a held leave Save; a real canvas drag during a held topbar Save; an edit
++// during a held Save As; an edit during a held first Save reached by browser Back; a refused first
++// Save reached by a hash change, then a double-submitted retry; another write's refusal during a
++// held Save; the Save's own link write refused after its library write landed; a refused topbar
++// Save while the autosave is held; the wizard's New door through a held first Save; Discard after
++// a stale-save refusal on the Open-saved-graphics path.
++import { test, expect, type Page } from '@playwright/test';
++import { writeFileSync } from 'node:fs';
++import { open, draw, source, ready, inspection, selected } from './_layerProperty';
++import { settleDurableWrites } from './_durable';
++
++type Rule = { key: string; after?: string; used?: boolean };
++type Probe = {
++  puts: Record<string, number>; held: { key: string; value: unknown }[]; releases: (() => void)[];
++  hold: { key: string; left: number } | null; refuse: Rule[]; refused: string[]; stacks: string[]; errors: unknown[];
++};
++declare global { interface Window { fourth: Probe } }
++
++/** One wrapper around IndexedDB puts for the whole page: counts puts per key, holds the
++ *  completion of the next `hold.left` puts on `hold.key`, and refuses puts by rule. */
++async function install(page: Page) {
++  await page.evaluate(() => {
++    if (window.fourth) return;
++    const p: Probe = { puts: {}, held: [], releases: [], hold: null, refuse: [], refused: [], stacks: [], errors: [] };
++    window.fourth = p;
++    window.addEventListener('spx-storage-error', e => p.errors.push((e as CustomEvent).detail));
++    const original = IDBObjectStore.prototype.put;
++    IDBObjectStore.prototype.put = function(value, key) {
++      const k = String(key);
++      const rule = p.refuse.find(r => !r.used && r.key === k && (!r.after || (p.puts[r.after] ?? 0) > 0));
++      p.puts[k] = (p.puts[k] ?? 0) + 1;
++      if (rule) { rule.used = true; p.refused.push(k); p.stacks.push(String(new Error().stack)); throw new DOMException('Fourth checker refusal', 'QuotaExceededError'); }
++      const request = original.call(this, value, key);
++      if (p.hold && p.hold.key === k && p.hold.left > 0) {
++        p.hold.left--;
++        const index = p.held.length, tx = this.transaction;
++        p.held.push({ key: k, value: JSON.parse(String(value)) });
++        Object.defineProperty(tx, 'oncomplete', { configurable: true, set(handler: (event: Event) => void) {
++          tx.addEventListener('complete', event => { p.releases[index] = () => handler.call(tx, event); }, { once: true });
++        } });
++      }
++      return request;
++    };
++  });
++}
++const hold = (page: Page, key: string, count = 1) => page.evaluate(([key, count]) => { window.fourth.hold = { key, left: count }; }, [key, count] as const);
++const refuse = (page: Page, key: string, after?: string) => page.evaluate(([key, after]) => { window.fourth.refuse.push({ key, after: after || undefined }); }, [key, after ?? ''] as const);
++const state = (page: Page) => page.evaluate(() => ({ puts: { ...window.fourth.puts }, held: window.fourth.held, released: window.fourth.releases.map(Boolean),
++  refused: [...window.fourth.refused], stacks: [...window.fourth.stacks], errors: window.fourth.errors.length }));
++const release = (page: Page, index = 0) => page.evaluate(i => window.fourth.releases[i](), index);
++const heldReady = (page: Page, n = 1) => expect.poll(async () => (await state(page)).released.filter(Boolean).length).toBe(n);
++
++const library = (page: Page) => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
++const link = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
++const raw = (page: Page, key: string) => page.evaluate(key => new Promise<string | null>((resolve, reject) => {
++  const request = indexedDB.open('noacg-studio');
++  request.onsuccess = () => {
++    const tx = request.result.transaction('kv', 'readonly'), get = tx.objectStore('kv').get(key);
++    tx.oncomplete = () => { const v = get.result; request.result.close(); resolve(v === undefined ? null : String(v)); };
++    tx.onerror = () => reject(tx.error);
++  };
++  request.onerror = () => reject(request.error);
++}), key);
++
++/** An edit through the editor's command surface (the way an agent or the CLI bridge edits). */
++async function commandEdit(page: Page, thenClick?: string) {
++  await page.evaluate(async thenClick => {
++    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
++    const c = activeEditorCommands(), i = c.inspect();
++    if (!i.ok) throw Error(i.refusal.message);
++    const target = i.targets.find(t => t.capabilities['text.set']?.supported);
++    const result = target
++      ? c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'text.set', args: { targetId: target.id!, text: 'Fourth ' + crypto.randomUUID().slice(0, 6) } }] })
++      : c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 700, y: 120, width: 90, height: 90 } } }] });
++    if (!result.ok) throw Error(result.refusal.message);
++    if (thenClick) (document.querySelector(`[data-testid=${thenClick}]`) as HTMLButtonElement).click();
++    await new Promise(r => setTimeout(r));
++  }, thenClick ?? '');
++}
++
++async function saveNamed(page: Page, name: string) {
++  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill(name);
++  await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
++  await settleDurableWrites(page);
++}
++async function backUntilAsked(page: Page) {
++  let backs = 0;
++  while (await page.getByTestId('confirm-switch').count() === 0 && backs < 3) { await page.evaluate(() => history.back()); backs++; await page.waitForTimeout(500); }
++  await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  return backs;
++}
++const out = (name: string, value: unknown) => writeFileSync(test.info().outputPath(name), JSON.stringify(value, null, 2));
++
++test('fourth: real input during a held leave Save changes nothing, then the Save lands and leaves once', async ({ page }) => {
++  test.setTimeout(120_000);
++  await open(page); await draw(page, .22); await saveNamed(page, 'Fourth linked');
++  await draw(page, .55); await settleDurableWrites(page);
++  const requested = await source(page), [record] = await library(page), editorUrl = page.url();
++  await install(page); await hold(page, 'spx-gfx-graphics');
++  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
++  await heldReady(page);
++  const held = (await state(page)).held[0].value as { id: string; template: unknown }[];
++  expect(held.find(g => g.id === record.id)?.template).toEqual(requested);
++  await expect(page.getByTestId('switch-save')).toBeDisabled(); await expect(page.getByTestId('switch-discard')).toBeDisabled();
++  // A drag on the artwork, Ctrl+Z, Ctrl+S, Escape, double clicks, browser Back and a hash change.
++  const box = (await page.locator('.ef-artboard').boundingBox())!;
++  await page.mouse.move(box.x + box.width * .8, box.y + box.height * .7); await page.mouse.down();
++  await page.mouse.move(box.x + box.width * .9, box.y + box.height * .8, { steps: 6 }); await page.mouse.up();
++  await page.keyboard.press('Control+z'); await page.keyboard.press('Control+s'); await page.keyboard.press('Escape');
++  await page.getByTestId('switch-save').dblclick({ force: true }); await page.getByTestId('switch-discard').click({ force: true });
++  await page.evaluate(() => history.back()); await page.waitForTimeout(400);
++  await page.evaluate(() => { location.hash = '#/home/graphics'; }); await page.waitForTimeout(400);
++  const during = await state(page);
++  expect(await source(page), 'input reached the source during the held Save').toEqual(requested);
++  expect(page.url(), 'Back or a hash change moved the route during the held Save').toBe(editorUrl);
++  await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  expect(during.puts['spx-gfx-graphics'], 'a second library put was submitted during the wait').toBe(1);
++  await release(page);
++  await expect(page.getByTestId('home-page')).toBeVisible(); await expect(page).toHaveURL(/#\/home$/);
++  const kept = await library(page);
++  expect(kept).toHaveLength(1); expect(kept[0].id).toBe(record.id); expect(kept[0].template).toEqual(requested);
++  expect(await link(page)).toMatchObject({ graphicId: record.id, dirty: false, status: 'idle' });
++  expect((await state(page)).puts['spx-gfx-graphics']).toBe(1);
++  await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
++  await page.locator('[data-door="new-graphic"]').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
++  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
++  out('held-leave-save.json', { libraryPutsDuringWait: during.puts['spx-gfx-graphics'], urlKept: true, sourceKept: true, landedOnce: true, reloadNoQuestion: true });
++});
++
++test('fourth: a real canvas drag during a held topbar Save stays unsaved; Home asks; reload keeps it; Save & continue writes it', async ({ page }) => {
++  test.setTimeout(120_000);
++  await open(page); await draw(page, .22); await saveNamed(page, 'Fourth topbar');
++  await draw(page, .45); await settleDurableWrites(page);
++  const requested = await source(page), [record] = await library(page);
++  await install(page); await hold(page, 'spx-gfx-graphics');
++  await page.getByTestId('save-graphic').click(); await heldReady(page);
++  expect(((await state(page)).held[0].value as { id: string; template: unknown }[]).find(g => g.id === record.id)?.template).toEqual(requested);
++  await expect(page.getByTestId('save-status')).toHaveText('Saving…');
++  await draw(page, .7);
++  const newer = await source(page); expect(newer).not.toEqual(requested);
++  await release(page);
++  await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
++  expect(await link(page)).toMatchObject({ graphicId: record.id, dirty: true, status: 'idle' });
++  expect((await library(page))[0].template).toEqual(requested);
++  await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  await expect(page.getByTestId('home-page')).toHaveCount(0);
++  await page.getByTestId('switch-cancel').click();
++  await settleDurableWrites(page); await page.reload(); await ready(page);
++  expect(await source(page)).toEqual(newer); await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
++  await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible();
++  const kept = await library(page);
++  expect(kept).toHaveLength(1); expect(kept[0].id).toBe(record.id); expect(kept[0].template).toEqual(newer);
++  await page.getByTestId('home-nav-graphics').click(); await page.locator('.lib-row', { hasText: 'Fourth topbar' }).getByTestId('open-graphic').click();
++  await page.getByTestId('control-open-editor').click(); await ready(page); expect(await source(page)).toEqual(newer);
++  await page.getByTestId('open-home').click(); await expect(page.getByTestId('home-page')).toBeVisible(); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
++  out('held-topbar-save.json', { realDragDuringWait: true, staleKeptDirty: true, homeAsked: true, reloadKeptNewer: true, secondSaveSameRecord: true, reopenedNewer: true });
++});
++
++test('fourth: an edit during a held Save As keeps the original record, leaves the copy unsaved, and Home asks', async ({ page }) => {
++  test.setTimeout(120_000);
++  await open(page); await draw(page, .22); await saveNamed(page, 'Fourth original');
++  await draw(page, .5); await settleDurableWrites(page);
++  const requested = await source(page), [original] = await library(page), originalJson = JSON.stringify(original);
++  await install(page);
++  await page.getByTestId('save-menu').click(); await page.getByTestId('save-as').click();
++  await page.getByTestId('save-name').fill('Fourth copy');
++  await hold(page, 'spx-gfx-graphics'); await page.getByTestId('save-confirm').click(); await heldReady(page);
++  const heldList = (await state(page)).held[0].value as { id: string; name: string; template: unknown }[];
++  const copy = heldList.find(g => g.name === 'Fourth copy')!;
++  expect(copy.template).toEqual({ ...requested, name: 'Fourth copy' });
++  expect(JSON.stringify(heldList.find(g => g.id === original.id))).toBe(originalJson);
++  await commandEdit(page); await ready(page);
++  const newer = await source(page); expect(newer).not.toEqual(requested);
++  await release(page);
++  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
++  await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
++  expect(await link(page)).toMatchObject({ graphicId: copy.id, dirty: true, status: 'idle' });
++  let all = await library(page);
++  expect(all).toHaveLength(2); expect(JSON.stringify(all.find(g => g.id === original.id))).toBe(originalJson);
++  expect(all.find(g => g.id === copy.id)!.template).toEqual({ ...requested, name: 'Fourth copy' });
++  expect(await source(page)).toEqual({ ...newer, name: 'Fourth copy' });
++  await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible();
++  all = await library(page);
++  expect(all).toHaveLength(2); expect(JSON.stringify(all.find(g => g.id === original.id))).toBe(originalJson);
++  expect(all.find(g => g.id === copy.id)!.template).toEqual({ ...newer, name: 'Fourth copy' });
++  out('held-save-as.json', { originalByteEqual: true, copyHeldRequested: true, staleKeptDirty: true, secondSaveIntoCopy: true, records: all.length });
++});
++
++test('fourth: Back -> first Save with an edit during the held write asks again at the same history entry; Cancel stays; Back again leaves', async ({ page }) => {
++  test.setTimeout(150_000);
++  await open(page); await draw(page, .3); await settleDurableWrites(page);
++  const requested = await source(page), editorUrl = page.url();
++  const backs = await backUntilAsked(page);
++  expect(page.url()).toBe(editorUrl); await expect(page.getByTestId('editor-foundation')).toBeVisible();
++  await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Fourth back');
++  await install(page); await hold(page, 'spx-gfx-graphics'); await page.getByTestId('save-confirm').click(); await heldReady(page);
++  const [minted] = (await state(page)).held[0].value as { id: string; template: unknown }[];
++  expect(minted.template).toEqual({ ...requested, name: 'Fourth back' });
++  await page.evaluate(() => history.back()); await page.waitForTimeout(400);
++  expect(page.url(), 'Back during the held first Save moved the route').toBe(editorUrl);
++  await commandEdit(page); await ready(page);
++  const newer = await source(page); expect(newer).not.toEqual(requested);
++  await release(page);
++  await expect(page.getByTestId('save-dialog')).toHaveCount(0); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  expect(page.url()).toBe(editorUrl); await expect(page.getByTestId('editor-foundation')).toBeVisible();
++  await page.getByTestId('switch-cancel').click(); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
++  expect(page.url()).toBe(editorUrl); expect(await source(page)).toEqual({ ...newer, name: 'Fourth back' });
++  expect(await library(page)).toHaveLength(1);
++  const history = (await inspection(page)).history, selection = await selected(page);
++  const backsAgain = await backUntilAsked(page);
++  expect(page.url()).toBe(editorUrl); expect((await inspection(page)).history).toEqual(history); expect(await selected(page)).toEqual(selection);
++  await page.getByTestId('switch-save').click();
++  await expect(page.getByTestId('editor-foundation')).toHaveCount(0);
++  expect(page.url()).not.toBe(editorUrl);
++  const kept = await library(page);
++  expect(kept).toHaveLength(1); expect(kept[0].id).toBe(minted.id); expect(kept[0].template).toEqual({ ...newer, name: 'Fourth back' });
++  await page.screenshot({ path: test.info().outputPath('back-after-first-save.png') });
++  out('back-held-first-save.json', { backs, backsAgain, urlKeptDuringWait: true, askedAgainSameEntry: true, cancelKeptEntry: true, leftOnSecondBack: page.url(), records: kept.length });
++});
++
++test('fourth: hash change -> refused first Save stays with nothing minted; Escape keeps the editor; a double-submitted retry mints one record', async ({ page }) => {
++  test.setTimeout(150_000);
++  await open(page); await draw(page, .34); await settleDurableWrites(page);
++  const edited = await source(page), editorUrl = page.url(), history = (await inspection(page)).history;
++  await page.evaluate(() => { location.hash = '#/home'; });
++  await expect(page.getByTestId('confirm-switch')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
++  expect(page.url()).toBe(editorUrl);
++  await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Fourth hash');
++  await install(page); await refuse(page, 'spx-gfx-graphics');
++  await page.getByTestId('save-confirm').click();
++  await expect(page.getByTestId('save-dialog').locator('.status-bad')).toBeVisible();
++  await expect(page.getByTestId('home-page')).toHaveCount(0); expect(page.url()).toBe(editorUrl);
++  expect(await library(page)).toHaveLength(0); expect(await link(page)).toMatchObject({ graphicId: null, dirty: true });
++  expect((await state(page)).errors, 'the refusal was announced generically as well as in the dialog').toBe(0);
++  await page.screenshot({ path: test.info().outputPath('refused-first-save.png') });
++  await page.keyboard.press('Escape'); await expect(page.getByTestId('save-dialog')).toHaveCount(0);
++  expect(page.url()).toBe(editorUrl); expect(await source(page)).toEqual(edited); expect((await inspection(page)).history).toEqual(history);
++  await page.evaluate(() => { location.hash = '#/home'; }); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Fourth hash');
++  await hold(page, 'spx-gfx-graphics');
++  await page.getByTestId('save-name').press('Enter'); await page.getByTestId('save-name').press('Enter', { timeout: 2000 }).catch(() => undefined);
++  await page.getByTestId('save-confirm').click({ force: true, timeout: 2000 }).catch(() => undefined);
++  await heldReady(page);
++  expect((await state(page)).puts['spx-gfx-graphics'], 'double submission reached storage twice').toBe(2);
++  await release(page);
++  await expect(page.getByTestId('home-page')).toBeVisible(); await expect(page).toHaveURL(/#\/home$/);
++  const kept = await library(page);
++  expect(kept).toHaveLength(1); expect(kept[0].template).toEqual({ ...edited, name: 'Fourth hash' });
++  await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
++  expect(await library(page)).toHaveLength(1);
++  await page.locator('[data-door="new-graphic"]').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
++  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
++  out('hash-refused-first-save.json', { refusedStayed: true, nothingMinted: true, escapeKeptEditor: true, doubleSubmitOnePut: true, records: 1 });
++});
++
++test("fourth: another write's refusal during a held Save is announced by the app; the Save lands its exact source and continues", async ({ page }) => {
++  test.setTimeout(120_000);
++  await open(page); await draw(page, .22); await saveNamed(page, 'Fourth other refusal');
++  await draw(page, .48); await settleDurableWrites(page);
++  const [record] = await library(page);
++  await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  await install(page); await hold(page, 'spx-gfx-graphics');
++  // The next working-slot put is refused: that is the autosave of the edit below, which runs
++  // while the Save's own put is held. The edit and the Save click happen in one turn.
++  await refuse(page, 'spx-gfx-project');
++  await commandEdit(page, 'switch-save');
++  await heldReady(page);
++  const requested = await source(page);
++  expect(((await state(page)).held[0].value as { id: string; template: unknown }[]).find(g => g.id === record.id)?.template).toEqual(requested);
++  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
++  await expect.poll(async () => (await state(page)).refused).toEqual(['spx-gfx-project']);
++  await page.evaluate(() => new Promise(r => setTimeout(r, 100)));
++  await release(page);
++  await expect(page.getByTestId('home-page')).toBeVisible();
++  await expect(page.getByTestId('storage-alert')).toBeVisible();
++  const kept = await library(page);
++  expect(kept).toHaveLength(1); expect(kept[0].template).toEqual(requested);
++  expect(await link(page)).toMatchObject({ graphicId: record.id, dirty: false });
++  await page.screenshot({ path: test.info().outputPath('other-write-refused.png') });
++  await page.getByTestId('storage-alert-close').click();
++  await settleDurableWrites(page);
++  const slot = JSON.parse((await raw(page, 'spx-gfx-project'))!);
++  await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
++  expect(await source(page)).toEqual(requested);
++  await page.locator('[data-door="new-graphic"]').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
++  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
++  out('other-write-refused.json', { saveLanded: true, appAnnounced: true, slotAfter: { graphicId: slot.graphicId, dirty: slot.dirty }, reloadNoQuestion: true });
++});
++
++for (const kind of ['first', 'linked'] as const) {
++  test(`fourth: the ${kind} Save's own link write refused after its library write landed`, async ({ page }) => {
++    test.setTimeout(120_000);
++    await open(page); await draw(page, .26);
++    let recordId: string | null = null;
++    if (kind === 'linked') { await saveNamed(page, 'Fourth link linked'); recordId = (await library(page))[0].id; await draw(page, .52); }
++    await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
++    await settleDurableWrites(page);
++    const requested = await source(page);
++    await install(page);
++    await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++    // The first working-slot put AFTER the library put is refused: the link Save persists.
++    await refuse(page, 'spx-gfx-project', 'spx-gfx-graphics');
++    await page.getByTestId('switch-save').click();
++    if (kind === 'first') { await page.getByTestId('save-name').fill('Fourth link first'); await page.getByTestId('save-confirm').click(); }
++    await expect.poll(async () => (await state(page)).refused).toEqual(['spx-gfx-project']);
++    await page.waitForTimeout(800);
++    const facts = {
++      kind,
++      editorMounted: await page.getByTestId('editor-foundation').count(),
++      homeMounted: await page.getByTestId('home-page').count(),
++      url: page.url(),
++      alert: await page.getByTestId('storage-alert').count(),
++      guardError: await page.getByTestId('confirm-switch').locator('.status-bad').count(),
++      link: await link(page),
++      records: (await library(page)).length,
++      refusedStack: (await state(page)).stacks[0],
++    } as Record<string, unknown>;
++    await page.screenshot({ path: test.info().outputPath(`link-refused-${kind}.png`) });
++    if (await page.getByTestId('storage-alert').count()) await page.getByTestId('storage-alert-close').click();
++    const [saved] = await library(page);
++    expect(saved.template).toEqual(kind === 'first' ? { ...requested, name: 'Fourth link first' } : requested);
++    if (recordId) expect(saved.id).toBe(recordId);
++    await settleDurableWrites(page).catch(e => { facts.settle = String(e); });
++    const slot = JSON.parse((await raw(page, 'spx-gfx-project'))!);
++    facts.slot = { graphicId: slot.graphicId, dirty: slot.dirty, template: JSON.stringify(slot.template) === JSON.stringify(saved.template) ? 'saved source' : 'other' };
++    await page.reload(); await expect(page.getByTestId('home-page').or(page.getByTestId('editor-foundation'))).toBeVisible();
++    facts.afterReloadLink = await link(page);
++    if (await page.getByTestId('home-page').count()) {
++      await page.locator('[data-door="new-graphic"]').click();
++      await expect(page.getByTestId('creation-wizard').or(page.getByTestId('confirm-switch')).first()).toBeVisible();
++      facts.newAskedAfterReload = await page.getByTestId('confirm-switch').count();
++    }
++    out(`link-refused-${kind}.json`, facts);
++    // AC 2/3: the user who saved and left is not asked about it again, and nothing invites a
++    // second record for the same work.
++    expect(facts.newAskedAfterReload ?? 0, 'after a reload, New asks again about the graphic that was saved').toBe(0);
++    expect(slot.graphicId, 'the working draft lost its link to the saved record').toBe(saved.id);
++  });
++}
++
++test('fourth: a refused topbar Save while the autosave is held reads Save failed, stays dirty, and Home asks', async ({ page }) => {
++  test.setTimeout(120_000);
++  await open(page); await draw(page, .22); await saveNamed(page, 'Fourth topbar refused');
++  const [record] = await library(page);
++  await install(page); await hold(page, 'spx-gfx-project');
++  await commandEdit(page); await ready(page);
++  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
++  await heldReady(page);
++  const edited = await source(page);
++  expect(((await state(page)).held[0].value as { template: unknown }).template).toEqual(edited);
++  await refuse(page, 'spx-gfx-graphics');
++  await page.getByTestId('save-graphic').click();
++  await expect.poll(async () => (await state(page)).refused).toEqual(['spx-gfx-graphics']);
++  await page.evaluate(() => new Promise(r => setTimeout(r, 100)));
++  await release(page);
++  await expect(page.getByTestId('save-status')).toHaveText('Save failed');
++  expect(await link(page)).toMatchObject({ graphicId: record.id, dirty: true, status: 'failed' });
++  expect((await library(page))[0].template).toEqual(record.template);
++  await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
++  await expect(page.getByTestId('home-page')).toHaveCount(0);
++  await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible();
++  expect((await library(page))[0].template).toEqual(edited);
++  out('topbar-refused-held-autosave.json', { saveFailedShown: true, dirtyKept: true, homeAsked: true, retryLanded: true, unclaimedErrors: (await state(page)).errors });
++});
++
++test("fourth: the editor's New door through a held first Save with an edit asks again, then opens a fresh wizard with one record", async ({ page }) => {
++  test.setTimeout(150_000);
++  await open(page); await draw(page, .3); await settleDurableWrites(page);
++  const requested = await source(page);
++  await page.getByTestId('editor-foundation').getByTestId('new-graphic').click();
++  await expect(page.getByTestId('confirm-switch')).toBeVisible(); await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
++  await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Fourth wizard');
++  await install(page); await hold(page, 'spx-gfx-graphics'); await page.getByTestId('save-confirm').click(); await heldReady(page);
++  const [minted] = (await state(page)).held[0].value as { id: string; template: unknown }[];
++  expect(minted.template).toEqual({ ...requested, name: 'Fourth wizard' });
++  await commandEdit(page); await ready(page);
++  const newer = await source(page);
++  await release(page);
++  await expect(page.getByTestId('confirm-switch')).toBeVisible(); await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
++  await expect(page.getByTestId('switch-save')).toHaveText('Save & continue');
++  await page.getByTestId('switch-save').click();
++  await expect(page.getByTestId('creation-wizard')).toBeVisible(); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
++  const kept = await library(page);
++  expect(kept).toHaveLength(1); expect(kept[0].id).toBe(minted.id); expect(kept[0].template).toEqual({ ...newer, name: 'Fourth wizard' });
++  out('wizard-door-held-first-save.json', { askedAgain: true, wizardOpened: true, records: kept.length });
++});
++
++test('fourth: Open saved graphics -> stale-save refusal -> Discard restores the record Save wrote and reopening asks nothing', async ({ page }) => {
++  test.setTimeout(120_000);
++  await open(page); await draw(page, .22); await saveNamed(page, 'Fourth open');
++  await draw(page, .5); await settleDurableWrites(page);
++  const requested = await source(page), [record] = await library(page);
++  await install(page); await hold(page, 'spx-gfx-graphics');
++  await page.getByTestId('save-menu').click(); await page.getByRole('menuitem', { name: 'Open saved graphics…', exact: true }).click();
++  await page.getByTestId('switch-save').click(); await heldReady(page);
++  await commandEdit(page); await ready(page);
++  await release(page);
++  await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toContainText('changed while saving');
++  await expect(page.getByTestId('home-page')).toHaveCount(0);
++  await page.getByTestId('switch-discard').click();
++  await expect(page).toHaveURL(/#\/home\/graphics$/); await expect(page.getByTestId('home-page')).toBeVisible();
++  expect(await source(page)).toEqual(requested);
++  const kept = await library(page); expect(kept).toHaveLength(1); expect(kept[0].template).toEqual(requested);
++  await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
++  expect(await source(page)).toEqual(requested);
++  await page.getByTestId('home-nav-graphics').click(); await page.locator('.lib-row', { hasText: 'Fourth open' }).getByTestId('open-graphic').click();
++  await page.getByTestId('control-open-editor').click(); await ready(page); expect(await source(page)).toEqual(requested);
++  await page.getByTestId('open-home').click(); await expect(page.getByTestId('home-page')).toBeVisible(); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
++  expect(record.id).toBe(kept[0].id);
++  out('open-stale-discard.json', { staleRefused: true, discardRestoredWritten: true, reopenNoQuestion: true });
++});
+diff --git a/e2e/leave-reference-fourth.spec.ts b/e2e/leave-reference-fourth.spec.ts
+new file mode 100644
+index 0000000..562a8d2
+--- /dev/null
++++ b/e2e/leave-reference-fourth.spec.ts
+@@ -0,0 +1,88 @@
++// covers: none - disposable fourth independent leave-editor check, reference executions; never land
++//
++// The two reference tasks closest to this check's new challenges: an edit accepted while a Save
++// is still waiting (Studio v0.17 at 3142fc7d, whose Save awaits a compatibility check and the
++// file writer), and a save write that storage refuses (Eyevinn 616841bd, which saves to
++// localStorage synchronously). The file writer and the storage refusal are this file's own stubs.
++import { test, expect } from '@playwright/test';
++import { spawn } from 'node:child_process';
++import { writeFileSync } from 'node:fs';
++
++test('Studio: an edit made while Save Project waits is not in the saved file, and New still asks', async ({ page }) => {
++  test.setTimeout(180_000);
++  const child = spawn(process.env.REFERENCE_EXE!, ['--port', '4398', '--workspace', process.cwd() + '/.noacg/leave-reference-4', '--no-open']);
++  try {
++    await expect.poll(async () => { try { return (await fetch('http://127.0.0.1:4398/health')).ok; } catch { return false; } }).toBe(true);
++    // A file picker whose writer holds close() until the check releases it.
++    await page.addInitScript(() => {
++      const w = window as unknown as { held: { written: string[]; release?: () => void } };
++      w.held = { written: [] };
++      Object.defineProperty(window, 'showSaveFilePicker', { value: async () => ({
++        createWritable: async () => ({
++          write: async (text: string) => { w.held.written.push(String(text)); },
++          close: () => new Promise<void>(resolve => { w.held.release = resolve; }),
++        }),
++      }) });
++    });
++    await page.goto('http://127.0.0.1:4398/');
++    await page.getByRole('button', { name: 'Add Text', exact: true }).click();
++    const content = page.locator('.inspector-row:has(> span:text-is("Content")) textarea');
++    await content.fill('Requested before save');
++    await page.getByRole('button', { name: 'Save Project', exact: true }).click();
++    await expect.poll(() => page.evaluate(() => typeof (window as unknown as { held: { release?: unknown } }).held.release)).toBe('function');
++    await content.fill('Newer during the save');
++    await page.evaluate(() => (window as unknown as { held: { release: () => void } }).held.release());
++    await expect(page.getByText('Project source saved', { exact: false })).toBeVisible();
++    const written = await page.evaluate(() => (window as unknown as { held: { written: string[] } }).held.written.join(''));
++    expect(written).toContain('Requested before save'); expect(written).not.toContain('Newer during the save');
++    let asked = '';
++    page.once('dialog', d => { asked = d.message(); void d.dismiss(); });
++    await page.getByRole('button', { name: 'New', exact: true }).click();
++    await expect.poll(() => asked).not.toBe('');
++    await expect(content).toHaveValue('Newer during the save');
++    await page.screenshot({ path: test.info().outputPath('studio-held-save.png') });
++    writeFileSync(test.info().outputPath('studio-held-save.json'), JSON.stringify({ pin: '3142fc7d', runtime: 'v0.17', savedFileHasRequested: true,
++      savedFileLacksNewer: true, newAsked: asked, newerKeptAfterCancel: true, dirtyTracking: 'none: New always asks' }, null, 2));
++  } finally { child.kill(); }
++});
++
++test('Eyevinn: a refused localStorage save is not shown to the user and the template is gone after reload', async ({ page }) => {
++  test.setTimeout(120_000);
++  const child = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4396', '--strictPort'], { cwd: process.cwd() + '/.noacg/reference-eyevinn' });
++  try {
++    await expect.poll(async () => { try { return (await fetch('http://127.0.0.1:4396/')).ok; } catch { return false; } }, { timeout: 20_000 }).toBe(true);
++    await page.goto('http://127.0.0.1:4396/');
++    const create = async (id: string) => {
++      await page.getByRole('button', { name: 'New Template', exact: true }).click();
++      await page.locator('#template-id').fill(id); await page.locator('#template-name').fill(id);
++      await page.locator('#template-type').selectOption('custom'); await page.getByRole('button', { name: 'Create', exact: true }).click();
++    };
++    await create('kept');
++    const items = page.locator('.template-item'); await expect(items).toHaveCount(1);
++    const errors: string[] = [];
++    page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
++    await page.evaluate(() => {
++      const w = window as unknown as { refusedEvents: number };
++      w.refusedEvents = 0; window.addEventListener('ograf-storage-error', () => { w.refusedEvents++; });
++      const set = Storage.prototype.setItem;
++      Storage.prototype.setItem = function(key: string, value: string) {
++        if (key === 'ograf-templates') { Storage.prototype.setItem = set; throw new DOMException('Reference refusal', 'QuotaExceededError'); }
++        return set.call(this, key, value);
++      };
++    });
++    await create('refused');
++    await expect(items).toHaveCount(2);
++    const shown = await page.getByText(/Failed to save|not be persisted|storage/i).count();
++    const toast = await page.getByText('Template "refused" created successfully').count();
++    const events = await page.evaluate(() => (window as unknown as { refusedEvents: number }).refusedEvents);
++    await page.screenshot({ path: test.info().outputPath('eyevinn-refused.png') });
++    await page.reload(); await expect(items.first()).toBeVisible();
++    const after = await items.evaluateAll(n => n.map(e => (e as HTMLElement).dataset.templateId));
++    writeFileSync(test.info().outputPath('eyevinn-refused.json'), JSON.stringify({ pin: '616841bd949e3a21137579451123f66c292543f0', refusedEvents: events,
++      visibleMessage: shown, successToast: toast, consoleErrors: errors.length, listedBeforeReload: 2, afterReload: after }, null, 2));
++    expect(events).toBe(1); expect(errors.length, 'the refusal is logged').toBe(1);
++    expect(shown, 'Eyevinn shows the refusal to the user').toBe(0);
++    expect(toast, 'Eyevinn reported the refused create as successful').toBe(1);
++    expect(after, 'the refused template survived a reload').toEqual(['kept']);
++  } finally { child.kill(); }
++});

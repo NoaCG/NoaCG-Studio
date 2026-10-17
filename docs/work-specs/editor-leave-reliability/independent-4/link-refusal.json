@@ -1,0 +1,81 @@
+{
+ "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016115244",
+ "probe": "claude/probe-editor-p2-check-4-ci 16e52beb (main 8e4358db + tests)",
+ "case": "e2e/leave-fourth-checker.spec.ts:298",
+ "injection": "one-shot QuotaExceededError on the first spx-gfx-project put after the Save's spx-gfx-graphics put",
+ "assertion": "after a reload, New asks again about the graphic that was saved: expected 0, received 1",
+ "variants": {
+  "first": {
+   "kind": "first",
+   "editorMounted": 0,
+   "homeMounted": 1,
+   "alert": 1,
+   "guardError": 0,
+   "link": {
+    "graphicId": "83b6a925-7964-4922-818d-30fe0489a293",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "records": 1,
+   "slot": {
+    "graphicId": "83b6a925-7964-4922-818d-30fe0489a293",
+    "dirty": true,
+    "template": "saved source"
+   },
+   "afterReloadLink": {
+    "graphicId": "83b6a925-7964-4922-818d-30fe0489a293",
+    "dirty": true,
+    "status": "idle"
+   },
+   "newAskedAfterReload": 1,
+   "refusedStack": [
+    "at IDBObjectStore.put (eval at evaluate (:303:30), <anonymous>:27:30)",
+    "at http://127.0.0.1:5174/src/model/durableStore.ts:337:16",
+    "at new Promise (<anonymous>)",
+    "at idbWrite (http://127.0.0.1:5174/src/model/durableStore.ts:325:9)",
+    "at queueWrite (http://127.0.0.1:5174/src/model/durableStore.ts:576:18)",
+    "at Object.setItem (http://127.0.0.1:5174/src/model/durableStore.ts:537:3)",
+    "at saveProject (http://127.0.0.1:5174/src/model/project.ts:43:11)",
+    "at persistLink (http://127.0.0.1:5174/src/store/saveActions.ts:32:2)",
+    "at saveGraphicAs (http://127.0.0.1:5174/src/store/saveActions.ts:175:2)"
+   ]
+  },
+  "linked": {
+   "kind": "linked",
+   "editorMounted": 0,
+   "homeMounted": 1,
+   "alert": 1,
+   "guardError": 0,
+   "link": {
+    "graphicId": "68563626-a83c-4cbd-b4eb-3cc2225f2808",
+    "dirty": true,
+    "status": "failed",
+    "formatIssues": []
+   },
+   "records": 1,
+   "slot": {
+    "graphicId": "68563626-a83c-4cbd-b4eb-3cc2225f2808",
+    "dirty": true,
+    "template": "saved source"
+   },
+   "afterReloadLink": {
+    "graphicId": "68563626-a83c-4cbd-b4eb-3cc2225f2808",
+    "dirty": true,
+    "status": "idle"
+   },
+   "newAskedAfterReload": 1,
+   "refusedStack": [
+    "at IDBObjectStore.put (eval at evaluate (:303:30), <anonymous>:27:30)",
+    "at http://127.0.0.1:5174/src/model/durableStore.ts:337:16",
+    "at new Promise (<anonymous>)",
+    "at idbWrite (http://127.0.0.1:5174/src/model/durableStore.ts:325:9)",
+    "at queueWrite (http://127.0.0.1:5174/src/model/durableStore.ts:576:18)",
+    "at Object.setItem (http://127.0.0.1:5174/src/model/durableStore.ts:537:3)",
+    "at saveProject (http://127.0.0.1:5174/src/model/project.ts:43:11)",
+    "at persistLink (http://127.0.0.1:5174/src/store/saveActions.ts:32:2)",
+    "at saveCurrentGraphic (http://127.0.0.1:5174/src/store/saveActions.ts:131:2)"
+   ]
+  }
+ }
+}

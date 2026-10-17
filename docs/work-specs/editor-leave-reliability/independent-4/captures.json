@@ -1,0 +1,380 @@
+[
+ {
+  "run": "CI 39016115244 fourth (16e52beb)",
+  "capture": "leave-fourth-checker-fourt-279c3-tted-retry-mints-one-record-chromium/refused-first-save.png",
+  "sha256": "41cf8a6a3a06ec3ae1dc8fde2136c351513a8082f117345b598da24a12f5d4ab",
+  "opened": true
+ },
+ {
+  "run": "CI 39016115244 fourth (16e52beb)",
+  "capture": "leave-fourth-checker-fourt-63ca0--exact-source-and-continues-chromium/other-write-refused.png",
+  "sha256": "2eba673e660afd8034d3e0b34f71374260f7c666d988326d649953760be9b38f",
+  "opened": true
+ },
+ {
+  "run": "CI 39016115244 fourth (16e52beb)",
+  "capture": "leave-fourth-checker-fourt-83ead-cel-stays-Back-again-leaves-chromium/back-after-first-save.png",
+  "sha256": "d0892c1acca540c217b1924653d060521749f34ecd026c0d40d7a7410671d38c",
+  "opened": true
+ },
+ {
+  "run": "CI 39016115244 fourth (16e52beb)",
+  "capture": "leave-fourth-checker-fourt-957e1-er-its-library-write-landed-chromium/link-refused-first.png",
+  "sha256": "0e469308caf3fa99b4b1167f7bacd55911e3888384eae3a1d248bc438a25618a",
+  "opened": false
+ },
+ {
+  "run": "CI 39016115244 fourth (16e52beb)",
+  "capture": "leave-fourth-checker-fourt-957e1-er-its-library-write-landed-chromium/test-failed-1.png",
+  "sha256": "c3e637b5e004b8ca3cbcbd15d1471e1a67a6918247c25b376b1db59d0946821d",
+  "opened": true
+ },
+ {
+  "run": "CI 39016115244 fourth (16e52beb)",
+  "capture": "leave-fourth-checker-fourt-fd4e1-er-its-library-write-landed-chromium/link-refused-linked.png",
+  "sha256": "52d251527a7910ee4ccdeac223e55385f375be4cdb7bbd8eb963fe8f56b7ae9f",
+  "opened": true
+ },
+ {
+  "run": "CI 39016115244 fourth (16e52beb)",
+  "capture": "leave-fourth-checker-fourt-fd4e1-er-its-library-write-landed-chromium/test-failed-1.png",
+  "sha256": "fde0eeb71512db3d975a2332d1e900e6afdc082f5d3fbff3a7c09fb2e35459f0",
+  "opened": false
+ },
+ {
+  "run": "CI 39016117794 references (16e52beb)",
+  "capture": "leave-reference-Eyevinn-sw-6bda3--confirms-explicit-deletion-chromium/eyevinn-kept.png",
+  "sha256": "05ec2e4f1c473a9a465bf24c805ba4b1a8e650bf3455d5f3c7b7390522d61e7f",
+  "opened": false
+ },
+ {
+  "run": "CI 39016117794 references (16e52beb)",
+  "capture": "leave-reference-Studio-can-9b0b6-New-and-reopen-saved-source-chromium/studio-reopened.png",
+  "sha256": "d9501c35300d2043864d97b1b7c90c9d9facb9ce38a5aba69424e9cf5170baa6",
+  "opened": true
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-checker-nested-f42c4-esture-and-rename-ownership-chromium/nested-copy.png",
+  "sha256": "6eaae7f00b3dac26ed5bc64f356a01ffcf2a0f8e4ffda8006237c8471e42e70c",
+  "opened": false
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/actual-125-leave-dialog.png",
+  "sha256": "7e23f52b1ec0d2e8beda88eefb3ca17f006c2d2637483ed3e586eae98112cd72",
+  "opened": true
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/actual-125.png",
+  "sha256": "52d61af19b8dea24d17a31d4e41e3951d5b12c62a55d2144b1f08e6498be6728",
+  "opened": false
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/native-125.png",
+  "sha256": "33912dd68141d84bf643e260d5174edcf219bb521f70f937d548d9374dab917b",
+  "opened": true
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-probe-task-phase-cumulative-task-1366-chromium/laptop-leave-dialog.png",
+  "sha256": "aefae24a2feff9763f8da8992d1a356e75b41162f7756486976cbf992aea62f1",
+  "opened": false
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-probe-task-phase-cumulative-task-1366-chromium/laptop.png",
+  "sha256": "dcb6da0e924e08f03c5eb46db028ea686c463c251db09392d482519d8e9aa007",
+  "opened": true
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-probe-task-phase-cumulative-task-1920-chromium/desktop-leave-dialog.png",
+  "sha256": "04c7da6df528f284a8e59d2ef155f33da80a67027607dd98a607ac56b7a17ea2",
+  "opened": false
+ },
+ {
+  "run": "CI 39016119294 visual (16e52beb)",
+  "capture": "interaction-probe-task-phase-cumulative-task-1920-chromium/desktop.png",
+  "sha256": "1a50af4a750da5cf1f7f061e0313356664e6b767da0209c527dc493a772ea502",
+  "opened": true
+ },
+ {
+  "run": "CI 39016120901 signed-in localhost (16e52beb)",
+  "capture": "leave-probe-signed-in-loca-55f75--discard-revisions-distinct-configured/account-leave.png",
+  "sha256": "de872fd50ec9b9010367336dae7f3272022a0598b4f83157db9f9057796af4cb",
+  "opened": true
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-279c3-tted-retry-mints-one-record-chromium/refused-first-save.png",
+  "sha256": "11d5cd852a73e1790157b82c0ee965e89ae7928190f7731cf1cd41583d50a95b",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-3bf14--it-Save-continue-writes-it-chromium/test-failed-1.png",
+  "sha256": "9b5862f1fb6acaa8e6568042da14dbe586eead8e17ef2c309e52a3f390352f36",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-54e2c--copy-unsaved-and-Home-asks-chromium/test-failed-1.png",
+  "sha256": "3c7e927f22c1ccb45d079c46199a306653b624f57684d09e3630ecd34f26bef3",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-56979--and-reopening-asks-nothing-chromium/test-failed-1.png",
+  "sha256": "ce3a7a19c6517421f2c187f802963a5b570dbce04b8c6d5ec25fdf8be5a0a1f1",
+  "opened": true
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-63ca0--exact-source-and-continues-chromium/other-write-refused.png",
+  "sha256": "00942c763520513c6bd17d0f3e3f536b7e3a9b06691cfc40299f2aad56f716ed",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-83ead-cel-stays-Back-again-leaves-chromium/test-failed-1.png",
+  "sha256": "b116da6dba8b27a312290207d3239a059b2386f3f76a36af25ac0fc888fca491",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-957e1-er-its-library-write-landed-chromium/link-refused-first.png",
+  "sha256": "0e469308caf3fa99b4b1167f7bacd55911e3888384eae3a1d248bc438a25618a",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-957e1-er-its-library-write-landed-chromium/test-failed-1.png",
+  "sha256": "c3e637b5e004b8ca3cbcbd15d1471e1a67a6918247c25b376b1db59d0946821d",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-bb61c-resh-wizard-with-one-record-chromium/test-failed-1.png",
+  "sha256": "0e7a42d44b29fd8498fabaebdd40e30a2fd2ecba45620f75dcd2e0c6f47a9a27",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-fd4e1-er-its-library-write-landed-chromium/link-refused-linked.png",
+  "sha256": "52d251527a7910ee4ccdeac223e55385f375be4cdb7bbd8eb963fe8f56b7ae9f",
+  "opened": false
+ },
+ {
+  "run": "CI 39016182350 mutation M1 (bc9a2d11)",
+  "capture": "leave-fourth-checker-fourt-fd4e1-er-its-library-write-landed-chromium/test-failed-1.png",
+  "sha256": "fde0eeb71512db3d975a2332d1e900e6afdc082f5d3fbff3a7c09fb2e35459f0",
+  "opened": false
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-279c3-tted-retry-mints-one-record-chromium/refused-first-save.png",
+  "sha256": "dfcbfa98cf105a0c4e53e651c4eef441bfbe9e911746eecd762af180c4b8ba82",
+  "opened": false
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-63ca0--exact-source-and-continues-chromium/other-write-refused.png",
+  "sha256": "a5b108c288e7a0e0114fb705c7e317815544619e4ac1dbc4593ff0590d7bc5c3",
+  "opened": false
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-6957e-d-stays-dirty-and-Home-asks-chromium/test-failed-1.png",
+  "sha256": "0ff7f0a948df2797f3821056179a6845e6506b215e8725e42d6b82489ab3aad5",
+  "opened": true
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-83ead-cel-stays-Back-again-leaves-chromium/back-after-first-save.png",
+  "sha256": "d0892c1acca540c217b1924653d060521749f34ecd026c0d40d7a7410671d38c",
+  "opened": false
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-957e1-er-its-library-write-landed-chromium/link-refused-first.png",
+  "sha256": "0e469308caf3fa99b4b1167f7bacd55911e3888384eae3a1d248bc438a25618a",
+  "opened": false
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-957e1-er-its-library-write-landed-chromium/test-failed-1.png",
+  "sha256": "c3e637b5e004b8ca3cbcbd15d1471e1a67a6918247c25b376b1db59d0946821d",
+  "opened": false
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-fd4e1-er-its-library-write-landed-chromium/link-refused-linked.png",
+  "sha256": "9e1b17931125d473f3bfb7241de1c36f78ece88a53f9776fb2fd308266a3b1e8",
+  "opened": false
+ },
+ {
+  "run": "CI 39016183758 mutation M2 (f7bd13b2)",
+  "capture": "leave-fourth-checker-fourt-fd4e1-er-its-library-write-landed-chromium/test-failed-1.png",
+  "sha256": "fde0eeb71512db3d975a2332d1e900e6afdc082f5d3fbff3a7c09fb2e35459f0",
+  "opened": false
+ },
+ {
+  "run": "CI 39016426816 references with added tasks (63f492ee)",
+  "capture": "leave-reference-Eyevinn-sw-6bda3--confirms-explicit-deletion-chromium/eyevinn-kept.png",
+  "sha256": "05ec2e4f1c473a9a465bf24c805ba4b1a8e650bf3455d5f3c7b7390522d61e7f",
+  "opened": false
+ },
+ {
+  "run": "CI 39016426816 references with added tasks (63f492ee)",
+  "capture": "leave-reference-Studio-can-9b0b6-New-and-reopen-saved-source-chromium/studio-reopened.png",
+  "sha256": "d9501c35300d2043864d97b1b7c90c9d9facb9ce38a5aba69424e9cf5170baa6",
+  "opened": false
+ },
+ {
+  "run": "CI 39016426816 references with added tasks (63f492ee)",
+  "capture": "leave-reference-fourth-Eye-5afe0-mplate-is-gone-after-reload-chromium/eyevinn-refused.png",
+  "sha256": "b6bad31086c7d1fc72fdef366d611fd04a2360c3dd4623d4be8c707902ae8423",
+  "opened": true
+ },
+ {
+  "run": "CI 39016426816 references with added tasks (63f492ee)",
+  "capture": "leave-reference-fourth-Stu-cd134-ved-file-and-New-still-asks-chromium/studio-held-save.png",
+  "sha256": "c19154454448f1805db48620b8b73f549a5f2b595a6b227438bc9146c91c6627",
+  "opened": true
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-canvas-short-height-29a2d-and-phone-keep-their-panels-chromium/desktop.png",
+  "sha256": "471d3e57e41e03983b5ecd37a02d301a3f5ba0b0d71f55b0f731da0658db6a08",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-canvas-short-height-29a2d-and-phone-keep-their-panels-chromium/laptop.png",
+  "sha256": "f78cfec8971398c4cef15759283eeb4bacb4913e728fdd6996d9444dc0a3d711",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-canvas-short-height-29a2d-and-phone-keep-their-panels-chromium/phone.png",
+  "sha256": "e15e1558760d7e0d0bed9717bb7d1dc8c7f3e51ac1ded42020623da9fb9f0a40",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-canvas-short-height-29a2d-and-phone-keep-their-panels-chromium/short-minimum.png",
+  "sha256": "7c122acaa9ff2d4388b68c8aa549cd93f896c0dd379ea37613876c669367df00",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-canvas-short-height-29a2d-and-phone-keep-their-panels-chromium/short.png",
+  "sha256": "6ff9722773b6e3445788f8c2a4192809042be554e890d8d935daecac91e0f478",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-canvas-short-height-e92ac-nd-retains-group-navigation-chromium/group.png",
+  "sha256": "e9bb9fc45eacd02ff729eddfcbb9c9d189e847cf3ec6e29331630b7e6ed94551",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-cli-round-trip-agen-b7b23-isual-round-trip-laptop-125-chromium/laptop-125.png",
+  "sha256": "3d5db1790ca2bc9aeb9adba0fd2982ea0b5b3749c5fa659a2a6aaefeba1e96d0",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-cli-round-trip-agen-dca59-e-visual-round-trip-desktop-chromium/desktop.png",
+  "sha256": "27269e6559466a5c2a3ea51593e648827f2f82e5ad3b93724fa8290c8a9f3eb6",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-cli-round-trip-agent-package-visual-round-trip-laptop-chromium/laptop.png",
+  "sha256": "b606ed9c1bf95696b86f415e9b789ef4580454d0adecbfce4e7f192c5dd049cd",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-cli-round-trip-inde-aee2e-fter-visual-edit-and-reopen-chromium/independent-scoreboard.png",
+  "sha256": "93d43fad968c3ee3a743541db73026c0572fa5fb1d172e1fed44660b934d2f38",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-layer-property-qual-13516-modifiers-and-armed-routing-chromium/properties.png",
+  "sha256": "ad92e9b690c56eaee2378d3237837c0c953501c3a7b0f2bca5fa4bd2fee83991",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-layer-property-qual-13516-modifiers-and-armed-routing-chromium/scrub-preview.png",
+  "sha256": "272050ae935f253a3f903090756a6f999382738f07555b047d82fbf98953a913",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-layer-property-qual-bb4cf-rename-eye-and-history-1920-chromium/layers-1920.png",
+  "sha256": "285198cdffe11e22e99c2b14831df77ba652764da8b96d02992d4c50071ba3fb",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-layer-property-qual-cc523-rename-eye-and-history-1366-chromium/layers-1366.png",
+  "sha256": "10e7ec7b85aa8104819fb9617513ebb2cca5239026cf0d052562c4bf42a42135",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-transform-qualifica-383c1--and-rotation-reopen-laptop-chromium/laptop.png",
+  "sha256": "54e76ab93357bd8def9b8724504df6247e27e17c4ad560106edb1b8f8b898d19",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-transform-qualifica-5aa3f--rotation-reopen-zoom-proxy-chromium/zoom-proxy.png",
+  "sha256": "9dd431daf3343bc6715c5d2113436d314ff257f9d97bde9407ba1ce3e1120280",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "editor-transform-qualifica-789a0-and-rotation-reopen-desktop-chromium/desktop.png",
+  "sha256": "912a942690c6863d3dbfe797c19ab30ea6d46a0d11e943b01423d8325cbe0bb4",
+  "opened": false
+ },
+ {
+  "run": "CI 39016116396 maintained (16e52beb)",
+  "capture": "new-graphic-guard-second-c-87e70-e-already-requested-discard-chromium/autosave-newer-edit.png",
+  "sha256": "399d29d6d8e021087416b8a589208c86ffc6bcd839b976ba3f4fd3940d6636da",
+  "opened": true
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-Eyevinn-sw-6bda3--confirms-explicit-deletion-chromium/eyevinn-kept.png",
+  "sha256": "05ec2e4f1c473a9a465bf24c805ba4b1a8e650bf3455d5f3c7b7390522d61e7f",
+  "opened": false
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-Studio-can-9b0b6-New-and-reopen-saved-source-chromium/studio-reopened.png",
+  "sha256": "d9501c35300d2043864d97b1b7c90c9d9facb9ce38a5aba69424e9cf5170baa6",
+  "opened": false
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-fourth-Eye-5afe0-mplate-is-gone-after-reload-chromium/eyevinn-refused.png",
+  "sha256": "b6bad31086c7d1fc72fdef366d611fd04a2360c3dd4623d4be8c707902ae8423",
+  "opened": false
+ },
+ {
+  "run": "CI 39017238181 references, asserted (82150a57)",
+  "capture": "leave-reference-fourth-Stu-cd134-ved-file-and-New-still-asks-chromium/studio-held-save.png",
+  "sha256": "c19154454448f1805db48620b8b73f549a5f2b595a6b227438bc9146c91c6627",
+  "opened": false
+ }
+]
