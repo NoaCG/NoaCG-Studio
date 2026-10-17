@@ -65,7 +65,8 @@
 //                                                    later phase builds unless it PASSED.
 //   node scripts/harness-bench.mjs --judge <runDir> [--phase <H#>] [--delivered-only] [--concurrency <1-4>] [--briefs id,..]
 //                                                    SUBSCRIPTION. The frozen judge on a run's cells;
-//                                                    for L1 and L2 the ladder's judge, singles only (D8).
+//                                                    for L1 and L2 the ladder's judge, singles only,
+//                                                    three readings a graphic (D8 as amended).
 //   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>]
 //                                                    FREE. 4.4's numbers and 4.5's verdict for an exam
 //                                                    run; for an L1 or L2 run, its rung's figures, D5's
@@ -98,7 +99,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, holdFor, HOLD_KINDS, isLadder, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, setHold, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
-import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
+import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, SINGLE_READINGS, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
@@ -688,8 +689,10 @@ async function build(phase) {
  * exam: a graphic not handed in as ready is not one a pair weighs, phase-8.md); `concurrency`
  * judgements run at once.
  */
-export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), judge: given = null, singlesOnly = false, phase = null, claude, env, run, log = console.log, deliveredOnly = false, concurrency = 1, briefs = null }) {
-  // `judge` names another frozen judge than the exam's (the ladder's, D8); `singlesOnly` judges no pair.
+export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), judge: given = null, singlesOnly = false, readings = 1, phase = null, claude, env, run, log = console.log, deliveredOnly = false, concurrency = 1, briefs = null }) {
+  // `judge` names another frozen judge than the exam's (the ladder's, D8); `singlesOnly` judges no
+  // pair; `readings` asks each single until the cell has that many answers from this judge (D8 as
+  // amended: three for the ladder), each reading in its own folder.
   const judge = given ?? loadJudge(judgeDir);
   if (!judge.frozen) throw new Error(`the exam judges only with a frozen judge: ${judge.reason}`);
   const cellsDir = path.join(runDir, 'cells');
@@ -698,7 +701,9 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
     .map((d) => ({ id: d, dir: path.join(cellsDir, d), cell: JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8')), brief: JSON.parse(readFileSync(path.join(cellsDir, d, 'brief.json'), 'utf8')) }))
     .filter((c) => (!deliveredOnly || c.cell.outcome === 'delivered') && (!briefs || briefs.includes(c.cell.brief)));
   const out = path.join(runDir, 'judgements.jsonl');
-  const seen = new Set((existsSync(out) ? readFileSync(out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []).filter((r) => r.judge === judge.fingerprint && !r.error).map((r) => `${r.task}:${r.id}`));
+  const answered = (existsSync(out) ? readFileSync(out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []).filter((r) => r.judge === judge.fingerprint && !r.error);
+  const seen = new Set(answered.map((r) => `${r.task}:${r.id}`));
+  const singlesOf = (id) => answered.filter((r) => r.task === 'single' && r.id === id).length;
   const record = (r) => writeFileSync(out, `${JSON.stringify({ judge: judge.fingerprint, at: new Date().toISOString(), ...r })}\n`, { flag: 'a' });
   const once = async (key, go) => {
     if (seen.has(key)) return;
@@ -718,13 +723,15 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
   };
   const graphic = (c) => ({ id: c.id, frames: coverageFrames(path.join(c.dir, 'frames')), operator: c.cell.operator?.buttons ?? [] });
   // Every judgement as a task, singles first, then pairs; `concurrency` of them at once.
-  const tasks = cells.map((c) => async () => {
-    const r = await once(`single:${c.id}`, () => judgeSingle(judge, { brief: c.brief.prompt, frames: graphic(c).frames, operator: graphic(c).operator, actions: c.brief.expect?.actions ?? [], dir: path.join(runDir, 'judge', 'single', c.id), claude, env, run }));
+  const toAsk = (have) => Array.from({ length: Math.max(0, readings - have) }, (_, i) => have + i + 1);
+  const tasks = cells.flatMap((c) => toAsk(singlesOf(c.id)).map((reading) => async () => {
+    const dir = path.join(runDir, 'judge', 'single', reading === 1 ? c.id : `${c.id}.reading-${reading}`);
+    const r = await once(`single:${c.id}#${reading}`, () => judgeSingle(judge, { brief: c.brief.prompt, frames: graphic(c).frames, operator: graphic(c).operator, actions: c.brief.expect?.actions ?? [], dir, claude, env, run }));
     if (r) {
-      record({ task: 'single', id: c.id, brief: c.cell.brief, ...r });
-      log(`  single   ${c.id.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `airable ${r.answer.airable}`}`);
+      record({ task: 'single', id: c.id, brief: c.cell.brief, ...(readings > 1 ? { reading } : {}), ...r });
+      log(`  single   ${`${c.id}${readings > 1 ? ` #${reading}` : ''}`.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `airable ${r.answer.airable}`}`);
     }
-  });
+  }));
   const byBrief = new Map();
   for (const c of cells) byBrief.set(c.cell.brief, [...(byBrief.get(c.cell.brief) ?? []), c]);
   for (const [brief, list] of singlesOnly ? [] : byBrief) {
@@ -865,7 +872,7 @@ if (isMain) {
     // The ladder and its teaching rounds are judged in singles by the ladder's judge (D8); the exam
     // phases by the exam's frozen judge, in singles and pairs.
     const ladderRound = LADDER_JUDGED.includes(phase);
-    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, ...(ladderRound ? { judge: orFail(() => ladderJudge(ROOT)), singlesOnly: true } : {}), claude, env, deliveredOnly: has('delivered-only'), concurrency, briefs: list('briefs').length ? list('briefs') : null }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, ...(ladderRound ? { judge: orFail(() => ladderJudge(ROOT)), singlesOnly: true, readings: SINGLE_READINGS.count } : {}), claude, env, deliveredOnly: has('delivered-only'), concurrency, briefs: list('briefs').length ? list('briefs') : null }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
     console.log(`Judged with ${r.judge.model} (${r.judge.fingerprint.slice(0, 12)}): ${r.file}`);
   } else if (has('tally')) {
     // 4.4's numbers and 4.5's verdict for an exam run, as phase-8.md fixed the counting.
@@ -888,6 +895,7 @@ if (isMain) {
       console.log(rungMarkdown(path.basename(runDir), tally));
       const toRead = tally.rows.filter((r) => r.flagsToRead.length).map((r) => `${r.brief} (${r.flagsToRead.join(', ')})`);
       if (toRead.length) console.log(`\nGate flags the judge's single did not name, to read against the operator surface (phase-8.md): ${toRead.join('; ')}`);
+      if (tally.all.unjudged.length) console.log(`\nNot judged yet (fewer than ${SINGLE_READINGS.count} readings; --judge asks the rest): ${tally.all.unjudged.join(', ')}`);
       console.log(`\n${path.join(runDir, 'tally.json')}`);
     } else {
       // The gate's flags read against the operator surface (3.5, phase-8.md), when the run has them.

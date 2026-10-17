@@ -32,13 +32,13 @@ import { readAgentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harn
 import { findTranscript, handInLine, ladderPrompt, subscriptionArm } from '../benchmarks/harness/lib/arms.mjs';
 import { examBriefs } from '../benchmarks/harness/lib/exam.mjs';
 import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, sealCommittedAt, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
+import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, sealCommittedAt, SINGLE_READINGS, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
 import { admit, appendEntry, emptyLedger, heldCents, LEDGER_FILE, readLedger, remainingCents, setHold, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readHash, readSealed, sealedShape, sha256 } from '../benchmarks/harness/lib/sealed.mjs';
 import { framesOpened, readsOf, transcriptReads, transcriptUsd } from '../benchmarks/harness/lib/trace.mjs';
 import { sameFiles, secondLock } from '../benchmarks/harness/judge/calibration.mjs';
-import { pendingCells, recordHold, refuseBuild } from './harness-bench.mjs';
+import { judgeRun, pendingCells, recordHold, refuseBuild } from './harness-bench.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const made = [];
@@ -435,7 +435,9 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
   const cell = (brief, o = {}) => ({ brief, arm, outcome: 'delivered', validation: { ok: true, errors: [] }, shape: { ok: true }, operator: { missing: [] }, notionalUsd: 0.5, wallSeconds: 400, look: { reviewed: 10, opened: 10, unopened: [], all: true, fixed: 0 }, ...o });
   const single = (brief, answer = {}) => ({ judge: 'fp', task: 'single', id: `${brief}.claude-haiku-5-5-high`, brief, answer: { airable: true, basicMistakes: [], missingActions: [], ...answer } });
   const eight = RUNG_ORDER.map((b) => cell(b));
-  const goodSingles = RUNG_ORDER.map((b) => single(b));
+  // D8 as amended: three readings a graphic.
+  const thrice = (j) => [j, j, j];
+  const goodSingles = RUNG_ORDER.flatMap((b) => thrice(single(b)));
 
   const match = tallyRung({ cells: eight, judgements: goodSingles, fingerprint: 'fp' });
   assert.equal(match.verdict, 'MATCH');
@@ -449,7 +451,7 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
 
   // Three not usable end the rung: a not-airable single, a basic mistake (both rubber-stamped), a not-ready session.
   const [b0, b1, b2, b3] = RUNG_ORDER;
-  const bad = [single(b0, { airable: false }), single(b1, { basicMistakes: [{ kind: 'text-overlap' }] }), ...goodSingles.slice(2)];
+  const bad = [...thrice(single(b0, { airable: false })), ...thrice(single(b1, { basicMistakes: [{ kind: 'text-overlap' }] })), ...goodSingles.slice(6)];
   const out = tallyRung({ cells: [cell(b0), cell(b1), cell(b2, { outcome: 'not-ready', look: null }), cell(b3)], judgements: bad, fingerprint: 'fp' });
   assert.equal(out.verdict, 'screened out');
   assert.equal(out.screen.endsAt, 'not usable');
@@ -459,7 +461,7 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
 
   // The cost line: two usable of four at $4.40 notional is $2.20 a usable, over $2.00.
   const dear = [b0, b1, b2, b3].map((b) => cell(b, { notionalUsd: 1.1 }));
-  const costly = tallyRung({ cells: dear, judgements: [single(b0, { airable: false }), single(b1, { airable: false }), ...goodSingles.slice(2)], fingerprint: 'fp' });
+  const costly = tallyRung({ cells: dear, judgements: [...thrice(single(b0, { airable: false })), ...thrice(single(b1, { airable: false })), ...goodSingles.slice(6)], fingerprint: 'fp' });
   assert.equal(costly.screen.endsAt, 'cost');
   assert.equal(costly.screen.usdPerUsable, 2.2);
 
@@ -474,4 +476,53 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
   const read = tallyRung({ cells: flagged, judgements: goodSingles, fingerprint: 'fp', readings: { [`${RUNG_ORDER[5]}.${arm}`]: { undoPoint: 'undoA/undoB' } } });
   assert.equal(read.all.usable, 8);
   assert.deepEqual([...RUNG_ORDER].sort(), [...LADDER_SET].sort(), 'the rung order is the ladder set');
+});
+
+test('the ladder judge reads each graphic three times: usable on two passing readings, and the tally says how often it agreed (D8 as amended)', () => {
+  const [b0, b1, b2, b3] = RUNG_ORDER;
+  const cell = (brief) => ({ brief, arm: 'subscription', outcome: 'delivered', validation: { ok: true, errors: [] }, shape: { ok: true }, operator: { missing: [] }, notionalUsd: 0.5, wallSeconds: 400, look: { reviewed: 10, opened: 10, unopened: [], all: true, fixed: 0 } });
+  const single = (brief, answer = {}) => ({ judge: 'fp', task: 'single', id: `${brief}.claude-sonnet-5-5-medium`, brief, answer: { airable: true, basicMistakes: [], missingActions: [], ...answer } });
+  const no = (brief) => single(brief, { airable: false });
+  const mistake = (brief) => single(brief, { basicMistakes: [{ kind: 'unreadable-contrast' }, { kind: 'missing-action' }] });
+  const cells = [b0, b1, b2, b3].map(cell);
+  const judgements = [single(b0), single(b0), single(b0), no(b1), single(b1), single(b1), single(b2), mistake(b2), no(b2), no(b3), no(b3), no(b3)];
+  const t = tallyRung({ cells, judgements, fingerprint: 'fp' });
+  assert.deepEqual(t.rows.slice(0, 4).map((r) => [r.usable, r.agreement]), [[true, '3/3'], [true, '2/3'], [false, '2/3'], [false, '3/3']]);
+  assert.deepEqual(t.rows[2].judgeReadings.map((j) => j.passes), [true, false, false], 'a basic mistake fails a reading; a missing action alone does not');
+  assert.deepEqual(t.rows[2].defects.map((d) => d.kind), ['unreadable-contrast'], 'the graphic stands on a reading of its majority');
+  assert.deepEqual(t.screen.agreement, { unanimous: 2, judged: 4 });
+  assert.match(rungMarkdown('sonnet-medium', t), /the judge unanimous on 2 of 4 judged/);
+  assert.ok(rungMarkdown('sonnet-medium', t).includes(`| ${b2} | delivered | pass, mistake, not airable | 2/3 |`));
+
+  // Fewer than three readings decide nothing; a fourth is not counted.
+  const two = tallyRung({ cells, judgements: judgements.filter((j, i) => i !== 11), fingerprint: 'fp' });
+  assert.deepEqual([two.rows[3].judged, two.screen.unjudged, two.verdict], [false, [b3], 'incomplete']);
+  const four = tallyRung({ cells, judgements: [...judgements, single(b3)], fingerprint: 'fp' });
+  assert.equal(four.rows[3].agreement, '3/3');
+  // The revert: one reading, the first.
+  const once = tallyRung({ cells, judgements, fingerprint: 'fp', repeat: { count: 1, usableMin: 1 } });
+  assert.deepEqual(once.rows.slice(0, 4).map((r) => r.usable), [true, false, true, false]);
+  assert.equal(SINGLE_READINGS.count, 3);
+});
+
+test('a ladder judge run asks each graphic until it has its readings, each in its own folder', async () => {
+  const runDir = mkdtempSync(path.join(os.tmpdir(), 'ladder-readings-'));
+  const dir = path.join(runDir, 'cells', 'x.claude-sonnet-5-5-medium');
+  mkdirSync(path.join(dir, 'frames'), { recursive: true });
+  writeFileSync(path.join(dir, 'frames', 'coverage.json'), JSON.stringify({ frames: [{ file: 'a.png', state: 'take', values: 'sample', ground: 'video' }], crops: [] }));
+  writeFileSync(path.join(dir, 'frames', 'a.png'), 'png');
+  writeFileSync(path.join(dir, 'cell.json'), JSON.stringify({ brief: 'x', arm: 'subscription', outcome: 'delivered', operator: { buttons: [] } }));
+  writeFileSync(path.join(dir, 'brief.json'), JSON.stringify({ id: 'x', prompt: 'p', expect: { actions: [] } }));
+  const judge = ladderJudge(ROOT);
+  // The first reading is already there (as L1's were), and one by another judge does not count.
+  writeFileSync(path.join(runDir, 'judgements.jsonl'), [{ judge: judge.fingerprint, task: 'single', id: 'x.claude-sonnet-5-5-medium', brief: 'x', answer: { airable: true } }, { judge: 'other', task: 'single', id: 'x.claude-sonnet-5-5-medium', brief: 'x', answer: { airable: true } }].map((j) => `${JSON.stringify(j)}\n`).join(''));
+  const run = () => ({ status: 0, stdout: JSON.stringify({ session_id: 's', is_error: false, result: '', total_cost_usd: 0.1, structured_output: { airable: false, basicMistakes: [], missingActions: [] }, modelUsage: { [judge.lock.model]: {} } }), stderr: '' });
+  await judgeRun({ runDir, judge, singlesOnly: true, readings: 3, claude: 'claude', env: {}, run, log: () => undefined });
+  const lines = readFileSync(path.join(runDir, 'judgements.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(lines.slice(2).map((l) => l.reading).sort(), [2, 3]);
+  assert.ok(existsSync(path.join(runDir, 'judge', 'single', 'x.claude-sonnet-5-5-medium.reading-2', 'prompt.md')));
+  assert.ok(existsSync(path.join(runDir, 'judge', 'single', 'x.claude-sonnet-5-5-medium.reading-3', 'prompt.md')));
+  // Asked again, it has its three and asks nothing.
+  await judgeRun({ runDir, judge, singlesOnly: true, readings: 3, claude: 'claude', env: {}, run: () => assert.fail('no fourth reading'), log: () => undefined });
+  rmSync(runDir, { recursive: true, force: true });
 });

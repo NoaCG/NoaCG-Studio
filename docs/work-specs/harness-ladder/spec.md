@@ -114,6 +114,16 @@ configuration; a miss reports the cost and quality of each rung tried, which is 
   so Fable's weekly cap is kept for the exam; if it fails, the ladder uses Fable and waits for its
   resets. Every judge call is on the subscription; a capped judge waits, it never moves to the
   credit. Revert: Fable for the ladder too, or both pair orders in the exam (60 calls).
+  **Amended 2026-10-17, after L1's check (ladder and teaching only; the exam's Fable judging is
+  unchanged):** the frozen Opus ladder judge judges each delivered ladder or teaching graphic as a
+  single three times. A graphic is usable when at least 2 of its 3 readings are airable with no
+  basic visible mistake, and it has no missing operator action under H8's counting (the gate's
+  flags after the readings of the operator surface). A graphic with fewer than three readings is
+  not yet judged. Every tally reports each graphic's agreement (3/3 or 2/3) and the judge's
+  repeatability (the share of graphics at 3/3). Why: L1's check re-asked two singles and both
+  flipped, and D7's choice of the rung to teach sits on the 4-of-8 line. Revert: one reading per
+  graphic (`SINGLE_READINGS` in `lib/ladder.mjs` back to one of one), with the first reading of
+  each graphic as its single.
 - **D9. Money, fixed in L0 before any credit is spent:** the exam reserve $30.00 and the
   confirmation ceiling $8.00 held in the ledger; $7.32 stays unallocated. The exam's session budget
   `B = min(round-up(1.5 m), 130 cents)` from the winner's confirmed mean `m` on Managed Agents,
@@ -233,6 +243,67 @@ The owner starts it with `/plan-run harness-ladder until <time>`.
 Each phase's pull request adds its notes here, newest first: the last check's findings, what the
 next phase must allow for, decisions, traps, spend, shas and the revert.
 
+### L1 repair: the judge's repeatability (built 2026-10-17)
+
+- **Check's findings (L1's check, FAIL on `bd60100a3`):** the frozen Opus ladder judge did not
+  reproduce either of two re-asked Sonnet `medium` singles: `school-quiz-secret-pick` went airable
+  to not airable (three empty-or-broken mistakes: after Select nothing changes, after Lock then
+  Reveal choice all four tiles stay faded; the capture never runs Select before Reveal choice, a
+  borderline action reading); `hockey-club-match-board` went not airable (crest contrast) to
+  airable (the white crest on its near-white disc is faint, borderline). Net still 4 of 8, but D7's
+  choice of the rung to teach sits on the 4-of-8 line and L2 measures what moved by single
+  answers. Everything else held (pre-registration, screen, match and D7 application, tallies,
+  traces, ledger, seal-order repair, no private content).
+- **Status: AC-4's ladder half and AC-8 hold, on three readings.** D8 amended (ladder and teaching
+  only) and pushed as `850cdcff9` at 15:16:29Z, before the first new answer at 15:21:47Z. Every
+  one of the 21 delivered L1 graphics now has three readings by the same lock (`9fa9d7e3ac9b`); the
+  check's two re-asks were not recorded under the lock in the run's files, so 42 fresh ones were
+  asked. Every rung's `tally.json` reproduces with `--tally` from the committed files
+  (`benchmarks/harness/ladder/evidence/phase-L1.md`, "The judge's repeatability").
+
+  | rung | verdict | usable | notional per usable | judge agreement (3/3 of judged) | qualifies for L2 (D7) |
+  |---|---|---|---|---|---|
+  | Haiku 5.5 `high` | screened out: not usable | 1 of 4 | $2.13 | 3 of 3 | no |
+  | Sonnet 5.5 `medium` | no match | **3 of 8** (was 4) | **$3.65** (was $2.74) | 6 of 8 | **no** (was yes) |
+  | Sonnet 5.5 `high` | screened out: cost | 2 of 4 | $3.75 | 4 of 4 | **yes, taught** |
+  | Opus 5.5 `low` | screened out: cost | 2 of 4 | $3.30 | 3 of 3 | yes |
+  | Opus 5.5 `medium` | screened out: cost | 2 of 4 | $5.49 | 3 of 3 | yes |
+
+  **Repeatability: 19 of 21 graphics (90%) at 3/3.** The two at 2/3 are the two the check re-asked;
+  the quiz is now not usable (pass, not airable, not airable), the hockey board stays not usable.
+  No winner, as before. **L2's rung changed: Sonnet 5.5 `high`, not `medium`.**
+- **What L2 must allow for:**
+  - **Taught is Sonnet 5.5 `high`** (2 of its first 4, the next rung in D5's order). By measured
+    notional Opus `low` was cheaper ($1.65 a session against $1.88; $3.30 per usable against
+    $3.75), but D7 reads D5's order. The L1 notes' failure analysis (empty sample state, actions
+    that change nothing, design calls the look does not make, rubber stamps) still holds; Sonnet
+    `high` opened every frame it reviewed, so its failures are the design calls, not the look.
+    Sonnet `high` ran only the screen's four: L2's first round needs its baseline on the other
+    four ladder briefs and on the 16 tuning briefs before its change.
+  - `--judge` on an L1 or L2 run now asks each delivered graphic until it has three readings (a
+    re-run asks only what is missing); `--tally` counts a graphic with fewer as not judged. A
+    reading costs about $1.60 notional, so judging a round costs three times what L1's did.
+  - 90% is above the 75% line, so the counts can steer L2, with one limit: a round's gain that
+    rests on a graphic at 2/3 is not a gain to claim. Proposed for the owner, not decided:
+    a capture that runs the operator's actions in the brief's order (both splits were about what
+    the frames do not show); a rubric line making "an action that shows no change" a basic
+    mistake (it changes the frozen judge, so it needs H2's calibration again); two more readings
+    only when the first three split.
+- **Decisions** (each revertible):
+  - DECIDED: the readings are the first three a graphic has under the lock, in file order; a fourth
+    is not counted. Each reading has its own folder (`judge/single/<cell>.reading-<n>`). Revert:
+    `SINGLE_READINGS` to `{ count: 1, usableMin: 1 }`.
+  - DECIDED: the graphic's mistakes, confidence and rubber-stamp count come from a reading of its
+    majority, and the gate's flags are read against what any reading named.
+  - DECIDED: D7's "cheapest" is D5's order, as written, not the measured notional.
+- **Traps:** the judge records the same cell id for every reading; only the `reading` field and
+  the order tell them apart. A Windows checkout writes the committed `judgements.jsonl` with CRLF
+  and the archive's has LF: compare the readings, not the bytes.
+- **Spend:** $0 credit; the ledger still at 5,468 cents spent with $30.00 held for L4 and $8.00 for
+  L3. Subscription, notional: $67.21 (42 readings). **Shas:** built on `9259a2051`; the amendment
+  `850cdcff9`. **Revert:** `git revert -m 1` the merge; that drops the three-reading rule, the 42
+  readings and the re-tallies, and L2's rung goes back to Sonnet `medium`.
+
 ### L1. The ladder (built 2026-10-17)
 
 - **Check's findings (L0's check, PASS on `3f6cd2687`):** the `record --review` gate refuses
@@ -265,7 +336,9 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   L1 is closed in the ledger (`--close L1`).
 
 - **What L2 must allow for:**
-  - **Taught is Sonnet 5.5 `medium`**, the cheapest rung that qualifies under D7 (4 of 8 usable).
+  - (Superseded by the L1 repair above: on three readings Sonnet `medium` has 3 of 8 and L2
+    teaches Sonnet `high`.)
+    **Taught is Sonnet 5.5 `medium`**, the cheapest rung that qualifies under D7 (4 of 8 usable).
     Haiku `high` does not qualify (1 of its first 4). Sonnet `high` and Opus `low` qualify on 2 of
     their first 4 but are dearer, and so does Opus `medium`. With no winner, D7 stops the plan
     after L2 if five rounds do not make Sonnet `medium` match.

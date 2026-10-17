@@ -17,7 +17,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { answers, EXAM_DIR, graphicOf, median, openBriefSet } from './exam.mjs';
+import { EXAM_DIR, graphicOf, median, openBriefSet } from './exam.mjs';
 import { loadJudge } from './judge.mjs';
 import { holdFor, phaseCompleted, phaseNumber } from './ledger.mjs';
 import { privatePassphraseFile } from './sealed.mjs';
@@ -143,28 +143,44 @@ export const SCREEN_SIZE = 4;
 /** D5's screen and D6's match, as committed before the first rung. */
 export const RUNG_RULE = { screenNotUsableMax: 2, screenUsdPerUsableMax: 2, usableMin: 7, usdPerUsableMax: 1, medianWallSecondsMax: 600, lookAllMin: 7 };
 
+/** D8 as amended after L1's check: the ladder judge reads each delivered graphic as a single this
+ *  many times, and the judge passes it when at least `usableMin` of them are airable with no basic
+ *  visible mistake. Revert: `{ count: 1, usableMin: 1 }`, the first reading as the single. */
+export const SINGLE_READINGS = { count: 3, usableMin: 2 };
+
 const perUsable = (usd, usable) => (usable ? Number((usd / usable).toFixed(2)) : null);
+/** One reading passes when it is airable with no basic visible mistake (a missing action is the
+ *  gate's to count, as H8 counted). */
+const readingPasses = (j) => j.answer?.airable === true && !(j.answer?.basicMistakes ?? []).some((m) => m.kind !== 'missing-action');
 
 /**
  * One rung's figures from its cells (`cell.json`) and the ladder judge's singles, counted as H8
  * counted (phase-8.md: delivered, validator clean, shape ok, no missing action after the readings,
- * and the judge's single airable with no basic visible mistake). The cost is Claude Code's notional
+ * and the judge airable with no basic visible mistake), the judge's verdict being that of at least
+ * `repeat.usableMin` of the graphic's first `repeat.count` readings (D8 as amended); a graphic with
+ * fewer readings is not judged yet. Each judged row gives its agreement (how many readings share
+ * the verdict) and `all.agreement` the judge's repeatability. The cost is Claude Code's notional
  * `total_cost_usd` (D2) over every session that ran, failed and stopped ones included, per usable
  * graphic. The screen (D5) reads the first four of `order`; the match (D6) needs all eight. A
  * rubber stamp is a delivered graphic whose review said `ok` to every frame and that the judge
  * failed (not airable, or a basic visible mistake). `flagsToRead` are the gate's missing actions
  * the judge's single did not also name, which H8's ruling reads against the operator surface.
  */
-export function tallyRung({ cells, judgements, fingerprint = null, readings = {}, order = RUNG_ORDER, rule = RUNG_RULE }) {
-  const { singles } = answers(judgements, fingerprint);
+export function tallyRung({ cells, judgements, fingerprint = null, readings = {}, order = RUNG_ORDER, rule = RUNG_RULE, repeat = SINGLE_READINGS }) {
+  const singles = judgements.filter((j) => j.task === 'single' && !j.error && (!fingerprint || j.judge === fingerprint));
   const ran = (brief) => cells.find((c) => c.brief === brief && c.outcome !== 'refused' && c.outcome !== 'paused') ?? null;
   const rows = order.map((brief) => {
     const cell = ran(brief);
-    // A rung is one arm, so its single is the one judgement of the brief (judged by cell id).
-    const single = cell ? [...singles.values()].find((j) => j.brief === brief) : undefined;
+    // A rung is one arm, so its singles are the judgements of the brief (judged by cell id), in the
+    // order they were given; the verdict is the one at least `usableMin` of the first `count` give,
+    // and the reading that gives it stands for the graphic (its mistakes, its confidence).
+    const read = cell ? singles.filter((j) => j.brief === brief).slice(0, repeat.count) : [];
+    const passes = read.filter(readingPasses).length;
+    const passed = passes >= repeat.usableMin;
+    const single = read.length === repeat.count ? read.find((j) => readingPasses(j) === passed) : undefined;
     const g = graphicOf(cell, single, null, readings);
-    if (!cell) return { brief, ...g, look: null, rubberStamp: false, flagsToRead: [] };
-    const judgeMissing = (single?.answer?.missingActions ?? []).map(String);
+    if (!cell) return { brief, ...g, look: null, rubberStamp: false, flagsToRead: [], judgeReadings: [], agreement: null };
+    const judgeMissing = read.flatMap((j) => j.answer?.missingActions ?? []).map(String);
     const judgeFailed = g.judged && (g.airable !== true || g.defects.length > 0);
     return {
       brief,
@@ -172,6 +188,8 @@ export function tallyRung({ cells, judgements, fingerprint = null, readings = {}
       look: cell.look ?? null,
       rubberStamp: g.delivered && judgeFailed && Boolean(cell.look?.reviewed) && !cell.look?.fixed,
       flagsToRead: g.missing.filter((a) => !judgeMissing.some((m) => m.includes(a))),
+      judgeReadings: read.map((j) => ({ at: j.at ?? null, airable: j.answer?.airable ?? null, mistakes: (j.answer?.basicMistakes ?? []).filter((m) => m.kind !== 'missing-action').map((m) => m.kind), passes: readingPasses(j) })),
+      agreement: single ? `${passed ? passes : repeat.count - passes}/${repeat.count}` : null,
     };
   });
   const figures = (rs) => {
@@ -191,6 +209,8 @@ export function tallyRung({ cells, judgements, fingerprint = null, readings = {}
       framesOpened: rs.reduce((k, r) => k + (r.look?.opened ?? 0), 0),
       rubberStamps: rs.filter((r) => r.rubberStamp).map((r) => r.brief),
       unjudged: rs.filter((r) => r.delivered && !r.judged).map((r) => r.brief),
+      // The judge's repeatability: of the graphics judged, how many had every reading agree.
+      agreement: { unanimous: rs.filter((r) => r.agreement === `${repeat.count}/${repeat.count}`).length, judged: rs.filter((r) => r.agreement).length },
     };
   };
   const screenRows = rows.slice(0, SCREEN_SIZE);
@@ -216,7 +236,9 @@ export function tallyRung({ cells, judgements, fingerprint = null, readings = {}
 /** A rung's tally as the evidence's heading line and table. */
 export function rungMarkdown(rung, t) {
   const usd = (x) => (x === null || x === undefined ? '-' : `$${Number(x).toFixed(2)}`);
-  const head = `${rung}: ${t.verdict}${t.screen.endsAt ? ` (the screen: ${t.screen.endsAt})` : ''}; ${t.all.delivered} delivered, ${t.all.usable} usable of ${t.all.ran} run, ${usd(t.all.notionalUsd)} notional, ${usd(t.all.usdPerUsable)} per usable, median wall ${t.all.medianWallSeconds ?? '-'} s, frames opened ${t.all.framesOpened} of ${t.all.framesReviewed} reviewed (every one in ${t.all.lookAll} sessions)`;
-  const rows = t.rows.filter((r) => r.ran).map((r) => `| ${r.brief} | ${r.outcome} | ${r.judged ? (r.airable ? 'airable' : 'not airable') : '-'} | ${r.defects.map((d) => d.kind).join(', ') || '-'} | ${r.missing.join(', ') || '-'} | ${r.usable ? 'yes' : 'no'} | ${usd(r.notionalUsd)} | ${r.wallSeconds ?? '-'} | ${r.look ? `${r.look.opened}/${r.look.reviewed}${r.look.fixed ? `, ${r.look.fixed} fixed` : ''}` : '-'} | ${r.rubberStamp ? 'yes' : ''} |`);
-  return [head, '', '| brief | outcome | single | basic mistakes | missing | usable | notional | wall s | opened/reviewed | all ok, judge failed |', '|---|---|---|---|---|---|---|---|---|---|', ...rows].join('\n');
+  const a = t.all.agreement;
+  const head = `${rung}: ${t.verdict}${t.screen.endsAt ? ` (the screen: ${t.screen.endsAt})` : ''}; ${t.all.delivered} delivered, ${t.all.usable} usable of ${t.all.ran} run, ${usd(t.all.notionalUsd)} notional, ${usd(t.all.usdPerUsable)} per usable, median wall ${t.all.medianWallSeconds ?? '-'} s, frames opened ${t.all.framesOpened} of ${t.all.framesReviewed} reviewed (every one in ${t.all.lookAll} sessions), the judge unanimous on ${a.unanimous} of ${a.judged} judged`;
+  const readings = (r) => r.judgeReadings.map((j) => (j.passes ? 'pass' : j.airable ? 'mistake' : 'not airable')).join(', ') || '-';
+  const rows = t.rows.filter((r) => r.ran).map((r) => `| ${r.brief} | ${r.outcome} | ${readings(r)} | ${r.agreement ?? '-'} | ${r.judged ? (r.airable ? 'airable' : 'not airable') : '-'} | ${r.defects.map((d) => d.kind).join(', ') || '-'} | ${r.missing.join(', ') || '-'} | ${r.usable ? 'yes' : 'no'} | ${usd(r.notionalUsd)} | ${r.wallSeconds ?? '-'} | ${r.look ? `${r.look.opened}/${r.look.reviewed}${r.look.fixed ? `, ${r.look.fixed} fixed` : ''}` : '-'} | ${r.rubberStamp ? 'yes' : ''} |`);
+  return [head, '', '| brief | outcome | readings | agreement | single | basic mistakes | missing | usable | notional | wall s | opened/reviewed | all ok, judge failed |', '|---|---|---|---|---|---|---|---|---|---|---|---|', ...rows].join('\n');
 }
