@@ -1,6 +1,6 @@
 {
   "name": "noacg-preview-trial",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Opt-in local graphic preview compatibility trial.",
   "mcpServers": "./codex-mcp.json",
   "interface": {

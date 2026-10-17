@@ -47,7 +47,7 @@ phase 1 remains open in [#1314](https://github.com/NoaCG/NoaCG-Studio/issues/131
 
 1. Call `noacg_preview`. Confirm the panel renders the lower third and its local
    source details name this worktree, not the plugin cache.
-2. Click the name, enter a change such as "Make the name 66 px", then select
+2. Click the name, or focus its named selection button and press Enter, then enter a change such as "Make the name 66 px", then select
    **Send change to this task**. The active native conversation must receive the
    request, selected `f0`, absolute source root, exact `files-sha256` revision and
    a PNG image. Record what the task actually receives.

@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "noacg_preview_trial": {
+    "noacg_graphic_preview": {
       "command": "node",
       "args": ["./launch.mjs"],
       "cwd": "."

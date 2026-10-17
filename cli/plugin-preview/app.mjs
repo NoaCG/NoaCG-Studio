@@ -2,7 +2,7 @@ import { App } from '@modelcontextprotocol/ext-apps';
 import { OpenAIExtensions } from '@openai/mcp-extensions/app';
 import { regionFromPoints, selectionAt } from './protocol.mjs';
 
-const app = new App({ name: 'NoaCG preview trial', version: '0.1.2' }, {});
+const app = new App({ name: 'NoaCG preview trial', version: '0.1.3' }, {});
 const extensions = new OpenAIExtensions(app);
 const element = (id) => document.getElementById(id);
 const stage = element('stage');
@@ -13,6 +13,7 @@ let snapshot;
 let selection;
 let dragStart;
 let busy = false;
+let hitTargets = [];
 
 function status(text, error = false) {
   element('status').textContent = text;
@@ -23,12 +24,34 @@ function toolName(name) {
   return hostName?.endsWith('noacg_preview') ? hostName.slice(0, -'noacg_preview'.length) + name : name;
 }
 function buttons() {
+  for (const node of hitTargets) node.disabled = busy;
   element('refresh').disabled = busy || !app.getHostCapabilities()?.serverTools;
   element('send').disabled = busy || !app.getHostCapabilities()?.serverTools || !snapshot || !selection || !element('request').value.trim() || !extensions.message;
 }
+function placeBounds(node, bounds) {
+  for (const [css, key, extent] of [['left', 'x', 1920], ['top', 'y', 1080], ['width', 'width', 1920], ['height', 'height', 1080]]) node.style[css] = bounds[key] / extent * 100 + '%';
+}
+function selectTarget(target) {
+  selection = target ? { kind: 'element', id: target.id } : undefined;
+  showSelection(target?.bounds, target ? target.label : 'No element here. Choose Region to mark an area.');
+}
+function renderTargets() {
+  for (const node of hitTargets) node.remove();
+  hitTargets = snapshot.targets.map((target) => {
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'hit-target';
+    node.setAttribute('aria-label', 'Select ' + target.label);
+    placeBounds(node, target.bounds);
+    node.hidden = element('mode').value === 'region';
+    node.addEventListener('click', () => { if (!busy && element('mode').value === 'element') selectTarget(target); });
+    layer.append(node);
+    return node;
+  });
+}
 function showSelection(bounds, label) {
   highlight.hidden = !bounds;
-  if (bounds) for (const [css, key, extent] of [['left', 'x', 1920], ['top', 'y', 1080], ['width', 'width', 1920], ['height', 'height', 1080]]) highlight.style[css] = `${bounds[key] / extent * 100}%`;
+  if (bounds) placeBounds(highlight, bounds);
   element('selected').textContent = label;
   buttons();
 }
@@ -39,6 +62,7 @@ function render(result) {
   snapshot = next;
   selection = undefined;
   graphic.srcdoc = snapshot.document;
+  renderTargets();
   showSelection(null, 'Select part of the graphic');
   element('source').textContent = `${snapshot.sourceRoot}\n${snapshot.sourceFiles.join(', ')}\n${snapshot.revision}`;
   status(extensions.message ? 'Ready' : 'This host does not advertise OpenAI message support. Sending is unavailable.');
@@ -55,8 +79,7 @@ layer.addEventListener('pointerdown', (event) => {
     layer.setPointerCapture(event.pointerId);
   } else {
     const target = selectionAt(snapshot.targets, point(event));
-    selection = target ? { kind: 'element', id: target.id } : undefined;
-    showSelection(target?.bounds, target ? target.label : 'No element here. Choose Region to mark an area.');
+    selectTarget(target);
   }
 });
 layer.addEventListener('pointermove', (event) => {
@@ -70,7 +93,12 @@ layer.addEventListener('pointerup', (event) => {
   showSelection(selection?.bounds, selection ? 'Selected region' : 'Drag to select a region');
 });
 layer.addEventListener('pointercancel', () => { dragStart = undefined; selection = undefined; showSelection(null, 'Select part of the graphic'); });
-element('mode').addEventListener('change', () => { selection = undefined; showSelection(null, 'Select part of the graphic'); });
+element('mode').addEventListener('change', () => {
+  for (const node of hitTargets) node.hidden = element('mode').value === 'region';
+  dragStart = undefined;
+  selection = undefined;
+  showSelection(null, 'Select part of the graphic');
+});
 element('request').addEventListener('input', buttons);
 
 async function run(work) {

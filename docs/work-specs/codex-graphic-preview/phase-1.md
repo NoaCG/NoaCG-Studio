@@ -127,3 +127,16 @@ AC-3/AC-4/AC-5: outside phase 1, not checked. AC-6: local install/restart, sourc
 persistence and isolation observed; final 0.1.2 reload and independent check pending.
 Owner taste judgment covers the simple initial prototype only. No cloud run or
 automation has started. The plan and eight-hour gated prompt remain in #1309/#1311.
+## Approved private connection recovery
+
+The owner approved both a fresh private connection identity and keyboard-accessible
+element selection on 2026-10-17. Version 0.1.3 changes the MCP server key to
+`noacg_graphic_preview` and versions its UI resource. The access and fixed four-file
+boundary stay the same. Transparent named buttons cover the existing element hit
+areas, use the same bounds and selection, and hide in Region mode. A keyboard
+focus outline appears only during keyboard use.
+
+Twelve targeted unit/protocol tests pass, including named selection, refresh
+replacement and Region-mode exclusion. The browser journey now exercises Enter
+activation before the existing pointer journey. This is not a native completion
+claim; the installed 0.1.3 recheck is still pending.

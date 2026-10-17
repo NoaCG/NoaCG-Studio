@@ -87,6 +87,9 @@ test('actual PNG, isolated live fixture, selection, stale refusal and refreshed 
       await page.mouse.click(box.x + (target.bounds.x + target.bounds.width / 2) / 1920 * box.width, box.y + (target.bounds.y + target.bounds.height / 2) / 1080 * box.height);
       assert.equal(await ui.locator('#selected').textContent(), 'Name');
     }
+    await ui.getByRole('button', { name: 'Select Name', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await ui.locator('#selected').textContent(), 'Name');
     await selectName();
     await ui.locator('#request').fill('Make the name larger');
     await ui.getByRole('button', { name: 'Send change to this task' }).click();
@@ -110,6 +113,7 @@ test('actual PNG, isolated live fixture, selection, stale refusal and refreshed 
     assert.notEqual(after.content[1].data, initial.content[1].data);
     await page.evaluate(() => { document.getElementById('app').style.width = '460px'; });
     await ui.locator('#mode').selectOption('region');
+    assert.equal(await ui.getByRole('button', { name: 'Select Name', exact: true }).isVisible(), false);
     const area = await ui.locator('#selection-layer').boundingBox();
     await page.mouse.move(area.x + area.width * .1, area.y + area.height * .6);
     await page.mouse.down();

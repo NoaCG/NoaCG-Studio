@@ -14,6 +14,8 @@
   #stage { position: relative; width: 100%; aspect-ratio: 16/9; margin: 14px 0; overflow: hidden; background: repeating-conic-gradient(#303743 0 25%, #39424e 0 50%) 0 0 / 24px 24px; }
   #graphic { position: absolute; width: 1920px; height: 1080px; border: 0; transform-origin: top left; pointer-events: none; }
   #selection-layer { position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
+  .hit-target { position: absolute; border: 0; border-radius: 0; padding: 0; background: transparent; }
+  .hit-target:focus-visible { outline: 2px solid #48a5ff; outline-offset: -2px; }
   #highlight { position: absolute; border: 2px solid #48a5ff; background: #48a5ff18; pointer-events: none; }
   label { display: block; margin-top: 12px; }
   textarea { display: block; width: 100%; min-height: 80px; resize: vertical; margin: 5px 0 8px; }
