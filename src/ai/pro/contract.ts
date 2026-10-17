@@ -22,11 +22,8 @@ import type { ModelRoute } from '../modelTypes';
  * inherited: the §15.8 round that produced the 26/30 blind read ran on exactly this model, so
  * naming another one would ship an engine nobody has read the output of.
  *
- * It lives HERE, in the dependency-light contract, rather than beside the pipeline that calls it:
- * `/api/admin/models` marks which listed routes are actually in use, and `api/` cannot import
- * `language/pipeline.ts` - that pulls in the gateway, telemetry and the composer. One constant
- * both trees read is the point; a second copy in the admin layer would drift the first time this
- * is re-benched, and the admin page would then confidently name the wrong model.
+ * The shared route lives in this dependency-light contract so server funding policy can
+ * inspect it without importing the browser pipeline, gateway, telemetry or composer.
  *
  * It stays an OBJECT with a named stage rather than a bare route: `api/_lib/aiProProfile.ts`
  * funds routes as a set and the gate ANDs over it, so a second stage is an entry here plus an

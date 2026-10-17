@@ -62,3 +62,5 @@ The Codex product brief is enabled for Tuesday mornings in the owner's existing 
 timezone, starting 2026-10-20. Tool readback confirms it targets this Codex chat. GitHub and
 Supabase read access were checked before creation. Scheduled delivery has not yet occurred.
 Unknown cloud ancestor limits leave the full build/browser run to GitHub CI as required.
+The API-depth gate also scans comments; removed its stale admin-route example from the Pro
+contract without changing any model route or runtime behavior.

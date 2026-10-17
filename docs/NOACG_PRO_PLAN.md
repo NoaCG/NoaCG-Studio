@@ -1997,7 +1997,7 @@ for a pipeline that never calls it** - a foot-gun aimed at a classroom, on the o
 operator reaches for to stop spend on a model that has gone wrong.
 
 The funded list is now `[language]`, read from `AI_PRO_LANGUAGE_PROVIDER`/`_MODEL`. `proTaskProfile`
-declares no `imageRoutes` (no task does), `/api/admin/models` marks no image row in use and the
+declares no `imageRoutes` (no task does), the retired admin models view marked no image row in use and the
 image tab says so outright, and the audited catalog entry stays as an AUDIT RECORD - deleting it
 would delete a verified ZDR result. Pinned two ways in `api/_lib/pro/managedCall.test.ts`: the
 retired route is refused at the spend seam before it is billed, and `routeDisabled` over
