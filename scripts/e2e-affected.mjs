@@ -701,9 +701,10 @@ export function planFor(
  * the 52 s of per-shard setup costs more than it saves" was understating its own case. Making a
  * shard cheap is what makes sharding finely correct.
  *
- * The full plan is now 183.3 slow-runner minutes (2026-10-17, six runs to 39000659873), so this
- * target asks for 62 shards and the ceiling below holds it. Whatever the target says, a full run always
- * gets exactly MAX_SHARDS runners, so that ceiling is what decides whether the suite fits.
+ * The full plan is now 209.9 slow-runner minutes (2026-10-17, six runs to 39000659873 plus the
+ * save-transaction matrix measured in run 39048521384's retry), so this target asks for 70 shards
+ * and the ceiling below holds it. Whatever the target says, a full run always gets exactly
+ * MAX_SHARDS runners, so that ceiling is what decides whether the suite fits.
  */
 export const SHARD_TARGET_MINUTES = 3;
 
@@ -735,8 +736,22 @@ export const SHARD_TARGET_MINUTES = 3;
  * measured. Two more shards cost about one runner-minute per full run (each adds ~0.4 of setup
  * and ~0.15 of Playwright start; the tests are the same minutes split thinner), against the
  * ~45 a shard killed at the cap costs in its dead 20 minutes and the retry's re-run.
+ *
+ * THIRTEEN TO FIFTEEN on 2026-10-17 (issue #1405), for a suite that had grown without the table
+ * knowing: e2e/save-transaction.spec.ts was never recorded (every full run since it landed lost
+ * its shard at the cap, and the table is recorded from green runs only), so the packer priced its
+ * 107 cases at the 0.4-minute median while they cost 26.7 minutes on one runner - the retry job of
+ * run 39048521384 is the complete measurement, and shard 7 of that run and of 39046375406 died
+ * carrying them. No shard count fits a 26.7-minute file under a 20-minute cap, so the matrix is
+ * six files now (e2e/_saveMatrix.ts says which rows went where), each weighted in the table from
+ * that retry. The suite is then 209.9 table-minutes: thirteen bins of 16.15 reach 19.1 on the
+ * slowest runner measured (0.9 of margin), fourteen of 15.0 reach 17.7 (2.3), fifteen of 14.0
+ * reach 16.6 (3.4) - so fifteen by the rule above. MAIN_RUNNERS (scripts/e2e-capacity.mjs) does
+ * NOT follow: the budget line reads 98% of thirteen runners, which is the truth about the suite
+ * and the pressure the budget spec asks for, and raising the envelope is a reviewed decision of
+ * its own.
  */
-export const MAX_SHARDS = 13;
+export const MAX_SHARDS = 15;
 
 /**
  * HOW MANY RUNNERS THIS PLAN IS WORTH, from measured minutes rather than from a file count.
@@ -880,7 +895,8 @@ export function packShards(specs, shardCount, table = readTable()) {
 
   // Longest-processing-time-first: heaviest spec onto the lightest bin. A 4/3-approximation in
   // the worst case and far better than that here, where no single spec is a large fraction of a
-  // bin - the slowest file in the table is 3.3 min against an 11.1-min bin.
+  // bin - the slowest file in the table is 7.5 min against a 14-min bin. A file heavier than a
+  // bin never fits, however many bins there are (MAX_SHARDS, 2026-10-17).
   const packed = Array.from({ length: bins }, () => ({ total: 0, files: [] }));
   const order = [...files].sort((a, b) => weight(b) - weight(a) || a.localeCompare(b));
   for (const spec of order) {
