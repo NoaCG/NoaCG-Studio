@@ -109,7 +109,7 @@ As asked, B1 was run unchanged and with only its unbounded read bounded:
 | AC 1: Home asks over the editor; Cancel/Escape/cancelled naming keep source, selection, history | Pass. The carried original, second, third and fourth checkers; native 125% leave dialog. |
 | AC 2: Save/first Save keep source; discard mints nothing; saved copies byte-equal; no repeated question | **Fail.** S1-late: New asks about a graphic just saved, with no notice, after a leave that did not wait for its Save (#1392). The rest passes: fifth A3, A4, B1 (bounded), B2, C1, D1 to D3, G1; S1-hold, S2. |
 | AC 3: New/Open/Back/hash share the boundary; a failed write and double submission cannot navigate early or duplicate; no resurrection | **Fail.** S6: two refused slot writes and a reload mint a second record (#1383 residual). S1-hash-late also reaches Home before its Save answered. The rest passes: fifth A1, E1, E2, F, R1, H1-again, H1-renamed, H3; `:228` 20/20; S3, S4. |
-| AC 4: baseline guard, wizard walk, library links, cloud separation, production copies; mutation | Pass, pending the maintained run (below). The signed-in localhost task passes ([39037269283](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037269283)), against a disposable local Supabase. The new failures are not vacuous: the held-only S1 controls pass on the same code. |
+| AC 4: baseline guard, wizard walk, library links, cloud separation, production copies; mutation | Pass. The maintained selection gives 85 passed, 0 failed, with the same 8 legacy skips, and the two-graphic export passes 1/1 ([39037260012](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037260012)). The signed-in localhost task passes ([39037269283](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037269283)), against a disposable local Supabase. The new failures are not vacuous: the held-only S1 controls pass on the same code. |
 | AC 5: fresh Studio `3142fc7d` / Eyevinn `616841bd` executions, hashes, no copied source | Pass, 6/6 ([39037261850](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037261850)). [reference.json](reference.json): the same 17 files, sha256 identical to independent-5. Studio binary `9ba1de31…`. |
 | AC 6: desktop/laptop/native 125% cumulative text, artwork, animation, save/reopen, outputs | Pass, 4/4 ([39037264226](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037264226)). Nine SPX/CasparCG/OGraf outputs, 0 errors. Native 125%: 1093x545 CSS, 196px canvas, 180px timeline, 280px inspector. |
 | Carried checkers, unchanged | Original 3/3, second 4/4, third 10/10, `:24` x20 20/20, fourth 11/11 ([39037256888](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037256888)). Fourth `:228` x20 20/20 ([39037265835](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037265835)). Fifth 19/20, with B1 as above. Repair-6's matrix 54/54 as a regression check only ([39037267440](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39037267440)). |
@@ -119,8 +119,10 @@ As asked, B1 was run unchanged and with only its unbounded read bounded:
 The references were not given a new task. The carried six ran and passed. For #1392 the
 comparison is a reading of the hashed files, not an execution. Eyevinn's `saveToStorage` writes
 both keys to `localStorage` synchronously, so no navigation can happen between its record and
-pointer writes. Studio v0.17's Save Project is one download, with no dirty tracking to go stale.
-In both, a save's answer cannot arrive after the user has left. NoaCG's durable writes are
+pointer writes, and the carried fifth reference task refuses `setItem` in the same turn. Studio
+v0.17's Save Project downloads the file. Its later autosave fails silently, and Studio has no
+dirty tracking, so a late refusal can never become a question (fifth reference task). Neither
+can leave while its save is still unanswered. NoaCG's durable writes are
 asynchronous by design (`model/durableStore.ts`), which is why a leave has to wait for the save,
 or ask.
 
