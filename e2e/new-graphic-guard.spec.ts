@@ -384,13 +384,13 @@ test('a refused pending autosave cannot make Discard replace the live document',
 // two tests are the independent checker's probe (39a900183) carried with their assertions
 // unchanged; each holds the completion notice of real IndexedDB working-slot puts.
 type HeldWrites = { secondCheck: { writes: { template: unknown; dirty: boolean }[]; releases: (() => void)[] } };
-async function holdWrites(page: Page, count: number) {
-  await page.evaluate(count => {
+async function holdWrites(page: Page, count: number, held = 'spx-gfx-project') {
+  await page.evaluate(([count, held]) => {
     const original = IDBObjectStore.prototype.put;
     const probe = { writes: [] as unknown[], releases: [] as (() => void)[] };
     Object.assign(window, { secondCheck: probe });
     IDBObjectStore.prototype.put = function(value, key) {
-      if (key === 'spx-gfx-project') {
+      if (key === held) {
         const index = probe.writes.length;
         probe.writes.push(JSON.parse(value as string));
         if (probe.writes.length === count) IDBObjectStore.prototype.put = original;
@@ -401,7 +401,7 @@ async function holdWrites(page: Page, count: number) {
       }
       return original.call(this, value, key);
     };
-  }, count);
+  }, [count, held] as const);
 }
 const probe = (page: Page) => page.evaluate(() => ({ writes: (window as unknown as HeldWrites).secondCheck.writes, released: (window as unknown as HeldWrites).secondCheck.releases.map(Boolean) }));
 const release = (page: Page, index: number) => page.evaluate(index => { (window as unknown as HeldWrites).secondCheck.releases[index](); }, index);
@@ -630,28 +630,8 @@ test('a refused autosave nobody waits on still raises the app-level storage noti
 // clean once its library put landed, whatever the draft had become meanwhile, so the edit read
 // as saved, the leave asked nothing and the edit could be lost. The Save's own put is held here,
 // and the case checks that the held put is the one carrying the source Save was asked to write.
-type HeldLibrary = { heldLibrary: { writes: { id: string; template: unknown }[][]; release: (() => void) | null } };
-async function holdLibraryWrite(page: Page) {
-  await page.evaluate(() => {
-    const put = IDBObjectStore.prototype.put, held: HeldLibrary['heldLibrary'] = { writes: [], release: null };
-    Object.assign(window, { heldLibrary: held });
-    IDBObjectStore.prototype.put = function(value, key) {
-      if (key === 'spx-gfx-graphics') {
-        IDBObjectStore.prototype.put = put; held.writes.push(JSON.parse(value as string));
-        const tx = this.transaction;
-        Object.defineProperty(tx, 'oncomplete', { set(handler: (event: Event) => void) {
-          tx.addEventListener('complete', event => { held.release = () => handler.call(tx, event); }, { once: true });
-        } });
-      }
-      return put.call(this, value, key);
-    };
-  });
-}
-const heldLibrary = (page: Page) => page.evaluate(() => {
-  const held = (window as unknown as HeldLibrary).heldLibrary;
-  return { writes: held.writes, held: !!held.release };
-});
-const releaseLibrary = (page: Page) => page.evaluate(() => { (window as unknown as HeldLibrary).heldLibrary.release!(); });
+const holdLibraryWrite = (page: Page) => holdWrites(page, 1, 'spx-gfx-graphics');
+const heldLibrary = async (page: Page) => (await probe(page)).writes[0] as unknown as { id: string; template: unknown }[];
 const library = (page: Page) => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
 const saveLink = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
 
@@ -663,11 +643,11 @@ test('a newer edit during a held linked Save stays unsaved, and leaving asks aga
   const requested = await source(page), [record] = await library(page);
   await holdLibraryWrite(page);
   await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
-  await expect.poll(async () => (await heldLibrary(page)).held).toBe(true);
-  expect((await heldLibrary(page)).writes[0].find(g => g.id === record.id)?.template).toEqual(requested);
+  await expect.poll(async () => (await probe(page)).released).toEqual([true]);
+  expect((await heldLibrary(page)).find(g => g.id === record.id)?.template).toEqual(requested);
   await commandEdit(page); await ready(page);
   const newer = await source(page); expect(newer).not.toEqual(requested);
-  await releaseLibrary(page);
+  await release(page, 0);
   await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toContainText('changed while saving');
   await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
   expect(await saveLink(page)).toMatchObject({ graphicId: record.id, dirty: true, status: 'idle' });
@@ -693,12 +673,12 @@ test('a newer edit during a held first Save is kept unsaved, and leaving asks ag
   await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
   await page.getByTestId('save-name').fill('Held first save');
   await holdLibraryWrite(page); await page.getByTestId('save-confirm').click();
-  await expect.poll(async () => (await heldLibrary(page)).held).toBe(true);
-  const [minted] = (await heldLibrary(page)).writes[0];
+  await expect.poll(async () => (await probe(page)).released).toEqual([true]);
+  const [minted] = await heldLibrary(page);
   expect(minted.template).toEqual({ ...requested, name: 'Held first save' });
   await commandEdit(page); await ready(page);
   const newer = await source(page); expect(newer).not.toEqual(requested);
-  await releaseLibrary(page);
+  await release(page, 0);
   await expect(page.getByTestId('save-dialog')).toHaveCount(0);
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
