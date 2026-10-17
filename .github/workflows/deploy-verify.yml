@@ -46,6 +46,31 @@ jobs:
           git clone https://github.com/Eyevinn/ograf-editor.git .noacg/reference-eyevinn
           git -C .noacg/reference-eyevinn checkout 616841bd949e3a21137579451123f66c292543f0
           npm ci --prefix .noacg/reference-eyevinn
+      - name: Hash pinned reference sources
+        if: always() && (inputs.scope == 'complete' || inputs.scope == 'references')
+        run: |
+          git clone -q https://github.com/zerodensity/ograf-studio.git .noacg/reference-studio
+          mkdir -p .noacg/results/source
+          python3 - <<'PY'
+          import hashlib, json, subprocess
+          studio = ['apps/editor/src/panels/Menubar.tsx','apps/editor/src/state/fileIO.ts','apps/editor/src/state/fileIO.test.ts','apps/editor/src/state/projectStore.ts','apps/editor/src/state/projectStore.test.ts','apps/editor/src/state/projectTimelineSync.test.ts','apps/editor/src/state/useAutosave.ts','apps/editor/src/canvas/Stage.tsx','apps/editor/src/canvas/LayerNode.tsx','apps/editor/src/state/historyStore.ts']
+          eyevinn = ['src/main.js','src/services/TemplateManager.js','src/models/OGrafTemplate.js','src/components/VisualEditor.js','src/components/PropertyPanel.js','test/bugfix-model-io.test.js','test/ograf-lifecycle.test.js']
+          def show(repo, ref, path):
+              r = subprocess.run(['git','-C',repo,'show',f'{ref}:{path}'], capture_output=True)
+              if r.returncode: return None
+              blob = subprocess.run(['git','-C',repo,'rev-parse',f'{ref}:{path}'], capture_output=True, text=True).stdout.strip()
+              return blob, hashlib.sha256(r.stdout).hexdigest()
+          out = []
+          for p in studio:
+              a = show('.noacg/reference-studio','3142fc7d02934494931eb14e7dc255393e4110d0',p); b = show('.noacg/reference-studio','a1e9776120fa19d9f3f9d40ab4b10ae1be034347',p)
+              out.append({'repository':'zerodensity/ograf-studio','pin':'3142fc7d02934494931eb14e7dc255393e4110d0','release':'a1e9776120fa19d9f3f9d40ab4b10ae1be034347','path':p,'blob':a and a[0],'sha256':a and a[1],'releaseIdentical':bool(a and a==b)})
+          for p in eyevinn:
+              a = show('.noacg/reference-eyevinn','616841bd949e3a21137579451123f66c292543f0',p)
+              out.append({'repository':'Eyevinn/ograf-editor','pin':'616841bd949e3a21137579451123f66c292543f0','path':p,'blob':a and a[0],'sha256':a and a[1]})
+          json.dump(out, open('.noacg/results/source/reference.json','w'), indent=2)
+          print(json.dumps(out, indent=1))
+          PY
+          sha256sum .noacg/studio-server | tee .noacg/results/source/studio-binary.sha256
       - name: Execute pinned lifecycle tasks
         if: always() && (inputs.scope == 'complete' || inputs.scope == 'references')
         env:
