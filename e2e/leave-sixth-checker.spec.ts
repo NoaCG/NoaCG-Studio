@@ -285,9 +285,11 @@ test('sixth S4: Home -> Save & continue with the record write held; browser Back
   expect(facts.link).toMatchObject({ graphicId: record.id, dirty: false });
   expect(facts.alert).toBe(0);
   expect(facts.dialogsAfter, 'no question is left open after the Save landed').toBe(0);
-  // The visible surface and the address agree.
-  if (facts.home) expect(hash).toMatch(/^#\/home/);
-  if (facts.editorAfter) expect(hash).not.toMatch(/^#\/home/);
+  // The leave the user chose completes at Home, and the address agrees.
+  expect(facts.home, 'the leave reached Home').toBe(1);
+  expect(facts.editorAfter, 'the editor is gone').toBe(0);
+  expect(facts.wizard, 'no wizard opened').toBe(0);
+  expect(hash).toMatch(/^#\/home/);
 });
 
 // ── A second tab on the same working draft ─────────────────────────────────────────────────────
