@@ -2,6 +2,11 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
+    "e2e/configured/account.spec.ts": {
+      "since": "2026-10-17",
+      "count": 4,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39047418102"
+    },
     "e2e/configured/deep-link-boot.spec.ts": {
       "since": "2026-10-16",
       "count": 1,
@@ -24,10 +29,6 @@
     }
   },
   "released": {
-    "e2e/configured/account.spec.ts": {
-      "count": 3,
-      "last": "2026-10-16"
-    },
     "e2e/configured/connector-grants.spec.ts": {
       "count": 1,
       "last": "2026-10-13"
