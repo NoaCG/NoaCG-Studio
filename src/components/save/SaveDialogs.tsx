@@ -83,11 +83,24 @@ function SaveDialog() {
     return () => window.removeEventListener('keydown', onKey);
   }, [closeDialog]);
 
+  // The record a refused attempt already minted: only its link write failed, so the retry
+  // writes into it rather than minting a second (#1367).
+  const minted = useRef<string | null>(null);
+  const attempt = async (chosen: string) => {
+    if (minted.current && useTemplateStore.getState().saved.graphicId === minted.current) {
+      const r = await saveCurrentGraphic({ name: chosen });
+      if (r !== 'needs-name') return { ok: r === 'saved', error: r === 'saved' ? null : 'Could not save. Your changes are still open. Try again.' };
+    }
+    const res = await saveGraphicAs(chosen, { kind: 'standalone' });
+    minted.current = res.graphicId ?? null;
+    return res;
+  };
+
   const confirm = () => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
-    void saveGraphicAs(name.trim() || template.name, { kind: 'standalone' }).then((res) => {
+    void attempt(name.trim() || template.name).then((res) => {
       if (!res.ok) {
         setError(res.error);
         return;

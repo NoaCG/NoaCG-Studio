@@ -39,11 +39,11 @@ function persistLink(): void {
 
 const LIBRARY_KEY = 'spx-gfx-graphics' as const;
 
-/** Wait for the library puts this save made, and claim their failure. Never every pending
- *  write: a slower autosave can outlast the generic announcement, which then takes the Save's
- *  refusal and the Save reads as landed (#1351). Another write's failure stays that write's,
- *  announced by the app. */
-async function commitLibraryWrite(receipts: DurableWriteReceipt[]): Promise<string | null> {
+/** Wait for the puts this save made, and claim their failure. Never every pending write: a
+ *  slower autosave can outlast the generic announcement, which then takes the Save's refusal
+ *  and the Save reads as landed (#1351). Another write's failure stays that write's, announced
+ *  by the app. */
+async function commitSaveWrites(receipts: DurableWriteReceipt[]): Promise<string | null> {
   // No put recorded means nothing reached storage, as Discard treats it.
   if (!receipts.length) return 'Your work could not be saved to browser storage.';
   return (await Promise.all(receipts.map(commitDurableReceipt))).find(Boolean) ?? null;
@@ -75,6 +75,24 @@ function markSaveFailed(before: EditingContext): void {
   now.setSaved({ ...now.saved, status: 'failed' });
 }
 
+/** A save's SECOND durable write: link the draft to the record that landed, persist the link
+ *  and wait for it. Unwaited, its refusal reached the app's generic notice after the leave had
+ *  gone on, and the next New asked about the graphic just saved (#1367). Refused, the draft
+ *  stays linked to the record, so a retry writes into it rather than minting another, but it
+ *  reads unsaved and the save reports the refusal as its own. */
+async function commitLink(link: EditingContext['saved']): Promise<string | null> {
+  useTemplateStore.getState().setSaved({ ...link, status: 'saving' });
+  const linked = useTemplateStore.getState();
+  const failure = await commitSaveWrites(captureDurableWrites('spx-gfx-project', persistLink).receipts);
+  if (replacedSince(linked)) return failure;
+  // The live flag: an edit made during this wait has already set `dirty`.
+  const now = useTemplateStore.getState().saved;
+  if (failure) linked.setSaved({ ...now, dirty: true, status: 'failed' });
+  // Another write's refusal, announced during the wait, keeps its 'failed'.
+  else if (now.status === 'saving') linked.setSaved({ ...now, status: 'idle' });
+  return failure;
+}
+
 /** Where a first save / Save As puts the graphic. Packages are retired (docs/GOALS_ARCHIVE.md
  *  "Student release" step 3): every save is standalone in the flat library, and grouping
  *  happens in a PRODUCTION's own pool. The envelope type stays so every caller keeps one
@@ -86,8 +104,9 @@ export type SaveDestination = { kind: 'standalone' };
  * document has never been saved — the caller opens the save dialog instead.
  *
  * ASYNC because the durable store confirms a write a moment after taking it
- * (model/durableStore.ts): `commitLibraryWrite` waits for that confirmation and CLAIMS its
- * failure, so this still answers 'failed' for a save that did not land — the caller makes the
+ * (model/durableStore.ts): `commitSaveWrites` waits for that confirmation of both its writes,
+ * the record and the draft's link, and CLAIMS their failure, so this still answers 'failed'
+ * for a save that did not land — the caller makes the
  * same decision it always did, one await later, rather than being told 'saved' and corrected
  * by a dialog afterwards.
  */
@@ -111,7 +130,7 @@ export async function saveCurrentGraphic(opts?: {
   const patch = { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility };
   const graphicId = s.saved.graphicId;
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => updateGraphic(graphicId, opts?.name ? { ...patch, name: opts.name } : patch));
-  const failure = error ?? (await commitLibraryWrite(receipts));
+  const failure = error ?? (await commitSaveWrites(receipts));
   if (!doc || failure) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
     if (!doc) {
@@ -127,13 +146,12 @@ export async function saveCurrentGraphic(opts?: {
   // the topbar line and the canvas chip (components/ProjectFormatMeta.tsx). That is also why
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
-  if (!replacedSince(s)) s.setSaved({ graphicId: doc.id, dirty: changedSince(s), status: 'idle', formatIssues });
-  persistLink();
-  return 'saved';
+  if (replacedSince(s)) return 'saved';
+  return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), status: 'idle', formatIssues })) ? 'failed' : 'saved';
 }
 
 /** First save or Save As: mint a new library record and link the working document to it. */
-export async function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null }> {
+export async function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
   prepareEmptyOut();
   const s = useTemplateStore.getState();
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
@@ -146,24 +164,23 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
     // A copy of a community pack's graphic is still the pack's (spec AC-5), as Duplicate keeps it.
     fromPack: s.saved.graphicId ? graphicById(s.saved.graphicId)?.fromPack ?? null : null,
   }));
-  const failure = error ?? (await commitLibraryWrite(receipts));
+  const failure = error ?? (await commitSaveWrites(receipts));
   if (failure) {
     markSaveFailed(s);
     return { ok: false, error: failure };
   }
-  if (!replacedSince(s)) {
-    const dirty = changedSince(s), now = useTemplateStore.getState().template;
-    // The working template adopts the saved name so the topbar and the record agree. It is the
-    // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
-    if (doc.template.name !== now.name && now.name === s.template.name) {
-      useTemplateStore.setState({ template: { ...now, name: doc.name } });
-    }
-    // An unknown catalogue format is not a broken document, so the save lands and reports it.
-    const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
-    useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty, status: 'idle', formatIssues });
+  if (replacedSince(s)) return { ok: true, error: null };
+  const dirty = changedSince(s), now = useTemplateStore.getState().template;
+  // The working template adopts the saved name so the topbar and the record agree. It is the
+  // CURRENT template, so an edit made during the wait is kept; a rename made then stays too.
+  if (doc.template.name !== now.name && now.name === s.template.name) {
+    useTemplateStore.setState({ template: { ...now, name: doc.name } });
   }
-  persistLink();
-  return { ok: true, error: null };
+  // An unknown catalogue format is not a broken document, so the save lands and reports it.
+  const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
+  const linkFailure = await commitLink({ graphicId: doc.id, dirty, status: 'idle', formatIssues });
+  // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
+  return linkFailure ? { ok: false, error: linkFailure, graphicId: doc.id } : { ok: true, error: null };
 }
 
 /**
