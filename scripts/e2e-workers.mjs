@@ -138,8 +138,10 @@ export function localWorkers() {
 }
 
 // Called even by CI-shaped local invocations: --workers/-j must not bypass the cloud ceiling.
-export function validateCloudWorkerRequest({ profile = executionProfile(), args = process.argv, override = process.env.E2E_WORKERS } = {}) {
-  cloudJobPolicy({ profile, browser: true, requestedWorkers: [...requestedWorkerCounts(args), ...(override ? [override] : [])] });
+// A Playwright worker re-imports the config after the runner admitted its count, reading less free
+// memory than the runner did; it must not refuse a pin the runner already started.
+export function validateCloudWorkerRequest({ profile = executionProfile(), args = process.argv, override = process.env.E2E_WORKERS, inWorker = process.env.TEST_WORKER_INDEX !== undefined } = {}) {
+  cloudJobPolicy({ profile, browser: true, requestedWorkers: inWorker ? [] : [...requestedWorkerCounts(args), ...(override ? [override] : [])] });
   if (profile.kind !== 'cloud') return {};
   if (!args.includes('test') || args.includes('--list') || args.includes('--help')) return { workers: profile.workers };
   const job = readJobs(jobsDir()).find((j) => j.id === process.env.NOACG_QUEUED_JOB_ID && resolve(j.checkout) === resolve(process.cwd()));

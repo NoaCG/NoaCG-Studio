@@ -214,6 +214,8 @@ test('Playwright long and short CLI worker overrides cannot defeat the cloud cap
   }
   assert.doesNotThrow(() => validateCloudWorkerRequest({ profile: cloud(), args: ['--workers=2'], override: '' }));
   assert.throws(() => validateCloudWorkerRequest({ profile: cloud(known(1)), args: [], override: '4' }), /worker count/);
+  // A worker process re-importing the config after memory fell keeps the runner's admitted pin.
+  assert.equal(validateCloudWorkerRequest({ profile: cloud(known(1)), args: [], override: '4', inWorker: true }).workers, 1);
   assert.doesNotThrow(() => validateCloudWorkerRequest({ profile: { kind: 'local' }, args: ['--workers=8'], override: '8' }));
 });
 
