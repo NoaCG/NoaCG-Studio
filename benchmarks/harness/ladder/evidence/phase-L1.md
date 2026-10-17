@@ -154,3 +154,40 @@ the quality is at least `low`'s, but every rung so far spent more than $1.50 a s
 boards that pass, and Opus at `medium` spends more than at `low` ($1.65 a session). Expected:
 screened out on cost (over $2.00 per usable). What would refute it: three or four usable in the
 screen at at most $2.00 each, and then a match.
+
+**Result: screened out on cost; the hypothesis held.** Sessions 14:07Z to 14:19Z, two at a time.
+3 delivered, 2 usable of 4, $10.97 notional ($5.49 per usable), median wall 336.5 s, frames
+opened 173 of 173 reviewed (every one in all 3 delivered sessions). One rubber stamp. Evidence:
+`benchmarks/harness/ladder/L1/opus-5-5-medium/`.
+
+| brief | outcome | single | basic mistakes | usable | notional | wall s | opened/reviewed | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| boxing-night-matchup | failed: stopped after 6 minutes saying NOT READY, "not every coverage frame has been reviewed", no record | - | - | no | $2.28 | 361 | - | |
+| collegiate-cs2-scorebug | delivered | not airable | empty-or-broken (the two logo spots empty discs with the brief's own values) | no | $3.37 | 398 | 69/69 | yes |
+| charity-stream-alerts | delivered | airable | - | yes | $2.92 | 279 | 64/64 | |
+| film-fest-nominee-reveal | delivered | airable | - | yes | $2.40 | 312 | 40/40 | |
+
+## The curve: no rung matched
+
+| rung | verdict | ran | delivered | usable | notional | per usable | median wall s | frames opened / reviewed (every one) | all ok, judge failed | qualifies for L2 (D7) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Haiku 5.5 `high` | screened out: not usable | 4 | 3 | 1 | $2.13 | $2.13 | 502.5 | 119/161 (1) | 2 | no (1 of first 4) |
+| Sonnet 5.5 `medium` | no match | 8 | 8 | 4 | $10.96 | $2.74 | 318 | 363/507 (4) | 4 | **yes (4 of 8)** |
+| Sonnet 5.5 `high` | screened out: cost | 4 | 4 | 2 | $7.50 | $3.75 | 457 | 242/242 (4) | 2 | yes (2 of first 4) |
+| Opus 5.5 `low` | screened out: cost | 4 | 3 | 2 | $6.60 | $3.30 | 245 | 81/230 (1) | 1 | yes (2 of first 4) |
+| Opus 5.5 `medium` | screened out: cost | 4 | 3 | 2 | $10.97 | $5.49 | 336.5 | 173/173 (3) | 1 | yes (2 of first 4) |
+
+The two easy briefs of the screen (the alerts and the nominee reveal) were usable on every rung
+but Haiku's alerts; the two dense boards of the screen (the matchup and the scorebug) were usable
+on none. So every rung's screen came down to the price of the two that worked against the two
+that did not. The cheap usable graphics were the simple ones (the nominee reveal for $0.39 on
+Haiku, $0.64 on Sonnet `medium`); the two boards Sonnet `medium` made usable after the screen
+(the quiz and the timing tower) cost $1.83 and $1.84 each. More effort bought more looking (Sonnet `high` and Opus `medium` opened
+every frame) and not more usable boards.
+
+Every figure above reproduces with `node scripts/harness-bench.mjs --tally <dir>` on the run
+directories, and from the committed `tally.json`, `cell.json` and `judgements.jsonl` of each rung.
+The judge's 21 singles cost $33.56 notional (Haiku 3, $4.10; Sonnet `medium` 8, $12.34; Sonnet
+`high` 4, $7.30; Opus `low` 3, $4.67; Opus `medium` 3, $5.15), every one on the subscription,
+`claude-opus-5-5` (`9fa9d7e3ac9b`), no pause. The 24 sessions cost $38.16 notional. Credit: $0;
+the ledger stays at 5,468 cents spent with both holds intact.
