@@ -12,13 +12,13 @@ import { flushPendingProject, useTemplateStore } from './templateStore';
 import {
   createGraphic,
   graphicById,
+  loadAllGraphics,
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { holdReservation, saveProject } from '../model/project';
+import { releaseReservation, reservedGraphicId, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
-import { uuid } from '../model/id';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
@@ -65,7 +65,8 @@ async function settleClaimed(claims: Promise<string | null>[]): Promise<string |
 //
 //   1. claim the working-slot writes already in flight (an autosave whose timer had fired);
 //   2. first Save / Save As only: RESERVE the record's id in the slot, queued before the record
-//      (#1383);
+//      (#1383). Every earlier slot write of the document carries the same id, so it is durable
+//      even when this write is refused too;
 //   3. write the library record and wait for both;
 //   4. wait for the writes claimed in 1, so the link write lands after them;
 //   5. write the draft's link and wait for it;
@@ -79,9 +80,17 @@ async function settleClaimed(claims: Promise<string | null>[]): Promise<string |
 // An idle store starts the operation in the caller's turn, as these functions always did: its
 // writes reach the mirror before the call returns (e2e/project-format.spec.ts reads the record
 // straight after an unawaited `saveGraphicAs`). A busy one queues it behind the running one.
+//
+// While any of them is unsettled, `useSaveUi.inFlight` says so, and the leave guard asks rather
+// than reading `saved.dirty`, which a Save clears before its link write settles (#1392). The flag
+// drops before the operation's caller hears the answer, so a continuation that goes back through
+// the guard sees the settled state.
 let running: Promise<void> | null = null;
+let unsettled = 0;
 function transaction<T>(operation: () => Promise<T>): Promise<T> {
-  const run = running ? running.then(operation) : operation();
+  if (unsettled++ === 0) useSaveUi.setState({ inFlight: true });
+  const counted = () => operation().finally(() => { if (--unsettled === 0) useSaveUi.setState({ inFlight: false }); });
+  const run = running ? running.then(counted) : counted();
   const settled: Promise<void> = run.then(() => undefined, () => undefined).then(() => { if (running === settled) running = null; });
   running = settled;
   return run;
@@ -146,9 +155,11 @@ async function commitLink(link: Omit<EditingContext['saved'], 'status'>): Promis
     linked.setSaved({ ...now, dirty: true, status: 'failed' });
     return failure;
   }
-  // Another write's refusal, announced during the wait, keeps its 'failed'.
-  if (now.status === 'saving') linked.setSaved({ ...now, status: 'idle' });
   await settleTrailingAutosave(linked);
+  // 'Saved' shows only once nothing of this save is still being written. Another write's
+  // refusal, announced during the wait, keeps its 'failed'.
+  const settled = useTemplateStore.getState().saved;
+  if (!replacedSince(linked) && settled.status === 'saving') linked.setSaved({ ...settled, status: 'idle' });
   return null;
 }
 
@@ -221,9 +232,7 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
  *  answer carries the record's id whenever one was minted, whether or not its link landed, so a
  *  caller that retries writes into it rather than minting again. */
 export function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
-  return transaction(async () => {
-    try { return await mintGraphic(name); } finally { holdReservation(null); }
-  });
+  return transaction(() => mintGraphic(name));
 }
 
 async function mintGraphic(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
@@ -232,12 +241,15 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   const inFlight = claimInFlight();
   // Step 2: the id is in the slot BEFORE its record exists. A refused link write after a landed
   // record used to leave the slot unlinked, and after a reload the next Save minted a second
-  // record (#1383). Every slot write carries it until the link write, the autosaves that fire
-  // meanwhile included. It is queued in the same turn as the record, and IndexedDB commits
-  // transactions on one store in the order they were made, so it lands first. Its refusal is
-  // claimed and fails nothing: the link write names the record too.
-  const id = uuid();
-  holdReservation({ id, baseline: s.baseline });
+  // record (#1383). Every slot write of the document has carried it since its first one, the
+  // autosaves that fire while this save waits included (model/project.ts `reservedGraphicId`),
+  // so this write is only the last of them: when it and the link write are both refused, the
+  // slot still names the record. It is queued in the same turn as the record, and IndexedDB
+  // commits transactions on one store in the order they were made, so it lands first. Its
+  // refusal is claimed and fails nothing: the earlier writes and the link write name the record
+  // too. An id another record already holds (a second tab minted it) is never minted again.
+  if (loadAllGraphics().some(g => g.id === reservedGraphicId(s.baseline))) releaseReservation();
+  const id = reservedGraphicId(s.baseline);
   const reserved = captureDurableWrites(SLOT_KEY, persistLink).receipts.map(commitDurableReceipt);
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
     id,
@@ -265,8 +277,8 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   }
   // An unknown catalogue format is not a broken document, so the save lands and reports it.
   const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
-  // The link write names the record itself, so the reservation ends where it begins.
-  holdReservation(null);
+  // The record took the id: the link write names it, and carries the document's next one.
+  releaseReservation();
   const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
   return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
@@ -369,11 +381,21 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
  * document is still the pristine baseline it was created as, so it is compared with that:
  * equal means nothing anyone did is at risk, and the switch goes ahead without asking.
  */
-function hasUnsavedWork(): boolean {
-  const { saved, template, baseline } = useTemplateStore.getState();
+export function hasUnsavedWork(state: Pick<EditingContext, 'saved' | 'template' | 'baseline'> = useTemplateStore.getState()): boolean {
+  const { saved, template, baseline } = state;
   if (!saved.dirty) return false;
   if (saved.graphicId) return true;
   return JSON.stringify(template) !== JSON.stringify(baseline);
+}
+
+/**
+ * The leave guard's Save & continue. A Save-family operation still running when the leave was
+ * asked for (a topbar Save, Ctrl+S) is waited for first: if it landed what the draft holds, its
+ * answer is this one, and nothing is written twice. Otherwise, a refusal included, this saves.
+ */
+export async function saveBeforeLeave(): Promise<'saved' | 'needs-name' | 'failed'> {
+  if (running) await running;
+  return hasUnsavedWork() ? saveCurrentGraphic() : 'saved';
 }
 
 // ── The save/guard UI store ──────────────────────────────────────────────────────────────────
@@ -395,6 +417,8 @@ export interface SaveUiState {
   heldWalk: boolean;
   /** One-shot for the wizard's next open: go back into the held walk instead of starting fresh. */
   resumeWalk: boolean;
+  /** A Save, Save As or Discard is running or queued (`transaction`): its writes are unsettled. */
+  inFlight: boolean;
   openSaveDialog: (mode: 'first' | 'save-as', then?: () => void) => void;
   closeSaveDialog: () => void;
   /** Dismiss the guard without proceeding (runs its `cancel`, if any). */
@@ -403,7 +427,9 @@ export interface SaveUiState {
   settleConfirm: () => void;
   /**
    * Run `proceed` (leaving the editor or replacing its document) behind the guard: a document
-   * with work the switch would lose asks first (`hasUnsavedWork`), any other switches at once.
+   * with work the switch would lose asks first (`hasUnsavedWork`), and so does any switch while a
+   * save is still unsettled (`inFlight`): its refusal must find the user where it can be answered,
+   * not at the destination (#1392). Any other switches at once.
    * A door that opens the wizard FRESH passes `resume` as well, so a held walk is asked about
    * first, under the same rule: the wizard holds it only when it has work in it.
    */
@@ -415,6 +441,7 @@ export const useSaveUi = create<SaveUiState>((set, get) => ({
   confirmSwitch: null,
   heldWalk: false,
   resumeWalk: false,
+  inFlight: false,
   openSaveDialog: (mode, then) => set({ saveDialog: { mode, then } }),
   closeSaveDialog: () => set({ saveDialog: null }),
   closeConfirm: () => {
@@ -428,7 +455,7 @@ export const useSaveUi = create<SaveUiState>((set, get) => ({
     // its destination instead of stacking guards or replacing a first-save continuation.
     if (get().confirmSwitch || get().saveDialog) return;
     if (resume && get().heldWalk) set({ confirmSwitch: { proceed, cancel, resume } });
-    else if (hasUnsavedWork()) set({ confirmSwitch: { proceed, cancel } });
+    else if (get().inFlight || hasUnsavedWork()) set({ confirmSwitch: { proceed, cancel } });
     else proceed();
   },
 }));
