@@ -51,10 +51,12 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   coverage <dir|zip> --out <dir> [--stress <brief.json>]
                                  Every frame to look at before handing in: each value set on dark
                                  and light grounds, the Take, every event, step, update and Out as
-                                 timed strips, and field crops. Writes coverage.json beside them.
-  record <dir|zip> --out <record.json> [--name N] [--folder F]
+                                 timed strips, and field crops. Writes coverage.json beside them,
+                                 and review.json: one verdict to set per frame.
+  record <dir|zip> --out <record.json> [--review <review.json>] [--name N] [--folder F]
                                  Validate, then write the library record save would send, and the
-                                 package zip beside it, without saving anything.
+                                 package zip beside it, without saving anything. --review refuses
+                                 unless every frame of the current coverage has its verdict.
   pack <dir|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...
                                  Several graphics as one package: --save sends it to your NoaCG Home to Install.
   docs [skill|contract|package|validator|control|design-notes]

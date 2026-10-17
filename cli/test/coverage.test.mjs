@@ -9,11 +9,17 @@
 //     light ground, an event or the long values would hand a reviewer frames that cannot show the
 //     defect the matrix exists to show, and nothing downstream would notice.
 //   - the refusals that need no browser: `coverage` and `record` without --out.
+//   - the forced look (review.ts, docs/work-specs/harness-ladder/spec.md D1): `record --review`
+//     hands in only a review with a verdict for every frame of the current coverage, none open and
+//     none stale. A gate that let one frame through unseen would make the frames-opened count the
+//     only check left.
 //
 // Run `npm run build` first - these import the built `dist/`.
 
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -22,6 +28,7 @@ import { test } from 'node:test';
 import { canonicalJson, sourceDigest } from '../dist/digest.js';
 import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, sidesOf, STRIP_MS } from '../dist/coverage.js';
 import { zipPathFor } from '../dist/commands/record.js';
+import { REVIEW_FORMAT, reviewFor, reviewProblems, reviewSummary, verdictState } from '../dist/review.js';
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -160,5 +167,67 @@ test('coverage and record refuse without --out, before any browser starts', asyn
     const r = await exec(process.execPath, [cli, verb, '.', '--json'], { env: { ...process.env, NOACG_URL: 'http://127.0.0.1:1' } }).then(() => ({ code: 0 }), (e) => ({ code: e.code, stdout: e.stdout }));
     assert.equal(r.code, 2, `${verb} without --out is a usage error`);
     assert.match(JSON.parse(r.stdout).error, /--out/);
+  }
+});
+
+const DIGEST = `sha256:${'a'.repeat(64)}`;
+const NEWER = `sha256:${'b'.repeat(64)}`;
+const COVERAGE = { digest: DIGEST, frames: ['off.png', 'take-sample-video-600ms.png', 'event-goal-1500ms.png'].map((file) => ({ file })) };
+const reviewed = (verdicts, digest = DIGEST) => ({ ...reviewFor(digest, COVERAGE.frames), frames: COVERAGE.frames.map((f, i) => ({ file: f.file, verdict: verdicts[i] ?? '' })) });
+
+test('coverage\'s review lists every frame with an empty verdict, and only ok or fixed closes one', () => {
+  const fresh = reviewFor(DIGEST, COVERAGE.frames);
+  assert.equal(fresh.format, REVIEW_FORMAT);
+  assert.equal(fresh.digest, DIGEST);
+  assert.deepEqual(fresh.frames, COVERAGE.frames.map((f) => ({ file: f.file, verdict: '' })));
+  assert.match(fresh.how, /ok.*fixed: <what>/);
+  assert.equal(verdictState('ok'), 'ok');
+  assert.equal(verdictState(' OK. '), 'ok');
+  assert.equal(verdictState('fixed: the title no longer clips'), 'fixed');
+  for (const open of ['', '   ', 'fixed:', 'fixed later', 'title clips', 'okay but tight', null, undefined, 3]) assert.equal(verdictState(open), 'open', JSON.stringify(open));
+});
+
+test('record --review accepts a complete review of the current digest and refuses a missing, open, stale or foreign one', () => {
+  const complete = reviewed(['ok', 'fixed: the score no longer overlaps the crest', 'ok']);
+  assert.deepEqual(reviewProblems({ review: complete, coverage: COVERAGE, digest: DIGEST }), []);
+  assert.deepEqual(reviewSummary(complete), { digest: DIGEST, frames: 3, ok: 2, fixed: 1, verdicts: complete.frames.map((f) => ({ file: f.file, verdict: f.verdict })) });
+
+  const missing = { ...complete, frames: complete.frames.slice(0, 2) };
+  assert.match(reviewProblems({ review: missing, coverage: COVERAGE, digest: DIGEST }).join('\n'), /no verdict for 1 frame\(s\): event-goal-1500ms\.png/);
+
+  const open = reviewed(['ok', '', 'the title clips']);
+  assert.match(reviewProblems({ review: open, coverage: COVERAGE, digest: DIGEST }).join('\n'), /2 frame\(s\) left open: take-sample-video-600ms\.png, event-goal-1500ms\.png/);
+
+  // The graphic changed after its coverage: the verdicts are of frames that no longer stand.
+  assert.match(reviewProblems({ review: complete, coverage: COVERAGE, digest: NEWER }).join('\n'), /stale: the review is of aaaaaaaaaaaa, the graphic is now bbbbbbbbbbbb/);
+  // A review carried over from an earlier coverage does not pass for the new one.
+  assert.match(reviewProblems({ review: reviewed(['ok', 'ok', 'ok'], NEWER), coverage: COVERAGE, digest: NEWER }).join('\n'), /not of the coverage beside it/);
+  const foreign = { ...complete, frames: [...complete.frames, { file: 'invented.png', verdict: 'ok' }] };
+  assert.match(reviewProblems({ review: foreign, coverage: COVERAGE, digest: DIGEST }).join('\n'), /1 verdict\(s\) for frames the coverage did not make: invented\.png/);
+  assert.match(reviewProblems({ review: { format: 'x' }, coverage: COVERAGE }).join('\n'), /not a noacg-review-v1 file/);
+  assert.match(reviewProblems({ review: complete, coverage: null }).join('\n'), /no coverage\.json beside the review/);
+  // A coverage that could not shoot a render left frames nobody can look at.
+  assert.match(reviewProblems({ review: complete, coverage: { ...COVERAGE, failures: ['event-goal: the page crashed'] }, digest: DIGEST }).join('\n'), /could not shoot 1 render\(s\) \(event-goal\)/);
+  // A coverage stripped of its frames leaves nothing to look at, so it is no review.
+  assert.match(reviewProblems({ review: { ...complete, frames: [] }, coverage: { ...COVERAGE, frames: [] }, digest: DIGEST }).join('\n'), /holds no frame/);
+});
+
+test('record --review refuses an incomplete review before any browser starts, and writes nothing', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'noacg-review-'));
+  try {
+    writeFileSync(path.join(dir, 'coverage.json'), JSON.stringify(COVERAGE));
+    writeFileSync(path.join(dir, 'review.json'), JSON.stringify(reviewed(['ok', '', 'ok'])));
+    const out = path.join(dir, 'outputs', 'record.json');
+    const run = (review) => exec(process.execPath, [cli, 'record', dir, '--out', out, '--review', review, '--json'], { env: { ...process.env, NOACG_URL: 'http://127.0.0.1:1' } }).then((r) => ({ code: 0, stdout: r.stdout }), (e) => ({ code: e.code, stdout: e.stdout }));
+    const open = await run(path.join(dir, 'review.json'));
+    assert.equal(open.code, 1, 'an open verdict is a finding');
+    assert.equal(JSON.parse(open.stdout).reason, 'review');
+    assert.match(JSON.parse(open.stdout).problems.join('\n'), /1 frame\(s\) left open: take-sample-video-600ms\.png/);
+    assert.equal(existsSync(out), false, 'nothing recorded');
+    const none = await run(path.join(dir, 'nothing.json'));
+    assert.equal(none.code, 2, 'a review that is not there is a usage error');
+    assert.match(JSON.parse(none.stdout).error, /--review: no file/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

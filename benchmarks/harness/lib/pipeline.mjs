@@ -9,13 +9,17 @@
 //      every action the brief's `expect.actions` names must be on the operator surface
 //   6. the digests: the record's, the bench's validate of the delivered zip, and the last one the
 //      arm's agent reviewed must be one version
-//   7. the ledger entry
+//   7. the look line (docs/work-specs/harness-ladder/spec.md D1, D6): the frames the record's
+//      review gave a verdict for, against the frames the agent's trace opened; where the run asks
+//      for the forced look, a hand-in without a review is not delivered
+//   8. the ledger entry
 //
 // Nothing here trusts what an arm says about its own graphic; every verdict is measured again.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { admit, appendEntry } from './ledger.mjs';
+import { framesOpened, readsOf } from './trace.mjs';
 
 /** An event name as its lower-case words: `switchSpeaker` and `switch-speaker` are `switch speaker`. */
 const words = (name) => String(name).replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -103,7 +107,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
   mkdirSync(cellDir, { recursive: true });
   const briefFile = path.join(cellDir, 'brief.json');
   writeFileSync(briefFile, `${JSON.stringify(brief, null, 2)}\n`);
-  const base = { phase: entry.phase, stage: entry.stage, arm: arm.id, model: arm.model, funding: arm.funding, brief: brief.id };
+  const base = { phase: entry.phase, stage: entry.stage, arm: arm.id, model: arm.model, ...(arm.effort ? { effort: arm.effort } : {}), funding: arm.funding, brief: brief.id };
 
   if (arm.funding === 'credit') {
     // An entry that names no margin term gets the wall's own default: the exam reserve's.
@@ -122,7 +126,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     result = { outcome: 'failed', reason: e instanceof Error ? e.message : String(e), costCents: 0, notionalUsd: 0, wallSeconds: 0, sessionId: null, trace: [] };
   }
 
-  const cell = { costUnread: Boolean(result.costUnread), brief: brief.id, arm: arm.id, model: arm.model, outcome: result.outcome, reason: result.reason ?? null, ...(result.resetsAt ? { resetsAt: result.resetsAt } : {}), sessionId: result.sessionId, costCents: result.costCents, notionalUsd: result.notionalUsd, wallSeconds: result.wallSeconds, cleanup: result.cleanup ?? null, progress: result.progress ?? null, trace: result.trace, ...(result.metrics ? { metrics: { ...result.metrics, steps: undefined } } : {}), ...(result.outputsListed ? { outputsListed: result.outputsListed.length, undownloadable: result.undownloadable ?? [] } : {}) };
+  const cell = { costUnread: Boolean(result.costUnread), brief: brief.id, arm: arm.id, model: arm.model, ...(arm.effort ? { effort: arm.effort } : {}), outcome: result.outcome, reason: result.reason ?? null, ...(result.resetsAt ? { resetsAt: result.resetsAt } : {}), sessionId: result.sessionId, costCents: result.costCents, notionalUsd: result.notionalUsd, wallSeconds: result.wallSeconds, cleanup: result.cleanup ?? null, progress: result.progress ?? null, trace: result.trace, ...(result.metrics ? { metrics: { ...result.metrics, steps: undefined } } : {}), ...(result.outputsListed ? { outputsListed: result.outputsListed.length, undownloadable: result.undownloadable ?? [] } : {}) };
   if (result.recordFile && result.zipFile) {
     const record = JSON.parse(readFileSync(result.recordFile, 'utf8'));
     const shaped = shape.graphicSaveShape(record.doc);
@@ -139,6 +143,13 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     cell.operator = { inputs: (inspect.json?.inspection?.descriptors ?? []).length, buttons: buttons.map((b) => b.event), missing: missingActions(brief, buttons) };
     cell.digest = digestCheck({ delivered: record.digest ?? null, benchValidated: validate.json?.digest ?? null, reviewed: result.reviewedDigest ?? null });
     cell.functional = cell.validation.ok && cell.operator.missing.length === 0 && cell.shape.ok;
+    cell.look = framesOpened(record.review ?? null, result.reads ?? readsOf(result.metrics?.steps));
+  }
+  // The forced look gates the hand-in (D1): where the run asks for it, a record without a review is
+  // a graphic nobody was made to look at, and it is not delivered.
+  if (entry.requireReview && cell.outcome === 'delivered' && !cell.look?.reviewed) {
+    cell.outcome = 'not-ready';
+    cell.reason = 'handed in without a review (record --review)';
   }
 
   appendEntry(ledger, {
@@ -148,8 +159,8 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     listCostCents: arm.funding === 'credit' ? result.costCents ?? 0 : 0,
     ...(result.notionalUsd ? { notionalUsd: result.notionalUsd } : {}),
     wallSeconds: result.wallSeconds,
-    outcome: result.outcome,
-    ...(result.reason || result.costUnread ? { note: [result.reason, result.costUnread ? 'COST UNREAD: reconcile this session in the Console before the next session' : null].filter(Boolean).join('; ') } : {}),
+    outcome: cell.outcome,
+    ...(cell.reason || result.costUnread ? { note: [cell.reason, result.costUnread ? 'COST UNREAD: reconcile this session in the Console before the next session' : null].filter(Boolean).join('; ') } : {}),
   });
   writeFileSync(path.join(cellDir, 'cell.json'), `${JSON.stringify(cell, null, 2)}\n`);
   return cell;

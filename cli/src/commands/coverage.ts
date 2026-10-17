@@ -1,8 +1,10 @@
 // `noacg coverage` - the full matrix of frames (cli/src/coverage.ts) in one browser session, for
 // the look before a graphic is handed in: every value set on every ground, the Take, every event
 // and step, an update and Out as timed strips, and native-pixel crops of every field. It writes
-// the frames and `coverage.json` (what each frame shows, and the sources' digest) to --out.
-// An event that did not move the machine, or a graphic call that threw, is a finding (exit 1).
+// the frames and `coverage.json` (what each frame shows, and the sources' digest) to --out, and
+// `review.json`, every frame with an empty verdict, which `noacg record --review` hands in only
+// once each is set (review.ts). An event that did not move the machine, or a graphic call that
+// threw, is a finding (exit 1).
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -10,6 +12,7 @@ import { BridgeClient } from '../bridgeClient.js';
 import { cliVersion } from '../config.js';
 import { coveragePlan, frameFile, type CoverageRender, type Ground } from '../coverage.js';
 import { sourceDigest } from '../digest.js';
+import { REVIEW_FILE, reviewFor } from '../review.js';
 import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { BUSY_PLATE, LIGHT_PLATE, mimeTypeOf, safe, shoot, shootSequence, VIDEO_PLATE, type SequenceShot } from '../screenshot.js';
 import { markFramesDir, readPackageInput } from '../workspace.js';
@@ -159,10 +162,13 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
       notes: plan.notes,
     };
     await fs.writeFile(path.join(dir, 'coverage.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+    // A fresh review every time: verdicts belong to the frames of this digest, never an earlier one.
+    await fs.writeFile(path.join(dir, REVIEW_FILE), `${JSON.stringify(reviewFor(digest, frames), null, 2)}\n`);
     out.result({ ok: findings.length === 0 && failures.length === 0, dir, digest, frames: frames.length, crops: crops.length, findings, failures, notes: plan.notes });
     out.say(`Coverage of "${template.name}": ${frames.length} frame(s) and ${crops.length} crop(s) in ${dir} (${plan.renders.length + 1} renders, grounds ${plan.grounds.join(', ')}).`);
     out.say(`Digest: ${digest}`);
     out.say(`What each frame shows: ${path.join(dir, 'coverage.json')}`);
+    out.say(`Verdicts, one per frame: ${path.join(dir, REVIEW_FILE)}`);
     for (const n of plan.notes) out.say(`Note: ${n}`);
     for (const f of findings) out.say(`Finding: ${f}`);
     for (const f of failures) out.say(`Not shot: ${f}`);
