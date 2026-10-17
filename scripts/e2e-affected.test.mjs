@@ -1132,6 +1132,7 @@ test('a stale local main plans only the changed specs, whichever main ref is fre
 // a quarantined spec the plan never selected is nobody's business; and a quarantined spec the
 // change itself edits stays blocking, because that edit is the fix and must not land untested.
 import { effectivePlan, splitQuarantined } from './e2e-affected.mjs';
+import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
 
 test('quarantined specs leave the blocking list and are reported as e2e/ paths', () => {
   const split = splitQuarantined(['a.spec.ts', 'b.spec.ts', 'c.spec.ts'], ['e2e/b.spec.ts', 'e2e/zzz.spec.ts']);
@@ -1436,7 +1437,15 @@ test('--files reports an unmapped path exactly like the ref mode does', () => {
   const shared = run();
   assert.equal(shared.mode, 'subset');
   assert.ok(shared.specs.length > 0, 'the shared set is not empty');
-  assert.deepEqual(shared.specs, planFor([unknown], { sprintFocus: true }).specs, 'the CLI and the module agree');
+  // planFor selects coverage; the CLI then partitions it into blocking and quarantined specs.
+  // Compare both lists so a newly quarantined shared spec neither breaks this test nor vanishes.
+  const expected = splitQuarantined(
+    planFor([unknown], { sprintFocus: true }).specs,
+    quarantinedSpecs(readQuarantine()),
+    { changed: [unknown] },
+  );
+  assert.deepEqual(shared.specs, expected.blocking, 'the CLI and the module agree on blocking coverage');
+  assert.deepEqual(shared.quarantined, expected.quarantined, 'every excluded spec is reported for quarantine');
   assert.equal(run('--full-escalation').mode, 'full');
   assert.equal(run('--no-focus').mode, 'full', 'the older spelling still works');
 });
