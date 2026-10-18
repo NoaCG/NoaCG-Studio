@@ -64,4 +64,4 @@ manifest kind through the shared render service, with an upload-budget meter; pl
 source download, standalone and plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
 (explicit saves; the current slot autosaves separately). The shell binds the same global
 undo/redo keys the retired AppShell used to bind, with the same guard. AI chat gates on `needsSignIn` (hosted mode)
-exactly like AIPromptPanel; everything else stays open.
+through useAuthState and SignInPrompt; everything else stays open.

@@ -1,5 +1,5 @@
 // covers: src/control/**, output.html, src/templates/**
-// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/playoutKeys.ts, src/components/{home,save}/**
 // covers: src/components/NewGraphicButton.tsx
 // covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
