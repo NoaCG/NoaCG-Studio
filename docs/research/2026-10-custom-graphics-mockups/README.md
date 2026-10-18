@@ -2,6 +2,8 @@
 
 Prepared 18 October 2026 for review on 19 October, Kyiv time. Research artifacts only: no product implementation, live connections, deployments, plan execution, or changes to agreed authorities.
 
+> **Superseded in part by the revised research:** the generic “Add hosted graphic” route is withdrawn as a recommendation. Use self-contained native/OGraf packages or the qualified media route. See [the corrected workflow and election proof](../2026-10-custom-graphics-workflow/README.md). The old screens remain historical proposals.
+
 ## Open the mockups
 
 - [Visual index](index.html): all 23 screens, each linked to its full-resolution PNG.

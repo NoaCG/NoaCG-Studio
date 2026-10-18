@@ -1,0 +1,97 @@
+{
+  "fixture": true,
+  "election_id": "FI2027_DEMO",
+  "revision": 1,
+  "observed_at": "2027-02-20T18:00:00Z",
+  "status": "PRELIMINARY · DEMO",
+  "reporting_units": 60,
+  "total_units": 100,
+  "parties": [
+    {
+      "party_id": "KOK",
+      "votes": 225000,
+      "projected_seats": 48
+    },
+    {
+      "party_id": "SDP",
+      "votes": 215000,
+      "projected_seats": 44
+    },
+    {
+      "party_id": "PS",
+      "votes": 180000,
+      "projected_seats": 36
+    },
+    {
+      "party_id": "KESK",
+      "votes": 130000,
+      "projected_seats": 26
+    },
+    {
+      "party_id": "VAS",
+      "votes": 85000,
+      "projected_seats": 16
+    },
+    {
+      "party_id": "VIHR",
+      "votes": 75000,
+      "projected_seats": 14
+    },
+    {
+      "party_id": "RKP",
+      "votes": 45000,
+      "projected_seats": 9
+    },
+    {
+      "party_id": "KD",
+      "votes": 30000,
+      "projected_seats": 5
+    },
+    {
+      "party_id": "LIIK",
+      "votes": 10000,
+      "projected_seats": 1
+    },
+    {
+      "party_id": "ALAND",
+      "votes": 5000,
+      "projected_seats": 1
+    }
+  ],
+  "candidates": [
+    {
+      "candidate_id": "FI2027_02_101",
+      "votes": 3500,
+      "status": "Counting"
+    },
+    {
+      "candidate_id": "FI2027_02_102",
+      "votes": 3300,
+      "status": "Counting"
+    },
+    {
+      "candidate_id": "FI2027_02_103",
+      "votes": 2100,
+      "status": "Counting"
+    },
+    {
+      "candidate_id": "FI2027_01_101",
+      "votes": 2900,
+      "status": "Counting"
+    },
+    {
+      "candidate_id": "FI2027_01_102",
+      "votes": 2400,
+      "status": "Counting"
+    },
+    {
+      "candidate_id": "FI2027_02_104",
+      "votes": 2700,
+      "status": "Counting"
+    }
+  ],
+  "headlines": [
+    "DEMO DATA — NOT ELECTION RESULTS",
+    "Aino Example · Uusimaa · Counting continues"
+  ]
+}

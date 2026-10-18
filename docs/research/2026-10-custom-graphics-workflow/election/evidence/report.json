@@ -1,0 +1,69 @@
+{
+  "baseline": "eccb018d45527d48bab2cbfe4584e893309f53a0",
+  "scope": "LOCAL LOOPBACK ONLY: actual productionData functions, SPX parser, publication gate, composeDocument and shared field writer; custom stand-in HTTP handler and research templates.",
+  "checks": [
+    {
+      "name": "All four native template fixtures pass the actual publication gate",
+      "result": "PASS"
+    },
+    {
+      "name": "Actual SPX parser recovers every declared field",
+      "result": "PASS"
+    },
+    {
+      "name": "First HTTP patch changes four graphics but does not put any graphic on air",
+      "result": "PASS"
+    },
+    {
+      "name": "Second HTTP patch updates KOK 225,000 → 228,000 and Aino 3,500 → 3,700 while cue name stays fixed",
+      "result": "PASS"
+    },
+    {
+      "name": "Identical retry produces no changed-field rows",
+      "result": "PASS"
+    },
+    {
+      "name": "Source row reorder preserves party and composite candidate identities",
+      "result": "PASS"
+    },
+    {
+      "name": "Adapter refuses duplicate IDs, a missing votes column and older revisions",
+      "result": "PASS"
+    },
+    {
+      "name": "A newer correction can lower a vote total",
+      "result": "PASS"
+    },
+    {
+      "name": "JSON null deletes a tree leaf but does not blank its last rendered field",
+      "result": "PASS"
+    },
+    {
+      "name": "Explicit empty string clears the connected ticker",
+      "result": "PASS"
+    },
+    {
+      "name": "Rejected local HTTP request leaves current output unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "Two graphics resolve the same keyed value",
+      "result": "PASS"
+    },
+    {
+      "name": "All external updates leave play/stop/next counters unchanged after the single operator Take",
+      "result": "PASS"
+    },
+    {
+      "name": "Bundled images decode successfully and all four actual preview documents report no page errors",
+      "result": "PASS"
+    }
+  ],
+  "notProven": [
+    "Hosted API auth / SQL atomicity / quotas / realtime fan-out",
+    "Actual 2027 results-provider integration, access, latency or SLA",
+    "Google Sheets reader, D4 override persistence, Pause or recovery UI",
+    "Full SVG Import or CLI authoring journey; custom-action NOACG_ANIM event integration",
+    "OBS/vMix/CasparCG output and human usability"
+  ]
+}

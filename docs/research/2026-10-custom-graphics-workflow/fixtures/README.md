@@ -1,0 +1,5 @@
+# Companion scenario fixtures
+
+Harbour-overlay.svg is original shared artwork for visual/CLI contract comparison, not an imported-and-saved production template. SVG node names are designer identities; the proposed mapping is player-name→f0, portrait-slot→f1, player-score→f2, player-status→f3, recent-plays→f4. **Current SVG import allocates text fields before image fields**, so this desired map must be reconciled explicitly; do not claim that current automatic import emits this particular order. Keep the IDs it actually emits, or apply a reviewed compatible remap before binding.
+
+Matches.csv has 15 fixed bracket slots and 16 fictional teams. Relationship columns are upstream preparation information, not commands for NoaCG to compute progression. Rows marked TBD are intentionally unresolved. This is a fixture of the intermediate materialized table, not a complete Sheet formula implementation. Team image IDs are illustrative and must be resolved to approved assets before air. The election folder contains runnable resolved assets and a fully exercised example.

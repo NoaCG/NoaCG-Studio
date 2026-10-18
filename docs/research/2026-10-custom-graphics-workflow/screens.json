@@ -1,0 +1,46 @@
+[
+  {
+    "id": "01-svg-fields-behaviour",
+    "title": "01 / Custom SVG · Fields and behaviour"
+  },
+  {
+    "id": "02-custom-column-mapper",
+    "title": "02 / Custom mapper · Your columns, your fields"
+  },
+  {
+    "id": "03-mixed-ownership",
+    "title": "03 / One graphic · Three kinds of ownership"
+  },
+  {
+    "id": "04-bracket-data-actions",
+    "title": "04 / Top 16 · Results change values; operator actions change presentation"
+  },
+  {
+    "id": "05-schema-image-recovery",
+    "title": "05 / Live recovery · Preserve the picture, repair the field"
+  },
+  {
+    "id": "06-export-reuse",
+    "title": "06 / Reuse · Take the graphic, reconnect the production"
+  },
+  {
+    "id": "07-election-data-origin",
+    "title": "07 / Finland elections · Start with the source"
+  },
+  {
+    "id": "08-election-files",
+    "title": "08 / Rehearsal files · Open these before connecting anything"
+  },
+  {
+    "id": "09-election-bindings",
+    "title": "09 / Connect once · Follow the exact value to the exact field"
+  },
+  {
+    "id": "10-election-on-air",
+    "title": "10 / Election night · Data updates; the operator runs the show"
+  },
+  {
+    "id": "11-election-runbook",
+    "title": "11 / February to election day · What must be proven next"
+  }
+]

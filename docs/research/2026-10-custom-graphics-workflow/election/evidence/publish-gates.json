@@ -1,0 +1,22 @@
+{
+  "Election Candidate Card": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "Election Count Bug": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "Election Party Board": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "Election Ticker": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  }
+}
