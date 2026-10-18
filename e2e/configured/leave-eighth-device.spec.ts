@@ -20,7 +20,9 @@ const link = (page: Page) => page.evaluate(async () => (await import('/src/store
 const flush = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
 const slot = (page: Page) => page.evaluate(async () => JSON.parse((await import('/src/model/durableStore.ts')).durable.getItem('spx-gfx-project') ?? 'null'));
 const syncPhase = (page: Page) => page.evaluate(async () => (await import('/src/backend/syncController.ts')).getSyncState().phase);
-const unnamed = (t: unknown) => ({ ...(t as object), name: '' });
+// The authored source. The cloud keeps assets as storage references and jsonb reorders keys, so a
+// local template and its cloud copy are compared on html, css and js.
+const unnamed = (t: unknown) => { const { html, css, js } = t as { html: string; css: string; js: string }; return { html, css, js }; };
 // Key order aside: a body that went through the cloud comes back from jsonb with its keys reordered.
 const canonical = (v: unknown): unknown => Array.isArray(v) ? v.map(canonical)
   : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v as object).sort().map(k => [k, canonical((v as Record<string, unknown>)[k])])) : v;
