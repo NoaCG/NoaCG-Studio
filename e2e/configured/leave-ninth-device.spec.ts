@@ -151,6 +151,18 @@ for (const order of ['leaves at once', 'stays in the editor'] as const) {
         await expect(b.getByTestId('home-page').or(b.getByTestId('editor-foundation')).first()).toBeVisible({ timeout: 30_000 });
         await expect.poll(() => syncPhase(b), { timeout: 30_000 }).toBe('synced');
         facts.bNewAfterReload = await newFromHome(b);
+        // What answering it with "Save first…" does.
+        if ((facts.bNewAfterReload as { asked: number }).asked) {
+          await b.locator('[data-door="new-graphic"]').click();
+          await expect(dialog(b)).toBeVisible();
+          await b.getByTestId('switch-save').click();
+          await expect(b.getByTestId('save-name').or(b.getByTestId('creation-wizard')).first()).toBeVisible();
+          const named = await b.getByTestId('save-name').count();
+          if (named) { await b.getByTestId('save-name').fill('Ninth S Gamma from B'); await b.getByTestId('save-confirm').click(); }
+          await expect(b.getByTestId('creation-wizard')).toBeVisible();
+          await settleDurableWrites(b);
+          facts.bAnsweredSave = { named, library: (await library(b)).map(g => ({ id: g.id, name: g.name })) };
+        }
       }
       // Both settle with the cloud.
       await a.reload(); await expect(a.getByTestId('home-page').or(a.getByTestId('editor-foundation')).first()).toBeVisible({ timeout: 30_000 });
@@ -214,6 +226,12 @@ test('ninth R-departure: B pulls A\'s reservation as data, reloads, signs out an
     await expect(b.getByTestId('auth-state')).toHaveText('Not signed in', { timeout: 30_000 });
     await signInOnHome(b, email, PASSWORD);
     await bootB(b, editorUrl, 'bAfterSignIn');
+    // Signing out revokes the account's sessions everywhere, device A's included: A signs back in.
+    await a.goto('/app#/home'); await a.reload();
+    await expect(a.getByTestId('auth-state')).toHaveText('Not signed in', { timeout: 60_000 });
+    await signInOnHome(a, email, PASSWORD);
+    await a.goto(editorUrl); await expect(a.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+    facts.aAfterSignIn = { slotReservation: (await slot(a)).reservedGraphicId, ownListHasIt: (await ownList(a) ?? '').includes(reserved) };
     facts.bOwnListAfterSignIn = await ownList(b);
     // B edits: its first write names a reservation of its own.
     await draw(b, .5); await flush(b); await settleDurableWrites(b);
