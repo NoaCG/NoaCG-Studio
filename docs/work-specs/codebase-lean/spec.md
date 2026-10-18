@@ -321,6 +321,90 @@ again and its row says so. 10 cases in the file (the two loops count four), 10 p
 locally on two workers (queue job `j-0039`). The file's minutes are under Budget exceptions.
 Still skipping: the remaining 73 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the package revival
+
+The seventh revival, on main `cd35484b` (2026-10-18): every package case walked the wizard into
+the retired advanced mode and read the old stage. Six cases run again: the custom hex landing in
+the generated :root and the imported font bundled into the export, the info card creating,
+binding and playing, the credits field driving the parsed roll, the ticker's marquee moving and
+its endless marquee honouring the timed hold. The wizard walk lands in the new editor through
+the Finish step's door and the cases read the working graphic mounted the way playout composes
+it (`mountWorkingDocument`, with `play()` and `update()` driven on that document), and the font
+case opens the export window where the old dock's export tab was. The info card case stays
+although the classification marked it covered: the catalog baseline fingerprints the composed
+design on air, not its creation through the wizard. Two cases went (listed under Test
+maintenance): the saved brand carried to another variant, which wizard-brand pins on the same
+chooser and the same created template, and the old timeline Inspector's preset picker, which has
+no live surface. 6 cases in the file, 6 passing, none skipped, 0.6 case-minutes locally on two
+workers (queue job `j-0043`). The file's minutes are under Budget exceptions. Still skipping: the
+remaining 68 live-gap cases, in the pack and single-case families.
+
+### Phase 2 receipt: the image-purpose revival
+
+The eighth revival, on main `0bdf5a47` (2026-10-18): the image-purpose cases opened the Create
+with AI step behind the retired advanced-mode switch, which one of them needed for the old
+editor's Assets panel. Five cases run again: the preselect reading a picture as mark or not,
+the fixed/swappable choice belonging to "use it as it is" alone, each purpose reaching the
+model as its own instruction, a reference never bundled into the created template, and a
+design that improves an as-is picture being held back. Four of them only drop the switch; the
+bundle case reads the package the export writes, through the Finish step's export door, because
+every entry of the template's assets list ships there as a file (`src/export/common.ts`
+`addSharedAssets`), so the zip's listing is the assets list as playout receives it. No case was
+removed. 6 cases in the file, 6 passing, none skipped, 0.5 case-minutes locally on two
+workers (queue job `j-0044`). The file's minutes are under Budget exceptions. Still skipping: the
+remaining 63 live-gap cases, in the pack and single-case families.
+
+### Phase 2 receipt: the house revival
+
+The ninth revival, on main `6d303a14` (2026-10-18): the house cases created their variant through
+the old "Create project" door and read the old stage. Four cases run again: the house strap
+creating and playing in the mono label voice, the clock bug ticking with the three-bar
+placeholder, the markets ticker colouring its deltas by sign, and the breaking strap stacking
+its chip above the headline. Each bootstraps the variant through the live door and reads the
+working graphic mounted the way playout composes it (`mountWorkingDocument`), fed the sample
+data the create put in the store (`updateWorkingDocument`): the mounted document renders the
+design's own defaults until an update arrives, and the markets list lives in the sample. No
+case was removed. 4 cases in the file, 4 passing, none skipped, 0.3 case-minutes locally on two
+workers (queue job `j-0046`). The file's minutes are under Budget exceptions. Still skipping: the
+remaining 59 live-gap cases, in the pack and single-case families.
+
+### Phase 2 receipt: the shows revival
+
+The tenth revival, on main `50da1a61` (2026-10-18): the shows cases created their graphics through
+the old "Create project" door and added them to a production from the old editor's Productions
+block. Four cases run again: a production collecting two graphics in rundown order and
+exporting one aggregated panel that drives each independently, the hosted control route
+answering honestly offline, the layer stack retyping and removing with the production's
+two-step delete keeping nothing behind, and a rundown export shipping the live library graphic
+rather than the add-time snapshot. The working graphic reaches the production through the
+production door (`openProductionWithCurrent`) and the second graphic through the rundown's own
+add (`addCatalogGraphic`); the live-graphic case saves in the new editor's header first, where
+the old topbar's save controls were. The offline case keeps its route half alone and is
+renamed to say so: the "Shows section grows no cloud UI" half read the retired editor block,
+and Home's Productions section is productions.spec.ts's. One case went (listed under Test
+maintenance): Home listing productions and the production page exporting the package, which
+production-pack, wizard-kit and productions pin on the same row, dialog and download. 11
+cases in the file, 11 passing, none skipped, 0.6 case-minutes locally on two workers (queue job
+`j-0047`). The file's minutes are under Budget exceptions. Still skipping: the remaining 55
+live-gap cases, in the pack and single-case families.
+
+### Phase 2 receipt: the format revival
+
+The eleventh revival, on main `d5a6cfba` (2026-10-18): the format cases opened the app behind the
+retired advanced-mode switch, three of them only to reach the formatter's pure functions and
+three to drive the deleted code pane's Format button. The pure cases moved to Node as
+`scripts/format-code.test.mjs` (gate: build, guarding `src/format/formatCode.ts`), with their
+assertions as they were: the three formatters normalising messy code, formatJs refusing a file
+that owns an animation region, and formatTemplate formatting HTML while leaving CSS and JS
+alone; the formatTemplate fixture is the three code strings, which is all the function reads.
+One journey runs again in the browser: a newly created project starting from a
+Prettier-formatted HTML baseline, through the wizard's first lower third and the Finish step's
+editor door. Three cases went (listed under Test maintenance): minimalTextChange, which served
+the deleted Monaco pane alone, and the two Format-button cases of that pane. 1 case in the
+file, 1 passing, none skipped, 0.1 case-minutes locally on two workers (queue job `j-0048`);
+the Node test passes 3 of 3. The file's minutes are under Budget exceptions. Still skipping:
+the remaining 51 live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -471,6 +555,9 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/import-graphic.spec.ts`: 13 case(s) removed with the import family's revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "import graphic: the wizard is a setup flow — create lands in the editor, Data tab open" (retired UI: Asserts the old dock handoff (dock-tab-data active, 'No fields on your design yet', Style panel 'Text size' knob). Live halves run: six-stop rail import-svg.spec.ts 4132; PNG to Finish 4302; imported art opens in the new editor project-format.spec.ts 122.); "import graphic: fields added from the Data tab are real placed layers — the wizard step, replaced" (retired UI: Old Data tab add row (.field-add-row, dock-tab-data) and tlv2 rows. Placed-line creation in the new editor runs in editor-base-edits.spec.ts 313 (text tool makes a real field with #fw wrapper, update() drives it, undo removes it).); "import graphic: dragging a field places it in the CSS — never a keyframe" (retired UI: Old canvas drag on iframe.preview-frame with tlv2 row select and the old shell's Control+z. New-editor drag writes base layout: editor-base-edits.spec.ts 144 (B02) and 286 (D03 base layout independent of the animation channel).); "import graphic: Escape cancels a placement drag without touching the code" (retired UI: Old canvas drag cancel (#fw0 inline style on the old preview). New editor: editor-base-edits.spec.ts 144 'B02 multi-object drag, marquee and cancel share one undo transaction'.); "import graphic: an added field is live — sample data drives it with no manual wiring" (retired UI: Old Data panel field row + Update button + export dock. Field binding through update() on a created field runs in editor-base-edits.spec.ts 313 and every production walk.); "import graphic: adding an image field creates a placed slot on the design" (retired UI: Old Data tab add with ftype select and old line-size-handle. Image layers/slots in the new editor: editor-images.spec.ts 27, 127 (raster drop adds a placed #fw layer; imp01 artwork replace) and 357 (binding executes in SPX/CasparCG/OGraf).); "import graphic: arrow keys nudge a selected field — one placement apply per burst" (retired UI: Old canvas arrow-nudge on a tlv2 selection with the old shell's undo. New-editor placement edits (drag, numeric, undo) run in editor-base-edits.spec.ts B02/D03 (144, 237, 262).); "import graphic: the corner handle resizes a field's text in the CSS" (retired UI: Old line-size-handle corner resize on the retired stage. New-editor resize: editor-typography.spec.ts 264 'a text box resizes from its sides...; its corners and point text still scale'.); "import graphic: the Inspector Style tab restyles a selected placed field" (retired UI: Old Inspector Style tab (inspector-style-*). The new inspector writes the line's own rule: editor-typography.spec.ts 119 (weight), 181 (spacing), 345 (SVG text).); "import graphic: the Style tab's Content rows rename and retext a field" (retired UI: Old Inspector Content rows (inspector-style-label/text-value) and tlv2 row label. New-editor text/appearance controls: editor-base-edits.spec.ts 62/313.); "import graphic: a long name shrinks to stay inside its slot, and a short one springs back" (covered: editor-typography.spec.ts 209 'long text: Shrink to fit, Wrap and Run on answer a 61-character value': Shrink with a Width keeps one row inside the slot at >=55% of 48px through fitPlacedText (data-fit=shrink) - same runtime, same fault (uncapped nowrap line); spring-back there is via undo.); "import graphic: wrap flows a long value onto more rows, Free lets it run" (covered: editor-typography.spec.ts 209: Wrap keeps 48px and flows rows>1 inside the slot width; Run on (overflow) runs past 900px on one row; each one undo - the same lineFit modes on a placed line.); "import graphic: the artwork and a field animate as separate layers from the Inspector" (retired UI: Old Inspector Animations tab (inspector-preset-select/apply) on tlv2 rows. Per-layer keys in the new editor run in editor-keys.spec.ts 208/222/239.)
 - 2026-10-18 `e2e/import-canvas.spec.ts`: 12 case(s) removed with the import family's revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "import graphic: scaling the design scales the artwork and its fields together" (retired UI: Old canvas design-scale gesture: scale-handle/layer-scale-handle on the retired PreviewFrame, .tlv2-labels rows, old inspector testid. New-editor base scaling runs in editor-base-edits.spec.ts B03 (411, 593).); "import graphic: dragging visible text moves the TEXT, not the artwork under it" (retired UI: Old canvas press-and-drag on iframe.preview-frame (.canvas-world, .tlv2-labels, selectedParts of the old shell). New-editor drag and cancel run in editor-base-edits.spec.ts 144 (B02 drag/marquee/cancel) and 219 (B03).); "import graphic: the locked artwork never captures a drag — bare artwork moves the graphic" (retired UI: Old canvas lock chip (canvas-lock) and the old root re-anchor drag; no lock chip exists in editorFoundation (no lock testid in editor-*.spec.ts).); "import graphic: unlocking the artwork gives it back its own layer gestures" (retired UI: Old canvas-lock chip toggling the retired PreviewFrame's layer gestures (artTracks keyed from the old drag).); "canvas: holding Space pans the view and moves nothing in the document" (retired UI: Old PreviewFrame pan (.canvas-world transform, preview-stage 'panning' class). The new editor's Space pan has its own check: editor-usability.spec.ts 140 'B11 losing pointer capture cancels Space panning without playback'.); "canvas: an armed Space-pan does not also play the graphic" (retired UI: Old stage/tlv2-timeline Space arbitration (preview-stage panning, stampTimeline/timelineState of the old timeline). New-editor equivalent: editor-usability.spec.ts 140 (Space pan never plays).); "canvas: Space follows the ACTIVE SURFACE - timeline plays even over the stage" (retired UI: Old tlv2 timeline vs old stage ownership of Space (.tlv2-labels, preview-stage panning); both surfaces deleted.); "canvas: Space only pans over the stage, and never while typing" (retired UI: Old dock Data tab input (.field-add-row) and preview-stage panning class of the retired stage.); "canvas: the cursor names the gesture in progress, not one that is merely possible" (retired UI: Old canvas-layer cursor states (canvas-layer, line-size-handle, tool-text/tool-select of the old stage toolbar).); "import graphic: a scaled design still previews, validates, and exports" (retired UI: Old design scale-handle, old simulator Play button and export dock (dock-tab-export). New-editor base scaling: editor-base-edits.spec.ts 593 'B03 base scaling preserves an animated catalog line through reload'; package checks on exports.spec.ts 892/946.); "canvas: any part can be locked from the Inspector, and the rotate handle is not a hand" (retired UI: Old Inspector lock (inspector-lock, inspector-part-label), canvas-lasso and layer-rotate-handle cursor of the retired canvas.); "canvas: Escape disarms the text tool WITHOUT throwing away the selection" (retired UI: Old stage text tool (tool-text, canvasTool, .tlv2-labels selection). New-editor tools and Escape run in editor-base-edits.spec.ts 313/547 and editor-images.spec.ts 217/301.)
 - 2026-10-18 `e2e/design-rules-product.spec.ts`: 3 case(s) removed with the design-rules-product revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "an untouched project serializes NO legibility key at all" (covered: scripts/design-rules.test.mjs 168 'normalizeLegibility: the DEFAULT state serializes to nothing' pins the rule that makes an untouched project carry no key; a bootstrapGraphic + loadProject check would only re-prove the plumbing.); "the editor can change the viewing target of an already-saved project" (retired UI: dock-tab-style / StylePanel.tsx, the ViewingControls host, has no mount left; ViewingControls renders only on the wizard AI step, so no live surface changes a saved project's viewing target.); "supporting text has its own size rule, reported on the readiness row and never gating" (covered: scripts/validator-registries.test.mjs 'the readiness report claims both legibility size rules on its row, as warnings that never gate', the same readinessRows/unclaimedFindings assertions on the same two findings, beside its LEGIBILITY_UNMEASURED sibling.)
+- 2026-10-18 `e2e/package.spec.ts`: 2 case(s) removed with the package revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "a saved brand carries its look to another variant" (covered: e2e/wizard-brand.spec.ts 107 'a chosen brand puts its accent, typeface and logo into the created graphic' chooses a saved look in wz-brand and reads its accent in the created template's css, the same chooser and the same read this case made, and 137 takes it back with None.); "the post-creation preset picker withholds a structural preset" (retired UI: inspector-preset-select belonged to the old timeline Inspector, the only reader of swappablePresetsForTemplate's structural flag; the live pickers, the wizard's Animation step and the control page's Motion section, offer no structural swap.)
+- 2026-10-18 `e2e/shows.spec.ts`: 1 case(s) removed with the shows revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "Home lists productions and the production page exports the package" (covered: e2e/production-pack.spec.ts 28 'a production exports as a graphics pack and imports back with its rundown intact' walks the Home row, its export-production-row dialog and the download; wizard-kit.spec.ts 536 downloads through prod-export-download; productions.spec.ts 102 opens a production from Home. The row's count words were pinned nowhere else and go with it.)
+- 2026-10-18 `e2e/format.spec.ts`: 6 case(s) removed with the format revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "formatHtml / formatCss / formatJs normalize messy code" (covered: scripts/format-code.test.mjs 'formatHtml / formatCss / formatJs normalize messy code', the same inputs and assertions in Node.); "formatJs refuses any file that owns an animation region" (covered: scripts/format-code.test.mjs 'formatJs refuses any file that owns an animation region', the data-block and legacy fixtures as they were.); "formatTemplate formats HTML but leaves CSS and JS alone by default" (covered: scripts/format-code.test.mjs 'formatTemplate formats HTML but leaves CSS and JS alone by default', the same three strings; formatTemplate reads nothing else of its fixture.); "minimalTextChange returns only the changed span (cursor-stable, merge-friendly)" (retired UI: minimalTextChange served only the deleted Monaco code pane, which the Phase 1 receipt names orphaned by the CodeEditor deletion.); "the Format button reformats the active tab through Monaco and the store" (retired UI: `.format-btn` of the deleted CodeEditor toolbar, opened by showCode.); "the Format button is disabled on the JS tab of a data-block template (region protected)" (retired UI: the same deleted Format button and JS tab.)
 
 ## Budget exceptions
 
@@ -528,6 +615,36 @@ the table weighs the file at 0.01 minutes from its earlier runs. The minute belo
 change's local measurement (case-minutes, two workers, queue job `j-0039`).
 
 - e2e/end-credits.spec.ts: 0.7 min, protects the one-field credit roll in the DOM, the Fields step's paste box, the logo default, the emphasis choice and the settle and travel of every credits design, expires 2026-11-16
+
+The package revival (Phase 2, #800) turns six cases in one file back on and removes two; the
+table weighs the file at 0.01 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0043`).
+
+- e2e/package.spec.ts: 0.6 min, protects the custom hex and imported font reaching the package, the info card, the credits field and the ticker's marquee and timed hold at runtime, expires 2026-11-16
+
+The image-purpose revival (Phase 2, #800) turns five cases in one file back on; the table weighs
+the file at 0.075 minutes from its earlier runs. The minute below is this change's local
+measurement (case-minutes, two workers, queue job `j-0044`).
+
+- e2e/image-purpose.spec.ts: 0.5 min, protects the purpose preselect, the as-is binding choice, each purpose's instruction in the request, the reference kept out of the package and the as-is guard, expires 2026-11-16
+
+The house revival (Phase 2, #800) turns four cases in one file back on; the table weighs the
+file at 0.006 minutes from its earlier runs. The minute below is this change's local
+measurement (case-minutes, two workers, queue job `j-0046`).
+
+- e2e/house.spec.ts: 0.3 min, protects the house family's runtime: the strap's mono label voice, the ticking clock bug, the sign-coloured market deltas and the chip-over-headline stack, expires 2026-11-16
+
+The shows revival (Phase 2, #800) turns four cases in one file back on and removes one; the
+table weighs the file at 0.47 minutes from its earlier runs. The minute below is this change's
+local measurement (case-minutes, two workers, queue job `j-0047`).
+
+- e2e/shows.spec.ts: 0.6 min, protects the aggregated production panel driving each graphic alone, the offline answer of the hosted control route, the retyped layer stack and the two-step delete, and the live library graphic in a rundown export, expires 2026-11-16
+
+The format revival (Phase 2, #800) keeps one journey in the file and moves three cases to Node;
+the table weighs the file at 0.01 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0048`).
+
+- e2e/format.spec.ts: 0.1 min, protects format-on-create: a wizard-created project starting from a Prettier-formatted HTML baseline with its fields intact, expires 2026-11-16
 
 ## Acceptance criteria
 

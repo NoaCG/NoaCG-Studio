@@ -12,11 +12,10 @@ import { flushPendingProject, useTemplateStore } from './templateStore';
 import {
   createGraphic,
   graphicById,
-  loadAllGraphics,
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { releaseReservation, reservedGraphicId, saveProject } from '../model/project';
+import { endMint, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
@@ -232,7 +231,9 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
  *  answer carries the record's id whenever one was minted, whether or not its link landed, so a
  *  caller that retries writes into it rather than minting again. */
 export function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
-  return transaction(() => mintGraphic(name));
+  // Failed, replaced or linked, the mint is over: this tab's later writes no longer speak for
+  // its record.
+  return transaction(() => mintGraphic(name).finally(endMint));
 }
 
 async function mintGraphic(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
@@ -247,9 +248,9 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   // slot still names the record. It is queued in the same turn as the record, and IndexedDB
   // commits transactions on one store in the order they were made, so it lands first. Its
   // refusal is claimed and fails nothing: the earlier writes and the link write name the record
-  // too. An id another record already holds (a second tab minted it) is never minted again.
-  if (loadAllGraphics().some(g => g.id === reservedGraphicId(s.baseline))) releaseReservation();
-  const id = reservedGraphicId(s.baseline);
+  // too. An id another record already holds (a second tab minted it) is never minted again, and
+  // only this tab's writes made during the mint say that the record is this draft's (#1402).
+  const id = mintReservedGraphicId(s.baseline);
   const reserved = captureDurableWrites(SLOT_KEY, persistLink).receipts.map(commitDurableReceipt);
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
     id,

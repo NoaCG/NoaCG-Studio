@@ -85,6 +85,13 @@ export function graphicById(id: string): GraphicDoc | null {
   return loadGraphics().find((g) => g.id === id) ?? null;
 }
 
+/** Does any record, a tombstone included, hold `id`? Every working-slot write asks it
+ *  (model/project.ts `reservedGraphicId`), so the stored text is searched first and parsed only
+ *  when the id appears in it, which happens once: the reservation is then replaced. */
+export function graphicIdTaken(id: string): boolean {
+  return !!durable.getItem(GRAPHICS_KEY)?.includes(id) && rawGraphics().some((g) => g.id === id);
+}
+
 /** As much of a live record as the name question needs: who holds a name, and what a save
  *  written over that record would stop carrying. Cheap enough to re-read on every library
  *  change, which is what keeps the wizard's answer live (`librarySaveEffect`). */
