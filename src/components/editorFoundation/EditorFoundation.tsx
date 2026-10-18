@@ -6,6 +6,8 @@ import NewGraphicButton from '../NewGraphicButton';
 import SaveControls from '../save/SaveControls';
 import BrandLogo from '../BrandLogo';
 import AssetsPanel from '../AssetsPanel';
+import InsertTemplateDialog, { useInsertTemplateUi } from '../InsertTemplateDialog';
+import LiveDataControls from './LiveDataControls';
 import { useImageImport } from './useImageImport';
 import { imageCapability } from '../../blocks/editorImages';
 import { activatableFocus, editorShortcutsLive, modalOpen } from '../spaceKey';
@@ -36,6 +38,7 @@ export default function EditorFoundation() {
   const selection = useTemplateStore(state => state.selectedParts);
   const setSelection = useTemplateStore(state => state.setSelectedParts);
   const session = activeEditorSession();
+  useEffect(() => () => useInsertTemplateUi.getState().close(), [session]);
   const [layerMenu, setLayerMenu] = useState<(LayerMenuRequest & { instance: string }) | null>(null), [layerError, setLayerError] = useState('');
   const [drawingSpace, setDrawingSpace] = useState<import('./protocol').PreviewReply['drawingSpace']>(null);
   const images = useImageImport(session, drawingSpace);
@@ -206,6 +209,7 @@ export default function EditorFoundation() {
         <p className="ef-current-graphic">{template.name}</p>
         <span className="ef-section-label">Assets · {template.assets.length}</span>
         <AssetsPanel key={session.instanceId} actions={{
+          insertTemplate: () => { pause(); session.cancel(); useInsertTemplateUi.getState().openDialog(); },
           bins: {
             directories: assetBinDirs(template, organization), reason: organization.reason,
             revision: () => session.version(),
@@ -230,6 +234,7 @@ export default function EditorFoundation() {
         {images.error && <p role="alert">{images.error}</p>}
         <span className="ef-section-label">Operator fields · {template.fields.length}</span>
         {template.fields.map(field => <p className="ef-field" key={field.field}>{field.title || field.field}<code>{field.field}</code></p>)}
+        <LiveDataControls key={'live-data:' + session.instanceId} template={template} execute={operation => { pause(); session.cancel(); images.execute([operation]); }} />
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
       <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID(), instance: session.instanceId })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
@@ -237,6 +242,7 @@ export default function EditorFoundation() {
     </div>
     <Timeline reveal={activeReveal} key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); setLayerMenu(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu?.instance === session.instanceId ? layerMenu : null} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
+    <InsertTemplateDialog key={session.instanceId} insert={(variant, options) => { pause(); session.cancel(); images.execute([{ kind: 'graphic.insert', variant, ...options }]); }} />
     <footer className="ef-status">{layerError && <span role="alert">{layerError}</span>}<span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;
 }

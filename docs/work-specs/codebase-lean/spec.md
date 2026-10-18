@@ -792,6 +792,41 @@ targets. Simplification kept this to deletion and reference repair. No local ful
 app production build ran: these files had no entry-point consumer, and Actions supplies the
 authoritative bundle and broader checks.
 
+### Kept live features: Sheet data and template insertion
+
+Why: the owner kept Sheet live data and Add template graphic, but their entry points were
+retired with the old shell. Goal: connect the retained generator and picker/merge engine to
+the current editor through its bounded operations and session history. Non-goals: no return
+of retired panels, code pane or timeline; no auth, stored-format or Phase 2 repair changes.
+Acceptance: UI adds/removes a mapped polling block and mocked CSV values reach the preview;
+insertion preserves host source/fields, namespaces the donor, scopes its look, retains middle
+steps and runtime behavior, exposes selectable inserted lines, refuses unsupported donors,
+and undoes as one complete edit. An inserted graphic's appearance can still move between
+Play and a named step. Dialogs close at document boundaries and all writes use the active
+session. No equivalent reference-editor implementation of NoaCG's SPX donor merge or emitted
+CSV polling block is available in this environment; verify these contracts directly without
+claiming reference-editor usability or whole-editor parity.
+
+The first current-surface probe `j-4613` failed because the insertion button was absent.
+After wiring it, `j-4614` passed six cases but the old preview's pre-play pose assertion did
+not apply to the current artwork preview. `j-4615` exercised a standalone emitted graphic;
+`j-4616` then reproduced a real merge-engine fault: the donor root stayed at opacity zero
+after Play because it sits outside the host's root. Explicit arrival and exit data fixed
+that; `j-4617` passed Play, both Next steps, Out and replay. `j-4618` exposed a changing CSV
+fixture racing two sequential field reads. Keep each row stable until both fields are
+observed, then change the fixture so the next real poll must show the second row. Queue job `j-4620` passed all 13 cases in both complete files in 35.8 seconds, with no skips. Review then strengthened appearance retargeting: carry the inserted children's entrance tracks with their container, refusing collisions instead of losing authored motion. Its real Play/Next, source equality and full Undo proof passed in `j-4621`. Final queue job `j-4622` passed all 13 cases in 37.0 seconds, with no skips.
+No assertion or limit was relaxed. The four new Node checks cover source preservation,
+replacement/removal, atomic refusal, unknown host data, stale edits and session undo/redo.
+Catalog emit passed for all 528 designs; TypeScript and ESLint passed. No local full suite,
+full catalog sweep or production build ran; authoritative bundle/factory and broader browser
+checks remain in Actions. The 75-file affected plan is recorded as broad, not claimed locally.
+Rendered captures show the existing picker at 1440px, the merged artwork and the Sheet form
+at 1280px. Catalog thumbnails load only on intersection; wait for the six visible roots before
+judging the picker. Review also corrected duplicate component keys, modal Escape/focus return
+the binding covers headers, and carrying the donor entrance when its appearance moves. All 27 changed Node checks pass. Public copy is plain; only its two reduced copy-baseline
+counts change (AssetsPanel 10 to 9, InsertTemplateDialog 5 to zero). The retained generator and
+merge helper remain the only implementations, with one bounded session edit per UI action.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.

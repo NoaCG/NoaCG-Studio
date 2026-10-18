@@ -278,6 +278,12 @@ export function insertTemplateGraphic(
     entrance.duration = Math.max(entrance.duration, scaled(donorIn.duration));
     mergeLayers(entrance, inLayers);
   }
+  // The donor root sits outside the host root and keeps its CSS-hidden rest state.
+  // The host interpreter reveals only its own root, so this root needs explicit data too.
+  const arrival = data.steps[runAt];
+  arrival.layers[`#${gfxId}`] = { opacity: opts.placement === 'new-step'
+    ? [{ time: 0, value: 0 }, { time: Math.min(arrival.duration, (curData.speed || 1) / current.fps), value: 1 }]
+    : [{ time: 0, value: 1 }] };
   // Ambient loops (a breathing pulse) are pure data — carry the In step's along.
   if (donorIn.loops) {
     const step = data.steps[runAt];
@@ -309,6 +315,9 @@ export function insertTemplateGraphic(
   const exit = data.steps[data.steps.length - 1];
   exit.duration = Math.max(exit.duration, scaled(donorOut.duration));
   mergeLayers(exit, outLayers);
+  // Hold the inserted root through its children's exit and clear it at the same boundary.
+  exit.layers[`#${gfxId}`] = { opacity: [{ time: 0, value: 1 }, { time: exit.duration, value: 1 }] };
+  (exit.hides ??= []).push(`#${gfxId}`);
 
   const js = writeAnimData(current.js, data);
   if (!js) return { error: 'could not write the merged animation data' };
