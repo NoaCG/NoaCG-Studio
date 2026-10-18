@@ -4,7 +4,6 @@
 // pack's answer boards.
 // covers: src/templates/quiz/**
 
-import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 
 // THE AUDIENCE PACK — viewer questions, Q&A cards, chat highlights, question queues, community
@@ -17,9 +16,7 @@ import { test, expect, type Page } from '@playwright/test';
 // air, and every one of them is a way for a graphic to render something untrue.
 
 async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
+  // These cases run in-page against the composer and the runtime; no project and no editor.
   await page.goto('/app');
   await page.keyboard.press('Escape');
 }

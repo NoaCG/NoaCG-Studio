@@ -5,7 +5,6 @@
 // with every branch gate green.
 // covers: src/templates/**
 
-import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 
 // THE SPORTS PACK (docs/SPORTS_PACK.md) — the conformance and behaviour suite for the eight
@@ -25,9 +24,7 @@ import { test, expect, type Page } from '@playwright/test';
 //   - the whole set surviving export.
 
 async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
+  // These cases run in-page against the composer and the runtime; no project and no editor.
   await page.goto('/app');
   await page.keyboard.press('Escape');
 }

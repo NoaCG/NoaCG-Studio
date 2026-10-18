@@ -1,6 +1,5 @@
 // covers: src/templates/**
 
-import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 
 // GRAPHIC TYPES (docs/GRAPHIC_TYPES.md) — the conformance suite every registered type passes.
@@ -11,9 +10,7 @@ import { test, expect, type Page } from '@playwright/test';
 // type either passes them or fails the build.
 
 async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
+  // These cases run in-page against the composer and the runtime; no project and no editor.
   await page.goto('/app');
   await page.keyboard.press('Escape');
 }

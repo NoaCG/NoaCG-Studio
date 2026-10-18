@@ -3,7 +3,7 @@
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
 
-import { enableAdvancedMode, bootstrapGraphic, skipOldEditor } from './_create';
+import { bootstrapGraphic, skipOldEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 
 // THE COMPETITION PACK (docs/COMPETITION_PACK.md) — the esports, competition, result and
@@ -37,9 +37,7 @@ const HARNESS = `
 `;
 
 async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
+  // These cases run in-page against the composer and the runtime; no project and no editor.
   await page.goto('/app');
   await page.keyboard.press('Escape');
 }

@@ -14,9 +14,7 @@ import { frameMachineState, frameOpacity } from './_frame';
 // runs against the same interpreter and IS that proof.
 
 async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
+  // These cases run in-page against the composer and the runtime; no project and no editor.
   await page.goto('/app');
   await page.keyboard.press('Escape'); // the wizard modal — most of these tests need no project
 }
