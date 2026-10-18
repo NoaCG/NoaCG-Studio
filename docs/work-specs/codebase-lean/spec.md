@@ -824,8 +824,17 @@ against the existing isolated configured stack in Actions, never the production 
 Raise the configured test floor by four and remove the three old-editor skip allowances.
 Preparation: the four restored cases and shared helper pass ESLint; all 27 configured-verdict
 Node checks pass with the floor raised from 100 to 104 and the three old-editor allowances
-removed. Actual configured execution is pending the isolated Actions stack. Do not treat an
-offline skip as configured verification.
+removed. All four restored cases passed first attempt against the isolated stack in Actions
+[39150461649](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39150461649) on
+`d0c5c2d5079f918211252778981afae0ea472e6f`. The full suite ran 108 cases: 107 passed,
+one unchanged deep-link case failed then passed, and three permitted skips. Its overall
+workflow verdict remains failure. Read the whole configured job log; account loss, account
+purpose, the width ladder and signed-in save wording all passed without retries. Enter the
+unrelated deep-link file through the existing quarantine command using that exact run as
+its receipt. It keeps running on every main push and earns release through the existing
+20-pass rule; no assertion, floor, skip allowance, workflow or limit changes. Local changed
+gates and ESLint pass; no offline skip substitutes for this configured evidence. Still
+skipping: the remaining seven live-gap cases in Sheet data and template insertion.
 
 ### Remaining order and the #800 exit condition
 
