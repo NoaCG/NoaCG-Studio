@@ -3,9 +3,8 @@
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
-import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 import { chooseCategory, chooseType, pickDesign, resultTotal, revealDesign, shownCount } from './_browse';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // The Browse step's faceted discovery (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12-13, groups
 // §4c): ONE category-group dropdown (+ the selected group's member-category chips) + field
@@ -453,32 +452,31 @@ test('a card\'s ⓘ opens its full detail without picking the template', async (
 const GLASS_BRAND = 'Glass house';
 
 /**
- * Make a glass graphic, save its look as a BRAND, and come back to a fresh Browse step with that
- * brand offered in the footer chooser (proposal §13.3; docs/BRAND_PLAN.md §5). The create rides
- * the Advanced editor door - the footer shortcut is Skip to finish since step 6. Leaves the step
- * open with no type chosen, so each caller narrows it however its own subject needs.
+ * Save a glass design's look as a BRAND, and come to a fresh Browse step with that brand offered
+ * in the footer chooser (proposal §13.3; docs/BRAND_PLAN.md §5). The look is captured off the
+ * design's own created template, the same template the wizard's create builds, so no editor is
+ * needed. Leaves the step open with no type chosen, so each caller narrows it however its own
+ * subject needs.
  */
 async function seedGlassBrandAndReturnToBrowse(page: Page) {
-  await enableAdvancedMode(page);
-  await toBrowseStep(page);
-  await pickDesign(page, 'Frosted Card');
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
-
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await awaitDurableReady(page);
   await page.evaluate(async (name) => {
+    const { CATALOG } = await import('/src/templates/catalog.ts');
     const { createLook, captureLookFromTemplate } = await import('/src/model/packets.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const variant = Object.values(CATALOG).flat().find((v) => v.name === 'Frosted Card');
+    if (!variant) throw new Error('no catalog variant Frosted Card');
     // The STYLE FAMILY is stated, not captured. Nothing in a template's own code records which
     // catalog family it came from, so `captureLookFromTemplate` borrows it from whatever brand
     // the app already considers current - and here there is none. The family is exactly what
     // these tests are about, so it is set rather than left to that fallback.
-    const captured = captureLookFromTemplate(useTemplateStore.getState().template);
+    const captured = captureLookFromTemplate(variant.create({}));
     createLook(name, { ...captured, styleTag: 'glass' });
   }, GLASS_BRAND);
   await settleDurableWrites(page);
 
-  await startNewProject(page);
-  await page.locator('[data-entry="template"]').click();
+  await toBrowseStep(page);
 }
 
 /** The style family of the card at the head of the grid - what a re-rank moves. */

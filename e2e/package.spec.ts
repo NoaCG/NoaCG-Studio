@@ -8,7 +8,10 @@
 // covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
-import { finishIntoNewEditor, openExportWindow } from './_create';
+import JSZip from 'jszip';
+import { readFile } from 'node:fs/promises';
+import { finishIntoNewEditor, openExportWindow, startNewProject } from './_create';
+import { settleDurableWrites } from './_durable';
 import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { chooseType, pickDesign } from './_browse';
 
@@ -73,15 +76,72 @@ test('imported font: embedded, applied, and bundled into the export', async ({ p
   await expect(
     page.getByTestId('font-select').first().locator('option[value="custom"]'),
   ).toHaveText('My Brand Font (Your typeface)');
-  await create(page);
+  const doc = await create(page);
 
-  // The generated code carries the embedded font; the export bundles the binary.
+  // The generated code carries the embedded font: its own @font-face naming the uploaded file
+  // the way the export ships it, and the family applied to the graphic's text.
+  const css = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().template.css;
+  });
+  expect(css).toContain('font-family: "My Brand Font"');
+  expect(css).toContain('fonts/My-Brand-Font.woff2');
+  await expect
+    .poll(async () =>
+      doc.locator('body').evaluate(() =>
+        Array.from(document.querySelectorAll('*')).some((el) => getComputedStyle(el).fontFamily.includes('My Brand Font')),
+      ),
+    )
+    .toBe(true);
+
+  // The export bundles the binary beside the HTML, under the path the CSS asks for.
   await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
   ]);
   expect(download.suggestedFilename()).toMatch(/\.zip$/);
+  const files = Object.keys((await JSZip.loadAsync(await readFile(await download.path()))).files);
+  expect(files.some((f) => f.endsWith('fonts/My-Brand-Font.woff2'))).toBe(true);
+});
+
+test('a saved brand carries its look to another variant', async ({ page }) => {
+  // A graphic with a custom accent, saved as a NAMED brand. Create no longer writes a brand
+  // record of its own (docs/BRAND_PLAN.md decision 6), so making one is a deliberate act -
+  // which is the whole point of the chooser this then drives. The CAPTURE half is this case's
+  // own: wizard-brand.spec.ts seeds its brands as literals and pins only the apply.
+  await toVariantStep(page, 'Lower thirds', 'Hairline');
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.locator('[data-palette="custom"]').click();
+  await page
+    .locator('.wz-custom-colors .field-row', { hasText: 'Accent' })
+    .locator('input.grow')
+    .fill('#00ff88');
+  await finishIntoNewEditor(page);
+
+  await page.evaluate(async () => {
+    const { createLook, captureLookFromTemplate } = await import('/src/model/packets.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    createLook('Channel green', captureLookFromTemplate(useTemplateStore.getState().template));
+  });
+  await settleDurableWrites(page);
+
+  // Second creation, different family: the brand's accent applies through the chooser.
+  await startNewProject(page);
+  await page.locator('[data-entry="template"]').click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Frosted Card');
+  // None until somebody chooses - carrying a look over is explicit, as the old toggle was.
+  const brand = page.getByTestId('wz-brand');
+  await expect(brand).toHaveValue('');
+  await brand.selectOption({ label: 'Channel green' });
+  const doc = await create(page);
+  await expect
+    .poll(async () =>
+      doc.locator('body').evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()),
+    )
+    .toBe('#00ff88');
 });
 
 test('info card: creates, binds, and plays', async ({ page }) => {
