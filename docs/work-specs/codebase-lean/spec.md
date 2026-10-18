@@ -741,7 +741,11 @@ The first PR CI build also reproduced an affected-planner failure: offline.spec.
 all wizard imports although its flow only creates a catalog graphic. Its covers header now
 excludes wizard/import, matching the journey it runs, and the unchanged affected-planner
 checks pass all 92 cases. No assertion, selector expectation, gate or limit was relaxed.
-The earlier 56-case receipt is superseded by the final repair selection below.
+The final repair selection `j-4609` passed 60 cases with the same seven retained Sheet
+and insertion skips in 1.2 minutes. All nine existing changed specs passed ESLint;
+changed protection and gates passed after the repair. Review fixed nine findings including
+the live video consumer and the planner header; simplification removed only dead helpers
+from retired flows. The earlier 56-case receipt is superseded by this final selection.
 
 ### Remaining order and the #800 exit condition
 
