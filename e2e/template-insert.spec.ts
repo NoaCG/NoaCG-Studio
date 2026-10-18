@@ -203,3 +203,15 @@ test('an inserted graphic\'s own text lines are selectable parts, without inflat
   await expect.poll(async () => (await state(page)).selected).toBe(guestSel);
 });
 
+test('templates that need their own runtime are greyed with the reason, not hidden', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openInsertDialog(page);
+  await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Tickers' }).click();
+  const card = page.getByTestId('insert-tpl-card-tk01');
+  await expect(card).toHaveClass(/blocked/);
+  await card.click({ force: true });
+  await expect(page.getByTestId('insert-tpl-error')).toContainText(/runtime|measured/);
+  // The project was NOT touched.
+  const st = await state(page);
+  expect(st.html).not.toContain('ticker');
+});

@@ -20,6 +20,7 @@
 // covers: {whats-new.html,roadmap.html,docs/whats-new/**,docs/GOALS.md,scripts/whats-new.mjs,scripts/roadmap.mjs}
 
 import { test, expect } from '@playwright/test';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 
 // The public landing page lives at "/" (static, no React); the editor lives at "/app"
 // (dev/preview: the app-clean-url Vite plugin; production: Vercel cleanUrls). Old share
@@ -53,6 +54,22 @@ test('root shows the landing page, not the editor', async ({ page }) => {
 test('the editor lives at /app (clean URL, dev parity with production)', async ({ page }) => {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
+});
+
+test('the landing CTA opens the wizard without discarding work in progress', async ({ page }) => {
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
+  const source = () => page.evaluate(async () =>
+    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const before = await source();
+  await page.goto('/');
+  await page.getByRole('link', { name: /Start creating/i }).first().click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('.wz-header .gallery-close').click();
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await openWorkingGraphicInEditor(page);
+  expect(await source()).toEqual(before);
 });
 
 test('the landing reads create first, then play or export', async ({ page }) => {

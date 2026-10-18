@@ -95,6 +95,30 @@ async function createHairline(page: Page) {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
+test('live data: adding a Google Sheet appends an editable polling block, remove strips it', async ({ page }) => {
+  skipOldEditor();
+  await createHairline(page);
+  await page.getByTestId('dock-tab-control').click();
+  await page.getByPlaceholder(/pub\?output=csv/).fill('https://docs.google.com/x/pub?output=csv');
+  await page.getByRole('button', { name: 'Add live data' }).click();
+
+  const js1 = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().template.js;
+  });
+  expect(js1).toContain('== LIVE DATA');
+  expect(js1).toContain('https://docs.google.com/x/pub?output=csv');
+  expect(js1).toContain('"f0": "Name"');   // field → header map, seeded from field titles
+  await expect(page.locator('.panel-body .status-ok')).toContainText('Live-data block is in the JS');
+
+  await page.getByRole('button', { name: 'Remove' }).click();
+  const js2 = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().template.js;
+  });
+  expect(js2).not.toContain('== LIVE DATA');
+});
+
 test('live data: a published CSV drives the graphic (mocked sheet)', async ({ page }) => {
   skipOldEditor();
   await page.route('http://sheet-test.local/data.csv', (route: Route) =>

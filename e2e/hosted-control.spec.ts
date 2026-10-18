@@ -4,7 +4,8 @@
 // focus
 
 import { test, expect } from '@playwright/test';
-import { bootstrapGraphic } from './_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
+import { settleDurableWrites } from './_durable';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
 
@@ -16,6 +17,59 @@ import { appliedIn, receiverHost } from './_receiverHost';
 // (offline-pinned) — the hosted page itself is covered by the maintainer's live checklist.
 // What is pinned here is the half that runs locally and decides whether an operator sees
 // their rundown rows at all: which library record a show graphic's entries come from.
+
+test('a saved graphic carries its entries into the show it is added to', async ({ page }) => {
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
+
+  // Save it, then build two entries on its control panel — the operator's rundown rows.
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Presenter lower third');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+  const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('open-control').click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await page.getByTestId('add-entry').click();
+  await page.getByTestId('entry-field-f0').fill('Anna Andersson');
+  await page.getByTestId('entry-field-f1').fill('Presenter');
+  await page.getByTestId('add-entry').click();
+  await page.getByTestId('entry-field-f0').fill('Michael Smith');
+  await expect(page.locator('.control-entry')).toHaveCount(2);
+
+  // Pool the saved graphic from its current control page after its entries are durable.
+  await settleDurableWrites(page);
+  await page.getByTestId('control-add-production').click();
+  await page.getByTestId('control-new-production-name').fill('Evening Show');
+  await page.getByTestId('control-new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+
+  // The show's copy records WHICH library graphic it came from — the link the panel follows
+  // (a name match would pass here by luck; this pins the id).
+  const link = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { graphicById } = await import('/src/model/library.ts');
+    const id = loadShows()[0].graphics[0].graphicId ?? null;
+    return { id, name: id ? graphicById(id)?.name : null };
+  });
+  expect(link.name).toBe('Presenter lower third');
+
+  // The published panel spec — what the hosted page renders from — carries both entries.
+  const panel = await page.evaluate(async () => {
+    const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
+    const { loadShows } = await import('/src/model/shows.ts');
+    return buildPanelSpec(loadShows()[0]);
+  });
+  expect(panel).toHaveLength(1);
+  expect(panel[0].entries.map((e) => e.label)).toEqual(['Anna Andersson', 'Michael Smith']);
+  expect(panel[0].entries[0].values.f1).toBe('Presenter');
+  // Never the template payload — the spec stays the operator's view of the graphic.
+  expect(Object.keys(panel[0])).toEqual(['name', 'fields', 'js', 'images', 'entries', 'dataRows']);
+});
 
 test('a production dataset publishes the rows its graphics can load', async ({ page }) => {
   // The hosted control page never sees the show record, only what publishing wrote — so the
