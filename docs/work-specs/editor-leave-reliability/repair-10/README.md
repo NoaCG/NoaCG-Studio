@@ -100,32 +100,35 @@ saves to its own `localStorage`. Neither syncs a graphic between devices.
 
 ## Results
 
-Disposable probe `claude/probe-editor-p2-repair-10-ci` (`ffbd6be6`), never queued: this branch's
-`289aec6` plus the 21 carried paths taken byte-identical from `claude/probe-editor-p2-check-9-ci`
-`9bef784b` (`git diff 9bef784b` over them is empty; each run logs the independent-9 sha256s,
-ninth checker `2e8fdba7…`, ninth device `dbeb98be…`). CI used `--workers=1 --retries=0`.
+Disposable probes, never queued, each this branch's source plus the 21 carried paths taken
+byte-identical from `claude/probe-editor-p2-check-9-ci` `9bef784b` (`git diff 9bef784b` over them
+is empty; each run logs the independent-9 sha256s, ninth checker `2e8fdba7…`, ninth device
+`dbeb98be…`). The probe that counts is `claude/probe-editor-p2-repair-10-ci2` (`8fb47c56`), the
+final source after review; `…-ci` (`ffbd6be6`, the first source) gave the same result in every scope,
+and the ninth checker's facts read the same in both. CI used `--workers=1 --retries=0`.
 
-| Scope | Result |
-| --- | --- |
-| Configured, [39111744762](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111744762) | signed-in task **1/1**; eighth X-device **1/1**; ninth S-concurrent **2/2** (leaves at once, stays in the editor); R-departure red at line 281 only, as on main |
-| Ninth checker, [39111746741](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111746741) | C-pull, C-overlap, V-superseded x2 red only on the replaced "asks for a name" assertions (facts above); V-reservations x3 as on main |
-| Eighth checker, [39111748636](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111748636) | **7/7** |
-| Unchanged, [39111751045](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111751045) | original **3/3**, second **4/4**, third **10/10**, `:24` x20 **20/20**, fourth **11/11** |
-| `:228` x20, [39111753025](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111753025) | **20/20** |
-| Sixth, [39111755175](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111755175) | **10/10**, S6 included |
-| Seventh, [39111756934](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111756934) | **16/16**, H included |
-| Fifth, [39111758804](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111758804) | **17 passed, 3 timed out**: B1, F-hold, F-late, the recorded departures (A1 passes); bounded B1 **1/1** |
-| Maintained, [39111760989](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111760989) | **85 passed, 8 legacy skips**; two-graphic export **1/1** |
-| References, [39111762754](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111762754) | **6/6** |
-| Visual, [39111764648](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111764648) | 125% cumulative **4/4** |
-| Matrix, [39111766544](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111766544) | `save-transaction.spec.ts` **45/45** (42, the conflict row rewritten, three new) |
+| Scope | Result | ci2 (final) | ci |
+| --- | --- | --- | --- |
+| Configured | signed-in task **1/1**; eighth X-device **1/1**; ninth S-concurrent **2/2** (leaves at once, stays in the editor); R-departure red at line 281 only, as on main | [39119755899](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119755899) | [39111744762](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111744762) |
+| Ninth checker | C-pull, C-overlap, V-superseded x2 red only on the replaced "asks for a name" assertions (facts above); V-reservations x3 as on main | [39119757924](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119757924) | [39111746741](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111746741) |
+| Eighth checker | **7/7** | [39119759499](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119759499) | [39111748636](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111748636) |
+| Unchanged | original **3/3**, second **4/4**, third **10/10**, `:24` x20 **20/20**, fourth **11/11** | [39119761102](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119761102) | [39111751045](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111751045) |
+| `:228` x20 | **20/20** | [39119763243](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119763243) | [39111753025](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111753025) |
+| Sixth | **10/10**, S6 included | [39119764821](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119764821) | [39111755175](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111755175) |
+| Seventh | **16/16**, H included | [39119766867](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119766867) | [39111756934](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111756934) |
+| Fifth | **17 passed, 3 timed out**: B1, F-hold, F-late, the recorded departures (A1 passes); bounded B1 **1/1** | [39119768467](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119768467) | [39111758804](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111758804) |
+| Maintained | **85 passed, 8 legacy skips**; two-graphic export **1/1** | [39119770403](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119770403) | [39111760989](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111760989) |
+| References | **6/6** | [39119772196](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119772196) | [39111762754](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111762754) |
+| Visual | 125% cumulative **4/4** | [39119774342](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119774342) | [39111764648](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111764648) |
+| Matrix | `save-transaction.spec.ts` **45/45** (42, the conflict row rewritten, three new) | [39119776363](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119776363) | [39111766544](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111766544) |
 
 The control for S-concurrent is the ninth check's own: main fails it
 ([39107860639](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39107860639) and the three runs
 after it).
 
 Local (this VM, 2 workers, `--retries=0`): the five device rows and three new rows **8/8** (j-0033);
-all of `save-transaction.spec.ts` and `sync.spec.ts` **47/47** (j-0036). Control, the four conflict
+all of `save-transaction.spec.ts` and `sync.spec.ts` **47/47** (j-0036, and j-0037/j-0038 on the
+reviewed and final source). Control, the four conflict
 rows on main's `src/` (j-0034): **all four fail**: the draft is not linked to the copy (first-Save
 collision, lost conflict), the edit-between case is not linked to it, and with the list refused the
 second tab stays linked to the record that won. Mutations of single rules were not run: the
