@@ -221,7 +221,14 @@ export function saveCurrentGraphic(opts?: {
 async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'failed'> {
   if (!useTemplateStore.getState().saved.graphicId) return 'needs-name';
   const arriving = conflictCopyArriving(useTemplateStore.getState().saved.graphicId);
-  if (arriving) await arriving;
+  if (arriving) {
+    // The wait shows as saving; whatever follows sets the status it ends in.
+    const { saved, setSaved } = useTemplateStore.getState();
+    setSaved({ ...saved, status: 'saving' });
+    await arriving;
+    const now = useTemplateStore.getState().saved;
+    if (now.status === 'saving') setSaved({ ...now, status: saved.status });
+  }
   prepareEmptyOut();
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
