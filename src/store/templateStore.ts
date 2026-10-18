@@ -8,7 +8,7 @@ import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
-import { isOwnReservation, loadProject, onGraphicSuperseded, resumeReservation, saveProject } from '../model/project';
+import { holdsCopySource, isOwnReservation, loadProject, onGraphicSuperseded, resumeReservation, saveProject } from '../model/project';
 import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
@@ -641,10 +641,14 @@ if (typeof window !== 'undefined') {
   window.addEventListener('noacg-account-authoring-flush', flushPendingProject);
 }
 // A record this draft is linked to lost a sync conflict: another device's version holds its id
-// now (model/project.ts `graphicSuperseded`), so the next Save asks for a name (#1443).
-onGraphicSuperseded((graphicId) => {
-  const { saved } = useTemplateStore.getState();
-  if (saved.graphicId === graphicId) useTemplateStore.setState({ saved: { ...saved, graphicId: null, dirty: true } });
+// now (model/project.ts `graphicSuperseded`). The draft links to the "(conflicted copy)" that
+// holds its saved work, clean when it holds exactly that (#1466), never to the winner (#1443).
+onGraphicSuperseded((graphicId, copy) => {
+  const s = useTemplateStore.getState();
+  if (s.saved.graphicId !== graphicId) return;
+  useTemplateStore.setState({ saved: copy
+    ? { ...s.saved, graphicId: copy.id, dirty: !holdsCopySource(s, copy) }
+    : { ...s.saved, graphicId: null, dirty: true } });
 });
 useTemplateStore.subscribe((state, prev) => {
   // The legibility settings are part of the SAVED document (GraphicDoc.legibility), not a

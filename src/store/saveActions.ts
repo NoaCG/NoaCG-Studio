@@ -15,7 +15,7 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { endMint, isGraphicSuperseded, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
+import { conflictCopyOf, endMint, holdsCopySource, isGraphicSuperseded, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
@@ -223,6 +223,12 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
   // the topbar line and the canvas chip (components/ProjectFormatMeta.tsx). That is also why
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
+  // A sync pass found the record taken by another device's version while it was written, and
+  // moved the draft to the "(conflicted copy)" holding its work (#1466): the save settles there.
+  const moved = conflictCopyOf(graphicId), now = useTemplateStore.getState();
+  if (moved && now.saved.graphicId === moved.id && now.baseline === s.baseline) {
+    return (await commitLink({ graphicId: moved.id, dirty: now.saved.dirty, formatIssues })) ? 'failed' : 'saved';
+  }
   if (replacedSince(s)) return 'saved';
   return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), formatIssues })) ? 'failed' : 'saved';
 }
@@ -281,9 +287,12 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   // The record took the id: the link write names it, and carries the document's next one.
   releaseReservation();
   // A sync pass that ran while the record was written found the id taken by another device's
-  // record (#1443): the draft stays unlinked, its work is in the conflicted copy.
-  const taken = isGraphicSuperseded(doc.id);
-  const linkFailure = await commitLink({ graphicId: taken ? null : doc.id, dirty: dirty || taken, formatIssues });
+  // record (#1443): the draft links to the "(conflicted copy)" that holds its work, clean when it
+  // holds exactly that (#1466). A copy this tab never heard of leaves it unlinked.
+  const copy = conflictCopyOf(doc.id), taken = !copy && isGraphicSuperseded(doc.id);
+  const linkFailure = await commitLink(copy
+    ? { graphicId: copy.id, dirty: !holdsCopySource(useTemplateStore.getState(), copy), formatIssues }
+    : { graphicId: taken ? null : doc.id, dirty: dirty || taken, formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
   return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
 }
