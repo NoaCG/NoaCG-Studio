@@ -144,25 +144,13 @@ test('import graphic: the imported design animates — whole unit in, whole unit
   });
   expect(hasData).toBe(true);
   const doc = await mountWorkingDocument(page);
-  const played = await doc.locator('body').evaluate(async () => {
-    const w = window as unknown as { play: () => void; stop: () => void };
-    const settle = () => new Promise((r) => setTimeout(r, 1200));
-    const opacity = () => getComputedStyle(document.querySelector('.imported-design')!).opacity;
-    w.play();
-    await settle();
-    const out = {
-      playedOpacity: opacity(),
-      boxStyled: (document.querySelector('.imported-design-box')!.getAttribute('style') ?? '') !== '',
-      fieldStyle: document.getElementById('f0')!.getAttribute('style') ?? '',
-    };
-    w.stop();
-    await settle();
-    return { ...out, stoppedOpacity: opacity() };
-  });
-  expect(played.playedOpacity).toBe('1');
-  expect(played.boxStyled).toBe(true);
-  expect(played.fieldStyle).toBe('');
-  expect(played.stoppedOpacity).toBe('0');
+  const opacity = () => doc.locator('.imported-design').evaluate((el) => getComputedStyle(el).opacity);
+  await doc.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect.poll(opacity).toBe('1');
+  expect(await doc.locator('.imported-design-box').getAttribute('style')).not.toBe('');
+  expect(await doc.locator('#f0').getAttribute('style') ?? '').toBe('');
+  await doc.locator('body').evaluate(() => (window as unknown as { stop: () => void }).stop());
+  await expect.poll(opacity).toBe('0');
 });
 
 test('import graphic: a cropped design is placed as an object, not stretched', async ({ page }) => {
@@ -229,7 +217,7 @@ test('import graphic: the exported SPX package validates', async ({ page }) => {
   await createImported(page);
   await openExportWindow(page);
   // Export is gated on zero validation errors; the window says so inline.
-  await expect(page.getByTestId('export-window')).not.toContainText('✗');
+  await expect(page.getByTestId('export-window').locator('.status-ok')).toContainText('valid and ready');
 });
 
 test('the Text step places fields in the artwork’s empty panel by itself', async ({ page }) => {

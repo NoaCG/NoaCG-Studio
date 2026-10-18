@@ -92,8 +92,7 @@ async function boxMetrics(doc: FrameLocator) {
       const f0 = box.querySelector<HTMLElement>('#f0');
       return {
         width: Math.round(box.getBoundingClientRect().width),
-        // Canvas px: the editor preview pads the viewport (the pasteboard), so measure
-        // from the body's edge — inside the document, the body IS the 1920px canvas.
+        // Canvas px: inside the document the body IS the 1920px canvas, so measure from its edge.
         right: Math.round(
           box.getBoundingClientRect().right - document.body.getBoundingClientRect().left,
         ),
@@ -167,8 +166,8 @@ test('stretch: a long value grows the design at full type size, and a short one 
   expect(Math.abs(info!.left - 160)).toBeLessThan(12);
   expect(Math.abs(info!.right - 570)).toBeLessThan(12);
 
-  // The artwork actually PAINTS after the editor's settle (which clears inline styles —
-  // the reason the image ref lives in the CSS rule and never on the element).
+  // The artwork actually PAINTS from its CSS rule: the image ref lives there and never on the
+  // element, so a runtime that clears inline styles cannot blank it.
   const painted = await doc
     .locator('.imported-design-art')
     .evaluate((el) => getComputedStyle(el).borderImageSource.startsWith('url'));

@@ -238,8 +238,9 @@ import-prepare, import-graphic, import-canvas, import-svg-behaviour, import, imp
 import-stretch, import-svg-sticker-sample) ended their wizard walks with the retired
 advanced-mode switch and the old "Create project" door; they finish through the Finish step's
 "Edit this graphic" door now, so 54 live-gap cases run again: 178 cases in all across the nine
-files, 11.3 case-minutes locally on two workers (queue jobs `j-0016`, `j-0017`, `j-0019`,
-`j-0020`, `j-0021` and `j-0018`, every case passing, none skipped). What the cases read moved with
+files, 13.0 case-minutes locally on two workers (queue jobs `j-0016` to `j-0021`: `j-0016` and
+`j-0018` each carried one file that failed on a fix still missing, rerun green as `j-0019` and
+`j-0021`; every file's last run passes every case, none skipped). What the cases read moved with
 them: the editor's preview document (`editorPreview` in `e2e/_frame.ts`) where they read the old
 stage, the export window where they clicked the old dock's export tab, and the working document
 mounted in a composer iframe (`mountWorkingDocument`, the same helper) where they typed into the
@@ -431,7 +432,7 @@ so the gate can read the delta where a runner measures a file above its table we
 - e2e/import-svg-behaviour.spec.ts: 3.6 min, protects the imported boards' behaviour through the CasparCG package and its standalone panel, expires 2026-11-16
 - e2e/import-svg.spec.ts: 3.4 min, protects the SVG import walk from the drop to the created template: mapping, binding, fit, growth, drawn fields and followers, expires 2026-11-16
 - e2e/import-stretch.spec.ts: 0.4 min, protects the 9-slice stretch runtime and the fixed default on an imported design, expires 2026-11-16
-- e2e/import-svg-corpus.spec.ts: 2.1 min, protects picture fields swapped at runtime on the corpus boards, expires 2026-11-16
+- e2e/import-svg-corpus.spec.ts: 3.8 min, protects picture fields swapped at runtime on the corpus boards, expires 2026-11-16
 - e2e/import.spec.ts: 0.3 min, protects the .html and zip import doors and the export round trip, expires 2026-11-16
 - e2e/import-svg-sticker-sample.spec.ts: 0.1 min, protects the documented sticker sample: its faces, fields and panel growth, expires 2026-11-16
 
