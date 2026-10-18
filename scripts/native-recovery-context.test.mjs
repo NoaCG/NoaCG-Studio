@@ -70,3 +70,12 @@ test('invalid Codex counter rows cannot disappear behind earlier valid in-window
   const heartbeat = line({ timestamp: row.timestamp, payload: { type: 'token_count', info: null } });
   assert.equal(measureRecovery(m, [`${valid}\n${heartbeat}`]).usage.records, 2);
 });
+
+test('Codex refuses impossible cache deltas even when lifetime and window totals look valid', () => {
+  const text = codex([
+    ['2026-10-17T08:59:00Z', 100, 10, 10],
+    [manifest.since, 200, 20, 15],
+    ['2026-10-17T09:01:00Z', 210, 40, 18],
+  ]);
+  assert.throws(() => measureRecovery({ ...manifest, provider: 'codex' }, [text]), /cached input exceeds/);
+});

@@ -28,6 +28,8 @@
 //
 //   save-transaction.spec.ts                 refuse+retry, refuse+reload, the double refusal (R and K),
 //                                            whose the reservation is across tabs (repair 8, #1402)
+//                                            and across devices (repair 9, #1443), and a Save that
+//                                            loses a sync conflict (repair 10, #1466)
 //   save-transaction-holds.spec.ts           hold+edit, the reservation kept, replace, double, in-flight
 //   save-transaction-wizard.spec.ts          the wizard's Finish doors (its walk helper lives there)
 //   save-transaction-leave.spec.ts           the leave replay and the in-flight leave under the topbar Save

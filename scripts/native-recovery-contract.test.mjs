@@ -8,7 +8,7 @@ const now = Date.parse('2026-10-17T09:40:00Z');
 const policy = { approval: 'on-request', sandbox: 'workspace-write', network: 'restricted', writableRoots: ['/workspace/owned'] };
 const target = { provider: 'claude-cloud', sessionId: 'native-session', environmentId: 'native-environment', revision: 'a'.repeat(40), policySha256: policyFingerprint(policy) };
 const observed = () => ({ ...target, state: 'running', observedAt: new Date(now).toISOString(), evidence: 'native get_session read-back' });
-const intent = { actionId: 'run:1', requestSha256: 'b'.repeat(64) };
+const intent = { ...target, actionId: 'run:1', requestSha256: 'b'.repeat(64) };
 const receipt = () => ({ ...intent, state: 'accepted', nativeId: 'native-submission', evidence: 'native exact-id read-back' });
 const wake = () => ({
   authorization: { source: 'test owner', scope: 'prepared phase', permissionPolicy: 'original policy', policySha256: target.policySha256, startedAt: '2026-10-17T09:00:00Z', deadline: '2026-10-17T11:00:00Z' },
@@ -53,6 +53,35 @@ test('uncertain submissions remain parked; only exact identity or authoritative 
   assert.equal(reconcileNative(intent, absent).state, 'not-delivered');
   for (const patch of [{ authoritative: false }, { final: false }, { evidence: '' }]) assert.equal(reconcileNative(intent, { ...absent, ...patch }).state, 'unknown');
   assert.equal(reconcileNative({ ...intent, nativeId: 'already-accepted' }, absent).state, 'unknown');
+});
+
+test('submission reconciliation requires the original native binding, even for final rejection', () => {
+  const absent = { ...intent, state: 'not-delivered', authoritative: true, final: true, evidence: 'provider rejection' };
+  for (const key of Object.keys(target)) {
+    for (const value of [undefined, 'another']) {
+      assert.equal(reconcileNative(intent, { ...receipt(), [key]: value }).state, 'unknown');
+      assert.equal(reconcileNative(intent, { ...absent, [key]: value }).state, 'unknown');
+    }
+    assert.equal(reconcileNative({ ...intent, [key]: undefined }, receipt()).state, 'unknown');
+  }
+  assert.equal(reconcileNative(intent, { ...absent, nativeId: 'accepted-task' }).state, 'unknown');
+});
+
+test('exact cadence uses executor arrival and rejects rounding or update-relative drift', () => {
+  const record = wake();
+  record.authorization.cadenceMs = 3_600_000;
+  record.previous.arrivedAt = '2026-10-17T09:35:08.797Z';
+  record.next.dueAt = '2026-10-17T10:35:08.797Z';
+  assert.equal(rearmNative(record, now).state, 'eligible');
+  for (const dueAt of ['2026-10-17T10:35:09Z', '2026-10-17T10:35:00Z', '2026-10-17T10:40:00Z']) {
+    assert.equal(rearmNative({ ...record, next: { ...record.next, dueAt } }, now).state, 'unknown');
+  }
+  for (const arrivedAt of [undefined, 'invalid', '2026-10-17T08:59:00Z', '2026-10-17T09:40:01Z']) {
+    assert.equal(rearmNative({ ...record, previous: { ...record.previous, arrivedAt } }, now).state, 'unknown');
+  }
+  for (const cadenceMs of [null, 0, -1, 0.5, NaN, Infinity]) {
+    assert.equal(rearmNative({ ...record, authorization: { ...record.authorization, cadenceMs } }, now).state, 'unknown');
+  }
 });
 
 test('re-arm preserves the owner, actual permissions and absolute window', () => {
