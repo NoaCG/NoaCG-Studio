@@ -1,28 +1,26 @@
-// covers: none - no source path selected this spec when coverage moved into spec headers
-// (2026-09-27); it runs when edited, on a full escalation and at night
+// covers: src/editor/**, src/components/video/{VideoCodeEditor,VideoAppShell}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
-import { showCode } from './_code';
+import { reloadVideoShell } from './_video';
+import { durableValue } from './_storage';
 
-// The Comments visibility control (src/editor/commentVisibility.ts) - a VIEW preference over the
-// code editor. Two things it must never do: get the comment spans wrong (hence tokenization, not
-// regexes) and touch the code (hence decorations, not edits). These specs pin both, plus the
-// reapply-on-model-change contract and the temporary reveal that keeps a hidden comment from
-// swallowing whatever the editor is pointing the user at.
-
-/** The code pane's Monaco once the lazy chunk is up. The pane ships CLOSED, and this whole
- *  file's subject is a control that lives inside it — so open it first, as its user would. */
+// The live video code pane owns the comment control. Mode changes and source edits use its UI.
+// Selection/find use Monaco's API because its caret and find widget are unreliable headless.
 async function codeEditorReady(page: Page) {
-  await showCode(page);
+  await page.goto('/app#/video');
+  await expect(page.getByTestId('video-shell')).toBeVisible();
+  const toggle = page.getByTestId('video-toggle-code');
+  if ((await toggle.getAttribute('title')) === 'Show the code editor') await toggle.click();
   await expect(page.getByTestId('comment-visibility')).toBeVisible();
+  await expect(page.locator('.monaco-editor .view-line').first()).toBeVisible();
+  await page.locator('.monaco-editor').click();
+  await page.keyboard.press('Control+End');
 }
-
 async function setMode(page: Page, mode: 'normal' | 'dimmed' | 'hidden') {
   await page.getByTestId('comment-visibility').selectOption(mode);
 }
-
-// ── The range finder (pure, run in the app's module context) ──
+const source = (page: Page) => page.evaluate(async () =>
+  (await import('/src/store/videoProjectStore.ts')).useVideoProjectStore.getState().project.tsx);
 
 test('comment ranges come from the tokenizer, across every language we support', async ({ page }) => {
   await page.goto('/app');
@@ -60,15 +58,12 @@ test('comment ranges come from the tokenizer, across every language we support',
   expect(out.embedded).toEqual(['// inside html']);
 });
 
-// ── The editor control ──
-
 test('Hidden paints comments transparent and leaves the source untouched', async ({ page }) => {
-  await createProject(page);
   await codeEditorReady(page);
   const before = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const s = useTemplateStore.getState();
-    return { html: s.template.html, historyLength: s.history.length };
+    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const s = useVideoProjectStore.getState();
+    return { html: s.project.tsx, historyLength: s.history.length };
   });
 
   await setMode(page, 'hidden');
@@ -93,62 +88,61 @@ test('Hidden paints comments transparent and leaves the source untouched', async
 
   // The whole round trip is a view change: not one character moved.
   const after = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const s = useTemplateStore.getState();
-    return { html: s.template.html, historyLength: s.history.length };
+    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const s = useVideoProjectStore.getState();
+    return { html: s.project.tsx, historyLength: s.history.length };
   });
   expect(after.html).toBe(before.html);
   expect(after.historyLength).toBe(before.historyLength); // no undo step was created by any of it
 });
 
-test('the mode survives a tab switch, a content edit, and a reload', async ({ page }) => {
-  // This is the one test here that mounts Monaco TWICE - once at the start and again after the
-  // reload - and showCode allows each mount 20 s because a lazy chunk fetch is a download, not a
-  // render. Two of those cannot fit inside a 30 s test budget under worker contention, so the
-  // test was dying on its own clock with no assertion message. The internal waits are correct;
-  // the enclosing budget was the thing that was wrong.
-  test.slow();
-  await createProject(page);
+test('the mode survives a model swap, a manual edit, pane remount and reload', async ({ page }) => {
   await codeEditorReady(page);
   await setMode(page, 'hidden');
   await expect(page.locator('.monaco-editor .comment-hidden').first()).toBeVisible();
 
-  // A model swap (the CSS tab is its own model - decoration collections die with a model).
-  await page.locator('.pane-header .tab', { hasText: 'CSS' }).click();
-  await expect(page.locator('.monaco-editor .comment-hidden').first()).toBeVisible();
-
-  // A content change re-tokenizes; the comment below the inserted line stays hidden.
-  await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const s = useTemplateStore.getState();
-    s.setCss(`/* fresh note */\n.injected { color: red; }\n${s.template.css}`);
+  // The video pane has one source tab. Exercise its controller's model-swap contract directly,
+  // then restore the original model; this probe does not write application state.
+  const swapped = await page.evaluate(async () => {
+    const { monaco } = await import('/src/monacoSetup.ts');
+    const editor = monaco.editor.getEditors()[0], original = editor.getModel()!;
+    const replacement = monaco.editor.createModel('// replacement model note\nconst value = 1;\n', 'typescript');
+    try {
+      editor.setModel(replacement);
+      editor.setPosition({ lineNumber: 2, column: 1 });
+      const until = performance.now() + 5000;
+      while (!replacement.getAllDecorations().some(d => d.options.inlineClassName === 'comment-hidden') && performance.now() < until) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return replacement.getAllDecorations().some(d => d.options.inlineClassName === 'comment-hidden');
+    } finally { editor.setModel(original); replacement.dispose(); }
   });
-  await expect(page.locator('.monaco-editor .comment-hidden').first()).toBeVisible();
-  expect(await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.css.includes('/* fresh note */');
-  })).toBe(true);
-
-  // Undo rewinds the edit itself and nothing else — the decorations are not on the stack.
-  await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    useTemplateStore.getState().undo();
-  });
-  expect(await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.css.includes('/* fresh note */');
-  })).toBe(false);
+  expect(swapped).toBe(true);
+  await page.locator('.monaco-editor').click();
+  await page.keyboard.press('Control+Home');
+  await page.keyboard.press('End');
+  const before = await source(page);
+  await page.keyboard.insertText('freshvisibilitynote');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => source(page)).toContain('freshvisibilitynote');
+  await expect(page.locator('.monaco-editor .comment-hidden').filter({ hasText: 'freshvisibilitynote' })).toBeVisible();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => source(page)).toBe(before);
   await expect(page.locator('.monaco-editor .comment-hidden').first()).toBeVisible();
 
-  // Remembered locally, and reapplied on the restored project's model.
-  await page.reload();
-  await codeEditorReady(page);
+  await page.getByTestId('video-toggle-code').click();
+  await expect(page.getByTestId('comment-visibility')).toHaveCount(0);
+  await page.getByTestId('video-toggle-code').click();
   await expect(page.getByTestId('comment-visibility')).toHaveValue('hidden');
   await expect(page.locator('.monaco-editor .comment-hidden').first()).toBeVisible();
+  await expect.poll(async () => (await durableValue(page, 'spx-gfx-video-project'))?.includes('Starter composition') ?? false).toBe(true);
+  await reloadVideoShell(page);
+  await expect(page.getByTestId('comment-visibility')).toHaveValue('hidden');
+  await expect(page.locator('.monaco-editor .comment-hidden').first()).toBeVisible();
+  expect(await source(page)).toBe(before);
 });
 
 test('a selection inside a hidden comment reveals it', async ({ page }) => {
-  await createProject(page);
   await codeEditorReady(page);
   await setMode(page, 'hidden');
   const hidden = page.locator('.monaco-editor .comment-hidden');
@@ -182,7 +176,6 @@ test('a selection inside a hidden comment reveals it', async ({ page }) => {
 });
 
 test('a find match inside a hidden comment reveals it', async ({ page }) => {
-  await createProject(page);
   await codeEditorReady(page);
   await setMode(page, 'hidden');
   await expect(page.locator('.monaco-editor .comment-hidden').first()).toBeVisible();

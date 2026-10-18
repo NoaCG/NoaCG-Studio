@@ -18,11 +18,15 @@
 // this script watches it on every pull request and merge group.
 //
 // THE ENVELOPE IS FIXED, NOT DERIVED FROM THE SHARD COUNT. `MAX_SHARDS` in e2e-affected.mjs may
-// follow the table so a full run fits its cap; MAIN_RUNNERS here is the share of the account's
-// twenty concurrent runners one full run is allowed to hold, and raising it is a reviewed decision
-// that cites the measured peak concurrency (evidence/cost-and-growth.md: the account sat at exactly
-// twenty running jobs for 17% of all busy time). A shard count that creeps up must not quietly
-// raise the budget, so the two constants are separate on purpose.
+// follow the table so a full run fits its cap; MAIN_RUNNERS here is the BUDGET LINE - the share
+// of the account's twenty concurrent runners a full run is budgeted, in runners' worth of
+// table-minutes - and raising it is a reviewed decision that cites the measured peak concurrency
+// (evidence/cost-and-growth.md: the account sat at exactly twenty running jobs for 17% of all busy
+// time). It is not the count a full run holds: since 2026-10-17 a full run holds MAX_SHARDS (15)
+// runners against a budget of 13, because the packer places whole files and keeps a margin for
+// the slowest runner, which this fluid-fill line does not see; the line itself reads 98%. A shard
+// count that creeps up must not quietly raise the budget, so the two constants are separate on
+// purpose.
 //
 // WHAT IT REFUSES, AND WHAT IT CANNOT. Above HARD_SHARE a change that ADDS measured spec-minutes
 // needs an exception line in a work spec (format below), with the spec file, the minutes, what it
@@ -64,6 +68,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * start after build, factory and the Vercel wait have mostly finished), so 13-16 from now on.
  * This restores the fit; it is not the long-term answer the suite budget spec asks for
  * (docs/work-specs/e2e-suite-budget/spec.md), which is holding and then cutting the minutes.
+ *
+ * HELD AT 13 when MAX_SHARDS went to 15, later on 2026-10-17 (#1405). The suite is 209.9
+ * table-minutes once the save-transaction matrix is measured (26.7 minutes the table had never
+ * seen: scripts/e2e-affected.mjs MAX_SHARDS), which is 98% of thirteen runners. That reading is
+ * true - the suite grew by a shard and a half in two editor repairs - and the budget spec's
+ * decision 1 is that the shard count may follow the table and the envelope does not. So every
+ * pull request is warned, one that adds measured minutes needs an exception, and the minutes
+ * are cut or the envelope is raised by a decision that cites the twenty-job ceiling, not here.
  */
 export const MAIN_RUNNERS = 13;
 /** Usage above which every pull request is warned. */

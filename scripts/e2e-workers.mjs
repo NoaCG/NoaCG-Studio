@@ -33,7 +33,7 @@ import { freemem } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { jobsDir, readJobs } from './jobs-store.mjs';
-import { cloudBrowserAdmission, cloudJobPolicy, requestedWorkerCounts, executionProfile } from './execution-profile.mjs';
+import { cloudBrowserAdmission, cloudJobPolicy, requestedWorkerCounts, executionProfile, machineSummary } from './execution-profile.mjs';
 
 /**
  * A STEP TABLE, not a formula, because the cost of a worker is not linear and pretending it is
@@ -98,7 +98,7 @@ export function chooseWorkers({ freeMb = Math.round(freemem() / (1024 * 1024)), 
   const pinned = Number(override);
   if (profile.kind === 'cloud') {
     const workers = Math.min(profile.workers, Number.isInteger(pinned) && pinned > 0 ? pinned : profile.workers);
-    return { workers, reason: `${profile.provider} execution-site limits${profile.known ? '' : ' unknown; targeted only'}` };
+    return { workers, reason: `${profile.provider} cloud, ${machineSummary(profile)}` };
   }
   if (Number.isInteger(pinned) && pinned > 0) {
     return { workers: pinned, reason: `E2E_WORKERS=${pinned} (pinned)` };
@@ -138,8 +138,10 @@ export function localWorkers() {
 }
 
 // Called even by CI-shaped local invocations: --workers/-j must not bypass the cloud ceiling.
-export function validateCloudWorkerRequest({ profile = executionProfile(), args = process.argv, override = process.env.E2E_WORKERS } = {}) {
-  cloudJobPolicy({ profile, browser: true, requestedWorkers: [...requestedWorkerCounts(args), ...(override ? [override] : [])] });
+// A Playwright worker re-imports the config after the runner admitted its count, reading less free
+// memory than the runner did; it must not refuse a pin the runner already started.
+export function validateCloudWorkerRequest({ profile = executionProfile(), args = process.argv, override = process.env.E2E_WORKERS, inWorker = process.env.TEST_WORKER_INDEX !== undefined } = {}) {
+  cloudJobPolicy({ profile, browser: true, requestedWorkers: inWorker ? [] : [...requestedWorkerCounts(args), ...(override ? [override] : [])] });
   if (profile.kind !== 'cloud') return {};
   if (!args.includes('test') || args.includes('--list') || args.includes('--help')) return { workers: profile.workers };
   const job = readJobs(jobsDir()).find((j) => j.id === process.env.NOACG_QUEUED_JOB_ID && resolve(j.checkout) === resolve(process.cwd()));

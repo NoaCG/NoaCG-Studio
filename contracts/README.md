@@ -78,7 +78,10 @@ npm run learn -- --area wizard --scope "src/components/wizard/**" --kind trap \
 the rule is already in the store (no second rule), refuses a `fires:` naming a mechanism that is
 not in the tree, and recompiles. Commit the rule, the record and the regenerated files together.
 Retire a rule by setting `status: retired` (and `supersedes:` on its replacement); never delete
-the file, so a lost symbol is a visible change rather than a missing paragraph.
+the file, so a lost symbol is a visible change rather than a missing paragraph. A retired rule
+keeps its scope and text as history: the compiler does not require its scope to match a file,
+and the freshness and retired-names gates skip retired rule files and the index's retired rows,
+so deleting the code or spec a retired rule named needs no edit to the rule.
 
 ## Gates
 

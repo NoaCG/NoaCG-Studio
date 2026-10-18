@@ -97,7 +97,8 @@ fonts, and I will use them." A user who already gave a brief gets no examples.
    `C:/Windows/System32/tar.exe -a -cf my-graphic.zip my-graphic` from any shell (Git Bash's own
    `tar` writes a tar file, not a zip). `noacg validate my-graphic.zip` confirms it, and it
    imports through the studio's Import door. It is also a complete OGraf package any OGraf
-   renderer plays.)
+   renderer plays.) A host that saves the graphic itself and asks you for a record instead
+   (a container, a bench): hand in as `references/hand-in.md` says.
 
 ## Several graphics for one show
 
@@ -155,7 +156,7 @@ user gave a brand, the report ends with its lines ("The user's brand" below): wh
 from where, what you could not use or that you used all of it, and the logo's rights.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli@0.12.2 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.2` once makes every
+(`npx -y @noacg/cli@0.12.3 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.3` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the
@@ -251,6 +252,8 @@ does not apply to a fixed broadcast frame.
   authors resolve it.
 - `references/control.md` - how NoaCG derives the operator surface; the two markup conventions
   the control layer reads; the OGraf contract (`schema`, `customActions`, `stepCount`).
+- `references/hand-in.md` - handing in a record when the host saves, not you: the coverage, a
+  verdict for every frame, `noacg record --review`.
 - `references/critique.md`, `references/design-notes.md` and `references/share.md` - the three
   opt-in tools below. Do not read them unless one is switched on.
 

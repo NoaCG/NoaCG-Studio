@@ -1,0 +1,139 @@
+{
+  "costUnread": false,
+  "brief": "charity-stream-alerts",
+  "arm": "subscription",
+  "model": "claude-opus-5-5",
+  "effort": "low",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "946d116e-eaa2-423c-a2ee-18d12c6bac3c",
+  "costCents": 0,
+  "notionalUsd": 3.1012614000000003,
+  "wallSeconds": 402,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs hand-in",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type event-notification --design sn01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7d633e87dee53af8a3c32824bebea8ae059612be009e765e58457f3ce6c7f8c5"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:e91cadad153130707cfffbbd2aa01348775b4454ef7e0d69ee4f98b642f6bb49"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:6ebc60a94b39498f67ab6837828391daf170b5613a870e2cb527564684332816"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:6ebc60a94b39498f67ab6837828391daf170b5613a870e2cb527564684332816"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:72846980c7d13d0bd9ca7c3a60f6a03ee78920a6374a46aa92102aaaeff5d9ce"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:72846980c7d13d0bd9ca7c3a60f6a03ee78920a6374a46aa92102aaaeff5d9ce"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:fed1be055366d0ca9bc49ffe2840dbd727e6d6bbcbf47af339f3b6fc82da2b13"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:fed1be055366d0ca9bc49ffe2840dbd727e6d6bbcbf47af339f3b6fc82da2b13"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:c1048dc41572411e805f4000e27f4c080f31a3f666670758d719871177e98d89"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c1048dc41572411e805f4000e27f4c080f31a3f666670758d719871177e98d89"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:c1048dc41572411e805f4000e27f4c080f31a3f666670758d719871177e98d89"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\opus-5-5-low\\cells\\charity-stream-alerts.claude-opus-5-5-low\\frames",
+    "frames": 67,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c1048dc41572411e805f4000e27f4c080f31a3f666670758d719871177e98d89"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "hold",
+      "resume",
+      "replay",
+      "skip"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:c1048dc41572411e805f4000e27f4c080f31a3f666670758d719871177e98d89",
+    "benchValidated": "sha256:c1048dc41572411e805f4000e27f4c080f31a3f666670758d719871177e98d89",
+    "reviewed": "sha256:c1048dc41572411e805f4000e27f4c080f31a3f666670758d719871177e98d89",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 64,
+    "opened": 64,
+    "unopened": [],
+    "all": true,
+    "fixed": 2
+  }
+}

@@ -10,7 +10,8 @@ accepting every recommendation, and asked for a second opinion before the phases
 reads primary documentation directly, supplies six starter layouts, and proposes scoped
 connections, explicit list formats and a smaller operator workflow. Its proposals shaped the
 candidate that the two reviews below then reconciled. Original owner answers stay recorded;
-changes remain draft. The source-access note below describes this first research pass only.
+the reconciled changes were agreed on 2026-10-18 (§7 of the synthesis). The source-access note
+below describes this first research pass only.
 
 ## Latest owner direction and full-plan review, 2026-10-17
 
@@ -37,8 +38,9 @@ model first and permits replacing the proposed design.
 reconciles them in one table, and rewrites the four specs into one proposal: the cue editor as
 the home of "Fill from…" and "Connect…", paste landing first, three refactor phases in this
 window, destination hygiene instead of snapshot flags, a browser-led Sheet reader with a server
-tick, five format adapters, browser-side YouTube. Four decisions remain for the owner (its §7).
-The parent, Sheet and message specs carry the result; the plan is draft until he agrees it.
+tick, five format adapters, browser-side YouTube. On 2026-10-18 the owner answered all four
+decisions yes (decision 4: yes to both); its §7 records the answers. The parent, Sheet and message
+specs carry the agreed result. The owner explicitly instructed not to start the plan run.
 
 The full-plan read raised these questions before the reviews; the synthesis answered each:
 
@@ -56,8 +58,9 @@ The full-plan read raised these questions before the reviews; the synthesis answ
   key, receipts from track Q before anything is promised.
 
 No code, migration, browser walkthrough, provider trial or implementation phase was run in this
-update or in the reconciliation. The continuation remains draft pending the owner's agreement on
-the reconciled plan. The parent run is updated in the draft PR; it is not yet on `main`.
+update or in the reconciliation. The owner agreed the continuation on 2026-10-18 and authorized
+`/check` and queue-merge of the planning PR #1390. Starting the parent run remains a separate
+owner instruction; no run starts from this documentation update.
 
 ## Earlier research and follow-up corrections
 

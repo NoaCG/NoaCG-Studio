@@ -60,7 +60,7 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // per agent: agent.md, environment.yaml, the claude-lock files the sync writes), synced by
   // scripts/harness-agent-sync.mjs (docs/work-specs/noacg-harness/spec.md D1).
   'agents',
-  'NoaCG-Brand-Kit', 'README.md', 'admin.html', 'api', 'app.html', 'benchmarks', 'bridge.html', 'cli',
+  'NoaCG-Brand-Kit', 'README.md', 'api', 'app.html', 'benchmarks', 'bridge.html', 'cli',
   // `contracts/` is the rule store the loaded contracts are compiled from (docs/WORKFLOW_ARCHITECTURE.md
   // §2): one rule per file, one record per incident, neither loaded into a session.
   'contracts', 'docs',

@@ -2,10 +2,15 @@
 
 Authority: owner, 2026-10-16 (see `work.json`), who answered D1-D4 the same day. Reconciled on
 2026-10-17 from two independent reviews (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`):
-D2's order and the reader model are revised below, and **the revision of D1 and of D3's
-closed-page promise is a decision for the owner**, not yet agreed. Parent direction:
+D2's order and the reader model are revised below. **The owner agreed the revisions of D1 and
+of D3's closed-page promise on 2026-10-18** (synthesis §7 decision 2). Parent direction:
 `docs/GOALS.md` outcome 7. Architecture: `docs/PRODUCTION_DATA_PLAN.md`, `docs/CLOUD_PLAYOUT.md` §7.
 Shared model, format adapters, phases and verification: `docs/work-specs/data-sources/spec.md`.
+
+Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both**
+(run order; Sheet reader model; destination hygiene with `/update` allowed; opt-in key storage
+and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
+planning update does not start `/plan-run production-page`; the owner explicitly said not to.
 
 ## What the reconciliation changed here
 
@@ -13,7 +18,7 @@ The shared changes are listed once in the data-sources spec. For this document: 
 starts at the cue field with "Fill from… Paste rows" and "Connect… Google Sheet", lists first
 (D2 superseded); one reader per source by a lease, the browser leading while a page is open and a
 server tick covering published sources with every page closed (D1 and D3's closed-page promise,
-proposed revision); a connected list is read-only on the default surface, D4 staying for values.
+agreed revision, 2026-10-18); a connected list is read-only on the default surface, D4 staying for values.
 
 ## Problem
 
@@ -137,14 +142,14 @@ that Sheets connect on the production. A graphic that already carries the block 
 
 - **D1. Who reads the sheet.** Answer: the server for published productions, the browser for
   local ones, one active reader per source, status and Pause on Playout, last good values kept.
-  **Proposed revision (2026-10-17, synthesis §7 decision 2):** the browser leads while any page is
+  **Agreed revision (2026-10-18, synthesis §7 decision 2):** the browser leads while any page is
   open, published or not; the server tick covers published sources with no live lease. One reader
   per source, status, Pause and last-good hold are unchanged.
 - **D2. Sheet shapes.** Answer: values first, lists later, the operator picks. Superseded by
   DS2: lists first, values alongside, selected rows after; the operator still picks.
 - **D3. How fresh.** Answer: an edit on screen within 10 seconds, read every 5 seconds, verified
   with real edits before anything promises it, server cost measured, a miss stops the plan.
-  **Kept while a page is open.** Proposed revision (synthesis §7 decision 2): with every page
+  **Kept while a page is open.** Agreed revision (2026-10-18, synthesis §7 decision 2): with every page
   closed the figure is the tick's, about a minute, reported as measured. The stop rule stays.
 - **D4. One number, several buttons.** Answer: the ± and Goal buttons change the shared value;
   no write back; the manual value holds until the cell changes; Pause keeps it. Kept for values.

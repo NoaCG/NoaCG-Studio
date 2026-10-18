@@ -15,7 +15,8 @@ import MiniPreview from './wizard/MiniPreview';
 import { useModalGate } from './spaceKey';
 
 /** The dialog's open flag, shared so every entry point (the Assets panel's button, the
- *  canvas context menu) drives the ONE instance mounted in AppShell. */
+ *  canvas context menu) drives ONE instance. The retired AppShell used to mount it; a surface
+ *  that offers an entry point mounts the dialog once itself. */
 export const useInsertTemplateUi = create<{ open: boolean; openDialog: () => void; close: () => void }>((set) => ({
   open: false,
   openDialog: () => set({ open: true }),

@@ -130,6 +130,17 @@ export function findRetired(text, retired) {
   return findings;
 }
 
+/**
+ * A rule file whose front matter says `status: retired`. A retired rule never loads and is never
+ * deleted (contracts/README.md): its text is the record of what it used to instruct, so a retired
+ * mechanism named there is history by construction, however the sentence is worded.
+ */
+export function isRetiredRule(file, text) {
+  if (!file.startsWith('contracts/rules/')) return false;
+  const frontMatter = /^---\n([\s\S]*?)\n---/.exec(String(text).replace(/\r\n/g, '\n'));
+  return Boolean(frontMatter) && /^status:\s*retired\s*$/m.test(frontMatter[1]);
+}
+
 /** Is this repository path part of the loaded or invoked instruction surface? */
 export function isInstructionFile(file) {
   if (!file.endsWith('.md') || EVIDENCE_FILES.has(file)) return false;
@@ -151,8 +162,10 @@ function main() {
     // from the worktree but not yet staged, and a gate that crashes on it names nothing.
     const path = resolve(ROOT, file);
     if (!existsSync(path)) continue;
+    const text = readFileSync(path, 'utf8');
+    if (isRetiredRule(file, text)) continue;
     scanned += 1;
-    for (const finding of findRetired(readFileSync(path, 'utf8'), retired)) {
+    for (const finding of findRetired(text, retired)) {
       failures.push(
         `${file}:${finding.line}: names retired "${finding.name}" (\`${finding.excerpt}\`) as an instruction.\n`
         + `      replacement: ${finding.replacement}\n      why: ${finding.why}`,

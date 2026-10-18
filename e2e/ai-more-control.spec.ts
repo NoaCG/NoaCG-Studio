@@ -4,7 +4,7 @@
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { enableAdvancedMode } from './_create';
+import { startNewProject } from './_create';
 
 // Create with AI — the "More control" structured setup: category pinning, user-defined
 // data fields, animation intensity, draft persistence, and the untouched prompt-only
@@ -67,8 +67,6 @@ function categoryEnum(schema: Record<string, unknown> | undefined): string[] {
 const GENERATED = { timeout: 25_000 };
 
 async function openAiStep(page: Page) {
-  // These setups create through the AI Finish EDITOR door - Advanced-only since step 6.
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
@@ -124,10 +122,11 @@ test('structured setup: pinned category + user fields + intensity land in the cr
   expect(design!.userText).toContain('Structured setup');
   expect(design!.userText).toContain('Location');
 
-  // Create with AI ends on the shared Finish step now — Next, then the editor door.
+  // Create with AI ends on the shared Finish step now — Next, then the export door, which
+  // builds the graphic into the working document before it opens the window.
   await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-editor').click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
 
   // The created template carries the user's fields as real DataFields, the intensity as
   // the motion speed, and the spec rides the working document for later refines.
@@ -173,10 +172,8 @@ test('collapsing sections and closing the wizard preserve the entered setup', as
   await expect(page.locator('[data-entry="ai"]')).toBeVisible();
   await page.locator('.gallery-close').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  // This file runs in Advanced mode (openAiStep), so the close rewinds to the EDITOR - reopen
-  // through its "+ New graphic" like a user would.
-  await page.getByRole('button', { name: '+ New graphic' }).click();
-  await expect(page.locator('.wz-modal')).toBeVisible();
+  // The close lands on Home - reopen through its new-graphic door like a user would.
+  await startNewProject(page);
   await page.locator('[data-entry="ai"]').click();
   await chooseNoacgAgent(page);
   // A non-empty draft opens the panel by itself, summarizing the picked category.

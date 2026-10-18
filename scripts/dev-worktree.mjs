@@ -80,7 +80,7 @@
 // stale or missing `dist/` serves a stale or missing app and says nothing about it.
 //
 // IT SERVES NO `/api`, AND THAT FAILS QUIETLY. All six API plugins (`renderDevPlugin`,
-// `aiDevPlugin`, `eventsDevPlugin`, `adminDevPlugin`, `meDevPlugin`, `dataDevPlugin`) implement
+// `aiDevPlugin`, `eventsDevPlugin`, `meDevPlugin`, `dataDevPlugin`) implement
 // `configureServer` and nothing else, so `vite preview` never installs them. A request to
 // `/api/me/entitlement` or `/api/render` then does not 404 - the SPA fallback answers it with
 // `index.html` and a 200, the caller's `response.json()` throws, and a caller that degrades on
@@ -131,7 +131,7 @@ function where() {
           '',
           'NO /api IN THIS MODE. The API plugins are dev-server only, so `vite preview` serves',
           'index.html with a 200 for every /api/* request instead of 404ing. Render, AI, events,',
-          'admin, /api/me and /api/data all fail silently here - use the plain dev server for',
+          '/api/me and /api/data all fail silently here - use the plain dev server for',
           'anything that crosses them. This mode is for how the SHIPPED bundle behaves.',
         ]
       : []),

@@ -2,7 +2,6 @@
 
 import { expect, test, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { createProject } from './_create';
 
 // Create with AI is disclosed through the public Terms and Privacy pages linked during
 // account creation. Its first generation is deliberately direct: no interruptive notice and
@@ -57,17 +56,3 @@ test('Create with AI sends the first remote generation without an interruptive n
   await expect.poll(() => page.evaluate(() => localStorage.getItem('spx-gfx-ai-notice'))).toBeNull();
 });
 
-test('the offline stub generates without ever showing the notice', async ({ page }) => {
-  // No spx-gfx-ai seed and no backend: the AI panel runs the deterministic stub, and the
-  // disclosure dialog must NOT appear - nothing leaves the machine.
-  await createProject(page);
-  await page.getByTestId('dock-tab-ai').click();
-  await expect(page.getByText(/offline stub/)).toBeVisible();
-  const panel = page.locator('.panel-body', { has: page.getByRole('heading', { name: 'AI assistant' }) });
-  await panel.locator('textarea').fill('make a fullscreen title');
-  await panel.getByRole('button', { name: 'Generate', exact: true }).click();
-
-  // The stub proposes a change with no consent dialog anywhere in the flow.
-  await expect(panel.getByText('Proposed change')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('ai-consent')).toHaveCount(0);
-});

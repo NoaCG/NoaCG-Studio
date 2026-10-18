@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // THE NIGHTLY FEEDBACK DIGEST - feedback goes to the owner, instead of waiting for a visit.
 //
-// WHY THIS EXISTS. `/admin` has a real feedback inbox (docs/ADMIN.md §10) and the owner's ruling
+// WHY THIS EXISTS. Feedback needs to reach the owner (docs/ADMIN.md §10). The owner's ruling
 // on 2026-08-26 was blunt: "I will not remember to go to the admin page." Feedback that a person
 // bothered to write and nobody reads is worse than having no feedback button at all, because the
 // button teaches users that telling us something is pointless. So the inbox stops being a place
 // somebody has to visit and becomes a thing that arrives.
 //
 // It does not replace the inbox. Triage - `new` / `reviewed` / `resolved`, the internal note, the
-// audit trail - stays on the admin page, because that is a write path and this is a read path.
+// audit trail - belongs to private operator sessions; this script is read-only.
 // The digest is a copy of what came in, addressed to the one person who has to know.
 //
 // WHAT IT MAY TOUCH. One SELECT against `public.user_feedback` with the service key. There is no
@@ -50,7 +50,7 @@
 //   FEEDBACK_DIGEST_SMTP_PASS   a Gmail APP PASSWORD, never the account password
 //   FEEDBACK_DIGEST_TO          recipient (default contact.noacg@gmail.com)
 //   FEEDBACK_DIGEST_WINDOW_HOURS  how far back to look (default 26)
-//   NOACG_APP_URL               base URL used for the "open the inbox" link
+//   NOACG_APP_URL               legacy setting accepted for existing callers
 
 import { connect as tlsConnect } from 'node:tls';
 import { fileURLToPath } from 'node:url';
@@ -77,7 +77,7 @@ export const COUNT_WINDOW_HOURS = 168;
 
 /** The columns the digest reads. Named explicitly so adding a column to the table never widens
  *  what an email carries by accident. `user_id` is NOT among them: the digest reports whether a
- *  note came from an account, never which one - resolving an address is the admin page's job. */
+ *  note came from an account, never which one - resolving an address belongs to a private operator session. */
 export const SELECT_COLUMNS = [
   'id',
   'created_at',
@@ -323,7 +323,7 @@ function contextLine(row) {
  * The mail body. Plain text on purpose: it has to be readable on a phone lock screen at a glance,
  * and HTML mail buys nothing a list of paragraphs does not already have.
  */
-export function renderDigest({ rows, since, until, windowHours, appUrl = DEFAULT_APP_URL }) {
+export function renderDigest({ rows, since, until, windowHours }) {
   const summary = summarize(rows);
   const lines = [];
 
@@ -344,12 +344,12 @@ export function renderDigest({ rows, since, until, windowHours, appUrl = DEFAULT
     }
   }
   lines.push('');
-  lines.push(`Triage lives in the inbox: ${appUrl}/admin`);
+  lines.push('Inspect and triage feedback in a private operator session (docs/ADMIN.md section 10).');
 
   if (rows.length >= ROW_LIMIT) {
     lines.push('');
     lines.push(
-      `NOTE: this digest hit its ${ROW_LIMIT}-row limit, so there may be more. Open the inbox.`,
+      `NOTE: this digest hit its ${ROW_LIMIT}-row limit, so there may be more. Inspect the backlog in a private operator session.`,
     );
   }
 
@@ -382,7 +382,7 @@ export function renderDigest({ rows, since, until, windowHours, appUrl = DEFAULT
  * Written as a list rather than printed inline so a test can assert on it directly - the promise
  * that this mode prints no free text is only worth as much as the thing checking it.
  */
-export function countLines({ summary, windowHours, appUrl = DEFAULT_APP_URL, capped = false }) {
+export function countLines({ summary, windowHours, capped = false }) {
   const days = Math.round(windowHours / 24);
   const lines = [];
 
@@ -407,7 +407,7 @@ export function countLines({ summary, windowHours, appUrl = DEFAULT_APP_URL, cap
       `NOTE: the breakdown above was built from the newest ${ROW_LIMIT} rows; the totals are exact.`,
     );
   }
-  lines.push(`What people actually wrote is at ${appUrl}/admin - the words never leave that page.`);
+  lines.push('Inspect written feedback in a private operator session (docs/ADMIN.md section 10).');
   return lines;
 }
 

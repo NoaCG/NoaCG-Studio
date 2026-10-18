@@ -1,4 +1,5 @@
 // covers: src/templates/**
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // animData.ts is the animation DATA MODEL, and one of its questions is read outside the timeline
@@ -8,8 +9,10 @@
 // `timeline` covers line.
 // covers: src/blocks/animData.ts
 
-import { test, expect, type Page } from '@playwright/test';
-import { createProject, enableAdvancedMode, finishIntoEditor } from './_create';
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { bootstrapGraphic, finishIntoNewEditor } from './_create';
+import { toApp } from './_bench';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { chooseType, pickDesign } from './_browse';
 
 // END CREDITS - the promise is that a credit roll is ONE field (docs/END_CREDITS.md). A show
@@ -35,19 +38,16 @@ const PASTE = [
   'With thanks to everyone who gave a Saturday to this',
 ].join('\n');
 
-/** Paste the whole credit list into f0 the way an operator does - a field value written from
- *  outside the graphic, then an update() through the control path. */
-async function pasteCredits(page: Page, text: string) {
-  await page.evaluate(async (value: string) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const store = useTemplateStore.getState();
-    store.setSampleValue('f0', value);
-    store.sendControl('update');
-  }, text);
+/** Paste the whole credit list into f0 the way an operator does: the working graphic mounted the
+ *  way playout composes it, then an update() carrying the field value. Returns that document. */
+async function pasteCredits(page: Page, text: string): Promise<FrameLocator> {
+  const doc = await mountWorkingDocument(page);
+  await updateWorkingDocument(doc, { f0: text });
+  return doc;
 }
 
 test('the whole credit roll is one field, and one role can credit five people', async ({ page }) => {
-  await createProject(page, 'Classic Roll');
+  await bootstrapGraphic(page, 'Classic Roll');
 
   // ONE field for the list. Three more exist and none of them is per-person: the year line,
   // the logo, and the operator's speed (owner walk 2026-08-28 - a roll has to fit whatever is
@@ -63,8 +63,7 @@ test('the whole credit roll is one field, and one role can credit five people', 
     'f3:number:Scroll speed (%)',
   ]);
 
-  await pasteCredits(page, PASTE);
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = await pasteCredits(page, PASTE);
 
   // "Camera Operators:" over three names is ONE block holding one role and three names - the
   // shape a repeated "Camera Operator | Name" pairing could never produce.
@@ -82,10 +81,8 @@ test('the whole credit roll is one field, and one role can credit five people', 
 });
 
 test('a list pasted with no marks at all still reads as names', async ({ page }) => {
-  await createProject(page, 'Classic Roll');
-  await pasteCredits(page, 'Anna Lind\nBengt Ohlsson\nCecilia Ruiz');
-
-  const frame = page.frameLocator('iframe.preview-frame');
+  await bootstrapGraphic(page, 'Classic Roll');
+  const frame = await pasteCredits(page, 'Anna Lind\nBengt Ohlsson\nCecilia Ruiz');
   await expect(frame.locator('.credits-entry')).toHaveText(['Anna Lind', 'Bengt Ohlsson', 'Cecilia Ruiz']);
   await expect(frame.locator('.credits-heading')).toHaveCount(0);
 });
@@ -93,10 +90,8 @@ test('a list pasted with no marks at all still reads as names', async ({ page })
 test('the same text lays out as columns in the column design', async ({ page }) => {
   // The format says what the content IS, never how it is arranged - so switching design never
   // means retyping the credits. cr02 puts the role beside its names instead of above them.
-  await createProject(page, 'Column Roll');
-  await pasteCredits(page, PASTE);
-
-  const frame = page.frameLocator('iframe.preview-frame');
+  await bootstrapGraphic(page, 'Column Roll');
+  const frame = await pasteCredits(page, PASTE);
   const row = frame.locator('.credits-row', { hasText: 'Camera Operators' });
   await expect(row.locator('.credits-role')).toHaveText('Camera Operators');
   await expect(row.locator('.credits-names .credits-name')).toHaveCount(3);
@@ -113,7 +108,6 @@ test('the same text lays out as columns in the column design', async ({ page }) 
 // to go in a single-line input. That is the shape this category exists to avoid, and it shipped
 // because nothing asserted on this step.
 test('the Fields step is one paste box, not a field per person', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -137,8 +131,7 @@ test('the Fields step is one paste box, not a field per person', async ({ page }
   await paste.fill(roll);
   await expect(paste).toHaveValue(roll);
 
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
 
   // …and it is still ONE field on the other side, holding all 40 names under one role.
   const fields = await page.evaluate(async () => {
@@ -147,7 +140,16 @@ test('the Fields step is one paste box, not a field per person', async ({ page }
   });
   expect(fields).toEqual(['f0:textarea', 'f1:textfield', 'f2:filelist', 'f3:number']);
 
-  const frame = page.frameLocator('iframe.preview-frame');
+  // The paste is the field's SAMPLE on the other side. The mounted document renders the
+  // design's defaults, so the value the store holds is handed to it the way playout would, and
+  // the 40 names it paints are the ones that crossed the wizard.
+  const sample = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().sampleData.f0 ?? '';
+  });
+  expect(sample).toBe(roll);
+  const frame = await mountWorkingDocument(page);
+  await updateWorkingDocument(frame, { f0: sample });
   const group = frame.locator('.credits-group', { hasText: 'Camera Operators' });
   await expect(group.locator('.credits-name')).toHaveCount(40);
 });
@@ -157,7 +159,6 @@ test('the Fields step is one paste box, not a field per person', async ({ page }
 // logo slot could not export without one. It defaults ON, because a closing roll conventionally
 // ends on a mark; the point is that it can be switched off.
 test('the closing logo is a default, not a requirement', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -170,8 +171,7 @@ test('the closing logo is a default, not a requirement', async ({ page }) => {
   await expect(logo).toBeEnabled();
   await logo.uncheck();
 
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
 
   // No field, and no markup or styling for a slot the graphic does not have.
   const built = await page.evaluate(async () => {
@@ -196,13 +196,12 @@ test('the closing logo is a default, not a requirement', async ({ page }) => {
   });
 
   // The roll still signs off - the hairline and the year are not the logo's dependants.
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = await mountWorkingDocument(page);
   await expect(frame.locator('.credits-end .credits-year')).toBeVisible();
   await expect(frame.locator('.credits-logo-slot')).toHaveCount(0);
 });
 
 test('the Style step picks which line of a credit is the loud one', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -217,11 +216,8 @@ test('the Style step picks which line of a credit is the loud one', async ({ pag
   await expect(emphasis.locator('button[data-value="role"]')).toHaveClass(/active/);
   await emphasis.locator('button[data-value="name"]').click();
 
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
-  await pasteCredits(page, PASTE);
-
-  const frame = page.frameLocator('iframe.preview-frame');
+  await finishIntoNewEditor(page);
+  const frame = await pasteCredits(page, PASTE);
   await expect(frame.locator('.credits-box')).toHaveClass(/credits-box--emph-name/);
   // The choice is real type, not just a class: the name is now the bigger of the two.
   const px = (value: string) => parseFloat(value);
@@ -249,9 +245,7 @@ test('the Style step picks which line of a credit is the loud one', async ({ pag
 for (const recipe of ['thumbnail', 'canvas'] as const) {
   test(`every credits design settles with its names ON SCREEN (${recipe})`, async ({ page }) => {
     test.setTimeout(120_000);
-    await enableAdvancedMode(page);
-    await page.goto('/app');
-    await page.keyboard.press('Escape');
+    await toApp(page);
 
     const covered = (await page.evaluate(`(async () => {
     const { CATALOG } = await import('/src/templates/catalog.ts');
@@ -330,9 +324,7 @@ for (const design of [
   { id: 'cr04', axis: 'x', name: 'crawl' },
 ]) {
   test(`the ${design.name} runs the list off the frame, then brings the mark in on its own`, async ({ page }) => {
-    await enableAdvancedMode(page);
-    await page.goto('/app');
-    await page.keyboard.press('Escape');
+    await toApp(page);
 
     const measured = (await page.evaluate(`(async () => {
       const { variantById } = await import('/src/templates/catalog.ts');

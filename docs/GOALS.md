@@ -161,8 +161,8 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   signed out; saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
   - **The playout dashboard comes first, with its data and message flows** (owner, 2026-10-16;
-    the order below proposed 2026-10-17, pending his agreement): one `/plan-run production-page`:
-    paste and safe staging, the cleanup's data-session phases, then lists, Sheets, feeds and API.
+    the order below decided 2026-10-18): one `/plan-run production-page`:
+    paste and safe staging; refactor 1, 2+7 and 13a; lists, Sheets, messages, feeds and API.
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs; more than that is optional.
   - **Shared productions,** proved by verification before anything is rebuilt: members join the

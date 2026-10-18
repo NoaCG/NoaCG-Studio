@@ -1,12 +1,13 @@
 // covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
+// covers: src/blocks/**, src/export/**
 //
 // This spec iterates the CATALOG, so a design added anywhere under src/templates/ must select it -
 // a new esports design touches no scoreboards path. Measured on 2026-08-08, when ten designs landed
 // with every branch gate green.
 // covers: src/templates/**
 
-import { enableAdvancedMode } from './_create';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // THE SPORTS PACK (docs/SPORTS_PACK.md) — the conformance and behaviour suite for the eight
 // sports graphic types and their thirty-two designs.
@@ -23,14 +24,6 @@ import { test, expect, type Page } from '@playwright/test';
 //     uploaded — both of which are the DEFAULT state for the amateur half of the pack;
 //   - the repeating-data boards rebuilding from whatever was pasted into them;
 //   - the whole set surviving export.
-
-async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 /** Boot one catalog variant into a hidden frame and hand back its window. */
 const HARNESS = `

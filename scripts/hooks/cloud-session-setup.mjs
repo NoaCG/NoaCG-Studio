@@ -1,7 +1,7 @@
 // SessionStart hook: make a fresh checkout able to build before the first command, so no session
 // spends its first minutes rediscovering the same gaps. Steps 0 and 1 run everywhere - a fresh cloud
 // container and a fresh local worktree alike (the desktop app creates one per scheduled run and per
-// worktree session, with no node_modules); steps 2 to 4 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
+// worktree session, with no node_modules); steps 2 to 5 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
 //
 //   0. FRESHNESS. The desktop app cuts a new worktree from ITS last fetch of main, which can be a
 //      landing or more behind (measured 2026-09-26: a scheduled run started on 07352ec8 three
@@ -56,7 +56,11 @@
 //      (`mainRef` already answers origin/main for it), and so is one strictly AHEAD, whose extra
 //      commits may be someone's work. Any git failure prints one line and moves nothing.
 //
-//   5. Nothing else.
+//   5. WHAT THIS MACHINE RUNS. One line with the CPUs, memory and e2e workers the session's
+//      commands get (scripts/execution-profile.mjs), and that browser/e2e checks run here: a
+//      cloud session runs them itself before landing, not only in GitHub Actions.
+//
+//   6. Nothing else.
 //
 // Everything here is idempotent and prints one line per thing it changed; SessionStart output
 // becomes part of the session's context, so a quiet run means there was nothing to do.
@@ -66,6 +70,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from 'n
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readHookInput } from './lib.mjs';
+import { executionProfile, machineSummary, readResources } from '../execution-profile.mjs';
 
 const BROWSERS_DIR = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers';
 
@@ -310,6 +315,12 @@ export function realignStaleMain(root, { git = runGit } = {}) {
   }
 }
 
+/** Step 5: what this cloud machine gives the session's commands, and that browser checks run here. */
+export function resourcesLine(profile) {
+  if (profile.kind !== 'cloud') return '';
+  return `Cloud machine: ${machineSummary(profile)}, ${profile.workers} e2e workers. Browser/e2e checks: run here.`;
+}
+
 /**
  * `npm ci` in `dir` when it has a lockfile and no FINISHED install, or when `force` says the
  * lockfile just changed under an existing install. npm writes node_modules/.package-lock.json
@@ -351,5 +362,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     if (linked.length > 0) {
       console.log(`Cloud setup: Playwright's pinned Chromium pointed at the image's build (${linked.join(', ')}).`);
     }
+    // This hook runs in the parent of the claude-code-bash cgroup the session's commands run in.
+    const resources = resourcesLine(executionProfile({ resources: readResources({ child: 'claude-code-bash' }) }));
+    if (resources) console.log(resources);
   }
 }

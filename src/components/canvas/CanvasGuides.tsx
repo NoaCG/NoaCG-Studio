@@ -8,9 +8,8 @@ interface Props {
   /** Show the rule-of-thirds grid + centre cross. */
   grid: boolean;
   /** The canvas box within the SVG, in the same screen px. Defaults to the full SVG — the
-   *  video preview and any non-pasteboard caller pass nothing and get today's behaviour
-   *  (the canvas fills the overlay). In pasteboard mode PreviewFrame passes the inset canvas
-   *  rect, and the region outside it is dimmed as the pasteboard. */
+   *  video preview passes nothing and the canvas fills the overlay. A caller that insets the
+   *  canvas passes its rect, and the region outside it is dimmed as a pasteboard. */
   canvasRect?: { left: number; top: number; width: number; height: number };
 }
 

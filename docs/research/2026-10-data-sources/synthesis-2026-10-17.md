@@ -1,7 +1,8 @@
 # Whole-plan synthesis: production page, data and messages
 
-Decision record, 2026-10-17. Planning only: no product code, migration, run or merge. Draft until
-the owner agrees the plan it proposes; nothing here approves it on his behalf.
+Decision record, 2026-10-17; owner agreement recorded 2026-10-18. All four decisions in §7
+are agreed. The owner authorized recording and landing this planning update after `/check`;
+no product code, migration or plan run is authorized by this update. "Do not start the plan run."
 
 ## 0. Inputs and method
 
@@ -259,7 +260,12 @@ questions in the trials, a migration test on a record saved by today's build, a 
 Source or Reference reaches a field, and a check that a bound destination is refused on local and
 published productions. Phase 1's matrix in the refactor spec is unchanged for steps 2-4.
 
-## 7. Decisions for the owner
+## 7. Owner decisions (answered 2026-10-18)
+
+The owner answered one at a time: **1 yes; 2 yes; 3 yes; 4 yes to both**. Each
+recommendation below is accepted. Decision 2 supersedes D1 and the closed-page half of D3;
+decision 1 supersedes the earlier cleanup-first order. The owner authorized recording these
+answers, `/check` and queue-merge of PR #1390, and instructed: **Do not start the plan run.**
 
 Recommendation first. Routine choices are made in the specs and not repeated here.
 
@@ -293,5 +299,6 @@ browser reading an export every 5 seconds for an hour is tolerated; students ope
 production page open; a minute-scale server tick costs little on the hosting plan.
 
 Not done here: no browser walk, no provider call, no Sheet edit, no timing, no trial, no owner
-conversation beyond the brief. The refactor spec's line numbers remain of `70fad3a94` and its
-reconcile receipt applies. Issue #1313 stays open until C0 lands.
+conversation beyond the brief at synthesis time. The four owner answers above were added on
+2026-10-18; no provider or implementation verification was added. The refactor spec's line numbers
+remain of `70fad3a94` and its reconcile receipt applies. Issue #1313 stays open until C0 lands.

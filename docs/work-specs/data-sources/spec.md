@@ -1,14 +1,19 @@
 # Data sources: how outside data and audience input reach graphics
 
-Authority: owner briefs, 2026-10-17 (see `work.json`). **Draft.** Reconciled on 2026-10-17 from
-two independent whole-plan reviews (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`,
-the decision record with the reconciliation table). The owner has not yet agreed the reconciled
-plan; nothing here authorizes implementation or a run.
+Authority: owner briefs, 2026-10-17 and agreement, 2026-10-18 (see `work.json`). **Agreed.**
+Reconciled on 2026-10-17 from two independent whole-plan reviews (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`,
+the decision record with the reconciliation table). The owner agreed all four decisions on
+2026-10-18; starting a run remains a separate instruction.
 Research: `docs/research/2026-10-data-sources/README.md` and `second-opinion.md` beside it.
 Parent: `docs/work-specs/production-page-refactor/spec.md` (the run order and the run preflight
 are in its "Run order" and "Readiness" sections). Children: `docs/work-specs/sheet-data-flow/spec.md`
 (Sheets) and `docs/work-specs/audience-flow/spec.md` (messages). This spec owns the shared model,
 the format adapters, the continuation phases C0-C7 and track Q, and their verification.
+
+Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both**
+(run order; Sheet reader model; destination hygiene with `/update` allowed; opt-in key storage
+and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
+planning update does not start `/plan-run production-page`; the owner explicitly said not to.
 
 ## What the reconciliation changed
 
@@ -30,7 +35,7 @@ it; reliability. Against those, the reviews changed:
   The earlier field-level snapshot flag and `/update` protection are dropped.
 - **A Sheet is read by the browser while a page is open, under a lease; a server tick about once
   a minute covers published sources with every page closed.** D1's server-only reading and D3's
-  closed-page promise are revised; a decision for the owner.
+  closed-page promise are revised; agreed by the owner on 2026-10-18.
 - **Five small format adapters** replace the six-shape wording; adapters write strings and `""`
   when a valid read is empty, so an emptied list clears on air.
 - **YouTube is browser-side**: one-shot video comments plus the existing live chat with its
@@ -493,8 +498,9 @@ raises `e2e/configured/expected-run.json` in the same pull request.
 
 ## Readiness
 
-Before the run: the parent's run preflight, and the owner's agreement to the reconciled plan (the
-four decisions in the synthesis §7) or his recorded changes. C0 needs no refactor phase before it.
+The owner agreed the reconciled plan and all four synthesis §7 decisions on 2026-10-18.
+Before a run: the parent's run preflight and a separate owner start instruction. C0 needs no
+refactor phase before it. This update does not start the run.
 
 Before C1: refactor phases 1, 2+7 and 13a checked PASS on `main`; Q recorded with the Sheet
 measurement inside D3 or the plan stopped and asked; this spec and the audience spec agreed;

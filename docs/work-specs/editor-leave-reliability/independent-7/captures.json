@@ -1,0 +1,8 @@
+{
+ "note": "Captures stay in the CI artifacts (leave-receipts-<scope>) and VM test-results; none is committed. 'opened' = looked at by the checker.",
+ "opened": [
+  { "run": "j-0041", "file": "leave-seventh-checker-seve-29756-t-not-write-into-A-s-record-chromium/h-b-after-save.png", "shows": "Tab B after its reload and Save: topbar 'Saved', name 'Riverlight festival', two rectangles (A's third is gone); no naming dialog was shown. The library holds one record, 'Seventh H Alpha', with B's source" },
+  { "run": "39047990848", "file": "leave-seventh-checker-seve-799ca-t-call-the-newer-edit-saved-chromium/d-after-release.png", "shows": "Over the editor, after the save landed with an edit made during it: 'Unsaved changes', '“Seventh D” has unsaved changes. Save them before continuing?', Cancel / Discard changes / Save & continue" },
+  { "run": "39047990848", "file": "leave-seventh-checker-seve-23dd0-the-link-write-then-refused-chromium/a-late-after-answer.png", "shows": "The editor after Cancel during 'Saving' and the late refusal: topbar 'Save failed', no app notice, the edit present" }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "note": "Captures stay in the CI artifacts (leave-receipts-<scope>) and VM test-results; none is committed. 'opened' = looked at by the checker.",
+ "opened": [
+  { "job": "j-0028", "file": "leave-sixth-checker-sixth--efc9c-late-Home-pressed-meanwhile-chromium/s1-home-late-after-answer.png", "shows": "Home after the topbar Save's link write was refused: no notice, Graphics 1, one 'Sixth S1 home late' card" },
+  { "job": "j-0028", "file": "leave-sixth-checker-sixth--efc9c-late-Home-pressed-meanwhile-chromium/s1-home-late-new-asks.png", "shows": "'Unsaved changes: \"Sixth S1 home late\" has unsaved changes. Save them before continuing?' over Home, Cancel / Discard changes / Save & continue" },
+  { "run": "39037264226", "file": "cumulative/...125-percent.../actual-125-leave-dialog.png", "shows": "native 125%: the unsaved-changes dialog over the editor, Cancel / Discard changes / Save first..." },
+  { "run": "39037261850", "file": "references/leave-reference-fourth-Stu.../studio-held-save.png", "shows": "Studio v0.17 after Save Project with an edit during the save: 'Project source saved - OGraf certified', the newer text on canvas" }
+ ],
+ "notOpened": "the passing sixth, fifth, maintained, unchanged and cumulative captures beyond those listed; S6, S2-S5 were read through their recorded facts only"
+}

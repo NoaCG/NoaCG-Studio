@@ -1,0 +1,124 @@
+{
+  "costUnread": false,
+  "brief": "charity-stream-alerts",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "a1c348a6-e42d-4190-b860-f3d694107fac",
+  "costCents": 0,
+  "notionalUsd": 1.1685637000000002,
+  "wallSeconds": 215,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type event-notification --design sn01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7d633e87dee53af8a3c32824bebea8ae059612be009e765e58457f3ce6c7f8c5"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7d633e87dee53af8a3c32824bebea8ae059612be009e765e58457f3ce6c7f8c5"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:8caf624b4537be8ebd4a38e2933d3fea66127c408218634cca95c9c066895222"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:56a06825dbb5d8a5dd15181fa033751dffe4b37f6344af6c8951a668108e0cc3"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:56a06825dbb5d8a5dd15181fa033751dffe4b37f6344af6c8951a668108e0cc3"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:56a06825dbb5d8a5dd15181fa033751dffe4b37f6344af6c8951a668108e0cc3"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\sonnet-5-5-medium\\cells\\charity-stream-alerts.claude-sonnet-5-5-medium\\frames",
+    "frames": 67,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:56a06825dbb5d8a5dd15181fa033751dffe4b37f6344af6c8951a668108e0cc3"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "hold",
+      "resume",
+      "replay",
+      "skip"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:56a06825dbb5d8a5dd15181fa033751dffe4b37f6344af6c8951a668108e0cc3",
+    "benchValidated": "sha256:56a06825dbb5d8a5dd15181fa033751dffe4b37f6344af6c8951a668108e0cc3",
+    "reviewed": "sha256:56a06825dbb5d8a5dd15181fa033751dffe4b37f6344af6c8951a668108e0cc3",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 64,
+    "opened": 64,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

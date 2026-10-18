@@ -8,12 +8,14 @@ import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
-import { loadProject, saveProject } from '../model/project';
+import { isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject } from '../model/project';
+import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
 import { normalizeLegibility, type ProjectLegibility } from '../model/designRules';
 import { hasCurrentVideoProject } from '../model/videoProject';
 import { PATH_TARGET, type TimelineTarget } from '../blocks/timelineLens';
+import { prepareOutRuntime } from '../blocks/animMigration';
 import type { EditorTab } from '../blocks/registry';
 
 export type { EditorTab } from '../blocks/registry';
@@ -327,14 +329,39 @@ function withParsedFields(template: SpxTemplate): SpxTemplate {
   return { ...template, fields: parsed.fields, settings: parsed.settings };
 }
 
+/** Would minting `draft` give `record`'s template? A mint prepares the Out step and writes the
+ *  name it was given; nothing else of the source changes. */
+function sameSource(draft: SpxTemplate, record: SpxTemplate): boolean {
+  return JSON.stringify({ ...draft, name: record.name, js: prepareOutRuntime(draft.js) }) === JSON.stringify(record);
+}
+
 // Restore the last autosaved working project (Era 5.2b) so a reload doesn't lose it; fall back to
 // a fresh blank on first-ever load. Whether the wizard opens on top follows from this: a restored
 // project means a returning user, who lands straight back in their work (galleryOpen below).
 const initialProject = loadProject();
+// A first Save reserves its record's id in the slot before minting it. When the link write that
+// followed was refused, the record exists while the slot still reads unlinked, so the reserved id
+// links it back and the next Save writes into it rather than minting a duplicate (#1383). It
+// reads unsaved, as the refused save left it: the slot never said the link landed.
+// The record is trusted only as this draft's own: the slot was written by the save minting it
+// (`mintingReserved`), or it holds exactly the source that record was minted with. Any other
+// draft naming it (another tab's, an older build's) asks for a name, so its Save cannot
+// overwrite a graphic it never saved (#1402).
+// Only THIS device's reservation counts at all. The slot syncs, so it can name a reservation
+// another device made, whose record this device has not learnt of yet; resumed, this device's
+// Save minted that record's id too (#1443). Not resumed, the first write takes a fresh one.
+const slotReservation = initialProject?.reservedGraphicId;
+const reservedId = isOwnReservation(slotReservation) ? slotReservation : undefined;
+const reservedRecord = reservedId && reservedId !== initialProject?.graphicId ? graphicById(reservedId) : null;
+const relinked = !!reservedRecord && (initialProject?.mintingReserved === true || sameSource(initialProject!.template, reservedRecord.template));
+const initialGraphicId = relinked ? reservedId! : initialProject?.graphicId ?? null;
 const initialTemplate = initialProject?.template ?? createDefaultTemplate();
 // The pristine state Reset returns to: the saved baseline if we have one, else the loaded
 // template (so Reset on a pre-baseline project at least returns to how it opened).
 const initialBaseline = initialProject?.baseline ?? initialTemplate;
+// Not relinked, the reservation is still this document's next mint: keep it. An id a record
+// already holds is not; the first write drops it for a fresh one (model/project.ts).
+if (reservedId && !relinked) resumeReservation(reservedId, initialBaseline);
 
 export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   const set = (patch: Partial<TemplateState> | ((state: TemplateState) => Partial<TemplateState>)) => rawSet(state => {
@@ -380,8 +407,8 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   canvasGestureActive: false,
   canvasTool: 'select',
   saved: {
-    graphicId: initialProject?.graphicId ?? null,
-    dirty: initialProject?.dirty ?? false,
+    graphicId: initialGraphicId,
+    dirty: relinked || (initialProject?.dirty ?? false),
     status: 'idle',
   },
   aiSpec: initialProject?.aiSpec ?? null,
@@ -613,6 +640,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('noacg-account-authoring-pausing', flushPendingProject);
   window.addEventListener('noacg-account-authoring-flush', flushPendingProject);
 }
+// A record this draft is linked to lost a sync conflict: another device's version holds its id
+// now (model/project.ts `graphicSuperseded`). The draft links to the "(conflicted copy)" that
+// holds its saved work, clean when it holds exactly that (#1466), never to the winner (#1443).
+onGraphicSuperseded((lost, copy) => {
+  const s = useTemplateStore.getState();
+  if (s.saved.graphicId && lost.includes(s.saved.graphicId)) useTemplateStore.setState({ saved: { ...s.saved, ...linkAfterLoss(s, copy) } });
+});
 useTemplateStore.subscribe((state, prev) => {
   // The legibility settings are part of the SAVED document (GraphicDoc.legibility), not a
   // view preference, so a change to them drifts the working document exactly as a template

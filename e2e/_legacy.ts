@@ -1,37 +1,28 @@
-import { expect, type Page } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
+import { type Page } from '@playwright/test';
 
 // LEGACY TEMPLATES, for the specs that cover what Phase 8 deliberately KEPT.
 //
 // Every category creates as a NOACG_ANIM data block, so no wizard path produces a legacy marked
 // region any more. Legacy regions still exist in the wild, though — a project saved before the
-// migration, an import, hand-written GSAP — and the dock picks the editing surface from the
-// CODE, never from the category. These helpers build each of the three shapes it must handle.
-
-const OPEN = '/* == ANIMATION';
-const CLOSE = '/* == END ANIMATION == */';
+// migration, an import, hand-written GSAP — and the editor must still render them settled.
+// This helper writes the one shape that case drives; the unconvertible and unreadable shapes
+// went with the retired dock's surfaces.
 
 /** Swap the current template's marked region for `region`, and apply it (one undoable apply).
- *
- *  The rebuild wait WRAPS the evaluate rather than following it. The change happens inside the
- *  page, and the evaluate's round trip - including a cold dynamic import of the store module -
- *  can easily outlast the preview's 350 ms debounce. Waiting afterwards then reads a revision
- *  that has ALREADY advanced and waits out the clock for a second rebuild nothing will trigger.
- *  Wrapping snapshots the revision first, so "it changed" can only mean this splice. */
+ *  The caller composes the document it reads from the store afterwards; no preview is waited
+ *  for here. */
 async function spliceRegion(page: Page, region: string) {
-  await awaitPreviewRebuild(page, () =>
-    page.evaluate(async (body) => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const store = useTemplateStore.getState();
-      const tpl = store.template;
-      const start = tpl.js.indexOf('/* == ANIMATION');
-      const end = tpl.js.indexOf('/* == END ANIMATION == */');
-      store.applyTemplate({
-        ...tpl,
-        js: tpl.js.slice(0, start) + body + tpl.js.slice(end + '/* == END ANIMATION == */'.length),
-      });
-    }, region),
-  );
+  await page.evaluate(async (body) => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const store = useTemplateStore.getState();
+    const tpl = store.template;
+    const start = tpl.js.indexOf('/* == ANIMATION');
+    const end = tpl.js.indexOf('/* == END ANIMATION == */');
+    store.applyTemplate({
+      ...tpl,
+      js: tpl.js.slice(0, start) + body + tpl.js.slice(end + '/* == END ANIMATION == */'.length),
+    });
+  }, region);
 }
 
 /**
@@ -62,45 +53,5 @@ export async function applyLegacyRegion(
     });
   }, opts);
   await spliceRegion(page, region);
-  await expect(page.getByTestId('timeline-v2')).toBeVisible();
-  await expect(page.getByTestId('timeline-v2-convert')).toBeVisible();
 }
 
-/**
- * A legacy region the importer REFUSES: its motion is MEASURED inline (`x: -el.scrollWidth`),
- * so no static keyframe can hold it and the converter will not guess. This is the case
- * DYNAMIC_MOTION_SCOPE §8.1 keeps a read-only chart for — regenerating it would throw away the
- * owner's tuning, so it must still render truthfully somewhere.
- */
-export async function applyUnconvertibleRegion(page: Page, prefix: string) {
-  await spliceRegion(
-    page,
-    `${OPEN}
-// Hand-written marquee: the travel is measured from the DOM, so the keyframe model cannot
-// hold it and the importer refuses it rather than guessing.
-var animSpeed = 1;
-var easeIn = 'power3.out';
-var easeOut = 'power2.in';
-
-function buildInTimeline() {
-  var tl = gsap.timeline();
-  tl.fromTo('.${prefix}-box', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5 / animSpeed, ease: easeIn });
-  tl.to('#f0', { x: -document.querySelector('#f0').scrollWidth, duration: 6 / animSpeed, ease: 'none', repeat: -1 });
-  return tl;
-}
-
-function buildOutTimeline() {
-  var tl = gsap.timeline();
-  tl.to('.${prefix}-box', { opacity: 0, duration: 0.3 / animSpeed, ease: easeOut });
-  return tl;
-}
-${CLOSE}`,
-  );
-  await expect(page.getByTestId('timeline-overview')).toBeVisible();
-}
-
-/** A marked region the parser cannot read at all — hand-crafted past every known shape. */
-export async function applyUnreadableRegion(page: Page) {
-  await spliceRegion(page, `${OPEN}\n// hand-rolled beyond anything we emit\nvar tl = makeMagic();\n${CLOSE}`);
-  await expect(page.getByTestId('timeline-unreadable')).toBeVisible();
-}

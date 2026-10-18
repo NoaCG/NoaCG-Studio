@@ -1,11 +1,16 @@
 # Messages: a chosen message reaches the right graphic in a few plain steps
 
-Authority: owner, 2026-10-16 and 2026-10-17 (see `work.json`). **Draft**, reconciled on
-2026-10-17 from two independent reviews (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`);
-the owner has not yet agreed the reconciled plan. This document owns message behaviour, not a
-separate Audience page or store. Shared model, phases and verification:
+Authority: owner, 2026-10-16 and 2026-10-17, agreed 2026-10-18 (see `work.json`). **Agreed**,
+reconciled on 2026-10-17 from two independent reviews
+(`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`). This document owns message
+behaviour, not a separate Audience page or store. Shared model, phases and verification:
 `docs/work-specs/data-sources/spec.md`. Parent run: `docs/work-specs/production-page-refactor/spec.md`.
 Existing foundation: `docs/INTERACTIVE_PLAYOUT_PLAN.md` phases 5 and 6.
+
+Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both**
+(run order; Sheet reader model; destination hygiene with `/update` allowed; opt-in key storage
+and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
+planning update does not start `/plan-run production-page`; the owner explicitly said not to.
 
 ## What the reconciliation changed here
 

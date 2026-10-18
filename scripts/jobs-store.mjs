@@ -960,9 +960,10 @@ export function schedule(jobs, {
   // clock and by whether other agent sessions are live, and the floor is about whether ONE job
   // physically fits right now. Merging them would make an away working day start two suites
   // where the schedule says one.
+  // A cloud worker holds no RAM floor: only the laptop watches memory (owner, 2026-10-17), and
+  // a cloud run sizes its browser workers from the memory it has when it starts.
   const cloud = execution?.kind === 'cloud';
-  if (cloud) freeMemMb = Math.min(freeMemMb, execution.freeMb);
-  const freeMemFloorMb = cloud ? 2560 : freeMemFloorFor(presence, policy);
+  const freeMemFloorMb = cloud ? 0 : freeMemFloorFor(presence, policy);
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const running = jobs.filter((j) => j.state === 'running');
   const budget = cloud ? { mode: 'cloud', slots: 1, why: `${execution.provider} worker resources; laptop schedule does not apply` } : budgetMode({ now, alone, policy });
@@ -993,10 +994,6 @@ export function schedule(jobs, {
   const mergeLive = () => [...running, ...start].some((j) => j.kind === 'merge');
 
   for (const job of jobs.filter((j) => j.state === 'waiting')) {
-    if (cloud && !execution.known && drivesBrowser(job)) {
-      dead.push({ job, reason: 'Unknown execution-site headroom: browser work stays in GitHub Actions; run cheap targeted gates here' });
-      continue;
-    }
     const deps = dependencyDecision(job, byId);
     if (deps.action === 'wait') {
       waiting.push({ job, reason: deps.reason });

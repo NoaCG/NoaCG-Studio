@@ -1,0 +1,248 @@
+{
+  "costUnread": false,
+  "brief": "boxing-night-matchup",
+  "arm": "subscription",
+  "model": "claude-haiku-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "514eacbc-1c35-4d5b-868d-b6be4b0aaaaa",
+  "costCents": 0,
+  "notionalUsd": 0.43936193,
+  "wallSeconds": 485,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg whoami",
+      "code": 1,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design mu01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:bcdb5ab1c7381a28d51c0762f50868dc4410ec256fd7b8f91f2608473542d330"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot C:/claude/noacg-bench-archive/harness-ladder-L1/haiku-5-5-high/cells/boxing-night-matchup.claude-haiku-5-5-high/session/work/graphic --state onair --data f0=Seán 'The Connemara Cyclone' Mac Giolla Phádraig --data f1=Mantas 'Žalgirio Viesulas' Šimkevičius --data f2=MEN'S 63.5 KG · BOUT 4 OF 9 --data f3=4-1 · 2 KO --data f4=7-2 · 4 KO --data f6=C:/claude/noacg-bench-archive/harness-ladder-L1/haiku-5-5-high/cells/boxing-night-matchup.claude-haiku-5-5-high/session/work/testassets/logo-white.svg --data f7=C:/claude/noacg-bench-archive/harness-ladder-L1/haiku-5-5-high/cells/boxing-night-matchup.claude-haiku-5-5-high/session/work/testassets/logo-dark.svg --out ./shots/fill-onair.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot C:/claude/noacg-bench-archive/harness-ladder-L1/haiku-5-5-high/cells/boxing-night-matchup.claude-haiku-5-5-high/session/work/graphic --state onair --data f0=Seán 'The Connemara Cyclone' Mac Giolla Phádraig --data f1=Mantas 'Žalgirio Viesulas' Šimkevičius --data f2=MEN'S 63.5 KG · BOUT 4 OF 9 --data f3=4-1 · 2 KO --data f4=7-2 · 4 KO --data f5=A --event select --out ./shots/fill-selected.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot C:/claude/noacg-bench-archive/harness-ladder-L1/haiku-5-5-high/cells/boxing-night-matchup.claude-haiku-5-5-high/session/work/graphic --state onair --data f0=Seán 'The Connemara Cyclone' Mac Giolla Phádraig --data f1=Mantas 'Žalgirio Viesulas' Šimkevičius --data f2=MEN'S 63.5 KG · BOUT 4 OF 9 --data f3=4-1 · 2 KO --data f4=7-2 · 4 KO --data f5=B --event select --event lock --out ./shots/fill-locked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot C:/claude/noacg-bench-archive/harness-ladder-L1/haiku-5-5-high/cells/boxing-night-matchup.claude-haiku-5-5-high/session/work/graphic --state onair --data f0=Seán 'The Connemara Cyclone' Mac Giolla Phádraig --data f1=Mantas 'Žalgirio Viesulas' Šimkevičius --data f2=MEN'S 63.5 KG · BOUT 4 OF 9 --data f3=4-1 · 2 KO --data f4=7-2 · 4 KO --data f5=B --event select --event lock --event clear --out ./shots/fill-cleared.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Seán 'The Connemara Cyclone' Mac Giolla Phádraig --data f1=Mantas 'Žalgirio Viesulas' Šimkevičius --data f2=MEN'S 63.5 KG · BOUT 4 OF 9 --data f3=4-1 · 2 KO --data f4=7-2 · 4 KO --data f6=images/logo-white.svg --data f7=images/logo-dark.svg --out ./shots/logo-test.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:bcdb5ab1c7381a28d51c0762f50868dc4410ec256fd7b8f91f2608473542d330"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:bcdb5ab1c7381a28d51c0762f50868dc4410ec256fd7b8f91f2608473542d330"
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs skill",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs control",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage-check --stress ./brief.json",
+      "code": 0,
+      "digest": "sha256:bcdb5ab1c7381a28d51c0762f50868dc4410ec256fd7b8f91f2608473542d330"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage --stress ./brief.json",
+      "code": 0,
+      "digest": "sha256:bcdb5ab1c7381a28d51c0762f50868dc4410ec256fd7b8f91f2608473542d330"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:b732e112630dd7f3afce0ee7fc8087c0f398d9dabb4302432cd587767e0b0631"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán 'The Connemara Cyclone' Mac Giolla Phádraig --data f1=Mantas 'Žalgirio Viesulas' Šimkevičius --data f2=MEN'S 63.5 KG · BOUT 4 OF 9 --data f3=4-1 · 2 KO --data f4=7-2 · 4 KO --data f5=B --event select --event lock --out ./shots/aligned-locked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán 'The Connemara Cyclone' Mac Giolla Phádraig --data f1=Jonas Kazlauskas --out ./shots/aligned-long-side.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage --stress ./brief.json",
+      "code": 0,
+      "digest": "sha256:b732e112630dd7f3afce0ee7fc8087c0f398d9dabb4302432cd587767e0b0631"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=CONNEMARA RARA ORA PRA RB BRAB --out ./shots/rtest.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:ecc0347e78ab0f882c36ebb710c1be76ec5fbf315cb75e49d8f26ef2838b8996"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage --stress ./brief.json",
+      "code": 0,
+      "digest": "sha256:ecc0347e78ab0f882c36ebb710c1be76ec5fbf315cb75e49d8f26ef2838b8996"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:ecc0347e78ab0f882c36ebb710c1be76ec5fbf315cb75e49d8f26ef2838b8996"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\haiku-5-5-high\\cells\\boxing-night-matchup.claude-haiku-5-5-high\\frames",
+    "frames": 57,
+    "crops": 7,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:ecc0347e78ab0f882c36ebb710c1be76ec5fbf315cb75e49d8f26ef2838b8996"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "clear"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:ecc0347e78ab0f882c36ebb710c1be76ec5fbf315cb75e49d8f26ef2838b8996",
+    "benchValidated": "sha256:ecc0347e78ab0f882c36ebb710c1be76ec5fbf315cb75e49d8f26ef2838b8996",
+    "reviewed": "sha256:ecc0347e78ab0f882c36ebb710c1be76ec5fbf315cb75e49d8f26ef2838b8996",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 57,
+    "opened": 18,
+    "unopened": [
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-light.jpg",
+      "empty-light.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-light.jpg",
+      "take-01500ms.jpg",
+      "take-10000ms.jpg",
+      "event-select-00020ms.jpg",
+      "event-select-00120ms.jpg",
+      "event-select-00300ms.jpg",
+      "event-select-00600ms.jpg",
+      "event-select-01500ms.jpg",
+      "event-select-10000ms.jpg",
+      "event-lock-00020ms.jpg",
+      "event-lock-00120ms.jpg",
+      "event-lock-00300ms.jpg",
+      "event-lock-00600ms.jpg",
+      "event-lock-01500ms.jpg",
+      "event-lock-10000ms.jpg",
+      "event-clear-00120ms.jpg",
+      "event-clear-00300ms.jpg",
+      "event-clear-00600ms.jpg",
+      "event-clear-01500ms.jpg",
+      "event-clear-10000ms.jpg",
+      "update-00120ms.jpg",
+      "update-00300ms.jpg",
+      "update-00600ms.jpg",
+      "update-01500ms.jpg",
+      "out-00020ms.jpg",
+      "out-01500ms.jpg",
+      "event-lock-after-select-01500ms.jpg",
+      "event-lock-after-select-10000ms.jpg",
+      "event-clear-after-select-00020ms.jpg",
+      "event-clear-after-select-00120ms.jpg",
+      "event-clear-after-select-00300ms.jpg",
+      "event-clear-after-select-00600ms.jpg",
+      "event-clear-after-select-01500ms.jpg",
+      "event-clear-after-select-10000ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

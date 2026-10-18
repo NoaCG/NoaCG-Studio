@@ -24,13 +24,11 @@
 // -m / heredoc / here-string), so it is quoting-style agnostic.
 
 import { isAbsolute, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { readHookInput, deny, gitOutput, checkoutKind } from './lib.mjs';
 import { envSecretsRefusal, showsEnvSecrets } from './env-secrets.mjs';
 import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
-import { sameRoot } from '../port-registry.mjs';
-import { gitCommonDir } from '../primary-checkout.mjs';
+import { mainPushRefusal } from './main-push.mjs';
 import { isPortBusy } from '../port-probe.mjs';
 import { activeRuns, describeRuns } from '../e2e-runs.mjs';
 import {
@@ -40,7 +38,6 @@ import {
   enqueuesWork,
   invokesE2e,
   invokesSweep,
-  mainPushes,
   pollsQueue,
   runsWholeSuite,
   startsDevServer,
@@ -258,29 +255,8 @@ if (wait) deny(endlessWaitRefusal(wait));
 
 // --- 3d. Nothing pushes to `main`: only the merge queue writes it ------------------------------
 //
-// `root/land-finished-work-only-reconciles-current`. GitHub would not stop such a push, because the
-// agents run as an admin it lets bypass the queue (see `mainPushes` in command-match.mjs); a person
-// in their own terminal never passes through this hook. Only a checkout of THIS repository counts -
-// a fixture repo in a temp folder has a `main` of its own - and git that cannot answer fails open,
-// like every git check here.
-const pushesToMain = mainPushes(command);
-const thisRepo = pushesToMain.length > 0 ? gitCommonDir(fileURLToPath(new URL('../..', import.meta.url))) : null;
-const toMain = pushesToMain.find(({ dir, how }) => {
-  const root = namedCheckout(dir);
-  const repo = root && gitCommonDir(root);
-  if (!repo || !thisRepo || !sameRoot(repo, thisRepo)) return false;
-  return how === 'named' || gitOutput(root, ['branch', '--show-current'])?.trim() === 'main';
-});
-if (toMain) {
-  deny(
-    'Blocked: this push would write `main`, and only the merge queue writes main ' +
-      '(`root/land-finished-work-only-reconciles-current`). GitHub would not stop it: this account ' +
-      'may bypass the branch rules.\n' +
-      'Land work with `/queue-merge` from a feature branch - it reconciles with current main, ' +
-      'requires the verification and lands through the merge queue.\n' +
-      'A person who truly means to push main can still do it from their own terminal.',
-  );
-}
+const pushRefusal = mainPushRefusal(command, sessionDir);
+if (pushRefusal) deny(pushRefusal);
 
 // --- 4. Heavy browser work: one job per MACHINE ----------------------------------------------
 

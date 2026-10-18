@@ -395,7 +395,7 @@ test('a script test plans nothing, while the script it tests still escalates', (
 // derivation finds every module the issue named, and none of them plans nothing.
 test('every module vite.config.ts loads at startup plans specs, and the set is derived from its imports', () => {
   const startup = devServerModules();
-  const named = ['eventsDevPlugin', 'adminDevPlugin', 'meDevPlugin', 'panelBackendPlugin', 'site-nav', 'whats-new', 'roadmap'];
+  const named = ['eventsDevPlugin', 'meDevPlugin', 'panelBackendPlugin', 'site-nav', 'whats-new', 'roadmap'];
   for (const name of named) assert.ok(startup.has(`scripts/${name}.mjs`), `${name} is found from vite.config.ts`);
   assert.ok(startup.has('scripts/measured.mjs'), 'and what those modules import, two levels down');
   const specsOnDisk = specFilesOnDisk();
@@ -405,7 +405,6 @@ test('every module vite.config.ts loads at startup plans specs, and the set is d
     }
   }
   // A startup module the headers name keeps that subset; one they do not name escalates.
-  assert.deepEqual(planFor(['scripts/adminDevPlugin.mjs']).unmapped, []);
   assert.equal(planFor(['scripts/eventsDevPlugin.mjs']).mode, 'full');
   // A script the dev server never loads is still ignored.
   assert.equal(planFor(['scripts/check-workflows.mjs']).mode, 'none');
@@ -662,7 +661,7 @@ const FAKE_TABLE = { minutes: { 'a.spec.ts': 8, 'b.spec.ts': 4, 'c.spec.ts': 2, 
 // needs a fake suite beside it - the third argument the real callers fill from `specFilesOnDisk`.
 const FAKE_SUITE = ['a.spec.ts', 'b.spec.ts', 'c.spec.ts', 'd.spec.ts'];
 
-test('shard count follows measured minutes, and the full plan uses thirteen runners', () => {
+test('shard count follows measured minutes, and the full plan uses fifteen runners', () => {
   // 15 measured minutes over the whole fake suite -> ceil(15 / 3) = 5.
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, FAKE_SUITE), 5);
   // A spec on disk the table has never measured counts as the MEDIAN (4 here), not as zero -
@@ -670,9 +669,10 @@ test('shard count follows measured minutes, and the full plan uses thirteen runn
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, [...FAKE_SUITE, 'new.spec.ts']), 7);
   // ...and an entry left behind by a deleted spec is not counted for work nobody will do.
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, ['a.spec.ts', 'b.spec.ts']), 4);
-  // The real suite reaches the measured ceiling: at the slow-runner percentile, twelve bins
-  // left the heaviest inside the three-minute margin on the slowest runner measured (MAX_SHARDS).
-  assert.equal(shardsFor({ mode: 'full', specs: [] }), 13);
+  // The real suite reaches the measured ceiling: at the slow-runner percentile, fourteen bins put
+  // the heaviest at 17.7 minutes on the slowest runner measured, inside the three-minute margin
+  // under the 20-minute cap; fifteen keep it out, at 16.6 (MAX_SHARDS says how that is scored).
+  assert.equal(shardsFor({ mode: 'full', specs: [] }), 15);
 
   // A subset is sized by ITS OWN minutes, so a heavy plan gets more runners than a light one.
   assert.equal(shardsFor({ mode: 'subset', specs: ['a.spec.ts', 'b.spec.ts'] }, FAKE_TABLE), 4);
@@ -750,26 +750,25 @@ test('the plan states the wall clock it expects, and says when that does not fit
 // A rule naming a path that no longer exists used to be silent (the build now refuses a covers
 // glob that matches no file): it matched nothing, the file fell through to the unmapped
 // escalation, and the plan looked conservative rather than broken. That is
-// what happened to the timeline dock's five components when they moved into
-// `src/components/timeline/` - both rules kept naming `src/components/<Name>` and every timeline
-// change ran the full suite to prove nothing. Pinned by DIRECTORY, so the next move fails here
-// instead of going quiet again.
-test('the timeline dock components are mapped at the path they actually live at', () => {
+// what happened to the old timeline dock's five components when they moved into
+// `src/components/timeline/` (deleted with the old code editor on 2026-10-17) - both rules kept
+// naming `src/components/<Name>` and every timeline change ran the full suite to prove nothing.
+// Pinned by DIRECTORY on the editor that replaced it, so the next move fails here instead of
+// going quiet again.
+test('the new editor\'s components are mapped at the directory they actually live in', () => {
   for (const file of [
-    'src/components/timeline/StepTimeline.tsx',
-    'src/components/timeline/LegacyTimeline.tsx',
-    'src/components/timeline/Inspector.tsx',
-    'src/components/timeline/PlayoutSimulator.tsx',
-    'src/components/timeline/MachineGraph.tsx',
+    'src/components/editorFoundation/EditorFoundation.tsx',
+    'src/components/editorFoundation/Inspector.tsx',
+    'src/components/editorFoundation/commandAdapter.ts',
   ]) {
     const { mode, specs } = planFor([file]);
     assert.equal(mode, 'subset', `${file} is mapped, so it must not escalate to the full suite`);
     assert.ok(specs.length > 0, `${file} planned no specs at all`);
   }
-  // The dock's own specs, and the key contract StepTimeline holds half of.
-  const { specs } = planFor(['src/components/timeline/StepTimeline.tsx']);
-  for (const spec of ['timeline-v2.spec.ts', 'anim-engine.spec.ts', 'keyboard.spec.ts']) {
-    assert.ok(specs.includes(spec), `${spec} must be planned by a StepTimeline change`);
+  // The editor's own journeys, planned by a change to its shell.
+  const { specs } = planFor(['src/components/editorFoundation/EditorFoundation.tsx']);
+  for (const spec of ['editor-foundation.spec.ts', 'editor-keys.spec.ts', 'editor-steps.spec.ts']) {
+    assert.ok(specs.includes(spec), `${spec} must be planned by an EditorFoundation change`);
   }
 });
 
@@ -794,12 +793,11 @@ test('the Import-graphic folder plans the import road, and only the import road'
     'import-svg-behaviour.spec.ts',
     // Not named after the road, but they drive it through the import entry and assert on testids
     // only these components render: the quiz and behaviour rows of MapSvgFieldsStep, the format
-    // and raster warnings of ImportDesignStep, the tool area and the font field of
-    // PlaceFieldsStep. The generic wizard rule reached them until the lookahead took this folder
-    // out of it, so the narrowing has to name them or it runs FEWER specs with no alarm.
+    // and raster warnings of ImportDesignStep, the font field of PlaceFieldsStep. The generic
+    // wizard rule reached them until the lookahead took this folder out of it, so the narrowing
+    // has to name them or it runs FEWER specs with no alarm.
     'student-rehearsal.spec.ts',
     'project-format.spec.ts',
-    'text-tools.spec.ts',
     'google-fonts.spec.ts',
   ];
   const { mode, specs } = planFor(['src/components/wizard/import/MapSvgFieldsStep.tsx']);
@@ -1133,6 +1131,7 @@ test('a stale local main plans only the changed specs, whichever main ref is fre
 // a quarantined spec the plan never selected is nobody's business; and a quarantined spec the
 // change itself edits stays blocking, because that edit is the fix and must not land untested.
 import { effectivePlan, splitQuarantined } from './e2e-affected.mjs';
+import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
 
 test('quarantined specs leave the blocking list and are reported as e2e/ paths', () => {
   const split = splitQuarantined(['a.spec.ts', 'b.spec.ts', 'c.spec.ts'], ['e2e/b.spec.ts', 'e2e/zzz.spec.ts']);
@@ -1437,7 +1436,15 @@ test('--files reports an unmapped path exactly like the ref mode does', () => {
   const shared = run();
   assert.equal(shared.mode, 'subset');
   assert.ok(shared.specs.length > 0, 'the shared set is not empty');
-  assert.deepEqual(shared.specs, planFor([unknown], { sprintFocus: true }).specs, 'the CLI and the module agree');
+  // planFor selects coverage; the CLI then partitions it into blocking and quarantined specs.
+  // Compare both lists so a newly quarantined shared spec neither breaks this test nor vanishes.
+  const expected = splitQuarantined(
+    planFor([unknown], { sprintFocus: true }).specs,
+    quarantinedSpecs(readQuarantine()),
+    { changed: [unknown] },
+  );
+  assert.deepEqual(shared.specs, expected.blocking, 'the CLI and the module agree on blocking coverage');
+  assert.deepEqual(shared.quarantined, expected.quarantined, 'every excluded spec is reported for quarantine');
   assert.equal(run('--full-escalation').mode, 'full');
   assert.equal(run('--no-focus').mode, 'full', 'the older spelling still works');
 });
@@ -1806,6 +1813,44 @@ test('a shared model, rendering or storage change runs the shared-change set, an
     assert.ok(shared.specs.includes('playout-folders.spec.ts') && shared.specs.includes('wizard-kit.spec.ts'), `${file} runs the journeys`);
     assert.equal(planFor([file], { sprintFocus: false }).mode, 'full', `${file} runs everything only when asked`);
   }
+});
+
+// #1349: importTemplate is CORE, so its covers header is bypassed before the shared set is
+// applied. Pin the journey through the default CLI too; a full-suite plan would hide this miss.
+for (const [shape, changed] of [
+  ['package import', ['src/model/importTemplate.ts']],
+  ['shared model', ['src/model/structure.ts']],
+  ['shared storage', ['src/store/templateStore.ts']],
+  ['integration union', ['src/model/importTemplate.ts', 'src/legal.css', 'src/templates/lowerThirds/lt01.ts', 'e2e/configured/pro-wizard.spec.ts']],
+]) {
+  test(`${shape} selects the CLI round-trip journey before landing`, () => {
+    const plan = planFor(changed, { sprintFocus: true });
+    assert.equal(plan.mode, 'subset');
+    assert.equal(plan.focusApplied, true);
+    assert.ok(plan.specs.includes('editor-cli-round-trip.spec.ts'), '#1349 must not escape to main');
+
+    const parts = changed.map((file) => planFor([file], { sprintFocus: true }));
+    assert.deepEqual(plan.specs, [...new Set(parts.flatMap((part) => part.specs))].sort(), 'keep every constituent selection');
+    assert.equal(plan.catalog, parts.some((part) => part.catalog));
+    assert.equal(plan.configured, parts.some((part) => part.configured));
+
+    const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', ...changed], {
+      cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true,
+    }));
+    assert.equal(cli.mode, 'subset');
+    assert.ok(cli.specs.includes('editor-cli-round-trip.spec.ts'), 'the journey must reach the blocking CLI plan');
+    assert.equal(cli.catalog, plan.catalog);
+    assert.deepEqual([...cli.specs, ...cli.quarantined].sort(), plan.specs);
+  });
+}
+
+test('docs-only CLI plans no browser tests after adding the round-trip journey', () => {
+  const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', 'docs/ARCHITECTURE.md'], {
+    cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true,
+  }));
+  assert.equal(cli.mode, 'none');
+  assert.deepEqual(cli.specs, []);
+  assert.equal(cli.catalog, false);
 });
 
 test('an uncertain change (a new file no header names) escalates to the shared-change set and is named as unmapped', () => {

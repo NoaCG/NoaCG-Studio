@@ -1,0 +1,363 @@
+{
+  "pin": "ea71261c97a7bca8c8fd3b68adef1307561588dd",
+  "groups": {
+    "frontend_code": {
+      "files": 18,
+      "lines": 4371,
+      "bytes": 179482,
+      "paths": [
+        "src/admin/AdminApp.tsx",
+        "src/admin/NotFound.tsx",
+        "src/admin/ScopePicker.tsx",
+        "src/admin/client.ts",
+        "src/admin/main.tsx",
+        "src/admin/sections/AuditSection.tsx",
+        "src/admin/sections/FeedbackSection.tsx",
+        "src/admin/sections/ModelsSection.tsx",
+        "src/admin/sections/OverviewSection.tsx",
+        "src/admin/sections/PlansSection.tsx",
+        "src/admin/sections/QualitySection.tsx",
+        "src/admin/sections/SystemSection.tsx",
+        "src/admin/sections/TemplatesSection.tsx",
+        "src/admin/sections/UsageSection.tsx",
+        "src/admin/sections/UserDetail.tsx",
+        "src/admin/sections/UsersSection.tsx",
+        "src/admin/types.ts",
+        "src/admin/ui.tsx"
+      ]
+    },
+    "frontend_css": {
+      "files": 1,
+      "lines": 656,
+      "bytes": 23596,
+      "paths": [
+        "src/admin/admin.css"
+      ]
+    },
+    "backend_code": {
+      "files": 19,
+      "lines": 3204,
+      "bytes": 147612,
+      "paths": [
+        "api/_lib/admin/audit.ts",
+        "api/_lib/admin/eligibility.ts",
+        "api/_lib/admin/feedback.ts",
+        "api/_lib/admin/grants.ts",
+        "api/_lib/admin/models.ts",
+        "api/_lib/admin/overview.ts",
+        "api/_lib/admin/periods.ts",
+        "api/_lib/admin/plans.ts",
+        "api/_lib/admin/quality.ts",
+        "api/_lib/admin/scope.ts",
+        "api/_lib/admin/session.ts",
+        "api/_lib/admin/system.ts",
+        "api/_lib/admin/templates.ts",
+        "api/_lib/admin/usage.ts",
+        "api/_lib/admin/user.ts",
+        "api/_lib/admin/users.ts",
+        "api/_lib/adminAuth.ts",
+        "api/_lib/adminUsers.ts",
+        "api/admin/[...path].ts"
+      ]
+    },
+    "node_tests": {
+      "files": 5,
+      "lines": 1179,
+      "bytes": 61849,
+      "paths": [
+        "api/_lib/admin/eligibility.test.ts",
+        "api/_lib/admin/periods.test.ts",
+        "api/_lib/admin/usage.test.ts",
+        "api/_lib/adminAuth.test.ts",
+        "scripts/admin-security-migration.test.mjs"
+      ]
+    },
+    "e2e": {
+      "files": 1,
+      "lines": 1052,
+      "bytes": 50125,
+      "paths": [
+        "e2e/admin.spec.ts"
+      ]
+    },
+    "admin_tools": {
+      "files": 2,
+      "lines": 197,
+      "bytes": 8217,
+      "paths": [
+        "scripts/admin.mjs",
+        "scripts/adminDevPlugin.mjs"
+      ]
+    },
+    "admin_doc": {
+      "files": 1,
+      "lines": 1041,
+      "bytes": 81426,
+      "paths": [
+        "docs/ADMIN.md"
+      ]
+    },
+    "readonly_sections": {
+      "files": 5,
+      "lines": 1425,
+      "bytes": 61048,
+      "paths": [
+        "src/admin/sections/OverviewSection.tsx",
+        "src/admin/sections/UsageSection.tsx",
+        "src/admin/sections/QualitySection.tsx",
+        "src/admin/sections/ModelsSection.tsx",
+        "src/admin/sections/AuditSection.tsx"
+      ]
+    },
+    "feedback_reporting": {
+      "files": 3,
+      "lines": 1179,
+      "bytes": 48676,
+      "paths": [
+        "scripts/feedback-digest.mjs",
+        "scripts/feedback-digest.test.mjs",
+        ".github/workflows/feedback-digest.yml"
+      ]
+    }
+  },
+  "frontend_by_file": [
+    {
+      "path": "src/admin/AdminApp.tsx",
+      "files": 1,
+      "lines": 122,
+      "bytes": 5269
+    },
+    {
+      "path": "src/admin/NotFound.tsx",
+      "files": 1,
+      "lines": 16,
+      "bytes": 628
+    },
+    {
+      "path": "src/admin/ScopePicker.tsx",
+      "files": 1,
+      "lines": 83,
+      "bytes": 3351
+    },
+    {
+      "path": "src/admin/client.ts",
+      "files": 1,
+      "lines": 63,
+      "bytes": 2496
+    },
+    {
+      "path": "src/admin/main.tsx",
+      "files": 1,
+      "lines": 10,
+      "bytes": 252
+    },
+    {
+      "path": "src/admin/sections/AuditSection.tsx",
+      "files": 1,
+      "lines": 82,
+      "bytes": 2925
+    },
+    {
+      "path": "src/admin/sections/FeedbackSection.tsx",
+      "files": 1,
+      "lines": 307,
+      "bytes": 12558
+    },
+    {
+      "path": "src/admin/sections/ModelsSection.tsx",
+      "files": 1,
+      "lines": 410,
+      "bytes": 17457
+    },
+    {
+      "path": "src/admin/sections/OverviewSection.tsx",
+      "files": 1,
+      "lines": 544,
+      "bytes": 24569
+    },
+    {
+      "path": "src/admin/sections/PlansSection.tsx",
+      "files": 1,
+      "lines": 343,
+      "bytes": 12291
+    },
+    {
+      "path": "src/admin/sections/QualitySection.tsx",
+      "files": 1,
+      "lines": 209,
+      "bytes": 8761
+    },
+    {
+      "path": "src/admin/sections/SystemSection.tsx",
+      "files": 1,
+      "lines": 293,
+      "bytes": 11509
+    },
+    {
+      "path": "src/admin/sections/TemplatesSection.tsx",
+      "files": 1,
+      "lines": 143,
+      "bytes": 5695
+    },
+    {
+      "path": "src/admin/sections/UsageSection.tsx",
+      "files": 1,
+      "lines": 180,
+      "bytes": 7336
+    },
+    {
+      "path": "src/admin/sections/UserDetail.tsx",
+      "files": 1,
+      "lines": 560,
+      "bytes": 19013
+    },
+    {
+      "path": "src/admin/sections/UsersSection.tsx",
+      "files": 1,
+      "lines": 155,
+      "bytes": 6054
+    },
+    {
+      "path": "src/admin/types.ts",
+      "files": 1,
+      "lines": 685,
+      "bytes": 32721
+    },
+    {
+      "path": "src/admin/ui.tsx",
+      "files": 1,
+      "lines": 166,
+      "bytes": 6597
+    },
+    {
+      "path": "src/admin/admin.css",
+      "files": 1,
+      "lines": 656,
+      "bytes": 23596
+    }
+  ],
+  "offline_spec_minutes": 0.553,
+  "duration_source": {
+    "run": "39000659873",
+    "runs": [
+      "39000659873",
+      "38986504813",
+      "38959501921",
+      "38934093246",
+      "38913853396",
+      "38906812069"
+    ],
+    "percentile": 0.8,
+    "workflow": "ci.yml",
+    "branch": "main",
+    "sha": "ea3ef9a1d4837111fb24382f514877a713a27a80",
+    "mode": "full",
+    "recordedAt": "2026-10-17"
+  },
+  "e2e_static_declarations": 34,
+  "admin_importers_outside_admin": [
+    {
+      "from": "api/_lib/admin/audit.ts",
+      "line": "12",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/eligibility.ts",
+      "line": "26",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/feedback.ts",
+      "line": "24",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/models.ts",
+      "line": "30",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/overview.ts",
+      "line": "39",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/plans.ts",
+      "line": "19",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/quality.ts",
+      "line": "30",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/scope.ts",
+      "line": "22",
+      "to": "src/admin/types.ts",
+      "kind": "static"
+    },
+    {
+      "from": "api/_lib/admin/session.ts",
+      "line": "15",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/system.ts",
+      "line": "20",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/templates.ts",
+      "line": "19",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/usage.ts",
+      "line": "16",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/admin/users.ts",
+      "line": "14",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "api/_lib/adminUsers.ts",
+      "line": "16",
+      "to": "src/admin/types.ts",
+      "kind": "type"
+    },
+    {
+      "from": "scripts/execution-profile.test.mjs",
+      "line": "161",
+      "to": "src/admin/main.tsx",
+      "kind": "string-path"
+    }
+  ],
+  "admin_external_package_imports": [
+    "react",
+    "react-dom/client"
+  ],
+  "feedbackWorkflowObservation": {
+    "runId": 39027541183,
+    "startedAt": "2026-10-17T11:08:17Z",
+    "completedAt": "2026-10-17T11:08:28Z",
+    "jobSeconds": 11,
+    "noticeStep": "success",
+    "mailStep": "skipped",
+    "meaning": "Observed inert run; no mail sent; secret values not read"
+  }
+}

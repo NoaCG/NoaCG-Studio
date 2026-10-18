@@ -1,12 +1,12 @@
 # FEEDBACK REACHES THE OWNER - a nightly digest to the contact address, not a page to visit.
 #
 # The owner's ruling, 2026-08-26: "I will not remember to go to the admin page." /admin has had a
-# real feedback inbox since migration 0028 (docs/ADMIN.md §10) and it only works for somebody who
+# real feedback inbox since migration 0028 (now retired; docs/ADMIN.md §10), which only worked for somebody who
 # opens it. Feedback a person bothered to write and nobody reads is worse than no feedback button
 # at all, because the button teaches users that telling us something is pointless.
 #
-# So this reads yesterday's rows and mails them. Triage stays on the admin page - this is a read
-# path and the only thing it changes is what the owner knows.
+# So this reads yesterday's rows and mails them. Triage is now a private operator session - a write
+# path; this job only changes what the owner knows.
 #
 # PARKED, 2026-08-27, AND DELIBERATELY LEFT SCHEDULED. Wiring the Gmail app password is time the
 # owner does not have, so the standing reminder moved into Claude Code instead: a WEEKLY routine

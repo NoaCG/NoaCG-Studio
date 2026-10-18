@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-// NO AppShell IMPORT, on purpose (owner, 2026-09-24). The old code editor stays in the repo until
-// the new editor has taken over what is worth keeping, but no route renders it, so nothing here
-// may pull it (and Monaco behind it) into the bundle every visitor downloads.
+// NO OLD-EDITOR IMPORT, on purpose (owner, 2026-09-24). The old code editor (AppShell) was closed
+// then and deleted on 2026-10-17; nothing here may pull an editor shell (and Monaco behind it)
+// into the bundle every visitor downloads except the two surfaces below.
 import EditorFoundation from './components/editorFoundation/EditorFoundation';
 import AccountAuthoringGate from './components/AccountAuthoringGate';
 import VideoAppShell from './components/video/VideoAppShell';

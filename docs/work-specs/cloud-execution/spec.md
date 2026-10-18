@@ -20,17 +20,19 @@ execution and repair latency. Planner timing alone is not test execution.
 
 ### AC-2: The owner approves a precise local/cloud verification default
 
-Owner approval is recorded in #1301 comment 6223002051. Implement the approved
-5-minute small / 12-minute broader browser budgets and at most four workers,
-reduced for lower effective resources. A risk-triggered production build runs
+Owner approval is recorded in #1301 comment 6223002051; the owner's decision of
+2026-10-17 replaced its resource defaults. Implement the approved 5-minute small /
+12-minute broader browser budgets. Browser workers follow the executing machine's
+own CPUs and memory with no fixed cap; a failed reading falls back to the machine's
+totals, never to one worker, and only the laptop watches RAM. A cloud worker runs a
+visible change's affected browser specs itself. A risk-triggered production build runs
 once per reviewed source state, bounded at five minutes on measured Codex or ten
 on measured Claude; do not duplicate checks already included in that build.
 Docs/copy do not trigger builds unless build inputs. Larger selections remain CI. Preserve
 local guards; select cloud policy on the executing worker rather than inheriting
 its coordinator's profile. Node tests cover preserved local guards, worker-side profile selection independent
-of coordinator hints, cgroup v1/v2 mount roots and ancestor limits, lower/unknown
-resources and the four-worker cap. Unknown limits permit conservative targeted
-work, never an unlimited-memory profile.
+of coordinator hints, cgroup v1/v2 mount roots and ancestor limits, lower resources
+and the fallback to machine totals.
 Reuse historical measurements; their explicit exception does not authorize new benchmarks.
 
 ### AC-3: Both providers return a revision-bound cloud worker result

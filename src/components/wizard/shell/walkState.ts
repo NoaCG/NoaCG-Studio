@@ -112,6 +112,9 @@ export interface WalkMemory {
    *  fresh. It is what stops a second pass down the same walk minting a second library record
    *  under the same name, whether it came from a resume or from pressing Export twice. */
   made: MadeGraphic | null;
+  /** The walk's mint still in flight. A door pressed again waits for it, so it decides with the
+   *  record that mint made, under whatever name Finish then carries (#1384). */
+  minting?: Promise<void>;
 }
 
 export interface WalkState {
@@ -599,14 +602,23 @@ export async function saveBuiltGraphic(
   name: string,
   lib: LibraryIo,
 ): Promise<{ ok: boolean; error: string | null }> {
+  // Pressed again while its mint was pending, under a new name, the door found neither the
+  // record (not noted yet) nor the name, and minted a second (#1384). Only a MINT is waited for:
+  // a write over a known record already names it, and a rewind starts a new memory.
+  if (memory.minting) await memory.minting;
   const effect = lib.effect(lib.index(), name, memory.made?.graphicId ?? null);
   const over = effect.targetId;
-  // A mint whose record landed while its link write was refused still made that record, so the
-  // retry writes over it, under whatever name Finish then carries (#1367).
-  const mint = async () => {
-    const minted = await lib.saveAs(name);
-    if (!minted.ok && minted.graphicId) noteMade(memory, { name, graphicId: minted.graphicId, production: null, landedOn: null });
-    return minted;
+  // Whatever a mint made is this walk's record from then on, its link write landed or not, so
+  // the next pass writes over it, under whatever name Finish then carries (#1367, #1384).
+  const mint = () => {
+    const run = lib.saveAs(name).then((minted) => {
+      if (minted.graphicId) noteMade(memory, { name, graphicId: minted.graphicId, production: null, landedOn: null });
+      return minted;
+    });
+    const done = () => { if (memory.minting === minting) memory.minting = undefined; };
+    const minting: Promise<void> = run.then(done, done);
+    memory.minting = minting;
+    return run;
   };
   if (!over) return mint();
   lib.linkTo(over);

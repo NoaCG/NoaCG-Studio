@@ -5,10 +5,15 @@ owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourt
 phases, each built by one session and checked by another on `main`, and the content continuation
 C0-C7 of `docs/work-specs/data-sources/spec.md`. The run order reconciled on 2026-10-17 (see
 "Run order") runs refactor phases 1, 2+7 and 13a in this window with the content phases, and the
-other refactor phases in a later window; the owner has not yet agreed that order. Replaces
+other refactor phases in a later window; the owner agreed that order on 2026-10-18. Replaces
 the phase map of
 [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) (its phases 0-2 are done; its old
 phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
+
+Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both**
+(run order; Sheet reader model; destination hygiene with `/update` allowed; opt-in key storage
+and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
+planning update does not start `/plan-run production-page`; the owner explicitly said not to.
 
 ## Verdict
 
@@ -662,7 +667,7 @@ state; each is removed in the phase that moves that state.
     `src/components/home/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CLIP_PLAYBACK_PLAN.md`,
     `e2e/*` covers headers, evidence. `Closes #766`.
 
-### Run order (reconciled 2026-10-17; the owner's agreement pending)
+### Run order (reconciled 2026-10-17; agreed 2026-10-18)
 
 History. The owner made the playout dashboard the top priority with its data and audience flows
 and ruled on 2026-10-16 "production page cleanup first, then Sheet data, then audience, all in
@@ -711,10 +716,10 @@ answers do not reproduce; the hosted page's fitness for the core (not in scope).
 
 ## Readiness
 
-Before the next run: the two independent reviews are reconciled
-(`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`), and the owner agrees the resulting
-plan, including the run order above and the four decisions in the synthesis §7. This is a
-planning review gate, not authorization to start a run.
+The planning review gate is satisfied: the two independent reviews are reconciled
+(`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`), and on 2026-10-18 the owner agreed
+the resulting plan, including the run order above and all four synthesis §7 decisions.
+The owner explicitly instructed not to start the plan run; the start preflight below still applies.
 
 Before the run's first step (the start instruction; C0 in the reconciled order, then phase 1):
 this spec and `work.json` landed on `main`,

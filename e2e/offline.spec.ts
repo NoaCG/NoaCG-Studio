@@ -1,47 +1,36 @@
-// covers: src/export/**, src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
-// covers: src/backend/**
+// covers: src/components/editorFoundation/**, src/components/wizard/**, !src/components/wizard/import/**
 // focus
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
-import { showCode } from './_code';
-import { chooseType, pickDesign } from './_browse';
+import { finishIntoNewEditor } from './_create';
+import { pickDesign } from './_browse';
+import { editorPreview } from './_frame';
 
-// Era 1: self-hosted Monaco — the editor must work with every CDN unreachable.
-
-test('the editor loads and works with all CDNs blocked', async ({ page }) => {
-  const cdnHits: string[] = [];
-  // Kill anything that isn't the dev server — a CDN dependency would surface as a hang.
-  await page.route(/^https?:\/\/(?!127\.0\.0\.1(?::|\/))/, (route) => {
-    cdnHits.push(route.request().url());
+test('the editor loads and edits a graphic with all third-party hosts blocked', async ({ page }) => {
+  const attempted: string[] = [];
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1(?::|\/))/, route => {
+    attempted.push(route.request().url());
     return route.abort();
   });
-
-  await enableAdvancedMode(page);
   await page.goto('/app');
-  await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await chooseType(page, 'Lower thirds');
   await pickDesign(page, 'Hairline');
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-  });
-
-  // Monaco rendered from the bundle and is interactive — opened from the topbar, since the
-  // pane ships closed, and the point here is that its chunk comes from the bundle, not a CDN.
-  await showCode(page);
-  await expect(page.locator('.editor-host .monaco-editor')).toBeVisible();
-  await expect(page.locator('.editor-host .view-line').first()).toContainText('DOCTYPE');
-  await page.locator('.editor-host .monaco-editor').click();
-  await page.keyboard.press('Control+End');
-  await page.keyboard.type('<!-- offline edit -->');
-  const html = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.html;
-  });
-  expect(html).toContain('<!-- offline edit -->');
-
-  // Nothing even TRIED to reach a CDN for the editor.
-  expect(cdnHits.filter((u) => /jsdelivr|unpkg|cdnjs/.test(u))).toEqual([]);
+  await finishIntoNewEditor(page);
+  const canvas = page.getByTestId('foundation-canvas');
+  await expect(canvas).toHaveAttribute('data-pending', 'false');
+  const source = () => page.evaluate(async () =>
+    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const before = await source();
+  await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
+  const stage = (await page.locator('.ef-artboard').boundingBox())!;
+  const x = stage.x + stage.width * .5, y = stage.y + stage.height * .5;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y + 45, { steps: 6 });
+  await page.mouse.up();
+  await expect(editorPreview(page).locator('#rectangle-1')).toBeVisible();
+  await expect.poll(async () => (await source()).html).toContain('rectangle-1');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(source).toEqual(before);
+  expect(attempted).toEqual([]);
 });

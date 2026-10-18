@@ -1,4 +1,4 @@
-// covers: src/ai/video/**, src/video/**, src/components/video/**, player-host/**
+// covers: src/ai/video/**, src/video/**, src/components/video/**, src/components/canvas/**, player-host/**
 //
 // The host BUILD is load-bearing for the preview: it inlines the player JS and the bundled
 // video fonts into public/player-host/index.html, which the video specs load.
