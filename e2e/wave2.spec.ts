@@ -51,7 +51,10 @@ test('infographic: the stat counts up to its value', async ({ page }) => {
   const value = doc.locator('#f0');
   await expect(value).toHaveText('87%');
   await play(doc);
-  // Mid-count the text is a smaller number; it must settle back on the target.
+  // The count starts at the zero rule and climbs, so catch the figure OFF its target first: the
+  // pre-play text already reads the target, and a count-up that never ran would pass a bare
+  // settle check. Then it must settle back on the target.
+  await expect(value).not.toHaveText('87%', { timeout: 6000 });
   await expect(value).toHaveText('87%', { timeout: 8000 });
   await expect
     .poll(async () => doc.locator('.infographic').evaluate((el) => getComputedStyle(el).opacity))
