@@ -19,7 +19,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor, skipOldEditor } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { outputEmbedFileName, outputEmbedHtml } from '../src/export/outputEmbed';
@@ -38,20 +38,20 @@ async function dragCue(page: Page, from: number, to: number): Promise<void> {
 // live-verify checklist (§8) — this suite pins everything that runs offline.
 
 test('a production page manages cues: auto-cue on add, edit, duplicate, reorder, preview', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 
-  // Add the current graphic to a new production from the editor's control panel.
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByPlaceholder('New production name').fill('Evening News');
-  await section.getByRole('button', { name: 'Create', exact: true }).click();
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-
-  // The panel links straight to the production page.
-  await section.getByTestId('open-production-page').click();
+  await openWorkingGraphicInEditor(page);
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Hairline');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-productions').click();
+  await page.getByTestId('new-production-name').fill('Evening News');
+  await page.getByTestId('new-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('add-graphic-pick').selectOption({ label: 'Hairline' });
+  await page.getByTestId('add-graphic').click();
 
   // Adding a graphic auto-created its first cue, seeded from the template's defaults (§2).
   const cueRows = page.getByTestId('cue-list').locator('.pd-cue');
@@ -63,17 +63,19 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await page.getByTestId('cue-note').fill('after the intro');
   await page.getByTestId('cue-field-f0').fill('Anna Andersson');
   await expect(cueRows.first()).toContainText('Anna Andersson');
-  await expect(cueRows.first()).toContainText('after the intro');
+  await expect(cueRows.first().getByTestId('cue-note-mark')).toHaveAttribute('title', 'after the intro');
 
   // The LOCAL preview settles with the cue's values (debounced 350 ms; the locator retries).
   const preview = page.frameLocator('iframe[title="Cue preview"]');
   await expect(preview.locator('#f0')).toHaveText('Anna Andersson');
 
-  // A second cue on the SAME pool graphic — the point of the cue model (§2).
+  // A second cue on the same pool graphic proves the cue model (§2).
   await page.getByTestId('rundown-add').click();
   await page.getByTestId('add-cue').click();
   await expect(cueRows).toHaveCount(2);
   await page.getByTestId('cue-label').fill('Ben Berg');
+  await page.getByTestId('cue-field-f0').fill('Ben Berg');
+  await page.getByTestId('cue-note').fill('after Anna');
 
   // Reorder: Ben moves above Anna; order is the rundown.
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
@@ -86,17 +88,30 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await page.getByRole('menuitem', { name: 'Duplicate' }).click();
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(1)).toContainText('Ben Berg copy');
+  await rows.nth(1).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-label')).toHaveValue('Ben Berg copy');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Ben Berg');
+  await expect(page.getByTestId('cue-note')).toHaveValue('after Anna');
+  await expect(preview.locator('#f0')).toHaveText('Ben Berg');
 
-  // Offline, publishing says why it cannot run — but the VERBS still work, because what they
+  // Offline, publishing says why it cannot run, but the VERBS still work, because what they
   // drive is the local program monitor right here (docs/PLAYOUT_DASHBOARD.md §6).
   await expect(page.getByTestId('verb-take')).toBeEnabled();
   await expect(page.getByTestId('production-publish')).toBeDisabled();
   await expect(page.getByTestId('production-publish')).toHaveAttribute('title', /runs offline/);
 
   // The cue survives a reload (persisted on the Show record).
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText('Ben Berg copy');
+  await rows.nth(1).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Ben Berg');
+  await expect(page.getByTestId('cue-note')).toHaveValue('after Anna');
+  await rows.filter({ has: page.locator('strong', { hasText: 'Anna Andersson' }) }).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-note')).toHaveValue('after the intro');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Anna Andersson');
 });
 
 test('Home Productions creates a production and opens its page; removing a graphic removes its cues', async ({ page }) => {
@@ -1171,7 +1186,7 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
   expect(await poolCount()).toBe(1);
 
-  // Removing the last picture cue takes the picture graphic — and the uploads — with it, which is
+  // Removing the last picture cue also removes the picture graphic and uploads, which is
   // why that removal asks twice and names the count (docs/PLAYOUT_DASHBOARD.md §5).
   const removeCue = async (i: number) => {
     await rows.nth(i).getByTestId('cue-menu').click();

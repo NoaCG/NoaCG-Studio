@@ -17,6 +17,22 @@ Agents own discovering and implementing ordinary interaction details needed to c
 task, inspecting the rendered result and catching routine defects. Ask the owner about genuine
 workflow or creative choices; do not make them enumerate every expected inspector control.
 
+## Retained lessons from the first editor
+
+The earlier failure account records the owner's 2026-08-22 verdict that the first attempt
+did not land, followed by an August 27 report of a blank stage and unreliable Space playback.
+The same owner accepted the August 25 SVG-import canvas as a useful single-canvas task. That
+is evidence about those observed routes, not proof that a code-as-truth model failed. The
+blank-stage report followed the original rejection, so it cannot alone explain that verdict.
+
+The account ranked scope, timing, reliability and unfamiliar vocabulary as possible causes.
+Those rankings were hypotheses rather than controlled causal findings. Retain the practical
+lesson: prove a complete useful task and its first entry, correction and destination, instead
+of treating controls present or passing mechanical checks as workflow acceptance. The three
+readiness levels below keep engineering evidence separate from owner acceptance. The
+[full dated account](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md) remains pinned in Git history; its implementation sequence
+and retired UI are not current instructions.
+
 ## What ready means
 
 Report three separate facts, with a named capability rather than an unqualified "done":

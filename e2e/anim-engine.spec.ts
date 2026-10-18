@@ -10,7 +10,7 @@
 import { test, expect } from '@playwright/test';
 import { toApp } from './_bench';
 
-// Timeline v2 Phase 1 (docs/TIMELINE_V2_PLAN.md) — the golden parity harness for the
+// Timeline v2 parity (docs/STATE_MACHINE_SCHEMA.md), the golden parity harness for the
 // declarative animation engine. Lower thirds now CREATE as data blocks, so the harness
 // builds each preset's LEGACY twin explicitly (the preset's emitted region spliced into
 // the same template) and proves the two representations behave identically: same
@@ -182,7 +182,7 @@ test('parity: the press chain — pre-hidden reveals, per-press timelines, exhau
 test('parity: clock templates carry startClock/stopClock through the step-call model', async ({ page }) => {
   test.setTimeout(60_000);
   await toApp(page);
-  // Game timers create as data blocks now (docs/TIMELINE_V2_PLAN.md §3b): the preset's
+  // Game timers create as data blocks now (docs/STATE_MACHINE_SCHEMA.md, Animation steps and runtime hooks): the preset's
   // tl.call(startClock)/tl.call(stopClock) hooks must survive the conversion as step calls,
   // and the data interpreter must run them exactly where the legacy emit did.
   const failures = await page.evaluate(`(async () => {

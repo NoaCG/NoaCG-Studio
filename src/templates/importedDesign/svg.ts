@@ -362,7 +362,7 @@ ${creditsRollCss(PREFIX)}
     SVG_FIT_BOOT;
 
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA
-  // (the step-calls model, docs/TIMELINE_V2_PLAN.md §3b): startClock as the entrance lands,
+  // (the step-calls model, docs/STATE_MACHINE_SCHEMA.md): startClock as the entrance lands,
   // stopClock the moment the exit begins - exactly what the catalog's countdown presets emit.
   const withClockCalls = clockField
     ? (data: AnimData): AnimData => {

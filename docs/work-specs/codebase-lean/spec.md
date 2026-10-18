@@ -1,7 +1,9 @@
 # Make the codebase lean, starting with the retired editor
 
 Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
-through singles-i, the panels and the released editor/account checks have landed. This branch restores the kept Sheet and insertion cases; obsolete helpers and verification docs remain
+through singles-i, the panels and the released editor/account checks have landed. The kept
+Sheet and insertion cases landed in #1492. This branch removes obsolete helpers and updates
+verification docs
 before #800 closes, with step 6 last.**
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
@@ -873,6 +875,23 @@ merge helper remain the only implementations, with one bounded session edit per 
 
 Reconciled on main `f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` after PR #1489 landed, with a merge commit and regenerated contracts. All seven kept live-gap cases now run; one covered production duplicate still calls the retired skip helper and needs its final equivalence audit before helper deletion. Final main-reconciled queue job `j-4625` passed all 13 cases in both complete files in 35.0 seconds, with no skips. Changed gates passed all 27 selected Node checks, and contract regeneration produced no additional branch changes.
 
+### Helper and historical-document cleanup (2026-10-18)
+
+Why: the final skip still hides a live production assertion, and retired bootstraps and old
+plans still give readers obsolete instructions. Goal: restore that case through the current
+production UI, remove the five skip helpers at zero callers, and retire the eight approved
+plans after retaining their current contracts and observed failure lessons. Non-goals: no
+editor Phase 2 acceptance claim, saved-format change, new runtime or later research work.
+Acceptance: the complete production case runs without skipping; no retired helper or _code
+import remains; current animation contracts and failure evidence have maintained references;
+no source behavior changes from comment/reference edits; documentation and targeted gates pass.
+
+The original C disposition for productions:40 was incomplete: the existing persistence case
+renames its duplicate before checking the default copy label and insertion position. Four
+replacement checks passed in j-4624, but partial coverage is insufficient. Keep the original
+case, change its row to G with this evidence, and replace only its retired setup with current
+Home, save and production controls. No declaration is removed and no maintenance entry is added.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -1314,3 +1333,101 @@ TypeScript passed on the identical application source; no repeated local build o
 was run. Review and simplify were inline: six confirmed findings fixed across this PR, with
 existing withOut and machine-aware step helpers reused. Verification is now passing; the
 stamp covers the final committed tip and the PR can return to the merge queue.
+
+
+### Helper and old-document verification receipt (2026-10-18)
+
+All five retired skip exports and OLD_EDITOR_SKIP are gone from e2e/_create.ts; its live
+fixtures and wizard helpers remain. The complete E2E tree has no caller or import of those
+identities. _code.ts had zero imports and its 28 lines are deleted. _ai-notice.ts stays because
+_video.ts still imports it. The helpers remove 78 physical lines including comments.
+
+The last production case is retained as G, not recorded as a covered removal. j-4628 reached
+the current production UI and found its old note-as-row-text expectation obsolete: CueRundown
+exposes the note icon's accessible label and title instead. The case now asserts the exact
+note title and also verifies the note and field after reload. j-4629 passed all 28 production
+cases with zero skips in 47.2 seconds. j-4630 passed all 19 animation-engine, legacy-timeline
+and brand-editor cases with zero skips in 34.4 seconds. No test declaration was removed.
+
+The approved eight timeline/WYSIWYG documents remove exactly 1,280 physical lines. Their
+current step/keyframe, visibility, calls, loops, dynamics, importer, preset and writer-pairing
+facts live in STATE_MACHINE_SCHEMA. The first-editor observations and explicitly hypothetical
+causal rankings remain in editor-outcomes-and-review-readiness, with pinned historical source.
+Current source references point to maintained contracts; dated research links point to the
+verified archive at 2c36ba0be224d464938538428d02b8b77c56b5b9. Immutable inventory and contract
+records keep their provenance. VERIFICATION now names live fixture helpers and the existing
+per-landing configured workflow. No editor-repair acceptance or new research idea is claimed.
+
+ESLint and TypeScript passed. Changed gates passed 17 Node files and 165 tests. Docs indexing
+passed with 150 top-level documents; contract compilation/freshness/citations/evidence passed.
+Catalog emit compared all 528 designs with their committed baseline and passed in 3.5 seconds.
+Comment-free TypeScript syntax is identical after normalizing line endings in all 11 changed
+production files. Untouched line endings were preserved; no emitted graphic code changed.
+The configured production-links edit only corrects a fixture-helper name in a comment; its
+behavior is unchanged and its live backend journey remains in authoritative Actions.
+
+Review fixed incomplete C evidence, an obsolete note presentation assertion, stale source
+section numbers and source newline churn. Simplify kept the original production assertions
+and shared helpers, with only current setup replacing the retired setup. The passing phase
+uses inline review, simplify and verify; no local production build or full suite was run.
+
+The closing title audit found 23 original G rows whose titles were renamed, generated or
+moved to a cheaper test layer. Each now names its actual maintained destination in the
+existing disposition table. Describe prefixes and generated names explain the configured,
+counting and credits rows; three format cases and the readiness/catalog-line checks have
+explicit Node destinations. Current wizard, video code, history, offline, preview recovery,
+landing and hosted-control cases retain their live subjects. The G label records an original
+coverage gap, not a remaining skip; no row is silently reclassified as a covered removal.
+
+The final review also made the retained duplicate assertion meaningful for copied data: Ben
+now has distinct authored field text and a note before Duplicate. The copy must retain both
+in its controls and rendered preview, then after reload, while Anna's different values stay
+intact. The test observes accepted durable writes before reloading; no model write substitutes
+for a production action. The complete changed-file selection is rerun after this strengthening.
+
+The closing C audit also retained the original public-service persistence case as G. The
+proposed replacement checks other machines and is partial; al01, pi08 and tk18 still run in
+the original case, with exact severity/language groups and controls after a durable reload.
+No test needed reconstruction or removal. Final documentation review also corrected stale
+simulator, graph-walk, arrangement-loader and catalog-scope references against current code.
+
+Reconciled with landed #1492 on main 4569b9622923e1ecc9c790c071ee27e263580324 through
+a merge commit, preserving both appended verification receipts and regenerating contracts.
+The strengthened production check remains pending in j-4634; its earlier 28-case pass does
+not claim verification of the later duplicate-data assertions. The separate retained
+public-service persistence check is queued by its exact title. No RAM limit is changed.
+
+On that landed base, the final changed gates pass 14 Node files and 152 tests (the earlier
+17-file count included the not-yet-landed parent). ESLint, TypeScript and protection for all
+five changed specs pass. Comment-free syntax matches main in all eleven production modules.
+Review and simplify remain inline; final browser verification is still pending, so this
+checkpoint is not stamped or queued as a finished PR.
+
+The unchanged public-service persistence case passed in full main CI 39162531002, E2E
+12/15, at its current line 616. This directly verifies the retained al01/pi08/tk18 case;
+the unrelated-machine replacement is not used as proof. j-4635 was cancelled before it
+started to avoid repeating that unchanged check. It is not reported as a local pass.
+
+All four main runs for #1492 are recorded in PR comment 6254920411: CI 39162531002,
+Post-landing 39162530873, Quarantine 39162530842 and configured-suite 39162530869 all
+succeeded on 4569b9622923e1ecc9c790c071ee27e263580324. Its repair ownership is complete.
+The helper phase still awaits j-4634, including the changed copied-data assertions.
+
+### Final helper/documentation verification (2026-10-18)
+
+j-4634 passed all 47 cases in productions, anim-engine, legacy-timeline and brand-editor,
+zero skips, in 1.2 minutes. The retained production case passed at line 40, including distinct
+copied field text and note, rendered preview, durable reload and the unchanged original cue.
+The owner explicitly authorized a temporary 3.3 GB local memory setting after the job waited
+for the default reserve. The existing operator environment setting was used only in the
+runner process; two workers and the five-minute cap stayed unchanged. The temporary runner
+was stopped after the successful result, and a fresh presence read confirmed the default
+3.5 GB reserve. No repository policy, assertion, check or validation limit was changed.
+
+The previously recorded current-main ESLint, TypeScript, five-spec protection and 14-file /
+152-test Node gate results cover the identical source. The public-service persistence case
+passed in full main CI, as recorded above. Review fixed seven issues, including partial
+coverage mappings, duplicate-data assertions and stale references; simplify retained the
+original live promises and current shared helpers. All three check legs are inline. The
+helper/documentation phase is now ready for its exact-tip stamp and queue-merge. No local
+full suite or production build was run; authoritative full checks remain in Actions.

@@ -1,7 +1,7 @@
 // THE PRESET LIBRARY — every category's motion presets, in one lookup, plus the one way to
 // emit a preset's region for a given template.
 //
-// This is what is left of the old animPatch.ts after Phase 8 (docs/TIMELINE_V2_PLAN.md). That
+// This is what is left of the old animPatch.ts after Phase 8 (docs/STATE_MACHINE_SCHEMA.md). That
 // module was the marked region's literal PATCHER: it spliced phases, swapped presets, and set
 // the knob variables in place. Nothing writes legacy regions any more — every category creates
 // as a NOACG_ANIM data block, and motion is edited as DATA (blocks/animEdit.ts) — so the

@@ -88,7 +88,7 @@ test('brand drafts cancel without changing the open graphic; oversized and inval
   await page.getByLabel('Brand logo', { exact: true }).setInputFiles({ name: 'bad.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('not svg') });
   await expect(page.getByRole('alert')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  // createProject seeds one named brand; cancelling must preserve it and add nothing.
+  // bootstrapGraphic seeds one named brand; cancelling must preserve it and add nothing.
   await expect(page.locator('.lib-row')).toHaveCount(1);
   await page.locator('.lib-row', { hasText: 'Hairline look' }).getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByLabel('Accent value', { exact: true }).fill('#ff0099');

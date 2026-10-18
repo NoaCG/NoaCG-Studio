@@ -81,7 +81,7 @@ before attributing failures or changing implementation.
 | Preview | `PlayoutSimulator.tsx` owns real runtime scrubbing, lifecycle and settling | Diagnose rebuild/seek races and stale overlays before declaring an interaction reliable |
 | Older completion claims | Timeline v2 is marked complete; WYSIWYG attempt one has a documented failure analysis | Preserve implementation history but stop treating it as proof of a satisfactory product |
 
-The [previous failure analysis](WYSIWYG_PLAN.md) remains useful, but its statement that no owner
+The [previous failure analysis](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md) remains useful, but its statement that no owner
 complained about how the editor felt is superseded by this feedback. Its old exclusion of a
 gesture that is merely easier than the panel is also too restrictive for this task: making
 ordinary editing feel good is now an explicit goal. Source authority, source preservation,
@@ -424,8 +424,8 @@ keyframe editor. Conversely, reaching a large feature count must not excuse fail
 primary task.
 
 References: [Studio case study](OGRAF_STUDIO_RESEARCH.md),
-[full-stack plan](../../OGRAF_FULL_STACK_PLAN.md), [current interaction contract](TIMELINE_INTERACTION_MODEL.md),
-[timeline implementation history](TIMELINE_V2_PLAN.md), [previous editor failure analysis](WYSIWYG_PLAN.md),
+[full-stack plan](../../OGRAF_FULL_STACK_PLAN.md), [current interaction contract](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/TIMELINE_INTERACTION_MODEL.md),
+[timeline implementation history](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md), [previous editor failure analysis](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md),
 [SVG ambient direction](../../SVG_ANIMATION_DIRECTION.md), [state-machine schema](../../STATE_MACHINE_SCHEMA.md).
 
 ## Design review supplement, 2026-09-17

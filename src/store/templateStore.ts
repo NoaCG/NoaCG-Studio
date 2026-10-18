@@ -149,7 +149,7 @@ interface TemplateState {
    *  setter keeps the two in sync so single-selection consumers just work. */
   selectedPart: string | null;
   /** The FULL selection, ordered; selectedPart === selectedParts[0] ?? null. The
-   *  interaction-model contract (docs/TIMELINE_INTERACTION_MODEL.md): plain click
+   *  interaction-model contract (docs/EDITOR_REBUILD_PLAN.md): plain click
    *  replaces, shift-click toggles, empty-canvas drag lassos. UI state only. */
   selectedParts: string[];
   /** EXPLICIT canvas locks, by TemplatePart selector. A locked part takes no direct-

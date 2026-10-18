@@ -5,7 +5,7 @@
 qz01…qz15 (prefix 'quiz'; f0 question, f1…fn options, hidden correct-answer and
 selected-answer dropdowns after them).
 
-DATA BLOCKS via convertToDataRegion + a refinement (docs/TIMELINE_V2_PLAN.md §3c): the
+DATA BLOCKS via convertToDataRegion + a refinement (docs/STATE_MACHINE_SCHEMA.md): the
 Continue reveal is a real middle step that CALLS revealAnswer() (adds
 .quiz-correct/.quiz-dim + pops the winner;
 update() clears the reveal). Each answer ROW carries `quiz-option` (the shared look) AND
