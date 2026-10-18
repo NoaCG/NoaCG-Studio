@@ -121,7 +121,8 @@ const wrong = (readings: Reading[]) =>
     .map((r) => `${r.id} [${r.el}] shows "${r.text}" for data-target "${r.target}"`);
 
 test('every counting design settles on its real figure', async ({ page }) => {
-  test.setTimeout(180_000);
+  // The whole catalog in one sweep: 14 s locally on two workers; the gate's ceiling, not above it.
+  test.setTimeout(120_000);
   await page.goto('/app');
   await page.keyboard.press('Escape');
 
