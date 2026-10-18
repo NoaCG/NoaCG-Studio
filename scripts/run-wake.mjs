@@ -38,7 +38,8 @@
 // notice. So a running coordinator whose transcript ends on that error, or whose last turn ran under
 // that notice, is `waiting` until the limit's reset and `resume` once it has passed: the same
 // message starts its next turn. The error records the reset; the notice does not, so the latest
-// error's reset is used while it still lay ahead at the notice, else an hour after the notice.
+// error's reset is used while it still lay ahead at the notice, else an hour after the notice. A
+// plan run whose ledger stopped on a question to the owner stays `alive`: his answer wakes it.
 //
 // THE MACHINE stays awake through `awake`, not the app's request_keep_awake, which lets go after
 // about five idle minutes and when the app quits. It starts a detached holder that keeps Windows
@@ -54,6 +55,7 @@ import { fileURLToPath } from 'node:url';
 
 import { buildIndex, inventory as harnessInventory } from './claude-agents.mjs';
 import { processAlive } from './codex-rescue.mjs';
+import { nextStep } from './plan-run.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
 import { advanceLocalMain } from './worktree-cleanup-lib.mjs';
 import { REPORT_HEADING, SESSION_BLOCK, sessionsIn, WINDOW_END, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
@@ -177,6 +179,9 @@ export function wakeVerdict({ text, inventory, now = Date.now(), stopped = usage
   const stops = live.map((id) => stopped(id));
   const working = live.find((id, i) => !stops[i]);
   if (working) return { verdict: 'alive', why: `session ${working} is running (pid ${index.bySession.get(working).pid})` };
+  // A plan run stopped on a question to the owner is woken by his answer, not by the limit's reset.
+  const owed = nextStep(text, now);
+  if (owed.action === 'stopped') return { verdict: 'alive', why: `session ${live.join(', ')} is waiting on the owner's answer for phase ${owed.phase}` };
   const resets = stops.map((stop) => stop.resetsAt);
   const until = resets.includes(null) ? null : Math.max(...resets);
   const basis = stops.find((stop) => stop.resetsAt === until)?.basis;
@@ -202,7 +207,7 @@ export function wakeReport(runs) {
     return [
       `resume: ${resume.why} for ${resume.file}`,
       `session_id: ${resume.host}`,
-      `message: Wake-up: ${stop}. Continue the run in ${resume.file} with ${resume.resume}: reconcile first, launch nothing twice.`,
+      `message: Wake-up: ${stop}. Continue the run in ${resume.file} with ${resume.resume}: reconcile first, launch nothing twice, and go no further than a question the owner has not answered.`,
       `command: ${resume.resume}`,
     ];
   }

@@ -121,6 +121,13 @@ test('a running coordinator stopped on the usage limit waits for the reset, then
   assert.equal(resumed.usage, true);
   assert.equal(resumed.host, 'local_1');
   assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /^message: Wake-up: you stopped on the usage limit, which should have reset by now/);
+  // A plan run stopped on a question to the owner waits for his answer, not the reset; once answered, the limit counts again.
+  const asked = `${WAVE}\n## Phases\n\n1. Build it\n\n- 2026-10-12T19:00:00Z phase 1 stop a reserved decision\n`;
+  const owner = verdict({ text: asked, inventory: inventory('aaa'), stopped, now: resetsAt + 1 });
+  assert.equal(owner.verdict, 'alive');
+  assert.match(owner.why, /aaa is waiting on the owner's answer for phase 1/);
+  assert.equal(verdict({ text: `${asked}- 2026-10-12T19:30:00Z phase 1 answered go on\n`, inventory: inventory('aaa'), stopped }).verdict, 'waiting');
+  assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /go no further than a question the owner has not answered\.$/);
   // A limit with no recorded reset is resumed at once; another recorded session still working keeps it alive.
   assert.equal(verdict({ inventory: inventory('aaa'), stopped: () => ({ resetsAt: null }) }).verdict, 'resume');
   assert.equal(verdict({ inventory: inventory('aaa', 'bbb'), stopped }).verdict, 'alive');
