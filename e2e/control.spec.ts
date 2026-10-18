@@ -1,4 +1,5 @@
 // covers: src/export/**, src/control/**
+// covers: src/components/editorFoundation/{LiveDataControls.tsx,EditorFoundation.tsx,operations.ts,session.ts}
 // covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
 // covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
@@ -10,8 +11,9 @@
 // covers: src/templates/quiz/**
 
 import { test, expect, type Page, type Route } from '@playwright/test';
-import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
+import { bootstrapGraphic, openExportWindow, openWorkingGraphicInEditor } from './_create';
 import JSZip from 'jszip';
+import { editorPreview } from './_frame';
 import { readFileSync } from 'node:fs';
 
 // Era 4: control panels. The modular engine turns a graphic's SPX fields into an operator
@@ -96,10 +98,11 @@ async function createHairline(page: Page) {
 }
 
 test('live data: adding a Google Sheet appends an editable polling block, remove strips it', async ({ page }) => {
-  skipOldEditor();
   await createHairline(page);
-  await page.getByTestId('dock-tab-control').click();
-  await page.getByPlaceholder(/pub\?output=csv/).fill('https://docs.google.com/x/pub?output=csv');
+  await openWorkingGraphicInEditor(page);
+  await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
+  const before = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  await page.getByRole('textbox', { name: 'Published CSV URL', exact: true }).fill('https://docs.google.com/x/pub?output=csv');
   await page.getByRole('button', { name: 'Add live data' }).click();
 
   const js1 = await page.evaluate(async () => {
@@ -109,36 +112,48 @@ test('live data: adding a Google Sheet appends an editable polling block, remove
   expect(js1).toContain('== LIVE DATA');
   expect(js1).toContain('https://docs.google.com/x/pub?output=csv');
   expect(js1).toContain('"f0": "Name"');   // field → header map, seeded from field titles
-  await expect(page.locator('.panel-body .status-ok')).toContainText('Live-data block is in the JS');
+  await expect(page.getByRole('region', { name: 'Live data', exact: true }).getByRole('status')).toContainText('Live data added');
 
-  await page.getByRole('button', { name: 'Remove' }).click();
+  await page.getByRole('button', { name: 'Remove live data', exact: true }).click();
   const js2 = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.js;
   });
   expect(js2).not.toContain('== LIVE DATA');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(() => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)).toBe(js1);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(before);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect.poll(() => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)).toBe(js1);
 });
 
 test('live data: a published CSV drives the graphic (mocked sheet)', async ({ page }) => {
-  skipOldEditor();
-  await page.route('http://sheet-test.local/data.csv', (route: Route) =>
-    route.fulfill({
+  let pulls = 0, changed = false;
+  await page.route('http://sheet-test.local/data.csv', (route: Route) => {
+    pulls++;
+    return route.fulfill({
       status: 200,
       contentType: 'text/csv',
       headers: { 'access-control-allow-origin': '*' },
-      body: 'Name,Title\nLive Ada,From The Sheet\n',
-    }),
-  );
+      body: changed ? 'Name,Title\nLive Grace,Second sheet row\n' : 'Name,Title\nLive Ada,From The Sheet\n',
+    });
+  });
   await createHairline(page);
-  await page.getByTestId('dock-tab-control').click();
-  await page.getByPlaceholder(/pub\?output=csv/).fill('http://sheet-test.local/data.csv');
-  await page.locator('.panel-section', { hasText: 'Live data' }).locator('input[type="number"]').fill('1');
+  await openWorkingGraphicInEditor(page);
+  await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
+  await page.getByRole('textbox', { name: 'Published CSV URL', exact: true }).fill('http://sheet-test.local/data.csv');
+  await page.getByRole('spinbutton', { name: 'Poll every (seconds)', exact: true }).fill('1');
   await page.getByRole('button', { name: 'Add live data' }).click();
 
   // The polling block runs inside the preview and pulls the sheet into the fields.
-  const frame = page.frameLocator('iframe.preview-frame');
-  await expect(frame.locator('#f0')).toHaveText('Live Ada', { timeout: 6000 });
-  await expect(frame.locator('#f1')).toHaveText('From The Sheet');
+  const frame = editorPreview(page);
+  await expect.poll(() => frame.locator('body').evaluate(() => ['f0', 'f1'].map(id => document.getElementById(id)?.textContent)), { timeout: 6000 }).toEqual(['Live Ada', 'From The Sheet']);
+  changed = true;
+  await expect(frame.locator('#f0')).toHaveText('Live Grace', { timeout: 6000 });
+  await expect(frame.locator('#f1')).toHaveText('Second sheet row');
+  expect(pulls).toBeGreaterThanOrEqual(2);
+  await page.screenshot({ path: 'test-results/lean-sheet-editor.png' });
 });
 
 // ── Phase 5: the state machine's side of the panel ──────────────────────────

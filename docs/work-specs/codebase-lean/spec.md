@@ -1,8 +1,8 @@
 # Make the codebase lean, starting with the retired editor
 
 Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
-through singles-i and the approved panels group have landed. This branch restores released editor and account cases; remaining live-gap checks,
-obsolete helpers and VERIFICATION docs remain before #800 closes, with step 6 last.**
+through singles-i, the panels and the released editor/account checks have landed. This branch restores the kept Sheet and insertion cases; obsolete helpers and verification docs remain
+before #800 closes, with step 6 last.**
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
 `3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
@@ -837,6 +837,42 @@ existing 20-pass rule; no assertion, floor, skip allowance, workflow or limit ch
 gates and ESLint pass; no offline skip substitutes for this configured evidence. Still
 skipping: the remaining seven live-gap cases in Sheet data and template insertion.
 
+### Kept live features: Sheet data and template insertion
+
+Why: the owner kept Sheet live data and Add template graphic, but their entry points were
+retired with the old shell. Goal: connect the retained generator and picker/merge engine to
+the current editor through its bounded operations and session history. Non-goals: no return
+of retired panels, code pane or timeline; no auth, stored-format or Phase 2 repair changes.
+Acceptance: UI adds/removes a mapped polling block and mocked CSV values reach the preview;
+insertion preserves host source/fields, namespaces the donor, scopes its look, retains middle
+steps and runtime behavior, exposes selectable inserted lines, refuses unsupported donors,
+and undoes as one complete edit. An inserted graphic's appearance can still move between
+Play and a named step. Dialogs close at document boundaries and all writes use the active
+session. No equivalent reference-editor implementation of NoaCG's SPX donor merge or emitted
+CSV polling block is available in this environment; verify these contracts directly without
+claiming reference-editor usability or whole-editor parity.
+
+The first current-surface probe `j-4613` failed because the insertion button was absent.
+After wiring it, `j-4614` passed six cases but the old preview's pre-play pose assertion did
+not apply to the current artwork preview. `j-4615` exercised a standalone emitted graphic;
+`j-4616` then reproduced a real merge-engine fault: the donor root stayed at opacity zero
+after Play because it sits outside the host's root. Explicit arrival and exit data fixed
+that; `j-4617` passed Play, both Next steps, Out and replay. `j-4618` exposed a changing CSV
+fixture racing two sequential field reads. Keep each row stable until both fields are
+observed, then change the fixture so the next real poll must show the second row. Queue job `j-4620` passed all 13 cases in both complete files in 35.8 seconds, with no skips. Review then strengthened appearance retargeting: carry the inserted children's entrance tracks with their container, refusing collisions instead of losing authored motion. Its real Play/Next, source equality and full Undo proof passed in `j-4621`. Final queue job `j-4622` passed all 13 cases in 37.0 seconds, with no skips.
+No assertion or limit was relaxed. The four new Node checks cover source preservation,
+replacement/removal, atomic refusal, unknown host data, stale edits and session undo/redo.
+Catalog emit passed for all 528 designs; TypeScript and ESLint passed. No local full suite,
+full catalog sweep or production build ran; authoritative bundle/factory and broader browser
+checks remain in Actions. The 75-file affected plan is recorded as broad, not claimed locally.
+Rendered captures show the existing picker at 1440px, the merged artwork and the Sheet form
+at 1280px. Catalog thumbnails load only on intersection; wait for the six visible roots before
+judging the picker. Review also corrected duplicate component keys, modal Escape/focus return, the binding covers headers, and carrying the donor entrance when its appearance moves. All 27 changed Node checks pass. Public copy is plain; only its two reduced copy-baseline
+counts change (AssetsPanel 10 to 9, InsertTemplateDialog 5 to zero). The retained generator and
+merge helper remain the only implementations, with one bounded session edit per UI action. The final targeted navigation check `j-4623` also passed: Escape restores focus, browser Back closes the picker, and Forward cannot resurrect it or change the document.
+
+Reconciled on main `f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` after PR #1489 landed, with a merge commit and regenerated contracts. All seven kept live-gap cases now run; one covered production duplicate still calls the retired skip helper and needs its final equivalence audit before helper deletion. Final main-reconciled queue job `j-4625` passed all 13 cases in both complete files in 35.0 seconds, with no skips. Changed gates passed all 27 selected Node checks, and contract regeneration produced no additional branch changes.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -1224,3 +1260,57 @@ Before deleting support for the old dock-layout format, ask that separate stored
 Do not ask about retiring AI experiments during the active harness work; they are outside this
 phase. The first seven-file source PR needs no further technical discovery from the owner.
 Approval of that PR's scope and an execution window remain distinct from this research update.
+
+### Live-feature review repair: appearance step creation (2026-10-18)
+
+PR #1492 review found the Inspector could move an inserted graphic to Play but could not
+create a new appearance step once the emptied step disappeared. Verified before repair:
+j-4626 failed because New step was absent (expected one option, found zero). Auto-merge was
+withdrawn first. The control now offers New step, and the operation accepts the next press
+index and uses the existing machine-aware addStep mutator before transferring child motion.
+No parallel timeline format or direct store write was introduced.
+
+The same kept insertion case now proves named step to Play to new named step, exact child
+tracks, real Play hidden/Next visible, full Undo/Redo source equality and undo back before
+insertion. j-4627 ran the complete control and template-insert files: 13 passed, zero skips,
+40.7 seconds. ESLint, TypeScript and changed gates passed (five Node files, 27 tests).
+Review and simplify were inline; one confirmed Codex finding fixed. No full local build or
+suite was repeated. The existing reference-editor qualification gap still applies.
+
+### Live-feature compatibility repair: saved one-step graphics (2026-10-18)
+
+The pre-landing audit found that template insertion treated a legacy graphic's single In as
+its own Out. Reproduction on d9a4c50cee5f2d3a06299cf984c3f393cddbac0d in CI 39158050556,
+job 117765356530: the new current-picker regression expected two steps and received one;
+the sole In contained the donor's exit keys and hides. That shard had 48 passing cases and
+this one failure. This is an actual browser failure, separate from the expected unstamped
+Reviewed refusal on the reproduction commit. Auto-merge and its queue entry were withdrawn.
+
+The merge now uses the existing withOut mutator on a cloned legacy data block before adding
+the donor's motion. Its authored entrance tracks stay intact. A one-step authored machine
+refuses insertion before building a donor rather than changing its path or transitions; its
+source stays intact. Existing shapes, loading and playback are preserved, with no new format.
+The new regression drives both picker placements, real Play/Next/Out, and complete Undo/Redo.
+Its legacy fixture explicitly flushes and commits the saved slot before reopening the editor.
+A Node case pins the authored-machine refusal and unchanged input. All five project-operation
+Node cases, ESLint, TypeScript and all 28 changed Node gate tests pass. At that commit, browser verification
+was pending in queue j-4633; the laptop's 3.5 GB floor remained unchanged. That commit was
+not stamped or queued as verified. The completed result follows.
+
+
+### Final live-feature compatibility verification (2026-10-18)
+
+Reconciled with main 63b3e00b9ff27db221c3f71ead5abb2c2a599336 through merge commit
+373bf054db3736c3944e0b6af76777987da71a85 and regenerated contracts. The incoming recovery
+and preview tooling did not change the application source under these tests. j-4633 passed
+all 14 cases in the complete control and template-insert files, zero skips, in 57.6 seconds.
+The saved one-step case passed both placements, retained every original entrance track,
+played Play/Next/Out correctly and restored complete source through Undo/Redo. The repaired
+cloud shard also passed in CI 39159151814, job 117768628718. Its reproduction remains the
+actual failing browser job on the earlier test commit, not a review-stamp refusal.
+
+Final changed-spec/source ESLint, E2E protection and all 28 changed Node gate tests passed.
+TypeScript passed on the identical application source; no repeated local build or whole suite
+was run. Review and simplify were inline: six confirmed findings fixed across this PR, with
+existing withOut and machine-aware step helpers reused. Verification is now passing; the
+stamp covers the final committed tip and the PR can return to the merge queue.

@@ -1,9 +1,9 @@
 import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
 import { readOrganization, writeOrganization } from '../../model/editorOrganization';
-import { locateAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
+import { locateAnimData, losslessAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
 import { applySound, type SoundOperation } from '../../blocks/soundEdit';
-import { setKeyframe } from '../../blocks/animEdit';
+import { addStep, layerPress, setKeyframe, setLayerActivation } from '../../blocks/animEdit';
 import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
 import { editArtworkText, editArtworkStyle, editArtworkMetadata, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
@@ -17,9 +17,19 @@ import { createPath, editPath, editPathPaint, type PathPaint } from '../../block
 import { applyGroup, type GroupOperation } from '../../blocks/editorGroups';
 import { applyOrganization, assetBinDirs, reconcileOrganization, type OrganizationOperation } from '../../blocks/editorOrganization';
 import type { PathGeometry } from '../../blocks/pathGeometry';
+import type { TemplateVariant } from '../../model/wizard';
+import { insertTemplateGraphic, type InsertPlacement } from '../../blocks/templateInsert';
+import { hasLiveData, liveDataBlock, stripLiveData } from '../../control/liveData';
+import { writeAnimData } from '../../templates/shared/animRuntime';
+import { spxSteps } from '../../blocks/animMachine';
+import { replaceDefinitionInHtml } from '../../model/spxDefinition';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
+  | { kind: 'graphic.insert'; variant: TemplateVariant; placement: InsertPlacement; steps: boolean }
+  | { kind: 'graphic.activation'; selector: string; press: number }
+  | { kind: 'liveData.set'; csvUrl: string; pollSeconds: number }
+  | { kind: 'liveData.remove' }
   | OrganizationOperation
   | GroupOperation
   | SoundOperation
@@ -90,7 +100,58 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       if (identity.selector !== original) identities[original] = identity.selector;
       operation = { ...operation, selector: identity.selector };
     }
-    if (operation.kind === 'folder.create' || operation.kind === 'folder.rename' || operation.kind === 'folder.remove' || operation.kind === 'folder.move' || operation.kind === 'folder.reorder' || operation.kind === 'bin.create' || operation.kind === 'bin.rename' || operation.kind === 'bin.remove') {
+    if (operation.kind === 'graphic.insert') {
+      if (!losslessAnimData(next.js)) throw new Error('This animation has unsupported data. Its source is preserved.');
+      const result = insertTemplateGraphic(next, operation.variant, operation);
+      if ('error' in result) throw new Error(result.error);
+      next = result.template; targets.add(result.selector);
+    } else if (operation.kind === 'graphic.activation') {
+      let data = losslessAnimData(next.js);
+      const document = new DOMParser().parseFromString(next.html, 'text/html');
+      const node = document.querySelector(operation.selector);
+      if (!data || !node?.matches('[data-gfx][id^="gfx-"]') || !Number.isInteger(operation.press) || operation.press < -1 || operation.press > data.steps.length - 2) {
+        throw new Error('Choose an inserted graphic and an appearance step. Its source is preserved.');
+      }
+      if (operation.press === data.steps.length - 2) {
+        const extended = addStep(data);
+        if (!extended) throw new Error('This appearance step cannot be added safely. Its source is preserved.');
+        data = extended;
+      }
+      const from = layerPress(data, operation.selector);
+      if (from !== operation.press) {
+        const source = data.steps[from + 1], destination = data.steps[operation.press + 1];
+        // Moving the container's reveal alone leaves its children's entrance on the old cue.
+        // Carry that entrance intact, refusing a collision instead of overwriting another beat.
+        const children = [...new Set([...Object.keys(source.layers), ...Object.keys(source.loops ?? {})])].filter(selector => {
+          const matches = [...document.querySelectorAll(selector)];
+          return selector !== operation.selector && matches.length > 0 && matches.every(child => node.contains(child));
+        });
+        for (const selector of children) {
+          if (destination.layers[selector] || destination.loops?.[selector] || source.spans?.[selector] || destination.spans?.[selector]) throw new Error('This entrance overlaps authored motion or visibility in that step. Its source is preserved.');
+          const tracks = source.layers[selector];
+          if (tracks) {
+            destination.layers[selector] = tracks; delete source.layers[selector];
+            destination.duration = Math.max(destination.duration, ...Object.values(tracks).flat().map(key => key.time));
+          }
+          if (source.loops?.[selector]) {
+            (destination.loops ??= {})[selector] = source.loops[selector]; delete source.loops[selector];
+            if (!Object.keys(source.loops).length) delete source.loops;
+          }
+        }
+        const changed = setLayerActivation(data, operation.selector, operation.press, 'rise');
+        const js = changed && writeAnimData(next.js, changed);
+        if (!changed || !js) throw new Error('This appearance cannot be changed safely. Its source is preserved.');
+        const settings = { ...next.settings, steps: String(spxSteps(changed)) };
+        next = { ...next, js, settings, html: replaceDefinitionInHtml(next.html, settings, next.fields) };
+      }
+      targets.add(operation.selector);
+    } else if (operation.kind === 'liveData.set') {
+      const url = new URL(operation.csvUrl);
+      if (!['http:', 'https:'].includes(url.protocol) || !Number.isFinite(operation.pollSeconds) || operation.pollSeconds < 1) throw new Error('Use a published CSV URL and a polling interval of at least one second.');
+      next = { ...next, js: stripLiveData(next.js).trimEnd() + '\n\n' + liveDataBlock({ ...operation, fields: next.fields }) };
+    } else if (operation.kind === 'liveData.remove') {
+      if (hasLiveData(next.js)) next = { ...next, js: stripLiveData(next.js) };
+    } else if (operation.kind === 'folder.create' || operation.kind === 'folder.rename' || operation.kind === 'folder.remove' || operation.kind === 'folder.move' || operation.kind === 'folder.reorder' || operation.kind === 'bin.create' || operation.kind === 'bin.rename' || operation.kind === 'bin.remove') {
       next = applyOrganization(next, operation);
     } else if (operation.kind === 'group.create' || operation.kind === 'group.ungroup' || operation.kind === 'group.move' || operation.kind === 'group.trim') {
       const before = next, result = applyGroup(next, operation);

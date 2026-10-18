@@ -37,7 +37,7 @@ import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
 import { writeAnimData } from '../templates/shared/animRuntime';
 import { parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
-import { addStep, renameStep } from './animEdit';
+import { addStep, renameStep, withOut } from './animEdit';
 import { spxSteps } from './animMachine';
 import { addLayer, appendCss, insertGraphicHtml, nextFieldId } from './edit';
 
@@ -192,7 +192,13 @@ export function insertTemplateGraphic(
 ): InsertResult {
   const curData = parseAnimData(current.js);
   if (!curData) {
-    return { error: 'this project has no editable animation data block — open a data-block project (every catalog template is one)' };
+    return { error: 'Open a graphic with editable animation data before inserting a template.' };
+  }
+
+  // A legacy In is not its own Out. An authored one-state graph needs a graph edit,
+  // not an implicit rewrite of its path or transitions.
+  if (curData.steps.length === 1 && curData.machine) {
+    return { error: 'Template insertion needs a separate Out step. This graphic is unchanged.' };
   }
 
   const donor = buildDonor(variant, opts.steps ?? false);
@@ -223,7 +229,7 @@ export function insertTemplateGraphic(
   const newIds = fieldMap.map((m) => m.to);
   const htmlSnippet =
     `  <!-- Inserted template graphic: ${variant.name}` +
-    `${newIds.length > 0 ? ` (fields ${newIds.join(', ')})` : ''} — its styles are scoped under #${gfxId}. -->\n` +
+    `${newIds.length > 0 ? ` (fields ${newIds.join(', ')})` : ''}. Its styles are scoped under #${gfxId}. -->\n` +
     `  ${subtree}`;
 
   // ── CSS: strip the reset, re-scope :root onto the inserted root ────────────
@@ -258,7 +264,7 @@ export function insertTemplateGraphic(
   const inLayers = prepLayers(donorIn.layers);
   const outLayers = prepLayers(donorOut.layers);
 
-  let data = clone(curData);
+  let data = withOut(clone(curData));
   // Where the donor's step run starts — the placement choice, in one index.
   let runAt: number;
   if (opts.placement === 'new-step') {
@@ -278,6 +284,12 @@ export function insertTemplateGraphic(
     entrance.duration = Math.max(entrance.duration, scaled(donorIn.duration));
     mergeLayers(entrance, inLayers);
   }
+  // The donor root sits outside the host root and keeps its CSS-hidden rest state.
+  // The host interpreter reveals only its own root, so this root needs explicit data too.
+  const arrival = data.steps[runAt];
+  arrival.layers[`#${gfxId}`] = { opacity: opts.placement === 'new-step'
+    ? [{ time: 0, value: 0 }, { time: Math.min(arrival.duration, (curData.speed || 1) / current.fps), value: 1 }]
+    : [{ time: 0, value: 1 }] };
   // Ambient loops (a breathing pulse) are pure data — carry the In step's along.
   if (donorIn.loops) {
     const step = data.steps[runAt];
@@ -309,6 +321,9 @@ export function insertTemplateGraphic(
   const exit = data.steps[data.steps.length - 1];
   exit.duration = Math.max(exit.duration, scaled(donorOut.duration));
   mergeLayers(exit, outLayers);
+  // Hold the inserted root through its children's exit and clear it at the same boundary.
+  exit.layers[`#${gfxId}`] = { opacity: [{ time: 0, value: 1 }, { time: exit.duration, value: 1 }] };
+  (exit.hides ??= []).push(`#${gfxId}`);
 
   const js = writeAnimData(current.js, data);
   if (!js) return { error: 'could not write the merged animation data' };
