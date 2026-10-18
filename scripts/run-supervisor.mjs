@@ -2,12 +2,13 @@
 // Opt-in, single-host recovery control. No model client and no scheduler are installed here.
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync, realpathSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { nextStep } from './plan-run.mjs';
+import { nextStep, recordStep } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
+import { publishRun, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
 const LEASE_MS = 60_000;
@@ -49,6 +50,7 @@ export function openStore(file) {
   db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
     CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, wave TEXT UNIQUE NOT NULL,
       doc TEXT NOT NULL, owner TEXT, leaseUntil INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0);`);
+  recoveryTables(db);
   return db;
 }
 
@@ -93,6 +95,7 @@ export function registerRun(db, manifest, now = Date.now()) {
     }
     const doc = { manifest: normalized, status: 'active', packet: normalized.packet, wait: null, pending: null, sequence: 0 };
     db.prepare('INSERT INTO runs(id,wave,doc) VALUES(?,?,?)').run(normalized.id, normalized.wave, JSON.stringify(doc));
+    publishRun(db, normalized.id);
     return doc;
   });
 }
@@ -115,6 +118,7 @@ export function updateRun(db, id, operation, value) {
     } else if (['finish', 'cancel'].includes(operation)) doc.status = operation === 'finish' ? 'finished' : 'cancelled';
     else throw new Error('Unknown update');
     db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(doc), id);
+    publishRun(db, id);
     return doc;
   });
 }
@@ -130,9 +134,12 @@ function acquire(db, id, now) {
 }
 
 function save(db, claim, now) {
-  const result = db.prepare('UPDATE runs SET doc=? WHERE id=? AND owner=? AND epoch=? AND leaseUntil>?')
-    .run(JSON.stringify(claim.doc), claim.id, claim.token, claim.epoch, now);
-  if (result.changes !== 1) throw new Error('Lease lost; reconcile instead of acting');
+  transaction(db, () => {
+    const result = db.prepare('UPDATE runs SET doc=? WHERE id=? AND owner=? AND epoch=? AND leaseUntil>?')
+      .run(JSON.stringify(claim.doc), claim.id, claim.token, claim.epoch, now);
+    if (result.changes !== 1) throw new Error('Lease lost; reconcile instead of acting');
+    publishRun(db, claim.id);
+  });
 }
 
 /** The host adapter must durably deduplicate actionId and preserve permissionPolicy.
@@ -175,16 +182,19 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
   if (!claim) return { verdict: 'leased' };
   const { doc } = claim, { manifest } = doc;
   const result = (verdict, why) => ({ verdict, why, run: id, actionId: doc.pending?.id ?? null });
+  const deliveryPacket = () => {
+    const text = readFileSync(manifest.wave, 'utf8');
+    const packet = doc.pending?.packet ?? { ...doc.packet, ledger: manifest.kind === 'plan' ? nextStep(text, now()) : { action: 'reconcile-wave', evidence: manifest.wave }, waveSha256: hash(text) };
+    validatePacket(packet); // The ledger's carry can be large too; bound the actual payload.
+    return packet;
+  };
   const ask = (operation) => {
-    let packet;
-    if (operation === 'deliver') {
-      const text = readFileSync(manifest.wave, 'utf8');
-      packet = { ...doc.packet, ledger: manifest.kind === 'plan' ? nextStep(text, now()) : { action: 'reconcile-wave', evidence: manifest.wave }, waveSha256: hash(text) };
-      validatePacket(packet); // The ledger's carry can be large too; bound the actual payload.
-    }
+    const packet = operation === 'deliver' ? deliveryPacket() : null;
     return invoke(manifest.adapter, {
       operation, runId: id, authorization: manifest.authorization, wave: manifest.wave,
       actionId: doc.pending?.id ?? null, fence: claim.epoch, leaseUntil: claim.until,
+      ...(doc.pending?.requestSha256 ? { requestSha256: doc.pending.requestSha256 } : {}),
+      ...(operation === 'restore' ? { restoration: doc.restoration, recovery: doc.packet.recovery } : {}),
       ...(packet ? { packet } : {}),
     });
   };
@@ -193,9 +203,25 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     const text = readFileSync(manifest.wave, 'utf8');
     if (REPORT_HEADING.test(text)) { doc.status = 'finished'; save(db, claim, now()); return result('finished', 'wave report'); }
     if (now() >= Date.parse(manifest.authorization.deadline)) { doc.status = 'expired'; save(db, claim, now()); return result('expired'); }
+    if (now() < Date.parse(manifest.authorization.startedAt)) return result('waiting', 'original authorization has not started');
     if (windowStart(text) !== Date.parse(manifest.authorization.startedAt)
         || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== Date.parse(manifest.authorization.deadline)) {
       return result('unknown', 'wave authorization changed; explicit reauthorization is not implemented in this slice');
+    }
+    // Reconcile a replacement host before handling waits, unresolved sends or dispatch.
+    // The CAS publication invalidates a prior host's next checkpoint; it is not a native lock.
+    if (manifest.recovery) {
+      publishRun(db, id);
+      if (doc.restoration && !doc.restoration.reconciled) {
+        const receipt = await ask('restore');
+        if (!restoredObservation(doc, receipt, now())) return result('unknown', 'restored native/GitHub state needs exact reconciliation');
+        doc.restoration.reconciled = true;
+        doc.restoration.evidence = receipt.evidence;
+        if (receipt.native.state === 'waiting') { validateWait(receipt.native.wait); doc.wait = receipt.native.wait; }
+        doc.packet.restoredGithub = receipt.github;
+        validatePacket(doc.packet);
+        save(db, claim, now());
+      }
     }
     if (doc.wait) {
       if (['owner', 'permission', 'dependency'].includes(doc.wait.kind) || doc.wait.until === null || now() < Date.parse(doc.wait.until)) return result('waiting', doc.wait.reason);
@@ -227,6 +253,10 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     if (!doc.pending) {
       doc.sequence += 1;
       doc.pending = { id: `${id}:${doc.sequence}`, attempts: 0, retryAt: 0 };
+      if (manifest.recovery) {
+        doc.pending.packet = deliveryPacket();
+        doc.pending.requestSha256 = hash(JSON.stringify({ actionId: doc.pending.id, authorization: manifest.authorization, packet: doc.pending.packet }));
+      }
       save(db, claim, now()); // Intent is durable before anything external happens.
     }
     if (doc.pending.attempts >= 3) return result('blocked', 'three delivery attempts; explicit reconciliation required');
@@ -254,14 +284,32 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
 
 export async function main(args = process.argv.slice(2)) {
   const [command, file, id, value] = args;
-  if (!file || !['register', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'finish', 'cancel'].includes(command)) {
-    process.stderr.write('Usage: run-supervisor.mjs register <db> <manifest.json> | tick|status <db> [id] | wait|checkpoint <db> <id> <json> | clear-wait <db> <id> <evidence> | finish|cancel <db> <id>\n'); return 2;
+  if (!file || !['register', 'restore', 'resume', 'record', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'finish', 'cancel'].includes(command)) {
+    process.stderr.write('Usage: run-supervisor.mjs register <db> <manifest.json> | restore|resume <db> <config.json> | record <db> <id> <phase> <event> [detail] | tick|status <db> [id] | wait|checkpoint <db> <id> <json> | clear-wait <db> <id> <evidence> | finish|cancel <db> <id>\n'); return 2;
   }
   let db;
   try {
+    if (['restore', 'resume'].includes(command)) mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
     db = openStore(file);
     let output;
     if (command === 'register') output = registerRun(db, JSON.parse(readFileSync(id, 'utf8')));
+    else if (command === 'restore') output = restoreRun(db, JSON.parse(readFileSync(id, 'utf8')));
+    else if (command === 'resume') {
+      const config = JSON.parse(readFileSync(id, 'utf8'));
+      if (!db.prepare('SELECT id FROM runs').get()) restoreRun(db, config);
+      const { doc } = rowFor(db, config.id);
+      if (doc.manifest.recovery?.repositoryFullName !== config.repositoryFullName) throw new Error('Resume repository differs');
+      output = await tickRun(db, config.id);
+    }
+    else if (command === 'record') output = transaction(db, () => {
+      const { doc } = rowFor(db, id);
+      if (doc.status !== 'active') throw new Error('Terminal run cannot record another phase');
+      const result = recordStep(doc.manifest.wave, Number(value), args[4], args.slice(5).join(' '));
+      if (result.refusal) throw new Error(result.refusal);
+      db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
+      publishRun(db, id);
+      return result;
+    });
     else if (command === 'tick' || command === 'status') {
       const ids = id ? [id] : db.prepare('SELECT id FROM runs ORDER BY id').all().map((row) => row.id);
       output = [];
