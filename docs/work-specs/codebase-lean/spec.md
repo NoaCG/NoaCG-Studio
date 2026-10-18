@@ -436,6 +436,23 @@ catalog-baseline and community-packs. 3 cases in the file, 3 passing, none skipp
 case-minutes locally on two workers (queue job `j-0051`). The file's minutes are under Budget
 exceptions. Still skipping: the remaining 45 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the ux revival
+
+The fourteenth revival, on main `e41fa2002` (2026-10-18): the ux cases created Hairline behind the
+retired advanced-mode switch and read the old shell. Two cases run again in the browser: export
+validation showing inline and gating the download on a broken template, now in the export
+window the working graphic opens (`openExportWindow`), and the wizard's direction control
+mixing a different exit preset at create, through the Finish step's editor door and the
+working graphic mounted the way playout composes it for its play. The catalog-line shape gate
+moved to Node as `scripts/catalog-line-gate.test.mjs` (gate: factory, needs: browser, guarding
+`src/blocks/edit.ts`): the same five designs and the same verdicts, in a blank Chromium page
+because `variant.create()` needs `DOMParser`. Three cases went (listed under Test
+maintenance): the old shell's dock geometry, the Data panel's add row (the new editor's text
+tool is editor-base-edits's) and the code pane's change highlight. 2 cases in the file, 2
+passing, none skipped, 0.2 case-minutes locally on two workers (queue job `j-0052`); the Node
+test passes 1 of 1. The file's minutes are under Budget exceptions. Still skipping: the
+remaining 42 live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -589,6 +606,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/package.spec.ts`: 1 case(s) removed with the package revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "the post-creation preset picker withholds a structural preset" (retired UI: inspector-preset-select belonged to the old timeline Inspector, the only reader of swappablePresetsForTemplate's structural flag; the live pickers, the wizard's Animation step and the control page's Motion section, offer no structural swap.)
 - 2026-10-18 `e2e/format.spec.ts`: 6 case(s) removed with the format revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "formatHtml / formatCss / formatJs normalize messy code" (covered: scripts/format-code.test.mjs 'formatHtml / formatCss / formatJs normalize messy code', the same inputs and assertions in Node.); "formatJs refuses any file that owns an animation region" (covered: scripts/format-code.test.mjs 'formatJs refuses any file that owns an animation region', the data-block and legacy fixtures as they were.); "formatTemplate formats HTML but leaves CSS and JS alone by default" (covered: scripts/format-code.test.mjs 'formatTemplate formats HTML but leaves CSS and JS alone by default', the same three strings; formatTemplate reads nothing else of its fixture.); "minimalTextChange returns only the changed span (cursor-stable, merge-friendly)" (retired UI: minimalTextChange served only the deleted Monaco code pane, which the Phase 1 receipt names orphaned by the CodeEditor deletion.); "the Format button reformats the active tab through Monaco and the store" (retired UI: `.format-btn` of the deleted CodeEditor toolbar, opened by showCode.); "the Format button is disabled on the JS tab of a data-block template (region protected)" (retired UI: the same deleted Format button and JS tab.)
 - 2026-10-18 `e2e/wave2.spec.ts`: 3 case(s) removed with the wave2 revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "scoreboard: all four fields bind and a score change lands" (covered: e2e/production-controls.spec.ts 398 'a scoreboard GOAL raises the flag AND moves that side's score on the same press' moves House Score's program #f1 0 to 1 to 2 on a live press; dashboard-operator-walk.spec.ts 80 lands typed and stepped score fields on program and preview.); "corner bug: plays with the placeholder mark" (covered: e2e/catalog-baseline.spec.ts 392 'every catalog variant renders identically' settles Glass Mark on air with its placeholder mark and 'LIVE' text, fingerprinted per element.); "quiz: options bind and Next reveals the correct answer" (covered: e2e/community-packs.spec.ts 29 'the shelf lists the seeded pub quiz, and Install opens a production whose graphic takes, reveals and goes out' marks .quiz-option-2 correct on verb-next and dims the rest, the shared quiz runtime; production-controls.spec.ts 129 judges Arena Quiz.)
+- 2026-10-18 `e2e/ux.spec.ts`: 4 case(s) removed with the ux revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "layout: code dock left ONCE OPENED, canvas + timeline in the centre, tool tabs right" (retired UI: `.editor-host`, the dock-right tab labels and the centre stage are the deleted AppShell and WorkspaceDock geometry.); "data: add-field lands as a REAL line on a catalog template, in the assembler's own idiom" (covered: e2e/editor-base-edits.spec.ts 313 'B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition' lands a REAL field painted in the preview on a catalog template through baseEdits and addCatalogLine; the Data panel's add row is retired.); "data: the catalog-line add is gated on the standard line SHAPE, never the category" (covered: scripts/catalog-line-gate.test.mjs 'the catalog-line add is gated on the standard line SHAPE, never the category', the same five designs and verdicts.); "style: a color change highlights the changed CSS lines" (retired UI: `.editor-host .changed-line` is the deleted Monaco pane's change highlight.)
 
 ## Budget exceptions
 
@@ -690,6 +708,12 @@ table weighs the file at 0.009 minutes from its earlier runs. The minute below i
 change's local measurement (case-minutes, two workers, queue job `j-0051`).
 
 - e2e/wave2.spec.ts: 0.3 min, protects the starting-soon countdown, the game timer's clock and the infographic count-up at runtime, expires 2026-11-16
+
+The ux revival (Phase 2, #800) turns two cases in one file back on, moves one to Node and
+removes three; the table weighs the file at 0.009 minutes from its earlier runs. The minute
+below is this change's local measurement (case-minutes, two workers, queue job `j-0052`).
+
+- e2e/ux.spec.ts: 0.2 min, protects export validation gating the download on a broken template and the wizard's direction control mixing a different exit preset at create, expires 2026-11-16
 
 ## Acceptance criteria
 
