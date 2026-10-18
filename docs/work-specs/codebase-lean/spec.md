@@ -1,7 +1,9 @@
 # Make the codebase lean, starting with the retired editor
 
 Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
-through singles-i, the panels and the released editor/account checks have landed. This branch restores the kept Sheet and insertion cases; obsolete helpers and verification docs remain
+through singles-i, the panels and the released editor/account checks have landed. The kept
+Sheet and insertion cases landed in #1492. This branch removes obsolete helpers and updates
+verification docs
 before #800 closes, with step 6 last.**
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
@@ -1382,3 +1384,21 @@ now has distinct authored field text and a note before Duplicate. The copy must 
 in its controls and rendered preview, then after reload, while Anna's different values stay
 intact. The test observes accepted durable writes before reloading; no model write substitutes
 for a production action. The complete changed-file selection is rerun after this strengthening.
+
+The closing C audit also retained the original public-service persistence case as G. The
+proposed replacement checks other machines and is partial; al01, pi08 and tk18 still run in
+the original case, with exact severity/language groups and controls after a durable reload.
+No test needed reconstruction or removal. Final documentation review also corrected stale
+simulator, graph-walk, arrangement-loader and catalog-scope references against current code.
+
+Reconciled with landed #1492 on main 4569b9622923e1ecc9c790c071ee27e263580324 through
+a merge commit, preserving both appended verification receipts and regenerating contracts.
+The strengthened production check remains pending in j-4634; its earlier 28-case pass does
+not claim verification of the later duplicate-data assertions. The separate retained
+public-service persistence check is queued by its exact title. No RAM limit is changed.
+
+On that landed base, the final changed gates pass 14 Node files and 152 tests (the earlier
+17-file count included the not-yet-landed parent). ESLint, TypeScript and protection for all
+five changed specs pass. Comment-free syntax matches main in all eleven production modules.
+Review and simplify remain inline; final browser verification is still pending, so this
+checkpoint is not stamped or queued as a finished PR.
