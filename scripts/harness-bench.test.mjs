@@ -397,7 +397,7 @@ test('the fake arm and the stubbed managed-agents arm deliver through record, sh
   assert.deepEqual(fake.look, { reviewed: 2, opened: 2, unopened: [], all: true, fixed: 0 });
   assert.equal(managed.look.reviewed, 0);
   assert.deepEqual(scaffoldArgs(BRIEF, 'g').slice(0, 5), ['scaffold', '--type', 'scoreboard', '--design', 'neutral'], 'a neutral type starts from its neutral spine');
-  assert.ok(cli.calls.some((a) => a[0] === 'coverage' && a.includes('--stress')), 'the bench captures with the brief\'s stress values');
+  assert.ok(cli.calls.some((a) => a[0] === 'coverage' && a.includes('--stress') && a.includes('--frames')), "the bench captures with the brief's stress values, a frame per moment as the judge reads it");
   assert.deepEqual(managed.cleanup, { filesDeleted: 2, sessionDeleted: true, sessionGone: true, filesLeft: 0 }, 'the session and its files answer not found after');
   assert.deepEqual(managed.progress, ['Checking the graphic', 'Handing it in']);
   const created = ma.stub.calls.find((c) => c.method === 'sessions.create').args[0];

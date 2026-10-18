@@ -816,7 +816,7 @@ export async function recaptureCells({ runDir, rekey, cli, log = console.log }) 
       const before = path.join(dir, 'frames.before-rekey');
       if (!existsSync(before)) cpSync(frames, before, { recursive: true });
       rmSync(frames, { recursive: true, force: true });
-      const coverage = await cli(['coverage', zip, '--out', frames, '--stress', stressPath, '--json'], { cwd: dir });
+      const coverage = await cli(['coverage', zip, '--out', frames, '--stress', stressPath, '--frames', '--json'], { cwd: dir });
       cell.capture = { ...cell.capture, exit: coverage.code, frames: coverage.json?.frames ?? 0, crops: coverage.json?.crops ?? 0, findings: coverage.json?.findings ?? [], failures: coverage.json?.failures ?? [coverage.stderr.slice(-300)], digest: coverage.json?.digest ?? null, rekeyed: Object.keys(byArm[cell.arm] ?? {}) };
       writeFileSync(path.join(dir, 'cell.json'), `${JSON.stringify(cell, null, 2)}\n`);
       log(`  ${d.padEnd(48)} re-captured: ${cell.capture.frames} frame(s)${cell.capture.rekeyed.length ? `, re-keyed ${cell.capture.rekeyed.join(', ')}` : ''}`);

@@ -224,13 +224,13 @@ export function coveragePlan(input: CoverageInput): CoveragePlan {
 }
 
 /** Whether a render settles in a state no other frame shows: after an action, a step or the
- *  update. `--strips` keeps that last moment as a full frame beside the strip; the Take settles
+ *  update. A strip keeps that last moment as a full frame beside it; the Take settles
  *  in the sample frame and Out in nothing. */
 export function settlesOwnState(render: Pick<CoverageRender, 'ops'>): boolean {
   return render.ops.length > 0 && !render.ops.some((op) => op.kind === 'out');
 }
 
-/** The file name of a render's timeline drawn as one picture (`coverage --strips`). */
+/** The file name of a render's timeline drawn as one picture. */
 export function stripFile(render: CoverageRender, ext: string): string {
   return `${render.name}-strip.${ext}`;
 }

@@ -134,7 +134,8 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     const frames = path.join(cellDir, 'frames');
     const inspect = await cli(['inspect', result.zipFile, '--json'], { cwd: cellDir });
     const stress = stressFile({ brief, descriptors: inspect.json?.inspection?.descriptors, cellDir });
-    const coverage = await cli(['coverage', result.zipFile, '--out', frames, '--stress', stress, '--json'], { cwd: cellDir });
+    // A frame per moment: the judge reads the capture as it always has, whatever the agent's look was.
+    const coverage = await cli(['coverage', result.zipFile, '--out', frames, '--stress', stress, '--frames', '--json'], { cwd: cellDir });
     cell.capture = { exit: coverage.code, dir: frames, frames: coverage.json?.frames ?? 0, crops: coverage.json?.crops ?? 0, findings: coverage.json?.findings ?? [], failures: coverage.json?.failures ?? [coverage.stderr.slice(-300)], digest: coverage.json?.digest ?? null };
     const validate = await cli(['validate', result.zipFile, '--json'], { cwd: cellDir });
     const merged = validate.json?.validation?.merged;

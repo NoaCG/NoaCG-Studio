@@ -50,9 +50,10 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
   const outDir = flagString(args, 'out');
   if (!outDir) throw new UsageError('coverage needs --out <dir> for its frames.');
   const stress = await readStress(flagString(args, 'stress'));
-  // --strips: each timeline (the Take, an event, a step, the update, Out) as ONE picture of its
-  // moments instead of a frame per moment, so the look costs a reader far fewer pictures.
-  const strips = flagBool(args, 'strips', false);
+  // Each timeline (the Take, an event, a step, the update, Out) is ONE picture of its moments, so
+  // the look costs a reader far fewer pictures. --frames writes a frame per moment instead, as a
+  // judge that compares frames needs.
+  const strips = !flagBool(args, 'frames', false);
   const dir = path.resolve(outDir);
   if ((await fs.stat(path.resolve(input)).catch(() => null))?.isDirectory()) await markFramesDir(dir, input);
   await fs.mkdir(dir, { recursive: true });
