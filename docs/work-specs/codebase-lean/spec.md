@@ -253,6 +253,18 @@ layout module and the export registry the cases reach. The nine files' minutes a
 exceptions. Still skipping: the remaining 104 live-gap cases, in the production, pack and
 single-case families.
 
+### Phase 2 receipt: the production-data revival
+
+The third revival, on main `d5030ad4` (2026-10-18): the nine production-data cases that opened
+with the retired advanced-mode skip drive the production page and its Data workspace, never
+the old editor, so the skip was all that stood between them and running. The three two-graphic
+cases added their second graphic through the old dock's Control tab ("+ Add current"); they add
+it through the catalog door the rundown's "+ Add" uses (`addCatalogGraphic` in
+`e2e/_create.ts`), on the production the page is already showing. 24 cases in the file, 24
+passing, none skipped, 2.4 case-minutes locally on two workers (queue job `j-0030`); no case
+removed. The file's minutes are under Budget exceptions. Still skipping: the remaining 95
+live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -435,6 +447,12 @@ so the gate can read the delta where a runner measures a file above its table we
 - e2e/import-svg-corpus.spec.ts: 3.8 min, protects picture fields swapped at runtime on the corpus boards, expires 2026-11-16
 - e2e/import.spec.ts: 0.3 min, protects the .html and zip import doors and the export round trip, expires 2026-11-16
 - e2e/import-svg-sticker-sample.spec.ts: 0.1 min, protects the documented sticker sample: its faces, fields and panel growth, expires 2026-11-16
+
+The production-data revival (Phase 2, #800) turns nine live-gap cases in one file back on and
+removes none; the table weighs the file at 1.8 minutes from its earlier runs. The minute below is
+this change's local measurement (case-minutes, two workers, queue job `j-0030`).
+
+- e2e/production-data.spec.ts: 2.4 min, protects the Data workspace tables, the live tree and its cue bindings, the shared-value steppers and Bind all by title, expires 2026-11-16
 
 ## Acceptance criteria
 
