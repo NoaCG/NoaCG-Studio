@@ -4,7 +4,8 @@
 // covers: src/templates/**
 // covers: src/blocks/**, src/export/**
 
-import { bootstrapGraphic } from './_create';
+import { bootstrapGraphic, finishIntoNewEditor } from './_create';
+import { chooseCategory, pickDesign } from './_browse';
 import { test, expect } from '@playwright/test';
 import { toApp } from './_bench';
 
@@ -561,9 +562,16 @@ test('a pack graphic saves to the library and reloads with its machine and marks
 });
 
 test('the pack is discoverable in the wizard and creates from a category card', async ({ page }) => {
-  await bootstrapGraphic(page, { category: 'esports-score', name: 'House Series' });
-  // The created graphic is the working document; played in a hidden composer iframe, it settles
-  // on its entrance pose with the sample data the category card promised.
+  // The real door: the wizard's Browse step narrowed to the pack's category, the design's card,
+  // and Finish into the editor, which makes the created graphic the working document.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await chooseCategory(page, 'esports-score');
+  await pickDesign(page, 'House Series');
+  await finishIntoNewEditor(page);
+  // Played in a hidden composer iframe, it settles on its entrance pose with the sample data the
+  // category card promised.
   const played = await page.evaluate(`(async () => {
     ${HARNESS}
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
