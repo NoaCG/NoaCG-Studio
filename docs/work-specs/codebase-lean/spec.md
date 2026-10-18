@@ -405,6 +405,17 @@ file, 1 passing, none skipped, 0.1 case-minutes locally on two workers (queue jo
 the Node test passes 3 of 3. The file's minutes are under Budget exceptions. Still skipping:
 the remaining 51 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the production-chat-intake revival
+
+The twelfth revival, on main `9bf42f8aa` (2026-10-18): three production-chat-intake cases carried a
+`skipOldEditor()` from the editor phase although their bodies already ran on live surfaces (the
+test chat source seam, the audience workspace, Take). They run again with the skip deleted and
+nothing else changed: a chat line reaching air the way a phone question does, the throttle and
+the dedupe refusing visibly, and pause, resume and remove on the source. No case was removed. 5
+cases in the file, 5 passing, none skipped, 0.6 case-minutes locally on two workers (queue job
+`j-0049`). The file's minutes are under Budget exceptions. Still skipping: the remaining 48
+live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -645,6 +656,12 @@ the table weighs the file at 0.01 minutes from its earlier runs. The minute belo
 change's local measurement (case-minutes, two workers, queue job `j-0048`).
 
 - e2e/format.spec.ts: 0.1 min, protects format-on-create: a wizard-created project starting from a Prettier-formatted HTML baseline with its fields intact, expires 2026-11-16
+
+The production-chat-intake revival (Phase 2, #800) turns three cases in one file back on; the
+table weighs the file at 0.203 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0049`).
+
+- e2e/production-chat-intake.spec.ts: 0.6 min, protects a chat line reaching air through inbox, edit, approve, cue and Take, the visible throttle and dedupe refusals, and pause, resume and remove on a chat source, expires 2026-11-16
 
 ## Acceptance criteria
 
