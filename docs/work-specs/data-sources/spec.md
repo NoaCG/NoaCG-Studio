@@ -1,13 +1,49 @@
 # Data sources: how outside data and audience input reach graphics
 
-Authority: owner brief, 2026-10-17 (see `work.json`). Decisions DS1-DS20 are answered: the owner
-accepted every recommendation the same day. **Still a draft**: before the phases are planned, a
-second opinion reviews this plan and the research questions R1-R5 below, and the owner agrees the
-result. Nothing here is built until then. Research and sources:
-`docs/research/2026-10-data-sources/README.md`. Parent direction: `docs/GOALS.md` outcomes 5 and 7.
-Child specs: `docs/work-specs/sheet-data-flow/spec.md` (agreed, D1-D4) and
-`docs/work-specs/audience-flow/spec.md` (draft, A1-A5); each keeps its own criteria, and this spec
-owns the model they share and the criteria that cross them.
+Authority: owner briefs, 2026-10-17 and agreement, 2026-10-18 (see `work.json`). **Agreed.**
+Reconciled on 2026-10-17 from two independent whole-plan reviews (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`,
+the decision record with the reconciliation table). The owner agreed all four decisions on
+2026-10-18; starting a run remains a separate instruction.
+Research: `docs/research/2026-10-data-sources/README.md` and `second-opinion.md` beside it.
+Parent: `docs/work-specs/production-page-refactor/spec.md` (the run order and the run preflight
+are in its "Run order" and "Readiness" sections). Children: `docs/work-specs/sheet-data-flow/spec.md`
+(Sheets) and `docs/work-specs/audience-flow/spec.md` (messages). This spec owns the shared model,
+the format adapters, the continuation phases C0-C7 and track Q, and their verification.
+
+Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both**
+(run order; Sheet reader model; destination hygiene with `/update` allowed; opt-in key storage
+and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
+planning update does not start `/plan-run production-page`; the owner explicitly said not to.
+
+## What the reconciliation changed
+
+The owner's outcomes are fixed (`docs/research/2026-10-data-sources/external-review-prompt.md`,
+"Product and owner outcomes"): data binding without paths or bindings; tickers, schedules,
+standings and credits first; Sheets optional with starter content or native paste; the data API,
+Sheets, feeds and YouTube as parts of one workflow; messages as another kind of content; a chosen
+message from anywhere, edited, previewed, put in the rundown, Taken; later arrivals never replace
+it; reliability. Against those, the reviews changed:
+
+- **The home of the task is the cue editor**, not a shared content workspace. "Fill from…" and
+  "Connect…" on the field; the graphic is the destination by construction. Messages (today's
+  Audience view) and Data stay as views; no new workspace or store.
+- **Paste lands first (C0)**, before the refactor, as a declared feature change.
+- **Only refactor phases 1, 2+7 and a props-only cue editor move run in this window**; the rest
+  move to a later window.
+- **Protection is destination hygiene**, enforced at both doors: a message destination has no
+  binding on its body or name field, and no binding is added to a field that prepared cues use.
+  The earlier field-level snapshot flag and `/update` protection are dropped.
+- **A Sheet is read by the browser while a page is open, under a lease; a server tick about once
+  a minute covers published sources with every page closed.** D1's server-only reading and D3's
+  closed-page promise are revised; agreed by the owner on 2026-10-18.
+- **Five small format adapters** replace the six-shape wording; adapters write strings and `""`
+  when a valid read is empty, so an emptied list clears on air.
+- **YouTube is browser-side**: one-shot video comments plus the existing live chat with its
+  first page kept; the key is remembered only on opt-in. Server-side intake and new Twitch work
+  are deferred.
+- **API Pause is last and smallest** (suppress-and-diff), with "stop the sender" as the fallback.
+
+Each child spec lists only the revisions to its own decisions and points here.
 
 ## Problem
 
@@ -23,365 +59,453 @@ owner could not. What exists (research README, "What NoaCG has today"):
 3. **No list source.** A ticker, a schedule, standings and credits each take one field of lines,
    but the only way to fill one from outside is the data API or typing. A Sheet's rows cannot
    reach one, and an RSS feed has no way in at all.
-4. **The Sheet plan leads with the wrong case.** `sheet-data-flow` starts with values and uses
-   scores as its examples. The owner, 2026-10-17: a sheet's main value is long texts and lists,
-   with automation through the data API and RSS; typing a score in a sheet stays possible but is
-   never the promoted path, because NoaCG's own controls already do that.
-5. **The audience is a separate system** whose Send to rundown once put a viewer message into a
-   scoreboard ([#1313](https://github.com/NoaCG/NoaCG-Studio/issues/1313)).
+4. **The audience is a separate system** whose Send to rundown put a viewer message into a
+   scoreboard ([#1313](https://github.com/NoaCG/NoaCG-Studio/issues/1313)), and whose inbox is
+   forgotten on reload.
+5. **Nothing can be pasted.** The one route every operator already has, copy and paste, exists
+   for no kind of content.
 
 ## Goal
 
-One model that a non-technical operator can say back: **the production holds values and lists;
-each comes from one source; a graphic's field connects to one by name; changes follow on air
-without a Take; data never operates the show; nothing a viewer sends airs without an operator.**
-Every source kind fits it, and the fastest path from "I have this data" to "it is on air" is a
-paste and a Take.
+**Choose content, see it in a graphic, put it in the show.** From the cue editor an operator
+pastes a message or rows, picks a message or a table row, or connects a Sheet, a feed or another
+system, sees the rendered result, and saves. A live connection follows changing data. A chosen
+message or table row becomes a cue the operator Takes. The source alone never decides which
+behaviour applies, and nothing a viewer sends airs by itself.
 
 ## Non-goals
 
 - Data operating the show: no source takes, advances, clears or removes a graphic.
-- Writing back to a Sheet or a feed.
-- Private Sheets through Google sign-in, platform sign-in for chat, or provider accounts held by
-  NoaCG.
-- A formula, mapping or expression language. Formatting stays in the template.
-- Automatic airing of any viewer message or vote.
-- Changing the command log, the output renderer or the data API's wire format.
+- Writing back to a Sheet or a feed; a formula or general mapping language.
+- Required native X, SMS or WhatsApp connectors. Manually supplied messages are in scope.
+- Private Sheets through Google sign-in or new platform OAuth without a reviewed access design.
+- Automatic airing of a message or vote; a new renderer, command log or API wire format.
+- A new general data store, a shared content workspace, a docked message tray, grid editors or
+  a scoreboard preset in this run.
+- Server-side YouTube intake, new persistent Twitch support, JSON address mapping, repairing
+  name-keyed bindings on a graphic rename.
 
 ## The model
 
-**Three shapes of data**, named on the default surface with these words only:
+Two words on the default surface:
 
-| Shape | What it is | Reaches a graphic as | Example |
-| --- | --- | --- | --- |
-| Value | one text or number, with a name | one field, live | "Headline", "Home score" |
-| List | many lines, with a name | one field that takes lines, live | "Headlines", "Credits" |
-| Table | rows to pick from | one row copied into a cue, on purpose | guests for a name strap |
+| Word | What it does | Afterwards |
+| --- | --- | --- |
+| **Fill** | Copies content into this cue once: paste a message, pick a message, load a table row, paste rows into a list field | The cue owns the values; nothing outside changes them |
+| **Connect** | Makes this graphic's field follow a Sheet tab, a news feed, another system or an existing value | Every cue of the graphic follows; the dialog says "Used by N cues" |
 
-A list is what tickers, schedules, standings, fixtures and end credits already read: one field,
-one item per line, and where an item has parts, the parts separated by " | " (catalog survey in
-the research README). Underneath, a value is a production-data leaf, a list is an array of
-strings (joined with new lines at the field, `formatValue` in `src/model/productionData.ts`), and
-a table is today's `ShowDataset`. Nothing new reaches the renderer.
+Both live in the **cue editor**, where the field is. A list or value field offers "Fill from…
+Paste rows" and "Connect…"; a message body field offers "Fill from… Paste a message" and
+"… Pick a message". A connected field is read-only with its source named and "Edit in the
+source, or Disconnect to edit here". The Data view is an overview of the production's values,
+lists and tables, their sources and the graphics using them, with Pause; paths, seed, Raw JSON
+and per-field binding rows sit behind one Advanced disclosure and keep working. The Messages view
+(today's Audience view) holds candidates and message sources. The Playout tab shows one line per
+source with status and Pause. Setup always lists "Messages…" and "Data…"; the switcher keeps
+today's rule (views in use, and the view you stand on).
 
-**Sources.** Every value, list and table comes from one source, and the operator can always see
-which:
+**Where content arrives and how a graphic uses it stay independent.** A Sheet tab can feed a
+live ticker, supply message candidates, or both; a pasted list and a pasted message are both
+Fill. Fields follow live content through bindings. The inbox, whatever fills it, has no writer:
+an operator action creates the cue. The data API is not a message intake.
 
-- **Typed in NoaCG:** scores, names, one-off fixes. Any shape. Nobody reads it: it is the
-  production's own.
-- **Google Sheet:** long texts, lists, schedules, credits, and data a sheet pulls in by formula or
-  script. List, value or table. The browser reads it for a local production, the server for a
-  published one (sheet D1).
-- **RSS or Atom feed:** news tickers. A list. The server reads it, for local productions too
-  (DS5).
-- **Another system (the data API):** fast data from scoring, timing or results systems, and
-  automation tools. Values and lists. The other system pushes; published productions only (DS8).
-- **JSON address:** systems that only publish JSON. Later, if at all (DS6).
-- **Audience (join page, Twitch, YouTube):** viewer messages and votes. They go to the inbox,
-  never to a value (DS11).
+**Content.** Lists and values live in the production tree under source-scoped paths
+(`sheet.<id>.lines`, `feed.<id>.lines`, `sheet.<id>.rows` and `.headers`) as strings; fields
+follow them through `Show.bindings`, unchanged as the one resolution contract on the page, at
+publish and in `control_data_apply`. Tables stay `ShowDataset`. Message candidates stay
+`AudienceSubmission` records with optional `externalId`, `source` and `reference`. A prepared
+message is an ordinary cue whose `values` it owns, with an optional `stagedFrom` receipt. The
+remembered message destination is `Show.messageTarget`, a pool graphic id.
 
-A source writes names, never graphics. The shared source core of `sheet-data-flow` has two
-halves. The reader half is shared by every kind: it schedules reads, keeps the last good read,
-diffs against it, and reports one status with Pause; a kind supplies only "fetch and parse". The
-writer half is given per destination: a data source gets the production data path (the local tree,
-or the server's data patch) and writes only what changed; an audience source gets only the inbox's
-submit door, and no writer that reaches values or the command log exists in its reach.
+**Sources.** `Show.sources[]` is additive and optional: `{ id, kind, config, paused, label,
+inbox }`. Kinds in this run: `sheet`, `feed`, `youtube-chat`, `youtube-comments`; the join page
+keeps its own controls. A source has one reader. Its live consumers are the binding entries whose
+path starts with its prefix, from which "Used by N cues" and the Data overview derive; `inbox:
+true` makes its rows message candidates as well, or instead. A published production carries the
+same list in `control_shows.sources` with the server's read state. No `Show.version` bump: every
+field is additive optional (`root/version-every-persisted-format-ship-breaking`).
 
-**Connecting.** A field connects to a value or a list by name:
-
-- **By itself:** an empty field whose title matches exactly one name connects when the source is
-  added, when the graphic is (sheet AC-2), or when a name first arrives from a source, such as a
-  push carrying a name the production has not seen; on a published production the server makes
-  that connection, so it holds with every page closed. "Ticker items", "Headlines" and "Credits"
-  are field titles in the catalog today, so a list named that way connects with no step at all.
-- **From the field (DS10):** the cue editor's field offers "Connect", listing values for a
-  single-line field and lists for a field that takes lines, plus "Paste a Sheet or feed link".
-  Pasting there creates the source, names the list after the field and connects it.
-- **From the data view:** the same records, source first.
-
-**In the rundown.** A connection belongs to the graphic, not to a cue, and takes effect at once, on
-a published production too (DS17; today the server waits for the next publish). Every cue of that
-graphic shows the connected value in its preview, Take airs it, and later changes reach air without
-a new Take (published: the server's own log rows; local: the page's dispatch). A connected field is
-not a cue value, so a prepared cue never re-airs a stale figure (`PRODUCTION_DATA_PLAN.md` §2.7).
-The operator overrides by changing the shared value (sheet D4) or by disconnecting the field.
-Tables and audience messages differ on purpose: the operator picks a row or a message, it is copied
-into a cue, and nothing follows afterwards.
-
-**The data API's role.** It is the door for anything outside NoaCG that can send an HTTP request:
-a scoring or timing system, a results service, an automation tool's HTTP step, a script behind a
-Sheet. It writes the same names the other sources write (`PATCH /api/data/patch`, a name with
-spaces is one valid name), so a pushed "Home score" or "Headlines" connects to fields exactly like
-a Sheet's. On the data view it is one more source, "Another system", with its address, its key and
-a ready example built from this production's own names (DS7). It stays data only: it cannot play,
-take or clear anything. `POST /api/data/update` stays as the low-level door that addresses one
-graphic by name.
-
-**Where the audience fits (DS11, answer C).** Viewers are a source of candidates, not of
-values. A viewer sends a message from the production's join page (a link or QR code, published
-productions only) or in the chat of a Twitch channel or YouTube stream the operator connected.
-Every message lands in the Audience inbox; the operator approves, edits the broadcast text and puts
-it in the rundown as a cue on a graphic made for messages (audience A2, A3); Take airs it. Audience
-sources sit on the same sources line as data sources, with status and Pause, and run on the core's
-reader half (audience A4), but their writer is the inbox's submit door alone. Votes are counted in
-the Audience tab and staged onto a vote board cue by the operator (interactive plan D5).
+**The three protective sentences.** A message destination has no live binding on its body or
+name field, and a binding is never added to a field that prepared cues use; both doors refuse
+with the offer of a separate card, and the binding write is one path, so the Advanced rows cannot
+bypass it. A destination is named on the action, chosen explicitly the first time and remembered,
+never guessed. A candidate's identity is its content, never its row position. Everything in the
+audience spec follows from these and from "a prepared cue is plain values".
 
 ## Preserved
 
 - Data changes values and never operates the show; the operator wins over a feed (GOALS outcome
-  7), and a later write wins, whoever wrote it.
-- One ingress: every outside write becomes ordinary rows in the one command log
-  (`CLOUD_PLAYOUT.md` §7); the renderer applies rows in order and learns nothing new.
+  7), and a later write wins, whoever wrote it (`DATA_API.md`).
+- One playout ingress: live field updates and operator commands become ordinary rows in the log
+  (`CLOUD_PLAYOUT.md` §7); the renderer applies rows in order and learns nothing new. The output
+  page never writes.
 - The audience backend has no method that reaches the command log or production values.
-- Sheet D1, D3 and D4 as agreed (DS15 keeps D3). D2's order becomes lists first (DS2), written
-  into the sheet spec when this spec is agreed.
-- Templates and exports are unchanged; a template's existing `liveData.ts` block keeps running.
+- `Show.bindings`, existing explicit paths, manual controls, the `/patch` and `/update` doors and
+  their documented semantics, templates and exports. A template's existing `liveData.ts` block
+  keeps running.
+- Today's view switcher rule and own-tab views (`PLAYOUT_DASHBOARD.md` §2).
+- Sheet D4 (the operator wins with one shared value) as agreed.
 
-## Decisions (answered 2026-10-17)
+## Formats
 
-The owner, 2026-10-17: "For me it's too difficult now to answer those questions before I actually
-can try it out so let's go with your recommendations. Record those as answers." Each answer below
-was the recommendation. A change the second opinion proposes goes back to the owner.
+Five small adapters, beside data resolution, each turning rows into the text its graphic already
+parses. Each also serves "Fill from… Paste rows" (cells or lines pasted from anywhere). Starter
+rows are generated from the field's current content. One header rule for all adapters: a first
+row equal to the adapter's starter header is skipped; any other first row is content; the
+standings header row is content by definition (it names the columns); starter rows for the lines
+adapter carry no header.
 
-- **DS1. The model and its words.** Agree the model above: values, lists and tables, each from
-  one source, fields connected by name, "source" and "connected" as the only other words on the
-  default surface. Answer: agree.
-- **DS2. The first Sheet shape (revisits sheet D2).** D2 says values first. Answer: lists
-  first (each row one line), values in the same phase, tables last; the operator still picks the
-  shape (D2's rule stays); the sheet spec's examples and its newcomer run (AC-12) move from a
-  scoreboard to a ticker.
-- **DS3. A row with several cells.** Answer: its cells join with " | ", the separator
-  schedules, standings, fixtures and credits split on; empty cells at the row's end drop. A ticker
-  reads " | " as plain text (the bilingual ticker as its language split) and a tab or ": " as a
-  kicker, so a ticker's sheet keeps one cell per row, with "SPORT: United win" for a kicker.
-  Alternative: join with a tab, which tickers read as a kicker but the other list graphics do not
-  split on.
-- **DS4. RSS and Atom feeds.** Answer: accept a pasted feed address as a list source:
-  each item's title is one line, newest first, the newest 20, markup and entities turned into
-  plain text, read every 5 minutes with conditional requests, and slower when the feed asks
-  (its `ttl`, `Cache-Control` or `Retry-After`).
-- **DS5. Who reads a feed for a local production.** Most feeds do not allow a browser on another
-  site to read them, so a local production cannot read one by itself. Options: a NoaCG route the
-  browser asks to fetch the feed (a new public server path: public addresses only, size and time
-  caps, a limit per client and per address, one cached read per feed address), or feeds only once
-  published. Either way the server fetches an address a person pasted, which reverses the sheet
-  spec's rule that it never does (sheet "Safety"). Answer: the route, as a segment of an
-  existing catch-all, so a feed works before anyone signs in.
-- **DS6. JSON addresses.** Answer: not in this run. Later, only for JSON whose shape NoaCG
-  can read without a selector (an object of names to values or lists), behind the same guards;
-  anything else reaches NoaCG through the data API with a small connector or an automation tool.
-- **DS7. The data API on the data view.** Answer: show it as the source "Another system"
-  with the address, the key behind Reveal, an example built from this production's names, and
-  "updated N s ago" from the last push; a pushed name connects matching fields when it first
-  arrives; the guide and `DATA_API.md` lead with `/patch` and names, and `/update` moves to a
-  low-level section.
-- **DS8. Pushing to a local production.** Answer: no; publishing stays the step, said
-  plainly on the card with Publish one press away (as audience A5 for phones).
-- **DS9. Two sources writing one name.** Answer: the later write wins (today's rule and
-  D4); each value shows which source wrote it last; the data view warns when two sources write
-  the same name.
-- **DS10. Where a field connects.** Answer: both doors, the data view and the field's own
-  "Connect" in the cue editor, which also takes a pasted Sheet or feed link; the newcomer
-  journeys use the field.
-- **DS11. Is the audience just another data source?** Options: (A) keep two separate systems,
-  sharing only the source core (today plus A4); (B) merge: viewer input becomes production values;
-  (C) one intake, two destinations: every source on one sources line with status and Pause, data
-  sources write values and lists, audience sources write only the inbox, and an operator action
-  moves a message into a cue. Answer: C. B breaks the rule that nothing a viewer sends
-  airs without an operator.
-- **DS12. How a picked message reaches air.** Answer: as a cue the operator takes (today,
-  A2 and A3), not a "show now" value that changes an on-air graphic without a Take.
-- **DS13. Votes.** Answer: tallies stay staged by the operator onto a vote board cue, with
-  the existing "Update the percentages on air while voting" switch; tallies are not production
-  values.
-- **DS14. Where sources show.** Answer: one line per source on the Playout tab, data and
-  audience alike, with status and Pause (the sheet spec's status line, for every kind). Where the
-  Data and Audience views live stays with the sheet spec (one stable Setup item) and audience A1.
-- **DS15. How fresh each kind is (revisits sheet D3 in part).** Answer: keep D3 for
-  Sheets (read every 5 s, on screen within 10 s); feeds every 5 minutes (DS4); a push is as fast
-  as its sender. A Sheet's own import formulas refresh far more slowly than 5 s (research README),
-  so reading faster speeds up typed edits only.
-- **DS16. The run order.** Answer: the phases below replace production-page phases 15-20
-  (they carry all six Sheet phases, re-ordered), audience follows, and the run waits before phase
-  15 until this spec is agreed.
-- **DS17. A connection on a published production.** Today the server resolves the bindings pinned
-  at the last publish, so a field connected afterwards moves nothing on air until the production
-  is published again. Answer: connecting or disconnecting a field on a published
-  production reaches the server at once, as a value edit does; publishing is never the hidden
-  second step.
-- **DS18. An emptied list.** Today an empty list writes nothing, so the old lines stay on air.
-  Answer: a read that succeeds and finds no rows clears the field and the sources line
-  says "empty"; a read that fails keeps the last good list, as now.
-- **DS19. A manual change to a list.** A list is one value, so under D4 an operator's edit holds
-  only until any row of the source changes, not just the edited line. Answer: accept it
-  and say so where the list is edited; to keep a fix, edit the Sheet or press Pause.
-- **DS20. Pause on pushed data.** Today nothing in NoaCG can stop a sender: "freeze" means the
-  sender stops writing. Answer: Pause on "Another system" stops the data key's writes from moving
-  anything on air, and the server's answer says the production paused it, while the operator's
-  own presses still work. What arrives while paused is held, newest value per name, and Resume
-  applies only what changed while paused, as a paused Sheet does (D4). Corrected 2026-10-17 after
-  review: the answer first said pushes made while paused were dropped and the sender's next write
-  would catch up, but a sender that sends only what changed (as `/patch` invites) would then
-  leave a value stale after Resume.
+| Adapter | Graphics | Row rule | Writes | Parser it serves |
+| --- | --- | --- | --- | --- |
+| lines | tickers | one cell per row; "SPORT: United win" is a kicker by the ticker's own rule; a second cell, if present, joins with a tab (the ticker's unambiguous kicker separator); `\|` is plain text | `.lines` | `src/templates/tickers/shared.ts` 107-157 |
+| schedule | schedule boards | Time and Programme cells joined with " \| "; a row missing either is flagged in the preview and dropped on air, as the parser does | `.lines` | `src/templates/infographics/dataRuntimes.ts` 41-56 |
+| standings | standings boards | header row: cells after the first become the headers field; body rows join with " \| "; both fields change in one patch; a row with more cells than headers is flagged | `.headers` and `.rows` | `src/templates/competition/results/shared.ts` 153-213 |
+| credits | end credits | "Role \| Name"; a first cell starting with `#` is a heading with trailing empty cells trimmed; a role with an empty name becomes "Role:"; an interior blank row is a section break and is kept; trailing blank rows trimmed | `.lines` | `src/templates/endCredits/shared.ts` 203-243 |
+| rows | guest tables, message Sheets | one row is one table row or one candidate; never joined | a `ShowDataset` or candidates | `src/control/cueData.ts`; audience spec |
 
-## Owner input, second round (2026-10-17)
+Values (Name, Value rows into named values) stay available behind "Connect… Google Sheet" for a
+scoreboard, not promoted. Adapters write strings, never arrays; a valid read with no rows writes
+`""`, which clears the field on air with an ordinary update row; a failed or malformed read
+writes nothing. The ticker's colon convention is the template's and is shown in the preview, not
+altered by any reader. Node fixtures: a credits heading with a trailing empty cell, a role-only
+row, an interior blank row, a standings header row with five stat columns and a body row with
+six cells, a ticker row containing `|`, a ticker tab with and without a header row, a schedule
+programme containing `|`, an empty tab.
 
-After reading the first draft, the owner said:
+## Sources and readers
 
-- The lists are the ones that matter: tickers, schedules, standings and credits.
-- Sheets are hard to build from scratch, even simple ones. Every graphic would need its own
-  template sheet, or one template could hold every graphic type, perhaps as tabs. How that looks
-  is open.
-- How a cell connects to its graphic must be clear, and as automatic as possible.
-- Opening the data page must need no reading: a page where you add values and they reach the
-  graphic. That page need not be NoaCG's if Google Sheets already does it better; the point is
-  that today's Data tab is so confusing that nobody knows how to use it.
-- Before the phases are planned, research further and get a second opinion from another agent.
+**Google Sheet.** The sheet spec owns the reader ("While the show runs", "Status and Pause"):
+the browser reads every 5 seconds while any page of the production is open, under one lease per
+source; a server tick about once a minute reads published sources with no live lease (C2); a
+failed read keeps the last good value; a valid empty read writes `""`.
 
-**Research questions for the second opinion:**
+**News feed.** A public segment of the existing data catch-all fetches RSS 2.0 and Atom with the
+guards of AC-6, parses titles to plain text, newest 20, and caches one read per address for 5
+minutes, slower when the feed asks. The browser reader asks that route every 5 minutes while a
+page is open; the server tick reads it otherwise. Browsers cannot read most feeds directly, so
+this works before anyone signs in.
 
-- **R1. The starter sheet.** How NoaCG hands over a sheet that already fits the production: one
-  tab per graphic, per list, or per graphic type; a copy of a published template, a file to
-  import, or rows to paste into a new sheet; and how the production's own field titles and
-  current values get into it.
-- **R2. Connected by construction.** If NoaCG writes the sheet, its tab and header names can be
-  the field names, so nothing needs mapping. How a cell is named so it reaches exactly the right
-  field, and what happens when two graphics share a value (one score on two scoreboards) or share
-  a field title ("Name").
-- **R3. A data page with nothing to read.** What someone sees on opening it, whether NoaCG needs
-  such a page at all when the Sheet is the editor, and what stays in NoaCG (typing in the cue, ±).
-- **R4. Lists in practice.** The fewest steps from a starter sheet to a ticker, a schedule,
-  standings and credits on air, and what each tab looks like for each catalog type.
-- **R5. The answers.** Any of DS1-DS20 the review would answer differently, with its reason.
+**Another system.** `/patch` stays the door, with a generated example from the selected
+destinations, the address, the key behind Reveal and "Received N s ago" on the "Another system"
+card of the Data view. `/update` remains the advanced graphic-addressed door with today's
+semantics. Connecting or disconnecting a field on a published production writes the `bindings`
+column at once (C2). Pause for pushed data is C5's smallest design: while paused,
+`control_data_apply` still merges into the tree and skips the resolve-diff-append; the row stores
+what was last dispatched; Resume diffs and appends one row per graphic; held `/update` writes are
+a per-graphic last-write map applied after. If C5 finds that disproportionate, the card states
+today's doctrine ("to freeze, stop the sender") and Pause ships for Sheets and feeds only.
 
-## Risks the research found
+**YouTube and join.** Browser-side with the operator's own key; candidates only. The audience spec
+owns the details and the quota figures.
 
-- **Feed rights.** A news site's terms may allow headlines only, with a link, or forbid paid or
-  advertising use. NoaCG does not judge them; the person pasting the feed does.
-- **Colons in headlines.** A ticker reads ": " as the end of a kicker, so "Weather: storm warning"
-  airs as the kicker "Weather" and the text "storm warning". Often right for news; never altered
-  by the reader.
+## Decisions, historical (answered 2026-10-17 and 2026-10-16)
+
+The owner answered DS1-DS20 by accepting the recommendations. Each is kept here as a record;
+"Now:" marks what the 2026-10-17 reconciliation supersedes. Reviews may challenge any of them.
+
+- **DS1. The model and its words.** Answer: values, lists and tables, each from one source,
+  fields connected by name. Now: "Fill" and "Connect" on the cue field; names never connect
+  anything by themselves.
+- **DS2. The first Sheet shape.** Answer: lists first, values in the same phase, tables last; the
+  operator picks the shape. Kept.
+- **DS3. A row with several cells.** Answer: join with " | ". Now: per adapter (Formats above);
+  tickers keep one cell per row or a tab-joined kicker.
+- **DS4. RSS and Atom feeds.** Answer: titles, newest 20, 5 minutes, conditional requests,
+  publisher backoff. Kept.
+- **DS5. Who reads a feed for a local production.** Answer: a public route as a segment of an
+  existing catch-all. Kept (the data catch-all; the function budget is full at its cap of 13 at
+  this branch's base and is not raised; no phase adds a function file).
+- **DS6. JSON addresses.** Answer: not in this run. Kept.
+- **DS7. The data API on the data view.** Answer: "Another system" card with address, key,
+  example and last receipt; a pushed name connects matching fields on first arrival. Now: the
+  card stays; no first-push auto-binding, connections are explicit.
+- **DS8. Pushing to a local production.** Answer: no; publishing stays the step. Kept.
+- **DS9. Two sources writing one name.** Answer: later write wins; warn. Now: sources write
+  source-scoped paths, so two sources cannot write one name; sharing is explicit (AC-8).
+- **DS10. Where a field connects.** Answer: both the data view and the field. Now: the field is
+  the home; the Data view is an overview.
+- **DS11. Is the audience another data source?** Answer: C, one intake, two destinations. Kept:
+  the inbox has no writer.
+- **DS12. How a picked message reaches air.** Answer: as a cue the operator takes. Kept.
+- **DS13. Votes.** Answer: staged by the operator, with the existing live switch. Kept.
+- **DS14. Where sources show.** Answer: one line per source on Playout. Kept. Now: Setup always
+  lists Messages and Data; the switcher rule is unchanged.
+- **DS15. How fresh each kind is.** Answer: Sheets 5 s read, 10 s on screen; feeds 5 minutes;
+  a push as fast as its sender. Now: the Sheet figure holds while a page is open; with every page
+  closed, about a minute, reported as measured.
+- **DS16. The run order.** Answer: phases 15-26 after the refactor. Now: the run order in the
+  parent spec; C0 first.
+- **DS17. A connection on a published production.** Answer: reaches the server at once. Kept;
+  the mechanism is a write of the row's `bindings` and `sources` columns, no new RPC.
+- **DS18. An emptied list.** Answer: a successful empty read clears. Kept; adapters write `""`.
+- **DS19. A manual change to a list.** Answer: holds until any row changes. Now: a connected list
+  is read-only on the default surface; edit in the source or Disconnect. Values keep D4.
+- **DS20. Pause on pushed data.** Answer: held, newest per name, with the null-deletion
+  correction. Now: C5's suppress-and-diff, or the fallback doctrine.
+
+The owner's second-round questions (the starter sheet, connecting by construction, a data page
+with nothing to read, lists in practice) were answered by the second opinion's "Starter sheets",
+"Connection rules", "The data page" and "The shortest complete journeys" sections.
+
+## Risks
+
+- **Feed rights.** A news site's terms may allow headlines only. NoaCG does not judge them; the
+  person pasting the feed does.
+- **Colons in headlines.** A ticker reads "Weather: storm warning" as kicker and story. Shown in
+  the preview; never altered by the reader.
 - **The Sheet export address is not a documented Google API.** It answered cross-origin on
-  2026-10-16; phase 15 measures it again, and a change by Google stops Sheets until fixed.
-- **Import formulas refresh slowly and maybe not while the sheet is closed.** Google documents
-  hourly refresh "while the document is open" (research README); data a sheet pulls in by
-  formula can be an hour old or older on air.
-- **Chat platforms.** Anonymous Twitch reading is undocumented; YouTube's daily quota is per
-  Google project. Both matter to audience A4, not to the data sources here.
+  2026-10-16; Q measures edit latency and an hour of 5-second reads; a change by Google stops
+  Sheets until fixed. "Publish to the web" CSV is the documented fallback the dialog accepts.
+- **Import formulas refresh slowly.** Data a sheet pulls in by formula can be an hour old on air.
+- **YouTube quota** is spent by the operator's own key; the audience spec gives the figures and
+  the UI shows the spend.
+- **A deliberate graphic-addressed `/update` to a message card changes it on air.** Documented
+  semantics; the card is not a message intake and the integrator addressed it by name.
+- **A deleted or renamed graphic** breaks a name-keyed binding today; unchanged in this run.
 
 ## Acceptance criteria
 
-Child criteria stay in their own specs and are named in the phases as "sheet AC-n" and
-"audience AC-n". These are the criteria that cross them. They follow the answers; a change the
-second opinion proposes and the owner accepts rewrites the criterion that names its decision.
+Child criteria are named "sheet AC-n" and "audience AC-n" and are inherited by id, not restated.
 
-### AC-1: A source writes names, never graphics
-Each source kind (Sheet, feed, pushed, a test kind) produces named values, lists or table rows
-through the one source core; none addresses a graphic, a cue or an air verb. A list that reads
-empty clears its field, and a failed read writes nothing (DS18). Layer: Node test over the core's
-contract, run for every kind.
+### AC-1: Arrival and graphic use are independent
+Fields follow live content only through bindings; the inbox has no writer. One source with one
+reader can feed bindings, the inbox, or both (sheet AC-8). Adapters write strings; a valid empty
+read writes `""` and clears the field on air; a failed read writes nothing. Layer: Node contract
+fixtures for a source with both consumers and the writer boundary; a database conformance case
+for the `""` update row.
 
 ### AC-2: A list fills a field that takes lines
-A Sheet list of 12 rows reaches a ticker's items field as 12 lines in sheet order; a two-column
-schedule tab reaches a schedule's field as "time | show" lines; an update while the ticker runs
-continues the scroll rather than restarting it. Layer: Node test on rows to lines; a journey in
-`e2e/production-data.spec.ts` against a stub sheet; the ticker's update behaviour unchanged.
+Twelve Sheet rows reach a ticker's items field as twelve lines in sheet order; a two-column tab
+reaches a schedule as "time | show" lines; a standings tab fills headers and rows in one update;
+a credits tab keeps headings, "Role:" groups and section breaks; an update while the ticker runs
+continues the scroll. Layer: Node fixtures per adapter; a journey in `e2e/production-data.spec.ts`
+against a stub sheet; the ticker's update behaviour pinned by its existing tests.
 
 ### AC-3: A field connects where it is
-In the cue editor, a field that takes lines offers the production's lists and "Paste a Sheet or
-feed link"; a single-line field offers values. Pasting a link there creates the source, names the
-list after the field and connects it, with no visit to the Data tab. On a published production
-the connection moves the output at once, with no new publish (DS17). Layer: journey in
-`e2e/production-data.spec.ts`; configured suite for the published half.
+In the cue editor a list or value field offers "Connect…"; the operator sees the rendered result
+and "Used by N cues" before saving; the saved connection affects only that graphic (sheet AC-2
+for the Sheet case). On a published production it persists and moves the output without a new
+publish. Layer: production-data journey; configured scenario for the published half
+(`e2e/configured/production-data-key.spec.ts` extended).
 
-### AC-4: A pasted feed becomes a list
-An RSS 2.0 or Atom address lists its newest headlines within 10 s of pasting; markup, entities and
-CDATA come out as plain text; an item repeated with the same id or link appears once; a feed that
-fails keeps the last good list and says why, with the time it started. Layer: Node test with feed
-fixtures; journey against a stub feed; one scenario on a real public feed in `evidence/`.
+### AC-4: Pasted rows fill a list without a Sheet
+"Fill from… Paste rows" on a ticker, schedule, standings or credits field accepts cells pasted
+from a spreadsheet or lines from a document, shows the result on the graphic with malformed rows
+flagged, and saves into the cue. No account, no source record. Layer: Node adapter tests; a
+journey in `e2e/production-data.spec.ts`.
 
-### AC-5: Feed reading is safe and polite
-The server fetches only http and https addresses that resolve to public IP addresses and connects
-to the very address it checked, never looking the name up again, so a name that answers
-differently the second time (DNS rebinding) cannot reach a private address. It checks every
-redirect the same way, stops at a size and a time cap, returns parsed headlines only, sends
-conditional requests, serves one cached read per feed address to every reader, and refuses a
-client or an address over its limit. Every server read of a feed, the published tick's included,
-goes through this fetcher. Layer: Node test with a fake resolver and fetch, including a name that
-resolves public then private; configured suite for the route.
+### AC-5: A pasted feed becomes a list
+An RSS 2.0 or Atom address shows its newest headlines within 10 s of pasting; markup, entities
+and CDATA come out as plain text; an item repeated by id or link appears once; a failed fetch
+keeps the last good list and says since when. Layer: Node fixtures captured from five public
+feeds in Q; a journey against a stub feed; one real public feed in `evidence/`.
 
-### AC-6: The other-system door is visible
-A published production's data view shows the address, the key behind Reveal and a ready example
-built from this production's own names; a push shows "Another system: updated N s ago" within
-5 s; the first push of a new name connects the empty fields titled with it, with every page
-closed; while the source is paused a push moves nothing and its answer says it was held, and
-Resume brings the held change to air (DS20);
-an unpublished production says publishing is the step. Layer: journey for the unpublished card;
-configured suite for a published push, a first push into a fresh production, and a paused push.
+### AC-6: Feed reading is safe and polite
+The route fetches only http and https addresses that resolve to public IP addresses and connects
+to the address it checked; it checks every redirect the same way, stops at a size and a time cap,
+returns parsed headlines only, sends conditional requests, serves one cached read per address to
+every reader, and refuses a client or an address over its limit. Every server read of a feed goes
+through it. Layer: Node test with a fake resolver and fetch, including a name that resolves
+public then private; a configured scenario for the route.
 
-### AC-7: Each value says where it came from
-The data view and a connected field name the source of each value's last write; two sources
-writing one name show a warning on that name. Layer: Node test; journey.
+### AC-7: The "Another system" card is visible
+A published production shows the address, the key behind Reveal and an example generated from
+the selected destinations. A push shows last receipt within 5 s and only moves saved connections.
+Local setup explains publishing with Publish one press away. When C5 ships Pause, it holds
+`/patch` and `/update` writes, its response says so, operator presses still air, and Resume
+appends exactly the final values once. Layer: journey; configured scenarios for first push; C5's
+database conformance cases.
 
-### AC-8: Every source in one place
-The Playout tab shows one line per source, data and audience alike, each with its status and
-Pause; a stale or failing source is marked there and on its connected fields. Layer: journey.
+### AC-8: Content has an honest source and explicit sharing
+The Data view and the connected field name the actual source. Sharing a source with a second
+graphic is an explicit choice; display renames do not change a source's identity. The data key is
+one API source and promises no per-sender attribution or per-sender Pause. Layer: Node contracts;
+journey.
 
-### AC-9: Viewer input never becomes a value
-No audience path (join page, chat reader) can write a production value or a command-log row: an
-audience source is handed the inbox's submit door and no other writer. A message reaches air only
-as a cue the operator takes. Layer: Node test on the audience interface
-and the source core (structural); the existing journey in `e2e/production-audience.spec.ts`.
+### AC-9: Sources and content are discoverable
+Setup always offers "Messages…" and "Data…"; the Data view lists the production's values, lists
+and tables with their sources and the graphics using them; Playout shows active sources with
+status and Pause; native content is labeled as local content with no freshness warning. The
+default surface's vocabulary is sheet AC-9's. Layer: journey in `e2e/production-views.spec.ts`
+and `e2e/production-data.spec.ts`; owner look in the pull request.
 
-### AC-10: A newcomer does each journey unaided
-On a fresh production, without documentation: a Sheet list onto a ticker, an RSS feed onto a
-ticker, and a push from a test sender onto a scoreboard, each on air in under five minutes.
-Layer: scenario runs recorded in `evidence/`.
+### AC-10: Every message intake respects selection and staging
+Pasted text, Sheet message rows, join submissions and supported YouTube input enter the same
+candidate workflow; no intake can write live values or command-log rows; only an operator stages
+a cue; the data API is not a message intake. Layer: structural contracts (the audience backend
+interface has no airing method, from C0; a source's inbox consumer has no writer, from C1) and a
+cross-source journey.
 
-## Phases (draft; production-page phases 15 onward once agreed)
+### AC-11: Failure, empty content, override and ownership have distinct outcomes
+For every source kind: a failed or malformed read holds the last good value; a valid empty read
+clears its managed field; legacy missing paths and empty arrays keep their behaviour; a late read
+cannot write after disconnect or handover. Pause stops a source's writes and Resume uses the last
+applied snapshot. The Sheet reader's lease, override and staleness rules are sheet AC-5, AC-6 and
+AC-7. Layer: Node reader-state tests with a fake clock per source kind; the sheet spec's layers
+for the Sheet case.
 
-These wait for the second opinion and R1-R5 (owner, 2026-10-17), which may reorder or reshape them.
+### AC-12: Connections stay correct when names collide or change
+Two graphics with a Name field do not connect to the same person unless selected; one score
+connected to two boards updates both; a display rename of a source keeps the connection; a
+deleted or replaced target is flagged, never silently redirected. A record saved by today's build
+(data, bindings, datasets, an embedded Sheet block, no sources) loads and plays unchanged after
+every phase that adds a persisted field. Layer: Node contracts; `scripts/show-fixture-compat.test.mjs`
+over a fixture saved by the current build, added in C1 and extended by each later phase; the
+production-data journey.
 
-Each phase runs `/check` and the production-page spec's §6 matrix, lands with `/queue-merge`, and
-adds its notes under this spec's `## Phase notes`. Numbers are the production-page run's.
+### AC-13: Starter rows fit the graphic and the selected tab
+Generated starter rows carry the field's current content and the adapter's header where the
+adapter has one. A tab link previews that tab; a missing `gid` shows the returned tab and asks the
+operator to confirm it; one tab used by two graphics or by a graphic and the inbox has one
+reader; a renamed tab keeps its identity; a missing tab holds the last good value and asks for
+reconnection; malformed rows are diagnosed, not rearranged. Layer: Node fixtures per adapter; the
+Sheet journey; one real-Sheet receipt in `evidence/` from C1.
 
-15. **The source core** (AC-1; sheet AC-1 reading half, sheet AC-6 states, sheet AC-8): the
-    source contract with the three shapes; the Sheet kind (list and values); the feed kind's
-    parser (RSS 2.0, Atom); a test-only kind; rows to lines; the diff and the reader states.
-    Measures, before any UI: Sheet edit-to-read over at least 20 real edits and one hour of
-    reading every 5 s (the sheet D3 stop rule), and conditional-request support on five public
-    feeds. Node tests only.
-16. **Sheet lists and values in a local production** (AC-2, AC-3 for Sheets, AC-8 local; sheet
-    AC-1, sheet AC-2, sheet AC-3 unpublished, sheet AC-5 tabs, sheet AC-6 message, sheet AC-7
-    unpublished): connect from the data view and from a field, the browser reader under a lock,
-    connecting by name, the sources line with Pause, the local override and Resume (D4).
-17. **Feeds** (AC-3 for feeds, AC-4, AC-5): the fetch route (DS5) and the feed kind on a local
-    production, with the ticker journey.
-18. **Published productions** (AC-4 published; sheet AC-3 published, sheet AC-4, sheet AC-5
-    handover, sheet AC-6, sheet AC-7 published; AC-3 published half, DS17): the server copy of
-    sources with its row security, the scheduled tick for Sheets and for feeds through phase 17's
-    fetcher, the publish and unpublish handover, connections that reach the server at once; the
-    server cost of one active source for an hour is measured and recorded first.
-19. **The other-system door** (AC-6, AC-7): the "Another system" card, last-received status,
-    connecting a name on its first push, Pause enforced by the server with pushes held until Resume
-    (DS20), the source of each value, and `DATA_API.md` and `/docs` leading with names and
-    `/patch`.
-20. **One vocabulary and one shared value** (AC-8 for data sources; sheet AC-7 presses, sheet
-    AC-9): the default words, the Advanced disclosure, the stable Setup item for the data view.
-21. **Tables from a Sheet** (sheet AC-11).
-22. **Retire the graphic-level Sheet panel, update `/docs`, the newcomer runs** (AC-10; sheet
-    AC-10, sheet AC-12).
+### AC-14: A newcomer does each journey unaided
+On a fresh production, without documentation, a student pastes rows onto a ticker, connects a
+Sheet list and changes a line, connects a feed, and (with a prepared sender) pushes a score; the
+message tasks are audience AC-7 and the Sheet task is sheet AC-12. Pass: four of five participants
+complete each task unaided and answer the comprehension questions ("What happens when you press
+Take?", "If someone edits the Sheet now, what changes on air?", "If someone adds a row, what
+happens to the cue you prepared?") correctly; medians are reported without a time target. Layer:
+one trial in C7 on the real build; the paste tasks also run early in Q on C0's build.
 
-Audience follows as phases 23 onward: `audience-flow` phases 1-4, its chat sources on the core of
-phase 15 and on the sources line (A4; AC-8 for audience sources, AC-9). JSON addresses are not in
-this run (DS6).
+### AC-15: Prepared messages are independent of source changes
+Audience AC-1, AC-2, AC-6 and AC-8: a prepared message airs exactly as approved; source edits,
+deletions, reorderings, new arrivals, reconnects, a later binding attempt and a second cue on the
+same graphic cannot change it; retries make no duplicate; prepared cues and used candidates
+survive reload. Layer: as the audience spec names.
+
+### AC-16: The main routes are proven before completion
+In one rehearsal production: pasted rows, a Sheet ticker, schedule, standings and credits, a feed,
+a pushed score, a guest row, pasted messages, Sheet messages, YouTube comments and live chat, and
+a staged vote. PROGRAM is checked after source edit and delete, duplicate arrival, Pause,
+disconnect, reload and operator-page closure. A ticker, a schedule, a standings board and credits
+are watched updating on a real player (an OBS browser source at least). The unaided tasks of
+AC-14 run. Each route is recorded separately; Twitch's existing behaviour is checked for
+regression; a blocked YouTube route is recorded as unverified, never as a pass. Layer: C7's
+receipts in `evidence/`.
+
+## Phases
+
+Run order and steps: parent spec, "Run order". Each content phase runs `/check`, its row of the
+verification matrix below and `/queue-merge`, and adds its notes under `## Phase notes`. Allowed
+`src` files are those named; a phase that needs another file records why in its notes.
+
+**C0. Paste and safe staging** (AC-10 structural half, AC-15; audience AC-1/2/3/6/8). A feature
+change landed before refactor phase 1; the phase 1 baseline then includes it. Fixes #1313 and
+builds the message workflow the audience spec defines: "Fill from… Paste a message" on a
+compatible body field, the named and remembered destination in Messages with the four Q&A cards
+offered when none fits, one staging function in `src/control/` behind both doors, refusal of a
+binding on a field that prepared cues use (the same function behind the Advanced binding rows),
+the durable local inbox, the three optional candidate fields and their nullable columns, one
+primary action per message, Setup always listing "Messages…" and "Data…", the Audience label
+becoming Messages with routes unchanged. Files: `src/control/messageStaging.ts` (new),
+`src/components/home/ProductionAudienceWorkspace.tsx`, `src/components/home/ProductionPage.tsx`
+(the cue editor menu only), `src/components/home/ProductionDataPanel.tsx` (the binding refusal),
+`src/components/home/ProductionSetupMenu.tsx`, `src/audience/localAudience.ts`,
+`src/audience/audienceTypes.ts`, `src/audience/audienceData.ts` (the published provider's submit
+path), `src/model/shows.ts` (additive `stagedFrom`, `messageTarget`), one additive migration
+(`audience_submissions.external_id`, `source`, `reference`, nullable), tests.
+
+**Q. Qualification and early trial** (sheet AC-3 measurement half; audience AC-7 paste tasks,
+AC-9; AC-5 fixtures). No product code. In a session with network access and the owner's keys:
+20 real Sheet edits timed to the export; an hour of 5-second export reads; five public feeds
+captured as fixtures for C4 with notes on markup and conditional requests; one YouTube video and
+one live stream with the operator's key, recording whether a key alone authorizes and what the
+first page holds; an estimate of the server tick's cost on the hosting plan. The paste tasks of
+audience AC-7 with three to five students on C0's build, with the comprehension questions.
+Records in `evidence/` (`sheet-latency.md`, `sheet-endurance.md`, `feeds.md`, `youtube.md`,
+`trial-paste.md`, `tick-cost-estimate.md`). Recorded before C1 starts; a Sheet miss stops the plan
+at C1 and asks (D3).
+
+**C1. Native lists and local Sheets** (AC-1/2/3/4/8/9/10/11/12/13; sheet AC-1/2/3 local/5/6/7/8/9).
+After refactor 2+7 and 13a. The five adapters and starter rows; "Fill from… Paste rows";
+"Connect… Google Sheet" with tab preview, "Used by N cues" and explicit sharing; `Show.sources`;
+the browser reader with lease, states, Pause and the Playout sources line; the Data view as
+overview with Advanced; the cue editor's connected-field state; the fixture compatibility test;
+one real-Sheet receipt and the timed 20-edit run against the local program. Files:
+`src/control/contentFormats.ts` (new), `src/control/sheetSource.ts` (new),
+`src/control/productionDataSession.ts` (the writer entry), `src/model/shows.ts` (`sources`),
+`src/components/home/CueEditor.tsx`, `src/components/home/ProductionPage.tsx`,
+`src/components/home/ProductionDataWorkspace.tsx`, `src/components/home/ProductionDataPanel.tsx`,
+`src/components/home/SourcesLine.tsx` (new), tests.
+
+**C2. Published ownership** (AC-3/11/12; sheet AC-3 published/4/5/6/7). Depends on C1 only.
+`bindings` and `sources` written to the row at once on connect, disconnect and Pause; the lease on
+the published source; the server tick (`/api/data/tick`, a guarded segment of the data catch-all,
+from a one-minute Vercel cron) reading published Sheet and feed sources with no live lease and
+applying through `control_data_apply` with a source label; Pause on the row honoured by the tick;
+cost measured for an hour and recorded; the real-Sheet run repeated against the published output
+with the browser closed, latency reported as measured. Files: `src/control/hostedControl.ts`,
+`src/control/sheetSource.ts`, `api/data/[...path].ts`, `api/_lib/dataTick.ts` (new, a helper, not
+a function), one additive migration (`control_shows.sources`, read state), `vercel.json`, tests.
+
+**C3. Sheet messages and YouTube** (AC-10/15; sheet AC-11; audience AC-4/8/9). Depends on C1
+only; may run in a parallel session to C2. A message Sheet is a `sheet` source with `inbox: true`
+through the rows adapter and the audience spec's identity rules; "Fill from… Pick a message" in
+the cue editor; the two YouTube modes as `Show.sources` entries, as the audience spec defines
+them; the unique index per show on `external_id`. Files: `src/audience/sheetMessages.ts` (new),
+`src/audience/youtubeComments.ts` (new), `src/audience/youtubeChat.ts`, `src/audience/chatIntake.ts`,
+`src/components/home/ProductionAudienceWorkspace.tsx`, `src/components/home/CueEditor.tsx`, one
+additive migration, tests.
+
+**C4. Feeds** (AC-5/6/11). The guarded feed route as a public segment of the data catch-all;
+`feedSource` on the browser reader and the server tick; "Connect… News feed" on ticker fields.
+Files: `api/_lib/feedFetch.ts` (new), `api/data/[...path].ts`, `src/control/feedSource.ts` (new),
+`src/components/home/CueEditor.tsx`, tests; one real feed receipt.
+
+**C5. "Another system" card and Pause** (AC-7/8). The card with the generated example and
+receipt; "Connect… Another system" on a field; Pause by suppress-and-diff for `/patch` and a held
+per-graphic map for `/update`, or the documented fallback; `DATA_API.md` and `/docs` lead with
+`/patch`. Files: `src/components/home/ProductionDataWorkspace.tsx` (the card),
+`src/components/home/CueEditor.tsx`, `api/data/[...path].ts`, one migration (`data_paused`,
+`dispatched`, held updates), `docs/DATA_API.md`, tests.
+
+**C6. Compatibility and docs** (sheet AC-10). New graphics are no longer offered the
+graphic-level Sheet panel; existing blocks keep running; exports unchanged; `/docs` and
+`docs/PRODUCTION_DATA_PLAN.md` carry the supersession. Files: `src/components/ControlPanel.tsx`,
+docs, tests.
+
+**C7. Combined rehearsal and trial** (AC-14/16; sheet AC-12; audience AC-5/7/9). The rehearsal
+production of AC-16 on the local stack; the output-player check recorded by the owner; the one
+full trial of AC-14; the join, presenter and vote walks (audience AC-5); the Twitch regression
+check; blocking defects fixed and retested, others filed with scope. Files: fixes only; evidence.
+
+Refactor steps between C0 and C1 (phases 1, 2+7, 13a) follow the parent spec's own matrix.
+
+## Verification
+
+Local targeted specs run through the browser queue; Node tests with `node --test`; configured
+dispatch on the candidate ref as the parent §6 describes; every phase also runs `/check`,
+`npm run depcruise`, `node scripts/gates.mjs run --changed origin/main` and the parent's scope
+fence. A = assessment by a fresh read-only `wave-row` session with the `/so` brief.
+
+| Phase | Node (`scripts/*.test.mjs`) | Offline journeys (`e2e/`) | Configured (`e2e/configured/`) | Database and provider | Assessment |
+| --- | --- | --- | --- | --- | --- |
+| C0 | `message-staging` (destinations: a scoreboard-only pool offers the cards; a bound body or name field is refused; a field with prepared cues refuses a binding; values by title; dedupe; Source and Reference never mapped); the backend interface has no airing method | `production-audience` (#1313 steps with the restore-the-fallback mutation; paste, prepare, Take asserting PROGRAM text; two cues on one card; a binding attempted on the card's Question field before and after preparing is refused with the card offer; reload keeps pasted rows, simulated rows gone; double press makes one cue; a retry after a failed save marks nothing used and makes no duplicate); `production-views` (Setup items) | `audience-live` (a pasted candidate on a published production reaches the inbox and the cue; the binding refusal on a published production) | migration self-check for the three nullable columns | A |
+| Q | none | none | none | `evidence/sheet-latency.md`, `sheet-endurance.md`, `feeds.md`, `youtube.md`, `trial-paste.md`, `tick-cost-estimate.md` | owner reads the trial |
+| C1 | `content-formats` (the fixtures of Formats), `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty, the inbox consumer has no writer), `production-data-session` extended (the writer), `show-fixture-compat` (today's fixture loads and plays unchanged) | `production-data` (paste rows per adapter; connect a stub sheet; preview and "Used by"; status line; Pause; Disconnect; empty tab clears; equal title elsewhere untouched; a ± press on a connected value moves the shared value, asserted in a test that runs, since the existing one at line 749 is skipped under `skipOldEditor()`); `production-views` (Data overview, Advanced) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | `production-data-migration` and `merge-patch-conformance` carry the `""`-over-a-list-path case; one real-Sheet receipt (AC-13, sheet AC-1); the timed 20-edit run against the local program (sheet AC-3) | A |
+| C2 | `sheet-source` lease and handover rules | `production-data` (reload keeps sources) | `production-data-key` extended (bind after publish moves the output without republish; tick skips a leased source and reads an expired one; a value changed once written once; Pause written to the row holds the tick and shows after reload) | migration self-check; the tick's cost record; the closed-browser real-Sheet run in `evidence/` (sheet AC-4) | A |
+| C3 | `sheet-messages` (hash identity: reorder, delete and add, identical rows, occurrence; a used candidate survives its row), `youtube-comments` and `youtube-chat` with recorded responses (first page kept, floor, errors); `show-fixture-compat` extended | `production-audience` (Sheet rows as candidates; a vanished row leaves an unused candidate and keeps a used one; Source and Reference hidden); `production-chat-intake` (comments mode, remembered source, key prompt on reload) | `audience-live` (imported candidate on a published production, dedupe by `external_id`) | migration self-check; provider receipts from Q | A |
+| C4 | `feed-fetch` (fake resolver and fetch: public then private name, redirects, caps, conditional requests, cache), `feed-source`; `show-fixture-compat` extended | `production-data` (connect a stub feed; failed fetch keeps the list) | `feed-route` (new, small; `expected-run.json` raised) | one real feed receipt | A |
+| C5 | `data-pause` contracts; `show-fixture-compat` extended | `production-data` (the card, the example, receipt) | `production-data-key` extended (push, Pause, push with a null, `/update` while paused, Resume emits the final values once) | conformance cases in the migration's self-check | A |
+| C6 | a Node test that an existing graphic's `liveData` block still emits in its template output | `production-data` (no panel for new graphics; existing block still updates) | none | none | A |
+| C7 | none | the full offline suite on CI | the whole configured suite | `evidence/rehearsal.md` per route; the owner's player check; `evidence/trial.md` | A+ |
+
+Revalidation, evidence-only commits and mappings follow the parent §6. A configured spec added
+raises `e2e/configured/expected-run.json` in the same pull request.
 
 ## Readiness
 
-Before phase 15: phase 14 checked PASS on `main`; the second opinion reviewed and its accepted
-changes folded in; the owner has agreed this spec (`work.json` authority `agreed`), with DS1-DS20
-answered; `sheet-data-flow` and `audience-flow` updated to the
-answers in the same change, with their digests current; `node scripts/work-spec.mjs status`
-reports no problems for all three.
+The owner agreed the reconciled plan and all four synthesis §7 decisions on 2026-10-18.
+Before a run: the parent's run preflight and a separate owner start instruction. C0 needs no
+refactor phase before it. This update does not start the run.
+
+Before C1: refactor phases 1, 2+7 and 13a checked PASS on `main`; Q recorded with the Sheet
+measurement inside D3 or the plan stopped and asked; this spec and the audience spec agreed;
+digests current and `work-spec.mjs status` clean.
+
+Before C2: the tick's cost estimate from Q reviewed; the hosting plan's cron confirmed.
 
 ## Phase notes
