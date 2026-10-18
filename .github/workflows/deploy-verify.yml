@@ -1,333 +1,142 @@
-# PRODUCTION DEPLOYMENT VERIFICATION - the missing half of "green means shipped".
-#
-# CI proves a commit is good; nothing proved it actually REACHED production. Twenty
-# consecutive Vercel production builds once failed while the repo stayed green, and nobody
-# was told (docs/DEPLOYMENT.md has the full story). This workflow closes that gap three ways:
-#
-#   1. Vercel reports a production deployment FAILED  -> a red run on that commit + the
-#      rolling issue below.
-#   2. Vercel reports a production deployment READY   -> fetch https://noacg.studio/
-#      version.json (written by scripts/write-version.mjs during the build) and verify the
-#      live commit IS this deployment's commit (or a newer main commit that overtook it),
-#      and that the landing page and editor answer. A deploy that "succeeded" but did not
-#      take effect is a red run, not a silent nothing.
-#   3. A scheduled drift check compares the live commit against main independently of any
-#      event - the belt against the failure mode where no deployment (and so no event) is
-#      created at all.
-#   4. A browser opens the deployed app on a printed `#/graphic/<id>` link and checks it is
-#      still there a moment later. Curl can only ask whether a page answers; this asks what the
-#      app DOES with the URL, which is where the failure of 2026-09-10 lived.
-#
-# Alerting is the weekly-audit pattern: ONE rolling issue ("Production is not running the
-# latest main commit"), one comment per newly failing commit - the same commit never alerts
-# twice - closed automatically by the next verified-healthy state.
-#
-# Which `deployment_status` counts as "Vercel reports" above is not obvious and is where this
-# workflow went wrong once - the `if:` on the verify job below carries that story.
-
-name: deploy-verify
-
+name: Eighth-check probe of the carried leave-editor checkers (disposable, never merge)
 on:
-  deployment_status: {}
-  schedule:
-    - cron: '43 5,11,17,23 * * *' # the drift belt, four times a day
-  workflow_dispatch: {}
-
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Bounded independent verification selection
+        type: choice
+        options: [unchanged, fifth, maintained, references, visual, mutation, diag, repeat228, matrix, sixth, seventh, eighth]
+        default: unchanged
 permissions:
   contents: read
-  issues: write
-
-env:
-  PRODUCTION_URL: https://noacg.studio
-  ISSUE_TITLE: Production is not running the latest main commit
-
 jobs:
-  verify:
-    name: Verify production deployment
-    # WHO POSTED THE STATUS DECIDES WHETHER IT MEANS ANYTHING, and that is the whole trigger.
-    # Two different bots post `success` on the SAME production deployment record:
-    #
-    #   github-merge-queue[bot]  - GitHub's own bookkeeping for `post-land.yml`'s migrate job,
-    #                              which declares `environment: production`. It says "migrations
-    #                              ran", roughly 25 seconds after the merge. It says nothing at
-    #                              all about Vercel.
-    #   vercel[bot]              - "Deployment has completed". This is the deployment, and by the
-    #                              time it arrives the production alias is already promoted.
-    #
-    # Verifying on the first one is verifying minutes before production has anything new to serve,
-    # so the check could only ever pass by outrunning the deployment. Measured over the 21 landings
-    # of 2026-09-07/08 (17 of them deploy-affecting): the two statuses are 80-192 s apart, median
-    # 182 s. 14 of those 17 runs polled their whole 120 s window and went red on a production that
-    # was healthy - issue #159 and the 13 before it. The three that passed did not verify anything
-    # the others did not: two caught the alias at 56 s and 72 s on the day's two fastest builds,
-    # and one only because the runner took 150 s to start. Every run raised by the vercel[bot]
-    # status matched within 4 seconds.
-    #
-    # THE WINDOW IS NOT THE LEVER, WHICH THAT 80-192 s SPREAD IS THE PROOF OF: it straddles the
-    # 120 s the job waits, so the same healthy deployment reds or greens on how fast Vercel felt
-    # that minute. Raising the number buys silence and leaves the alarm timing an event that has
-    # nothing to do with the deployment.
-    #
-    # Previews raise statuses too, and only production can page anyone, so the environment filter
-    # stays. Bookkeeping statuses now skip this job entirely rather than passing through it: a
-    # green run here CLOSES the production alarm, and a status that measured nothing must not be
-    # able to withdraw an alarm that is still true.
-    #
-    # TWO ACCEPT CONDITIONS, BECAUSE THE WAYS THEY FAIL POINT OPPOSITE. Matching only the bot's
-    # login would stop this job silently the day the deploy provider is renamed or replaced -
-    # every event filtered out, every run reported as skipped, and per-landing verification gone
-    # with nothing saying so. `environment_url` is what the status MEANS rather than who sent it:
-    # over the last 100 production deployments, all 85 vercel[bot] statuses carry the deployment's
-    # URL and not one of the 126 bookkeeping statuses does (`github-merge-queue[bot]`, and
-    # `miwco` when a person dispatches a workflow that declares the environment). So a future
-    # provider under another name is still verified - loudly wrong beats silently absent. The
-    # login stays in as the belt for the reverse case: no failed production deployment appears
-    # anywhere in that history, so what Vercel puts in `environment_url` when a build FAILS is
-    # unmeasured here, and a failure is the one event this workflow must never drop.
-    if: >-
-      github.event_name == 'deployment_status' &&
-      github.event.deployment_status.environment == 'Production' &&
-      (github.event.deployment_status.creator.login == 'vercel[bot]' ||
-       github.event.deployment_status.environment_url != '') &&
-      contains(fromJSON('["success", "failure", "error"]'), github.event.deployment_status.state)
+  qualification:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 50
+    env:
+      PW: npx playwright test --workers=1 --retries=0 --reporter=list,json
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # ancestry checks below need real history
-
-      - name: Report a failed production deployment
-        if: ${{ github.event.deployment_status.state != 'success' }}
-        run: |
-          echo "::error title=Production deployment failed::Vercel reported '${{ github.event.deployment_status.state }}' for ${{ github.event.deployment.sha }}. Build logs: ${{ github.event.deployment_status.target_url }}"
-          exit 1
-
-      - name: Verify the live site serves this commit
-        if: ${{ github.event.deployment_status.state == 'success' }}
-        env:
-          # 12 x 10 s = 120 s, unchanged, and now headroom rather than the lever. Every run raised
-          # by the corrected trigger matched within 4 seconds, so the measured need is zero and
-          # what remains is room for a propagation tail nobody here has observed. It only elapses
-          # when something is actually wrong, where two more minutes of certainty cost nothing.
-          POLL_SECONDS: 10
-          POLL_COUNT: 12
-        run: |
-          DEPLOY_SHA="${{ github.event.deployment.sha }}"
-          # WHAT PRODUCTION IS SUPPOSED TO SERVE FOR THIS COMMIT, which since the build skip landed
-          # is not always the commit itself. Vercel raises a `deployment_status: success` for a push
-          # whose build was skipped - it aliases the previous build - so production correctly goes on
-          # serving an OLDER commit, and the two checks below only ever accepted the same one or a
-          # newer one. That fired on 2026-09-07 for a docs-only landing and would have fired for every
-          # one after it; about half the landings here change only docs, contracts, tooling or tests.
-          #
-          # `--last-affecting` reads the same list the skip itself reads, which is the point: the
-          # mechanism that decides not to build and the mechanism that decides what "live" should be
-          # must not be able to disagree. The scheduled drift job below was taught this; this one was
-          # not, and it is the one that runs on every landing.
-          EXPECTED="$(node scripts/deploy-affecting-paths.mjs --last-affecting "$DEPLOY_SHA" || echo "$DEPLOY_SHA")"
-          if [ "$EXPECTED" != "$DEPLOY_SHA" ]; then
-            echo "::notice title=Build skipped::$DEPLOY_SHA changes nothing production serves, so the expected live commit is $EXPECTED."
-          fi
-          echo "Deployment ready for $DEPLOY_SHA - verifying $PRODUCTION_URL"
-          # What the verdict below is built from. FIRST_SEEN and LAST_SEEN record only the polls
-          # that ANSWERED, because a dropped request must not read as production changing commit -
-          # that turns a stuck alias into "something is still promoting, come back later", which is
-          # the wrong advice in exactly the case the alarm matters.
-          FIRST_SEEN=""
-          LAST_SEEN=""
-          MISSES=0
-          for i in $(seq 1 "$POLL_COUNT"); do
-            LIVE_SHA="$(curl -sf "$PRODUCTION_URL/version.json" | jq -r '.commit // empty' || true)"
-            if [ -n "$LIVE_SHA" ]; then
-              if [ -z "$FIRST_SEEN" ]; then FIRST_SEEN="$LIVE_SHA"; fi
-              LAST_SEEN="$LIVE_SHA"
-            else
-              MISSES=$((MISSES + 1))
-            fi
-            if [ "$LIVE_SHA" = "$DEPLOY_SHA" ] || [ "$LIVE_SHA" = "$EXPECTED" ]; then
-              echo "Live commit matches what this deployment should serve."
-              break
-            fi
-            # Rapid successive merges: production may already serve a NEWER main commit
-            # that contains this one. That is healthy, not a mismatch.
-            if [ -n "$LIVE_SHA" ] && git cat-file -e "$LIVE_SHA" 2>/dev/null \
-               && git merge-base --is-ancestor "$EXPECTED" "$LIVE_SHA"; then
-              echo "Live commit $LIVE_SHA contains $EXPECTED, which is everything this deployment had to carry."
-              break
-            fi
-            if [ "$i" = "$POLL_COUNT" ]; then
-              # SAY WHICH OF THE TWO FAILURES THIS IS. "Production did not take it" covered both
-              # a stuck alias and a verifier that stopped watching too early, and telling them
-              # apart took a person reading version.json by hand (issue #159). The evidence for
-              # the distinction is already in hand: what production served first, what it served
-              # last, and how long we watched.
-              WAITED=$(( (POLL_COUNT - 1) * POLL_SECONDS ))
-              if [ -z "$LAST_SEEN" ]; then
-                VERDICT="version.json answered none of the $POLL_COUNT requests over ${WAITED}s, so the live commit is unknown - production is unreachable, which is not a slow promotion."
-              elif [ "$FIRST_SEEN" = "$LAST_SEEN" ]; then
-                VERDICT="production served $LAST_SEEN for the whole ${WAITED}s and never moved - the alias is stuck on an older build and this deployment did not take."
-              else
-                VERDICT="production moved from $FIRST_SEEN to $LAST_SEEN inside ${WAITED}s but had not reached $EXPECTED when the window closed - a promotion is still in flight, so re-read version.json before treating this as broken."
-              fi
-              if [ "$MISSES" -gt 0 ] && [ -n "$LAST_SEEN" ]; then
-                VERDICT="$VERDICT ($MISSES of $POLL_COUNT requests went unanswered, so production is also flaky to reach.)"
-              fi
-              echo "::error title=Production verification failed::$PRODUCTION_URL/version.json serves '${LAST_SEEN:-nothing}', expected $EXPECTED (or a descendant). $VERDICT"
-              exit 1
-            fi
-            sleep "$POLL_SECONDS"
-          done
-          # The pages people actually load must answer, not just the version marker.
-          curl -sf -o /dev/null "$PRODUCTION_URL/" || { echo "::error::The landing page does not answer."; exit 1; }
-          curl -sf -o /dev/null "$PRODUCTION_URL/app" || { echo "::error::The editor page does not answer."; exit 1; }
-          echo "Production verified: $DEPLOY_SHA is live and reachable."
-
-      - name: File / update the production issue
-        if: ${{ failure() }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          SHA="${{ github.event.deployment.sha }}"
-          BODY="Commit ${SHA}: production deployment '${{ github.event.deployment_status.state }}' - run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}, Vercel logs ${{ github.event.deployment_status.target_url }}"
-          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
-          if [ -z "$EXISTING" ]; then
-            gh issue create --title "$ISSUE_TITLE" --body "$BODY"
-          elif gh issue view "$EXISTING" --json body,comments --jq '[.body] + [.comments[].body] | join("\n")' | grep -qF "$SHA"; then
-            echo "Commit $SHA already reported on issue #$EXISTING."
-          else
-            gh issue comment "$EXISTING" --body "Still failing. $BODY"
-          fi
-
-      - name: Close the production issue
-        if: ${{ success() }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
-          if [ -n "$EXISTING" ]; then
-            gh issue close "$EXISTING" --comment "Production verified healthy at ${{ github.event.deployment.sha }}."
-          fi
-
-  deep-link:
-    name: Deep link on the deployed bundle
-    # WHAT CURL CANNOT ASK. The two checks above prove production SERVES the right commit and
-    # that its pages answer. Neither can see what the app does with the URL once it runs, and
-    # that is where the agent road's last step lives: `noacg save` prints
-    # `<origin>/app#/graphic/<id>` and the app used to replace that address with `#/home` a
-    # second after the click - measured on production 2026-09-16 at 846 ms, while the spec that
-    # asserts the opposite passed on a dev server.
-    #
-    # It runs ANONYMOUSLY and writes nothing: playwright.production.config.ts admits only tests
-    # tagged `@production`, which is the whole reason this can run here at all - the configured
-    # suite's account belongs to a local Supabase stack, and no production credential exists in
-    # this repository or its secrets.
-    #
-    # A failure here is a red run on the commit and nothing more. The rolling issue beside it
-    # says "Production is not running the latest main commit", which this is not: the deployment
-    # took, and the app it deployed is wrong.
-    if: >-
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'deployment_status' &&
-       github.event.deployment_status.state == 'success' &&
-       github.event.deployment_status.environment == 'Production' &&
-       (github.event.deployment_status.creator.login == 'vercel[bot]' ||
-        github.event.deployment_status.environment_url != ''))
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
-      - uses: ./.github/actions/node-modules
-
-      - uses: ./.github/actions/playwright-chromium
-
-      # PRODUCTION_URL is the workflow-level env above, which is what the config reads.
-      - name: Open the printed link on the deployed app
-        run: npm run test:e2e:production
-
-  drift:
-    name: Drift check (live vs main)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/build-player-host.mjs
+      - run: mkdir -p .noacg/results && sha256sum e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts e2e/leave-third-checker.spec.ts e2e/leave-fourth-checker.spec.ts e2e/leave-fifth-checker.spec.ts e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts e2e/leave-sixth-checker.spec.ts e2e/leave-fifth-b1-bounded.spec.ts $(ls e2e/leave-seventh-checker.spec.ts e2e/leave-eighth-checker.spec.ts e2e/configured/leave-eighth-device.spec.ts 2>/dev/null) | tee .noacg/results/spec-hashes.txt && git rev-parse HEAD | tee .noacg/results/head.txt
+      - name: Unchanged original independent assertions (leave-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/original.json }
+        run: $PW e2e/leave-checker.spec.ts --output=.noacg/results/original
+      - name: Unchanged second-checker assertions (leave-second-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/second.json }
+        run: $PW e2e/leave-second-checker.spec.ts --output=.noacg/results/second
+      - name: Unchanged third-checker challenges (leave-third-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/third.json }
+        run: $PW e2e/leave-third-checker.spec.ts --output=.noacg/results/third
+      - name: The once-intermittent :24 repeated (regression only; the race proof is fault-injected)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat24.json }
+        run: $PW e2e/leave-checker.spec.ts:24 --repeat-each=20 --output=.noacg/results/repeat24
+      - name: Unchanged fourth-checker challenges (leave-fourth-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fourth.json }
+        run: $PW e2e/leave-fourth-checker.spec.ts --output=.noacg/results/fourth
+      - name: Carried fourth :228 repeated (frequency only; the diagnosis is the logged copy)
+        if: always() && inputs.scope == 'diag'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat228.json }
+        run: $PW e2e/leave-fourth-checker.spec.ts:228 --repeat-each=12 --output=.noacg/results/repeat228
+      - name: Carried fourth :228 repeated 20 times on the repair (#1386)
+        if: always() && inputs.scope == 'repeat228'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat228x20.json }
+        run: $PW e2e/leave-fourth-checker.spec.ts:228 --repeat-each=20 --output=.noacg/results/repeat228x20
+      - name: The repair's save-transaction matrix
+        if: always() && inputs.scope == 'matrix'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/matrix.json }
+        run: $PW e2e/save-transaction.spec.ts --output=.noacg/results/matrix
+      - name: Logged copy of :228
+        if: always() && inputs.scope == 'diag'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/diag.json }
+        run: $PW e2e/leave-fifth-diag.spec.ts --repeat-each=12 --output=.noacg/results/diag
+      - name: Fifth checker write-ordering cases
+        if: always() && (inputs.scope == 'fifth' || inputs.scope == 'mutation')
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fifth.json }
+        run: $PW e2e/leave-fifth-checker.spec.ts --output=.noacg/results/fifth
+      - name: Fifth B1 with only its unbounded storage-alert read bounded
+        if: always() && inputs.scope == 'fifth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fifth-b1-bounded.json }
+        run: $PW e2e/leave-fifth-b1-bounded.spec.ts --grep "fifth B1" --output=.noacg/results/fifth-b1-bounded
+      - name: Sixth checker challenges
+        if: always() && inputs.scope == 'sixth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/sixth.json }
+        run: $PW e2e/leave-sixth-checker.spec.ts --output=.noacg/results/sixth
+      - name: Seventh checker challenges
+        if: always() && inputs.scope == 'seventh'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/seventh.json }
+        run: $PW e2e/leave-seventh-checker.spec.ts --output=.noacg/results/seventh
+      - name: Eighth checker challenges
+        if: always() && inputs.scope == 'eighth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/eighth.json }
+        run: $PW e2e/leave-eighth-checker.spec.ts --output=.noacg/results/eighth
+      - name: Maintained lifecycle and preserved regressions
+        if: always() && inputs.scope == 'maintained'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/maintained.json }
+        run: $PW e2e/new-graphic-guard.spec.ts e2e/library.spec.ts e2e/wizard-draft-guard.spec.ts e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts e2e/editor-commands.spec.ts e2e/project.spec.ts e2e/route-transition-flash.spec.ts --output=.noacg/results/maintained
+      - name: Two sequential exported graphics
+        if: always() && inputs.scope == 'maintained'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/export.json }
+        run: $PW e2e/ograf-conformance.spec.ts --grep 'two DIFFERENT' --output=.noacg/results/export
+      - name: Fetch pinned references
+        if: always() && (inputs.scope == 'references')
+        run: |
+          mkdir -p .noacg
+          curl -fL https://github.com/zerodensity/ograf-studio/releases/download/v0.17/OGrafStudioServer-linux-x64 -o .noacg/studio-server
+          echo '9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681  .noacg/studio-server' | sha256sum -c -
+          chmod +x .noacg/studio-server
+          git clone https://github.com/Eyevinn/ograf-editor.git .noacg/reference-eyevinn
+          git -C .noacg/reference-eyevinn checkout 616841bd949e3a21137579451123f66c292543f0
+          npm ci --prefix .noacg/reference-eyevinn
+      - name: Hash pinned reference sources
+        if: always() && (inputs.scope == 'references')
+        run: |
+          git clone -q https://github.com/zerodensity/ograf-studio.git .noacg/reference-studio
+          mkdir -p .noacg/results/source
+          python3 - <<'PY'
+          import hashlib, json, subprocess
+          studio = ['apps/editor/src/panels/Menubar.tsx','apps/editor/src/state/fileIO.ts','apps/editor/src/state/fileIO.test.ts','apps/editor/src/state/projectStore.ts','apps/editor/src/state/projectStore.test.ts','apps/editor/src/state/projectTimelineSync.test.ts','apps/editor/src/state/useAutosave.ts','apps/editor/src/canvas/Stage.tsx','apps/editor/src/canvas/LayerNode.tsx','apps/editor/src/state/historyStore.ts']
+          eyevinn = ['src/main.js','src/services/TemplateManager.js','src/models/OGrafTemplate.js','src/components/VisualEditor.js','src/components/PropertyPanel.js','test/bugfix-model-io.test.js','test/ograf-lifecycle.test.js']
+          def show(repo, ref, path):
+              r = subprocess.run(['git','-C',repo,'show',f'{ref}:{path}'], capture_output=True)
+              if r.returncode: return None
+              blob = subprocess.run(['git','-C',repo,'rev-parse',f'{ref}:{path}'], capture_output=True, text=True).stdout.strip()
+              return blob, hashlib.sha256(r.stdout).hexdigest()
+          out = []
+          for p in studio:
+              a = show('.noacg/reference-studio','3142fc7d02934494931eb14e7dc255393e4110d0',p); b = show('.noacg/reference-studio','a1e9776120fa19d9f3f9d40ab4b10ae1be034347',p)
+              out.append({'repository':'zerodensity/ograf-studio','pin':'3142fc7d02934494931eb14e7dc255393e4110d0','release':'a1e9776120fa19d9f3f9d40ab4b10ae1be034347','path':p,'blob':a and a[0],'sha256':a and a[1],'releaseIdentical':bool(a and a==b)})
+          for p in eyevinn:
+              a = show('.noacg/reference-eyevinn','616841bd949e3a21137579451123f66c292543f0',p)
+              out.append({'repository':'Eyevinn/ograf-editor','pin':'616841bd949e3a21137579451123f66c292543f0','path':p,'blob':a and a[0],'sha256':a and a[1]})
+          json.dump(out, open('.noacg/results/source/reference.json','w'), indent=2)
+          print(json.dumps(out, indent=1))
+          PY
+          sha256sum .noacg/studio-server | tee .noacg/results/source/studio-binary.sha256
+      - name: Execute pinned lifecycle tasks
+        if: always() && (inputs.scope == 'references')
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/references.json
+          REFERENCE_EXE: ${{ github.workspace }}/.noacg/studio-server
+        run: xvfb-run -a $PW e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts --output=.noacg/results/references
+      - name: Cumulative interaction and native zoom
+        if: always() && inputs.scope == 'visual'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/cumulative.json }
+        run: xvfb-run -a $PW e2e/interaction-probe-task.spec.ts e2e/interaction-checker-nested.spec.ts --output=.noacg/results/cumulative
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          fetch-depth: 0
-
-      - name: Compare the live commit against matured main
-        run: |
-          # "Matured" = the newest main commit older than 90 minutes, so a deploy still in
-          # flight is never called drift.
-          MATURED="$(git rev-list -1 --before='90 minutes ago' origin/main || git rev-list -1 --before='90 minutes ago' HEAD)"
-          if [ -z "$MATURED" ]; then echo "No matured commit yet."; exit 0; fi
-          # Not every main commit gets a production build: scripts/vercel-ignore-build.mjs skips
-          # the ones that cannot change the artifact (docs, contracts, tooling, tests). Production
-          # is therefore expected to serve the newest DEPLOY-AFFECTING commit, not the newest one.
-          # Both sides read the same list, scripts/deploy-affecting-paths.mjs, so they cannot
-          # disagree about which commits those are.
-          if DEPLOYABLE="$(node scripts/deploy-affecting-paths.mjs --last-affecting "$MATURED")"; then
-            if [ "$DEPLOYABLE" != "$MATURED" ]; then
-              echo "Matured main ($MATURED) is not deploy-affecting; production is expected to serve $DEPLOYABLE."
-            fi
-            MATURED="$DEPLOYABLE"
-          else
-            echo "No deploy-affecting commit within reach of $MATURED - nothing to compare."
-            exit 0
-          fi
-          # Only meaningful once the version marker exists on that commit.
-          if ! git cat-file -e "$MATURED:scripts/write-version.mjs" 2>/dev/null; then
-            echo "Matured main predates the version marker - nothing to compare yet."
-            exit 0
-          fi
-          LIVE_SHA="$(curl -sf "$PRODUCTION_URL/version.json" | jq -r '.commit // empty' || true)"
-          if [ -z "$LIVE_SHA" ]; then
-            echo "::error title=Production drift::$PRODUCTION_URL/version.json does not answer, so the live version is unknown while main has deployable commits."
-            exit 1
-          fi
-          if git cat-file -e "$LIVE_SHA" 2>/dev/null && git merge-base --is-ancestor "$MATURED" "$LIVE_SHA"; then
-            echo "Production serves $LIVE_SHA, which contains matured main ($MATURED). No drift."
-            exit 0
-          fi
-          echo "::error title=Production drift::Production serves ${LIVE_SHA}, but main reached ${MATURED} over 90 minutes ago and no deployment carried it live. Check Vercel: https://vercel.com/noacg/noacg-studio"
-          exit 1
-
-      - name: File / update the production issue
-        if: ${{ failure() }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          # The same commit the check above compared against - the newest deploy-affecting one, not
-          # simply the newest, or the issue would name a commit that was never meant to deploy.
-          MATURED="$(git rev-list -1 --before='90 minutes ago' origin/main)"
-          SHA="$(node scripts/deploy-affecting-paths.mjs --last-affecting "$MATURED" || echo "$MATURED")"
-          BODY="Drift: production has not picked up main commit ${SHA} - run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
-          if [ -z "$EXISTING" ]; then
-            gh issue create --title "$ISSUE_TITLE" --body "$BODY"
-          elif gh issue view "$EXISTING" --json body,comments --jq '[.body] + [.comments[].body] | join("\n")' | grep -qF "$SHA"; then
-            echo "Commit $SHA already reported on issue #$EXISTING."
-          else
-            gh issue comment "$EXISTING" --body "Still drifting. $BODY"
-          fi
-
-      - name: Close the production issue
-        if: ${{ success() }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
-          if [ -n "$EXISTING" ]; then
-            gh issue close "$EXISTING" --comment "Drift check clean - production is current with main again."
-          fi
+          name: leave-receipts-${{ inputs.scope }}
+          include-hidden-files: true
+          path: .noacg/results
