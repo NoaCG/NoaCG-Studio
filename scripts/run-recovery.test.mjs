@@ -210,6 +210,11 @@ test('unknown policy remains null in durable storage and cannot unlock dispatch'
   const f = fixture(t), packet = structuredClone(docFor(f.db).packet);
   packet.recovery.native.policySha256 = null;
   updateRun(f.db, f.manifest.id, 'checkpoint', packet);
+  const calls = [];
+  assert.equal((await tickRun(f.db, f.manifest.id, { invoke: async (_, request) => {
+    calls.push(request.operation); return request.operation === 'inspect' ? { state: 'gone' } : { state: 'delivered', workerId: 'must-not-launch' };
+  } })).verdict, 'unknown');
+  assert.deepEqual(calls, []);
   const restored = f.restore(), doc = docFor(restored.db);
   assert.equal(doc.packet.recovery.native.policySha256, null);
   assert.equal(restoredObservation(doc, receipt(doc, f.now), f.now), false);
@@ -265,5 +270,16 @@ test('separate and multiple effective push destinations are rejected before any 
       git(source, 'config', '--add', 'remote.origin.pushurl', forkUrl);
     }), /effective.*destination/);
     assert.equal(git(fork, 'for-each-ref', '--format=%(refname)', 'refs/heads/noacg-recovery/'), '');
+  }
+});
+
+test('a missing replacement adapter cannot create files or claim a new remote generation', (t) => {
+  const f = fixture(t), ref = `refs/heads/noacg-recovery/${f.manifest.id}`;
+  const before = git(f.remote, 'rev-parse', ref);
+  for (const field of ['command', 'cwd']) {
+    const db = f.open(`invalid-${field}.sqlite`), worktree = path.join(f.root, `invalid-${field}`);
+    assert.throws(() => restoreRun(db, { ...f.manifest.recovery, id: f.manifest.id, worktree,
+      wave: `${worktree}.md`, adapter: { ...f.manifest.adapter, [field]: path.join(f.root, 'does-not-exist') } }, f.now));
+    assert.equal(git(f.remote, 'rev-parse', ref), before); assert.equal(existsSync(worktree), false);
   }
 });

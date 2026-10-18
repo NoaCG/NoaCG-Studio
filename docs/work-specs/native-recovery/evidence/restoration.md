@@ -99,7 +99,9 @@ ordinary bootstrap checkout, then supplies a local configuration:
 ```
 
 The adapter is explicitly selected on the current host; recovered paths or command
-text are never executed automatically. `restore` rebuilds without ticking. `resume`
+text are never executed automatically. Its executable and working directory must
+exist, resolve canonically and be executable/searchable before fetch or a new
+recovery generation is published. `restore` rebuilds without ticking. `resume`
 restores an empty store automatically, or continues the matching existing run:
 
 ```sh
@@ -139,11 +141,16 @@ builder. Automated review then found adapter-argument exposure and missing commi
 identity on fresh hosts; both were reproduced before omitting adapter configuration
 and setting a machine identity per commit command. A subsequent review reproduced
 publication to a different `pushurl`; checking all effective fetch/push destinations
-now rejects that configuration before export. The first source CI build
+now rejects that configuration before export. A fourth automated finding reproduced
+a missing replacement adapter claiming a new generation; adapter path/access checks
+now precede restoration. An additional inline regression proved unknown policy could
+dispatch on initial registration; every durable tick now parks incomplete native
+bindings, including before the first restoration. Both cases failed before fixing.
+The first source CI build
 `39153528551` failed ESLint on an empty cleanup catch in the new test. Its complete
 19,623-line job log was fetched and inspected; adding the cleanup explanation fixed
 that source defect. This is one CI repair, not a same-commit fail-then-pass.
-Final verification passed nine changed-path checks and all 54 selected tests
+Final verification passed nine changed-path checks and all 55 selected tests
 in five files, plus targeted ESLint and `git diff --check`. Contract regeneration changed no generated
 files. No product, bundle or browser inputs changed, so no production build or
 browser run was needed. Initial subprocess execution was refused by the command

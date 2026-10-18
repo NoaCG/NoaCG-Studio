@@ -1,7 +1,7 @@
 // Git-backed checkpoints for run-supervisor. No scheduler or native launcher lives here.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
 
@@ -20,6 +20,10 @@ export const recoveryGit = (cwd, args, input) => execFileSync('git', args, {
   windowsHide: true,
 }).trimEnd();
 const transports = new WeakMap();
+const canonicalPath = (file) => {
+  const resolved = realpathSync(file);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+};
 const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
   return `refs/heads/noacg-recovery/${id}`;
@@ -147,6 +151,12 @@ export function restoreRun(db, config, now = Date.now()) {
       || !path.isAbsolute(config.adapter?.command ?? '') || !path.isAbsolute(config.adapter?.cwd ?? '')
       || !Array.isArray(config.adapter.args) || config.adapter.args.some((s) => typeof s !== 'string')
       || /\.(?:cmd|bat|ps1)$/i.test(config.adapter.command)) throw new Error('Restore needs absolute worktree/ledger paths and an explicit local adapter');
+  const adapter = { ...config.adapter, command: realpathSync(config.adapter.command), cwd: realpathSync(config.adapter.cwd) };
+  if (!statSync(adapter.command).isFile() || !statSync(adapter.cwd).isDirectory()
+      || /\.(?:cmd|bat|ps1)$/i.test(adapter.command)) throw new Error('Replacement adapter needs an executable file and working directory');
+  accessSync(adapter.command, constants.X_OK);
+  accessSync(adapter.cwd, constants.X_OK);
+  config = { ...config, adapter };
   if (db.prepare('SELECT id FROM runs').get()) throw new Error('Restore requires an empty run store; never replace another owner');
   const ref = refFor(config.id);
   git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
@@ -170,7 +180,7 @@ export function restoreRun(db, config, now = Date.now()) {
     writeFileSync(journal, prepared, { flag: 'wx', mode: 0o600 });
   }
   if (existsSync(config.worktree)) {
-    if (git(config.worktree, ['rev-parse', '--show-toplevel']) !== path.resolve(config.worktree)
+    if (canonicalPath(git(config.worktree, ['rev-parse', '--show-toplevel'])) !== canonicalPath(config.worktree)
         || git(config.worktree, ['rev-parse', 'HEAD']) !== r.revision || git(config.worktree, ['status', '--porcelain'])) throw new Error('Prepared worktree changed; preserve it and reconcile');
   } else git(config.repository, ['worktree', 'add', '--detach', config.worktree, r.revision]);
   if (existsSync(config.wave)) {

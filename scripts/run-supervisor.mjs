@@ -212,6 +212,9 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     // The CAS publication invalidates a prior host's next checkpoint; it is not a native lock.
     if (manifest.recovery) {
       publishRun(db, id);
+      if (['sessionId', 'environmentId', 'policySha256'].some((key) => !required(doc.packet.recovery.native[key]))) {
+        return result('unknown', 'native identity or effective policy is unavailable');
+      }
       if (doc.restoration && !doc.restoration.reconciled) {
         const receipt = await ask('restore');
         if (!restoredObservation(doc, receipt, now())) return result('unknown', 'restored native/GitHub state needs exact reconciliation');
