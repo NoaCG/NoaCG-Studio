@@ -1,4 +1,5 @@
 // covers: src/{assets/svgImport.ts,templates/importedDesign/**}
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 //
 // THE WORKED ILLUSTRATOR EXAMPLE. docs/SVG_AUTHORING.md section 6b is written around this one
 // file, and the spec walks it through the real import wizard - so a change to the sample, or to

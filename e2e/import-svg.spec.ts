@@ -1,4 +1,5 @@
 // covers: src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/export/registry.ts
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // The behaviour binding table and the recipes it is compiled from (docs/SVG_BEHAVIOUR_PLAN.md):

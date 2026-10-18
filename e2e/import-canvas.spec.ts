@@ -1,4 +1,5 @@
 // covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
+// covers: src/blocks/designLayout.ts, src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 // covers: src/assets/**
 //
 // The Import Graphic flow's Prepare and Text steps are driven from the wizard; mapped from

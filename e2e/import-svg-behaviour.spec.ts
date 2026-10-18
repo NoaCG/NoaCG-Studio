@@ -1,4 +1,5 @@
 // covers: src/control/**, src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/export/showExport.ts, src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // The two walks that drive a CasparCG package's own operator page live with the imported

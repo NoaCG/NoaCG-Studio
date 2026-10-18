@@ -1,4 +1,5 @@
 // covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page } from '@playwright/test';

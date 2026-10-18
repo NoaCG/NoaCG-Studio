@@ -1,4 +1,5 @@
 // covers: src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // The motion picker matches no directory rule, so every surface that MOUNTS it names it here;
