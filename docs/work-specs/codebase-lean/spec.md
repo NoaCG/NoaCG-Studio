@@ -1,8 +1,8 @@
 # Make the codebase lean, starting with the retired editor
 
-Status: **approved and running. The seven-file old-shell deletion landed in PR #1410; the
-timeline, canvas and preview group is this branch; admin retirement merged and deployed in
-PR #1396. The CI capacity follow-up (#1405) closed with PR #1409.**
+Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
+through singles-i have landed. The approved panels group is this branch; live-gap checks,
+obsolete helpers and VERIFICATION docs remain before #800 closes, with step 6 last.**
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
 `3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
@@ -753,6 +753,44 @@ configured/_helpers.createGraphic, which calls finishIntoEditor and skips. They 
 to the disposition evidence as live gaps. The pinned original inventory is preserved as
 history; the current remaining count includes these two cases. No test body changed for
 this receipt correction, so the final 60-pass selection still covers the reviewed source.
+
+### Phase 1 receipt: the exclusive panels and notice pair
+
+On main `76afb8cb6` (2026-10-18), the seven remaining exclusive panels have no entry-point
+consumer: AIPromptPanel, ControlPanel, ExportPanel, SampleDataPanel, StylePanel, SpxFieldRow
+and showchat/ModerationPanel. SpxFieldRow is imported only by the two removed panels;
+ModerationPanel only by ControlPanel. The system-notice bar has no mount and its reader has
+no other consumer after admin retirement. Repository-wide name, import and dynamic-loader
+scans found no live caller outside that deletion set. These nine files remove 1,396 physical
+source lines: 1,324 src TS/TSX files / 290,280 lines become 1,315 files / 288,884 lines.
+No bundle or browser-time saving is claimed for already unreachable source.
+
+Why: unmounted UI and its instructions obscure the live surfaces. Goal: delete only those
+exclusive adapters and correct their covers/instruction references. Non-goals: no stored
+shape, database/RPC, account enforcement, runtime block, shared controller, CSS or test-body
+change. AssetsPanel, InsertTemplateDialog, liveData, machineEdit, lottieInsert, FieldControl,
+ExportSurface and the video code editor stay. The kept Sheet and insertion cases still need
+current reachable UI; panel deletion is not feature retirement.
+
+Acceptance: no current import or registry resolves any deleted file; the existing retired
+editor guard and current control-page checks pass; saved-data readers and live output/export
+paths remain; every active instruction names an existing surface. Nine covers headers drop
+only the deleted panel paths, all case bodies stay. The export props invariant keeps its
+ExportSurface scope and unchanged text; the retired-name gate records the removed mechanism.
+Four obsolete per-file copy rows are removed without changing any retained count. Current
+remaining live gaps stay twenty, including the nine explicitly handed-over editor cases.
+
+Verification: queue job `j-4610` passed all 19 cases in no-old-editor, control-panel-types
+and assets in 36.6 seconds, with no skips. ESLint passed on the nine changed spec headers;
+tsc --noEmit passed; dependency-cruiser found no violation across 1,334 modules and 6,108
+edges. All 92 affected-planner tests passed. Changed gates passed their contract, instruction,
+copy, dependency-boundary metadata and 17 selected Node checks. A direct comparison proves
+all nine changed spec imports/bodies identical to main and all retained copy counts unchanged.
+Review corrected the new retirement pattern's collision with live controlpanel.html names
+and updated the export guide to name its actual props consumer and all three operator-page
+targets. Simplification kept this to deletion and reference repair. No local full suite or
+app production build ran: these files had no entry-point consumer, and Actions supplies the
+authoritative bundle and broader checks.
 
 ### Remaining order and the #800 exit condition
 

@@ -1,7 +1,7 @@
 // covers: src/templates/**, src/components/{home,save}/**, src/components/NewGraphicButton.tsx
 //
 // This spec draws a production page's cue editor, whose every box is a field control.
-// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{fields/**,HostedControlPage.tsx}
 //
 // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
 // already mapped elsewhere for their own reasons - SettingsDialog to analytics/auth, ProductionPage
