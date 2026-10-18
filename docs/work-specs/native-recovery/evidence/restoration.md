@@ -49,6 +49,9 @@ so uncommitted work is never silently described as recoverable. The first checkp
 checks the source branch on the remote and verifies evidence bytes from the pinned
 commit. Recovery commits retain the source revision as a parent, preserving it even
 after its feature branch is deleted. Only `checkpoint.json` appears in their trees.
+The original adapter executable/arguments/cwd are omitted from the durable document;
+they remain local and are replaced explicitly at restoration. Generated commits use
+a fixed NoaCG Recovery author/committer identity without changing host Git settings.
 The dedicated `refs/heads/noacg-recovery/<run-id>` ref is state storage, never a
 product landing branch; product changes still use `/check` → `/queue-merge`.
 
@@ -124,13 +127,20 @@ the user or inventing permission to replay.
 ## Verification and limits
 
 `/check` reviewed these five changed paths against merge base
-`2c36ba0be224d464938538428d02b8b77c56b5b9`. Review ran inline and fixed three
+`2c36ba0be224d464938538428d02b8b77c56b5b9`, then reconciled with current main
+`f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` before the final check. Review ran inline and fixed three
 issues: preserving a restored native permission wait, waiting before the original
 authorization start on a replacement clock, and invalidating an in-flight local
 tick when a phase record changes. The permission-wait regression failed before
 the correction. Simplification ran inline and reused a single delivery-packet
-builder. Verification passed nine changed-path checks and all 44 selected tests
-in four files, plus `git diff --check`. Contract regeneration changed no generated
+builder. Automated review then found adapter-argument exposure and missing commit
+identity on fresh hosts; both were reproduced before omitting adapter configuration
+and setting a machine identity per commit command. The first source CI build
+`39153528551` failed ESLint on an empty cleanup catch in the new test. Its complete
+19,623-line job log was fetched and inspected; adding the cleanup explanation fixed
+that source defect. This is one CI repair, not a same-commit fail-then-pass.
+Final verification passed nine changed-path checks and all 53 selected tests
+in five files, plus targeted ESLint and `git diff --check`. Contract regeneration changed no generated
 files. No product, bundle or browser inputs changed, so no production build or
 browser run was needed. Initial subprocess execution was refused by the command
 sandbox; the supported per-command grant resolved it without source/test changes.

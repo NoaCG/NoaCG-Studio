@@ -9,9 +9,15 @@ const sha = (text) => createHash('sha256').update(text).digest('hex');
 const required = (s) => typeof s === 'string' && s.trim().length > 0;
 const revision = (s) => /^[a-f0-9]{40}$/.test(s ?? '');
 const runId = (s) => /^[a-zA-Z0-9_-]+$/.test(s ?? '');
+const COMMIT_IDENTITY = {
+  GIT_AUTHOR_NAME: 'NoaCG Recovery', GIT_AUTHOR_EMAIL: 'noacg-recovery@users.noreply.github.com',
+  GIT_COMMITTER_NAME: 'NoaCG Recovery', GIT_COMMITTER_EMAIL: 'noacg-recovery@users.noreply.github.com',
+};
 const git = (cwd, args, input) => execFileSync('git', args, {
   cwd, input, encoding: 'utf8', timeout: 30_000, maxBuffer: 2 * 1024 * 1024,
-  stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
+  stdio: ['pipe', 'pipe', 'pipe'],
+  ...(args[0] === 'commit-tree' ? { env: { ...process.env, ...COMMIT_IDENTITY } } : {}),
+  windowsHide: true,
 }).trimEnd();
 const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
@@ -98,7 +104,11 @@ export function publishRun(db, id) {
       || git(worktree, ['status', '--porcelain'])) throw new Error('Commit and push owned work before checkpointing; dirty files are not durable');
   const old = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha ?? '';
   verifySource(config, r, old);
-  const payload = JSON.stringify({ version: 1, doc, ledger });
+  // Adapter arguments may carry credentials. A replacement host supplies its own trusted
+  // adapter; keep the entire original executable configuration in the local store only.
+  const durableDoc = structuredClone(doc);
+  delete durableDoc.manifest.adapter;
+  const payload = JSON.stringify({ version: 1, doc: durableDoc, ledger });
   if (Buffer.byteLength(payload) > 256 * 1024) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
   const ref = refFor(id);
   if (old && git(config.repository, ['show', `${old}:checkpoint.json`]) === payload) {

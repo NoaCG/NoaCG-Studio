@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { devNull, tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { main, openStore, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
@@ -18,7 +18,7 @@ const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8',
 const docFor = (db) => JSON.parse(db.prepare('SELECT doc FROM runs').get().doc);
 const remoteUrl = 'https://github.com/NoaCG/recovery-test.git';
 
-function fixture(t) {
+function fixture(t, adapterArgs = ['-e', '']) {
   const root = mkdtempSync(path.join(tmpdir(), 'noacg-recovery-'));
   const remote = path.join(root, 'remote.git'), source = path.join(root, 'source');
   git(root, 'init', '--bare', remote);
@@ -39,7 +39,7 @@ function fixture(t) {
   const recovery = { repository: source, remote: 'origin', repositoryFullName: 'NoaCG/recovery-test' };
   const manifest = { version: 1, id: 'restoration-test', kind: 'plan', wave, recovery,
     authorization: { source: 'test authorization', scope: 'inert recovery test', permissionPolicy: 'test adapter only', startedAt, deadline },
-    adapter: { command: process.execPath, args: ['-e', ''], cwd: source },
+    adapter: { command: process.execPath, args: adapterArgs, cwd: source },
     packet: { objective: 'Restore owned work', acceptance: ['No duplicate dispatch'], phase: 1, tasks: [], decisions: [], constraints: [], files: [],
       workspace: { branch: 'codex/test', worktree: source }, commits: [revision], verification: [], blockers: [], evidence: ['evidence.md'], nextAction: 'Reconcile native and GitHub state',
       recovery: { branch: 'codex/test', revision,
@@ -61,7 +61,7 @@ function fixture(t) {
       adapter: { command: process.execPath, args: ['-e', ''], cwd: repository } };
     return { db: fresh, config, result: restoreRun(fresh, config, clock) };
   };
-  t.after(() => { for (const d of dbs) { try { d.close(); } catch {} } rmSync(root, { recursive: true, force: true }); });
+  t.after(() => { for (const d of dbs) { try { d.close(); } catch { /* The loss test may already have closed this handle. */ } } rmSync(root, { recursive: true, force: true }); });
   return { root, remote, source, manifest, db, now, restore, open };
 }
 
@@ -224,4 +224,22 @@ test('a durable phase update invalidates an already inspecting local tick before
     deliveries++; return { state: 'delivered', workerId: 'must-not-launch' };
   } });
   assert.equal(result.verdict, 'unknown'); assert.match(result.why, /Lease lost/); assert.equal(deliveries, 0);
+});
+
+test('durable checkpoints omit adapter configuration while preserving local credentials', (t) => {
+  const sentinel = 'private-adapter-argument-sentinel', f = fixture(t, ['--access-token', sentinel]);
+  const raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  assert.ok(!raw.includes(sentinel)); assert.equal(JSON.parse(raw).doc.manifest.adapter, undefined);
+  assert.deepEqual(docFor(f.db).manifest.adapter.args, ['--access-token', sentinel]);
+});
+
+test('recovery commits have a machine identity even when the host has none', (t) => {
+  const previousGlobal = process.env.GIT_CONFIG_GLOBAL;
+  process.env.GIT_CONFIG_GLOBAL = devNull;
+  t.after(() => { if (previousGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL; else process.env.GIT_CONFIG_GLOBAL = previousGlobal; });
+  const f = fixture(t);
+  git(f.source, 'config', '--unset', 'user.name'); git(f.source, 'config', '--unset', 'user.email');
+  updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'persist without host identity', until: null });
+  const identity = git(f.remote, 'show', '-s', '--format=%an <%ae> / %cn <%ce>', `refs/heads/noacg-recovery/${f.manifest.id}`);
+  assert.equal(identity, 'NoaCG Recovery <noacg-recovery@users.noreply.github.com> / NoaCG Recovery <noacg-recovery@users.noreply.github.com>');
 });
