@@ -1412,3 +1412,22 @@ All four main runs for #1492 are recorded in PR comment 6254920411: CI 391625310
 Post-landing 39162530873, Quarantine 39162530842 and configured-suite 39162530869 all
 succeeded on 4569b9622923e1ecc9c790c071ee27e263580324. Its repair ownership is complete.
 The helper phase still awaits j-4634, including the changed copied-data assertions.
+
+### Final helper/documentation verification (2026-10-18)
+
+j-4634 passed all 47 cases in productions, anim-engine, legacy-timeline and brand-editor,
+zero skips, in 1.2 minutes. The retained production case passed at line 40, including distinct
+copied field text and note, rendered preview, durable reload and the unchanged original cue.
+The owner explicitly authorized a temporary 3.3 GB local memory setting after the job waited
+for the default reserve. The existing operator environment setting was used only in the
+runner process; two workers and the five-minute cap stayed unchanged. The temporary runner
+was stopped after the successful result, and a fresh presence read confirmed the default
+3.5 GB reserve. No repository policy, assertion, check or validation limit was changed.
+
+The previously recorded current-main ESLint, TypeScript, five-spec protection and 14-file /
+152-test Node gate results cover the identical source. The public-service persistence case
+passed in full main CI, as recorded above. Review fixed seven issues, including partial
+coverage mappings, duplicate-data assertions and stale references; simplify retained the
+original live promises and current shared helpers. All three check legs are inline. The
+helper/documentation phase is now ready for its exact-tip stamp and queue-merge. No local
+full suite or production build was run; authoritative full checks remain in Actions.
