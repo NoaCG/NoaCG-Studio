@@ -6,16 +6,15 @@
 // credits row got past a local affected run and red-mained CI on 2026-08-26.
 // covers: src/templates/**
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
+import { finishIntoNewEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { lowerThirdPng } from './_png';
 import { chooseType, pickDesign } from './_browse';
-import JSZip from 'jszip';
-import { readFileSync } from 'node:fs';
 
-// Image support: the "Image" field type (SPX filelist), logo fields on credits / corner bug,
-// and the export folder structure ([TemplatesFolder]/your_project/index.html + images/...).
+// Image support: the logo fields on credits / corner bug, and the import door that shrinks an
+// oversized picture. (The Data panel's add-field row went with the old editor; the export
+// folder structure is editor-images's.)
 
 const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=',
@@ -23,7 +22,6 @@ const PNG_1PX = Buffer.from(
 );
 
 async function createFrom(page: Page, categoryName: string, variantName: string) {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -31,61 +29,54 @@ async function createFrom(page: Page, categoryName: string, variantName: string)
   await pickDesign(page, variantName);
 }
 
+/** Finish into the new editor: the walk's graphic becomes the working document. */
 async function create(page: Page) {
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await finishIntoNewEditor(page);
 }
 
-function frame(page: Page): FrameLocator {
-  return page.frameLocator('iframe.preview-frame');
-}
-
-/** Upload a png through the Data panel's image field control (by field label). */
-async function uploadImage(page: Page, fieldLabel: string, fileName: string, buffer: Buffer = PNG_1PX) {
-  await page.getByTestId('dock-tab-data').click();
-  const row = page.locator('.panel-body .field-row', { hasText: fieldLabel });
-  await row.locator('input[type="file"]').setInputFiles({
-    name: fileName,
-    mimeType: 'image/png',
-    buffer,
-  });
-  // Adding the asset recomposes the preview (debounced) — let the frame settle before
-  // sending an update, or the update lands in the document that is about to be replaced.
-  await awaitPreviewRebuild(page);
-}
-
-test('data panel: the add-field types are the broadcast set, and an unanswerable add is refused', async ({ page }) => {
-  await createFrom(page, 'Lower thirds', 'Hairline');
-  await create(page);
-  await page.getByTestId('dock-tab-data').click();
-  const addSection = page.locator('.panel-section', { hasText: 'Add a field' });
-  const select = addSection.locator('select');
-  await expect(select.locator('option')).toHaveText(['Text', 'Long text', 'Number', 'Image']);
-  // An Image field has nowhere to land on a catalog lower third (no placed-design slot),
-  // so the add is REFUSED with the reason - the old behavior appended a definition-only
-  // filelist no element answered, the silent on-air no-op (docs/GOALS_ARCHIVE.md "Student release" step 5).
-  await select.selectOption('filelist');
-  await addSection.getByRole('button', { name: '+ Add' }).click();
-  await expect(page.getByTestId('add-field-refused')).toContainText('no place for a Image field');
-  const html = await page.evaluate(async () => {
+/** The working graphic mounted the way playout composes it, fed the store's sample data: the
+ *  document whose <img> resolves the asset the field names (the composition inlines it). */
+async function mounted(page: Page): Promise<FrameLocator> {
+  const doc = await mountWorkingDocument(page);
+  const sample = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.html;
+    return useTemplateStore.getState().sampleData as Record<string, string>;
   });
-  expect(html).not.toContain('"ftype": "filelist"');
-});
+  await updateWorkingDocument(doc, sample);
+  return doc;
+}
+
+/** Upload a png through the image field's own door (by field label): the same two writes the
+ *  live field row makes (components/fields/SpxFieldRow.tsx), the asset shrunk at the door by
+ *  importImageFile and the field's value set to the asset's path. */
+async function uploadImage(page: Page, fieldLabel: string, fileName: string, buffer: Buffer = PNG_1PX) {
+  await page.evaluate(
+    async ([label, name, base64]) => {
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { importImageFile } = await import('/src/assets/imageImport.ts');
+      const { uniqueAssetPath } = await import('/src/assets/assetUtils.ts');
+      const s = useTemplateStore.getState();
+      const field = s.template.fields.find((f) => f.title === label);
+      if (!field) throw new Error(`no field titled ${label}`);
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const file = new File([bytes], name, { type: 'image/png' });
+      const path = uniqueAssetPath(file.name, s.template.assets);
+      s.addAsset({ path, data: (await importImageFile(file)).data });
+      useTemplateStore.getState().setSampleValue(field.field, path);
+    },
+    [fieldLabel, fileName, buffer.toString('base64')] as const,
+  );
+}
 
 test('end credits: uploading a logo through the Logo field puts it in the end block', async ({ page }) => {
   await createFrom(page, 'Credits', 'Classic Roll');
   await create(page);
   // Placeholder first — no logo picked yet.
-  await expect(frame(page).locator('.credits-end .credits-logo-slot')).toBeAttached();
+  await expect((await mounted(page)).locator('.credits-end .credits-logo-slot')).toBeAttached();
   await uploadImage(page, 'Logo', 'my_logo.png');
-  await page.locator('.panel-body').getByRole('button', { name: '⟳ Update' }).click();
-  const logo = frame(page).locator('.credits-end img.credits-logo');
+  const logo = (await mounted(page)).locator('.credits-end img.credits-logo');
   await expect(logo).toBeAttached();
-  // The preview shim resolves the relative path to the in-memory data URL.
+  // The composition resolves the relative path to the in-memory data URL.
   await expect
     .poll(async () => logo.evaluate((el) => (el as HTMLImageElement).src.slice(0, 5)))
     .toBe('data:');
@@ -165,34 +156,14 @@ test('an oversized logo is shrunk to the frame at the door, and a small one is l
 });
 
 test('corner bug: the logo field replaces the placeholder mark', async ({ page }) => {
-  await createFrom(page, 'corner logos', 'Glass Mark');
+  await createFrom(page, 'Bugs & corner logos', 'Glass Mark');
   await create(page);
-  await expect(frame(page).locator('.corner-bug-mark')).toBeVisible();
+  await expect((await mounted(page)).locator('.corner-bug-mark')).toBeVisible();
   await uploadImage(page, 'Logo', 'channel_mark.png');
-  await page.locator('.panel-body').getByRole('button', { name: '⟳ Update' }).click();
-  await expect(frame(page).locator('.corner-bug-media.has-image')).toBeAttached();
-  await expect(frame(page).locator('.corner-bug-mark')).toBeHidden();
+  const doc = await mounted(page);
+  await expect(doc.locator('.corner-bug-media.has-image')).toBeAttached();
+  await expect(doc.locator('.corner-bug-mark')).toBeHidden();
   await expect
-    .poll(async () => frame(page).locator('img.corner-bug-logo').evaluate((el) => (el as HTMLImageElement).src.slice(0, 5)))
+    .poll(async () => doc.locator('img.corner-bug-logo').evaluate((el) => (el as HTMLImageElement).src.slice(0, 5)))
     .toBe('data:');
-});
-
-test('export: the zip is [project]/[project].html with images under [project]/images/', async ({ page }) => {
-  await createFrom(page, 'Credits', 'Classic Roll');
-  await create(page);
-  await uploadImage(page, 'Logo', 'station_logo.png');
-  await page.getByTestId('dock-tab-export').click();
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: /Validate & download/ }).click(),
-  ]);
-  const zip = await JSZip.loadAsync(readFileSync(await download.path()));
-  const names = Object.keys(zip.files);
-  expect(names).toContain('classic_roll/classic_roll.html');
-  expect(names).toContain('classic_roll/images/station_logo.png');
-  expect(names).toContain('classic_roll/js/template.js');
-  expect(names).toContain('classic_roll/js/gsap.min.js');
-  // The image is a real binary, not a data URL dump.
-  const png = await zip.file('classic_roll/images/station_logo.png')!.async('nodebuffer');
-  expect(png.subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
 });
