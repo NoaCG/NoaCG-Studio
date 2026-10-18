@@ -45,7 +45,7 @@
 //                                                    is left for tuning and the rounds that fit, and
 //                                                    R recorded in the ledger for the wall to hold.
 //   node scripts/harness-bench.mjs --build <L#> --arms subscription --model <id> --effort <level>
-//                                  --briefs id,.. [--stage <round>] [--out <dir>] [--lanes <1-2>]
+//                                  --briefs id,.. [--stage <round>] [--out <dir>] [--lanes <1-3>]
 //                                                    SUBSCRIPTION. The harness ladder
 //                                                    (docs/work-specs/harness-ladder/spec.md, lib/
 //                                                    ladder.mjs): one `claude -p` per brief with this
@@ -54,7 +54,7 @@
 //                                                    L0 to L2 run nothing else; L3 and L4 spend credit
 //                                                    only inside what the ledger holds for them, and
 //                                                    no phase starts before the one before it closed.
-//                                                    --lanes 2 runs two sessions at once; one --out
+//                                                    --lanes 2 or 3 runs that many at once; one --out
 //                                                    per rung gathers its screen and its rest.
 //   node scripts/harness-bench.mjs --hold <L#> --kind exam|ceiling --cents <n> --by <L#> [--note "..."]
 //                                                    FREE. Hold money in the ledger for a later phase
@@ -523,7 +523,7 @@ async function build(phase) {
   // admitted against the whole run budget.
   if (!dry && arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
   const rungLanes = Number(value('lanes', '1'));
-  if (!Number.isInteger(rungLanes) || rungLanes < 1 || rungLanes > 2) fail('--lanes takes 1 or 2 subscription sessions at once');
+  if (!Number.isInteger(rungLanes) || rungLanes < 1 || rungLanes > 3) fail('--lanes takes 1 to 3 subscription sessions at once');
   if (rungLanes > 1 && arms.join() !== 'subscription') fail("--lanes is the subscription arm's alone: the credit arm runs one session at a time");
   if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
   for (const a of arms) if (!['managed-agents', 'claude-code', 'august', 'subscription'].includes(a)) fail(`unknown arm ${a}`);

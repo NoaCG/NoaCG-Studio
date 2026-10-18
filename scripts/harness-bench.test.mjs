@@ -1248,6 +1248,12 @@ test('a build runs each arm in its own lane, side by side, and a paused referenc
   assert.deepEqual(rungOrder.slice(0, 2), ['start a', 'start b'], 'two sessions of the rung at once');
   assert.ok(rungOrder.indexOf('start c') > rungOrder.indexOf('end a'), 'each lane one session at a time');
   assert.equal(rungDone.length, 4);
+  // --lanes 3: three sessions at once, the briefs still dealt in turn.
+  rungOrder.length = 0;
+  const threeLanes = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, i) => ({ id: `${id}.rung`, brief: { id }, arm: rungArm, lane: `subscription-${i % 3}` }));
+  await runCells({ cells: threeLanes, runDir: tmp(), cli: null, ledger: emptyLedger(), entry: ENTRY, api: { shape: null }, runId: 'rung3', lanes: true, cellRunner: rungRunner });
+  assert.deepEqual(rungOrder.slice(0, 3), ['start a', 'start b', 'start c'], 'three sessions of the rung at once');
+  assert.ok(rungOrder.indexOf('start d') > rungOrder.indexOf('end a'), 'each lane one session at a time');
 });
 
 test('a misplaced stress value is moved by hand, and both arms of its brief are captured again', async () => {
