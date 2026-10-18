@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // gate: build
-// guards: scripts/deploy-affecting-paths.mjs, scripts/vercel-ignore-build.mjs, package.json
+// guards: scripts/deploy-affecting-paths.mjs, scripts/vercel-ignore-build.mjs, .github/workflows/deploy-verify.yml, package.json
 //
 // The list in deploy-affecting-paths.mjs decides whether production gets rebuilt. A wrong entry
 // there does not fail anything: the build is skipped, every gate stays green, and production
@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   DEPLOY_AFFECTING_SCRIPTS,
@@ -20,8 +21,45 @@ import {
   affectsDeployment,
   anyAffectsDeployment,
   lastAffectingCommit,
+  maturedMainCommit,
   changedFiles,
 } from './deploy-affecting-paths.mjs';
+
+test('maturity ignores older side-branch merges while genuine stale production still fails', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'noacg-matured-main-'));
+  const git = (args, at) => execFileSync('git', args, { cwd: repo, encoding: 'utf8',
+    env: { ...process.env, ...(at ? { GIT_AUTHOR_DATE: at, GIT_COMMITTER_DATE: at } : {}) }, windowsHide: true }).trim();
+  const commit = (message, at) => { git(['add', '-A']); git(['commit', '-qm', message], at); return git(['rev-parse', 'HEAD']); };
+  try {
+    git(['init', '-q', '-b', 'main']);
+    git(['config', 'user.name', 'Drift test']); git(['config', 'user.email', 'drift@example.test']);
+    mkdirSync(join(repo, 'src')); mkdirSync(join(repo, 'docs'));
+    writeFileSync(join(repo, 'src/app.ts'), 'export const v = 1;\n');
+    const oldLive = commit('first production', '2026-10-18T09:00:00Z');
+    git(['checkout', '-qb', 'topic']);
+    writeFileSync(join(repo, 'docs/note.md'), 'tooling note\n');
+    commit('topic work', '2026-10-18T09:30:00Z');
+    git(['checkout', '-q', 'main']);
+    writeFileSync(join(repo, 'src/app.ts'), 'export const v = 2;\n');
+    const deployed = commit('second production', '2026-10-18T10:00:00Z');
+    git(['checkout', '-q', 'topic']);
+    git(['merge', '-q', '--no-ff', 'main', '-m', 'sync main into topic'], '2026-10-18T10:30:00Z');
+    const sideMerge = git(['rev-parse', 'HEAD']);
+    git(['checkout', '-q', 'main']);
+    git(['merge', '-q', '--no-ff', 'topic', '-m', 'land tooling only'], '2026-10-18T12:30:00Z');
+    const cutoff = '2026-10-18T11:00:00Z';
+    assert.equal(git(['rev-list', '-1', `--before=${cutoff}`, 'main']), sideMerge, 'reproduce the old workflow selection');
+    const matured = maturedMainCommit('main', repo, cutoff);
+    assert.equal(matured, deployed, 'only commits that were main tips can mature');
+    assert.equal(lastAffectingCommit(matured, repo), deployed, 'the currently deployed bundle is healthy');
+    assert.throws(() => git(['merge-base', '--is-ancestor', matured, oldLive]), 'a genuinely older live bundle remains drift');
+    assert.equal(lastAffectingCommit(maturedMainCommit('main', repo, '2026-10-18T12:45:00Z'), repo), deployed, 'docs-only landings remain skipped');
+    assert.equal(maturedMainCommit('main', repo, '2026-10-18T08:00:00Z'), null);
+    const cli = execFileSync(process.execPath, [fileURLToPath(new URL('./deploy-affecting-paths.mjs', import.meta.url)), '--matured-main', 'main', cutoff],
+      { cwd: repo, encoding: 'utf8', windowsHide: true }).trim();
+    assert.equal(cli, deployed);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
 
 test('everything the bundle is built from is deploy-affecting', () => {
   for (const file of [
