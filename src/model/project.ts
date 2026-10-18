@@ -11,6 +11,7 @@ import type { ProjectLegibility } from './designRules';
 import { durable } from './durableStore';
 import { uuid } from './id';
 import { graphicIdTaken } from './library';
+import { readDeviceIds, writeDeviceIds, type DeviceIdsRead } from './deviceIds';
 
 export interface SavedProject {
   id: string;
@@ -93,17 +94,23 @@ const SUPERSEDED_KEY = 'spx-gfx-superseded';
 /** A handful is enough: boot reads the slot's current reservation, or one a mint took moments
  *  before a refused link write. */
 const IDS_KEPT = 20;
-function deviceIds(key: string): string[] {
+/** A list's ids (model/deviceIds.ts owns the format). */
+function readList(key: string): DeviceIdsRead {
   try {
-    const ids: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
-    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+    return readDeviceIds(localStorage.getItem(key));
   } catch {
-    return [];
+    return { ids: [], writable: false };
   }
 }
+function deviceIds(key: string): string[] {
+  return readList(key).ids;
+}
 function rememberDeviceId(key: string, id: string): void {
+  const list = readList(key);
+  // A newer build's list stays as it wrote it; the id is then not recorded here.
+  if (!list.writable) return;
   try {
-    localStorage.setItem(key, JSON.stringify([id, ...deviceIds(key).filter((kept) => kept !== id)].slice(0, IDS_KEPT)));
+    localStorage.setItem(key, writeDeviceIds([id, ...list.ids.filter((kept) => kept !== id)].slice(0, IDS_KEPT)));
   } catch {
     // Not recorded: this device's reload treats its own reservation as another device's, so the
     // draft asks for a name rather than relinking (a second record at worst, nothing overwritten).
