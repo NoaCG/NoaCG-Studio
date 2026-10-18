@@ -1321,3 +1321,9 @@ counting and credits rows; three format cases and the readiness/catalog-line che
 explicit Node destinations. Current wizard, video code, history, offline, preview recovery,
 landing and hosted-control cases retain their live subjects. The G label records an original
 coverage gap, not a remaining skip; no row is silently reclassified as a covered removal.
+
+The final review also made the retained duplicate assertion meaningful for copied data: Ben
+now has distinct authored field text and a note before Duplicate. The copy must retain both
+in its controls and rendered preview, then after reload, while Anna's different values stay
+intact. The test observes accepted durable writes before reloading; no model write substitutes
+for a production action. The complete changed-file selection is rerun after this strengthening.

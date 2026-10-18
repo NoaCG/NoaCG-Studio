@@ -60,9 +60,9 @@ Now the gate says where it runs, in its own file, and the line never changes.
 every laptop are all good reasons. What is not fine is a gate outside the build AND outside CI,
 because that gate protects nothing while looking exactly like one that does.
 
-**Product logic can be unit-tested in Node, and 62 of the `scripts/*.test.mjs` files already do**
-(`scripts/editor-arrangement.test.mjs` imports `src/components/editorFoundation/arrangementGeometry.ts`
-through Node's type stripping; the others bundle with rolldown or sucrase). A durable check goes to
+**Pure product logic can be tested in Node.** For example,
+`scripts/editor-arrangement.test.mjs` bundles `src/blocks/arrangementGeometry.ts` with rolldown.
+A durable check goes to
 the cheapest layer that proves the behaviour: a Node test under `scripts/` for pure logic, a
 blank-page browser spec for DOM, canvas, fonts or layout, one journey spec per user-visible flow,
 the configured suite for backend-dependent behaviour, scheduled validation for exhaustive walks
@@ -617,7 +617,8 @@ It prints one of three verdicts, derived from the diff:
   gate below takes `--only <ids>`, and the catalog specs take `NOACG_ONLY_DESIGNS=<ids>` plus
   `NOACG_ONLY_CATEGORIES=<categories>`; the command list it prints already carries them. An id the
   catalog does not ship is REFUSED rather than quietly sweeping nothing - on the script side by
-  `scripts/catalog-scope.mjs`, on the spec side by `e2e/catalog/scope-guard.spec.ts`.
+  `scripts/catalog-scope.mjs`, and before specs start by `scripts/catalog-specs.mjs`. The
+  shared `e2e/_catalogScope.ts` reader consumes that validated environment scope.
 - **the whole catalog** - something shared changed. A category's `shared.ts`, a preset bank, the
   type registry, fonts, the theme tokens, `src/blocks/`, the `:root` contract, a gate script or a
   baseline: all of them reach every design, so all of them escalate. So does any file it cannot

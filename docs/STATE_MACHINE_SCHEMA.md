@@ -362,9 +362,9 @@ landing, and the styles pairing rule).
 | Former `MachineGraph.tsx` | Retired graph surface, recorded historically in §6a. |
 | `src/templates/shared/animRuntime.ts` | The emitted ES5 interpreter: the version-1 statements verbatim + the machine engine (queue, dispatch, timers, snap, introspection, `noacgStyleTimeline`) + `hasMachineRuntime` / `hasTransitionStyleRuntime` + the pairing-safe `writeAnimData`. |
 | `src/validation/validateTemplate.ts` | Semantic machine errors/warnings + the pairing-rule errors (machine, styles). |
-| `src/components/timeline/PlayoutSimulator.tsx` | `event` / `snap` commands, the event strip. |
-| `src/store/templateStore.ts` | `sendEvent` / `sendSnap`. |
+| `src/control/controlModel.ts` | Operator event and snap actions in the live playout model. |
+| `src/control/localReceiver.ts` + `src/control/hostedReceiver.ts` | Deliver events and snaps to the graphic runtime. |
 | `e2e/_machines.ts` + `e2e/state-machine.spec.ts` | The five acceptance criteria, hand-written. |
-| `e2e/machine-graph.spec.ts` | The node editor's acceptance walk (Phase 4). |
+| `e2e/machine-graph.spec.ts` | Retained pure-mutator and runtime checks after graph UI retirement. |
 
 `settings.steps` stays DERIVED, through one function: `animMachine.ts spxSteps(data)`.

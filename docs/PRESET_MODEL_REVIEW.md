@@ -2,9 +2,9 @@
 
 > **PARKED 2026-08-08 as a ROADMAP - superseded by `src/blocks/AGENTS.md` for the shipped
 > animation model.** It is NOT superseded as a RECORD: the numbered gaps are cited by name in
-> live code (`src/blocks/filterTrack.ts`, `src/blocks/animEdit.ts`, `src/model/structure.ts`,
-> `src/components/timeline/Inspector.tsx`, `src/components/timeline/StepTimeline.tsx`) as the rationale for what
-> was built. Read the gap numbers as history, not as a queue of work.
+> current model code (`src/blocks/filterTrack.ts`, `src/blocks/animEdit.ts`,
+> `src/model/structure.ts`) and the former editor (`Inspector.tsx`, `StepTimeline.tsx`) as the
+> rationale for what was built. Read the gap numbers as history, not as a queue of work.
 
 This answers three questions about the Timeline v2 animation model
 (`src/blocks/animData.ts` + `animEval.ts` + `animEdit.ts` + `presetApply.ts`, runtime in

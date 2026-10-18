@@ -74,6 +74,8 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await page.getByTestId('add-cue').click();
   await expect(cueRows).toHaveCount(2);
   await page.getByTestId('cue-label').fill('Ben Berg');
+  await page.getByTestId('cue-field-f0').fill('Ben Berg');
+  await page.getByTestId('cue-note').fill('after Anna');
 
   // Reorder: Ben moves above Anna; order is the rundown.
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
@@ -86,6 +88,11 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await page.getByRole('menuitem', { name: 'Duplicate' }).click();
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(1)).toContainText('Ben Berg copy');
+  await rows.nth(1).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-label')).toHaveValue('Ben Berg copy');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Ben Berg');
+  await expect(page.getByTestId('cue-note')).toHaveValue('after Anna');
+  await expect(preview.locator('#f0')).toHaveText('Ben Berg');
 
   // Offline, publishing says why it cannot run, but the VERBS still work, because what they
   // drive is the local program monitor right here (docs/PLAYOUT_DASHBOARD.md §6).
@@ -94,10 +101,14 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await expect(page.getByTestId('production-publish')).toHaveAttribute('title', /runs offline/);
 
   // The cue survives a reload (persisted on the Show record).
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
   await expect(rows.nth(1)).toContainText('Ben Berg copy');
+  await rows.nth(1).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Ben Berg');
+  await expect(page.getByTestId('cue-note')).toHaveValue('after Anna');
   await rows.filter({ has: page.locator('strong', { hasText: 'Anna Andersson' }) }).getByTestId('select-cue').click();
   await expect(page.getByTestId('cue-note')).toHaveValue('after the intro');
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Anna Andersson');
