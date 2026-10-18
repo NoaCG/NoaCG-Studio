@@ -28,7 +28,6 @@
 
 import { expect, test } from '@playwright/test';
 import { chooseType, pickDesign } from './_browse';
-import { enableAdvancedMode } from './_create';
 
 type Page = import('@playwright/test').Page;
 
@@ -97,7 +96,6 @@ test.describe('a brand mark that cannot be read is reported', () => {
     // THE BALLOT'S OWN PATH. Nothing here is generated: a person picks a design, uploads their
     // only version of the mark, and chooses a package - which is exactly how the DIY arm shipped
     // a lower third with an invisible logo and no warning of any kind.
-    await enableAdvancedMode(page);
     await page.goto('/app');
     await expect(page.locator('.wz-modal')).toBeVisible();
     await page.locator('[data-entry="template"]').click();

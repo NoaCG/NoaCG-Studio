@@ -37,7 +37,7 @@ const PRO_DIR = arg('pro') ? path.resolve(arg('pro')) : null;
  *  only decides what the "the six" filter shows first. */
 const HEADLINE = ['ls29', 'ls17', 'lt07', 'ls10', 'lt49', 'lt53'];
 
-const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 // ── The mark sweeps ───────────────────────────────────────────────────────────────────────
 const sweepFiles = (await readdir(EVIDENCE).catch(() => []))
@@ -283,7 +283,7 @@ re-rendered transparent.</p>
 
 const markLead = sweeps.length
   ? `<p class="lead"><strong>${designIds.length} mark-capable lower thirds</strong>, each rendered `
-    + `bare and then carrying ${sweeps.map((s) => s.mark).join(' and ')}. `
+    + `bare and then carrying ${sweeps.map((s) => esc(s.mark)).join(' and ')}. `
     + `A square and a portrait mark fail differently and the sweep only ever rendered the square one, `
     + `which is why two of these read clean for so long.</p>`
   : '';

@@ -659,9 +659,12 @@ test('a push that names main is a main push, in every spelling used here', () =>
   ]);
 });
 
-test('a push that names no branch, or HEAD, depends on what is checked out', () => {
-  // These push whichever branch the checkout has, so the guard has to ask git which that is.
+test('a push with an implicit destination needs local Git state', () => {
+  // The source branch alone does not settle the destination; upstream and push config matter.
   for (const cmd of [
+    'git push -u origin claude/x',
+    'git push origin claude/main-menu',
+    'git checkout -b claude/x main && git push -u origin claude/x',
     'git push',
     'git push origin',
     'git push -u origin',
@@ -688,11 +691,9 @@ test('a push that names no branch, or HEAD, depends on what is checked out', () 
 
 test('a push to another branch, a dry run, and a push as text are not main pushes', () => {
   for (const cmd of [
-    'git push -u origin claude/x',
     'git push origin HEAD:claude/x',
     'git push origin HEAD:refs/heads/claude/x',
     'git push origin main:claude/x',
-    'git push origin claude/main-menu',
     'git push origin --tags',
     'git push origin tag v1.2.0',
     'git push --dry-run origin main',
@@ -701,7 +702,6 @@ test('a push to another branch, a dry run, and a push as text are not main pushe
     'grep -rn "push origin main" docs/',
     'git log --oneline origin/main..HEAD',
     'git fetch origin main && git reset --hard origin/main',
-    'git checkout -b claude/x main && git push -u origin claude/x',
   ]) {
     assert.deepEqual(mainPushes(cmd), [], cmd);
   }
