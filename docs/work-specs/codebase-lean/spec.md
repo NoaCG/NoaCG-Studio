@@ -1402,3 +1402,13 @@ On that landed base, the final changed gates pass 14 Node files and 152 tests (t
 five changed specs pass. Comment-free syntax matches main in all eleven production modules.
 Review and simplify remain inline; final browser verification is still pending, so this
 checkpoint is not stamped or queued as a finished PR.
+
+The unchanged public-service persistence case passed in full main CI 39162531002, E2E
+12/15, at its current line 616. This directly verifies the retained al01/pi08/tk18 case;
+the unrelated-machine replacement is not used as proof. j-4635 was cancelled before it
+started to avoid repeating that unchanged check. It is not reported as a local pass.
+
+All four main runs for #1492 are recorded in PR comment 6254920411: CI 39162531002,
+Post-landing 39162530873, Quarantine 39162530842 and configured-suite 39162530869 all
+succeeded on 4569b9622923e1ecc9c790c071ee27e263580324. Its repair ownership is complete.
+The helper phase still awaits j-4634, including the changed copied-data assertions.
