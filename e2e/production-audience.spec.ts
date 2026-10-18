@@ -201,6 +201,7 @@ test('the vote reaches air the same way a question does: open, count, stage a cu
       const cue = loadShows()[0].cues?.find((c) => c.label.startsWith('Vote —'));
       return cue ? { label: cue.label, values: cue.values } : null;
     });
+  await expect.poll(async () => (await staged())?.values.f0).toBe('Who wins the derby?');
   const first = await staged();
   expect(first?.values.f0).toBe('Who wins the derby?');
   expect(first?.values.f1).toBe('The home side | 2\nThe visitors | 1\nA draw | 1');
@@ -217,6 +218,7 @@ test('the vote reaches air the same way a question does: open, count, stage a cu
   await audience.getByTestId('audience-simulate-votes').click();
   await expect(audience.getByTestId('audience-tally-0')).toHaveText('4', { timeout: 10_000 });
   await audience.getByTestId('audience-round-stage').click();
+  await expect.poll(async () => (await staged())?.values.f1).toBe('The home side | 4\nThe visitors | 2\nA draw | 2');
   expect(await cueCount()).toBe(1);
 
   // CLOSING finalises the same cue. Without this the board still said "voting open" beside its
@@ -230,6 +232,19 @@ test('the vote reaches air the same way a question does: open, count, stage a cu
   // would show the vote heading over an empty card.
   await expect(audience.getByTestId('audience-mode')).toHaveValue('question');
   await expect(audience.getByTestId('audience-mode')).toBeEnabled();
+
+  // Only the operator's Take puts the final tally on air.
+  await settleDurableWrites(audience);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  const final = await staged();
+  expect(final).not.toBeNull();
+  await page.locator('.pd-cue', { hasText: final!.label }).click();
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(program.locator('body')).toContainText('Who wins the derby?');
+  await expect(program.locator('body')).toContainText('The home side');
+  await expect(program.locator('body')).toContainText('8 votes');
+  await expect(program.locator('body')).toContainText('voting closed');
 });
 
 test('a vote with nowhere to go says so instead of writing a cue nobody can read', async ({ page }) => {
