@@ -85,7 +85,7 @@ export function writeWake(text, { host, session, resume }) {
   return `${text.slice(0, at)}Wake: ${host} ${session} ${resume}\n${text.slice(at + (match?.[0].length ?? 0))}`;
 }
 
-/** How far back a transcript is read for its last entry; one entry is far smaller. */
+/** How far back a transcript is read for its last turn; a turn under the usage limit is far smaller. */
 const TAIL_BYTES = 256 * 1024;
 
 /** The transcript of Claude Code session `id`, under any project folder, or null. */
@@ -98,12 +98,13 @@ function transcriptOf(id, projects = path.join(process.env.CLAUDE_CONFIG_DIR || 
   return null;
 }
 
-/** How long after its grace notice a coordinator is resumed when no reset is recorded. */
+/** How long after its grace notice a coordinator is resumed when no reset is recorded, and how that is said. */
 const GRACE_WAIT_MS = 60 * 60 * 1000;
+const GRACE_WAIT = 'an hour after the grace notice, which records no reset';
 
 /**
  * Did the conversation in this transcript text stop on the usage limit? Then `{ resetsAt }` (ms, or
- * null when nothing records it, plus `assumed` when it is the grace wait), otherwise null:
+ * null when nothing records it, plus `basis` when it is the grace wait), otherwise null:
  * - its last main-chain message is the harness's rate-limit error, which records the reset;
  * - or its last turn, the user entries sharing the latest `promptId`, holds the harness's grace
  *   notice (`usageLimitNote: 'wrap_up'`) with no `release` note after it. A later prompt (the
@@ -131,7 +132,7 @@ export function usageStopIn(text) {
   const at = Date.parse(note.timestamp);
   const recorded = resetOf(entries.findLast(limited));
   if (recorded > at || Number.isNaN(at)) return { resetsAt: recorded };
-  return { resetsAt: at + GRACE_WAIT_MS, assumed: true };
+  return { resetsAt: at + GRACE_WAIT_MS, basis: GRACE_WAIT };
 }
 
 /** `usageStopIn` for session `id`'s transcript, read from its tail; null (working) when it cannot be read. */
@@ -178,7 +179,8 @@ export function wakeVerdict({ text, inventory, now = Date.now(), stopped = usage
   if (working) return { verdict: 'alive', why: `session ${working} is running (pid ${index.bySession.get(working).pid})` };
   const resets = stops.map((stop) => stop.resetsAt);
   const until = resets.includes(null) ? null : Math.max(...resets);
-  const guess = stops.find((stop) => stop.resetsAt === until)?.assumed ? ' (an hour after the grace notice, which records no reset)' : '';
+  const basis = stops.find((stop) => stop.resetsAt === until)?.basis;
+  const guess = basis ? ` (${basis})` : '';
   if (until && until > now) {
     return { verdict: 'waiting', why: `session ${live.join(', ')} stopped on the usage limit, which resets at ${new Date(until).toISOString()}${guess}` };
   }

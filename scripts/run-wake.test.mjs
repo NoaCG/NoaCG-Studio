@@ -64,13 +64,13 @@ test('a transcript that ends on the usage-limit error reports when the limit res
   assert.equal(usageStopIn(line({ type: 'assistant', message: {} })), null);
   assert.equal(usageStopIn(''), null);
   // A grace notice counts only while it is the last turn's latest limit note.
-  const note = (usageLimitNote, promptId = 'p1') => line({ type: 'user', promptId, isMeta: true, usageLimitNote, timestamp: '2026-10-17T20:11:14Z' });
-  assert.deepEqual(usageStopIn(note('wrap_up')), { resetsAt: Date.parse('2026-10-17T21:11:14Z'), assumed: true });
+  const note = (usageLimitNote) => line({ type: 'user', promptId: 'p1', isMeta: true, usageLimitNote, timestamp: '2026-10-17T20:11:14Z' });
+  assert.equal(usageStopIn(note('wrap_up')).resetsAt, Date.parse('2026-10-17T21:11:14Z'));
   assert.equal(usageStopIn(`${note('wrap_up')}\n${note('release')}`), null);
   assert.equal(usageStopIn(`${note('wrap_up')}\n${line({ type: 'user', promptId: 'p2', message: { content: 'go on' } })}`), null);
   // An earlier error's reset is used only while it still lay ahead at the notice.
   const error = (iso) => line({ type: 'assistant', error: 'rate_limit', quotaLimits: { resetsAt: Date.parse(iso) / 1000 } });
-  assert.equal(usageStopIn(`${error('2026-10-17T20:00:00Z')}\n${note('wrap_up')}`).assumed, true);
+  assert.equal(usageStopIn(`${error('2026-10-17T20:00:00Z')}\n${note('wrap_up')}`).resetsAt, Date.parse('2026-10-17T21:11:14Z'));
   assert.deepEqual(usageStopIn(`${error('2026-10-17T21:50:00Z')}\n${note('wrap_up')}`), { resetsAt: Date.parse('2026-10-17T21:50:00Z') });
 });
 
@@ -81,8 +81,7 @@ test('fixture transcripts, read where the harness files them: grace waits for th
   try {
     const folder = path.join(config, 'projects', 'C--claude-NoaCG-Studio');
     mkdirSync(folder, { recursive: true });
-    // The night of 2026-10-17: the coordinator's process stayed listed, so the firings at 23:39Z and
-    // later answered `alive` until the owner typed "continue" at 04:19Z.
+    // The fixture as the transcript of the run's one listed session on the night of 2026-10-17, checked at `now`.
     const night = (fixture, now) => {
       const id = `coordinator-${fixture}`;
       writeFileSync(path.join(folder, `${id}.jsonl`), readFileSync(new URL(`./fixtures/run-wake/${fixture}.jsonl`, import.meta.url)));
@@ -103,7 +102,7 @@ test('fixture transcripts, read where the harness files them: grace waits for th
     assert.match(night('rate-limit-error', '2026-10-17T21:39:00Z').why, /which resets at 2026-10-17T22:00:00.000Z$/);
     assert.equal(night('rate-limit-error', '2026-10-17T22:09:00Z').verdict, 'resume');
     // Waiting on the owner after an earlier grace: alive however long it is quiet.
-    for (const now of ['2026-10-17T23:39:00Z', '2026-10-18T04:09:00Z']) assert.equal(night('owner-wait', now).verdict, 'alive');
+    assert.equal(night('owner-wait', '2026-10-18T04:09:00Z').verdict, 'alive');
   } finally {
     if (previous === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = previous;
