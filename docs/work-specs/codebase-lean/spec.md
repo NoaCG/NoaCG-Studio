@@ -528,6 +528,25 @@ workers (queue job `j-0057`): exports 1.0, template-pack-4 0.3, template-pack-10
 minutes are under Budget exceptions. Still skipping: the remaining 26 live-gap cases, in the
 pack and single-case families.
 
+### Phase 2 receipt: the third singles (flows, wizard-filters)
+
+The twentieth revival, on main `8b9ccedb3` (2026-10-18): five cases in two files. The flows cases
+walked the wizard into the retired advanced mode and read the old editor's panels; three run
+again on the created graphic: a Fields-step title flowing into the created field (read off the
+store after the Finish step's editor door, and renamed to say the graphic rather than the
+retired Data panel), steps mode holding line 2 behind its mask until next() on the working
+graphic mounted the way playout composes it, and the AI-step picture landing in Number Badge's
+logo slot through the import continuation's own footer and Finish's export door. Four flows
+cases went (listed under Test maintenance): the defaults create and the SPX download, which
+wizard-finish and exports pin, and the retired topbar Reset and Style panel. The wizard-filters
+brand cases seed the glass look off the design's own created template on the wizard's door
+instead of saving it from the old editor, then run as they were: the chosen brand ranking its
+family first without filtering, and a brand chosen after paging re-ranking in place. flows: 3
+cases, 3 passing; wizard-filters: every case passing; none skipped. Case-minutes locally on
+two workers (queue job `j-0058`): flows 0.2, wizard-filters 1.4. The files' minutes are under
+Budget exceptions. Still skipping: the remaining 21 live-gap cases, in the pack and single-case
+families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -682,6 +701,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/format.spec.ts`: 6 case(s) removed with the format revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "formatHtml / formatCss / formatJs normalize messy code" (covered: scripts/format-code.test.mjs 'formatHtml / formatCss / formatJs normalize messy code', the same inputs and assertions in Node.); "formatJs refuses any file that owns an animation region" (covered: scripts/format-code.test.mjs 'formatJs refuses any file that owns an animation region', the data-block and legacy fixtures as they were.); "formatTemplate formats HTML but leaves CSS and JS alone by default" (covered: scripts/format-code.test.mjs 'formatTemplate formats HTML but leaves CSS and JS alone by default', the same three strings; formatTemplate reads nothing else of its fixture.); "minimalTextChange returns only the changed span (cursor-stable, merge-friendly)" (retired UI: minimalTextChange served only the deleted Monaco code pane, which the Phase 1 receipt names orphaned by the CodeEditor deletion.); "the Format button reformats the active tab through Monaco and the store" (retired UI: `.format-btn` of the deleted CodeEditor toolbar, opened by showCode.); "the Format button is disabled on the JS tab of a data-block template (region protected)" (retired UI: the same deleted Format button and JS tab.)
 - 2026-10-18 `e2e/wave2.spec.ts`: 3 case(s) removed with the wave2 revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "scoreboard: all four fields bind and a score change lands" (covered: e2e/production-controls.spec.ts 398 'a scoreboard GOAL raises the flag AND moves that side's score on the same press' moves House Score's program #f1 0 to 1 to 2 on a live press; dashboard-operator-walk.spec.ts 80 lands typed and stepped score fields on program and preview.); "corner bug: plays with the placeholder mark" (covered: e2e/catalog-baseline.spec.ts 392 'every catalog variant renders identically' settles Glass Mark on air with its placeholder mark and 'LIVE' text, fingerprinted per element.); "quiz: options bind and Next reveals the correct answer" (covered: e2e/community-packs.spec.ts 29 'the shelf lists the seeded pub quiz, and Install opens a production whose graphic takes, reveals and goes out' marks .quiz-option-2 correct on verb-next and dims the rest, the shared quiz runtime; production-controls.spec.ts 129 judges Arena Quiz.)
 - 2026-10-18 `e2e/ux.spec.ts`: 4 case(s) removed with the ux revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "layout: code dock left ONCE OPENED, canvas + timeline in the centre, tool tabs right" (retired UI: `.editor-host`, the dock-right tab labels and the centre stage are the deleted AppShell and WorkspaceDock geometry.); "data: add-field lands as a REAL line on a catalog template, in the assembler's own idiom" (covered: e2e/editor-base-edits.spec.ts 313 'B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition' lands a REAL field painted in the preview on a catalog template through baseEdits and addCatalogLine; the Data panel's add row is retired.); "data: the catalog-line add is gated on the standard line SHAPE, never the category" (covered: scripts/catalog-line-gate.test.mjs 'the catalog-line add is gated on the standard line SHAPE, never the category', the same five designs and verdicts.); "style: a color change highlights the changed CSS lines" (retired UI: `.editor-host .changed-line` is the deleted Monaco pane's change highlight.)
+- 2026-10-18 `e2e/flows.spec.ts`: 4 case(s) removed with the third singles revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "wizard: create a lower third with defaults" (covered: e2e/wizard-finish.spec.ts 239 'finish: the export door saves the graphic and opens the export window over the wizard' lands a defaults-created Hairline record; e2e/catalog-baseline.spec.ts 392 renders every catalog variant on air.); "reset: the topbar button restores the original state, undoably" (retired UI: `reset-project` left src with AppShell's topbar.); "style panel: accent retints the live preview" (retired UI: `dock-tab-style` and `style-var-accent` are the old StylePanel's; custom colours at create are package.spec.ts 43's subject.); "export: downloads a plug-and-play SPX zip" (covered: e2e/exports.spec.ts 371 'spx: the folder package plays like a host drives it, and a late update never hides it' downloads the SPX zip through the export window and plays it.)
 - 2026-10-18 `e2e/counting-settle.spec.ts`: 1 case(s) removed with the counting-settle revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "every counting design settles on its real figure (canvas)" (retired UI: the canvas recipe composed with the old editor's simulator channel (composeDocument with simulate), which no live surface composes with; the shared settle recipe, what every card and thumbnail composes with, keeps the sweep as "every counting design settles on its real figure". The recipe loop was one declaration, so the declaration count is unchanged; this is the runtime case that went.)
 
 ## Budget exceptions
@@ -825,6 +845,13 @@ minutes below are this change's local measurement (case-minutes, two workers, qu
 - e2e/exports.spec.ts: 1.0 min, protects the HTML overlay baking the typed value and playing itself on load with its control panel bundled, expires 2026-11-16
 - e2e/template-pack-4.spec.ts: 0.3 min, protects the notice's level events on the generated control page and a pack graphic surviving save, reload and reopen, expires 2026-11-16
 - e2e/template-pack-10.spec.ts: 0.2 min, protects the commerce card's discover, edit, save and reload round trip, expires 2026-11-16
+
+The third singles revival (Phase 2, #800) turns five cases back on across two files and removes
+four. The minutes below are this change's local measurement (case-minutes, two workers, queue
+job `j-0058`).
+
+- e2e/flows.spec.ts: 0.2 min, protects a Fields-step title reaching the created field, steps mode holding a line until next(), and an uploaded picture landing in the logo slot, expires 2026-11-16
+- e2e/wizard-filters.spec.ts: 1.4 min, protects Browse's facets, paging and the brand chooser's re-rank, expires 2026-11-16
 
 ## Acceptance criteria
 
