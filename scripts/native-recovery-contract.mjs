@@ -80,13 +80,16 @@ export function rearmNative({ authorization, target, previous, next, terminal = 
     if (previous[key] !== target[key] || next[key] !== target[key]) return unknown('wake target or effective policy changed');
   }
   // Optional exact cadence is anchored to raw executor arrival, never provider fire or
-  // update time. dueAt is the timestamp actually encoded in the proposed request.
+  // update time. Both timestamps use canonical UTC milliseconds: Date.parse alone
+  // silently truncates finer precision. dueAt describes the actual encoded request.
   if (Object.hasOwn(authorization, 'cadenceMs')) {
     const arrival = timestamp(previous.arrivedAt);
     if (!Number.isSafeInteger(authorization.cadenceMs) || authorization.cadenceMs <= 0
         || !Number.isFinite(arrival) || arrival < start || arrival > now
-        || timestamp(next.dueAt) !== arrival + authorization.cadenceMs) {
-      return unknown('encoded due must equal executor arrival plus the exact authorized cadence');
+        || timestamp(next.dueAt) !== arrival + authorization.cadenceMs
+        || previous.arrivedAt !== new Date(arrival).toISOString()
+        || next.dueAt !== new Date(arrival + authorization.cadenceMs).toISOString()) {
+      return unknown('canonical millisecond due must equal executor arrival plus the exact authorized cadence');
     }
   }
   return { state: 'eligible', actionId: next.actionId, dueAt: next.dueAt, deadline: authorization.deadline };

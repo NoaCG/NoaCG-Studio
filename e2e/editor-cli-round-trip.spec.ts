@@ -1,4 +1,6 @@
 // covers: src/blocks/edit.ts, src/components/editorFoundation/**, src/components/wizard/CreationWizard.tsx, src/model/{importTemplate,scriptKind}.ts, src/export/**, src/bridge/**
+// focus
+// Shared model/storage changes must preserve package import/export identity and assets (#1349).
 import { test, expect, type Page } from '@playwright/test';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';

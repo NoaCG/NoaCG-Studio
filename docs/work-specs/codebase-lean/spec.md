@@ -70,6 +70,17 @@ separate admin removal is explicitly authorized under decision 8 below.
    Future role-management UI waits for a real need; no speculative dashboard is kept. No paid
    benchmarks, model promotions or database mutations are authorized by the reporting routine.
 
+### Owner decisions and load-time format notice (2026-10-18)
+
+The owner kept Google Sheet live data and Add template graphic, and requested a notice when
+loading a saved format absent from the catalogue. Their original live-subject cases stay gaps
+until their current UI checks run. The format notice belongs to the existing save status.
+Why: loading compatibility alone does not warn the operator. Goal: warn before Save while
+preserving authored dimensions, frame rate and playback. No format migration or new dialog.
+Acceptance: a restored 1920×1880 graphic opens and shows an amber warning before any save;
+a supported catalogue format clears it; saved/dirty/failure wording remains truthful and
+the header fits at its existing width bands. The regression must fail without the load validator.
+
 ## Measured baseline
 
 Physical lines include blanks/comments, tracked files only. `src` and `e2e` below count TS/TSX;
@@ -603,25 +614,40 @@ in the pack and single-case families.
 
 ### Phase 2 receipt: the seventh singles (production-audience, google-fonts, render, video-project, project-format)
 
-The twenty-fourth revival, on main `89ca46c37` (2026-10-18): seven cases in five files. The two
+The twenty-fourth revival, on main `3c036da34` (2026-10-18): seven cases in five files. The two
 production-audience workflows (a chat line arriving, edited, approved, sent and aired; a vote
 reaching air the way a question does) only carried a `skipOldEditor()` and run again with it
 deleted. The Google typeface case ends the import walk in the new editor through the Finish
 step's door instead of the retired "Create project" footer. The render section measured off the
 saved record saves in the new editor's header first, then takes the Home row's export door as
-before. The video reload case drops the retired advanced switch and the blank SPX create that
-sat between its save and its reopen (the Blank door is gone), and is renamed to say save and
-reopen. The render output settings case opens the export window the working graphic opens
-instead of the old Export dock. The unsupported-format case keeps its live half: a restored
-graphic whose format the catalogue does not offer still opens in the new editor carrying the
-number it really has; the old chips' load-time warning glyph went with the old editor, the
-new editor has no load-time format readout (an owner decision if one is wanted), and the SAVE
-word's mark stays pinned by its sibling case; renamed to say opens, not refused. One case
-went (listed under Test maintenance): blank artwork requiring an authored format, whose Blank
+before. The video reload case replaces the retired Blank SPX door with the live catalogue walk,
+checks that the SPX editor replaces the video shell, and then reopens the saved video. The
+render output settings case opens the working graphic's export window instead of the old
+Export dock. The restored unsupported-format case retains both compatibility and a visible
+warning before Save, per the owner's decision. SaveControls derives that notice from the loaded
+document while preserving the saved/dirty/failure wording; narrow widths keep an accessible
+warning icon. The save case separately checks the save validator's recorded issues. The vote
+case waits for each staged write and now checks the final tally after the operator presses Take.
+One case went (listed under Test maintenance): blank artwork requiring an authored format, whose Blank
 entry card is gone. Every case in the five files passes, none skipped. Case-minutes locally on
 two workers (queue job `j-0063`): production-audience 0.7, google-fonts 0.1, render 0.9,
 video-project 0.7, project-format 0.6. The files' minutes are under Budget exceptions. Still
-skipping: the remaining 5 live-gap cases, in the pack and single-case families.
+skipping: the remaining 8 live-gap cases: two machine-graph runtime cases, one timeline-v2
+case, the Google Sheet live-data case, and four Add template graphic cases. The last five are
+retained by the owner decisions above, rather than counted as two undecided families.
+
+Continuation verification on that merged main: queue job `j-4597` ran all 46 cases in the
+five files, all passed and none skipped (1.4 minutes wall time). ESLint on the changed specs
+and SaveControls, `tsc --noEmit -p tsconfig.json`, E2E protection and the changed-path gates
+passed. The missing load warning reproduced first in `j-4592`; the final check covers its
+visible notice and accessible icon at 1440, 1366, 1280 and 1100 pixels, with screenshots
+visually inspected at 1440 and 1100. Earlier selections are not green evidence: `j-4594`
+was cancelled for missing player-host setup, and `j-4596` had 45 passes and a failed added
+vote assertion that selected the existing House Vote cue. The final test selects the exact
+staged cue and verifies the eight-vote closed tally on Program. Review and simplify ran inline;
+no full local production build or suite was run. The player-host dependency bundle was prepared
+for this fresh worktree, without changing package inputs or Vite access rules.
+
 
 ### Phase 2 receipt: the eighth singles (machine-graph, timeline-v2, preview-error)
 

@@ -13,7 +13,9 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitVideoPreview, expectOfflineAi, reloadVideoShell } from './_video';
-import { startNewProject } from './_create';
+import { finishIntoNewEditor, startNewProject } from './_create';
+import { pickDesign } from './_browse';
+import { settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage } from './_storage';
 import { evaluateInPage } from './_evaluate';
 
@@ -342,7 +344,7 @@ test('chat refinement applies an undoable change', async ({ page }) => {
   expect(reverted.tsx).toBe(before);
 });
 
-test('reload restores the project; save and reopen work', async ({ page }) => {
+test('reload restores the project; save/reopen and the SPX switch work', async ({ page }) => {
   // Genuinely slow, not flaky-slow: this one test waits out TWO video generations (each an
   // unbounded validation probe against the player host). Under the
   // suite's default 30 s it was failing on the clock with no assertion message at all, which
@@ -360,10 +362,16 @@ test('reload restores the project; save and reopen work', async ({ page }) => {
   await waitForGeneration(page);
   await awaitVideoPreview(page);
 
-  // Explicit save, then reopen the saved video from the wizard's reopen strip (the ▶-prefixed
-  // chip; the ↩ Continue chip for the autosaved slot also appears - both open the same project
-  // here). The blank SPX create that used to sit between the two went with the Blank door.
+  // Save, then switch through the live catalogue door into a different graphic.
   await page.getByTestId('video-save').click();
+  await settleDurableWrites(page);
+  await startNewProject(page);
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  await finishIntoNewEditor(page);
+  await expect(page.getByTestId('video-shell')).toHaveCount(0);
+
+  // Reopen the saved video after the SPX shell has replaced it.
   await startNewProject(page);
   await page.getByRole('button', { name: 'Video or animation with AI' }).click();
   await expect(page.getByTestId('video-step')).toBeVisible();

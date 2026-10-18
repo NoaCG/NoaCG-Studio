@@ -3,6 +3,7 @@ import { useTemplateStore } from '../../store/templateStore';
 import { saveCurrentGraphic, useSaveUi } from '../../store/saveActions';
 import { useRouter } from '../../app/router';
 import { modalOpen } from '../spaceKey';
+import { validateProjectFormat } from '../../model/projectFormat';
 
 /**
  * The topbar SAVE control (docs/SAVED_CONTENT_MODEL.md §2): one primary Save button, an
@@ -12,6 +13,8 @@ import { modalOpen } from '../spaceKey';
  */
 export default function SaveControls() {
   const saved = useTemplateStore((s) => s.saved);
+  const resolution = useTemplateStore((s) => s.template.resolution);
+  const fps = useTemplateStore((s) => s.template.fps);
   const openSaveDialog = useSaveUi((s) => s.openSaveDialog);
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
@@ -76,6 +79,15 @@ export default function SaveControls() {
         }
     : { text: 'Saved', cls: 'save-status save-status-ok' };
 
+  // Warn on the loaded document too, before Save has supplied formatIssues. Keep the
+  // storage status wording: an unsupported format must never claim an unsaved document saved.
+  const formatIssues = validateProjectFormat(resolution, fps);
+  if (formatIssues.length && saved.status === 'idle') {
+    status.cls = 'save-status save-status-warn';
+    status.why = ' · unsupported format';
+    status.title = formatIssues.join(' ');
+  }
+
   return (
     <span className="save-controls" ref={wrapRef}>
       <span
@@ -83,6 +95,7 @@ export default function SaveControls() {
         data-testid="save-status"
         data-format-unsupported={status.why ? 'true' : undefined}
         title={status.title}
+        aria-label={status.title ? `${status.text}. ${status.title}` : undefined}
       >
         {status.text}
         {status.why && <span className="save-status-why">{status.why}</span>}

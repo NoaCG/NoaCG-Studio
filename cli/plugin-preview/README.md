@@ -39,9 +39,12 @@ desktop host open its inspectable app panel instead of defaulting to an inline c
 If an installed tool returns `Transport closed`, restart the desktop app, reopen
 this task, then call `noacg_preview` again. Supported removal/reinstallation and a
 new trial version did not replace the closed connection in the existing session.
-The 0.1.1 real selection/image/edit/refresh journey passed on 2026-10-17. The
-recovered 0.1.2 adapter still needs its native recheck and independent phase check;
-phase 1 remains open in [#1314](https://github.com/NoaCG/NoaCG-Studio/issues/1314).
+The installed 0.1.3 selection/image/edit/validation/refresh journey passed on
+2026-10-18. The [phase receipt](../../docs/work-specs/codex-graphic-preview/phase-1.md)
+records the actual runtime and evidence; [#1314](https://github.com/NoaCG/NoaCG-Studio/issues/1314)
+records the independent landed phase verdict. The native proof covers that pinned
+runtime with MCP SDK 1.30.0. The later SDK 1.31.0 dependency update has not had
+its native compatibility replayed by this receipt.
 
 ## Try the native round trip
 

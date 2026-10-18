@@ -73,10 +73,10 @@ test('exact cadence uses executor arrival and rejects rounding or update-relativ
   record.previous.arrivedAt = '2026-10-17T09:35:08.797Z';
   record.next.dueAt = '2026-10-17T10:35:08.797Z';
   assert.equal(rearmNative(record, now).state, 'eligible');
-  for (const dueAt of ['2026-10-17T10:35:09Z', '2026-10-17T10:35:00Z', '2026-10-17T10:40:00Z']) {
+  for (const dueAt of ['2026-10-17T10:35:09Z', '2026-10-17T10:35:00Z', '2026-10-17T10:40:00Z', '2026-10-17T10:35:08.797999Z']) {
     assert.equal(rearmNative({ ...record, next: { ...record.next, dueAt } }, now).state, 'unknown');
   }
-  for (const arrivedAt of [undefined, 'invalid', '2026-10-17T08:59:00Z', '2026-10-17T09:40:01Z']) {
+  for (const arrivedAt of [undefined, 'invalid', '2026-10-17T08:59:00Z', '2026-10-17T09:40:01Z', '2026-10-17T09:35:08.797999Z']) {
     assert.equal(rearmNative({ ...record, previous: { ...record.previous, arrivedAt } }, now).state, 'unknown');
   }
   for (const cadenceMs of [null, 0, -1, 0.5, NaN, Infinity]) {
