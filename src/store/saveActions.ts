@@ -15,7 +15,7 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { endMint, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
+import { endMint, isGraphicSuperseded, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
@@ -280,7 +280,10 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
   // The record took the id: the link write names it, and carries the document's next one.
   releaseReservation();
-  const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
+  // A sync pass that ran while the record was written found the id taken by another device's
+  // record (#1443): the draft stays unlinked, its work is in the conflicted copy.
+  const taken = isGraphicSuperseded(doc.id);
+  const linkFailure = await commitLink({ graphicId: taken ? null : doc.id, dirty: dirty || taken, formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
   return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
 }

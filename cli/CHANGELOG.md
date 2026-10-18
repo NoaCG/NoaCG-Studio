@@ -10,6 +10,15 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.12.3 - 2026-10-18
+
+This update replaces vulnerable dependencies used by the CLI and its MCP server with patched
+versions. The command names, graphic formats and saved login stay the same.
+
+Update a global installation with `npm i -g @noacg/cli`, or update the NoaCG plugin
+through your agent application's usual update command. For one-off runs with `npx`, select
+version 0.12.3 or later so it starts a patched version.
+
 ## 0.12.2 - 2026-10-16
 
 **A first reply that shows what you can make.** After connecting your account, the agent asked
