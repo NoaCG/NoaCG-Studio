@@ -28,7 +28,7 @@ export async function writePackage(root) {
       window.stop=()=>{state='off';document.getElementById('panel').style.opacity='0'};
       window.next=()=>{document.getElementById('edition').textContent='NEXT'};
       window.update=(json)=>{const data=typeof json==='string'?JSON.parse(json):json;for(const key of ['headline','score','edition','notes'])if(data[key]!==undefined)document.getElementById(key).textContent=data[key];if(data.badge!==undefined)document.getElementById('badge').src=data.badge;if(data.showBadge!==undefined)document.getElementById('badge').style.visibility=data.showBadge==='1'?'visible':'hidden';if(data.accent)document.getElementById('panel').style.borderColor=data.accent};
-      window.noacgDispatch=(event,payload)=>{if(state!=='live')return false;if(event==='goal'){window.update(payload);return true}return false};
+      window.noacgDispatch=(event,payload)=>{if(state!=='live')return false;if(event==='goal'||event==='switchLogo'){window.update(payload);return true}return false};
       window.noacgMachineState=()=>({groups:{main:state}});`,
   };
   for (const [name, text] of Object.entries(files)) await writeFile(path.join(root, name), text);

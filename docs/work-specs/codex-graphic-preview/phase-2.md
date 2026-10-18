@@ -70,7 +70,7 @@ jobs stayed within five minutes and the existing one-browser-job queue.
 | Actual Windows Codex inspection | **Not checked**; required by #1491 |
 
 The square fixture's exact source revision is
-`files-sha256:9d5eb424bbbf33553476ddb1cf07e3ec533678228fd6ef89dfd8765397e18a8f`.
+`files-sha256:74e412ac3adb66cd206f9e58bda291d6c363720755b6a0faf98d8527b2ae0416`.
 The baseline phase-1 revision remains
 `files-sha256:8dde8a7398c3d3a09d8bf499bdee9643d931a759ee7af28de7e34d5bf4db086f`.
 The browser receipt records the actual tested implementation SHA, dirty paths,
@@ -95,6 +95,7 @@ or existing gate was weakened. j-0006 passed both journeys. j-0007 exposed the o
 test's extra preview call superseding its displayed view and the product's premature
 Ready before replay finished; both were fixed, and j-0008 passed both journeys.
 Independent review then reproduced two defects on the immutable first candidate: viewport-dependent initialization captured 960 px instead of authored 540 px, and an image default over4000 characters was truncated/broken. The fix detects canvas size inside the browser before source execution and keeps image values as package asset keys while passing complete image bytes only inside the graphic. The square fixture now regresses both, including a filelist picker. A further independent actual-runtime probe found authored image action.set values still carried URLs instead of asset keys; normalizing those values fixes action→picker→Update agreement, now regressed with an alternate logo. Review evidence is preserved under review/.
+j-0014 exposed the newly declared alternate-logo fixture action still being refused by its sample dispatch function; the fixture now implements that declared action, with the assertions unchanged.
 Final exact-tip evidence supersedes these intermediate candidates. Logs retain all
 observed failures and source changes; an old pass is not claimed for a newer tip.
 
