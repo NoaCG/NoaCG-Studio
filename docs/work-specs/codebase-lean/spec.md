@@ -1293,6 +1293,24 @@ source stays intact. Existing shapes, loading and playback are preserved, with n
 The new regression drives both picker placements, real Play/Next/Out, and complete Undo/Redo.
 Its legacy fixture explicitly flushes and commits the saved slot before reopening the editor.
 A Node case pins the authored-machine refusal and unchanged input. All five project-operation
-Node cases, ESLint, TypeScript and all 28 changed Node gate tests pass. Browser verification
-of this repair is pending in queue j-4633; the laptop's 3.5 GB floor is unchanged. No passing
-verify stamp or landing is claimed while that check is pending.
+Node cases, ESLint, TypeScript and all 28 changed Node gate tests pass. At that commit, browser verification
+was pending in queue j-4633; the laptop's 3.5 GB floor remained unchanged. That commit was
+not stamped or queued as verified. The completed result follows.
+
+
+### Final live-feature compatibility verification (2026-10-18)
+
+Reconciled with main 63b3e00b9ff27db221c3f71ead5abb2c2a599336 through merge commit
+373bf054db3736c3944e0b6af76777987da71a85 and regenerated contracts. The incoming recovery
+and preview tooling did not change the application source under these tests. j-4633 passed
+all 14 cases in the complete control and template-insert files, zero skips, in 57.6 seconds.
+The saved one-step case passed both placements, retained every original entrance track,
+played Play/Next/Out correctly and restored complete source through Undo/Redo. The repaired
+cloud shard also passed in CI 39159151814, job 117768628718. Its reproduction remains the
+actual failing browser job on the earlier test commit, not a review-stamp refusal.
+
+Final changed-spec/source ESLint, E2E protection and all 28 changed Node gate tests passed.
+TypeScript passed on the identical application source; no repeated local build or whole suite
+was run. Review and simplify were inline: six confirmed findings fixed across this PR, with
+existing withOut and machine-aware step helpers reused. Verification is now passing; the
+stamp covers the final committed tip and the PR can return to the merge queue.
