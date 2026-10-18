@@ -1,0 +1,181 @@
+{
+  "costUnread": false,
+  "brief": "pub-darts-duel",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "49990ce5-855f-4391-8219-c435dec235f2",
+  "costCents": 0,
+  "notionalUsd": 1.6559833,
+  "wallSeconds": 300,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type duel-score --design sb26 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:751ab41fef8f9ce87300149e6689ff1750f0b54a81db2f2e5b20022371be80c3"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:8f0004cae6c40fb6e64c309460881ddd883bc06e7f35d790137d2d7d355adc18"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:6089c55603f66c13672422ad05c4ad682489a3112d52c54de0e8b029c9933aac"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage . --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:6089c55603f66c13672422ad05c4ad682489a3112d52c54de0e8b029c9933aac"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Gwenllian Rhys-Pritchard --data f2=Aoife --data f1=2 --data f3=1 --background video --out shots/longname.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Gwenllian Rhys-Pritchard --data f2=Aoife --data f1=3 --data f3=1 --event final --at 1.5s --background video --out shots/longfinal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:d55723235dfa5972452e101ff8c551db9bf49e0c23e273858722b8e72ade10ef"
+    },
+    {
+      "command": "noacg coverage graphic --out outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d55723235dfa5972452e101ff8c551db9bf49e0c23e273858722b8e72ade10ef"
+    },
+    {
+      "command": "noacg docs control",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs control",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs control",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs package",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record graphic --out outputs/record.json --review outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:d55723235dfa5972452e101ff8c551db9bf49e0c23e273858722b8e72ade10ef"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-1\\cells\\pub-darts-duel.claude-sonnet-5-5-high\\frames",
+    "frames": 63,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:d55723235dfa5972452e101ff8c551db9bf49e0c23e273858722b8e72ade10ef"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "pointA",
+      "pointB",
+      "undoA",
+      "undoB",
+      "final",
+      "newGame"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:d55723235dfa5972452e101ff8c551db9bf49e0c23e273858722b8e72ade10ef",
+    "benchValidated": "sha256:d55723235dfa5972452e101ff8c551db9bf49e0c23e273858722b8e72ade10ef",
+    "reviewed": "sha256:d55723235dfa5972452e101ff8c551db9bf49e0c23e273858722b8e72ade10ef",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 63,
+    "opened": 63,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

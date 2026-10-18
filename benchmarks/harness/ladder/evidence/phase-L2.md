@@ -161,3 +161,73 @@ reproduces it.
 A scan of `benchmarks/harness/ladder/L2/` and this file for every ladder brief's prompt opening
 and stress values of eight characters or more finds no prompt; as in L1, the judge's reasons and
 the cells' command traces quote a few short values (a name, a label), which L1 decided to keep.
+
+### Round 1 result on the 15 tuning briefs, and the decision
+
+Sessions 19:46Z to 20:13Z on 10-17 (six; two more were paused by the subscription's usage limit)
+and 04:20Z to 05:00Z on 10-18 (the other nine, the two paused ones run again from the start); the
+readings 04:21Z to 05:04Z. Evidence: the 15 cells beside the eight in
+`benchmarks/harness/ladder/L2/round-1/`, `judgements.jsonl` and `tally-tuning.json`;
+`--tally benchmarks/harness/ladder/L2/round-1 --order tuning` reproduces it.
+
+| 15 tuning briefs | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| baseline | 15 | 8 | $18.82 | $1.25 | $2.35 | 249 s | 12 of 15 | 7 |
+| round 1 | 15 | **8** | $20.93 | $1.40 | **$2.62** | 261 s | 11 of 15 | 7 |
+
+- Usable on the tuning briefs did not move in count: the debate clock (its entrance now settles
+  in time) and the basketball scorebug joined; the live vote (a wrapped option label over the next
+  one after the update) and the cross-country clock (the brief's race name not shown at the sample
+  values) left. The judge agreed with itself on 14 of 15.
+- The new finding reached none of the tuning graphics' failures: none of them is an action that
+  draws nothing. What fails there is design and content: the sample values air empty (the futsal
+  winner card names no champion and shows 0-0; the cross-country plate shows only the time), text
+  over text after the long update (the live vote), Undo below zero (the darts duel), a fallback
+  font for the Vietnamese letters (the market reporter), logos each on a plate of another colour
+  (the sponsor strip), and the event bug (below).
+- **Decision: round 1 is kept.** It moved the eight (usable 2 to 4, cost per usable $8.15 to
+  $4.08) and did not lower usable on the tuning briefs (8 to 8), the hypothesis's line for them;
+  the tuning set's cost per usable rose 11%, inside the fifth the hypothesis allowed for a session
+  that gets a finding. The round's refutation lines held: usable on the eight rose by 2, and one
+  of the four action-draws-nothing failures is left (the quiz).
+- **A bench artefact the tuning set carries in every round:** the youth summit event bug's stress
+  keys are positional (`f2` is the logo), and the agent split day and room into two text fields,
+  so the capture writes the logo's description ("dark: a dark green leaf ...") into the room text,
+  where it overflows. The baseline's event bug failed the same way. It is the same in every round,
+  so a round's change still reads against the last; fixing it now would move the tuning figures
+  between rounds for a reason that is not the round. It is left for after L2 (an issue).
+- Spend: $0 credit; 15 sessions $20.93 notional, 45 readings $52.71 notional.
+
+## Round 2: a timeline is one picture
+
+**Hypothesis**, committed and pushed before the round's first session, on round 1's base (kept).
+D6's cost line for L2 is now at most $1.35 estimated per usable (owner, 2026-10-17; spec D6).
+
+- **Which failure.** Cost. On the eight round 1 spent $2.04 a session, so even 8 of 8 usable
+  would be $2.04 per usable, over D6's $1.35. A matching round must cut what a session costs by a
+  third or more and keep what it delivers. The measured lever is the frames the agent reads: 72
+  to 79% of a session's context growth (the baseline, above), each full-HD frame about 2,800
+  tokens, and three in four of them moments of a timeline (the Take, an action, Next, the update,
+  Out, at 20 ms to 10 s). Each frame opened is also a turn, and each turn re-reads the context so
+  far.
+- **Which change** (CLI and skill only): `noacg coverage --strips` draws each timeline as one
+  picture of its moments, three across, each a third of the frame with its time under it (the
+  held-back `a6ea09595`, brought back). New beside it: the state an action, a step or the update
+  settles in is shown by no other frame, so its last moment stays a full frame of its own; the
+  Take settles in the sample frame and Out in nothing, so theirs are not repeated. Static frames
+  and the field crops at native pixels stay as they are. `references/hand-in.md` asks for
+  `--strips` and says what a strip shows. The bench's own capture, what the judge sees, does not
+  pass the flag and does not change. On round 1's hockey board this is 33 pictures to open
+  instead of 81 (12 strips, 10 settled frames, 11 static frames).
+- **What should move.** On the eight: notional per session from $2.04 to $1.45 or less, frames
+  reviewed per session down by half or more, median wall down; usable not below round 1's 4. On
+  the 15 tuning briefs: notional per session down by a quarter or more and usable not down by
+  more than one. The cost per usable falls on both sets.
+- **Refuted** if the notional per session falls by less than 15% on the eight, or usable on the
+  eight falls below 3 (a third-size moment hiding what a full frame showed). **Reverted** (D7) if
+  it moves nothing (cost per session down by less than 10% on both sets), or if usable falls by 2
+  or more on either set: a cheaper look that misses defects is not a gain.
+- **How it runs**: as round 1, with `--stage round-2 --lanes 2 --out
+  C:/claude/noacg-bench-archive/harness-ladder-L2/round-2`, the eight in `RUNG_ORDER` and then the
+  15 tuning briefs, judged three times a graphic with `--phase L2 --delivered-only`, counted with
+  `--tally <dir>` (D6 as amended) and `--tally <dir> --order tuning`.

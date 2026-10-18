@@ -1,0 +1,204 @@
+{
+  "costUnread": false,
+  "brief": "basketball-club-scorebug",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "29257c08-f161-4c83-a3e2-4c5c1061589c",
+  "costCents": 0,
+  "notionalUsd": 3.9077526000000002,
+  "wallSeconds": 951,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design sb08 --out ../ref08",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:484624efc7e38ba7b6c88e62c2fe1475a75ca674be062902d67ef678c43ede52"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Saint-Étienne-du-Rouvray Basket Club --data f2=Sainte-Mère-Église Élan Normand Basket --data f1=104 --data f3=98 --data f6=#f5d90a --data f4=Q3 --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Villers-Bocage Pays d'Auge Athlétic Basket Club Normandie --data f2=Sainte-Mère-Église --out shots/long2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:1ab117efaa5b27069a1a7516b0b332bdf7d58670940d0980f15001aa12a67ab9"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:0f0fb7b290682c323cf3a01110b2a9bcd213210505083f34c5c1f9ff6b222c40"
+    },
+    {
+      "command": "noacg validate ./graphic --json",
+      "code": 0,
+      "digest": "sha256:0f0fb7b290682c323cf3a01110b2a9bcd213210505083f34c5c1f9ff6b222c40"
+    },
+    {
+      "command": "noacg validate ./graphic --json",
+      "code": 0,
+      "digest": "sha256:0f0fb7b290682c323cf3a01110b2a9bcd213210505083f34c5c1f9ff6b222c40"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:ed02140d50793e469050e1044256ec24c122f6ced1d7fdb9e50afb0621c1b164"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:cf568a576d4c796f5fcfdc940ed60d0cea86f96b686fbfc230df1c04e0971c4d"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:bb6285b86cda5b8c270fb84feaeac0982678e5b7337bc4e2200bf4eef4238e4b"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:74c9c5432eab0769363831868620415bdd9f46b2818a17a47a8a31631d3bf711"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:bb6285b86cda5b8c270fb84feaeac0982678e5b7337bc4e2200bf4eef4238e4b"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:bb6285b86cda5b8c270fb84feaeac0982678e5b7337bc4e2200bf4eef4238e4b"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:3fe3ef33c00e41deb0bf5f14b836e98ae077f6247a36387ecd148340af5958c8"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --event aMinus1 --event clockStart --event interval --out shots/chk.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:d40a8be5ddd9e6325bc205d450e79f4f97dd1042b3e9891d744239c269ab7335"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --event aMinus1 --event clockStart --event interval --out shots/chk.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:d40a8be5ddd9e6325bc205d450e79f4f97dd1042b3e9891d744239c269ab7335"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:d40a8be5ddd9e6325bc205d450e79f4f97dd1042b3e9891d744239c269ab7335"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-1\\cells\\basketball-club-scorebug.claude-sonnet-5-5-high\\frames",
+    "frames": 111,
+    "crops": 3,
+    "findings": [
+      "event-clockstop: clockStop did not move the machine (still main=enter, clock=armed, play=inPlay, result=live, score=idle). If it should have, the machine does not answer clockStop from there. It did not move it after any other event either.",
+      "event-clockreset: clockReset did not move the machine (still main=enter, clock=armed, play=inPlay, result=live, score=idle). If it should have, the machine does not answer clockReset from there. It did not move it after any other event either.",
+      "event-resumeplay: resumePlay did not move the machine (still main=enter, clock=armed, play=inPlay, result=live, score=idle). If it should have, the machine does not answer resumePlay from there. It did not move it after any other event either.",
+      "event-bminus1: -1 shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing."
+    ],
+    "failures": [],
+    "digest": "sha256:d40a8be5ddd9e6325bc205d450e79f4f97dd1042b3e9891d744239c269ab7335"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "aPlus1",
+      "aPlus2",
+      "aPlus3",
+      "aMinus1",
+      "bPlus1",
+      "bPlus2",
+      "bPlus3",
+      "bMinus1",
+      "clockStart",
+      "clockStop",
+      "clockReset",
+      "interval",
+      "resumePlay",
+      "final"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:d40a8be5ddd9e6325bc205d450e79f4f97dd1042b3e9891d744239c269ab7335",
+    "benchValidated": "sha256:d40a8be5ddd9e6325bc205d450e79f4f97dd1042b3e9891d744239c269ab7335",
+    "reviewed": "sha256:d40a8be5ddd9e6325bc205d450e79f4f97dd1042b3e9891d744239c269ab7335",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 111,
+    "opened": 111,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}
