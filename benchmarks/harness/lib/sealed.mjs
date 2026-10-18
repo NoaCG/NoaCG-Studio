@@ -53,15 +53,16 @@ export function openSealed(json, passphrase) {
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
-/** The main checkout's private passphrase file, or null where this machine has none. */
-export function privatePassphraseFile(repoRoot) {
+/** The main checkout's private passphrase file, or null where this machine has none. `folder` is
+ *  the exam's private folder: `harness-exam` (the parent plan's) or `harness-ladder-exam`. */
+export function privatePassphraseFile(repoRoot, folder = 'harness-exam') {
   let common;
   try {
     common = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch {
     return null;
   }
-  const file = path.join(path.dirname(common), 'docs', 'private', 'harness-exam', 'passphrase.txt');
+  const file = path.join(path.dirname(common), 'docs', 'private', folder, 'passphrase.txt');
   return existsSync(file) ? file : null;
 }
 

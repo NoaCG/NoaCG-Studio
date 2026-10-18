@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NoaCG preview trial</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; font: 14px/1.4 system-ui, sans-serif; color: light-dark(#172033, #e5eaf2); background: light-dark(#fff, #181b22); color-scheme: light dark; }
+  header, .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 16px; flex: 1; }
+  button, select, textarea { font: inherit; border: 1px solid #7d8796; border-radius: 6px; padding: 8px 10px; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; opacity: .55; }
+  #stage { position: relative; width: 100%; aspect-ratio: 16/9; margin: 14px 0; overflow: hidden; background: repeating-conic-gradient(#303743 0 25%, #39424e 0 50%) 0 0 / 24px 24px; }
+  #graphic { position: absolute; width: 1920px; height: 1080px; border: 0; transform-origin: top left; pointer-events: none; }
+  #selection-layer { position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
+  .hit-target { position: absolute; border: 0; border-radius: 0; padding: 0; background: transparent; }
+  .hit-target:focus-visible { outline: 2px solid #48a5ff; outline-offset: -2px; }
+  #highlight { position: absolute; border: 2px solid #48a5ff; background: #48a5ff18; pointer-events: none; }
+  label { display: block; margin-top: 12px; }
+  textarea { display: block; width: 100%; min-height: 80px; resize: vertical; margin: 5px 0 8px; }
+  #send { margin-left: auto; }
+  #status { min-height: 20px; margin: 10px 0 0; }
+  #status[data-error="true"] { color: light-dark(#b02b24, #ffaaa5); }
+  details { margin-top: 12px; font-size: 12px; overflow-wrap: anywhere; }
+  #source { white-space: pre-wrap; }
+</style>
+<header><h1>NoaCG preview trial</h1><button id="refresh" disabled>Refresh source</button></header>
+<div id="stage">
+  <iframe id="graphic" sandbox="allow-scripts" title="Isolated broadcast graphic"></iframe>
+  <div id="selection-layer" aria-label="Click an element, or choose Region and drag"><div id="highlight" hidden></div></div>
+</div>
+<div class="actions"><select id="mode" aria-label="Selection mode"><option value="element">Element</option><option value="region">Region</option></select><span id="selected">Select part of the graphic</span></div>
+<label for="request">What should change?</label>
+<textarea id="request" maxlength="4000" placeholder="Describe the change"></textarea>
+<div class="actions"><button id="send" disabled>Send change to this task</button></div>
+<p id="status" role="status">Connecting to this conversation…</p>
+<details><summary>Local source</summary><p id="source"></p></details>
+<!-- APP_SCRIPT -->
+</html>

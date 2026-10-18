@@ -191,6 +191,14 @@ export function captureDurableWrites<T>(key: DurableKey, write: () => T): { resu
   finally { receiptObservers.delete(observer); }
 }
 
+/** Puts on `key` handed to the database and not yet settled, oldest first. A save of the working
+ *  draft claims these as it starts (store/saveActions.ts): its link write supersedes them, so
+ *  their refusal must not surface as a notice after the save has answered (#1382). */
+const unsettled = new Set<DurableWriteReceipt>();
+export function unsettledWrites(key: DurableKey): DurableWriteReceipt[] {
+  return [...unsettled].filter((receipt) => receipt.key === key && receipt.account === namespace);
+}
+
 /** Capture immediately after a synchronous model edit; this receipt belongs to that put. */
 export function lastDurableWrite(key: string): DurableWriteReceipt | undefined {
   return receipts.get(key);
@@ -652,7 +660,10 @@ function queueWrite(key: string, value: string | null, previous: string | null):
     if (namespace === account) reportError(key, message, seq);
     return message;
   });
-  recordReceipt({ sequence: seq, key, value, account, settled });
+  const receipt: DurableWriteReceipt = { sequence: seq, key, value, account, settled };
+  unsettled.add(receipt);
+  void settled.then(() => unsettled.delete(receipt));
+  recordReceipt(receipt);
   const write = settled.then(() => {});
   pending.add(write);
   void write.finally(() => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// Phone / narrow-viewport breakpoint. Drives the single-column mobile layout (AppShell) and matches
+// Phone / narrow-viewport breakpoint. Drives the single-column mobile layouts and matches
 // the `@media (max-width: 768px)` block in styles.css — keep the two in sync. Keyed off viewport
 // WIDTH (not user-agent sniffing), so a small desktop window gets the mobile layout too.
 export const MOBILE_MAX_WIDTH = 768;

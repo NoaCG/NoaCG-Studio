@@ -481,6 +481,13 @@ the filesystem and reconstructing a new coordinator from an external packet.
 
 ## Migration and the next qualification
 
+Follow-up: [native recovery qualification](../work-specs/native-recovery/evidence/qualification.md)
+records the owner's existing-provider-schedulers-first decision, receipt guards and an actual
+same-thread Codex hosted wake/re-arm trial. It credits the later Claude bounded wake-chain
+evidence on #1301. Guard tests, scheduling acknowledgements and actual deliveries are separate;
+native permissions, uncertain submissions, remote fencing and complete context counters remain
+open where no native receipt establishes them. No default wake or hosted infrastructure changed.
+
 1. Preserve the current desktop task/hook. Exercise this supervisor only on a separate test run;
    register no production run under two independent recovery owners. Run the existing wake,
    phase and wave tests alongside its process tests.

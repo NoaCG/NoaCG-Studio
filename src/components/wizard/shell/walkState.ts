@@ -112,6 +112,9 @@ export interface WalkMemory {
    *  fresh. It is what stops a second pass down the same walk minting a second library record
    *  under the same name, whether it came from a resume or from pressing Export twice. */
   made: MadeGraphic | null;
+  /** The walk's mint still in flight. A door pressed again waits for it, so it decides with the
+   *  record that mint made, under whatever name Finish then carries (#1384). */
+  minting?: Promise<void>;
 }
 
 export interface WalkState {
@@ -568,8 +571,8 @@ export interface LibraryIo {
   linkTo(id: string): void;
   /** Save the working document over its linked record, under `name`. */
   saveCurrent(name: string): Promise<'saved' | 'needs-name' | 'failed'>;
-  /** Mint a new record under `name`. */
-  saveAs(name: string): Promise<{ ok: boolean; error: string | null }>;
+  /** Mint a new record under `name`. A failure with `graphicId` minted that record all the same. */
+  saveAs(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }>;
 }
 
 /**
@@ -599,16 +602,32 @@ export async function saveBuiltGraphic(
   name: string,
   lib: LibraryIo,
 ): Promise<{ ok: boolean; error: string | null }> {
+  // Pressed again while its mint was pending, under a new name, the door found neither the
+  // record (not noted yet) nor the name, and minted a second (#1384). Only a MINT is waited for:
+  // a write over a known record already names it, and a rewind starts a new memory.
+  if (memory.minting) await memory.minting;
   const effect = lib.effect(lib.index(), name, memory.made?.graphicId ?? null);
   const over = effect.targetId;
-  if (!over) return lib.saveAs(name);
+  // Whatever a mint made is this walk's record from then on, its link write landed or not, so
+  // the next pass writes over it, under whatever name Finish then carries (#1367, #1384).
+  const mint = () => {
+    const run = lib.saveAs(name).then((minted) => {
+      if (minted.graphicId) noteMade(memory, { name, graphicId: minted.graphicId, production: null, landedOn: null });
+      return minted;
+    });
+    const done = () => { if (memory.minting === minting) memory.minting = undefined; };
+    const minting: Promise<void> = run.then(done, done);
+    memory.minting = minting;
+    return run;
+  };
+  if (!over) return mint();
   lib.linkTo(over);
   const result = await lib.saveCurrent(name);
   if (result === 'saved') return { ok: true, error: null };
   // 'needs-name' means the record went between the check above and the write (deleted on
   // another device or tab). Minting is then the right answer, not an error - the work is what
   // matters, and there is no longer anything to write over.
-  if (result === 'needs-name') return lib.saveAs(name);
+  if (result === 'needs-name') return mint();
   return {
     ok: false,
     error:

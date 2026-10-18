@@ -3,9 +3,7 @@
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { enableAdvancedMode } from './_create';
-import { previewFrame } from './_frame';
-import { awaitPreviewRebuild } from './_preview';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 
 // ADAPT-FIRST Create with AI, end to end (docs/ADAPT_FIRST_PLAN.md).
 //
@@ -105,10 +103,6 @@ test.beforeEach(async ({ page }) => {
       JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true }),
     ),
   );
-  // Claim 5 walks into the EDITOR through the Finish step's editor door, which has been
-  // Advanced-only since step 6 (docs/GOALS_ARCHIVE.md "Student release"; FinishStep `showEditorDoor`).
-  // The sibling AI specs opt in the same way - see e2e/ai-more-control.spec.ts.
-  await enableAdvancedMode(page);
 });
 
 async function openAiStep(page: Page) {
@@ -173,13 +167,21 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
   await expect(page.getByTestId('ai-adapted-from')).toContainText(variantName);
   await expect(page.getByTestId('ai-adapted-from')).toContainText('lower third');
 
-  // ── 5. What lands in the editor is customized, valid and editable ───────────
+  // ── 5. What the walk made is customized, valid and editable ─────────────────
+  // Next, then the export door, which builds the graphic into the working document before it
+  // opens the window; the document is read mounted the way playout composes it, with the
+  // sample data the create put in the store.
   await page.getByRole('button', { name: 'Next →' }).click();
-  await expect(page.getByTestId('wz-finish-editor')).toBeVisible();
-  await page.getByTestId('wz-finish-editor').click();
-  await awaitPreviewRebuild(page);
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  const doc = await mountWorkingDocument(page);
+  const sample = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().sampleData as Record<string, string>;
+  });
+  await updateWorkingDocument(doc, sample);
 
-  const root = previewFrame(page).locator('.lower-third');
+  const root = doc.locator('.lower-third');
   await expect(root).toBeAttached();
   // Bottom band, in frame coordinates — the placement rule, measured rather than asserted
   // from the CSS text.
@@ -190,7 +192,7 @@ test('a brief becomes a customized graphic adapted from a proven design', async 
   expect(box.centreY).toBeGreaterThan(box.height * 0.6);
 
   // The brief's own content is in the graphic, and it is a real SPX field.
-  await expect(previewFrame(page).locator('#f0')).toContainText('Miriam Aalto');
+  await expect(doc.locator('#f0')).toContainText('Miriam Aalto');
 
   const state = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

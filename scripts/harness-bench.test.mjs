@@ -268,10 +268,14 @@ test('the committed ledger holds the exam reserve the wall reads, and H4 closed 
   assert.equal(phaseSpentCents(ledger, 'H4'), 0);
   // The exam is closed (H8, 2026-10-17), so its unspent reserve is no longer held back.
   assert.equal(phaseCompleted(ledger, 'H8'), true);
-  assert.equal(heldCents(ledger, 'H9'), 0, 'a closed exam holds nothing back');
+  // The ledger now also holds the harness ladder's money (its L0, D9), which is not H8's reserve:
+  // the reserve's part is checked on the ledger without those holds, and the holds are all that is left.
+  const { holds = [], ...withoutHolds } = ledger;
+  assert.equal(heldCents(withoutHolds, 'H9'), 0, 'a closed exam holds nothing back');
+  assert.equal(heldCents(ledger, 'H9'), holds.filter((h) => !phaseCompleted(ledger, h.phase)).reduce((n, h) => n + h.cents - phaseSpentCents(ledger, h.phase), 0), 'only the ladder\'s holds are held');
   // The wall on a copy of the committed ledger as it stood with the exam open: spend tuning down to
-  // one cent short of a session beside the reserve.
-  const copy = structuredClone(ledger);
+  // one cent short of a session beside the reserve. Then, the ladder's holds did not exist yet.
+  const copy = structuredClone(withoutHolds);
   copy.entries = copy.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H8' && e.outcome === 'completed'));
   appendEntry(copy, { kind: 'session', phase: 'H5', funding: 'credit', sessionId: 'sesn_synthetic', listCostCents: remainingCents(copy, 'H5') - (r.sessionBudgetCents + r.overshootCents) + 1, outcome: 'delivered' });
   assert.equal(admit(copy, { budgetCents: r.sessionBudgetCents, overshootCents: r.overshootCents, phase: 'H6' }).ok, false);
@@ -310,10 +314,21 @@ function fakeCli({ digest = DIGEST, buttons = ['goalA', 'clearFlag', 'final'] } 
     if (verb === 'validate') json = { ok: true, digest, validation: { merged: { errors: [], warnings: [] } } };
     if (verb === 'record') {
       const file = out('--out');
+      // `--review` as the real verb checks it (cli/src/review.ts): a verdict on every frame, none open.
+      let review = null;
+      if (args.includes('--review')) {
+        const r = JSON.parse(readFileSync(out('--review'), 'utf8'));
+        const open = r.frames.filter((f) => !/^(ok|fixed:\s*\S)/i.test(String(f.verdict).trim()));
+        if (r.digest !== digest || open.length) {
+          json = { ok: false, reason: 'review', problems: [`${open.length} frame(s) left open`] };
+          return { code: 1, json, stdout: JSON.stringify(json), stderr: '' };
+        }
+        review = { digest, frames: r.frames.length, ok: r.frames.length, fixed: 0, verdicts: r.frames.map((f) => ({ file: f.file, verdict: f.verdict })) };
+      }
       mkdirSync(path.dirname(file), { recursive: true });
       const zip = file.replace(/\.json$/, '.zip');
       writeFileSync(zip, 'PK-fake');
-      writeFileSync(file, JSON.stringify({ format: 'noacg-record-v1', digest, doc: api.graphicDoc.newGraphicDoc(template(), { name: 'Control board', origin: { tool: 'noacg-cli', version: 'test' } }) }));
+      writeFileSync(file, JSON.stringify({ format: 'noacg-record-v1', digest, ...(review ? { review } : {}), doc: api.graphicDoc.newGraphicDoc(template(), { name: 'Control board', origin: { tool: 'noacg-cli', version: 'test' } }) }));
       json = { ok: true, file, zip, digest };
     }
     if (verb === 'coverage') {
@@ -322,6 +337,7 @@ function fakeCli({ digest = DIGEST, buttons = ['goalA', 'clearFlag', 'final'] } 
       writeFileSync(path.join(dir, 'sample-video.jpg'), 'jpg');
       writeFileSync(path.join(dir, 'take-00020ms.jpg'), 'jpg');
       writeFileSync(path.join(dir, 'coverage.json'), JSON.stringify({ digest, frames: [{ file: 'sample-video.jpg', render: 'sample-video', state: 'on air, settled', values: 'sample', ground: 'video', atMs: 1500 }, { file: 'take-00020ms.jpg', render: 'take', state: 'the Take', values: 'sample', ground: 'video', atMs: 20 }], crops: [] }));
+      writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ format: 'noacg-review-v1', digest, coverage: 'coverage.json', frames: [{ file: 'sample-video.jpg', verdict: '' }, { file: 'take-00020ms.jpg', verdict: '' }] }));
       json = { ok: true, frames: 2, crops: 0, findings: [], failures: [], digest };
     }
     if (verb === 'inspect') json = { ok: true, inspection: { descriptors: [{ key: 'f0' }], buttons: buttons.map((event) => ({ event })) } };
@@ -375,6 +391,11 @@ test('the fake arm and the stubbed managed-agents arm deliver through record, sh
     assert.deepEqual(cell.operator.missing, []);
     assert.equal(cell.functional, true);
   }
+  // The fake arm hands in with the forced look (D1): its record carries the review, and it opened
+  // every frame it gave a verdict for. The stub's agent records without one, and opens nothing.
+  assert.ok(cli.calls.some((a) => a[0] === 'record' && a.includes('--review')), 'the fake arm records with --review');
+  assert.deepEqual(fake.look, { reviewed: 2, opened: 2, unopened: [], all: true, fixed: 0 });
+  assert.equal(managed.look.reviewed, 0);
   assert.deepEqual(scaffoldArgs(BRIEF, 'g').slice(0, 5), ['scaffold', '--type', 'scoreboard', '--design', 'neutral'], 'a neutral type starts from its neutral spine');
   assert.ok(cli.calls.some((a) => a[0] === 'coverage' && a.includes('--stress')), 'the bench captures with the brief\'s stress values');
   assert.deepEqual(managed.cleanup, { filesDeleted: 2, sessionDeleted: true, sessionGone: true, filesLeft: 0 }, 'the session and its files answer not found after');
@@ -1212,6 +1233,21 @@ test('a build runs each arm in its own lane, side by side, and a paused referenc
   const three = ['a', 'b', 'c'].flatMap((id) => [{ id: `${id}.managed-agents`, brief: { id }, arm: credit }, { id: `${id}.claude-code`, brief: { id }, arm: reference }]);
   await assert.rejects(() => runCells({ cells: three, runDir: tmp(), cli: null, ledger: emptyLedger(), entry: ENTRY, api: { shape: null }, runId: 'halt', lanes: true, cellRunner: failing }), /cost unread/);
   assert.deepEqual(started, ['a.managed-agents', 'a.claude-code'], 'the reference lane ran only its running cell');
+
+  // A ladder rung's cells may name their own lanes (--lanes 2): two sessions of one arm at once.
+  const rungOrder = [];
+  const rungRunner = async ({ arm, brief }) => {
+    rungOrder.push(`start ${brief.id}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    rungOrder.push(`end ${brief.id}`);
+    return { brief: brief.id, arm: arm.id, outcome: 'delivered' };
+  };
+  const rungArm = { id: 'subscription', funding: 'subscription' };
+  const rung = ['a', 'b', 'c', 'd'].map((id, i) => ({ id: `${id}.rung`, brief: { id }, arm: rungArm, lane: `subscription-${i % 2}` }));
+  const rungDone = await runCells({ cells: rung, runDir: tmp(), cli: null, ledger: emptyLedger(), entry: ENTRY, api: { shape: null }, runId: 'rung', lanes: true, cellRunner: rungRunner });
+  assert.deepEqual(rungOrder.slice(0, 2), ['start a', 'start b'], 'two sessions of the rung at once');
+  assert.ok(rungOrder.indexOf('start c') > rungOrder.indexOf('end a'), 'each lane one session at a time');
+  assert.equal(rungDone.length, 4);
 });
 
 test('a misplaced stress value is moved by hand, and both arms of its brief are captured again', async () => {

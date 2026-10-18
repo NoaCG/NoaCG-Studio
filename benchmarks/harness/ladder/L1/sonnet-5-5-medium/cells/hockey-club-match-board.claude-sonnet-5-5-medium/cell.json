@@ -1,0 +1,176 @@
+{
+  "costUnread": false,
+  "brief": "hockey-club-match-board",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "5e0b01ac-aaea-4b52-9726-4a505aa7e389",
+  "costCents": 0,
+  "notionalUsd": 2.7411329,
+  "wallSeconds": 631,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:f58686e9b42b1ea6ca64cd70ae79ac67844073c2112cd2222a058d15cc391e46"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:00042ab8717bb310cb556288d2702d5a18b57910c75167f16e19b6171c2e0cc5"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:56b17b8a20aace984bd653b073fa4a240eda95a867b843baa9b4a8f7935c9594"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Hokejový klub Šumperk Žďárští Ořešáci --data f2=Bruslařský spolek Příbram – Čechy Úhlavní --data f1=12 --data f3=8 --data f6=1 | 3 | 2\n2 | 4 | 4\n3 | 5 | 2 --event clockStart --at 2 --background video --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:56b17b8a20aace984bd653b073fa4a240eda95a867b843baa9b4a8f7935c9594"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:1ed42d0b9f2b5ec454fed77ba4fa5798a710bd2fd36ac77a22d035b566f2e359"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:1ed42d0b9f2b5ec454fed77ba4fa5798a710bd2fd36ac77a22d035b566f2e359"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:fa76eeb69479d14ed80c5187c88a187f39b7fa9af8e3a72f0c7ce45dcf0235f6"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:fa76eeb69479d14ed80c5187c88a187f39b7fa9af8e3a72f0c7ce45dcf0235f6"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:114cc99267b9f46588f6cd0c0cd0539ccfc215f983810f434cb427010309c988"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:5148088edc7f2fdc764585265c0b0806cee11ca1d7e890571d5daf9260c10a8b"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:5148088edc7f2fdc764585265c0b0806cee11ca1d7e890571d5daf9260c10a8b"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:5148088edc7f2fdc764585265c0b0806cee11ca1d7e890571d5daf9260c10a8b"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\sonnet-5-5-medium\\cells\\hockey-club-match-board.claude-sonnet-5-5-medium\\frames",
+    "frames": 81,
+    "crops": 6,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:5148088edc7f2fdc764585265c0b0806cee11ca1d7e890571d5daf9260c10a8b"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 11,
+    "buttons": [
+      "clockStart",
+      "clockStop",
+      "clockReset",
+      "interval",
+      "resumePlay",
+      "final"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:5148088edc7f2fdc764585265c0b0806cee11ca1d7e890571d5daf9260c10a8b",
+    "benchValidated": "sha256:5148088edc7f2fdc764585265c0b0806cee11ca1d7e890571d5daf9260c10a8b",
+    "reviewed": "sha256:5148088edc7f2fdc764585265c0b0806cee11ca1d7e890571d5daf9260c10a8b",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 81,
+    "opened": 81,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

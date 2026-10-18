@@ -62,10 +62,19 @@ export function labelStress(brief, types) {
 export function examBriefs({ root, ledger, phase, passphraseFile = privatePassphraseFile(root) }) {
   const exam = examPending(ledger);
   if (!exam || phase !== exam) throw new Error(`the sealed briefs open only for the exam, once tuning is closed and before the exam is (${phase} is not that phase)`);
-  if (!passphraseFile) throw new Error('the sealed briefs need the passphrase in the main checkout\'s docs/private/harness-exam/ (D7): not on this machine');
-  const plain = openSealed(readSealed(path.join(root, EXAM_DIR, 'briefs.sealed')), readFileSync(passphraseFile, 'utf8').trim());
+  return openBriefSet({ root, dir: EXAM_DIR, passphraseFile, folder: 'harness-exam' });
+}
+
+/**
+ * A sealed set of twenty library briefs, decrypted in memory and verified against its committed
+ * hash: the parent's exam (`dir` benchmarks/harness/exam) or the ladder's (benchmarks/harness/
+ * ladder/exam). Whoever calls it has already decided the phase may open it.
+ */
+export function openBriefSet({ root, dir, passphraseFile, folder }) {
+  if (!passphraseFile) throw new Error(`the sealed briefs need the passphrase in the main checkout's docs/private/${folder}/: not on this machine`);
+  const plain = openSealed(readSealed(path.join(root, dir, 'briefs.sealed')), readFileSync(passphraseFile, 'utf8').trim());
   try {
-    if (sha256(plain) !== readHash(path.join(root, EXAM_DIR, 'briefs.sha256'))) throw new Error('the sealed briefs decrypt to something other than the committed hash: the exam does not run on them');
+    if (sha256(plain) !== readHash(path.join(root, dir, 'briefs.sha256'))) throw new Error('the sealed briefs decrypt to something other than the committed hash: the exam does not run on them');
     const briefs = JSON.parse(plain.toString('utf8')).briefs;
     if (!Array.isArray(briefs) || briefs.length !== EXAM_BRIEF_COUNT) throw new Error(`the sealed set holds ${Array.isArray(briefs) ? briefs.length : 'no list of'} briefs, not ${EXAM_BRIEF_COUNT}`);
     const ids = new Set(briefs.map((b) => b.id));
@@ -84,7 +93,7 @@ export function examBriefs({ root, ledger, phase, passphraseFile = privatePassph
  *  of 20 pairs; a median wall of at most ten minutes; more than 5 order-flip ties is inconclusive. */
 export const PASS_RULE = { usableGap: 1, referencePreferredMax: 10, medianWallSeconds: 600, flipTiesMax: 5 };
 
-const median = (xs) => {
+export const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b);
   if (!s.length) return null;
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
@@ -96,7 +105,7 @@ const percentile = (xs, p) => {
 };
 
 /** The latest good answer per judgement: a re-judged cell or pair keeps its last answer. */
-function answers(judgements, fingerprint) {
+export function answers(judgements, fingerprint) {
   const singles = new Map();
   const pairs = new Map();
   for (const j of judgements) {
@@ -108,7 +117,7 @@ function answers(judgements, fingerprint) {
 }
 
 /** One arm's graphic for one brief, counted as the tuning rounds counted it (phase-8.md). */
-function graphicOf(cell, single, budgetCents, readings = {}) {
+export function graphicOf(cell, single, budgetCents, readings = {}) {
   if (!cell) return { ran: false, delivered: false, usable: false, judged: false, defects: [], missing: [], unmoved: [], validatorErrors: [] };
   const delivered = cell.outcome === 'delivered';
   const defects = (single?.answer?.basicMistakes ?? []).filter((m) => m.kind !== 'missing-action');

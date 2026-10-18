@@ -3,7 +3,7 @@ v: 1
 scope: src/blocks/stepAssign.ts
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/blocks/2026-09-07-appears-press-transition-shared-timeline-layer.md
 ---

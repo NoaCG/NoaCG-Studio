@@ -1,0 +1,1137 @@
+path	line	excerpt
+.claude/rules/src-blocks-presetregistry.md	7	- **rule** `blocks/way-emit-preset-region-template-structure`: `emitPresetRegion(template, presetId, opts?)` is the ONE way to emit a preset's region for a template, with the structure facts read off its HTML, and `presetsForType`/`anyPresetById` are the one lookup for every category's presets. Three callers share that one shape: `presetApply` deri
+.claude/rules/src-blocks-stepassign.md	7	- **rule** `blocks/appears-press-transition-shared-timeline-layer`: `changePartPress` is the ONE appears-on-press transition, shared by the timeline's layer-block drag in `StepTimeline`, the Inspector's appears control, and the canvas chip. A press is just data - a step's `reveals` - so there is ONE path, routed through animEdit's `setLayerActivati
+.claude/rules/src-components-appshell-1397.md	3	"  - ""src/components/AppShell.tsx"""
+.claude/rules/src-components-appshell-1397.md	5	"  - ""src/components/video/VideoAppShell.tsx"""
+.claude/rules/src-components-wizard-creationwizard-7hzn.md	9	"- **rule** `wizard/put-footer-jump-finish-every-step`: Put the footer's jump to Finish on every step before it and stand it down ON Finish: template, design, SVG and import walks all take ""Skip to finish"", and a finished template dropped on the Create with AI card goes to file mode's Finish. No wizard control opens the old code editor - there is no"
+benchmarks/harness/evidence/phase-5/debate-clock.managed-agents/trace.json	360	"      ""result"": ""// is the starting state, applied instantly at the step start (it \""holds backward\"" —\n// the familiar keyframe convention); later keyframes tween from the previous one.\n// Takes a step index — or a state's inline timeline object, which plays the same way.\nfunction buildStepTimeline(index) {\n  var ste..."""
+benchmarks/harness/evidence/phase-8/borga-bilingual-notice.managed-agents/trace.json	162	"      ""result"": ""1222\tfunction buildStepTimeline(index) {\n1223\t  var step = typeof index === 'number' ? NOACG_ANIM.steps[index] : index;\n1224\t  var speed = NOACG_ANIM.speed || 1;\n1225\t  var tl = gsap.timeline();\n1226\t  Object.keys(step.spans || {}).forEach(function (selector) {\n1227\t    var spans = step.spans[select..."""
+benchmarks/harness/evidence/phase-8/school-auction-board.managed-agents/trace.json	157	"      ""result"": ""625\tfunction buildStepTimeline(index) {\n626\t  var step = typeof index === 'number' ? NOACG_ANIM.steps[index] : index;\n627\t  var speed = NOACG_ANIM.speed || 1;\n628\t  var tl = gsap.timeline();\n629\t  Object.keys(step.spans || {}).forEach(function (selector) {\n630\t    var spans = step.spans[selector];\n6..."""
+benchmarks/harness/evidence/phase-8/volleyball-set-board.managed-agents/trace.json	242	"      ""result"": ""function buildStepTimeline(index) {\n  var step = typeof index === 'number' ? NOACG_ANIM.steps[index] : index;\n  var speed = NOACG_ANIM.speed || 1;\n  var tl = gsap.timeline();\n  Object.keys(step.spans || {}).forEach(function (selector) {\n    var spans = step.spans[selector];\n    var times = [0];\n    ..."""
+benchmarks/pro/evidence/hosted-2026-08-16/composed.html	349	function buildStepTimeline(index) {
+benchmarks/pro/evidence/hosted-2026-08-16/composed.html	459	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/hosted-2026-08-16/composed.html	468	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/hosted-2026-08-16/composed.html	498	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/hosted-2026-08-16/composed.html	643	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/corporate.aldervale.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/corporate.aldervale.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/corporate.aldervale.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/corporate.aldervale.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/corporate.aldervale.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/empty-optional.sunbeam.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/empty-optional.sunbeam.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/empty-optional.sunbeam.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/empty-optional.sunbeam.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/empty-optional.sunbeam.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.aldervale.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.aldervale.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.aldervale.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.aldervale.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.aldervale.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.kestrel.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.kestrel.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.kestrel.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.kestrel.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.kestrel.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.ledger.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.ledger.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.ledger.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.ledger.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.ledger.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.sunbeam.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.sunbeam.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.sunbeam.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.sunbeam.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/entertainment.sunbeam.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/gradient-accent.kestrel.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/gradient-accent.kestrel.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/gradient-accent.kestrel.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/gradient-accent.kestrel.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/gradient-accent.kestrel.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/high-contrast.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/high-contrast.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/high-contrast.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/high-contrast.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/high-contrast.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/long-name.kestrel.language/template.js	130	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/long-name.kestrel.language/template.js	240	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/long-name.kestrel.language/template.js	249	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/long-name.kestrel.language/template.js	279	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/long-name.kestrel.language/template.js	424	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/minimalist.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/minimalist.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/minimalist.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/minimalist.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/minimalist.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/multiline-title.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/multiline-title.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/multiline-title.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/multiline-title.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/multiline-title.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.aldervale.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.aldervale.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.aldervale.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.aldervale.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.aldervale.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.kestrel.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.kestrel.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.kestrel.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.kestrel.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.kestrel.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.sunbeam.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.sunbeam.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.sunbeam.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.sunbeam.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/news-public.sunbeam.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/non-latin.aldervale.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/non-latin.aldervale.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/non-latin.aldervale.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/non-latin.aldervale.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/non-latin.aldervale.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/portrait-logo.sunbeam.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/portrait-logo.sunbeam.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/portrait-logo.sunbeam.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/portrait-logo.sunbeam.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/portrait-logo.sunbeam.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-16/code/sports-live.kestrel.language/template.js	130	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-16/code/sports-live.kestrel.language/template.js	240	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-16/code/sports-live.kestrel.language/template.js	249	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-16/code/sports-live.kestrel.language/template.js	279	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-16/code/sports-live.kestrel.language/template.js	424	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/corporate.aldervale.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/sponsor-bug/template.js	124	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/sponsor-bug/template.js	234	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/sponsor-bug/template.js	243	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/sponsor-bug/template.js	273	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/sponsor-bug/template.js	418	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/empty-optional.sunbeam.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/sponsor-bug/template.js	124	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/sponsor-bug/template.js	234	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/sponsor-bug/template.js	243	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/sponsor-bug/template.js	273	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/sponsor-bug/template.js	418	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.aldervale.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.kestrel.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/sponsor-bug/template.js	124	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/sponsor-bug/template.js	234	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/sponsor-bug/template.js	243	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/sponsor-bug/template.js	273	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/sponsor-bug/template.js	418	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/entertainment.sunbeam.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/gradient-accent.kestrel.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/high-contrast.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/long-name.kestrel.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/minimalist.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/multiline-title.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/sponsor-bug/template.js	124	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/sponsor-bug/template.js	234	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/sponsor-bug/template.js	243	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/sponsor-bug/template.js	273	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/sponsor-bug/template.js	418	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.aldervale.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/countdown/template.js	290	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/countdown/template.js	400	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/countdown/template.js	409	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/countdown/template.js	439	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/countdown/template.js	584	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/sponsor-bug/template.js	136	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/sponsor-bug/template.js	246	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/sponsor-bug/template.js	255	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/sponsor-bug/template.js	285	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/sponsor-bug/template.js	430	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/template.js	130	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/template.js	240	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/template.js	249	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/template.js	279	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.kestrel.language/template.js	424	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/news-public.sunbeam.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/non-latin.aldervale.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/sponsor-bug/template.js	124	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/sponsor-bug/template.js	234	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/sponsor-bug/template.js	243	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/sponsor-bug/template.js	273	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/sponsor-bug/template.js	418	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/portrait-logo.sunbeam.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/countdown/template.js	290	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/countdown/template.js	400	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/countdown/template.js	409	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/countdown/template.js	439	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/countdown/template.js	584	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/sponsor-bug/template.js	136	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/sponsor-bug/template.js	246	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/sponsor-bug/template.js	255	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/sponsor-bug/template.js	285	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/sponsor-bug/template.js	430	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/template.js	130	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/template.js	240	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/template.js	249	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/template.js	279	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-17/code/sports-live.kestrel.language/template.js	424	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/sponsor-bug/template.js	124	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/sponsor-bug/template.js	234	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/sponsor-bug/template.js	243	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/sponsor-bug/template.js	273	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/sponsor-bug/template.js	418	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/topic-card/template.js	158	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/topic-card/template.js	268	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/topic-card/template.js	277	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/topic-card/template.js	307	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/entertainment.sunbeam.language/topic-card/template.js	452	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/sponsor-bug/template.js	132	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/sponsor-bug/template.js	242	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/sponsor-bug/template.js	251	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/sponsor-bug/template.js	281	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/sponsor-bug/template.js	426	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/template.js	154	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/template.js	264	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/template.js	273	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/template.js	303	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/template.js	448	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/topic-card/template.js	166	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/topic-card/template.js	276	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/topic-card/template.js	285	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/topic-card/template.js	315	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/minimalist.ledger.language/topic-card/template.js	460	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/countdown/template.js	314	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/countdown/template.js	424	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/countdown/template.js	433	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/countdown/template.js	463	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/countdown/template.js	608	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/sponsor-bug/template.js	124	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/sponsor-bug/template.js	234	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/sponsor-bug/template.js	243	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/sponsor-bug/template.js	273	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/sponsor-bug/template.js	418	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/template.js	142	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/template.js	252	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/template.js	261	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/template.js	291	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/template.js	436	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/topic-card/template.js	158	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/topic-card/template.js	268	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/topic-card/template.js	277	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/topic-card/template.js	307	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/news-public.aldervale.language/topic-card/template.js	452	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/countdown/template.js	290	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/countdown/template.js	400	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/countdown/template.js	409	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/countdown/template.js	439	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/countdown/template.js	584	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/sponsor-bug/template.js	136	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/sponsor-bug/template.js	246	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/sponsor-bug/template.js	255	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/sponsor-bug/template.js	285	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/sponsor-bug/template.js	430	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/template.js	130	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/template.js	240	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/template.js	249	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/template.js	279	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/template.js	424	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/topic-card/template.js	136	function buildStepTimeline(index) {
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/topic-card/template.js	246	  var tl = buildStepTimeline(0);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/topic-card/template.js	255	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/topic-card/template.js	285	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/evidence/round-2026-08-19-topiccard/code/sports-live.kestrel.language/topic-card/template.js	430	  return step ? buildStepTimeline(step) : null;
+benchmarks/pro/round-2026-08-08/machine/taught.template.js	329	function buildStepTimeline(index) {
+benchmarks/pro/round-2026-08-08/machine/taught.template.js	439	  var tl = buildStepTimeline(0);
+benchmarks/pro/round-2026-08-08/machine/taught.template.js	448	  var tl = buildStepTimeline(steps.length - 1);
+benchmarks/pro/round-2026-08-08/machine/taught.template.js	478	  var tl = buildStepTimeline(noacgStepsPlayed++);
+benchmarks/pro/round-2026-08-08/machine/taught.template.js	623	  return step ? buildStepTimeline(step) : null;
+cli/test/fixtures/state-timer/js/template.js	465	  var tl = buildStepTimeline(effects);
+cli/test/fixtures/state-timer/js/template.js	530	function buildStepTimeline(index) {
+cli/test/fixtures/state-timer/js/template.js	663	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+cli/test/fixtures/state-timer/js/template.js	694	  var tl = buildStepTimeline(0);
+cli/test/fixtures/state-timer/js/template.js	755	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+cli/test/fixtures/state-timer/js/template.js	905	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+contracts/index.md	80	| `blocks/appears-press-transition-shared-timeline-layer` | rule | contract | active | `src/blocks/stepAssign.ts` | `changePartPress` is the ONE appears-on-press transition, shared by the timeline's layer-block drag in `StepTimeline`, the Inspector's appears control, and the canvas chip. |
+contracts/index.md	152	| `components/bind-undo-redo-globally-appshell-ctrl` | rule | contract | retired | `src/components/AppShell.tsx` | Bind undo and redo globally in AppShell - Ctrl/Cmd+Z to `undo()`, Ctrl/Cmd+Shift+Z and Ctrl+Y to `redo()` - and stand down when focus is in Monaco or a form field, or while `modalOpen()` is true. |
+contracts/index.md	158	| `components/defer-inspector-reveal-past-double-click` | trap | contract | retired | `src/components/AppShell.tsx` | Defer the Inspector reveal past the double-click window: a new `selectedParts` selection arms a timer, any new pointer press cancels it, and a live canvas gesture (`canvasGestureActive`) skips it at fire time, so the workspace never
+contracts/index.md	171	| `components/lay-workspace-out-fixed-centre-canvas` | rule | contract | retired | `src/components/AppShell.tsx`, `src/components/WorkspaceDock.tsx` | Lay the workspace out from `model/layout.ts`: a fixed centre - the canvas over the timeline, split by a draggable divider - flanked by LEFT, RIGHT and BOTTOM docks, each hosting any of `code`, `inspe
+contracts/index.md	172	| `components/link-logo-every-header-public-front` | invariant | test:e2e/project.spec.ts (carried) | active | `src/components/video/VideoAppShell.tsx`, `src/components/home/GraphicControlPage.tsx`, `src/components/home/HomePage.tsx`, `src/components/home/ProductionPage.tsx` | Link the logo in every header to the public front page, never a Home doo
+contracts/index.md	173	| `components/make-logo-every-header-real-link` | invariant | contract | retired | `src/components/AppShell.tsx`, `src/components/video/VideoAppShell.tsx`, `src/components/home/GraphicControlPage.tsx`, `src/components/home/HomePage.tsx`, `src/components/home/ProductionPage.tsx` | Make the logo in every header a real link to the public front page, n
+contracts/index.md	179	| `components/open-every-header-same-trio-brand` | invariant | contract | retired | `src/components/AppShell.tsx`, `src/components/video/VideoAppShell.tsx`, `src/components/home/GraphicControlPage.tsx` | Open every header with the same trio - brand lockup, Home, then the new-graphic door - all LEFT of the bar's `.spacer` and none of them wearing `p
+contracts/index.md	180	| `components/open-inspector-tool-panels-right-dock` | rule | contract | retired | `src/components/AppShell.tsx` | Open with `DEFAULT_LAYOUT`: the Inspector and the tool panels in the RIGHT dock, the LEFT and BOTTOM docks EMPTY, and the `code` panel CLOSED, because the code view is optional and a Monaco pane across a third of the window tells a fir
+contracts/index.md	196	| `components/treat-reveal-signal-rather-than-state` | trap | contract | retired | `src/components/AppShell.tsx` | Treat `activePanel` as a REVEAL signal rather than as state: the docks key the reveal on `panelRevealNonce`, which every `setActivePanel` call bumps, so re-requesting the stored default still reveals and mount never does. |
+contracts/index.md	198	| `components/write-every-home-door-word-alone` | rule | contract | active | `src/components/AppShell.tsx`, `src/components/video/VideoAppShell.tsx`, `src/components/auth/AuthStatus.tsx` | Write every Home door as the WORD alone, no emoji and no glyph (`src/styles/wizard-and-dialogs.css` says why). |
+contracts/index.md	320	| `root/render-old-code-editor-route-never` | invariant | test:e2e/no-old-editor.spec.ts (carried) | active | `src/App.tsx`, `src/app/router.ts`, `src/components/AppShell.tsx`, `src/model/prefs.ts` | Render the old code editor, `src/components/AppShell.tsx`, from NO route and never import it from `src/App.tsx`; keep its source until the new editor
+contracts/rules/blocks/appears-press-transition-shared-timeline-layer.md	10	`changePartPress` is the ONE appears-on-press transition, shared by the timeline's layer-block drag in `StepTimeline`, the Inspector's appears control, and the canvas chip. A press is just data - a step's `reveals` - so there is ONE path, routed through animEdit's `setLayerActivation` plus the SPX steps re-sync; it returns null on a legacy region,
+contracts/rules/blocks/way-emit-preset-region-template-structure.md	10	`emitPresetRegion(template, presetId, opts?)` is the ONE way to emit a preset's region for a template, with the structure facts read off its HTML, and `presetsForType`/`anyPresetById` are the one lookup for every category's presets. Three callers share that one shape: `presetApply` derives a preset's keyframes by emitting a region and converting it
+contracts/rules/components/bind-undo-redo-globally-appshell-ctrl.md	3	scope: src/components/AppShell.tsx
+contracts/rules/components/bind-undo-redo-globally-appshell-ctrl.md	10	Bind undo and redo globally in AppShell - Ctrl/Cmd+Z to `undo()`, Ctrl/Cmd+Shift+Z and Ctrl+Y to `redo()` - and stand down when focus is in Monaco or a form field, or while `modalOpen()` is true. A dialog's Ctrl+Z belongs to the dialog, never to the document behind it.
+contracts/rules/components/defer-inspector-reveal-past-double-click.md	3	scope: src/components/AppShell.tsx
+contracts/rules/components/lay-workspace-out-fixed-centre-canvas.md	3	scope: src/components/AppShell.tsx, src/components/WorkspaceDock.tsx
+contracts/rules/components/lay-workspace-out-fixed-centre-canvas.md	10	Lay the workspace out from `model/layout.ts`: a fixed centre - the canvas over the timeline, split by a draggable divider - flanked by LEFT, RIGHT and BOTTOM docks, each hosting any of `code`, `inspector`, `data`, `control`, `style`, `assets`, `ai` and `export` as tabs, and each rendering only when it holds panels. `WorkspaceDock` draws a dock, App
+contracts/rules/components/link-logo-every-header-public-front.md	3	scope: src/components/video/VideoAppShell.tsx, src/components/home/GraphicControlPage.tsx, src/components/home/HomePage.tsx, src/components/home/ProductionPage.tsx
+contracts/rules/components/make-logo-every-header-real-link.md	3	scope: src/components/AppShell.tsx, src/components/video/VideoAppShell.tsx, src/components/home/GraphicControlPage.tsx, src/components/home/HomePage.tsx, src/components/home/ProductionPage.tsx
+contracts/rules/components/open-every-header-same-trio-brand.md	3	scope: src/components/AppShell.tsx, src/components/video/VideoAppShell.tsx, src/components/home/GraphicControlPage.tsx
+contracts/rules/components/open-inspector-tool-panels-right-dock.md	3	scope: src/components/AppShell.tsx
+contracts/rules/components/treat-reveal-signal-rather-than-state.md	3	scope: src/components/AppShell.tsx
+contracts/rules/components/write-every-home-door-word-alone.md	3	scope: src/components/AppShell.tsx, src/components/video/VideoAppShell.tsx, src/components/auth/AuthStatus.tsx
+contracts/rules/root/render-old-code-editor-route-never.md	3	scope: src/App.tsx, src/app/router.ts, src/components/AppShell.tsx, src/model/prefs.ts
+contracts/rules/root/render-old-code-editor-route-never.md	10	Render the old code editor, `src/components/AppShell.tsx`, from NO route and never import it from `src/App.tsx`; keep its source until the new editor has taken over what is worth keeping. The bare, `#/` and unknown hashes show Home without rewriting a fragment the app does not own, a stale `#/graphic/<id>` opens that graphic's control page, and the
+contracts/rules/wizard/put-footer-jump-finish-every-step.md	11	"Put the footer's jump to Finish on every step before it and stand it down ON Finish: template, design, SVG and import walks all take ""Skip to finish"", and a finished template dropped on the Create with AI card goes to file mode's Finish. No wizard control opens the old code editor - there is no straight-to-code ""Create project"" and no Blank step."
+docs/AGENT_SAVE.md	112	`#/control/<id>` (the old code editor it used to open is closed, `src/App.tsx`). The record then
+docs/ARCHITECTURE.md	189	`grep -c 'applyTemplate({ *\.\.\.template' <file>`: `src/components/canvas/CanvasInteraction.tsx`
+docs/ARCHITECTURE.md	190	(5 sites), `src/components/timeline/StepTimeline.tsx` (6 sites) and
+docs/ARCHITECTURE.md	333	  components/ * the React app: AppShell, CodeEditor, timeline dock, Inspector, canvas/, wizard/,
+docs/BEHAVIOUR_AUTHORING_RESEARCH.md	40	First, the honest scope of the failure. The node editor (`src/components/timeline/MachineGraph.tsx`
+docs/DYNAMIC_MOTION_SCOPE.md	132	  entrance/exit as keyframes + a dynamic segment for the travel), so they render on `StepTimeline` and
+docs/DYNAMIC_MOTION_SCOPE.md	153	"- **Timeline** (`StepTimeline.tsx`): a read-only ""measured motion"" row per target, naming the"
+docs/DYNAMIC_MOTION_SCOPE.md	228	patchers are deleted, and a read-only renderer stayed — `components/timeline/LegacyTimeline.tsx` — for the
+docs/EDITOR_REBUILD_PLAN.md	448	kill active tweens, while buildStepTimeline() in src/templates/shared/animRuntime.ts
+docs/GOALS_ARCHIVE.md	475	      2) **No move mode** — `CanvasInteraction` replaces the W1 toggle: hand/text hover cursors,
+docs/GOALS_ARCHIVE.md	1172	The visual state-machine editor beneath the canvas (`src/components/timeline/MachineGraph.tsx`): one
+docs/IMPORT_MVP.md	37	| Timeline dock | `components/timeline/StepTimeline.tsx:82` `TimelineDock` | no `NOACG_ANIM` + no legacy region → `LegacyTimeline` → renders `null` (no strip at all) |
+docs/IMPORT_MVP.md	209	  element (`partScreenEl` in CanvasInteraction), and the corner handle resizes the slot's
+docs/INTERACTIVE_PLAYOUT_PLAN.md	131	**Conflict resolutions:** the shipped MachineGraph node editor stays what it is (Advanced
+docs/INTERACTIVE_PLAYOUT_PLAN.md	971	  unmoderated chat overlays, and any visual state/node editor beyond the shipped MachineGraph.
+docs/NOACG_PRO_PLAN.md	3159	GraphicControlPage, PlayoutSimulator, MachineGraph, the hosted receivers) now treats a
+docs/NOACG_VIDEO_PLAN.md	288	- **The gap is UI.** A video project's fps is only *displayed* today (VideoAppShell,
+docs/PRESET_MODEL_REVIEW.md	6	> `src/components/timeline/Inspector.tsx`, `src/components/timeline/StepTimeline.tsx`) as the rationale for what
+docs/PRESET_MODEL_REVIEW.md	62	  scale/rotation at the playhead around this pivot (CanvasInteraction, mirroring the
+docs/PUBLIC_SERVICE_PACK.md	165	(`shared/animRuntime.ts` `buildStepTimeline`). A fade is therefore only honest when every
+docs/SAVED_CONTENT_MODEL.md	88	"| *(none)* | Home. Redirected on boot - the wizard on a first-ever visit, `#/home` otherwise (docs/GOALS_ARCHIVE.md ""Student release"" step 4). A fragment the app does not own (a sign-in token) renders Home and is left in place. The old code editor this route used to open is closed (2026-09-24). |"
+docs/STATE_MACHINE_SCHEMA.md	11	`src/components/timeline/MachineGraph.tsx` + `src/blocks/machineEdit.ts` — see §6a); Phase 5 built the
+docs/STATE_MACHINE_SCHEMA.md	256	`src/components/timeline/MachineGraph.tsx` over the pure mutators in `src/blocks/machineEdit.ts`.
+docs/STATE_MACHINE_SCHEMA.md	316	| `src/components/timeline/MachineGraph.tsx` | The graph surface (§6a): boxes, arrows, lanes, cards, port-drag, live state. |
+docs/SVG_ANIMATION_DIRECTION.md	60	  `buildStepTimeline`). This covers the brief's pulses, glows, drifts, sheens, breathing -
+docs/metrics/2026-09-07-blocks-migrated.md	78	   `LegacyTimeline`'s start-over, `exampleWithAuthoringRegion` in `src/ai/claudeProvider.ts` calls
+docs/metrics/2026-09-07-components-migrated.md	62	"section said the pan takes Space from a focused button and ""play never does"". `StepTimeline` still"
+docs/research/ci-landing-reliability-2026-10-04.md	73	No observed failure above requires the retired AppShell editor. The failing
+docs/research/ci-landing-reliability-2026-10-04.md	76	loads or briefly displays AppShell, including with an old Advanced preference.
+docs/research/ci-landing-reliability-2026-10-04.md	79	[issue #800](https://github.com/NoaCG/NoaCG-Studio/issues/800) is a coverage gap. Deleting
+docs/research/ci-performance-2026-10-04.md	120	This is obsolete test preparation, not evidence that AppShell executes or causes
+docs/research/ci-performance-2026-10-04.md	124	fix. The existing [migration backlog](https://github.com/NoaCG/NoaCG-Studio/issues/800)
+docs/research/community-packs-2026-10-07/README.md	23	`src/components/AppShell.tsx`, `src/components/wizard/steps/CommunityPacks.tsx`,
+docs/research/community-packs-2026-10-07/README.md	39	from Home. The browse and moderation UI lived in the old code editor, which no route has rendered
+docs/research/control-surfaces-review-2026-10-02/README.md	66	| R6 | **Rehearse** in the old code editor | `src/components/ControlPanel.tsx`, mounted only by `AppShell.tsx:287` / `SidePanel.tsx:57` | preview only | none: no route renders AppShell (`src/App.tsx:388`) | 417 (+572 shell) |
+docs/research/control-surfaces-review-2026-10-02/README.md	110	6. **R6 is dead code.** `ControlPanel.tsx`, `AppShell.tsx` and `SidePanel.tsx` (989 lines) have no
+docs/research/editor-baseline-2026-09-17.md	37	| Cancel | Canvas has active drag Escape handling; StepTimeline has pointer-cancel handlers and menu Escape, without an equivalent shared gesture rollback contract | Exercise each drag kind and require exact source/pose restoration |
+docs/research/editor-baseline-2026-09-17/hairline.json	12	"  ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { el."
+docs/research/editor-consolidated-proposal-2026-09-17/consolidation-audit.json	51	"    ""src/components/timeline/MachineGraph.tsx"": true,"
+docs/research/editor-consolidation-2026-09-17/EDITOR_REBUILD_PLAN.md	77	| Timeline | `src/components/timeline/StepTimeline.tsx` already expands property rows and implements selection, zoom and scrubbing | Inspect discoverability, target size and feedback; replace interaction code where necessary |
+docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md	63	- **`components/timeline/LegacyTimeline.tsx`** — the read-only chart §8.1 requires, for a region the importer
+docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md	182	function buildStepTimeline(step) { /* ~60 lines, commented, ES5 */ }
+docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md	440	`buildStepTimeline` places each call with GSAP's own primitive, resolved by name at fire
+docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md	544	- Store `selectedPart` + `CanvasInteraction`/`CanvasSelection` — selection sync exists and
+docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md	562	- Steps-on detection (`js.includes('function revealNextStep')` in `CanvasInteraction` and
+docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md	589	  splitter system — `AppShell` already has persisted layout prefs and drag dividers; the
+docs/research/editor-consolidation-2026-09-17/TIMELINE_V2_PLAN.md	659	  its specs are gone; the read-only renderer §8.1 requires stayed (LegacyTimeline). One amendment
+docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md	48	`CanvasInteraction` layer is ALWAYS on: hand cursor over the graphic, drag starts only ON the
+docs/research/editor-design-review-2026-09-17.md	101	| `AppShell.tsx`, `WorkspaceDock.tsx` composition | Replace shell composition | Professional Layout/Animate workspace, permanent canvas and optional docked source. Reuse valid docking persistence with migration. |
+docs/research/editor-design-review-2026-09-17.md	103	| `timeline/StepTimeline.tsx` | Replace UI/controller | New gesture lifecycle, explicit property rows and predictable key operations. Retain valid domain transforms and lifecycle semantics. |
+docs/research/editor-design-review-2026-09-17.md	105	| `canvas/CanvasInteraction.tsx` | Replace gesture orchestration | One interaction context; one transaction per gesture; exact cancel; parent-aware geometry. Reuse proven hit testing, locks, snapping and coordinate helpers. |
+docs/research/editor-design-review-2026-09-17/baseline-measurements-pilot.json	31527	"      ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) {"
+docs/research/editor-design-review-2026-09-17/baseline-measurements-pilot.json	31554	"      ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) {"
+docs/research/editor-design-review-2026-09-17/baseline-measurements.json	31727	"      ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) {"
+docs/research/editor-design-review-2026-09-17/baseline-measurements.json	31754	"      ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) {"
+docs/research/editor-design-review-2026-09-17/f2-scorebug.json	12	"  ""js"": ""// Imported SVG design — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (v"
+docs/research/editor-design-review-2026-09-17/f4-noacg.json	12	"  ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { el."
+docs/research/editor-design-review-2026-09-17/f5-preservation.json	13	"    ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { e"
+docs/research/editor-design-review-2026-09-17/f5-preservation.json	40	"    ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { e"
+docs/research/editor-design-review-2026-09-17/f5-source-fixtures.json	13	"    ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { e"
+docs/research/editor-design-review-2026-09-17/f5-source-fixtures.json	40	"    ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { e"
+docs/research/editor-design-review-2026-09-17/f5-source-fixtures.json	67	"    ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { e"
+docs/research/editor-design-review-2026-09-17/f5-source-fixtures.json	94	"    ""js"": ""gsap.registerEase(\""ownerCurve\"", function(p){ return p*p*p; });\n// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldVal"
+docs/research/editor-design-review-2026-09-17/noacg-drag-after-1366.json	1	"{""name"":""F4 - 30 layers 300 property keys"",""type"":""blank"",""resolution"":{""width"":1920,""height"":1080,""label"":""1080p (1920×1080)""},""fps"":25,""html"":""<!doctype html><html><head><script src=\""js/gsap.min.js\""></script><link rel=\""stylesheet\"" href=\""css/template.css\""><script src=\""js/template.js\""></script></head><body><div id=\""stress-root\""><div id=\"""
+docs/research/editor-design-review-2026-09-17/noacg-drag-after-1920.json	1	"{""name"":""F4 - 30 layers 300 property keys"",""type"":""blank"",""resolution"":{""width"":1920,""height"":1080,""label"":""1080p (1920×1080)""},""fps"":25,""html"":""<!doctype html><html><head><script src=\""js/gsap.min.js\""></script><link rel=\""stylesheet\"" href=\""css/template.css\""><script src=\""js/template.js\""></script></head><body><div id=\""stress-root\""><div id=\"""
+docs/research/editor-design-review-2026-09-17/noacg-drag-before-1366.json	1	"{""name"":""F4 - 30 layers 300 property keys"",""type"":""blank"",""resolution"":{""width"":1920,""height"":1080,""label"":""1080p (1920×1080)""},""fps"":25,""html"":""<!doctype html><html><head><script src=\""js/gsap.min.js\""></script><link rel=\""stylesheet\"" href=\""css/template.css\""><script src=\""js/template.js\""></script></head><body><div id=\""stress-root\""><div id=\"""
+docs/research/editor-design-review-2026-09-17/noacg-drag-before-1920.json	1	"{""name"":""F4 - 30 layers 300 property keys"",""type"":""blank"",""resolution"":{""width"":1920,""height"":1080,""label"":""1080p (1920×1080)""},""fps"":25,""html"":""<!doctype html><html><head><script src=\""js/gsap.min.js\""></script><link rel=\""stylesheet\"" href=\""css/template.css\""><script src=\""js/template.js\""></script></head><body><div id=\""stress-root\""><div id=\"""
+docs/research/editor-design-review-2026-09-17/noacg-drag-undo-1366.json	1	"{""name"":""F4 - 30 layers 300 property keys"",""type"":""blank"",""resolution"":{""width"":1920,""height"":1080,""label"":""1080p (1920×1080)""},""fps"":25,""html"":""<!doctype html><html><head><script src=\""js/gsap.min.js\""></script><link rel=\""stylesheet\"" href=\""css/template.css\""><script src=\""js/template.js\""></script></head><body><div id=\""stress-root\""><div id=\"""
+docs/research/editor-design-review-2026-09-17/noacg-drag-undo-1920.json	1	"{""name"":""F4 - 30 layers 300 property keys"",""type"":""blank"",""resolution"":{""width"":1920,""height"":1080,""label"":""1080p (1920×1080)""},""fps"":25,""html"":""<!doctype html><html><head><script src=\""js/gsap.min.js\""></script><link rel=\""stylesheet\"" href=\""css/template.css\""><script src=\""js/template.js\""></script></head><body><div id=\""stress-root\""><div id=\"""
+docs/research/editor-node-editor-deferred-2026-09-17.md	11	Preserve `src/components/timeline/MachineGraph.tsx`, `src/blocks/machineEdit.ts`,
+docs/research/editor-r1-1d/baseline/wizard.js	159	  var tl = buildStepTimeline(effects);
+docs/research/editor-r1-1d/baseline/wizard.js	208	function buildStepTimeline(index) {
+docs/research/editor-r1-1d/baseline/wizard.js	341	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+docs/research/editor-r1-1d/baseline/wizard.js	372	  var tl = buildStepTimeline(0);
+docs/research/editor-r1-1d/baseline/wizard.js	421	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+docs/research/editor-r1-1d/baseline/wizard.js	571	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+docs/research/editor-r1-2a-2/README.md	9	about the curve that results. The old editor's menu wrote one whole-segment ease INTO one key.
+docs/research/editor-r1-2a-2/README.md	24	- The old key menu (`setKeyframeEase`, `StepTimeline.tsx`) writes one whole-segment ease INTO a
+docs/research/editor-r1-2a-4/README.md	29	  old editor's `addStep`, `deleteStep` and `resizeStep` (`animEdit.ts`) insert an empty 0.45 s
+docs/research/editor-r1-foundation/fixture-catalog.json	12	"  ""js"": ""// Hairline — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value) { el."
+docs/research/editor-r1-foundation/fixture-f4.json	12	"  ""js"": ""/* == ANIMATION (generated — the Animation panel rewrites this block) == */\n// The graphic's animation as DATA. Steps play in order — the first on ▶ play(), each\n// middle step on one » next() press (SPX Continue), the last on ■ stop(). Each layer's\n// properties are keyframe lists on the step's local clock: { \""time\"", \""value\"", \""eas"
+docs/research/editor-r1-foundation/fixture-svg.json	12	"  ""js"": ""// Imported SVG design — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (v"
+docs/research/editor-r1-foundation/implementation.md	19	| src/components/AppShell.tsx; WorkspaceDock.tsx | Replace composition | Old shell/docks retire R1.5 |
+docs/research/editor-r1-foundation/implementation.md	21	| src/components/canvas/CanvasInteraction.tsx; CanvasSelection.tsx | Replace gesture coordination, shared selection first | R1.1a-d/R1.2b tools; old coordinator retires R1.5 |
+docs/research/editor-r1-foundation/implementation.md	23	| src/components/timeline/StepTimeline.tsx; Inspector.tsx | Replace surfaces | R1.1-R1.2 tools; old UI retires R1.5 |
+docs/research/editor-r1-foundation/implementation.md	24	| src/components/timeline/LegacyTimeline.tsx; MachineGraph.tsx | Retire from new workspace, preserve readers/runtime | Old UI retires R1.5; no node authoring |
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs	110	"const OFFLINE_DOCUMENT = ""<!doctype html><html><head>\n<meta name=\""color-scheme\"" content=\""light\"">\n<base href=\""__NOACG_BASE__\"">\n<style>html,body{width:1920px;height:1080px;overflow:hidden;margin:0;background:transparent}/* Pattern bench — generated by NoaCG Studio. Edit freely: this file is yours. */\n\n/* ── Style contract: change these var"
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs	873	    var tl = buildStepTimeline(effects);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs	938	  function buildStepTimeline(index) {
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs	1071	  // Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs	1102	    var tl = buildStepTimeline(0);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs	1163	    var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs	1313	    return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/js/template.js	623	  var tl = buildStepTimeline(effects);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/js/template.js	688	function buildStepTimeline(index) {
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/js/template.js	821	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/js/template.js	852	  var tl = buildStepTimeline(0);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/js/template.js	913	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/js/template.js	1063	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs	110	"const OFFLINE_DOCUMENT = ""<!doctype html><html><head>\n<meta name=\""color-scheme\"" content=\""light\"">\n<base href=\""__NOACG_BASE__\"">\n<style>html,body{width:1920px;height:1080px;overflow:hidden;margin:0;background:transparent}/* Pub Quiz - a big, bright question board built to read on a pub TV from the back of the room. */\n\n:root {\n  --accent:"
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs	942	    var tl = buildStepTimeline(effects);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs	1007	  function buildStepTimeline(index) {
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs	1140	  // Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs	1171	    var tl = buildStepTimeline(0);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs	1232	    var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs	1382	    return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/js/template.js	692	  var tl = buildStepTimeline(effects);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/js/template.js	757	function buildStepTimeline(index) {
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/js/template.js	890	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/js/template.js	921	  var tl = buildStepTimeline(0);
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/js/template.js	982	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/js/template.js	1132	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	1137	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	2563	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	3989	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	6023	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	6554	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	6615	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	6642	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	6937	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	7435	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	7479	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	7523	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	7567	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	7662	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	7757	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	7784	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	8281	"          ""title"": ""no-old-editor.spec.ts > the old editor's module is never even loaded"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	8338	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	10717	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	10812	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	10907	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	10934	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	10978	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11260	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11491	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11603	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11664	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11691	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11735	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11779	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11840	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11867	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	11894	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	12159	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	12390	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	14380	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	14407	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	14434	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	15991	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16018	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16045	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16072	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16099	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16126	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16153	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16180	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16207	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16234	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16261	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16288	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16315	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16342	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16369	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16396	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16440	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16467	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16494	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16521	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16548	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16575	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16602	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16663	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16690	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16734	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16761	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16805	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16849	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16893	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	16988	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17083	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17110	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17205	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17232	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17259	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17286	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17313	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17425	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17537	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17598	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17625	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17669	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17713	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17774	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17801	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17828	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	17906	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19040	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19067	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19094	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19121	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19148	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19175	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19202	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19229	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19256	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19283	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19310	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19354	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19389	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19416	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19443	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19470	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19497	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19558	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19585	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19612	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19843	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19887	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19914	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19941	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19968	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	19995	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	20022	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	20049	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	20076	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	20103	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	20130	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21177	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21272	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21537	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21581	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21608	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21635	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21662	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21689	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21716	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21743	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21770	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	21797	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	22045	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	22466	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	22493	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	22520	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24077	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24104	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24131	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24158	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24185	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24212	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24239	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24266	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24293	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24320	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24347	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24374	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24401	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24428	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24455	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24482	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24526	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24553	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24580	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24607	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24634	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24661	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24688	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24749	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24776	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24820	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24847	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24891	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24935	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	24979	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25074	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25169	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25196	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25291	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25318	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25345	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25372	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25399	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25511	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25623	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25684	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25711	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25755	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25799	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25860	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25887	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25914	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	25992	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	26532	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	26559	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	26586	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28143	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28170	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28197	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28224	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28251	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28278	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28305	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28332	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28359	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28386	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28413	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28440	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28467	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28494	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28521	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28548	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28592	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28619	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28646	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28673	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28700	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28727	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28754	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28815	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28842	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28886	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28913	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	28957	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29001	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29045	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29140	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29235	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29262	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29357	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29384	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29411	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29438	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29465	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29577	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29689	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29750	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29777	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29821	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29865	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29926	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29953	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	29980	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/cloud-execution/evidence/codex-measurements.json	30058	"              ""description"": ""Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800"","
+docs/work-specs/codebase-health/evidence/measurements.json	31	"    {""path"": ""src/components/canvas/CanvasInteraction.tsx"", ""lines"": 2240, ""baseline"": 2240, ""netGrowth"": 0, ""integrations30"": 0, ""integrations14"": 0, ""added"": 0, ""deleted"": 0},"
+docs/work-specs/codebase-health/spec.md	95	| `src/components/canvas/CanvasInteraction.tsx` | 2,240 → 2,240 | 0 | 0 / 0 |
+docs/work-specs/e2e-suite-budget/evidence/candidates.md	100	- Action: finish issue #800 for this file first: map each skipped test to a current behaviour
+docs/work-specs/e2e-suite-budget/evidence/candidates.md	118	  the whole wizard); assess its four legacy export cases under #800.
+docs/work-specs/e2e-suite-budget/evidence/candidates.md	165	### 15. The 40 fully skipped files and 543 skipped tests (issue #800)
+docs/work-specs/e2e-suite-budget/evidence/candidates.md	167	- Action: a mapping pass per file: obsolete requirement (the old editor's dock, canvas, timeline,
+docs/work-specs/e2e-suite-budget/evidence/capacity-model.md	40	- Pending growth already decided: the old-editor rewrites (#800). If a third of the 543 skipped
+docs/work-specs/e2e-suite-budget/spec.md	44	- Restoring every old-editor test as it was. Issue #800's ruling (rewrite onto current surfaces, do
+docs/work-specs/editor-canvas-short-height/README.md	17	Inspected pinned Studio `3142fc7d02934494931eb14e7dc255393e4110d0`: AppShell mounts Stage inside DockWorkspace; its default model owns panel layout, and ResizeHandle routes pointer movement through useResizable. That hook clamps/persists panel size in local UI storage rather than project composition source. DockWorkspace applies its sizes as grid t
+docs/work-specs/editor-canvas-short-height/evidence/reference-source.json	3	"    ""path"": ""apps/editor/src/layout/AppShell.tsx"","
+docs/work-specs/editor-canvas-short-height/evidence/reference-source.json	9	"    ""path"": ""apps/editor/src/layout/AppShell.css"","
+docs/work-specs/editor-canvas-short-height/independent/README.md	17	Traced `AppShell.tsx` into `DockWorkspace.tsx` and `dockModel.ts`, `ResizeHandle.tsx` into `useResizable.ts`, and the workspace/stage CSS. The bottom region defaults to 220px, minimum 120px; Properties defaults to 300px. Pointer movement updates bounded grid dimensions; release persists UI sizes in local storage, separately from project composition
+docs/work-specs/editor-canvas-short-height/independent/provenance.json	176	"      ""path"": ""apps/editor/src/layout/AppShell.tsx"","
+docs/work-specs/editor-canvas-short-height/independent/provenance.json	182	"      ""path"": ""apps/editor/src/layout/AppShell.css"","
+docs/work-specs/editor-cli-round-trip/README.md	58	helpers tracked in #800; no case in this slice skipped. j-4022 repeated all six
+docs/work-specs/editor-cli-round-trip/check.md	20	passed; 3 pre-existing retired-editor cases skipped (#800). j-4016: ESLint and
+docs/work-specs/editor-leave-reliability/repair-3/README.md	61	| Maintained selection: `new-graphic-guard` (all, including the new held-autosave and unclaimed-notice cases, the #1147 newer-edit cases and the quota-refusal/Undo/history cases), `leave-checker` (all three), `leave-second-checker` (probe `39a900183`), `storage-full`, `wizard-finish`, `project` (wizard-open and native export-notification continuati
+docs/work-specs/ograf-shadow-root/evidence/phase-3.md	90	"""Create project"" and exported from the old editor's Export tab, and both went when the old editor"
+docs/work-specs/rundown-undo/plan.md	24	| `src/components/playoutKeys.ts` | `usePlayoutVerbKeys` handles Ctrl/Cmd+C/X/V. `MOD_MAP` has no Z/Y; modified keys otherwise return without prevention. `typingInto` preserves input, textarea, select and contenteditable handling. ProductionPage enables keys only when `sub === null`. No rundown history is connected here. `src/App.tsx` renders Produ
+docs/work-specs/svg-import-engine/evidence/ac-2-behaviour-identical.md	13	| 7 | https://github.com/NoaCG/NoaCG-Studio/pull/1188 | unchanged | unchanged; `check-catalog-emit` PASS, 528 designs | `import-svg.spec.ts` 46 passed, 44 skipped (#800); factory 159 of 159 |
+docs/work-specs/svg-import-engine/evidence/ac-8-evidence-and-findings.md	35	- **Phase 7:** no new finding. Its note on #800 records the tests kept because their only other
+docs/work-specs/svg-import-engine/evidence/ac-9-retired-coverage.md	7	  - 8 of them ran; the other 3 were already skipped under #800.
+docs/work-specs/svg-import-engine/evidence/ac-9-retired-coverage.md	28	  skipped 1070. That is noted on #800:
+docs/work-specs/svg-import-engine/evidence/ac-9-retired-coverage.md	29	  https://github.com/NoaCG/NoaCG-Studio/issues/800#issuecomment-6165149725
+docs/work-specs/svg-import-engine/evidence/review.md	39	- **#800.** It lists the import walks still skipped, and the outline ranking walk kept because
+docs/work-specs/svg-import-engine/spec.md	577	"- e2e/import-svg.spec.ts: ""sanitizer — script, handlers, foreignObject, SMIL and network refs never reach the template"" (skipped since #800): reading `sanitizer` (all five notices said; no script, handler, foreignObject, external href or animate in the bound svg; the export gate accepts it); records `inventory` (the notices) and `bind` of effects-e"
+docs/work-specs/svg-import-engine/spec.md	584	"- e2e/import-svg.spec.ts: ""text on a path binds the path run, and keeps its curve when an operator types"" (skipped since #800): reading `text-on-path` (the walk's own SVG 2 `href` form: `f0` on the `<textPath>`, `href` kept, the export gate accepts it); records `inventory` and `bind` of inkscape-text-on-path-bumper (the same with Inkscape's `xlink:"
+docs/work-specs/svg-import-engine/spec.md	586	"- e2e/import-svg.spec.ts: ""a PostScript font name finds the bundled face, and ships under its own name"" (skipped since #800): records `fieldList` (fonts matched to archivo and jetbrains-mono) and `fontCss` (`@font-face` declared as ""Archivo-Bold"" and ""JetBrainsMono-Regular"" over the bundled files, no unresolved note) of illustrator-rotated-sidebar-"
+docs/work-specs/svg-import-engine/spec.md	648	  #800.
+docs/work-specs/svg-import-engine/spec.md	676	  calls `switchToAdvancedMode`, which since #800 skips the calling test. So 38 tests that create
+docs/work-specs/svg-import-engine/spec.md	685	  text, numbering of repeats, a wrapped source line, flowed text) and 3 skipped since #800 whose
+docs/work-specs/svg-import-engine/spec.md	708	    (skipped, #800). The corpus carries the labels, but not the edits carried to the template,
+docs/work-specs/svg-import-engine/spec.md	715	"  - ""a question typed with hard returns is ONE field that NoaCG wraps"" (skipped, #800). The"
+docs/work-specs/svg-import-engine/spec.md	719	    other guard is 1070, skipped since #800. The corpus's outlined file is itself a finding
+docs/work-specs/svg-import-engine/spec.md	721	    ranking. Noted on #800.
+docs/work-specs/svg-import-engine/spec.md	722	"  - ""the tracking the designer set survives the import untouched"" (skipped, #800). It reads the"
+docs/work-specs/svg-import-engine/spec.md	757	- **#800:** commented there: the three skipped walks that left its list and what carries them
+docs/work-specs/svg-import-engine/spec.md	1033	  (spec lines 1070 and 1150) and the same ladder (line 1782) have been skipped since #800, so
+docs/work-specs/svg-import-engine/spec.md	1036	  recorded on #800. `svg.ts` was 1,372 lines.
+docs/work-specs/svg-import-engine/spec.md	1178	    have been skipped since #800, so they proved nothing on CI; the phase 4 checker's own probe
+docs/work-specs/svg-import-engine/spec.md	1180	    recorded on #800.
+docs/work-specs/wizard-ai/evidence/phase-1.md	104	  runtime (#800); they are outside A1's row.
+docs/work-specs/wizard-ai/evidence/phase-2.md	88	runtime, #800), `configured/pro-wizard` (needs credentials) and `ai-consent` (its live test
+docs/work-specs/wizard-ai/evidence/phase-3.md	58	  AC-15); `ai-more-control` stays skipped at runtime (#800): reviving it means rewriting its three
+docs/work-specs/wizard-ai/spec.md	46	editor door (`finishInEditor`, 205-208; issue #800).
+docs/work-specs/wizard-ai/spec.md	164	2), `pro` (2: the tier is absent when it cannot run). Skipped at runtime (#800): `ai.spec.ts`
+docs/work-specs/wizard-ai/spec.md	185	the old editor's topbar), never the behaviour assertions in between (parent D9); each revived
+docs/work-specs/wizard-ai/spec.md	429	  `adapt-first` is skipped (#800); the AI step's chain is 3,705 bytes over the 40,960 target.
+docs/work-specs/wizard-ai/spec.md	440	  `ai-more-control` 3 skipped (#800): the A3 check's counts exactly. The e2e diff is the eleven
+docs/work-specs/wizard-ai/spec.md	473	  mutant); rebuild has no live e2e while `adapt-first` is skipped (#800), though its shortlist
+docs/work-specs/wizard-ai/spec.md	529	  `ai-more-control` 3 skipped (#800): the A2 check's counts exactly. #1189's e2e diff is empty
+docs/work-specs/wizard-ai/spec.md	561	- **For A4:** the rebuild still has no live e2e while `adapt-first` stays skipped (#800); its
+docs/work-specs/wizard-ai/spec.md	604	    (#800); not revived here.
+docs/work-specs/wizard-ai/spec.md	617	  `design-rules-product` and `flows` skip as before (#800). The same counts as main's full run
+docs/work-specs/wizard-structure/evidence/phase-s2.md	11	(`e2e/_create.ts`, #800) now run. Assertions unchanged; the wait after the door is the export
+docs/work-specs/wizard-structure/spec.md	369	Skipped at runtime through the retired-editor helpers (`e2e/_create.ts:16`, issue #800), so not
+docs/work-specs/wizard-structure/spec.md	1063	  #800); the refused-zip try-out green on probe 38527215742. Carried: `evidence/phase-s2.md` and
+docs/work-specs/wizard-structure/spec.md	1337	    it is skipped today (Advanced mode, #800), and the header names its code for the day it is
+e2e/_create.ts	4	 * THE OLD CODE EDITOR IS CLOSED (owner, 2026-09-24). No route renders AppShell and there is no
+e2e/_create.ts	11	export const OLD_EDITOR_SKIP =
+e2e/_create.ts	12	  'Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800';
+e2e/_create.ts	16	  test.skip(true, OLD_EDITOR_SKIP);
+e2e/_create.ts	42	 * It skips the calling test (OLD_EDITOR_SKIP above). The page parameter stays so the specs still
+e2e/_create.ts	49	/** RETIRED with Advanced mode: skips the calling test (OLD_EDITOR_SKIP above). */
+e2e/_create.ts	55	 * RETIRED: Finish has no door into the old code editor any more, so a walk that ended there
+e2e/_create.ts	56	 * skips the calling test (OLD_EDITOR_SKIP above). A walk that wants an editor now ends on
+e2e/_create.ts	64	 * RETIRED with the old editor: this bootstrap landed in AppShell and every caller asserted on it,
+e2e/_create.ts	65	 * so it skips the calling test (OLD_EDITOR_SKIP above). A spec rewritten off the old editor calls
+e2e/_create.ts	229	 * controls (`save-graphic`, the save dialog) that the old editor's topbar used to. The working
+e2e/_create.ts	257	 * library id, which is exactly what the old editor's Export panel exported. The window renders
+e2e/ai-lite.spec.ts	147	  // window over the wizard. This walk used to end in the old code editor, which is closed
+e2e/ai-lite.spec.ts	148	  // (https://github.com/NoaCG/NoaCG-Studio/issues/800); only the ending moved.
+e2e/ai.spec.ts	203	 * reads what the walk made. These tests used to end in the old code editor's door, which is
+e2e/ai.spec.ts	204	 * closed (https://github.com/NoaCG/NoaCG-Studio/issues/800); only the ending moved.
+e2e/anim-engine.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/anim-engine.spec.ts	445	"      spliceKeepsInterpreter: spliced.includes('function buildStepTimeline') && spliced.includes('""duration"": 1.5'),"
+e2e/asset-workflow.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/canvas-keyframe.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/configured/_helpers.ts	140	 *  (https://github.com/NoaCG/NoaCG-Studio/issues/800) until the callers are rewritten. */
+e2e/configured/agent-access.spec.ts	250	      // lands on the graphic's CONTROL page, rewritten to `#/control/<id>`: the old code editor
+e2e/configured/anonymous.spec.ts	123	    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
+e2e/configured/anonymous.spec.ts	193	    // is rewritten (https://github.com/NoaCG/NoaCG-Studio/issues/800).
+e2e/configured/deep-link-boot.spec.ts	13	// Since 2026-09-24 the link opens that graphic's CONTROL page, because the old code editor it
+e2e/configured/expected-run.json	10	"    ""account.spec.ts"": ""Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted."","
+e2e/configured/expected-run.json	11	"    ""anonymous.spec.ts"": ""Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted."","
+e2e/configured/expected-run.json	12	"    ""signed-in-ux.spec.ts"": ""Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted."""
+e2e/configured/homebase.spec.ts	23	    // old code editor the menu was opened from; that editor is closed (2026-09-24), sign-in now
+e2e/configured/signed-in-ux.spec.ts	72	    // The bar this measures is the old code editor's (its panel toggles and account cluster),
+e2e/configured/signed-in-ux.spec.ts	74	    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
+e2e/editor-fidelity-trim.spec.ts	160	        const host = window as unknown as { buildStepTimeline(i: number): Timeline; gsap: { globalTimeline: { clear(): void; getChildren(n: boolean, tw: boolean, tl: boolean): Timeline[] } } };
+e2e/editor-fidelity-trim.spec.ts	162	        const timeline = target === 'ograf' ? host.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - .8) < .001)! : host.buildStepTimeline(0);
+e2e/editor-foundation.spec.ts	139	"  // it in this editor (the old code editor's ""Create project"" is gone, no-old-editor.spec.ts)."
+e2e/editor-keys.spec.ts	374	        const host = window as unknown as { buildStepTimeline(i: number): Timeline; gsap: { globalTimeline: { clear(): void; getChildren(nested: boolean, tweens: boolean, timelines: boolean): Timeline[] } } };
+e2e/editor-keys.spec.ts	376	        const timeline = target === 'ograf' ? host.gsap.globalTimeline.getChildren(false, false, true).find(t => t.duration() === 3)! : host.buildStepTimeline(0);
+e2e/feedback.spec.ts	41	    // neighbour (the old editor's Home button was, until that editor closed).
+e2e/fixtures/agent-made/vote-show.noacgpack.json	13	"      ""js"": ""// Votes board — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (value"
+e2e/fixtures/agent-made/vote-show.noacgpack.json	36	"      ""js"": ""// Totals board — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// Write one field value into its element. Text fields get plain\n// text (operator input never runs as HTML); an <img id=\""fN\""> gets the value as its image path.\nfunction setFieldValue(el, value) {\n  if (el.tagName === 'IMG') {\n    if (valu"
+e2e/fixtures/interpreter-hold-v1.js	239	  var tl = buildStepTimeline(effects);
+e2e/fixtures/interpreter-hold-v1.js	290	function buildStepTimeline(index) {
+e2e/fixtures/interpreter-hold-v1.js	423	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+e2e/fixtures/interpreter-hold-v1.js	454	  var tl = buildStepTimeline(0);
+e2e/fixtures/interpreter-hold-v1.js	503	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+e2e/fixtures/interpreter-hold-v1.js	653	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+e2e/fixtures/interpreter-one-key-hold-v1.js	239	  var tl = buildStepTimeline(effects);
+e2e/fixtures/interpreter-one-key-hold-v1.js	296	function buildStepTimeline(index) {
+e2e/fixtures/interpreter-one-key-hold-v1.js	429	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+e2e/fixtures/interpreter-one-key-hold-v1.js	460	  var tl = buildStepTimeline(0);
+e2e/fixtures/interpreter-one-key-hold-v1.js	515	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+e2e/fixtures/interpreter-one-key-hold-v1.js	665	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+e2e/fixtures/interpreter-pre-g01.js	56	  var tl = buildStepTimeline(effects);
+e2e/fixtures/interpreter-pre-g01.js	105	function buildStepTimeline(index) {
+e2e/fixtures/interpreter-pre-g01.js	238	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+e2e/fixtures/interpreter-pre-g01.js	269	  var tl = buildStepTimeline(0);
+e2e/fixtures/interpreter-pre-g01.js	318	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+e2e/fixtures/interpreter-pre-g01.js	468	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+e2e/fixtures/interpreter-shared-ease-v1.js	222	  var tl = buildStepTimeline(effects);
+e2e/fixtures/interpreter-shared-ease-v1.js	271	function buildStepTimeline(index) {
+e2e/fixtures/interpreter-shared-ease-v1.js	404	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+e2e/fixtures/interpreter-shared-ease-v1.js	435	  var tl = buildStepTimeline(0);
+e2e/fixtures/interpreter-shared-ease-v1.js	484	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+e2e/fixtures/interpreter-shared-ease-v1.js	634	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+e2e/fixtures/interpreter-step-out-v1.js	239	  var tl = buildStepTimeline(effects);
+e2e/fixtures/interpreter-step-out-v1.js	292	function buildStepTimeline(index) {
+e2e/fixtures/interpreter-step-out-v1.js	425	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+e2e/fixtures/interpreter-step-out-v1.js	456	  var tl = buildStepTimeline(0);
+e2e/fixtures/interpreter-step-out-v1.js	510	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+e2e/fixtures/interpreter-step-out-v1.js	660	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+e2e/fixtures/interpreter-whole-ease-v1.js	229	  var tl = buildStepTimeline(effects);
+e2e/fixtures/interpreter-whole-ease-v1.js	278	function buildStepTimeline(index) {
+e2e/fixtures/interpreter-whole-ease-v1.js	411	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+e2e/fixtures/interpreter-whole-ease-v1.js	442	  var tl = buildStepTimeline(0);
+e2e/fixtures/interpreter-whole-ease-v1.js	491	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+e2e/fixtures/interpreter-whole-ease-v1.js	641	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+e2e/fixtures/pre-671/qz01.json	12	"  ""js"": ""// Arena Quiz — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\n// motionSpeed(): the template's speed knob. The NOACG_ANIM data block owns it; a legacy\n// animSpeed variable is honored too, and hand-written animation code defaults to 1.\nfunction motionSpeed() {\n  if (typeof NOACG_ANIM !== 'undefined' && NOACG_"
+e2e/fixtures/pre-671/sb26.json	12	"  ""js"": ""// Sticker Score — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().\n\nvar onAir = false;               // true between play() and stop() — pops only happen on air\nvar scoreIds = ['f1', 'f3'];     // the fields that pop when they change on air\n\n// motionSpeed(): the template's speed knob. The NOACG_ANIM data block"
+e2e/import-graphic.spec.ts	3	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/import-svg.spec.ts	4255	"// wizard front page."" The old editor is the code workspace (AppShell, `#/editor` and"
+e2e/import-svg.spec.ts	4298	  // ...and the old editor's shell is not what rendered.
+e2e/inspector.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/keyboard.spec.ts	1	// StepTimeline owns the Space-plays handler - one half of a two-surface key contract whose other
+e2e/keyboard.spec.ts	3	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/legacy-timeline.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/machine-graph.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/machine-graph.spec.ts	3	// covers: src/components/timeline/MachineGraph.tsx
+e2e/mark-legibility.spec.ts	6	// useMarkLegibility. It is skipped while it opts into Advanced mode (issue #800); the shell is
+e2e/network-resilience.spec.ts	50	 *  auto-opens on a first visit). It used to end on the old code editor's door, which is gone
+e2e/no-old-editor.spec.ts	6	// covers: src/components/{SettingsDialog,home/{HomePage,GraphicRow,GraphicControlPage},editorFoundation/{EditorFoundation,openNewEditor},video/VideoAppShell,wizard/{CreationWizard,shell/doors,steps/{EntryStep,FinishStep}}}.ts{,x}
+e2e/no-old-editor.spec.ts	12	// fails if anything starts loading AppShell again. The source stays until the new editor has
+e2e/no-old-editor.spec.ts	14	// covers: src/components/{AppShell,WorkspaceDock,CodeEditor}.tsx, src/teach/**
+e2e/no-old-editor.spec.ts	17	// never land in AppShell, whatever an earlier visitor ticked, and src/App.tsx - where the boot
+e2e/no-old-editor.spec.ts	28	// The old editor (src/components/AppShell.tsx) stays in the repository until the new editor has
+e2e/no-old-editor.spec.ts	32	// owner reproduced it on noacg.studio: with the setting on, the wizard's ✕ opened AppShell.
+e2e/no-old-editor.spec.ts	42	/** Two markers only AppShell renders: its topbar's code toggle and its centre stage. */
+e2e/no-old-editor.spec.ts	78	  expect(seen, `the old code editor (AppShell) entered the DOM. ${rules.text('root/render-old-code-editor-route-never')}`).toBe(false);
+e2e/no-old-editor.spec.ts	300	  // App.tsx does not import AppShell, so the dev server is never asked for it: not at boot, and
+e2e/no-old-editor.spec.ts	305	    if (/\/src\/components\/AppShell\.tsx/.test(request.url())) requested.push(request.url());
+e2e/project-format.spec.ts	141	  // graphic carries the format the old editor's canvas chip used to print.
+e2e/project-format.spec.ts	502	 *  save controls the old editor's `.topbar` did. */
+e2e/project-format.spec.ts	511	  // The new editor carries the save controls the old editor's topbar did.
+e2e/project.spec.ts	8	// already; VideoAppShell and SaveDialogs are not.
+e2e/project.spec.ts	9	// covers: src/components/video/VideoAppShell.tsx
+e2e/project.spec.ts	26	// user lands on Home. The reload test below edited the old code editor, which is closed, so it
+e2e/project.spec.ts	27	// skips until it is rewritten (https://github.com/NoaCG/NoaCG-Studio/issues/800).
+e2e/project.spec.ts	80	  // NewGraphicButton.tsx), so the surfaces cannot drift apart again. The old code editor was
+e2e/route-transition-flash.spec.ts	24	// first commit has been PAINTED, so a bare `/app` rendered `<AppShell/>` (because '' still
+e2e/route-transition-flash.spec.ts	115	  // that frame is HOME now, never the old code editor, which no route renders any more (owner,
+e2e/state-machine.spec.ts	1	// covers: src/blocks/**, src/templates/**, src/components/timeline/MachineGraph.tsx
+e2e/timeline-v2.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+e2e/timeline-v2.spec.ts	3	// covers: src/components/timeline/MachineGraph.tsx
+e2e/ux.spec.ts	2	// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+packs/community/pub-quiz/pub-quiz/logic.js	692	  var tl = buildStepTimeline(effects);
+packs/community/pub-quiz/pub-quiz/logic.js	757	function buildStepTimeline(index) {
+packs/community/pub-quiz/pub-quiz/logic.js	890	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+packs/community/pub-quiz/pub-quiz/logic.js	921	  var tl = buildStepTimeline(0);
+packs/community/pub-quiz/pub-quiz/logic.js	982	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+packs/community/pub-quiz/pub-quiz/logic.js	1132	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+public/packs/community/pub-quiz.noacgpack.json	13	"      ""js"": ""// Pub Quiz - SPX calls update(), play(), stop(), next(). ES5 only (CasparCG's Chromium).\n//\n// What the operator does live: Take shows the question, \""Start timer\"" runs the countdown\n// (length from the hidden Timer seconds field), \""Reveal answer\"" (or Continue) lights the\n// correct row and dims the other three, Out clears.\n\n"
+scripts/catalog-affected.test.mjs	158	  const p = plan(['docs/VERIFICATION.md', 'src/components/AppShell.tsx', 'api/render/start.ts']);
+scripts/check-e2e-protection.test.mjs	14	    diff('e2e/b.spec.ts', ['+  test.skip(true, OLD_EDITOR_SKIP);', '+  skipOldEditor();']),
+scripts/check-e2e-protection.test.mjs	38	  const files = readDiff([diff('src/x.ts', ['-test(\'not a spec\')']), diff('e2e/_create.ts', ['+  test.skip(true, OLD_EDITOR_SKIP);'])].join('\n'));
+scripts/copy-baseline.json	10	"    ""src/components/AppShell.tsx"": {"
+scripts/copy-baseline.json	37	"    ""src/components/canvas/CanvasInteraction.tsx"": {"
+scripts/copy-baseline.json	88	"    ""src/components/timeline/LegacyTimeline.tsx"": {"
+scripts/copy-baseline.json	91	"    ""src/components/timeline/MachineGraph.tsx"": {"
+scripts/copy-baseline.json	94	"    ""src/components/timeline/StepTimeline.tsx"": {"
+scripts/copy-baseline.json	97	"    ""src/components/video/VideoAppShell.tsx"": {"
+scripts/e2e-affected.test.mjs	759	    'src/components/timeline/StepTimeline.tsx',
+scripts/e2e-affected.test.mjs	760	    'src/components/timeline/LegacyTimeline.tsx',
+scripts/e2e-affected.test.mjs	763	    'src/components/timeline/MachineGraph.tsx',
+scripts/e2e-affected.test.mjs	769	  // The dock's own specs, and the key contract StepTimeline holds half of.
+scripts/e2e-affected.test.mjs	770	  const { specs } = planFor(['src/components/timeline/StepTimeline.tsx']);
+scripts/e2e-affected.test.mjs	772	    assert.ok(specs.includes(spec), `${spec} must be planned by a StepTimeline change`);
+scripts/e2e-traced.json	344	"    ""src/components/video/VideoAppShell.tsx"": [""account-library.spec.ts"",""admin.spec.ts"",""agent-access.spec.ts"",""agent-made-graphics.spec.ts"",""ai-consent.spec.ts"",""ai-depth.spec.ts"",""ai-lite.spec.ts"",""ai-retrieval.spec.ts"",""ai-tiers.spec.ts"",""ai.spec.ts"",""analytics.spec.ts"",""auth.spec.ts"",""bench.spec.ts"",""brand-editor.spec.ts"",""bridge-connect.spec."
+scripts/pr-description.mjs	93	" * such as ""this does not fix #800 yet"" never closes an unfinished issue."
+scripts/pr-description.test.mjs	86	  assert.deepEqual(closedIssues('Part of #800'), []);
+scripts/pr-description.test.mjs	87	  assert.deepEqual(closedIssues('Fix the clock\n\nThis does not fix #800 yet.'), []);
+src/App.tsx	2	// NO AppShell IMPORT, on purpose (owner, 2026-09-24). The old code editor stays in the repo until
+src/App.tsx	7	import VideoAppShell from './components/video/VideoAppShell';
+src/App.tsx	94	 *     other end: a plain `/app` boot rendered `<AppShell/>` because `''` still parsed as the
+src/App.tsx	119	    // A STALE `#/graphic/<id>` - the old code editor's own route, and the link an agent's
+src/App.tsx	141	  // to make it the old code editor, and model/prefs.ts now drops that value on read.
+src/App.tsx	244	        // (step 4). It used to rewind to the old code editor whenever a browser had Advanced
+src/App.tsx	384	  // NO ROUTE RENDERS THE OLD CODE EDITOR (AppShell), whatever this browser has stored (owner,
+src/App.tsx	407	    : route.view === 'video' ? <AccountAuthoringGate><VideoAppShell /></AccountAuthoringGate>
+src/app/router.ts	8	//   ''                     no surface of its own: App.tsx renders Home (the old code editor it
+src/blocks/AGENTS.md	44	- **rule** `blocks/appears-press-transition-shared-timeline-layer`: `changePartPress` is the ONE appears-on-press transition, shared by the timeline's layer-block drag in `StepTimeline`, the Inspector's appears control, and the canvas chip. A press is just data - a step's `reveals` - so there is ONE path, routed through animEdit's `setLayerActivati
+src/blocks/AGENTS.md	74	- **rule** `blocks/way-emit-preset-region-template-structure`: `emitPresetRegion(template, presetId, opts?)` is the ONE way to emit a preset's region for a template, with the structure facts read off its HTML, and `presetsForType`/`anyPresetById` are the one lookup for every category's presets. Three callers share that one shape: `presetApply` deri
+src/blocks/timelineModel.ts	14	//   - components/LegacyTimeline.tsx — the read-only chart of a region the importer REFUSES
+src/components/AppShell.tsx	5	import TimelineDock from './timeline/StepTimeline';
+src/components/AppShell.tsx	72	export default function AppShell() {
+src/components/AssetsPanel.tsx	3	// placement (see CanvasInteraction), reference-safe move/rename, and an info section
+src/components/AssetsPanel.tsx	57	/** The drag payload type the canvas drop target (CanvasInteraction) listens for. */
+src/components/AssetsPanel.tsx	312	  // it). The dialog itself is mounted once in AppShell; this just opens it.
+src/components/InsertTemplateDialog.tsx	18	 *  canvas context menu) drives the ONE instance mounted in AppShell. */
+src/components/PreviewFrame.tsx	9	import CanvasInteraction from './canvas/CanvasInteraction';
+src/components/PreviewFrame.tsx	49	 * CanvasInteraction derives its own scale from that width and reads the overlay's live
+src/components/PreviewFrame.tsx	53	 * `allow-same-origin` — CanvasInteraction and PlayoutSimulator (this file's two direct
+src/components/PreviewFrame.tsx	95	  // together, so the coordinate origin moves with them (see CanvasInteraction). Pad is a pure
+src/components/PreviewFrame.tsx	223	      // StepTimeline because the facts that decide it (the repeat, the drag) are this
+src/components/PreviewFrame.tsx	323	      // play/stop/scrub lifecycle, CanvasInteraction's rect-push + gsap-prop queries) — this
+src/components/PreviewFrame.tsx	376	        <CanvasInteraction
+src/components/SettingsDialog.tsx	373	                  browser-local setting that reopened the old code editor, so on a shared
+src/components/WorkspaceDock.tsx	35	 *  layout state and its persistence live in AppShell / model/layout.ts. */
+src/components/canvas/AGENTS.md	9	- **CanvasInteraction** - always-on direct manipulation: drag the root -> nearest
+src/components/canvas/AGENTS.md	35	  (the drift a raw read caused is described at the lens read in CanvasInteraction.tsx).
+src/components/canvas/AGENTS.md	97	  useInsertTemplateUi store; the dialog itself mounts once in AppShell).
+src/components/canvas/CanvasInteraction.tsx	27	import { phaseIdOf } from '../timeline/StepTimeline';
+src/components/canvas/CanvasInteraction.tsx	224	export default function CanvasInteraction({ iframeRef, width, height, padX = 0, padY = 0 }: Props) {
+src/components/canvas/CanvasInteraction.tsx	294	"  // Publish ""a gesture is live"" to the store: the Inspector's deferred auto-open (AppShell)"
+src/components/editorFoundation/EditorFoundation.tsx	196	"      {/* No ""Existing editor"" door: nothing links to the old code editor (owner, 2026-09-21 and"
+src/components/editorFoundation/openNewEditor.ts	8	 * This is the studio's one editor door: no control opens the old code editor (AppShell) any
+src/components/editorFoundation/runtime.ts	3	 * Motion is evaluated by the template's bundled buildStepTimeline/GSAP interpreter.
+src/components/editorFoundation/runtime.ts	67	    return buildStepTimeline(Object.assign({}, step, { calls: [], dynamics: [], loops: undefined }));
+src/components/editorFoundation/runtime.ts	89	    if (typeof window.buildStepTimeline !== 'function' || !window.gsap) {
+src/components/spaceKey.ts	6	// Space is claimed by two surfaces — PreviewFrame's canvas pan and StepTimeline's play — and
+src/components/spaceKey.ts	47	 * StepTimeline's play — that half was never a decision, just a missing guard.
+src/components/timeline/AGENTS.md	34	- **MachineGraph** - the NODE EDITOR (Phase 4, docs/STATE_MACHINE_SCHEMA.md §6a): the machine
+src/components/timeline/AGENTS.md	77	  MachineGraph.tsx).
+src/components/timeline/AGENTS.md	90	- **TimelineDock / StepTimeline** (Timeline v2, both in StepTimeline.tsx) - the dock picks the
+src/components/timeline/AGENTS.md	97	  **LegacyTimeline** (below).
+src/components/timeline/AGENTS.md	140	  drag (see CanvasInteraction). The vocabulary (PROP_ROWS) is x/y/yPercent/scale/opacity/
+src/components/timeline/AGENTS.md	174	  while the selection is unchanged (see AppShell).
+src/components/timeline/AGENTS.md	175	- **LegacyTimeline** (Phase 8) - the READ-ONLY chart of a legacy region the importer REFUSES:
+src/components/timeline/Inspector.tsx	38	import { phaseIdOf } from './StepTimeline';
+src/components/timeline/LegacyTimeline.tsx	55	export default function LegacyTimeline({ iframeRef }: Props) {
+src/components/timeline/MachineGraph.tsx	439	export default function MachineGraph({ iframeRef, data, onOpenStep, onOpenStateTimeline }: Props) {
+src/components/timeline/StepTimeline.tsx	29	import LegacyTimeline from './LegacyTimeline';
+src/components/timeline/StepTimeline.tsx	30	import MachineGraph from './MachineGraph';
+src/components/timeline/StepTimeline.tsx	82	 * - a legacy region it CANNOT read          → LegacyTimeline: charted, read-only, honest about
+src/components/timeline/StepTimeline.tsx	122	          <MachineGraph
+src/components/timeline/StepTimeline.tsx	142	          <StepTimeline iframeRef={iframeRef} data={data} editable={native !== null} branch={branch} />
+src/components/timeline/StepTimeline.tsx	145	        <LegacyTimeline iframeRef={iframeRef} />
+src/components/timeline/StepTimeline.tsx	197	function StepTimeline({
+src/components/timeline/StepTimeline.tsx	1118	    // CAPTURE phase, deliberately: the canvas layer-nudge (CanvasInteraction) also listens
+src/components/useIsMobile.ts	3	// Phone / narrow-viewport breakpoint. Drives the single-column mobile layout (AppShell) and matches
+src/components/video/AGENTS.md	6	App.tsx renders **VideoAppShell** instead of AppShell when docKindStore says 'video'; only the
+src/components/video/AGENTS.md	66	undo/redo keys as AppShell with the same guard. AI chat gates on `needsSignIn` (hosted mode)
+src/components/video/VideoAppShell.tsx	2	// kind. Deliberately simpler than AppShell: TSX code on the left (collapsible), the player
+src/components/video/VideoAppShell.tsx	62	export default function VideoAppShell() {
+src/components/video/VideoAppShell.tsx	92	  // AppShell (only one shell is mounted at a time, so no double handling).
+src/components/video/VideoAppShell.tsx	213	            There is no door to the old code editor (owner, 2026-09-21 and 2026-09-24). */}
+src/components/wizard/AGENTS.md	27	"- **rule** `wizard/put-footer-jump-finish-every-step`: Put the footer's jump to Finish on every step before it and stand it down ON Finish: template, design, SVG and import walks all take ""Skip to finish"", and a finished template dropped on the Create with AI card goes to file mode's Finish. No wizard control opens the old code editor - there is no"
+src/components/wizard/CreationWizard.tsx	573	"  // and ""Edit this graphic"" goes to the new editor. Nothing lands in the old code editor."
+src/components/wizard/CreationWizard.tsx	773	          control opens the old code editor (owner, 2026-09-21 and 2026-09-24).
+src/components/wizard/steps/EntryStep.tsx	41	 *  - there is no Blank card. Blank's only outcome was the old code editor, which no door opens
+src/components/wizard/steps/FinishStep.tsx	66	   *  a cue. There is no door to the old code editor (owner, 2026-09-24). */
+src/components/wizard/steps/FinishStep.tsx	218	 * (#/editor-foundation) where the mode supplies it. No door leads to the old code editor.
+src/model/docKind.ts	2	// A tiny persisted flag - App.tsx branches on it between AppShell and VideoAppShell.
+src/model/layout.ts	4	// mobile layout ignores this (it stacks; see AppShell). Device-local UI only — never synced.
+src/model/layout.ts	94	"    // available from a dock's ""+"" menu (AppShell computes the hidden set). We deliberately do"
+src/model/prefs.ts	14	 *      `advancedMode`, the switch that put the old code editor's doors back.
+src/preview/canvasControlProtocol.ts	2	 * The postMessage protocol for CanvasInteraction.tsx — the editor canvas's direct-manipulation
+src/preview/canvasControlProtocol.ts	9	 * THE CORE DESIGN MOVE: every hit-test and measurement CanvasInteraction used to perform via
+src/preview/canvasControlProtocol.ts	15	 * CanvasInteraction keeps 100% of its hit-test/selection MATH unchanged, now reading a local
+src/preview/canvasControlProtocol.ts	23	 * (a rect has no paint-order information), so CanvasInteraction now uses it universally. This
+src/preview/composeDocument.ts	101	   * StepTimeline/LegacyTimeline instead of polling `contentWindow`), and schedule the SPX `out`
+src/preview/composeDocument.ts	112	   * The EDITOR canvas's direct-manipulation channel (CanvasInteraction.tsx): hit-testing, live
+src/preview/composeDocument.ts	495	  // frame so StepTimeline/LegacyTimeline can draw a live playhead without polling
+src/preview/previewProtocol.ts	109	  /** Editor scrub (StepTimeline/LegacyTimeline): pause the named phase's timeline at `time`
+src/preview/previewProtocol.ts	191	 *  listener (StepTimeline/LegacyTimeline) can draw a live playhead without polling
+src/preview/simulatorRuntime.ts	211	   * push as the truth (the playhead loop in composeDocument.ts, StepTimeline's live follow), so
+src/store/AGENTS.md	98	  (+ Ctrl+Y), bound in AppShell, unless focus is in Monaco or a form field.
+src/store/AGENTS.md	162	  (inline edit, root/layer/scale drag; published by CanvasInteraction). AppShell's deferred
+src/store/docKindStore.ts	3	// from it: the old code editor it used to choose is closed, and the video shell has #/video.
+src/styles/brand-mark.css	53	   grid of the stage over the timeline. Fractions come from AppShell (model/layout.ts). */
+src/styles/timeline-switch.css	71	/* Placed in FRAME coordinates measured off its button (MachineGraph `framePoint`), not hung
+src/styles/video-editor.css	6	   set by VideoAppShell - the base .workspace is only flex:1, so without this the panes
+src/templates/pack4/AGENTS.md	52	`set` at time 0 (animRuntime `buildStepTimeline`), so a state can only CROSS-FADE when every
+src/templates/shared/animRuntime.ts	95	  var tl = buildStepTimeline(effects);
+src/templates/shared/animRuntime.ts	160	function buildStepTimeline(index) {
+src/templates/shared/animRuntime.ts	293	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+src/templates/shared/animRuntime.ts	324	  var tl = buildStepTimeline(0);
+src/templates/shared/animRuntime.ts	392	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+src/templates/shared/animRuntime.ts	545	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+src/templates/shared/animRuntimeLegacy.ts	43	function buildStepTimeline(index) {
+src/templates/shared/animRuntimeLegacy.ts	176	// Every opening value this interpreter writes is a set() ON the timeline (buildStepTimeline
+src/templates/shared/animRuntimeLegacy.ts	207	  var tl = buildStepTimeline(0);
+src/templates/shared/animRuntimeLegacy.ts	216	  var tl = buildStepTimeline(steps.length - 1);
+src/templates/shared/animRuntimeLegacy.ts	249	  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+src/templates/shared/animRuntimeLegacy.ts	397	  return step ? noacgPaintFirstFrame(buildStepTimeline(step)) : null;
+src/templates/types/alertLevel.ts	23	// (shared/animRuntime.ts buildStepTimeline). A cross-fade would therefore have to name a

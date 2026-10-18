@@ -1,5 +1,4 @@
 // covers: src/blocks/**
-// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
 //
 // This spec RECONSTRUCTS a preset's emitted region - the only spec that imports presetRegistry -
 // and measures it against the interpreter, so the emit authored under src/templates/ is its subject.
@@ -8,8 +7,8 @@
 // that import.
 // covers: src/templates/**
 
-import { enableAdvancedMode } from './_create';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // Timeline v2 Phase 1 (docs/TIMELINE_V2_PLAN.md) — the golden parity harness for the
 // declarative animation engine. Lower thirds now CREATE as data blocks, so the harness
@@ -17,14 +16,6 @@ import { test, expect, type Page } from '@playwright/test';
 // the same template) and proves the two representations behave identically: same
 // durations, same settled states, same press chain, and a playhead resolver that agrees
 // with real playback.
-
-async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape'); // the wizard modal — these tests don't need a project
-}
 
 /** Runs in the page: boot templates into hidden iframes; build legacy twins. */
 const HARNESS = `
@@ -549,7 +540,7 @@ test('parity: measured motion matches the legacy emit across content lengths', a
   expect(failures).toEqual([]);
 });
 
-test('measured motion actually tracks the content — and the timeline shows it read-only', async ({ page }) => {
+test('measured motion actually tracks the content', async ({ page }) => {
   test.setTimeout(90_000);
   await toApp(page);
   const result = await page.evaluate(
@@ -582,18 +573,6 @@ test('measured motion actually tracks the content — and the timeline shows it 
   );
   expect(result.longerWithMoreText).toBe(true);
   expect(result.survived).toBe(true);
-
-  // The timeline surfaces the segment read-only: it names the builder, and it carries no
-  // keyframe diamonds — there is nothing here to edit visually, and the UI must not pretend.
-  await page.evaluate(`(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    useTemplateStore.getState().applyTemplate(variantById('tk01').create(), { resetSampleData: true });
-  })()`);
-  const bar = page.getByTestId('tlv2-measured-tickerMarquee');
-  await expect(bar).toBeVisible();
-  await expect(bar).toContainText('tickerMarquee()');
-  await expect(page.locator('.tlv2-measured-row .tlv2-diamond')).toHaveCount(0);
 });
 
 // The importer can carry a NAMED builder across (that is what `tl.add(tickerMarquee(...))`

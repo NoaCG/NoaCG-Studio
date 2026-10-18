@@ -1,0 +1,136 @@
+{
+  "costUnread": false,
+  "brief": "volleyball-set-board",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "a24cd194-0224-4b1a-ae03-3d5265377906",
+  "costCents": 0,
+  "notionalUsd": 1.8182347,
+  "wallSeconds": 390,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type duel-score --design sb26 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:0275a7d4d4caf324c85c868c833b26c201a1d651181cbeba6d9e7263f22cbdce"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Developres Bella Dolina Rzeszów --data f2=Grot Budowlani Łódź Żółć --event pointA --event pointB --event pointB --event pointA --event undo --out shots/a.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Developres Bella Dolina Rzeszów --data f2=Grot Budowlani Łódź --event pointA --event pointA --event pointB --event endSet --event pointB --event final --out shots/b.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Developres Bella Dolina Rzeszów --data f2=Grot Budowlani Łódź --event pointA --event pointA --event pointB --event endSet --event pointB --event final --out shots/b.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Developres Bella Dolina Rzeszów --data f2=Grot Budowlani Łódź --event pointA --event pointA --event pointB --event endSet --event pointB --event final --out shots/b.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:f5144466f68168ef73bbea1f133f7d8637ac57022f713c691c3d2ed7384e0291"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage graphic --out outputs/coverage",
+      "code": 1,
+      "digest": "sha256:f5144466f68168ef73bbea1f133f7d8637ac57022f713c691c3d2ed7384e0291"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:f5144466f68168ef73bbea1f133f7d8637ac57022f713c691c3d2ed7384e0291"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L1\\sonnet-5-5-medium\\cells\\volleyball-set-board.claude-sonnet-5-5-medium\\frames",
+    "frames": 69,
+    "crops": 2,
+    "findings": [
+      "event-reopen: reopen did not move the machine (still main=enter, points=counting, edits=ready, result=live). If it should have, the machine does not answer reopen from there. It did not move it after any other event either."
+    ],
+    "failures": [],
+    "digest": "sha256:f5144466f68168ef73bbea1f133f7d8637ac57022f713c691c3d2ed7384e0291"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 6,
+    "buttons": [
+      "pointA",
+      "pointB",
+      "undo",
+      "endSet",
+      "final",
+      "reopen",
+      "newMatch"
+    ],
+    "missing": [
+      "undoPoint"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:f5144466f68168ef73bbea1f133f7d8637ac57022f713c691c3d2ed7384e0291",
+    "benchValidated": "sha256:f5144466f68168ef73bbea1f133f7d8637ac57022f713c691c3d2ed7384e0291",
+    "reviewed": "sha256:f5144466f68168ef73bbea1f133f7d8637ac57022f713c691c3d2ed7384e0291",
+    "problems": []
+  },
+  "functional": false,
+  "look": {
+    "reviewed": 69,
+    "opened": 69,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

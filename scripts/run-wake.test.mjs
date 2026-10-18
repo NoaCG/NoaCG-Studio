@@ -63,6 +63,51 @@ test('a transcript that ends on the usage-limit error reports when the limit res
   assert.equal(usageStopIn(`${limited}\n${line({ type: 'user', message: { content: 'retry' } })}`), null);
   assert.equal(usageStopIn(line({ type: 'assistant', message: {} })), null);
   assert.equal(usageStopIn(''), null);
+  // A grace notice counts only while it is the last turn's latest limit note.
+  const note = (usageLimitNote) => line({ type: 'user', promptId: 'p1', isMeta: true, usageLimitNote, timestamp: '2026-10-17T20:11:14Z' });
+  assert.equal(usageStopIn(note('wrap_up')).resetsAt, Date.parse('2026-10-17T21:11:14Z'));
+  assert.equal(usageStopIn(`${note('wrap_up')}\n${note('release')}`), null);
+  assert.equal(usageStopIn(`${note('wrap_up')}\n${line({ type: 'user', promptId: 'p2', message: { content: 'go on' } })}`), null);
+  // An earlier error's reset is used only while it still lay ahead at the notice.
+  const error = (iso) => line({ type: 'assistant', error: 'rate_limit', quotaLimits: { resetsAt: Date.parse(iso) / 1000 } });
+  assert.equal(usageStopIn(`${error('2026-10-17T20:00:00Z')}\n${note('wrap_up')}`).resetsAt, Date.parse('2026-10-17T21:11:14Z'));
+  assert.deepEqual(usageStopIn(`${error('2026-10-17T21:50:00Z')}\n${note('wrap_up')}`), { resetsAt: Date.parse('2026-10-17T21:50:00Z') });
+});
+
+test('fixture transcripts, read where the harness files them: grace waits for the reset, the error is unchanged, an owner wait stays alive', () => {
+  const config = mkdtempSync(path.join(tmpdir(), 'run-wake-config-'));
+  const previous = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = config;
+  try {
+    const folder = path.join(config, 'projects', 'C--claude-NoaCG-Studio');
+    mkdirSync(folder, { recursive: true });
+    // The fixture as the transcript of the run's one listed session on the night of 2026-10-17, checked at `now`.
+    const night = (fixture, now) => {
+      const id = `coordinator-${fixture}`;
+      writeFileSync(path.join(folder, `${id}.jsonl`), readFileSync(new URL(`./fixtures/run-wake/${fixture}.jsonl`, import.meta.url)));
+      const text = writeWake(`# Plan run harness-ladder\n\nWindow ends: 2026-10-18T22:00:00+03:00\nSession: ${id}\n`, { host: 'local_1', session: id, resume: '/plan-run harness-ladder' });
+      return wakeVerdict({ text, inventory: inventory(id, 'firing'), now: Date.parse(now) });
+    };
+    // Grace notice, then a clean end: the earlier rate-limit error records the reset, 21:50Z.
+    assert.match(night('grace-after-error', '2026-10-17T21:39:00Z').why, /stopped on the usage limit, which resets at 2026-10-17T21:50:00.000Z$/);
+    const resumed = night('grace-after-error', '2026-10-17T23:39:00Z');
+    assert.equal(resumed.verdict, 'resume');
+    assert.equal(resumed.usage, true);
+    // A grace notice with no error recorded: an hour after the notice.
+    const guessed = night('grace-no-reset', '2026-10-17T20:39:00Z');
+    assert.equal(guessed.verdict, 'waiting');
+    assert.match(guessed.why, /resets at 2026-10-17T21:11:14.147Z \(an hour after the grace notice, which records no reset\)/);
+    assert.equal(night('grace-no-reset', '2026-10-17T21:39:00Z').verdict, 'resume');
+    // The rate-limit error, unchanged: waiting until the reset it records, then resume.
+    assert.match(night('rate-limit-error', '2026-10-17T21:39:00Z').why, /which resets at 2026-10-17T22:00:00.000Z$/);
+    assert.equal(night('rate-limit-error', '2026-10-17T22:09:00Z').verdict, 'resume');
+    // Waiting on the owner after an earlier grace: alive however long it is quiet.
+    assert.equal(night('owner-wait', '2026-10-18T04:09:00Z').verdict, 'alive');
+  } finally {
+    if (previous === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = previous;
+    rmSync(config, { recursive: true, force: true });
+  }
 });
 
 test('a running coordinator stopped on the usage limit waits for the reset, then is resumed', () => {
@@ -75,7 +120,14 @@ test('a running coordinator stopped on the usage limit waits for the reset, then
   assert.equal(resumed.verdict, 'resume');
   assert.equal(resumed.usage, true);
   assert.equal(resumed.host, 'local_1');
-  assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /^message: Wake-up: you stopped on the usage limit, which has now reset/);
+  assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /^message: Wake-up: you stopped on the usage limit, which should have reset by now/);
+  // A plan run stopped on a question to the owner waits for his answer, not the reset; once answered, the limit counts again.
+  const asked = `${WAVE}\n## Phases\n\n1. Build it\n\n- 2026-10-12T19:00:00Z phase 1 stop a reserved decision\n`;
+  const owner = verdict({ text: asked, inventory: inventory('aaa'), stopped, now: resetsAt + 1 });
+  assert.equal(owner.verdict, 'alive');
+  assert.match(owner.why, /aaa is waiting on the owner's answer for phase 1/);
+  assert.equal(verdict({ text: `${asked}- 2026-10-12T19:30:00Z phase 1 answered go on\n`, inventory: inventory('aaa'), stopped }).verdict, 'waiting');
+  assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /go no further than a question the owner has not answered\.$/);
   // A limit with no recorded reset is resumed at once; another recorded session still working keeps it alive.
   assert.equal(verdict({ inventory: inventory('aaa'), stopped: () => ({ resetsAt: null }) }).verdict, 'resume');
   assert.equal(verdict({ inventory: inventory('aaa', 'bbb'), stopped }).verdict, 'alive');

@@ -9,7 +9,7 @@ checked by another, the next only after the check passed. Use `.agent-workflows/
 - `guided-mod`, `production-page`, `ci-plan`, `svg-import-engine`, `wizard-shell`, `wizard-ai`, `noacg-harness`,
   `vmix`, `codebase-health`: `docs/work-specs/<spec>/spec.md`, where `<spec>` is `guided-mod`, `production-page-refactor`, `ci-plan-reliability`,
   `svg-import-engine`, `wizard-structure`, `wizard-ai`, `noacg-harness`, `bridge-vmix-adapter`, `codebase-health`; phases, acceptance and notes are in it.
-- `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; `agent-delivery`, `codex-graphic-preview`: `docs/work-specs/<plan>/spec.md`; phases, acceptance and notes are in each. The preview's phase 1 is local.
+- `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; `agent-delivery`, `codex-graphic-preview`, `harness-ladder`: `docs/work-specs/<plan>/spec.md`; phases, acceptance and notes are in each. The preview's phase 1 is local.
 
 ## Boundaries
 

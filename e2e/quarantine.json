@@ -6,22 +6,12 @@
       "since": "2026-10-16",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38874823120"
-    },
-    "e2e/configured/late-send-abandoned.spec.ts": {
-      "since": "2026-10-17",
-      "count": 9,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39016954460"
-    },
-    "e2e/editor-groups.spec.ts": {
-      "since": "2026-10-17",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39015354033"
     }
   },
   "released": {
     "e2e/configured/account.spec.ts": {
-      "count": 3,
-      "last": "2026-10-16"
+      "count": 4,
+      "last": "2026-10-18"
     },
     "e2e/configured/connector-grants.spec.ts": {
       "count": 1,
@@ -30,6 +20,10 @@
     "e2e/configured/dashboard-hosted-walk.spec.ts": {
       "count": 5,
       "last": "2026-10-12"
+    },
+    "e2e/configured/late-send-abandoned.spec.ts": {
+      "count": 10,
+      "last": "2026-10-18"
     },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 3,
@@ -59,6 +53,10 @@
       "count": 3,
       "last": "2026-10-14"
     },
+    "e2e/editor-groups.spec.ts": {
+      "count": 2,
+      "last": "2026-10-17"
+    },
     "e2e/editor-images.spec.ts": {
       "count": 2,
       "last": "2026-10-11"
@@ -75,6 +73,10 @@
       "count": 1,
       "last": "2026-10-08"
     },
+    "e2e/import-svg-corpus.spec.ts": {
+      "count": 1,
+      "last": "2026-10-18"
+    },
     "e2e/import-svg.spec.ts": {
       "count": 2,
       "last": "2026-09-29"
@@ -90,6 +92,10 @@
     "e2e/playout-feedback-health.spec.ts": {
       "count": 1,
       "last": "2026-10-04"
+    },
+    "e2e/publish-output-setup.spec.ts": {
+      "count": 1,
+      "last": "2026-10-18"
     },
     "e2e/rundown-history.spec.ts": {
       "count": 1,

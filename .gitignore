@@ -195,6 +195,7 @@ sweep-*.json
 !.agents/skills/n/
 !.agents/skills/next/
 !.agents/skills/noacg-graphic-local/
+!.agents/skills/noacg-product-brief/
 !.agents/skills/now/
 !.agents/skills/orchestrator-week/
 !.agents/skills/o/

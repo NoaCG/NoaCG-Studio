@@ -7,7 +7,6 @@ import { catalogIndexPlugin } from './scripts/catalogIndexPlugin.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
 import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
-import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
 import { renderLatestHtml, renderUpdatesHtml } from './scripts/whats-new.mjs';
@@ -16,10 +15,9 @@ import { renderSiteChrome } from './scripts/site-nav.mjs';
 import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.mjs';
 
 // NoaCG Studio — dev/build config.
-// Thirteen pages: index.html is the static public landing at "/", docs.html is the public docs
+// Twelve pages: index.html is the static public landing at "/", docs.html is the public docs
 // home at "/docs" (static, indexed, no React), app.html is the editor at
-// "/app", admin.html is the private admin surface at "/admin" (unlinked and noindex — it is
-// a 404 for everyone the server does not recognise, see docs/ADMIN.md), output.html is
+// "/app", output.html is
 // the browser-output renderer at "/output" (capability URL, docs/CLOUD_PLAYOUT.md §3),
 // join.html is the public AUDIENCE page at "/join" (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5),
 // ograf.html is the public FREE OGRAF STARTERS page at "/ograf" (docs/OGRAF.md), and
@@ -31,7 +29,7 @@ import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.m
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
 // and preview servers the same ones. Terms and Privacy are public pages for the optional
 // hosted service. `?raw` imports bundle GSAP + template snippets.
-const CLEAN_PAGES = ['/app', '/admin', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/whats-new', '/roadmap'] as const;
+const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/whats-new', '/roadmap'] as const;
 
 // `/join/<name>` — the READABLE join URL an operator reads out on air. Vercel serves it through
 // a rewrite (vercel.json); the same shape has to work here, or a vanity link is testable only
@@ -181,7 +179,6 @@ export default defineConfig(({ command, mode }) => {
       renderApiPlugin(),
       aiApiPlugin(),
       eventsApiPlugin(),
-      adminApiPlugin(),
       meApiPlugin(),
       dataApiPlugin(),
       // /panel.json: where the Companion module finds this app's backend (scripts/panelBackendPlugin.mjs).
@@ -216,7 +213,6 @@ export default defineConfig(({ command, mode }) => {
           landing: 'index.html',
           docs: 'docs.html',
           app: 'app.html',
-          admin: 'admin.html',
           output: 'output.html',
           join: 'join.html',
           terms: 'terms.html',

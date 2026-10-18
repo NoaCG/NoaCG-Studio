@@ -5,7 +5,7 @@
 // a 350 ms debounce; compile/static errors keep the LAST GOOD module playing and show an
 // inline banner instead of blanking the stage.
 //
-// The stage reuses the SPX canvas conventions (src/components/PreviewFrame.tsx): the output
+// The stage keeps the SPX canvas conventions of the editor's preview stage: the output
 // frame is scaled to fit and centred in a larger stage with a soft shadow, over the same
 // checkerboard/black backing, with the shared CanvasGuides overlay (outline + broadcast safe
 // areas + rule-of-thirds grid) - so a Remotion project reads as the same canvas as the rest
@@ -102,7 +102,7 @@ export default function VideoPlayerFrame() {
   // The stage's READINESS SIGNAL, stamped on the iframe: `data-player-pending` from the moment
   // a (re)load becomes owed - set synchronously, before the debounce even starts - and
   // `data-player-rev` once the composition has actually MOUNTED. Same two-halves contract, and
-  // the same reasoning, as PreviewFrame's `data-doc-pending`/`data-doc-rev`: a revision alone
+  // the same reasoning, as the wizard preview's `data-doc-pending`/`data-doc-rev`: a revision alone
   // cannot tell "has not started yet" from "already finished", so a waiter reading it at the
   // wrong moment either returns too early or waits for a load nothing is going to schedule.
   //

@@ -157,7 +157,10 @@ export function spawnAsync(file, args, { input, timeout, ...opts }) {
     };
     const timer = timeout ? setTimeout(() => {
       error = Object.assign(new Error('timed out'), { code: 'ETIMEDOUT' });
-      child.kill();
+      // A time limit stops the session and everything it started (the CLI, its browser): on
+      // Windows `kill` ends only the process itself, or only cmd.exe behind a .cmd shim.
+      if (process.platform === 'win32' && child.pid) spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+      else child.kill();
       // A grandchild behind a .cmd shim can hold the pipes open after the kill: answer anyway.
       setTimeout(() => finish(null, 'SIGTERM'), 5000).unref();
     }, timeout) : null;

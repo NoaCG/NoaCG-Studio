@@ -134,9 +134,12 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    A separate green dispatch does not clear a red job in that PR run. No PR run: check conflicts
    and held-run approval first; dispatch `ci.yml` with `require_review=true` only on confirmed
    absence. Never treat an API error as absence or a green stamp workflow as finished CI.
-5. Turn auto-merge on with the session's working GitHub tool (`gh pr merge <n> --auto
-   --match-head-commit <sha>` when supported); never bypass the queue. The workflow-token path
-   previously stranded auto-merge (#393). Confirm a real `mergeQueueEntry` or
+5. Turn auto-merge on with `mcp__github__enable_pr_auto_merge`, pre-approved like local
+   `queue:merge` (`gh pr merge <n> --auto --match-head-commit <sha>` where gh works). It takes no
+   head SHA: confirm the PR head is the reviewed SHA just before, re-read it just after, and on a
+   moved head turn it off with `mcp__github__disable_pr_auto_merge`. Never use
+   `mcp__github__merge_pull_request` or anything else that bypasses the queue. The
+   workflow-token path previously stranded auto-merge (#393). Confirm a real `mergeQueueEntry` or
    `added_to_merge_queue` timeline event. If green but absent, inspect required checks and
    mergeability, then toggle session-owned auto-merge off/on once. Still absent: record a failed
    landing for the repair owner, not success. A moved head needs a fresh `/check` and stamp.

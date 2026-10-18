@@ -56,8 +56,7 @@ has no wrapper, because Claude Code loads the same rules from `.claude/rules/` b
 | 2 services | `audience/` | the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE `AudienceBackend` interface, the in-memory rehearsal provider, the Supabase provider over migration 0035's slug-keyed RPCs, and the framework-free join renderer | `audienceTypes` (the interface + limits), `localAudience`, `audienceData` (`createSupabaseAudience`), `joinSurface` |
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |
 | 3 app | `app/` | hash router | `router` |
-| 3 app | `components/` *, `landing/` *, `teach/` | the React shell, landing, tooltips | (top of the graph - nothing imports these) |
-| 3 app | `admin/` | the PRIVATE admin page: its own MPA entry (`admin.html` -> `/admin`), the wire types, the authorized fetch client (docs/ADMIN.md) | (top of the graph - nothing imports these) |
+| 3 app | `components/` *, `landing/` * | the React shell, landing | (top of the graph - nothing imports these) |
 | 3 app | `output/` | the browser-output RENDERER: its own MPA entry (`output.html` -> `/output`), a capability URL loaded by CasparCG/OBS/vMix (docs/CLOUD_PLAYOUT.md) | (top of the graph - nothing imports these) |
 | 3 app | `join/` | the public AUDIENCE page: its own MPA entry (`join.html` -> `/join`), the capability URL a viewer's phone opens. It reads the slug off the URL and mounts `audience/joinSurface` - every decision about what a viewer may see lives in `audience/` and in migration 0035 | (top of the graph - nothing imports these) |
 | 3 app | `ograf/` | the free OGraf STARTERS page: its own MPA entry (`ograf.html` -> `/ograf`, docs/OGRAF.md) - curated catalog graphics as downloadable OGraf packages, built by the real exporter at click time | (top of the graph - nothing imports these) |
@@ -69,14 +68,14 @@ The current, curated import graph. **Adding a new domain-to-domain edge requires
 table in the same PR, with one sentence of justification in the commit.** Everything may import
 `model/`, `assets/`, `entitlements/` and `feedback/`; those four are omitted from the lists. The
 last two earn it the same way: a pure contract that imports nothing, with consumers in the
-browser, in `api/` and in the admin page, where a second copy of the answer IS the defect the
+browser and in `api/`, where a second copy of the answer IS the defect the
 module exists to prevent. Edges not listed
 here and not in §6 are wrong - fix the code, not the table.
 
 - `templates` -> blocks (`animData`, `animMachine`, shared runtime)
 - `blocks` -> templates (preset data tables + `shared/animRuntime`, `shared/textFit`)
 - `validation` -> blocks, templates, preview
-- `preview`, `editor`, `format`, `backend`, `landing`, `teach` -> (kernel only)
+- `preview`, `editor`, `format`, `backend`, `landing` -> (kernel only)
 - `preview/composeDocument.ts` -> `blocks/animMigration.ts` only: compose the same supported legacy Out runtime upgrade as save/export on a transient copy, preserving read-only source and runtime parity.
 - `store` -> blocks, validation, templates (`defaultTemplate` only - the store's initial document,
   when no project is saved, is the first catalog variant)
@@ -102,8 +101,6 @@ here and not in §6 are wrong - fix the code, not the table.
   what export would refuse is the whole safety story of installing a file somebody handed you),
   templates (`types/recipeTemplate` only: a pack's RECIPE entry is built at install with the
   bridge scaffold's own function, docs/REMOTE_MCP_PLAN.md decision 5)
-- `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
-  from `api/admin/*`, never from another domain)
 - `showchat` -> backend, control
 - `output` -> control, preview, backend (the renderer follows the hosted-control log through
   `control/hostedControl`, composes each published graphic through `preview/composeDocument`,
@@ -159,7 +156,7 @@ dependency-cruiser; §7):
 | prompt, harness, provider, or AI settings work | `ai/` (SPX) or `ai/video/` |
 | manifest, schedule, tier, or render-job work | `render/` (respect the purity trio) |
 | a cloud table, sync kind, or auth change | `backend/` + `supabase/migrations/` (RLS in the same migration) |
-| a new gateable feature, plan dimension, or access rule | `entitlements/contract.ts` - one resolver, one precedence order (docs/ADMIN.md); the server loader and the admin surface consume it, never re-decide it |
+| a new gateable feature, plan dimension, or access rule | `entitlements/contract.ts` - one resolver, one precedence order (docs/ADMIN.md); the server loader consumes it, never re-decide it |
 | a new PERMISSION a credential may carry (what a key / token may do of what the account may do), or a new credential kind | `entitlements/permissions.ts` (the pure vocabulary + `permits`) and ONE more branch in `api/_lib/principal.ts resolvePrincipal` - never a second check (docs/AGENT_SAVE.md) |
 | a new door from the library to air (publish, export, a renderer) | it calls `validation/productionGate.ts` before crossing - the gate lives in the code that crosses, not in the dialog that shows the verdict |
 | video compile/validate/bridge work | `video/` |
@@ -183,12 +180,9 @@ When a change needs a transform that does not exist, write it as a named, export
 below `components/`; a UI state machine that reads the store or the draft lives as a `.ts` file
 beside its component.
 
-Grandfathered offenders (hoist the inline assembly into `blocks/` **when you are already
-touching that code path** - never as a drive-by campaign). Each count below is inline-assembly
-sites, not total `applyTemplate` calls, and is reproduced by
-`grep -c 'applyTemplate({ *\.\.\.template' <file>`: `src/components/canvas/CanvasInteraction.tsx`
-(5 sites), `src/components/timeline/StepTimeline.tsx` (6 sites) and
-`src/components/timeline/Inspector.tsx` (4 sites).
+No grandfathered offender is left: the three files that assembled templates inline went with
+the old code editor. `grep -c 'applyTemplate({ *\.\.\.template' <file>` counts a new one; hoist
+it into `blocks/` **when you are already touching that code path**, never as a drive-by campaign.
 
 **The wizard's draft stays in `components/wizard/draft/`** (`core.ts`, `template.ts`, `format.ts`;
 `draft.ts` re-exports them for the e2e and script loaders that import it by path). It is the
@@ -330,8 +324,10 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
   export/ *    the export registry - 6 targets + whole-SHOW export + packaging conventions
   render/ *    RenderManifest, HOLD schedule, tier limits, virtual clock, job store (docs/RENDER.md)
   landing/ *   the landing page's GSAP motion system. POLICY: never fakes product UI
-  components/ * the React app: AppShell, CodeEditor, timeline dock, Inspector, canvas/, wizard/,
-               auth/, save/, home/, video/, icons.tsx
+  components/ * the React app: editorFoundation/ (the editor), home/, wizard/, video/, auth/,
+               save/, canvas/ (CanvasGuides, the video stage's guides), icons.tsx. The old code
+               editor (AppShell, CodeEditor, its docks, timeline, canvas gestures and preview stage)
+               was retired on 2026-10-17
     wizard/ *  the creation wizard (§5): CreationWizard.tsx is the thin shell over shell/ (the
                walks, the walk state, the Finish doors, open and close) and template/ * (the
                template and kit walks, the kit plan, its tray, moves and confirms, reached only
@@ -359,9 +355,7 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
   entitlements/ the PURE access contract (docs/ADMIN.md): ONE resolver, precedence
                default < plan < temporary grant < manual override, every value carrying WHY;
                permissions.ts = what a CREDENTIAL may do (docs/AGENT_SAVE.md)
-  feedback/    the PURE feedback contract (docs/ADMIN.md §10) - one vocabulary, four consumers
-  admin/       the PRIVATE admin page. Never a security boundary. Usage sections count OTHER
-               PEOPLE by default (the ScopePicker excludes internal accounts)
+  feedback/    the PURE feedback contract (docs/ADMIN.md §10) - one vocabulary for form and server
   output/      the browser-output RENDERER - one persistent transparent capability URL per
                production, following the hosted-control log with boot recovery (docs/CLOUD_PLAYOUT.md)
   bridge/      the headless BRIDGE page (/bridge, docs/AGENT_CLI.md): the platform's own
@@ -387,14 +381,14 @@ public/fonts/  the 17 bundled woff2 fonts (served at /fonts, copied into exports
 src/assets/    bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source) + asset helpers
 src/docs/ *    the PUBLIC docs page's stylesheet and its one progressive module (the page itself
                is docs.html at the root; the AGENTS.md here is the contract for both)
-src/teach/     the Monaco tooltips
-scripts/       dev-port + port-registry (the per-worktree RESERVATION), the catalog quality gates,
+scripts/       admin.mjs (roles), admin-report.sql (read-only operations brief),
+               dev-port + port-registry (the per-worktree RESERVATION), the catalog quality gates,
                ai-compare + ai-bench (both SPEND TOKENS), render-smoke, worktree-activity (who else
                is in flight), merge-order (which branch should land FIRST), hooks/
 api/           server-only Vercel functions: the render service, the AI model gateway, Lite
                profile/allowance, sealed user-key endpoints, the production DATA API
                (docs/DATA_API.md - external data as update rows in the control log),
-               api/admin/* behind _lib/adminAuth.ts (404 for every refusal), the agent-key +
+               the agent-key +
                save routes under api/me (docs/AGENT_SAVE.md). Typechecked by tsconfig.api.json
 render-worker/ the Remotion renderer, and player-host/ the preview host - own exact-pinned packages
 player-host/   so the non-OSI licence never enters the AGPL bundle. Built into public/player-host/
@@ -412,7 +406,6 @@ from Vercel `cleanUrls` in production - so a page is reached without its `.html`
 | `/` | `index.html` | static landing, no React; carries a redirect shim so old root `?chat=`/`?template=` share links land on `/app` with their query |
 | `/docs` | `docs.html` | PUBLIC docs home - static, indexed, no React; guides for SVG import, OBS/vMix, CasparCG, the playout dashboard and the agent door (`src/docs/`) |
 | `/app` | `app.html` | the studio: home, wizard, productions - the editor is its Advanced surface. E2E specs navigate here |
-| `/admin` | `admin.html` | PRIVATE admin surface - unlinked, `noindex`, a plain 404 for everyone the server does not recognise (`docs/ADMIN.md`) |
 | `/output?production=<slug>` | `output.html` | the transparent browser-output RENDERER a production client (CasparCG/OBS/vMix) loads once (`docs/CLOUD_PLAYOUT.md`) |
 | `/join/<name>` | `join.html` | PUBLIC audience page (also `/join?p=<slug>`, `?pv=<slug>` for the presenter view) - vanilla TS, `noindex` (`docs/INTERACTIVE_PLAYOUT_PLAN.md` Phase 5) |
 | `/terms` | `terms.html` | PUBLIC terms for accounts and optional hosted services |

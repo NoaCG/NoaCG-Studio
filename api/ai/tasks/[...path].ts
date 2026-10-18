@@ -1,4 +1,4 @@
-// The imported-graphic-analysis task's one serverless function (see api/admin/[...path].ts).
+// The imported-graphic-analysis task's one serverless function (see docs/DEPLOYMENT.md).
 //
 // All three paths are SINGLE SEGMENTS under this prefix - `import-analysis`,
 // `import-analysis-status`, `import-analysis-outcome` - and that is a platform constraint,

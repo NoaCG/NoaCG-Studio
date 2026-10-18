@@ -524,6 +524,20 @@ test('a record gone mid-write mints; a failed write returns its reason and never
   assert.deepEqual(await W.saveBuiltGraphic({ finished: null, made: null }, 'Score', failedMint.lib), { ok: false, error: 'Storage is full.' });
 });
 
+test('a mint whose record landed but whose link was refused is the walk\'s record: a renamed retry writes over it (#1367)', async () => {
+  const memory = { finished: null, made: null };
+  const refused = library({ as: { ok: false, error: 'Storage is full.', graphicId: 'g-minted' } });
+  assert.deepEqual(await W.saveBuiltGraphic(memory, 'Score', refused.lib), { ok: false, error: 'Storage is full.', graphicId: 'g-minted' });
+  assert.deepEqual(memory.made, { name: 'Score', graphicId: 'g-minted', production: null, landedOn: null });
+  const retry = library();
+  assert.deepEqual(await W.saveBuiltGraphic(memory, 'Score v2', retry.lib), { ok: true, error: null });
+  assert.deepEqual(retry.log, ['effect Score v2 g-minted', 'link g-minted', 'saveCurrent Score v2'], 'the retry mints nothing');
+  // A refusal that minted nothing leaves the walk with no record.
+  const nothing = { finished: null, made: null };
+  await W.saveBuiltGraphic(nothing, 'Score', library({ as: { ok: false, error: 'Storage is full.' } }).lib);
+  assert.equal(nothing.made, null);
+});
+
 test('held writes: each save reads the walk\'s record when it starts, and neither waits on the other', async () => {
   let release;
   const hold = new Promise((r) => (release = r));

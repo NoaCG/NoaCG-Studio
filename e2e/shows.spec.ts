@@ -3,8 +3,8 @@
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 // focus
 
-import { test, expect, type Page, type Route } from '@playwright/test';
-import { createProject } from './_create';
+import { test, expect, type Route } from '@playwright/test';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { importProofCase } from './_proofCase';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
@@ -13,35 +13,12 @@ import { readFileSync } from 'node:fs';
 // export packages every graphic plus ONE aggregated control page (a card per graphic,
 // each driving its own BroadcastChannel independently).
 
-async function addCurrentToShow(page: Page, showName: string, create = false): Promise<void> {
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  if (create) {
-    await section.getByPlaceholder('New production name').fill(showName);
-    await section.getByRole('button', { name: 'Create', exact: true }).click();
-  } else {
-    // A fresh document remounts the panel, so the show needs re-picking by name.
-    const value = await section.locator('select option', { hasText: showName }).getAttribute('value');
-    await section.locator('select').selectOption(value!);
-  }
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-}
-
 test('a show collects graphics in rundown order and exports one aggregated panel', async ({ page, context }) => {
-  // Two graphics into one show, from two separate documents.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await addCurrentToShow(page, 'Evening Show', true);
-
-  await createProject(page, { name: 'Arena Quiz' });
-  await addCurrentToShow(page, 'Evening Show');
-
-  // The layer stack, the export and everything else live on the production's own PAGE now —
-  // the editor's Productions block is deliberately slim (docs/GOALS_ARCHIVE.md "Student release"
-  // step 8): add-current + the link, nothing that could drift from the page.
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  // Two graphics into one production: the working graphic through the production door, the
+  // second through the rundown's own add (the same model call its "+ Add" makes).
+  await bootstrapGraphic(page, { category: 'lower-third', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Evening Show');
+  await addCatalogGraphic(page, showId, 'Arena Quiz');
 
   // Both graphics reached the production, each with its own layer — read off the RUNDOWN, which
   // is the only list of what a production holds (docs/PLAYOUT_DASHBOARD.md §5). Layers are
@@ -138,17 +115,12 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await third.close();
 });
 
-test('offline: the hosted control route answers honestly and the Shows section grows no cloud UI', async ({ page }) => {
+test('offline: the hosted control route answers honestly', async ({ page }) => {
   // The e2e server pins offline mode (no Supabase env): the capability route must say so
-  // rather than spin, and the Shows section must stay purely local (auth-posture rule).
+  // rather than spin (auth-posture rule). The editor's Productions block this case also read
+  // is retired; Home's Productions section is productions.spec.ts's.
   await page.goto('/app?control=some-slug');
   await expect(page.locator('.sendin-card')).toContainText('Hosted control needs the cloud backend');
-
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await expect(section).toBeVisible();
-  await expect(section.getByText(/host.*online/i)).toHaveCount(0);
 });
 
 test('shows and videos ride the storage seam (the sync engine sees and writes both kinds)', async ({ page }) => {
@@ -614,15 +586,9 @@ test("a show export bakes each graphic's saved library entries into both panels"
 });
 
 test('the layer stack reorders and removes; deleting the show keeps nothing behind', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await addCurrentToShow(page, 'Reorder Show', true);
-  await createProject(page, { name: 'Arena Quiz' });
-  await addCurrentToShow(page, 'Reorder Show');
-
-  // The layer stack lives on the production PAGE now (the editor block is slim by design).
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  await bootstrapGraphic(page, { category: 'lower-third', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Reorder Show');
+  await addCatalogGraphic(page, showId, 'Arena Quiz');
 
   // Arena Quiz went in last, so it took the next free number. Restacking is TYPING a number, not
   // walking arrows (docs/PLAYOUT_DASHBOARD.md §5), and the RUNDOWN is where the numbers are read:
@@ -645,8 +611,7 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   await page.getByTestId('delete-cue').click();
   await expect(rows).toHaveCount(1);
 
-  // Deleting the production is a Home action (two-step, on its row). HOME rather than Back: this
-  // production was opened from the editor, and Back returns there now.
+  // Deleting the production is a Home action (two-step, on its row).
   await page.getByTestId('production-home').click();
   await page.getByTestId('home-nav-productions').click();
   const row = page.locator('[data-testid^="production-row-"]', { hasText: 'Reorder Show' });
@@ -665,13 +630,15 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
 });
 
 test('a rundown export ships the LIVE graphic, not the snapshot from when it was added', async ({ page }) => {
-  // Save the graphic to the library so the rundown copy carries a graphicId, then add it.
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  // Save the graphic to the library so the rundown copy carries a graphicId, then add it. The
+  // save controls sit in the new editor's header, where the old topbar's were.
+  await bootstrapGraphic(page, { category: 'lower-third', name: 'Hairline' });
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Anchor L3');
   await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog')).toBeHidden();
-  await addCurrentToShow(page, 'Live Rundown', true);
+  await openProductionWithCurrent(page, 'Live Rundown');
 
   // Edit the LIBRARY graphic after it is in the production — a distinctive marker in the CSS.
   await page.evaluate(async () => {
@@ -683,10 +650,7 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
     saveCurrentGraphic();
   });
 
-  // The export lives on the production page (the editor's block is slim by design).
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+  // The export lives on the production page.
   await page.getByTestId('production-setup').click();
   await page.getByTestId('export-production').click();
   const [download] = await Promise.all([
@@ -701,10 +665,10 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
 });
 
 test('Home lists productions and the production page exports the package', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await addCurrentToShow(page, 'Home Production', true);
-
-  await page.getByTestId('open-home').click();
+  await bootstrapGraphic(page, { category: 'lower-third', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Home Production');
+  await page.getByTestId('production-back').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
   await page.getByTestId('home-nav-productions').click();
   const row = page.locator('[data-testid^="production-row-"]');
   await expect(row).toHaveCount(1);
@@ -713,19 +677,19 @@ test('Home lists productions and the production page exports the package', async
   // Adding a graphic auto-creates its first cue (docs/CLOUD_PLAYOUT.md §2).
   await expect(row).toContainText('1 cue');
 
-  // The export door is on the ROW too now (acceptance ask: export straight from Home), with
-  // the same target picker the production page opens.
+  // The export door is on the CARD too (acceptance ask: export straight from Home), with the
+  // same target picker the production page opens.
   await row.getByTestId('export-production-row').click();
   await expect(page.getByTestId('production-export-dialog')).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByTestId('prod-export-download').click(),
   ]);
-  expect(await download.suggestedFilename()).toMatch(/production\.zip$/);
+  expect(download.suggestedFilename()).toMatch(/production\.zip$/);
   await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
   await expect(page.getByTestId('production-export-dialog')).toBeHidden();
 
-  // The production page owns everything about one production — including the offline export.
+  // The production page owns everything about one production, the offline export included.
   await row.getByTestId('open-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await page.getByTestId('production-setup').click();

@@ -96,3 +96,84 @@ export function traceMetrics({ events, createdAt, model, usage = null }) {
     steps,
   };
 }
+
+// ── the look line (docs/work-specs/harness-ladder/spec.md D1, D6) ─────────────────────────────
+// `record --review` proves every coverage frame has a verdict, not that it was looked at. The
+// trace says which files the agent opened: a frame is opened when the agent read a file of that
+// name (the frames carry the coverage's own names, `take-sample-video-600ms.png` and the like).
+// Every coverage writes those names again, over new pixels and with empty verdicts, so only a read
+// after the session's last `noacg coverage` counts, and only one that did not fail.
+
+const COVERAGE_RUN = /(?:^|[\s;&|(])noacg\s+coverage\b/;
+
+/** The reads that come after the last coverage run of `events` ([{ read } | { coverage }], in order). */
+const sinceLastCoverage = (events) => {
+  const last = events.map((e) => Boolean(e.coverage)).lastIndexOf(true);
+  return events.slice(last + 1).filter((e) => e.read).map((e) => e.read);
+};
+
+/** The paths a Managed Agents trace's `read` steps opened after its last coverage. */
+export function readsOf(steps) {
+  return sinceLastCoverage((steps ?? []).filter((s) => s.kind === 'tool').map((s) => (/^read$/i.test(s.tool ?? '') && typeof s.path === 'string' && s.ok !== false ? { read: s.path } : { coverage: COVERAGE_RUN.test(s.command ?? '') })));
+}
+
+/** The paths a Claude Code session's transcript (its `.jsonl`) opened with Read after its last coverage. */
+export function transcriptReads(text) {
+  const events = [];
+  const failed = new Set();
+  for (const line of String(text ?? '').split('\n')) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    for (const block of Array.isArray(entry?.message?.content) ? entry.message.content : []) {
+      if (block?.type === 'tool_use' && block.name === 'Read' && typeof block.input?.file_path === 'string') events.push({ id: block.id, read: block.input.file_path });
+      else if (block?.type === 'tool_use' && block.name === 'Bash') events.push({ coverage: COVERAGE_RUN.test(block.input?.command ?? '') });
+      else if (block?.type === 'tool_result' && block.is_error) failed.add(block.tool_use_id);
+    }
+  }
+  return sinceLastCoverage(events.filter((e) => !(e.read && failed.has(e.id))));
+}
+
+/**
+ * A Claude Code session's list-price cost from its transcript, for a session stopped before it
+ * printed its own `total_cost_usd`: every model message's usage once (a message written as several
+ * lines repeats it), at the model's list prices, cache writes at the 5-minute rate. Null for a
+ * model with no price here.
+ */
+export function transcriptUsd(text, model) {
+  const price = LIST_PRICES[model];
+  if (!price) return null;
+  const seen = new Set();
+  let usd = 0;
+  for (const line of String(text ?? '').split('\n')) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const m = entry?.message;
+    if (entry?.type !== 'assistant' || !m?.usage || seen.has(m.id)) continue;
+    seen.add(m.id);
+    usd += requestUsd(m.usage, price);
+  }
+  return Math.round(usd * 1e6) / 1e6;
+}
+
+const baseName = (p) => String(p).split(/[\\/]/).pop();
+
+/**
+ * The look line of one hand-in: how many frames it gave a verdict for, how many of those the agent
+ * opened, and which it did not. `review` is the record's `review`, null when it was handed in
+ * without one.
+ */
+export function framesOpened(review, reads) {
+  if (!review) return { reviewed: 0, opened: 0, unopened: [], all: false, fixed: 0 };
+  const read = new Set((reads ?? []).map(baseName));
+  const files = (review.verdicts ?? []).map((v) => v.file);
+  const unopened = files.filter((f) => !read.has(baseName(f)));
+  return { reviewed: files.length, opened: files.length - unopened.length, unopened, all: files.length > 0 && unopened.length === 0, fixed: review.fixed ?? 0 };
+}

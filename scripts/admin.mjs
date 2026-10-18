@@ -1,4 +1,4 @@
-// Bootstrap tool for the private admin surface (docs/ADMIN.md section 3).
+// Trusted operator role commands (docs/ADMIN.md section 3); no admin webpage is required.
 //
 // This is the ONLY way to create the first admin, and it deliberately runs outside the app:
 // there is no self-promotion path, no "claim this instance" first-run screen, and no admin
@@ -14,7 +14,7 @@
 //
 // Roles: owner (may manage admin roles) > admin (may change any user's access) > support
 // (read-only). Grants and revocations made here are written to admin_audit_log with a null
-// actor, so an out-of-band change is visible in the same log as an in-app one.
+// actor, so an out-of-band change is visible in the same append-only operations log.
 
 import { createClient } from '@supabase/supabase-js';
 

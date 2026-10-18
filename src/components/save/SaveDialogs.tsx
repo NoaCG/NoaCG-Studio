@@ -3,7 +3,9 @@ import { useTemplateStore } from '../../store/templateStore';
 import {
   saveCurrentGraphic,
   saveGraphicAs,
+  saveBeforeLeave,
   discardCurrentGraphic,
+  hasUnsavedWork,
   useSaveUi,
 } from '../../store/saveActions';
 import { useModalGate } from '../spaceKey';
@@ -23,8 +25,12 @@ import { getSyncState, onSyncState } from '../../backend/syncController';
  *   air happens in a PRODUCTION's own pool.
  * - UNSAVED-CHANGES GUARD: shown before leaving the editor or replacing the working document
  *   (opening another graphic, creating a new project, the wizard's mid-walk start-over).
- *   Save first, discard, or cancel.
+ *   Save first, discard, or cancel. Also shown when the leave starts while a save is still
+ *   writing (a topbar Save, Ctrl+S): it says so, and that save's answer arrives here, over the
+ *   editor, rather than at a destination the leave already reached (#1392).
  */
+const SAVE_FAILED = 'Could not save. Your changes are still open. Try again.';
+
 export default function SaveDialogs() {
   const saveDialog = useSaveUi((s) => s.saveDialog);
   const confirmSwitch = useSaveUi((s) => s.confirmSwitch);
@@ -83,11 +89,27 @@ function SaveDialog() {
     return () => window.removeEventListener('keydown', onKey);
   }, [closeDialog]);
 
+  // The record a refused attempt already minted: only its link write failed, so the retry
+  // writes into it rather than minting a second (#1367).
+  const minted = useRef<string | null>(null);
+  const attempt = async (chosen: string) => {
+    const { saved, template: now } = useTemplateStore.getState();
+    if (minted.current && saved.graphicId === minted.current) {
+      // A new name is adopted by the draft too, as the first attempt adopted its own.
+      if (now.name !== chosen) useTemplateStore.setState({ template: { ...now, name: chosen } });
+      const r = await saveCurrentGraphic({ name: chosen });
+      if (r !== 'needs-name') return { ok: r === 'saved', error: r === 'saved' ? null : SAVE_FAILED };
+    }
+    const res = await saveGraphicAs(chosen, { kind: 'standalone' });
+    minted.current = res.graphicId ?? null;
+    return res;
+  };
+
   const confirm = () => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
-    void saveGraphicAs(name.trim() || template.name, { kind: 'standalone' }).then((res) => {
+    void attempt(name.trim() || template.name).then((res) => {
       if (!res.ok) {
         setError(res.error);
         return;
@@ -153,6 +175,19 @@ function ConfirmSwitchDialog() {
   const openSaveDialog = useSaveUi((s) => s.openSaveDialog);
   const graphicId = useTemplateStore((s) => s.saved.graphicId);
   const name = useTemplateStore((s) => s.template.name);
+  const inFlight = useSaveUi((s) => s.inFlight);
+  // A refused save of an already clean graphic leaves `dirty` false: it is not landed either.
+  const unsaved = useTemplateStore((s) => hasUnsavedWork(s) || s.saved.status === 'failed');
+  // Asked while a save was still writing: when it answers, a refusal is shown here, where the
+  // user is. Landed, the dialog says so and continues on the user's word, never on its own.
+  const overSave = useRef(inFlight);
+  useEffect(() => {
+    if (inFlight || !overSave.current) return;
+    overSave.current = false;
+    if (!busyRef.current && useTemplateStore.getState().saved.status === 'failed') setError(SAVE_FAILED);
+  }, [inFlight]);
+  const saving = inFlight && !busy;
+  const landed = !inFlight && !unsaved && !busy;
   // Same guard as the save dialog: a press that began inside the dialog and released on the
   // backdrop must not be read as an outside click (see SaveDialog).
   const pressedOnBackdrop = useRef(false);
@@ -167,12 +202,13 @@ function ConfirmSwitchDialog() {
 
   const saveThen = () => {
     if (busyRef.current) return;
+    overSave.current = false;
     const proceed = confirm.proceed;
-    if (graphicId) {
+    if (graphicId || inFlight || !unsaved) {
       busyRef.current = true;
       setBusy(true);
-      void saveCurrentGraphic().then((r) => {
-        if (r === 'failed') { setError('Could not save. Your changes are still open. Try again.'); return; }
+      void saveBeforeLeave().then((r) => {
+        if (r === 'failed') { setError(SAVE_FAILED); return; }
         // Saved, but an edit accepted during the wait is not in that copy (#1359).
         if (r === 'saved' && useTemplateStore.getState().saved.dirty) {
           setError('The graphic changed while saving. Your newer changes are still open. Try again.');
@@ -191,6 +227,7 @@ function ConfirmSwitchDialog() {
 
   const discard = () => {
     if (busyRef.current) return;
+    overSave.current = false;
     busyRef.current = true;
     setBusy(true);
     const proceed = confirm.proceed;
@@ -210,7 +247,7 @@ function ConfirmSwitchDialog() {
     settleConfirm();
     useSaveUi.getState().requestSwitch(next, confirm.cancel);
   };
-  const title = walk ? 'Graphic in progress' : 'Unsaved changes';
+  const title = walk ? 'Graphic in progress' : saving ? 'Saving' : landed ? 'Saved' : 'Unsaved changes';
 
   return (
     <div
@@ -236,6 +273,8 @@ function ConfirmSwitchDialog() {
           <p>
             {walk
               ? 'You left a graphic unfinished in the wizard.'
+              : saving ? `Saving “${name}”…`
+              : landed ? `“${name}” is saved.`
               : `“${name}” has unsaved changes. Save them before continuing?`}
           </p>
           {error && <p className="status-bad" role="alert">{error}</p>}
@@ -249,9 +288,9 @@ function ConfirmSwitchDialog() {
               </>
             ) : (
               <>
-                <button onClick={discard} disabled={busy} data-testid="switch-discard">Discard changes</button>
+                {!landed && <button onClick={discard} disabled={busy} data-testid="switch-discard">Discard changes</button>}
                 <button className="primary" onClick={saveThen} disabled={busy} data-testid="switch-save">
-                  {busy ? 'Please wait…' : graphicId ? 'Save & continue' : 'Save first…'}
+                  {busy ? 'Please wait…' : landed ? 'Continue' : graphicId ? 'Save & continue' : 'Save first…'}
                 </button>
               </>
             )}

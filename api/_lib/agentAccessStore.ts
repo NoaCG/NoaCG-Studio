@@ -4,7 +4,7 @@
 // ONE interface, two implementations. The handlers (api/_lib/me/agentKeys.ts, graphics.ts) take
 // the interface, never a client: that is what lets their whole decision surface - PKCE binding,
 // expiry, single use, the shape guard, the insert-only rule - run under `node --test` with no
-// network, exactly as adminAuth.test.ts pins the admin gate. The Supabase implementation is
+// network. The Supabase implementation is
 // the thin part: six calls, two of them RPCs.
 //
 // WHY THE TWO LOOKUPS ARE RPCs (0050 `agent_code_consume`, `agent_key_resolve`) and not

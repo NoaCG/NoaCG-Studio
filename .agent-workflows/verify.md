@@ -20,17 +20,20 @@ Select resources on the executing worker with `node scripts/execution-profile.mj
 the coordinator's profile. GitHub Actions retains authoritative full PR/merge-group checks.
 Local checks and all existing local guards remain targeted; whole suites are refused off Actions.
 
-The owner approved these cloud defaults in issue #1301 comment 6223002051:
+A cloud worker uses what its machine has and runs browser and e2e checks itself (owner,
+2026-10-17, replacing the resource defaults of issue #1301 comment 6223002051). Only the laptop
+watches RAM and keeps its memory ladder and floors. The session start prints the cloud
+machine's CPUs, memory and e2e workers.
 
+- Browser workers: one for every two visible CPUs (more failed boot checks here and saved no
+  time), as many as the memory headroom holds; no fixed cap and no queue RAM floor. A cgroup
+  reading that fails falls back to the machine's own CPUs and memory, never to one worker. The
+  worker selector refuses CLI and environment overrides above that count.
 - Small affected browser selection: at most five minutes. One relevant broader selection or
-  maintained shard: at most twelve minutes, with complete known resource readings.
-- At most four browser workers, reduced for lower CPU/affinity and available memory. Unknown
-  or hidden ancestor limits mean a conservative one-worker ceiling; queued browser/build work
-  is refused until headroom is observed, leaving cheap targeted gates here and browser work in CI. Never use host RAM
-  as a container allowance. The worker selector also checks CLI and environment overrides.
+  maintained shard: at most twelve minutes.
 - Run a production build only for build/bundle/dependency/entrypoint/packaging risk, once per
-  committed reviewed source state, capped at five minutes on measured Codex or ten on measured
-  Claude. Unknown limits leave the build to Actions. Docs/copy need no build unless build inputs.
+  committed reviewed source state, capped at five minutes on Codex or ten on Claude.
+  Docs/copy need no build unless build inputs.
   Decide build need first; a completed production build includes lint/type/dependency and build
   gates, so reuse those results instead of running them twice. Run any separate affected factory
   or browser checks the build does not include. No repeated build on an unchanged source state.
@@ -54,7 +57,7 @@ checks; apply it only to work not already covered by the required production bui
 |---|---|
 | anything | the gates that reach the change: `npm run gates -- run --changed origin/main` (the tests guarding each touched script, and the cheap checks) |
 | TypeScript | `npx eslint <changed files>` and `npx tsc --noEmit -p <tsconfig.json or tsconfig.api.json>` |
-| something visible in the product | the one or two specs covering exactly that change, `npm run queue -- "npm run test:e2e -- e2e/<name>.spec.ts"` (`node scripts/e2e-affected.mjs --list --files <changed>` names candidates); then run it: `npm run dev:worktree` on this checkout's port, walk the flow in the browser, read the console and network, take a screenshot, and compare with each criterion |
+| something visible in the product | its affected specs, run on this machine before `/queue-merge`, in the cloud too: leaving them to CI is not enough. `npm run queue -- "npm run test:e2e -- e2e/<name>.spec.ts"` (`node scripts/e2e-affected.mjs --list --files <changed>` names them; past the bounds above, the one or two covering exactly that change); then run it: `npm run dev:worktree` on this checkout's port, walk the flow in the browser, read the console and network, take a screenshot, and compare with each criterion |
 | what a graphic looks like | `npm run queue -- "node scripts/taste-frame-review.mjs --affected"`, open every frame, answer `docs/VISUAL_TASTE_REVIEW.md` |
 | catalog designs or shared template machinery | the battery `node scripts/catalog-affected.mjs` prints |
 | how instructions load | `node scripts/instruction-load-probe.mjs run <files>` for Claude, a fresh root and nested Codex run for Codex |

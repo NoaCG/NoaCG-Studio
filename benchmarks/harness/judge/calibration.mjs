@@ -22,6 +22,12 @@
 //   node benchmarks/harness/judge/calibration.mjs freeze --model <id> --effort <level>
 //        Write judge.lock.json for the files as they are.
 //
+//   --lock <file> on freeze, run --part heldout and score: a second judge, the same prompt and
+//   rubric on another model, with its own lock (the harness ladder's, docs/work-specs/
+//   harness-ladder/spec.md D8). Its prompt and rubric must hash as judge.lock.json's do, so the
+//   held-back part still never shaped a prompt; its answers go to `results-<part>-<lock folder>.jsonl`.
+//   --phase names the ledger phase a usage-limit pause is recorded under (H2 by default).
+//
 // Good: the 25 graphics of the 2026-08-22 agent round (owner: every one airable) and the 21 cells
 // of the 2026-08-19 rules re-read the owner aired. Bad: the owner's FAIL and TWEAKS verdicts in
 // the 2026-08-18 type sweep (18 minimax, 11 gemini), the 30 free-form coder cells the owner
@@ -332,14 +338,14 @@ function readResults(file) {
   return readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
 }
 
-async function runPart({ set, split, part, task, work, concurrency, judge, only }) {
+async function runPart({ set, split, part, task, work, concurrency, judge, only, tag = '', phase = 'H2' }) {
   const claude = claudeExecutable();
   const token = (await import('../../../scripts/lite-eval-paths.mjs')).mainEnv().CLAUDE_CODE_OAUTH_TOKEN;
   const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
   const envFor = (w) => subscriptionEnv({ token, home: path.join(work, 'homes', `w${w}`), pathDirs: [path.dirname(process.execPath), path.dirname(claude), system] });
   checkSubscriptionAuth({ claude, env: envFor(0) });
   const byId = new Map(set.items.map((i) => [i.id, i]));
-  const resultsFile = path.join(work, `results-${part}.jsonl`);
+  const resultsFile = path.join(work, `results-${part}${tag}.jsonl`);
   const done = new Set(readResults(resultsFile).filter((r) => r.judge === judge.fingerprint && !r.error).map((r) => `${r.task}:${r.id}`));
   const jobs = [];
   const want = (id) => !only.length || only.includes(id);
@@ -357,7 +363,7 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
   let next = 0;
   const ledgerPause = (resetsAt) => {
     const ledger = readLedger(LEDGER_FILE);
-    appendEntry(ledger, { kind: 'session', phase: 'H2', stage: `calibration-${part}`, arm: 'judge', model: judge.lock.model, funding: 'subscription', outcome: 'paused', note: `the subscription's usage limit; paused until ${resetsAt ?? 'an unknown reset (retried after 15 minutes)'}; nothing moved to the credit` });
+    appendEntry(ledger, { kind: 'session', phase, stage: `calibration-${part}`, arm: 'judge', model: judge.lock.model, funding: 'subscription', outcome: 'paused', note: `the subscription's usage limit; paused until ${resetsAt ?? 'an unknown reset (retried after 15 minutes)'}; nothing moved to the credit` });
     writeLedger(LEDGER_FILE, ledger);
   };
   const worker = async (w) => {
@@ -474,9 +480,55 @@ function fail(message) {
   process.exit(2);
 }
 
+/**
+ * A second judge's lock (`--lock`): the exam judge's prompt and rubric, frozen, on another model.
+ * Null without the flag. Its answers and score are kept apart, tagged by the lock's folder.
+ */
+export function secondLock(raw, { root = ROOT, examLock = path.join(HERE, 'judge.lock.json') } = {}) {
+  if (!raw) return null;
+  const file = path.resolve(root, raw);
+  if (file === path.resolve(examLock)) throw new Error('--lock names a second judge\'s lock, not judge.lock.json');
+  return { file, tag: `-${path.basename(path.dirname(file))}`, exam: readJson(examLock) };
+}
+
+/** A second judge runs the exam judge's prompt and rubric unchanged: only then has the held-back part never shaped what it runs. */
+export function sameFiles(lock, examLock) {
+  return JSON.stringify(lock.sha256) === JSON.stringify(examLock.sha256);
+}
+
+const pct = (x) => `${(x * 100).toFixed(1)}%`;
+
+/** A second judge's held-back result, as its lock carries it: the figures of H2's bar and where they are kept. */
+function calibrationBlock(s, results, paths) {
+  const ats = results.map((r) => r.at).sort();
+  return {
+    part: 'heldout',
+    pass: s.pass,
+    agreement: `${s.single.agreed} of ${s.single.n} (${pct(s.single.agreement)}, Wilson ${pct(s.single.interval[0])} to ${pct(s.single.interval[1])})`,
+    basicFailsCalledAirable: s.single.basicFailsCalledAirable.length,
+    pairwise: `${s.pairwise.correct} of ${s.pairwise.n} (${pct(s.pairwise.rate)}, Wilson ${pct(s.pairwise.interval[0])} to ${pct(s.pairwise.interval[1])})`,
+    flips: s.pairwise.flips,
+    unanswered: s.single.unanswered + s.pairwise.unanswered,
+    judgements: results.filter((r) => !r.error).length,
+    notionalUsd: Number(results.reduce((n, r) => n + (r.notionalUsd ?? 0), 0).toFixed(2)),
+    from: ats[0] ?? null,
+    to: ats[ats.length - 1] ?? null,
+    fingerprint: [...new Set(results.map((r) => r.judge))].join(', '),
+    ...paths,
+    bar: 'the parent spec 4.3 / H2: agreement at least 85% with no basic-defect FAIL called airable, pairwise at least 90% with order flips as errors',
+  };
+}
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const verb = argv[0];
+  let second = null;
+  try {
+    second = secondLock(value('lock', ''));
+  } catch (e) {
+    fail(e instanceof Error ? e.message : String(e));
+  }
+  const tag = second?.tag ?? '';
   const work = path.resolve(value('work', path.join(os.tmpdir(), 'noacg-harness', 'judge-calibration')));
   if (work.startsWith(ROOT + path.sep)) fail(`--work must be outside the repository (${ROOT}): frames are never committed`);
   const onlyArg = value('only', '') || '';
@@ -505,10 +557,15 @@ if (isMain) {
     let judge;
     if (part === 'heldout') {
       // The held-back part is read by the frozen judge only, so it can never shape the prompt.
-      judge = loadJudge(HERE);
+      judge = loadJudge(HERE, second ? { lockFile: second.file } : {});
       if (!judge.frozen) fail(`the held-back part is judged only by a frozen judge: ${judge.reason}`);
+      if (second && !sameFiles(judge.lock, second.exam)) fail(`${path.relative(ROOT, second.file)} does not freeze judge.lock.json's prompt and rubric: a second judge runs them unchanged`);
+      // One second judge only: trying model after model on the same held-back part until one passes
+      // would be choosing a judge on it.
+      const others = second && existsSync(work) ? readdirSync(work).filter((f) => /^results-heldout-.+\.jsonl$/.test(f) && f !== `results-heldout${tag}.jsonl`) : [];
+      if (others.length) fail(`another second judge already read the held-back part (${others.join(', ')}): a further one needs a new held-back set`);
       // Read once: a second judge on the same held-back part would be a judge tuned on it.
-      const earlier = readResults(path.join(work, 'results-heldout.jsonl')).find((r) => r.judge !== judge.fingerprint);
+      const earlier = readResults(path.join(work, `results-heldout${tag}.jsonl`)).find((r) => r.judge !== judge.fingerprint);
       if (earlier) fail(`the held-back part was already read by another judge (${earlier.judge.slice(0, 12)}): a re-pin needs a new held-back set, never this one again`);
       // And it is the held-back part the judge was frozen against, drawn from this set.
       const split = readJson(SPLIT_FILE);
@@ -517,19 +574,29 @@ if (isMain) {
     } else {
       judge = draftJudge(HERE, { model: value('model', ''), effort: value('effort', '') });
     }
-    await runPart({ set: readJson(SET_FILE), split: readJson(SPLIT_FILE), part, task, work, concurrency: Number(value('concurrency', '3')), judge, only });
+    await runPart({ set: readJson(SET_FILE), split: readJson(SPLIT_FILE), part, task, work, concurrency: Number(value('concurrency', '3')), judge, only, tag, phase: value('phase', 'H2') });
   } else if (verb === 'score') {
     const part = value('part', '');
     if (!['dev', 'heldout'].includes(part)) fail('score needs --part dev or --part heldout');
     const set = readJson(SET_FILE);
     const split = readJson(SPLIT_FILE);
     const fingerprint = value('judge', null);
-    const results = readResults(path.join(work, `results-${part}.jsonl`)).filter((r) => !fingerprint || r.judge.startsWith(fingerprint));
+    const results = readResults(path.join(work, `results-${part}${tag}.jsonl`)).filter((r) => !fingerprint || r.judge.startsWith(fingerprint));
     const s = score({ items: split[part].items, pairs: split[part].pairs, results, byId: new Map(set.items.map((i) => [i.id, i])) });
-    writeFileSync(path.join(work, `score-${part}.json`), `${JSON.stringify(s, null, 2)}\n`);
+    writeFileSync(path.join(work, `score-${part}${tag}.json`), `${JSON.stringify(s, null, 2)}\n`);
     console.log(JSON.stringify({ single: s.single, pairwise: s.pairwise, pass: s.pass }, null, 2));
     console.log(`disagreements: ${s.disagreements.map((d) => `${d.id} (owner ${d.owner}, judge ${d.said})`).join('; ') || 'none'}`);
     console.log(`pair errors: ${s.pairErrors.map((p) => `${p.id} -> ${p.combined}`).join('; ') || 'none'}`);
+    // A second judge's held-back result goes into its lock, which a user of it reads (lib/ladder.mjs
+    // `ladderJudge`), with the files to commit beside the lock: the answers and this score.
+    if (second && part === 'heldout') {
+      const lock = readJson(second.file);
+      const kept = path.join(path.dirname(second.file), 'judge');
+      const rel = (f) => path.relative(ROOT, path.join(kept, f)).split(path.sep).join('/');
+      lock.calibration = calibrationBlock(s, results, { results: rel('results-heldout.jsonl'), score: rel('score-heldout.json') });
+      writeFileSync(second.file, `${JSON.stringify(lock, null, 2)}\n`);
+      console.log(`${path.relative(ROOT, second.file)}: calibration ${lock.calibration.pass ? 'PASS' : 'FAIL'}; commit ${path.join(work, `results-heldout${tag}.jsonl`)} and ${path.join(work, `score-heldout${tag}.json`)} as ${lock.calibration.results} and ${lock.calibration.score}`);
+    }
   } else if (verb === 'freeze') {
     const model = value('model', '');
     const effort = value('effort', '');
@@ -539,7 +606,9 @@ if (isMain) {
     const version = String(spawnSync(call.file, call.args, { encoding: 'utf8', windowsHide: true }).stdout ?? '').trim();
     if (!version) fail('claude --version printed nothing: the lock records which Claude Code reported the model id');
     const lock = { ...lockFor(HERE, model, effort), claudeCode: version, frozenAt: new Date().toISOString(), split: readJson(SPLIT_FILE).heldout.sha256 };
-    writeFileSync(path.join(HERE, 'judge.lock.json'), `${JSON.stringify(lock, null, 2)}\n`);
+    if (second && !sameFiles(lock, second.exam)) fail('the prompt or rubric differs from judge.lock.json\'s: a second judge freezes them unchanged');
+    if (second) mkdirSync(path.dirname(second.file), { recursive: true });
+    writeFileSync(second?.file ?? path.join(HERE, 'judge.lock.json'), `${JSON.stringify(lock, null, 2)}\n`);
     console.log(JSON.stringify(lock, null, 2));
   } else {
     fail('verbs: set, split --seed <n>, render, run --part dev|heldout, score --part dev|heldout, freeze --model <id> --effort <level>');

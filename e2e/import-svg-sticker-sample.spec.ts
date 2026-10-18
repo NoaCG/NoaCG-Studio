@@ -1,4 +1,5 @@
 // covers: src/{assets/svgImport.ts,templates/importedDesign/**}
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 //
 // THE WORKED ILLUSTRATOR EXAMPLE. docs/SVG_AUTHORING.md section 6b is written around this one
 // file, and the spec walks it through the real import wizard - so a change to the sample, or to
@@ -6,10 +7,9 @@
 // covers: docs/svg-samples/sticker-lower-third.svg
 
 import { test, expect } from '@playwright/test';
-import { switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor } from './_create';
 import { fileURLToPath } from 'node:url';
-import { awaitPreviewRebuild } from './_preview';
-import { previewFrame } from './_frame';
+import { editorPreview, mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { dropSvg, growthNow, rowLabelled } from './_svg-import';
 
 // THE WORKED EXAMPLE the "draw it in Illustrator" guide is written around
@@ -40,13 +40,9 @@ test('the Sticker lower third sample imports with its layer names as fields, and
   expect(growth.mode).toBe('grow-xy');
   expect(growth.named).toContain('Panel');
 
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  });
+  await finishIntoNewEditor(page);
 
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   await expect(frame.locator('#f0')).toHaveText('Alex Rivera');
   // ILLUSTRATOR STATES THE WEIGHT ONLY IN THE FACE NAME ('Archivo-Black', no font-weight), and
   // the bundled Archivo is ONE variable file. Declared with its whole range the name would
@@ -75,19 +71,19 @@ test('the Sticker lower third sample imports with its layer names as fields, and
     return { black, bold };
   });
   expect(lengths.black).toBeGreaterThan(lengths.bold * 1.02);
+  // The growth is the document's own runtime, driven by update() the way playout drives it.
+  const doc = await mountWorkingDocument(page);
+  await expect(doc.locator('#f0')).toHaveText('Alex Rivera');
   const widthOf = (id: string) =>
-    frame.locator(`#${id}`).evaluate((el) => (el as unknown as SVGGraphicsElement).getBBox().width);
+    doc.locator(`#${id}`).evaluate((el) => (el as unknown as SVGGraphicsElement).getBBox().width);
   const drawnPanel = await widthOf('Panel');
   const drawnStrip = await widthOf('Shadow_x20_bottom');
-  const xOf = (id: string) => frame.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().left);
+  const xOf = (id: string) => doc.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().left);
   const drawnRightStripX = await xOf('Shadow_x20_right');
 
   // A name the drawn label cannot hold: the panel widens, the bottom strip spans it and widens by
   // the same amount, and the right strip sits past the growing edge and travels with it.
-  await page.getByTestId('dock-tab-data').click();
-  await page.locator('.panel-body .field-row', { hasText: 'Name' }).locator('input').first()
-    .fill('Aleksandra Konstantinopoulou-Virtanen');
-  await page.getByTestId('dock-body-right').getByRole('button', { name: '⟳ Update' }).click();
+  await updateWorkingDocument(doc, { f0: 'Aleksandra Konstantinopoulou-Virtanen' });
   await expect.poll(() => widthOf('Panel')).toBeGreaterThan(drawnPanel + 40);
   const grownPanel = await widthOf('Panel');
   const grownStrip = await widthOf('Shadow_x20_bottom');
