@@ -368,6 +368,26 @@ case was removed. 4 cases in the file, 4 passing, none skipped, 0.3 case-minutes
 workers (queue job `j-0046`). The file's minutes are under Budget exceptions. Still skipping: the
 remaining 59 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the shows revival
+
+The tenth revival, on main `50da1a61` (2026-10-18): the shows cases created their graphics through
+the old "Create project" door and added them to a production from the old editor's Productions
+block. Four cases run again: a production collecting two graphics in rundown order and
+exporting one aggregated panel that drives each independently, the hosted control route
+answering honestly offline, the layer stack retyping and removing with the production's
+two-step delete keeping nothing behind, and a rundown export shipping the live library graphic
+rather than the add-time snapshot. The working graphic reaches the production through the
+production door (`openProductionWithCurrent`) and the second graphic through the rundown's own
+add (`addCatalogGraphic`); the live-graphic case saves in the new editor's header first, where
+the old topbar's save controls were. The offline case keeps its route half alone and is
+renamed to say so: the "Shows section grows no cloud UI" half read the retired editor block,
+and Home's Productions section is productions.spec.ts's. One case went (listed under Test
+maintenance): Home listing productions and the production page exporting the package, which
+production-pack, wizard-kit and productions pin on the same row, dialog and download. 11
+cases in the file, 11 passing, none skipped, 0.6 case-minutes locally on two workers (queue job
+`j-0047`). The file's minutes are under Budget exceptions. Still skipping: the remaining 55
+live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -519,6 +539,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/import-canvas.spec.ts`: 12 case(s) removed with the import family's revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "import graphic: scaling the design scales the artwork and its fields together" (retired UI: Old canvas design-scale gesture: scale-handle/layer-scale-handle on the retired PreviewFrame, .tlv2-labels rows, old inspector testid. New-editor base scaling runs in editor-base-edits.spec.ts B03 (411, 593).); "import graphic: dragging visible text moves the TEXT, not the artwork under it" (retired UI: Old canvas press-and-drag on iframe.preview-frame (.canvas-world, .tlv2-labels, selectedParts of the old shell). New-editor drag and cancel run in editor-base-edits.spec.ts 144 (B02 drag/marquee/cancel) and 219 (B03).); "import graphic: the locked artwork never captures a drag — bare artwork moves the graphic" (retired UI: Old canvas lock chip (canvas-lock) and the old root re-anchor drag; no lock chip exists in editorFoundation (no lock testid in editor-*.spec.ts).); "import graphic: unlocking the artwork gives it back its own layer gestures" (retired UI: Old canvas-lock chip toggling the retired PreviewFrame's layer gestures (artTracks keyed from the old drag).); "canvas: holding Space pans the view and moves nothing in the document" (retired UI: Old PreviewFrame pan (.canvas-world transform, preview-stage 'panning' class). The new editor's Space pan has its own check: editor-usability.spec.ts 140 'B11 losing pointer capture cancels Space panning without playback'.); "canvas: an armed Space-pan does not also play the graphic" (retired UI: Old stage/tlv2-timeline Space arbitration (preview-stage panning, stampTimeline/timelineState of the old timeline). New-editor equivalent: editor-usability.spec.ts 140 (Space pan never plays).); "canvas: Space follows the ACTIVE SURFACE - timeline plays even over the stage" (retired UI: Old tlv2 timeline vs old stage ownership of Space (.tlv2-labels, preview-stage panning); both surfaces deleted.); "canvas: Space only pans over the stage, and never while typing" (retired UI: Old dock Data tab input (.field-add-row) and preview-stage panning class of the retired stage.); "canvas: the cursor names the gesture in progress, not one that is merely possible" (retired UI: Old canvas-layer cursor states (canvas-layer, line-size-handle, tool-text/tool-select of the old stage toolbar).); "import graphic: a scaled design still previews, validates, and exports" (retired UI: Old design scale-handle, old simulator Play button and export dock (dock-tab-export). New-editor base scaling: editor-base-edits.spec.ts 593 'B03 base scaling preserves an animated catalog line through reload'; package checks on exports.spec.ts 892/946.); "canvas: any part can be locked from the Inspector, and the rotate handle is not a hand" (retired UI: Old Inspector lock (inspector-lock, inspector-part-label), canvas-lasso and layer-rotate-handle cursor of the retired canvas.); "canvas: Escape disarms the text tool WITHOUT throwing away the selection" (retired UI: Old stage text tool (tool-text, canvasTool, .tlv2-labels selection). New-editor tools and Escape run in editor-base-edits.spec.ts 313/547 and editor-images.spec.ts 217/301.)
 - 2026-10-18 `e2e/design-rules-product.spec.ts`: 3 case(s) removed with the design-rules-product revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "an untouched project serializes NO legibility key at all" (covered: scripts/design-rules.test.mjs 168 'normalizeLegibility: the DEFAULT state serializes to nothing' pins the rule that makes an untouched project carry no key; a bootstrapGraphic + loadProject check would only re-prove the plumbing.); "the editor can change the viewing target of an already-saved project" (retired UI: dock-tab-style / StylePanel.tsx, the ViewingControls host, has no mount left; ViewingControls renders only on the wizard AI step, so no live surface changes a saved project's viewing target.); "supporting text has its own size rule, reported on the readiness row and never gating" (covered: scripts/validator-registries.test.mjs 'the readiness report claims both legibility size rules on its row, as warnings that never gate', the same readinessRows/unclaimedFindings assertions on the same two findings, beside its LEGIBILITY_UNMEASURED sibling.)
 - 2026-10-18 `e2e/package.spec.ts`: 2 case(s) removed with the package revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "a saved brand carries its look to another variant" (covered: e2e/wizard-brand.spec.ts 107 'a chosen brand puts its accent, typeface and logo into the created graphic' chooses a saved look in wz-brand and reads its accent in the created template's css, the same chooser and the same read this case made, and 137 takes it back with None.); "the post-creation preset picker withholds a structural preset" (retired UI: inspector-preset-select belonged to the old timeline Inspector, the only reader of swappablePresetsForTemplate's structural flag; the live pickers, the wizard's Animation step and the control page's Motion section, offer no structural swap.)
+- 2026-10-18 `e2e/shows.spec.ts`: 1 case(s) removed with the shows revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "Home lists productions and the production page exports the package" (covered: e2e/production-pack.spec.ts 28 'a production exports as a graphics pack and imports back with its rundown intact' walks the Home row, its export-production-row dialog and the download; wizard-kit.spec.ts 536 downloads through prod-export-download; productions.spec.ts 102 opens a production from Home. The row's count words were pinned nowhere else and go with it.)
 
 ## Budget exceptions
 
@@ -594,6 +615,12 @@ file at 0.006 minutes from its earlier runs. The minute below is this change's l
 measurement (case-minutes, two workers, queue job `j-0046`).
 
 - e2e/house.spec.ts: 0.3 min, protects the house family's runtime: the strap's mono label voice, the ticking clock bug, the sign-coloured market deltas and the chip-over-headline stack, expires 2026-11-16
+
+The shows revival (Phase 2, #800) turns four cases in one file back on and removes one; the
+table weighs the file at 0.47 minutes from its earlier runs. The minute below is this change's
+local measurement (case-minutes, two workers, queue job `j-0047`).
+
+- e2e/shows.spec.ts: 0.6 min, protects the aggregated production panel driving each graphic alone, the offline answer of the hosted control route, the retyped layer stack and the two-step delete, and the live library graphic in a rundown export, expires 2026-11-16
 
 ## Acceptance criteria
 
