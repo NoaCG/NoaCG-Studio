@@ -512,6 +512,22 @@ mark-legibility 0.3, production-controls 1.8, productions 1.1. The files' minute
 Budget exceptions. Still skipping: the remaining 30 live-gap cases, in the pack and single-case
 families.
 
+### Phase 2 receipt: the second singles (exports, template-pack-4, template-pack-10)
+
+The nineteenth revival, on main `620f14cc4` (2026-10-18): four cases in three files that read the
+old editor's panels or topbar around bodies that already ran live. The HTML overlay export
+baking the typed value and autoplaying now types the value into the store's sample data, which
+is what the old Data panel wrote; the notice's level events reaching the generated control page
+saves the graphic through the same save the editor's header runs and opens its own control
+route, where the old Rehearse panel was; a pack graphic surviving save, reload and reopen waits
+for the new editor and the durable store after the reload; and the commerce card's round trip
+edits in the new editor, reads the retyped price off the working graphic mounted the way
+playout composes it, and reads the reopened name off the editor's document tab. No case was
+removed. Every case in the three files passes, none skipped. Case-minutes locally on two
+workers (queue job `j-0057`): exports 1.0, template-pack-4 0.3, template-pack-10 0.2. The files'
+minutes are under Budget exceptions. Still skipping: the remaining 26 live-gap cases, in the
+pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -801,6 +817,14 @@ minutes below are this change's local measurement (case-minutes, two workers, qu
 - e2e/mark-legibility.spec.ts: 0.3 min, protects the wizard's mark-legibility notice raised and cleared on the Style step, expires 2026-11-16
 - e2e/production-controls.spec.ts: 1.8 min, protects the live-number bump airing without publishing other staged edits, expires 2026-11-16
 - e2e/productions.spec.ts: 1.1 min, protects the published and unpublished production readings and the withheld rehearsal, expires 2026-11-16
+
+The second singles revival (Phase 2, #800) turns four cases back on across three files. The
+minutes below are this change's local measurement (case-minutes, two workers, queue job
+`j-0057`).
+
+- e2e/exports.spec.ts: 1.0 min, protects the HTML overlay baking the typed value and playing itself on load with its control panel bundled, expires 2026-11-16
+- e2e/template-pack-4.spec.ts: 0.3 min, protects the notice's level events on the generated control page and a pack graphic surviving save, reload and reopen, expires 2026-11-16
+- e2e/template-pack-10.spec.ts: 0.2 min, protects the commerce card's discover, edit, save and reload round trip, expires 2026-11-16
 
 ## Acceptance criteria
 
