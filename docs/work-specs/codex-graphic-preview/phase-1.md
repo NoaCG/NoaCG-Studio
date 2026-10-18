@@ -203,6 +203,11 @@ the final native request or operated its panel.
 - Runtime SDKs: MCP 1.30.0, MCP Apps 1.7.5, OpenAI extensions 0.2.0.
 - Runtime: C:/Users/ahonemi/.codex/worktrees/graphic-preview-resume/NoaCG-Studio.
 
+This native proof covers that pinned installed runtime. Current main separately
+updates the MCP SDK to 1.31.0; its preview implementation otherwise matches the
+tested code. This receipt does not establish native compatibility for a fresh
+installation using SDK 1.31.0. Keep that qualification when continuing the plan.
+
 The owner expanded this task's preview into its side panel. CUA inspected that
 actual panel's source details and confirmed the runtime path and baseline
 revision from the table above. It clicked the named **Select Name** button,
