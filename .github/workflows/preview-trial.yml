@@ -52,6 +52,7 @@ jobs:
           name: preview-trial-browser-stub
           path: |
             cli/plugin-preview/dist/browser-stub.png
+            cli/plugin-preview/dist/phase2/**
             cli/plugin-preview/dist/native-edited-source.json
             cli/plugin-preview/dist/noacg-validation.json
             cli/plugin-preview/dist/validation-after/**
