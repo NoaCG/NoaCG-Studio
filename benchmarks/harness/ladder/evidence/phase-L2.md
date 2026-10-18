@@ -231,3 +231,11 @@ D6's cost line for L2 is now at most $1.35 estimated per usable (owner, 2026-10-
   C:/claude/noacg-bench-archive/harness-ladder-L2/round-2`, the eight in `RUNG_ORDER` and then the
   15 tuning briefs, judged three times a graphic with `--phase L2 --delivered-only`, counted with
   `--tally <dir>` (D6 as amended) and `--tally <dir> --order tuning`.
+- **Amended before the round's counted sessions (05:20Z).** The round's first start (05:07Z) was
+  stopped after five minutes, its two sessions discarded and its folder emptied: the session's
+  prompt, like the real host's system prompt (`agents/noacg-harness/agent.md`), spells the
+  coverage command out without flags, so one of the two ran coverage without `--strips` and the
+  other with it. A flag the skill asks for does not reach an agent that follows its host's
+  command line. So the strips are now `noacg coverage`'s default (CLI only, as D3 asks), with
+  `--frames` for a frame per moment; the bench's capture passes `--frames`, so what the judge
+  sees still does not change. Everything else in this hypothesis stands.
