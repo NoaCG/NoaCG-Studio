@@ -56,8 +56,12 @@ the loser (`StorageProvider.lostConflict(record, copy)`), and the draft moves to
 5. **A save waits for a copy its tab has not adopted yet.** Another tab hears of the copy on the
    channel before its library mirror adopts the copy, which the durable store announces only once
    the write commits. A Save or Discard of a draft linked to a copy this tab heard of but cannot
-   read yet waits for it (`conflictCopyArriving`, at most ten seconds, shown as saving), instead of
-   finding no record and asking for a name. It never falls back to the record that won.
+   read yet waits for it (`conflictCopyArriving`, at most ten seconds per id, Save shown as saving),
+   instead of finding no record and asking for a name. Save rechecks the live linked id after
+   each wait: a later loss can move A's link to B while A is still missing. It waits at most once
+   for each id, so the same missing copy still times out. Discard keeps its click-time context
+   and refuses a changed link rather than discarding the newer draft. Neither falls back to
+   the record that won.
 
 Repairs 8 and 9's reservation rules are untouched: `reservedGraphicId`, `isOwnReservation`, the
 pull rule in `upsertProject` and the boot relink.
@@ -148,7 +152,8 @@ This completes the same authorised #1466 repair. Current `origin/main` was merge
 follow-up branch as `f6755fe93`; no rebase or force push.
 
 The previously unread ci3 runs on `2546da73` have now been read in full. That probe's `src/`
-and maintained matrix are byte-identical to the reconciled follow-up:
+and maintained matrix were byte-identical to the reconciled follow-up before the chained-wait
+review completion below:
 
 - [Configured 39121557623](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39121557623):
   signed-in task and eighth X-device pass, ninth S-concurrent **2/2**, R-departure fails only
@@ -167,6 +172,41 @@ No build was needed for this save-transaction change; full PR and merge-group ch
 The fresh tenth independent check must judge the disclosed departures against the owner's
 acceptance itself; this repair receipt is not its verdict.
 
+### Chained wait review completion (#1476)
+
+Review [r4306865330](https://github.com/NoaCG/NoaCG-Studio/pull/1476#discussion_r4306865330)
+found that Save awaited only its initial missing copy A. A second loss of the original record
+can move the live link to B (`lostLinks`) during that wait; A's arrival or timeout then resumed
+Save against missing B, unlinked the edited draft and asked for a name. The repair rechecks the
+live linked copy after every wait, with a per-operation set of ids already waited for.
+
+Three new matrix rows hold adoption deterministically. The first sync creates A; the test then
+injects the next loss notification with B while Save or Discard waits, and advances the first
+ten-second timeout with Playwright's clock. No existing row or carried checker changed.
+
+- Before the loop fix (j-0003): `save-chain` fails at the assertion that Save remains "Saving…"
+  for B, receiving "Not saved". `discard-chain` and `save-timeout` pass.
+- After the fix (j-0005): **3/3 pass**. Save writes the edit durably into B, stays linked and
+  clean after reload, asks no name and mints nothing extra. The other device's winner and A
+  are unchanged. Discard refuses the changed link, retains the edit and B link through reload.
+  The same missing id still times out and asks for a name, with its draft intact.
+- The first post-fix run (j-0004) passed the wait assertion but read an old B in the immediate
+  library mirror after releasing accumulated adoption callbacks. The final row also waits for
+  the committed announcement in the other tab and reloads before checking B. The edit is
+  durable; the late refreshes did not overwrite the saved record. No durable-store change was
+  made, and this receipt does not claim the immediate mirror was current.
+- Final affected selection (j-0006), `save-transaction.spec.ts --grep 'matrix (device
+  reservation|lost conflict|copy wait)' --retries=0`: **12/12 pass**, 32.2 seconds, 2 workers
+  on this 4-CPU cloud worker. This includes the unchanged held-adoption and device rows.
+
+Frontend TypeScript, changed-file ESLint and changed gates pass. An additional API typecheck
+could not resolve the unrelated `@anthropic-ai/sdk` in this worker's shared dependencies; no
+API file or dependency changed. No build is needed for this save-transaction logic. Full PR
+and merge-group checks remain authoritative CI, and a tenth independent check has not run.
+The final review and simplification ran inline against merge base `89ca46c37` across the same
+five paths: this receipt, the phase notes, the matrix, `project.ts` and `saveActions.ts`. The
+review's one confirmed defect is fixed; no further simplification was appropriate.
+
 ## Limits
 
 - A Save whose record write lands after the pass listed the library but before it wrote the copy:
@@ -174,7 +214,7 @@ acceptance itself; this repair receipt is not its verdict.
   draft moves there reading unsaved until the next pass, which the slot rewrite schedules. That
   pass writes a second copy holding the Save, and the draft follows it, clean (`lostLinks`). The
   first copy stays, holding the earlier version.
-- A copy that has not reached the tab's library ten seconds after the message (the durable store
+- A copy that has not reached the tab's library after its ten-second wait (the durable store
   degraded, say) makes the waiting Save ask for a name, as a record deleted elsewhere does.
 - A tab of an older build, open across a deploy, tells other tabs only through the list, with no
   copy: those tabs unlink, as that build does.
@@ -182,6 +222,7 @@ acceptance itself; this repair receipt is not its verdict.
   the sync never renamed the copy's template. Phase 3 says so.
 - A tab that cannot receive the message (no `BroadcastChannel`) keeps its link until it reloads,
   when it reads the rewritten slot.
-- Budget: the four rows add about 35 seconds to `e2e/save-transaction.spec.ts` at one worker. The
+- Budget: the first four rows add about 35 seconds to `e2e/save-transaction.spec.ts` at one worker;
+  the three chained-wait rows totalled about 16 seconds of test time in j-0005. The
   suite reads 98% of its envelope (`scripts/e2e-capacity.mjs`); the pre-run estimate counts an
   edited spec at its table value, so no exception was written.

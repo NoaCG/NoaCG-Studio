@@ -603,3 +603,88 @@ test('matrix lost conflict: a second tab saves before its library holds the conf
   expect(body(all.find(g => g.id === copy.id)!.template), 'the other tab\'s Save is not in the conflicted copy').toEqual(body(await source(other)));
   expect(await link(other)).toMatchObject({ graphicId: copy.id, dirty: false });
 });
+
+// Hold adoption through the first copy's timeout, including a second loss of the original id:
+// lostLinks moves A's link to B even though this tab can read neither copy yet.
+for (const answer of ['save-chain', 'discard-chain', 'save-timeout'] as const) {
+  test(`matrix copy wait: ${answer}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+    await syncedAMinuteAgo(page); await firstSaveNamed(page, 'Beta');
+    const beta = (await library(page))[0], bSource = await source(page);
+    const other = await heldAdoptionTab(page);
+    await other.evaluate(() => { (window as unknown as { adoptHeld: boolean }).adoptHeld = true; });
+    expect((await losingPass(page, beta)).conflicts).toBe(1);
+    const { copy, alpha } = await afterLoss(page, beta.id, 'Beta', bSource);
+    await expect.poll(async () => (await link(other)).graphicId).toBe(copy.id);
+    expect((await library(other)).some(g => g.id === copy.id)).toBe(false);
+    await draw(other, .40); await flush(other); await settleDurableWrites(other);
+    const edited = await source(other);
+    await other.clock.install();
+    if (answer === 'discard-chain') {
+      await other.getByTestId('open-home').click();
+      await other.getByTestId('switch-discard').click();
+    } else {
+      await other.getByTestId('save-graphic').click();
+      await expect(other.getByTestId('save-status')).toHaveText('Saving…');
+    }
+    let next = copy;
+    if (answer !== 'save-timeout') {
+      next = await page.evaluate(async beta => {
+        const { createGraphic } = await import('/src/model/library.ts');
+        const { graphicSuperseded } = await import('/src/model/project.ts');
+        const { doc } = createGraphic(beta.template, { name: 'Beta second (conflicted copy)', baseline: beta.baseline, aiSpec: beta.aiSpec, aiThread: beta.aiThread, legibility: beta.legibility });
+        graphicSuperseded(beta.id, doc);
+        await new Promise(r => setTimeout(r));
+        return doc;
+      }, beta);
+      await settleDurableWrites(page);
+      await expect.poll(async () => (await link(other)).graphicId).toBe(next.id);
+      expect((await library(other)).some(g => g.id === next.id)).toBe(false);
+    }
+    await other.clock.fastForward(10_001);
+    if (answer === 'save-timeout') {
+      await expect(other.getByTestId('save-name'), 'the same missing id must time out rather than wait forever').toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: null, dirty: true });
+      expect(body(await source(other))).toEqual(body(edited));
+      expect(await library(page)).toHaveLength(2);
+      return;
+    }
+    if (answer === 'save-chain') {
+      await expect(other.getByTestId('save-status'), 'Save resumed before the newly linked copy B arrived').toHaveText('Saving…');
+      await expect(other.getByTestId('save-name')).toHaveCount(0);
+    } else {
+      await expect(other.getByTestId('confirm-switch')).toContainText('changed while discarding');
+      await expect(other.getByTestId('editor-foundation')).toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: true });
+      expect(body(await source(other))).toEqual(body(edited));
+    }
+    await other.evaluate(() => {
+      const w = window as unknown as { adoptHeld: boolean; adoptQueue: (() => void)[] };
+      w.adoptHeld = false; for (const adopt of w.adoptQueue.splice(0)) adopt();
+    });
+    if (answer === 'save-chain') {
+      await expect(other.getByTestId('save-status')).toHaveText('Saved');
+      await expect(other.getByTestId('save-dialog')).toHaveCount(0);
+      await settleDurableWrites(other);
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: false });
+      expect(body(await source(other))).toEqual(body(edited));
+      // The writer's committed announcement must reach the other tab too; a reload then
+      // proves B's saved source, rather than only this tab's optimistic library mirror.
+      await expect.poll(async () => body((await library(page)).find(g => g.id === next.id)!.template)).toEqual(body(edited));
+      await other.reload();
+      await expect(other.getByTestId('editor-foundation')).toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: false });
+      expect(body(await source(other))).toEqual(body(edited));
+      expect(body((await library(other)).find(g => g.id === next.id)!.template)).toEqual(body(edited));
+    } else {
+      await settleDurableWrites(other); await other.reload();
+      await expect(other.getByTestId('editor-foundation')).toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: true });
+      expect(body(await source(other))).toEqual(body(edited));
+    }
+    expect(await record(other, beta.id), 'the other device\'s record changed').toBe(alpha);
+    expect((await library(other)).find(g => g.id === copy.id), 'the first copy changed').toEqual(copy);
+    expect(await library(other), 'the winner and two copies; no extra mint').toHaveLength(3);
+  });
+}
