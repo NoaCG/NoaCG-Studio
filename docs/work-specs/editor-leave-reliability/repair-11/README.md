@@ -55,8 +55,9 @@ The new cases use no clock injection, no replaced timer and no increased existin
 Holding only `noacg-durable-writes` announcements isolates the mirror lag while actual IndexedDB
 and the sync conflict path run. The baseline failure and repaired pass test the refusal guard's
 negative destination assertion: no naming operation may start on the clean timeout.
-The clean and edited timeout screenshots were opened; the editor remains visible with Save
-failed, and the added rectangle remains selected in the edited case.
+All three timeout screenshots were opened; the editor remains visible with Save failed, and
+the added rectangle remains selected in the edited case. Ignored retained copies are under
+`.noacg/repair-11/timeout-*.png` in the builder worktree.
 
 Failed/incomplete setup is not a product verdict: local `j-0001` and `j-0002` exited before any
 Playwright output because this subagent sandbox rejects Node subprocess creation (`EPERM`).
@@ -67,7 +68,10 @@ checks. `j-0004` passed the clean and edited cases but failed the new chain fixt
 first-Save builder renamed `template.name`, so the link correctly became dirty. The fixture now
 matches sync's actual copy semantics (record name changes, saved template stays byte-identical),
 with an added clean checkpoint. No existing test or assertion was changed; `j-0005` is the
-subsequent complete result.
+subsequent complete result. The optional broader local matrix admission `j-0006` likewise
+ended before test output after the granted runner idled out and the restricted context spawned
+its replacement. It was not retried around the consumed admission; the unchanged matrix's
+49/49 Actions result below is authoritative.
 
 ## Carried evidence and landing
 
@@ -78,5 +82,81 @@ queued. The carried path list is `git diff --name-only origin/main...9bef784b73f
 not a two-tip reversion; every carried path compares byte-identical to that ninth probe.
 The tenth probe `9459323e2b84841fbdea911ea7860811a3ff55e5` remains unchanged.
 
-Final carried Actions runs and landing results are pending. They will be recorded before
-claiming the repair ready to land. No independent check or Phase 3 is claimed here.
+The final disposable probe `codex/probe-editor-p2-repair-11-ci` is
+[`444b58b3b098c58ea8eb336fbb7c5cffcd7c6bbd`](https://github.com/NoaCG/NoaCG-Studio/commit/444b58b3b098c58ea8eb336fbb7c5cffcd7c6bbd),
+based on repair source `51a3c2c21d77515ed986dd71e3241709407990ef` plus only the same 21 carried
+paths. Every path compares byte-identical to `9bef784b`; the probe's source, maintained matrix,
+helpers and new regression compare byte-identical to the repair. Both probe branches are pushed
+for retrieval, have no PR and are never queued. Current main `ec9f4996` was reconciled by merge
+in `aeac7636`, with no product-source or regression change relative to the tested probe.
+The maintained matrix blob stays `9f7e1936b937c8b9672d010b85cb4f96d02a0e3a` on main and the repair.
+
+The original recipes ran once each on exact probe `444b58b3`, one worker, zero retries. Job
+steps and full logs were read, including every failure; the three red scope runs remain red.
+
+| Scope | Actual result | Actions run |
+| --- | --- | --- |
+| Original through fourth | Original 3/3, second 4/4, third 10/10, repeated :24 20/20, fourth 11/11 | [39145383370](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145383370) |
+| Fourth :228 repeated | 20/20 | [39145388620](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145388620) |
+| Fifth | **Failure:** 17 passed, B1 and F-hold/F-late timed out; separate bounded B1 1/1 | [39145394517](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145394517) |
+| Sixth | 10/10, including S6 double refusal | [39145400331](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145400331) |
+| Seventh | 16/16, including H two-tab reservation ownership | [39145406246](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145406246) |
+| Eighth | 7/7 | [39145412736](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145412736) |
+| Ninth | **Failure:** same 7 assertions at :117, :158, :199 twice and :247 three times | [39145418589](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145418589) |
+| Maintained | 85 passed, same 8 legacy skips; separate two-graphic export 1/1 | [39145421896](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145421896) |
+| Unchanged save transaction matrix | 49/49, including save-chain, discard-chain and edited-before-Save save-timeout | [39145425439](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145425439) |
+| References | 6/6, exact binary and 17 source hashes retained | [39145431438](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145431438) |
+| Cumulative/native 125% | 4/4, including nested ownership and nine executable exports | [39145436808](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145436808) |
+| Configured | **Failure:** signed-in 1/1, eighth X-device 1/1, ninth S-concurrent 2/2 passed; only R-departure failed at :281 | [39145443247](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39145443247) |
+
+The red assertions retain the [tenth check's precise judgments](../independent-10/README.md#judgment-of-repair-10-and-earlier-departures).
+The ninth C-pull/C-overlap/V-superseded assertions expect null links replaced by the owner's
+clean-copy rule. C-pull still has the account-wide-slot qualification: reload can load the other
+device's draft, whose deliberate edit/Save updates Alpha; do not claim Alpha byte-equal there
+or call that this device's conflicted source overwriting it. The three V-reservations failures
+remain the earlier degraded-storage duplicate limit after double refusal and an unusable/lost
+reservation list. Fifth B1 still awaits the absent storage alert without a bound (the bounded
+variant passes); F-hold/F-late still wait for the library row after cancelling the guarded Open.
+Configured R-departure still wrongly expects pristine baseline C to ask and name; its observed
+`{asked: 0, named: 0}` is the same :281 failure. No such assertion was edited or called passing.
+
+## Reference and visual verification
+
+Fresh executed lifecycle tasks use Studio official v0.17, binary SHA256
+`9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681`, source
+`3142fc7d02934494931eb14e7dc255393e4110d0` (all ten inspected files byte-identical to release
+`a1e9776120fa19d9f3f9d40ab4b10ae1be034347`), and Eyevinn
+`616841bd949e3a21137579451123f66c292543f0` (all seven hashes match the earlier receipts).
+Save/New/Open/discard and refusal tasks preserve their recorded behavior: Studio saves an
+explicit project file and separately autosaves, while Eyevinn stores templates automatically
+and requires explicit deletion. Neither has this cross-device conflict-copy wait; that
+absence supplies no exception to NoaCG's own saved-copy acceptance rule.
+
+The downloaded visual artifact's desktop, laptop and full native-125 captures were opened.
+Authored text, artwork, selection handles, timeline and inspector remain present; the native
+Fit drawing stays small and Properties requires scrolling, as the earlier qualification says.
+All three metrics JSON files report no page errors or failed requests, and all nine exported
+SPX/CasparCG/OGraf browser tasks execute without errors and retain the authored content.
+
+| Task | CSS content | Canvas height | Timeline height | Inspector width |
+| --- | --- | --- | --- | --- |
+| Desktop | 1920 × 1080 | 534.203125 | 334.796875 | 280 |
+| Laptop | 1366 × 768 | 317 | 240 | 280 |
+| Actual browser 125% | 1093 × 545 (1366 × 768 outer, zoom 1.25) | 196 | 180 | 280 |
+
+This is engineering evidence, not a new owner comfort or physical receiver qualification.
+
+## Review and continuation
+
+`/check` review and simplification ran inline against the four changed paths; no review or
+simplification capability is exposed in this session. The review covered correctness,
+replacements, edits during waits, each distinct chained id, and preserving the existing
+edited-before-Save fallback. No further defect or useful simplification remained. The
+`review-request.mjs` scope was confirmed by the coordinator, then reconciled to current main;
+the final diff remains exactly the same four paths. The changed-gates run passed in the granted
+persistent shell, including all seven reached cheap gates. Direct changed-file ESLint,
+TypeScript, the focused real-time cases and full carried evidence are recorded above.
+
+The repair PR records its exact reviewed head, final stamp, repair owner, queue admission and
+landing results. A fresh independent Phase 2 check after landing remains the next step;
+Phase 3 and any additional product repair are not started by this receipt.
