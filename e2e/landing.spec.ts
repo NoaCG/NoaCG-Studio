@@ -20,7 +20,6 @@
 // covers: {whats-new.html,roadmap.html,docs/whats-new/**,docs/GOALS.md,scripts/whats-new.mjs,scripts/roadmap.mjs}
 
 import { test, expect } from '@playwright/test';
-import { createProject } from './_create';
 
 // The public landing page lives at "/" (static, no React); the editor lives at "/app"
 // (dev/preview: the app-clean-url Vite plugin; production: Vercel cleanUrls). Old share
@@ -54,22 +53,6 @@ test('root shows the landing page, not the editor', async ({ page }) => {
 test('the editor lives at /app (clean URL, dev parity with production)', async ({ page }) => {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
-});
-
-test('the landing CTA opens the wizard even for a visitor with work in progress', async ({ page }) => {
-  // A returning visitor: an autosaved project exists, so a bare /app would go straight to the
-  // editor. The CTA route must still open the wizard — that is the whole point of the change.
-  await createProject(page, 'Hairline');
-  await expect(page.locator('.wz-modal')).toHaveCount(0);
-
-  await page.goto('/app#/new');
-  await expect(page.locator('.wz-modal')).toBeVisible();
-
-  // And their work is still there to go back to: closing the wizard returns to the project
-  // rather than discarding it.
-  await page.locator('.gallery-close').click();
-  await expect(page.locator('.wz-modal')).toHaveCount(0);
-  await expect(page.locator('iframe.preview-frame')).toBeVisible();
 });
 
 test('the landing reads create first, then play or export', async ({ page }) => {

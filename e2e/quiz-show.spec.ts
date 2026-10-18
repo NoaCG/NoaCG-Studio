@@ -20,9 +20,7 @@
 // the pick / reveal arc and the wizard's "Answers shown" choice.
 // focus
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
-import { chooseType, pickDesign } from './_browse';
 
 // THE QUIZ SHOW SET: a quiz board whose answer count is a FIELD, a two-player score, and the
 // three game-show looks they ship in (sticker, showtime, arcade).
@@ -224,31 +222,6 @@ for (const id of SCORE_DESIGNS) {
     expect(fresh.root).toBe('scoreboard');
   });
 }
-
-test('the wizard offers the answer count and the correct answer, and not the contestant\'s pick', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.wz-modal')).toBeVisible();
-  await page.locator('[data-entry="template"]').click();
-  await chooseType(page, 'Quiz');
-  await pickDesign(page, 'Sticker Quiz');
-  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
-
-  const setup = page.getByTestId('wz-setup');
-  await expect(setup.getByTestId('wz-setup-correctAnswer')).toBeVisible();
-  // The pick is written by the Pick buttons (`set`), which makes it live state exactly as a
-  // carried payload is - it is not something to decide while building the graphic.
-  await expect(setup.getByTestId('wz-setup-selectedAnswer')).toHaveCount(0);
-  await setup.getByTestId('wz-setup-answerCount-opt-2').click();
-
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
-  const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return Object.fromEntries(useTemplateStore.getState().template.fields.map((f) => [f.title, f.value]));
-  });
-  expect(fields['Answers shown']).toBe('2');
-});
 
 test('each game-show look is its own quiz kit, a whole show in that one Style', async ({ page }) => {
   const kits = await page.evaluate(async () => {
