@@ -1,9 +1,9 @@
 # Phase 1 native preview receipt
 
-Status: the installed 0.1.1 native compatibility journey passed AC-1 and AC-2.
-The recovered adapter adds two reviewed host compatibility fixes and the approved
-0.1.3 connection/selection changes. Its final native recheck and independent landed-main check remain pending; do not begin
-phase 2 until those gates are recorded here and in issue #1314.
+Status: the installed 0.1.3 native journey passed AC-1 and AC-2 on 2026-10-18.
+The independent landed-main phase verdict is recorded in
+[issue #1314](https://github.com/NoaCG/NoaCG-Studio/issues/1314).
+Phase 2 requires that verdict to pass and separate owner authorization.
 
 ## Actual Windows journey, 2026-10-17
 
@@ -175,3 +175,99 @@ file tools, bind NoaCG validation/screenshots to that exact source, and refresh
 its own panel. Then an independent checker must verify the landed phase before
 phase 2 starts. Do not repeat generic window restarts or treat connectivity-only
 or simulated-host checks as the missing proof. The installed runtime stays locked.
+
+## Final ordinary-task native journey, 2026-10-18
+
+PR #1413 landed through the merge queue as
+`1c88e2e728be378efb3ae82240e2287724f0f788`, with its applicable PR, merge-group,
+main and post-landing checks passing. Its repair ownership concluded without
+repairs. This continuation did not duplicate that branch or repair owner.
+
+The installed runtime directory was initially missing despite its retained
+locked Git registration. The same worktree was reconstructed from
+`3c8387e289a2210d18ad280ab05fa1e849f3556d`, retaining its branch and lock. Its
+tracked source was clean and the four LF fixture files matched the baseline
+revision before the native test. Pinned dependencies and only the private preview
+assets were restored there; no build ran in the checkout holding main.
+
+The ordinary task `01a14e76-1ac6-7d43-aae3-cd085735fac5` initially retained a failed
+MCP initialization. A separate SDK probe of the actual cached launcher could
+list the tools, but was recorded only as connectivity evidence. Later, this
+ordinary task's own `mcp__noacg_graphic_preview__noacg_preview` became available
+and returned the real baseline PNG and source identity. No sub-agent received
+the final native request or operated its panel.
+
+- App: OpenAI.Codex Windows package 26.1013.4894.0.
+- Desktop CLI: 0.163.0-alpha.10.2.
+- Installed private plugin: noacg-preview-trial@noacg-preview-local 0.1.3.
+- Runtime SDKs: MCP 1.30.0, MCP Apps 1.7.5, OpenAI extensions 0.2.0.
+- Runtime: C:/Users/ahonemi/.codex/worktrees/graphic-preview-resume/NoaCG-Studio.
+
+The owner expanded this task's preview into its side panel. CUA inspected that
+actual panel's source details and confirmed the runtime path and baseline
+revision from the table above. It clicked the named **Select Name** button,
+entered the same 66px request quoted in the earlier journey, and clicked
+**Send change to this task**. The panel acknowledged sending; that acknowledgement
+was recorded separately from receipt by the task.
+
+After the turn ended, this ordinary task received the actual PNG and selected
+request. Image receipt ID: `c10999c1-9b8d-4fbc-a018-aa19547f0ba8`. Text receipt ID:
+`session:d7a78c66-7b3a-4ac8-9af5-d99f82973726`. The received context identified
+package noacg-preview-lower-third, baseline revision, all four source files and
+the absolute fixture path; element f0, Name; 1920 x 1080; Alex Morgan and Studio
+correspondent; settled fixture; and bounds x252, y828.203125, width312.0625,
+height59.796875. The owner's phase-1 instruction supplied authority; this MCP
+payload supplied the selected data and image.
+
+Ordinary file tools changed only `#f0` font-size from 52px to 66px in the real
+runtime's graphic.css. The task asserted the exact before and after revisions
+from the table above, then copied and rechecked all four edited files before
+creating a ZIP. The installed runtime retains that edit. No stock fixture was
+restored, and no frozen queued worktree was edited.
+
+### Validation bound to the native edit
+
+Local queue job `j-4590` initially waited for memory, then started under the
+existing guard and passed with exit 0:
+
+```text
+npx --yes @noacg/cli@0.12.2 validate cli/plugin-preview/dist/native-evidence/edited-source.zip --screenshots cli/plugin-preview/dist/native-evidence/validation-after --json
+```
+
+The static and runtime checks had zero errors, benchSkipped was null, and the
+normalized digest was
+`sha256:a09aa53f9a7b99a7e8bcf98632bcc6a22fc9d0928a66138f1844e1862c44597e`.
+The same three editor-contract warnings listed above remain outside this spike's
+scope. Fields, lifecycle, layout, legibility, doubled-text stress and export
+readiness passed. The ZIP snapshot's four-file revision was the exact CDE after
+revision; validation did not rewrite the runtime source.
+
+The task inspected off.png, onair.png and stress.png. Off is empty; the larger
+name is aligned with the role and badge; doubled names and roles fit within the
+graphic and safe frame. No assertion, memory floor or test limit was changed.
+A focused CI run, 39141124944, was dispatched while the local job appeared held,
+then cancelled once the local pass was discovered. No pass is claimed for that
+redundant run. The historical browser-stub passes remain protocol evidence only.
+
+### Same-panel refresh and preservation
+
+CUA clicked **Refresh source** in the same actual panel. It returned Ready,
+displayed the exact CDE revision and showed f0 with computed font-size 66px.
+The selection changed to **Select part of the graphic**, and Send was disabled.
+The native preview tool independently returned the edited PNG and same revision.
+Its before/after PNG hashes match the two native-tool hashes recorded above.
+
+The edited draft, ZIP, raw per-file hashes, validation JSON, three validation
+frames, native before/after PNGs and receipt.json are preserved outside Git at:
+
+```text
+C:/Users/ahonemi/.codex/visualizations/2026/10/18/01a14e76-1ac6-7d43-aae3-cd085735fac5/noacg-native-phase1-013
+```
+
+This is the final installed 0.1.3 native loop, separate from the earlier browser
+stub and connectivity probe. AC-1 and AC-2 passed; installation, isolation and
+draft preservation cover the phase-1 portion of AC-6. AC-3 through AC-5 and the
+later delivery/reopening work remain outside phase 1. The final independent
+checker must assess this receipt on landed main before #1314 closes. No later
+phase, automation, account write, model API or production operation was started.
+Keep the locked installed runtime and its edited draft available while installed.
