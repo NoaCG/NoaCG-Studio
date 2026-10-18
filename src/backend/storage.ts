@@ -198,8 +198,8 @@ export class LocalStorageProvider implements StorageProvider {
    *  other device's (#1443, #1466). */
   lostConflict(record: StoredRecord, copy: StoredRecord): StoredRecord[] {
     if (record.kind !== 'graphic') return [];
-    const { template, legibility } = copy.body as GraphicDoc;
-    if (!graphicSuperseded(record.id, { id: copy.id, template, legibility })) return [];
+    const { template, legibility, aiSpec, aiThread } = copy.body as GraphicDoc;
+    if (!graphicSuperseded(record.id, { id: copy.id, template, legibility, aiSpec, aiThread })) return [];
     const project = loadProject();
     return project ? [toStoredRecord('project', project.id, project)] : [];
   }
