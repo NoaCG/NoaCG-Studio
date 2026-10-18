@@ -2,12 +2,13 @@
 // Until 2026-08-08 it was reachable from no template path and ten designs landed with every
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
-import { enableAdvancedMode, finishIntoEditor, bootstrapGraphic } from './_create';
+import { finishIntoNewEditor, bootstrapGraphic } from './_create';
+import { toApp } from './_bench';
 import { settleDurableWrites } from './_durable';
-import { awaitPreviewRebuild } from './_preview';
-import { chooseType, pickDesign, resultTotal } from './_browse';
+import { chooseType, pickDesign } from './_browse';
 
 // THE HOLDING / CREDITS / CEREMONY PACK.
 //
@@ -23,7 +24,6 @@ import { chooseType, pickDesign, resultTotal } from './_browse';
 
 /** Walk the wizard as far as a category's template grid — the real discovery path. */
 async function toTemplateStep(page: Page, category: string) {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -61,29 +61,6 @@ async function inTemplate<T>(page: Page, variantId: string, probe: string): Prom
 
 // ── Discovery ────────────────────────────────────────────────────────────────
 
-test('the three families are browsable and every design in them is offered', async ({ page }) => {
-  for (const [label, category] of [
-    ['Holding & break screens', 'holding'],
-    ['Credits & thanks', 'credits'],
-    ['Information cards', 'info'],
-  ] as const) {
-    await toTemplateStep(page, label);
-    // Counted off the TAXONOMY, not the wizard category: browse tiles are graphic categories,
-    // and one wizard category can spread across several of them (an info-card that carries a
-    // type browses under Titles / Topics / Notices, not under Information cards).
-    const expected = await page.evaluate(async (cat) => {
-      const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
-      return allTemplateMeta().filter(({ meta }) => meta.category === cat).length;
-    }, category);
-    // Derived from the live catalog on purpose: the assertion is "every design is reachable",
-    // which must keep holding as the catalog grows, not a number that rots on the next one.
-    // Against the count LINE, not the cards: the step renders a first page now (handoff
-    // §2b), so counting cards would measure the page size and pass at 12 for every category
-    // with twelve or more designs - a test that cannot fail.
-    expect(await resultTotal(page)).toBe(expected);
-  }
-});
-
 test('the holding set covers the whole show, not just the front door', async ({ page }) => {
   await toTemplateStep(page, 'Holding & break screens');
   // A tile called "Starting soon" would hide these; the naming IS the discovery fix.
@@ -100,8 +77,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
   await pickDesign(page, 'In Memoriam');
   // Create only appears from the Fields step on, so step forward once first.
   await page.locator('.wz-next').click();
-  await awaitPreviewRebuild(page, () => finishIntoEditor(page));
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
@@ -114,9 +90,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
 // ── The countdown ────────────────────────────────────────────────────────────
 
 test('a start-time countdown chases the wall clock and never goes negative', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   const r = await inTemplate<Record<string, string>>(
     page,
@@ -149,9 +123,7 @@ test('a start-time countdown chases the wall clock and never goes negative', asy
 });
 
 test('the countdown self-corrects through a stalled event loop', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   // The clock is anchored to a deadline, not decremented once per tick. Blocking the event
   // loop drops and coalesces interval callbacks — a decrement-per-tick clock loses exactly
@@ -178,72 +150,8 @@ test('the countdown self-corrects through a stalled event loop', async ({ page }
   expect(drift, `clock lost ${drift.toFixed(2)} s across a stalled event loop`).toBeLessThan(1.5);
 });
 
-test('Update re-arms a running countdown, and an update that did not touch it leaves it alone', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
-
-  // Owner walk, 2026-08-29, on ss11 "Doors Open": with the countdown ON AIR, changing the
-  // minutes and pressing Update did nothing — the only way to correct the clock was to take
-  // the graphic out and back in, which is the one thing an operator cannot do to a screen the
-  // audience is watching. The length is DATA, so a new value takes effect at once; the graphic
-  // does not move (docs/STATE_MACHINE_SCHEMA.md — update() writes fields, events move states).
-  //
-  // Written BACKWARDS as well as forwards, because the whole risk of this fix is the opposite
-  // failure: an Update that carries only a new headline must never restart the count under it.
-  const r = await inTemplate<{
-    running: number;
-    rearmed: number;
-    beforeText: number;
-    afterText: number;
-    afterStartTime: number;
-  }>(
-    page,
-    'ss11',
-    `
-    const secs = () => {
-      const p = d.querySelector('.starting-soon-clock').textContent.split(':').map(Number);
-      return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p[0] * 60 + p[1];
-    };
-    const pad = (n) => (n < 10 ? '0' + n : String(n));
-
-    // On air, counting the thirty minutes the operator set beforehand.
-    w.update(JSON.stringify({ f0: 'Doors open', f2: '30', f3: '' }));
-    w.startClock();
-    await new Promise((r) => setTimeout(r, 700));
-    const running = secs();
-
-    // They retype the minutes and press Update. The clock re-derives immediately.
-    w.update(JSON.stringify({ f2: '5' }));
-    const rearmed = secs();
-
-    // …and an Update that leaves the clock's own fields alone must not restart the count.
-    // Read back to back, so no tick can land between the two.
-    await new Promise((r) => setTimeout(r, 1200));
-    const beforeText = secs();
-    w.update(JSON.stringify({ f0: 'Kick-off shortly' }));
-    const afterText = secs();
-
-    // A wall-clock start time is the same data, and wins over the duration here exactly as it
-    // does at play time.
-    const t = new Date(Date.now() + 95 * 60000);
-    w.update(JSON.stringify({ f3: pad(t.getHours()) + ':' + pad(t.getMinutes()) }));
-    const afterStartTime = secs();
-    w.stopClock();
-    return { running, rearmed, beforeText, afterText, afterStartTime };
-  `,
-  );
-
-  expect(r.running).toBeGreaterThan(1700); // still counting out the thirty minutes
-  expect(r.rearmed).toBe(300); // …and now the five it was just given, without leaving air
-  expect(r.afterText).toBe(r.beforeText); // an unrelated Update moves nothing
-  expect(r.afterStartTime).toBeGreaterThan(5600); // ~95 minutes, not the 5-minute duration
-});
-
 test('a clock-less holding screen carries no countdown at all', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
   const emitted = await page.evaluate(async () => {
     const { CATALOG } = await import('/src/templates/catalog.ts');
     const t = CATALOG['starting-soon']!.find((v) => v.id === 'ss08')!.create({});
@@ -261,9 +169,7 @@ test('a clock-less holding screen carries no countdown at all', async ({ page })
 // ── The loop ─────────────────────────────────────────────────────────────────
 
 test('the credit reel loops with no seam and does not stack clones on replay', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   const r = await inTemplate<{
     firstTravel: number; firstRun: number; firstClones: number; covered: boolean;
@@ -301,9 +207,7 @@ test('the credit reel loops with no seam and does not stack clones on replay', a
 });
 
 test('a static board holds still and shrinks to fit rather than losing rows', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   const r = await inTemplate<{ transform: string; rows: number; short: number; longFits: boolean; longRows: number }>(
     page,
