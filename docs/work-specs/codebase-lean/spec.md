@@ -1,7 +1,7 @@
 # Make the codebase lean, starting with the retired editor
 
 Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
-through singles-i have landed. The approved panels group is this branch; live-gap checks,
+through singles-i and the approved panels group have landed. This branch restores released editor and account cases; remaining live-gap checks,
 obsolete helpers and VERIFICATION docs remain before #800 closes, with step 6 last.**
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
@@ -807,8 +807,7 @@ working graphic without saving a library record. Preparation selection `j-4611` 
 nine cases in 31.4 seconds. Review then changed the old-package assertion to a fresh bookmark
 load so prior Home visibility cannot satisfy it. Queue job `j-4612` then passed all 49 cases in the three files in 1.3 minutes, with no
 skips, including the stronger bookmark assertion. A stale Advanced-era title was clarified
-without changing that running case's assertions. Main reconciliation after the panel landing
-and the final branch checks are still due.
+without changing that running case's assertions. The branch then merged panel main `2c36ba0be224d464938538428d02b8b77c56b5b9` with a merge commit. Its production source is identical to the panel source already in the tested branch. No production behavior changed during these restorations. Review corrected the project disposition left as RESERVED after handover; all nine are resolved G rows with executed evidence. Final branch gates pass, including all 27 configured-verdict tests.
 The source has no retired helper calls in these three files; eleven live gaps remain outside
 them: four configured account cases, two Sheet cases and five insertion cases.
 
