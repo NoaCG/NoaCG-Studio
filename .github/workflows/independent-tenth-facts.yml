@@ -1,0 +1,152 @@
+name: Tenth independent facts (disposable, never merge)
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Bounded independent verification selection
+        type: choice
+        options: [ninth, fifth, tenth]
+        default: unchanged
+permissions:
+  contents: read
+jobs:
+  qualification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      PW: npx playwright test --workers=1 --retries=0 --reporter=list,json
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/build-player-host.mjs
+      - run: mkdir -p .noacg/results && sha256sum e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts e2e/leave-third-checker.spec.ts e2e/leave-fourth-checker.spec.ts e2e/leave-fifth-checker.spec.ts e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts e2e/leave-sixth-checker.spec.ts e2e/leave-fifth-b1-bounded.spec.ts $(ls e2e/leave-seventh-checker.spec.ts e2e/leave-eighth-checker.spec.ts e2e/configured/leave-eighth-device.spec.ts e2e/leave-ninth-checker.spec.ts e2e/configured/leave-ninth-device.spec.ts 2>/dev/null) | tee .noacg/results/spec-hashes.txt && git rev-parse HEAD | tee .noacg/results/head.txt
+      - name: Unchanged original independent assertions (leave-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/original.json }
+        run: $PW e2e/leave-checker.spec.ts --output=.noacg/results/original
+      - name: Unchanged second-checker assertions (leave-second-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/second.json }
+        run: $PW e2e/leave-second-checker.spec.ts --output=.noacg/results/second
+      - name: Unchanged third-checker challenges (leave-third-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/third.json }
+        run: $PW e2e/leave-third-checker.spec.ts --output=.noacg/results/third
+      - name: The once-intermittent :24 repeated (regression only; the race proof is fault-injected)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat24.json }
+        run: $PW e2e/leave-checker.spec.ts:24 --repeat-each=20 --output=.noacg/results/repeat24
+      - name: Unchanged fourth-checker challenges (leave-fourth-checker.spec.ts)
+        if: always() && inputs.scope == 'unchanged'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fourth.json }
+        run: $PW e2e/leave-fourth-checker.spec.ts --output=.noacg/results/fourth
+      - name: Carried fourth :228 repeated (frequency only; the diagnosis is the logged copy)
+        if: always() && inputs.scope == 'diag'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat228.json }
+        run: $PW e2e/leave-fourth-checker.spec.ts:228 --repeat-each=12 --output=.noacg/results/repeat228
+      - name: Carried fourth :228 repeated 20 times on the repair (#1386)
+        if: always() && inputs.scope == 'repeat228'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat228x20.json }
+        run: $PW e2e/leave-fourth-checker.spec.ts:228 --repeat-each=20 --output=.noacg/results/repeat228x20
+      - name: The repair's save-transaction matrix
+        if: always() && inputs.scope == 'matrix'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/matrix.json }
+        run: $PW e2e/save-transaction.spec.ts --output=.noacg/results/matrix
+      - name: Logged copy of :228
+        if: always() && inputs.scope == 'diag'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/diag.json }
+        run: $PW e2e/leave-fifth-diag.spec.ts --repeat-each=12 --output=.noacg/results/diag
+      - name: Fifth checker write-ordering cases
+        if: always() && (inputs.scope == 'fifth' || inputs.scope == 'mutation')
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fifth.json }
+        run: $PW e2e/leave-fifth-checker.spec.ts --output=.noacg/results/fifth
+      - name: Fifth B1 with only its unbounded storage-alert read bounded
+        if: always() && inputs.scope == 'fifth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fifth-b1-bounded.json }
+        run: $PW e2e/leave-fifth-b1-bounded.spec.ts --grep "fifth B1" --output=.noacg/results/fifth-b1-bounded
+      - name: Sixth checker challenges
+        if: always() && inputs.scope == 'sixth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/sixth.json }
+        run: $PW e2e/leave-sixth-checker.spec.ts --output=.noacg/results/sixth
+      - name: Seventh checker challenges
+        if: always() && inputs.scope == 'seventh'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/seventh.json }
+        run: $PW e2e/leave-seventh-checker.spec.ts --output=.noacg/results/seventh
+      - name: Eighth checker challenges
+        if: always() && inputs.scope == 'eighth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/eighth.json }
+        run: $PW e2e/leave-eighth-checker.spec.ts --output=.noacg/results/eighth
+      - name: Ninth checker challenges
+        if: always() && inputs.scope == 'ninth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/ninth.json }
+        run: $PW e2e/leave-ninth-checker.spec.ts --output=.noacg/results/ninth
+      - name: Maintained lifecycle and preserved regressions
+        if: always() && inputs.scope == 'maintained'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/maintained.json }
+        run: $PW e2e/new-graphic-guard.spec.ts e2e/library.spec.ts e2e/wizard-draft-guard.spec.ts e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts e2e/editor-commands.spec.ts e2e/project.spec.ts e2e/route-transition-flash.spec.ts --output=.noacg/results/maintained
+      - name: Two sequential exported graphics
+        if: always() && inputs.scope == 'maintained'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/export.json }
+        run: $PW e2e/ograf-conformance.spec.ts --grep 'two DIFFERENT' --output=.noacg/results/export
+      - name: Fetch pinned references
+        if: always() && (inputs.scope == 'references')
+        run: |
+          mkdir -p .noacg
+          curl -fL https://github.com/zerodensity/ograf-studio/releases/download/v0.17/OGrafStudioServer-linux-x64 -o .noacg/studio-server
+          echo '9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681  .noacg/studio-server' | sha256sum -c -
+          chmod +x .noacg/studio-server
+          git clone https://github.com/Eyevinn/ograf-editor.git .noacg/reference-eyevinn
+          git -C .noacg/reference-eyevinn checkout 616841bd949e3a21137579451123f66c292543f0
+          npm ci --prefix .noacg/reference-eyevinn
+      - name: Hash pinned reference sources
+        if: always() && (inputs.scope == 'references')
+        run: |
+          git clone -q https://github.com/zerodensity/ograf-studio.git .noacg/reference-studio
+          mkdir -p .noacg/results/source
+          python3 - <<'PY'
+          import hashlib, json, subprocess
+          studio = ['apps/editor/src/panels/Menubar.tsx','apps/editor/src/state/fileIO.ts','apps/editor/src/state/fileIO.test.ts','apps/editor/src/state/projectStore.ts','apps/editor/src/state/projectStore.test.ts','apps/editor/src/state/projectTimelineSync.test.ts','apps/editor/src/state/useAutosave.ts','apps/editor/src/canvas/Stage.tsx','apps/editor/src/canvas/LayerNode.tsx','apps/editor/src/state/historyStore.ts']
+          eyevinn = ['src/main.js','src/services/TemplateManager.js','src/models/OGrafTemplate.js','src/components/VisualEditor.js','src/components/PropertyPanel.js','test/bugfix-model-io.test.js','test/ograf-lifecycle.test.js']
+          def show(repo, ref, path):
+              r = subprocess.run(['git','-C',repo,'show',f'{ref}:{path}'], capture_output=True)
+              if r.returncode: return None
+              blob = subprocess.run(['git','-C',repo,'rev-parse',f'{ref}:{path}'], capture_output=True, text=True).stdout.strip()
+              return blob, hashlib.sha256(r.stdout).hexdigest()
+          out = []
+          for p in studio:
+              a = show('.noacg/reference-studio','3142fc7d02934494931eb14e7dc255393e4110d0',p); b = show('.noacg/reference-studio','a1e9776120fa19d9f3f9d40ab4b10ae1be034347',p)
+              out.append({'repository':'zerodensity/ograf-studio','pin':'3142fc7d02934494931eb14e7dc255393e4110d0','release':'a1e9776120fa19d9f3f9d40ab4b10ae1be034347','path':p,'blob':a and a[0],'sha256':a and a[1],'releaseIdentical':bool(a and a==b)})
+          for p in eyevinn:
+              a = show('.noacg/reference-eyevinn','616841bd949e3a21137579451123f66c292543f0',p)
+              out.append({'repository':'Eyevinn/ograf-editor','pin':'616841bd949e3a21137579451123f66c292543f0','path':p,'blob':a and a[0],'sha256':a and a[1]})
+          json.dump(out, open('.noacg/results/source/reference.json','w'), indent=2)
+          print(json.dumps(out, indent=1))
+          PY
+          sha256sum .noacg/studio-server | tee .noacg/results/source/studio-binary.sha256
+      - name: Execute pinned lifecycle tasks
+        if: always() && (inputs.scope == 'references')
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/references.json
+          REFERENCE_EXE: ${{ github.workspace }}/.noacg/studio-server
+        run: xvfb-run -a $PW e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts --output=.noacg/results/references
+      - name: Cumulative interaction and native zoom
+        if: always() && inputs.scope == 'visual'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/cumulative.json }
+        run: xvfb-run -a $PW e2e/interaction-probe-task.spec.ts e2e/interaction-checker-nested.spec.ts --output=.noacg/results/cumulative
+      - name: Fresh tenth acceptance challenge
+        if: always() && inputs.scope == 'tenth'
+        run: $PW e2e/leave-tenth-checker.spec.ts --output=.noacg/results/tenth
+      - name: Print bounded facts from unchanged specs
+        if: always()
+        run: python3 .noacg/check10-print-facts.py .noacg/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: leave-receipts-${{ inputs.scope }}
+          include-hidden-files: true
+          path: .noacg/results
