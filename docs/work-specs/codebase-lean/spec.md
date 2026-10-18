@@ -570,14 +570,16 @@ The twenty-second revival, on main `7088e031f` (2026-10-18): the images cases wa
 the retired advanced mode and uploaded through the old Data panel's image control. Three cases
 run again: a logo uploaded through the Logo field landing in the credits end block, an oversized
 logo shrunk to the frame at the door with a small one left alone, and the corner bug's logo
-field replacing the placeholder mark. The upload makes the same two writes the live field row
-makes (`components/fields/SpxFieldRow.tsx`: the asset shrunk by `importImageFile`, the field's
-value set to its path), the wizard walk lands in the new editor through the Finish step's door,
-and the runtime claims read the working graphic mounted the way playout composes it, which
-inlines the asset the field names. Two cases went (listed under Test maintenance): the Data
+field replacing the placeholder mark. The file is picked in the Fields step's own "Upload a
+logo" input (`components/wizard/steps/FieldsStep.tsx`, which shrinks it at the door through
+`importImageFile` and points the slot at it), the placeholder is read on the step's own preview
+before the pick, the wizard walk lands in the new editor through the Finish step's door, and
+the runtime claims read the working graphic mounted the way playout composes it, which inlines
+the asset the field names. Two cases went (listed under Test maintenance): the Data
 panel's add-field row, retired with that panel, and the export folder structure, which
 editor-images pins. 3 cases in the file, 3 passing, none skipped, 0.2 case-minutes locally on
-two workers (queue job `j-0060`). The file's minutes are under Budget exceptions. Still skipping:
+two workers (queue job `j-0060`; the Fields-step upload passed 9 of 9 at three repeats in
+`j-0070`). The file's minutes are under Budget exceptions. Still skipping:
 the remaining 15 live-gap cases, in the pack and single-case families.
 
 ### Remaining order and the #800 exit condition
