@@ -6,6 +6,39 @@ Use the existing wave/plan/job and landing records; this procedure creates no ne
 Native subagents share one VM; they are useful reviewers, not separate cloud resources.
 Each provider launches its own workers in its existing environment/subscription.
 
+## Codex cloud startup and network access
+
+At startup, run `node scripts/cloud-network-preflight.mjs` from the feature worktree.
+For this preflight and commands needing remote access (including fetch, push, gh,
+dependency downloads and checks using remote services), select the shell tool's
+supported network permission. When its schema exposes additional permissions, use:
+
+```json
+{
+  "sandbox_permissions": "with_additional_permissions",
+  "additional_permissions": { "network": { "enabled": true } }
+}
+```
+
+Use the current tool schema; a repository script cannot grant itself shell access.
+Keep the configured proxy and TLS verification. Destination allowlisting and shell
+network permission are separate requirements. Do not change the allowlist or
+credentials merely because default shell execution could not connect to the proxy.
+
+The preflight independently reads origin/main through Git and this repository's
+Actions API through gh. Each subprocess has a short timeout with prompts disabled;
+output contains fixed diagnoses, never raw responses or credentials. A nonzero exit
+means at least one path is unqualified. Permission or proxy transport failures need
+the supported shell permission checked before diagnosing GitHub authentication.
+An API denial does not by itself establish a disconnected account. GitHub connector
+access is separate: test its repository read if the CLI path fails. Passing reads
+do not qualify push, dispatch, status writes, whole logs or auto-merge; follow
+queue-merge's separate probes when those operations are needed.
+
+Tool approval can remain pending before the subprocess starts, outside its timeout.
+Yield long tool calls promptly and report pending approval separately from an
+executed command's failure. A pending call is no evidence that GitHub is unavailable.
+
 ## Before submission
 
 Read `AGENTS.md`, the relevant spec and the current owner receipts in issue #1301.
