@@ -216,21 +216,32 @@ test('the look line counts the reviewed frames a trace opened, from Managed Agen
   ]);
   assert.deepEqual(transcriptReads(recovered), ['outputs/coverage/event-goal-1500ms.png'], 'before the coverage, and the failed read, do not count');
 
-  // A verdict coverage carried (the frame drawn byte for byte as the one an earlier verdict
-  // closed) counts as opened when the frame was read after any coverage; an uncarried one still
-  // needs a read after the last.
-  const twice = [
+  // A frame coverage drew again byte for byte for `sameSince` runs counts as opened when it was
+  // read after the run that many back: it was that same picture then. A redrawn frame still needs
+  // a read after the last run.
+  const thrice = [
     { kind: 'tool', tool: 'bash', command: 'noacg coverage /workspace/graphic --out /o/coverage' },
     { kind: 'tool', tool: 'read', path: '/o/coverage/off.png', ok: true },
     { kind: 'tool', tool: 'read', path: '/o/coverage/take-sample-video-600ms.png', ok: true },
     { kind: 'tool', tool: 'bash', command: 'noacg coverage /workspace/graphic --out /o/coverage' },
+    { kind: 'tool', tool: 'read', path: '/o/coverage/out-strip.jpg', ok: true },
+    { kind: 'tool', tool: 'bash', command: 'noacg coverage /workspace/graphic --out /o/coverage' },
     { kind: 'tool', tool: 'read', path: '/o/coverage/event-goal-1500ms.png', ok: true },
   ];
-  assert.deepEqual(readsOf(twice, { all: true }), ['/o/coverage/off.png', '/o/coverage/take-sample-video-600ms.png', '/o/coverage/event-goal-1500ms.png']);
-  const carriedReview = { fixed: 0, verdicts: [{ file: 'off.png', verdict: 'ok', carried: true }, { file: 'take-sample-video-600ms.png', verdict: 'ok' }, { file: 'event-goal-1500ms.png', verdict: 'ok' }] };
-  assert.deepEqual(framesOpened(carriedReview, readsOf(twice), readsOf(twice, { all: true })), { reviewed: 3, opened: 2, unopened: ['take-sample-video-600ms.png'], all: false, fixed: 0 }, 'the take was redrawn, so its earlier read does not count');
-  assert.deepEqual(framesOpened(carriedReview, readsOf(twice)).unopened, ['off.png', 'take-sample-video-600ms.png'], 'without the earlier reads a carried verdict is not a look');
-  assert.deepEqual(transcriptReads(recovered, { all: true }), ['outputs/coverage/event-goal-1500ms.png'], 'a read before the first coverage is no look at its frames');
+  assert.deepEqual(readsOf(thrice, { back: true }), [['/o/coverage/event-goal-1500ms.png'], ['/o/coverage/out-strip.jpg', '/o/coverage/event-goal-1500ms.png'], ['/o/coverage/off.png', '/o/coverage/take-sample-video-600ms.png', '/o/coverage/out-strip.jpg', '/o/coverage/event-goal-1500ms.png']]);
+  const sameReview = {
+    fixed: 0,
+    verdicts: [
+      { file: 'off.png', verdict: 'ok', carried: true, sameSince: 2 },
+      { file: 'take-sample-video-600ms.png', verdict: 'ok', sameSince: 1 },
+      { file: 'out-strip.jpg', verdict: 'ok', sameSince: 1 },
+      { file: 'event-goal-1500ms.png', verdict: 'ok' },
+    ],
+  };
+  assert.deepEqual(framesOpened(sameReview, readsOf(thrice), readsOf(thrice, { back: true })), { reviewed: 4, opened: 3, unopened: ['take-sample-video-600ms.png'], all: false, fixed: 0 }, 'the take changed at the second run and was not read after it');
+  assert.deepEqual(framesOpened(sameReview, readsOf(thrice)).unopened, ['off.png', 'take-sample-video-600ms.png', 'out-strip.jpg'], 'without the reads by run only a read after the last counts');
+  assert.deepEqual(framesOpened({ fixed: 0, verdicts: [{ file: 'off.png', verdict: 'ok', carried: true }] }, [], readsOf(thrice, { back: true })).opened, 1, 'a carried verdict without its count: a read after any run');
+  assert.deepEqual(transcriptReads(recovered, { back: true }), [['outputs/coverage/event-goal-1500ms.png']], 'a read before the first coverage is no look at its frames');
 });
 
 // ── the subscription arm (D2) ───────────────────────────────────────────────────────────────

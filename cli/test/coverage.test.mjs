@@ -28,7 +28,7 @@ import { test } from 'node:test';
 import { canonicalJson, sourceDigest } from '../dist/digest.js';
 import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, settlesOwnState, sidesOf, STRIP_MS } from '../dist/coverage.js';
 import { zipPathFor } from '../dist/commands/record.js';
-import { closedFrames, REVIEW_FORMAT, reviewFor, reviewProblems, reviewSummary, verdictState } from '../dist/review.js';
+import { earlierFrames, REVIEW_FORMAT, reviewFor, reviewProblems, reviewSummary, verdictState } from '../dist/review.js';
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -192,16 +192,19 @@ test('coverage\'s review lists every frame with an empty verdict, and only ok or
 // Coverage run again after a fix: a frame drawn byte for byte as the one the last review closed
 // keeps its verdict, so the look after a fix is the frames that changed.
 test('a frame the last review closed and that looks the same keeps its verdict, marked carried', () => {
-  const last = reviewed(['ok', 'fixed: the score no longer overlaps the crest', 'the title clips']);
-  assert.deepEqual(closedFrames(last), [COVERAGE.frames[0].file, COVERAGE.frames[1].file], 'an open verdict closes nothing');
-  assert.deepEqual(closedFrames({ format: 'other', frames: [] }), []);
-  assert.deepEqual(closedFrames(null), []);
-  const next = reviewFor(DIGEST, COVERAGE.frames, new Set([COVERAGE.frames[1].file]));
-  assert.deepEqual(next.frames, [{ file: COVERAGE.frames[0].file, verdict: '' }, { file: COVERAGE.frames[1].file, verdict: 'ok', carried: true }, { file: COVERAGE.frames[2].file, verdict: '' }]);
+  const [a, b, c] = COVERAGE.frames.map((f) => f.file);
+  const last = { ...reviewed([]), frames: [{ file: a, verdict: 'ok' }, { file: b, verdict: 'fixed: the score no longer overlaps the crest', sameSince: 2 }, { file: c, verdict: 'the title clips' }] };
+  assert.deepEqual(earlierFrames(last), [{ file: a, closed: true, sameSince: 0 }, { file: b, closed: true, sameSince: 2 }, { file: c, closed: false, sameSince: 0 }], 'an open verdict closes nothing');
+  assert.deepEqual(earlierFrames({ format: 'other', frames: [] }), []);
+  assert.deepEqual(earlierFrames(null), []);
+  // b is drawn as before and was closed then: carried. c is drawn as before but was left open:
+  // empty, and still said to be the same picture.
+  const next = reviewFor(DIGEST, COVERAGE.frames, new Map([[b, { closed: true, sameSince: 3 }], [c, { closed: false, sameSince: 1 }]]));
+  assert.deepEqual(next.frames, [{ file: a, verdict: '' }, { file: b, verdict: 'ok', carried: true, sameSince: 3 }, { file: c, verdict: '', sameSince: 1 }]);
   assert.match(next.how, /carried/);
   const handed = { ...next, frames: next.frames.map((f) => (f.carried ? f : { ...f, verdict: 'ok' })) };
   assert.deepEqual(reviewProblems({ review: handed, coverage: COVERAGE, digest: DIGEST }), [], 'a carried verdict closes its frame');
-  assert.deepEqual(reviewSummary(handed).verdicts.map((v) => v.carried ?? false), [false, true, false], 'the record says which verdicts were carried');
+  assert.deepEqual(reviewSummary(handed).verdicts.map((v) => [v.carried ?? false, v.sameSince ?? 0]), [[false, 0], [true, 3], [false, 1]], 'the record says which verdicts were carried and how long each picture had been the same');
 });
 
 test('record --review accepts a complete review of the current digest and refuses a missing, open, stale or foreign one', () => {
