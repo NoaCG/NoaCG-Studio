@@ -8,7 +8,7 @@ import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
-import { loadProject, resumeReservation, saveProject } from '../model/project';
+import { isOwnReservation, loadProject, onGraphicSuperseded, resumeReservation, saveProject } from '../model/project';
 import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
@@ -347,7 +347,11 @@ const initialProject = loadProject();
 // (`mintingReserved`), or it holds exactly the source that record was minted with. Any other
 // draft naming it (another tab's, an older build's) asks for a name, so its Save cannot
 // overwrite a graphic it never saved (#1402).
-const reservedId = initialProject?.reservedGraphicId;
+// Only THIS device's reservation counts at all. The slot syncs, so it can name a reservation
+// another device made, whose record this device has not learnt of yet; resumed, this device's
+// Save minted that record's id too (#1443). Not resumed, the first write takes a fresh one.
+const slotReservation = initialProject?.reservedGraphicId;
+const reservedId = isOwnReservation(slotReservation) ? slotReservation : undefined;
 const reservedRecord = reservedId && reservedId !== initialProject?.graphicId ? graphicById(reservedId) : null;
 const relinked = !!reservedRecord && (initialProject?.mintingReserved === true || sameSource(initialProject!.template, reservedRecord.template));
 const initialGraphicId = relinked ? reservedId! : initialProject?.graphicId ?? null;
@@ -636,6 +640,12 @@ if (typeof window !== 'undefined') {
   window.addEventListener('noacg-account-authoring-pausing', flushPendingProject);
   window.addEventListener('noacg-account-authoring-flush', flushPendingProject);
 }
+// A record this draft is linked to lost a sync conflict: another device's version holds its id
+// now (model/project.ts `graphicSuperseded`), so the next Save asks for a name (#1443).
+onGraphicSuperseded((graphicId) => {
+  const { saved } = useTemplateStore.getState();
+  if (saved.graphicId === graphicId) useTemplateStore.setState({ saved: { ...saved, graphicId: null, dirty: true } });
+});
 useTemplateStore.subscribe((state, prev) => {
   // The legibility settings are part of the SAVED document (GraphicDoc.legibility), not a
   // view preference, so a change to them drifts the working document exactly as a template
