@@ -388,6 +388,34 @@ cases in the file, 11 passing, none skipped, 0.6 case-minutes locally on two wor
 `j-0047`). The file's minutes are under Budget exceptions. Still skipping: the remaining 55
 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the format revival
+
+The eleventh revival, on main `d5a6cfba` (2026-10-18): the format cases opened the app behind the
+retired advanced-mode switch, three of them only to reach the formatter's pure functions and
+three to drive the deleted code pane's Format button. The pure cases moved to Node as
+`scripts/format-code.test.mjs` (gate: build, guarding `src/format/formatCode.ts`), with their
+assertions as they were: the three formatters normalising messy code, formatJs refusing a file
+that owns an animation region, and formatTemplate formatting HTML while leaving CSS and JS
+alone; the formatTemplate fixture is the three code strings, which is all the function reads.
+One journey runs again in the browser: a newly created project starting from a
+Prettier-formatted HTML baseline, through the wizard's first lower third and the Finish step's
+editor door. Three cases went (listed under Test maintenance): minimalTextChange, which served
+the deleted Monaco pane alone, and the two Format-button cases of that pane. 1 case in the
+file, 1 passing, none skipped, 0.1 case-minutes locally on two workers (queue job `j-0048`);
+the Node test passes 3 of 3. The file's minutes are under Budget exceptions. Still skipping:
+the remaining 51 live-gap cases, in the pack and single-case families.
+
+### Phase 2 receipt: the production-chat-intake revival
+
+The twelfth revival, on main `9bf42f8aa` (2026-10-18): three production-chat-intake cases carried a
+`skipOldEditor()` from the editor phase although their bodies already ran on live surfaces (the
+test chat source seam, the audience workspace, Take). They run again with the skip deleted and
+nothing else changed: a chat line reaching air the way a phone question does, the throttle and
+the dedupe refusing visibly, and pause, resume and remove on the source. No case was removed. 5
+cases in the file, 5 passing, none skipped, 0.6 case-minutes locally on two workers (queue job
+`j-0049`). The file's minutes are under Budget exceptions. Still skipping: the remaining 48
+live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -540,6 +568,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/design-rules-product.spec.ts`: 3 case(s) removed with the design-rules-product revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "an untouched project serializes NO legibility key at all" (covered: scripts/design-rules.test.mjs 168 'normalizeLegibility: the DEFAULT state serializes to nothing' pins the rule that makes an untouched project carry no key; a bootstrapGraphic + loadProject check would only re-prove the plumbing.); "the editor can change the viewing target of an already-saved project" (retired UI: dock-tab-style / StylePanel.tsx, the ViewingControls host, has no mount left; ViewingControls renders only on the wizard AI step, so no live surface changes a saved project's viewing target.); "supporting text has its own size rule, reported on the readiness row and never gating" (covered: scripts/validator-registries.test.mjs 'the readiness report claims both legibility size rules on its row, as warnings that never gate', the same readinessRows/unclaimedFindings assertions on the same two findings, beside its LEGIBILITY_UNMEASURED sibling.)
 - 2026-10-18 `e2e/package.spec.ts`: 2 case(s) removed with the package revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "a saved brand carries its look to another variant" (covered: e2e/wizard-brand.spec.ts 107 'a chosen brand puts its accent, typeface and logo into the created graphic' chooses a saved look in wz-brand and reads its accent in the created template's css, the same chooser and the same read this case made, and 137 takes it back with None.); "the post-creation preset picker withholds a structural preset" (retired UI: inspector-preset-select belonged to the old timeline Inspector, the only reader of swappablePresetsForTemplate's structural flag; the live pickers, the wizard's Animation step and the control page's Motion section, offer no structural swap.)
 - 2026-10-18 `e2e/shows.spec.ts`: 1 case(s) removed with the shows revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "Home lists productions and the production page exports the package" (covered: e2e/production-pack.spec.ts 28 'a production exports as a graphics pack and imports back with its rundown intact' walks the Home row, its export-production-row dialog and the download; wizard-kit.spec.ts 536 downloads through prod-export-download; productions.spec.ts 102 opens a production from Home. The row's count words were pinned nowhere else and go with it.)
+- 2026-10-18 `e2e/format.spec.ts`: 6 case(s) removed with the format revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "formatHtml / formatCss / formatJs normalize messy code" (covered: scripts/format-code.test.mjs 'formatHtml / formatCss / formatJs normalize messy code', the same inputs and assertions in Node.); "formatJs refuses any file that owns an animation region" (covered: scripts/format-code.test.mjs 'formatJs refuses any file that owns an animation region', the data-block and legacy fixtures as they were.); "formatTemplate formats HTML but leaves CSS and JS alone by default" (covered: scripts/format-code.test.mjs 'formatTemplate formats HTML but leaves CSS and JS alone by default', the same three strings; formatTemplate reads nothing else of its fixture.); "minimalTextChange returns only the changed span (cursor-stable, merge-friendly)" (retired UI: minimalTextChange served only the deleted Monaco code pane, which the Phase 1 receipt names orphaned by the CodeEditor deletion.); "the Format button reformats the active tab through Monaco and the store" (retired UI: `.format-btn` of the deleted CodeEditor toolbar, opened by showCode.); "the Format button is disabled on the JS tab of a data-block template (region protected)" (retired UI: the same deleted Format button and JS tab.)
 
 ## Budget exceptions
 
@@ -621,6 +650,18 @@ table weighs the file at 0.47 minutes from its earlier runs. The minute below is
 local measurement (case-minutes, two workers, queue job `j-0047`).
 
 - e2e/shows.spec.ts: 0.6 min, protects the aggregated production panel driving each graphic alone, the offline answer of the hosted control route, the retyped layer stack and the two-step delete, and the live library graphic in a rundown export, expires 2026-11-16
+
+The format revival (Phase 2, #800) keeps one journey in the file and moves three cases to Node;
+the table weighs the file at 0.01 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0048`).
+
+- e2e/format.spec.ts: 0.1 min, protects format-on-create: a wizard-created project starting from a Prettier-formatted HTML baseline with its fields intact, expires 2026-11-16
+
+The production-chat-intake revival (Phase 2, #800) turns three cases in one file back on; the
+table weighs the file at 0.203 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0049`).
+
+- e2e/production-chat-intake.spec.ts: 0.6 min, protects a chat line reaching air through inbox, edit, approve, cue and Take, the visible throttle and dedupe refusals, and pause, resume and remove on a chat source, expires 2026-11-16
 
 ## Acceptance criteria
 
