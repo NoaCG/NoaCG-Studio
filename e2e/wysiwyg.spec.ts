@@ -1,27 +1,22 @@
 // covers: src/templates/shared/base.ts
+// covers: src/components/wizard/**, !src/components/wizard/import/**
 
-import { test, expect, type Page } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
-import { createProject } from './_create';
-import { showCode } from './_code';
-import { canvasBox } from './_canvas';
+import { test, expect, type FrameLocator } from '@playwright/test';
+import { finishIntoNewEditor } from './_create';
+import { mountWorkingDocument } from './_frame';
+import { chooseType, pickDesign } from './_browse';
 
-// The old canvas's direct manipulation (src/components/canvas/CanvasInteraction.tsx, deleted on
-// 2026-10-17 with the three cases that drove it) wrote the same zone+nudge patch the wizard's
-// Style step writes (zoneCssText, src/templates/shared/base.ts). The case left asserts that patch
-// on the preview root; it still boots through the retired helper and skips until it is rewritten
-// onto the wizard (issue #800).
+// The zone+nudge code patch (zoneCssText, src/templates/shared/base.ts) that re-anchors a
+// graphic. The old canvas's direct manipulation (deleted on 2026-10-17) wrote it from a drag;
+// the wizard's Style step writes the same patch from its zone picker, and that is the door
+// this case takes. The new editor's own canvas gestures are editor-base-edits's and
+// editor-transforms's.
 
-async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  // The subject is the CODE PATCH a drag writes, so the pane (closed by default) must be open.
-  await showCode(page);
-}
-
-/** The root rule's anchoring sides from the PREVIEW's stylesheet (behavior-true: what renders).
- *  Read as style properties, not cssText — Chrome serializes the sides into the `inset` shorthand. */
-async function rootAnchor(page: Page): Promise<{ top: string; right: string; bottom: string; left: string }> {
-  return page.frameLocator('iframe.preview-frame').locator('body').evaluate(() => {
+/** The root rule's anchoring sides from the composed document's stylesheet (behavior-true: what
+ *  renders). Read as style properties, not cssText — Chrome serializes the sides into the
+ *  `inset` shorthand. */
+async function rootAnchor(doc: FrameLocator): Promise<{ top: string; right: string; bottom: string; left: string }> {
+  return doc.locator('body').evaluate(() => {
     for (const sheet of Array.from(document.styleSheets)) {
       for (const rule of Array.from(sheet.cssRules)) {
         if (rule instanceof CSSStyleRule && rule.selectorText === '.lower-third') {
@@ -34,45 +29,27 @@ async function rootAnchor(page: Page): Promise<{ top: string; right: string; bot
   });
 }
 
-/** Wait until the preview shows the settled graphic (the design view after every rebuild). */
-async function waitSettled(page: Page) {
-  await expect
-    .poll(async () =>
-      page.frameLocator('iframe.preview-frame').locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity),
-    )
-    .toBe('1');
-}
+test('the Style step re-anchors the graphic via a zone+nudge code patch', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline'); // home zone: bottom-left
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style
+  const more = page.getByTestId('wz-size-position');
+  await more.locator('summary').click();
+  await page.locator('.wz-zone[title="top-right"]').click();
+  await expect(more.locator('summary')).toContainText('top right');
+  await finishIntoNewEditor(page);
 
-test('dragging the graphic re-anchors it via a zone+nudge code patch (no mode)', async ({ page }) => {
-  await createHairline(page); // default zone: bottom-left
-  const before = await rootAnchor(page);
-  expect(before.bottom).not.toBe('auto');
-  await waitSettled(page); // the canvas layer is always on; the graphic is visible at rest
-
-  // Drag from the graphic's home (bottom-left) up to the top-right third.
-  const box = await canvasBox(page); // fractions are of the TRUE canvas, not the pasteboard
-  await page.mouse.move(box.x + box.width * 0.15, box.y + box.height * 0.82);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.85, box.y + box.height * 0.15, { steps: 8 });
-  await page.mouse.up();
-
-  // The patch lands in the code, the preview rebuilds, and the root rule now anchors top-right.
-  await awaitPreviewRebuild(page);
-  const anchor = await rootAnchor(page);
-  expect(anchor.right).not.toBe('auto');
-  expect(anchor.top).not.toBe('auto');
-  expect(anchor.left).toBe('auto');
-  expect(anchor.bottom).toBe('auto');
-
-  // The editor followed the gesture: the CSS tab is active with the patched rule highlighted,
-  // and switching away marks the CSS tab with a change dot until the user sees the change.
-  await expect(page.locator('.tabs .tab.active')).toHaveText('CSS');
-  await expect(page.locator('.editor-host .changed-line').first()).toBeVisible({ timeout: 5000 });
-  await page.locator('.tabs .tab', { hasText: 'HTML' }).click();
-  await expect(page.locator('.tabs .tab', { hasText: 'CSS' }).locator('.change-dot')).toBeVisible();
-
-  // Undo restores the exact previous anchoring — the drag itself is one undoable apply.
-  await page.keyboard.press('Control+z');
-  await awaitPreviewRebuild(page);
-  expect(await rootAnchor(page)).toEqual(before);
+  // The patch landed in the created code: the root rule anchors top-right and nothing else.
+  // Freshly generated code omits the explicit `auto` resets (zoneCssText), so an unset side
+  // reads as an empty property rather than `auto`.
+  const unset = ['', 'auto'];
+  const anchor = await rootAnchor(await mountWorkingDocument(page));
+  expect(unset).not.toContain(anchor.right);
+  expect(unset).not.toContain(anchor.top);
+  expect(unset).toContain(anchor.left);
+  expect(unset).toContain(anchor.bottom);
 });
