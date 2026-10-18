@@ -1276,3 +1276,23 @@ insertion. j-4627 ran the complete control and template-insert files: 13 passed,
 40.7 seconds. ESLint, TypeScript and changed gates passed (five Node files, 27 tests).
 Review and simplify were inline; one confirmed Codex finding fixed. No full local build or
 suite was repeated. The existing reference-editor qualification gap still applies.
+
+### Live-feature compatibility repair: saved one-step graphics (2026-10-18)
+
+The pre-landing audit found that template insertion treated a legacy graphic's single In as
+its own Out. Reproduction on d9a4c50cee5f2d3a06299cf984c3f393cddbac0d in CI 39158050556,
+job 117765356530: the new current-picker regression expected two steps and received one;
+the sole In contained the donor's exit keys and hides. That shard had 48 passing cases and
+this one failure. This is an actual browser failure, separate from the expected unstamped
+Reviewed refusal on the reproduction commit. Auto-merge and its queue entry were withdrawn.
+
+The merge now uses the existing withOut mutator on a cloned legacy data block before adding
+the donor's motion. Its authored entrance tracks stay intact. A one-step authored machine
+refuses insertion before building a donor rather than changing its path or transitions; its
+source stays intact. Existing shapes, loading and playback are preserved, with no new format.
+The new regression drives both picker placements, real Play/Next/Out, and complete Undo/Redo.
+Its legacy fixture explicitly flushes and commits the saved slot before reopening the editor.
+A Node case pins the authored-machine refusal and unchanged input. All five project-operation
+Node cases, ESLint, TypeScript and all 28 changed Node gate tests pass. Browser verification
+of this repair is pending in queue j-4633; the laptop's 3.5 GB floor is unchanged. No passing
+verify stamp or landing is claimed while that check is pending.
