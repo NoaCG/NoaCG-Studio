@@ -547,6 +547,23 @@ two workers (queue job `j-0058`): flows 0.2, wizard-filters 1.4. The files' minu
 Budget exceptions. Still skipping: the remaining 21 live-gap cases, in the pack and single-case
 families.
 
+### Phase 2 receipt: the fourth singles (inspector, pasteboard, legacy-timeline)
+
+The twenty-first revival, on main `05b766bd5` (2026-10-18): three single cases whose subject
+outlived the old editor surface that drove them. The redo-branch case is now a test of the
+store's history: the retired Inspector's speed knob wrote the data block's speed, so the same
+write is made on the store and the store's own undo() and redo(), which the editor's keys call,
+are what the classic cut is judged on (renamed to say so). The pasteboard case drops the canvas
+drag that fed it and keeps its invariant: the persisted template carries no pad concept and the
+composer's default document clips to the canvas while only its authoring option opens a margin.
+The legacy settled view composes the working graphic with the shared settle recipe
+(`settleWithData`, what every card and thumbnail runs) and reads the settled document; the
+legacy-region helper no longer waits for the retired dock's chips. No case was removed. Every
+case in the three files passes, none skipped. Case-minutes locally on two workers (queue job
+`j-0059`): inspector 0.1, pasteboard 0.1, legacy-timeline 0.1. The files' minutes are
+under Budget exceptions. Still skipping: the remaining 18 live-gap cases, in the pack and
+single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -852,6 +869,14 @@ job `j-0058`).
 
 - e2e/flows.spec.ts: 0.2 min, protects a Fields-step title reaching the created field, steps mode holding a line until next(), and an uploaded picture landing in the logo slot, expires 2026-11-16
 - e2e/wizard-filters.spec.ts: 1.4 min, protects Browse's facets, paging and the brand chooser's re-rank, expires 2026-11-16
+
+The fourth singles revival (Phase 2, #800) turns one case back on in each of three files. The
+minutes below are this change's local measurement (case-minutes, two workers, queue job
+`j-0059`).
+
+- e2e/inspector.spec.ts: 0.1 min, protects the store's redo branch being cut by a new edit, and the filter track's shape at runtime, expires 2026-11-16
+- e2e/pasteboard.spec.ts: 0.1 min, protects the composer's default document clipping to the canvas with no pad in persisted state, expires 2026-11-16
+- e2e/legacy-timeline.spec.ts: 0.1 min, protects a legacy-region template rendering settled on the shared settle recipe, expires 2026-11-16
 
 ## Acceptance criteria
 
