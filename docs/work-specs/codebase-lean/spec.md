@@ -825,7 +825,7 @@ at 1280px. Catalog thumbnails load only on intersection; wait for the six visibl
 judging the picker. Review also corrected duplicate component keys, modal Escape/focus return
 the binding covers headers, and carrying the donor entrance when its appearance moves. All 27 changed Node checks pass. Public copy is plain; only its two reduced copy-baseline
 counts change (AssetsPanel 10 to 9, InsertTemplateDialog 5 to zero). The retained generator and
-merge helper remain the only implementations, with one bounded session edit per UI action.
+merge helper remain the only implementations, with one bounded session edit per UI action. The final targeted navigation check `j-4623` also passed: Escape restores focus, browser Back closes the picker, and Forward cannot resurrect it or change the document.
 
 ### Remaining order and the #800 exit condition
 
