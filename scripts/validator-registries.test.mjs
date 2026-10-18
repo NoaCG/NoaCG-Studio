@@ -85,3 +85,20 @@ test('the readiness report claims "not checked" on the legibility row instead of
   assert.deepEqual(row.messages, [warning.message]);
   assert.deepEqual(readiness.unclaimedFindings(validation), []);
 });
+
+test('the readiness report claims both legibility size rules on its row, as warnings that never gate', () => {
+  // The three floor choices move the SECONDARY floors and barely touch the primary one, so a
+  // person choosing between them is choosing about supporting text, and one `legibility-size`
+  // rule could not say which of their findings the choice governs. Two rules, one row: the row
+  // claims both (an unclaimed finding would surface raw, as an unexplained loose warning) and
+  // warns, never fails, because designRulesWarnings only ever pushes warnings.
+  const warnings = [
+    { rule: 'legibility-size', message: 'Primary text is small', severity: 'warn' },
+    { rule: 'legibility-secondary-size', message: 'Supporting text is small', severity: 'warn' },
+  ];
+  const validation = { ok: true, errors: [], warnings };
+  const row = readiness.readinessRows(validation, true).find((r) => r.id === 'legibility');
+  assert.equal(row.state, 'warn');
+  assert.deepEqual(row.messages, ['Primary text is small', 'Supporting text is small']);
+  assert.deepEqual(readiness.unclaimedFindings(validation), []);
+});
