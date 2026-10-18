@@ -1,5 +1,7 @@
 name: Tenth independent facts (disposable, never merge)
 on:
+  push:
+    branches: [codex/probe-editor-p2-check-10-ci]
   workflow_dispatch:
     inputs:
       scope:
@@ -11,6 +13,10 @@ permissions:
   contents: read
 jobs:
   qualification:
+    strategy:
+      fail-fast: false
+      matrix:
+        scope: [ninth, fifth, tenth]
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
@@ -26,75 +32,75 @@ jobs:
       - run: node scripts/build-player-host.mjs
       - run: mkdir -p .noacg/results && sha256sum e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts e2e/leave-third-checker.spec.ts e2e/leave-fourth-checker.spec.ts e2e/leave-fifth-checker.spec.ts e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts e2e/leave-sixth-checker.spec.ts e2e/leave-fifth-b1-bounded.spec.ts $(ls e2e/leave-seventh-checker.spec.ts e2e/leave-eighth-checker.spec.ts e2e/configured/leave-eighth-device.spec.ts e2e/leave-ninth-checker.spec.ts e2e/configured/leave-ninth-device.spec.ts 2>/dev/null) | tee .noacg/results/spec-hashes.txt && git rev-parse HEAD | tee .noacg/results/head.txt
       - name: Unchanged original independent assertions (leave-checker.spec.ts)
-        if: always() && inputs.scope == 'unchanged'
+        if: always() && matrix.scope == 'unchanged'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/original.json }
         run: $PW e2e/leave-checker.spec.ts --output=.noacg/results/original
       - name: Unchanged second-checker assertions (leave-second-checker.spec.ts)
-        if: always() && inputs.scope == 'unchanged'
+        if: always() && matrix.scope == 'unchanged'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/second.json }
         run: $PW e2e/leave-second-checker.spec.ts --output=.noacg/results/second
       - name: Unchanged third-checker challenges (leave-third-checker.spec.ts)
-        if: always() && inputs.scope == 'unchanged'
+        if: always() && matrix.scope == 'unchanged'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/third.json }
         run: $PW e2e/leave-third-checker.spec.ts --output=.noacg/results/third
       - name: The once-intermittent :24 repeated (regression only; the race proof is fault-injected)
-        if: always() && inputs.scope == 'unchanged'
+        if: always() && matrix.scope == 'unchanged'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat24.json }
         run: $PW e2e/leave-checker.spec.ts:24 --repeat-each=20 --output=.noacg/results/repeat24
       - name: Unchanged fourth-checker challenges (leave-fourth-checker.spec.ts)
-        if: always() && inputs.scope == 'unchanged'
+        if: always() && matrix.scope == 'unchanged'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fourth.json }
         run: $PW e2e/leave-fourth-checker.spec.ts --output=.noacg/results/fourth
       - name: Carried fourth :228 repeated (frequency only; the diagnosis is the logged copy)
-        if: always() && inputs.scope == 'diag'
+        if: always() && matrix.scope == 'diag'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat228.json }
         run: $PW e2e/leave-fourth-checker.spec.ts:228 --repeat-each=12 --output=.noacg/results/repeat228
       - name: Carried fourth :228 repeated 20 times on the repair (#1386)
-        if: always() && inputs.scope == 'repeat228'
+        if: always() && matrix.scope == 'repeat228'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/repeat228x20.json }
         run: $PW e2e/leave-fourth-checker.spec.ts:228 --repeat-each=20 --output=.noacg/results/repeat228x20
       - name: The repair's save-transaction matrix
-        if: always() && inputs.scope == 'matrix'
+        if: always() && matrix.scope == 'matrix'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/matrix.json }
         run: $PW e2e/save-transaction.spec.ts --output=.noacg/results/matrix
       - name: Logged copy of :228
-        if: always() && inputs.scope == 'diag'
+        if: always() && matrix.scope == 'diag'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/diag.json }
         run: $PW e2e/leave-fifth-diag.spec.ts --repeat-each=12 --output=.noacg/results/diag
       - name: Fifth checker write-ordering cases
-        if: always() && (inputs.scope == 'fifth' || inputs.scope == 'mutation')
+        if: always() && (matrix.scope == 'fifth' || matrix.scope == 'mutation')
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fifth.json }
         run: $PW e2e/leave-fifth-checker.spec.ts --output=.noacg/results/fifth
       - name: Fifth B1 with only its unbounded storage-alert read bounded
-        if: always() && inputs.scope == 'fifth'
+        if: always() && matrix.scope == 'fifth'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/fifth-b1-bounded.json }
         run: $PW e2e/leave-fifth-b1-bounded.spec.ts --grep "fifth B1" --output=.noacg/results/fifth-b1-bounded
       - name: Sixth checker challenges
-        if: always() && inputs.scope == 'sixth'
+        if: always() && matrix.scope == 'sixth'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/sixth.json }
         run: $PW e2e/leave-sixth-checker.spec.ts --output=.noacg/results/sixth
       - name: Seventh checker challenges
-        if: always() && inputs.scope == 'seventh'
+        if: always() && matrix.scope == 'seventh'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/seventh.json }
         run: $PW e2e/leave-seventh-checker.spec.ts --output=.noacg/results/seventh
       - name: Eighth checker challenges
-        if: always() && inputs.scope == 'eighth'
+        if: always() && matrix.scope == 'eighth'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/eighth.json }
         run: $PW e2e/leave-eighth-checker.spec.ts --output=.noacg/results/eighth
       - name: Ninth checker challenges
-        if: always() && inputs.scope == 'ninth'
+        if: always() && matrix.scope == 'ninth'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/ninth.json }
         run: $PW e2e/leave-ninth-checker.spec.ts --output=.noacg/results/ninth
       - name: Maintained lifecycle and preserved regressions
-        if: always() && inputs.scope == 'maintained'
+        if: always() && matrix.scope == 'maintained'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/maintained.json }
         run: $PW e2e/new-graphic-guard.spec.ts e2e/library.spec.ts e2e/wizard-draft-guard.spec.ts e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts e2e/editor-commands.spec.ts e2e/project.spec.ts e2e/route-transition-flash.spec.ts --output=.noacg/results/maintained
       - name: Two sequential exported graphics
-        if: always() && inputs.scope == 'maintained'
+        if: always() && matrix.scope == 'maintained'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/export.json }
         run: $PW e2e/ograf-conformance.spec.ts --grep 'two DIFFERENT' --output=.noacg/results/export
       - name: Fetch pinned references
-        if: always() && (inputs.scope == 'references')
+        if: always() && (matrix.scope == 'references')
         run: |
           mkdir -p .noacg
           curl -fL https://github.com/zerodensity/ograf-studio/releases/download/v0.17/OGrafStudioServer-linux-x64 -o .noacg/studio-server
@@ -104,7 +110,7 @@ jobs:
           git -C .noacg/reference-eyevinn checkout 616841bd949e3a21137579451123f66c292543f0
           npm ci --prefix .noacg/reference-eyevinn
       - name: Hash pinned reference sources
-        if: always() && (inputs.scope == 'references')
+        if: always() && (matrix.scope == 'references')
         run: |
           git clone -q https://github.com/zerodensity/ograf-studio.git .noacg/reference-studio
           mkdir -p .noacg/results/source
@@ -129,17 +135,17 @@ jobs:
           PY
           sha256sum .noacg/studio-server | tee .noacg/results/source/studio-binary.sha256
       - name: Execute pinned lifecycle tasks
-        if: always() && (inputs.scope == 'references')
+        if: always() && (matrix.scope == 'references')
         env:
           PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/references.json
           REFERENCE_EXE: ${{ github.workspace }}/.noacg/studio-server
         run: xvfb-run -a $PW e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts --output=.noacg/results/references
       - name: Cumulative interaction and native zoom
-        if: always() && inputs.scope == 'visual'
+        if: always() && matrix.scope == 'visual'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/cumulative.json }
         run: xvfb-run -a $PW e2e/interaction-probe-task.spec.ts e2e/interaction-checker-nested.spec.ts --output=.noacg/results/cumulative
       - name: Fresh tenth acceptance challenge
-        if: always() && inputs.scope == 'tenth'
+        if: always() && matrix.scope == 'tenth'
         run: $PW e2e/leave-tenth-checker.spec.ts --output=.noacg/results/tenth
       - name: Print bounded facts from unchanged specs
         if: always()
@@ -147,6 +153,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: leave-receipts-${{ inputs.scope }}
+          name: leave-receipts-${{ matrix.scope }}
           include-hidden-files: true
           path: .noacg/results

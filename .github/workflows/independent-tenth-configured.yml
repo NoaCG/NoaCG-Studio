@@ -1,5 +1,7 @@
 name: Tenth configured facts (disposable, never merge)
 on:
+  push:
+    branches: [codex/probe-editor-p2-check-10-ci]
   workflow_dispatch: {}
 permissions:
   contents: read
