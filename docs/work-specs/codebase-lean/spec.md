@@ -221,7 +221,8 @@ cases the classification marked covered; each cover is partial by its own TSV no
 column or a design the named check does not pin), they cost half a case-minute together, and
 they stay. Three cases needed more than the boot swap: the kicker-on-air case drives the
 production page's cue editor and Update and reads PROGRAM, the competition pack's
-discoverability case plays the created graphic in the harness iframe, and the measured-motion
+discoverability case walks the wizard's Browse shelf and card and plays the created graphic in
+the harness iframe, and the measured-motion
 case keeps its runtime half without the old step timeline's row. One case went: the simulator
 snap case duplicated production-controls.spec.ts's live control page check (its entry under Test
 maintenance). The covers headers now name what the running cases drive beyond the templates:

@@ -562,12 +562,13 @@ test('a pack graphic saves to the library and reloads with its machine and marks
 });
 
 test('the pack is discoverable in the wizard and creates from a category card', async ({ page }) => {
-  // The real door: the wizard's Browse step narrowed to the pack's category, the design's card,
-  // and Finish into the editor, which makes the created graphic the working document.
+  // The real door: the wizard's Browse step narrowed to the shelf the scorebug sits on (the
+  // pack's category is browsed as a scoreboard, src/templates/meta.ts), the design's card, and
+  // Finish into the editor, which makes the created graphic the working document.
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
-  await chooseCategory(page, 'esports-score');
+  await chooseCategory(page, 'scoreboard');
   await pickDesign(page, 'House Series');
   await finishIntoNewEditor(page);
   // Played in a hidden composer iframe, it settles on its entrance pose with the sample data the
