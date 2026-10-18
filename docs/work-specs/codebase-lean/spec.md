@@ -623,6 +623,26 @@ two workers (queue job `j-0063`): production-audience 0.7, google-fonts 0.1, ren
 video-project 0.7, project-format 0.6. The files' minutes are under Budget exceptions. Still
 skipping: the remaining 5 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the eighth singles (machine-graph, timeline-v2, preview-error)
+
+The twenty-fifth revival, on main `89ca46c37` (2026-10-18): the runtime halves of three old-dock
+files. The two machine-graph runtime cases style their arrows through the mutator the retired
+graph called (`setTransitionStyle` on the materialized machine, found by trigger and event) and
+run the styled design composed the way playout composes it: a styled operator transition plays
+its change and lands on its pose, and the entrance and exit are real lifecycle arrows that
+take fade and cut, refuse deletion (`removeTransition` answers null) and keep next()'s no-op
+parity with a cut exit landing the off pose. The timeline-v2 scoreboard case reads the data
+block off the store and drives the SPX contract on the working graphic mounted the way playout
+composes it; the two chip assertions of the retired dock went. The preview-error case went
+(listed under Test maintenance) and its file with it, since it held nothing else: the new
+editor's stage wears a failure and clears it on the build that works, and the new protocol has
+one error reply for a load and a command (`PreviewController.ts`), which
+editor-foundation.spec.ts pins; its dispositions row is flipped G to C with that evidence. 6
+cases in machine-graph and 1 in timeline-v2, all passing, none skipped. Case-minutes locally on
+two workers (queue job `j-0065`): machine-graph 0.3, timeline-v2 0.1. The files' minutes are
+under Budget exceptions. Still skipping: the remaining 2 live-gap cases are the undecided rows
+(control's live-data block and the template-insert flow), which wait on the owner.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -782,6 +802,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/asset-workflow.spec.ts`: 6 case(s) removed with the assets group revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "drop a logo, make it the NEXT STEP from the canvas chip — connected everywhere, fully undoable" (retired UI: the old canvas chip `canvas-appears`, the timeline surface toggle and the old timeline rows; the drop-adds-one-layer half runs in editor-images.spec.ts 127 and the new editor's step model in editor-steps.spec.ts 352.); "an image kept visible from the beginning stays out of every reveal list, and its row exists" (retired UI: `canvas-appears` and the old timeline's `.timeline-label[data-part]`, which nothing live renders.); "drop into an EXISTING step, then retarget participation afterwards from the Inspector" (retired UI: `inspector-appears` of the old timeline Inspector and the old canvas chip.); "the Inspector names the preset targets and writes an early exit (Disappears)" (retired UI: `inspector-preset-target` and `inspector-disappears` of the old timeline Inspector.); "a preset Delay shifts the written keyframes and grows the step — no keyframe editing needed" (retired UI: the old Inspector's preset select, duration and delay rows; no live surface applies a per-layer preset delay.); "video assets: capped import, VIDEO badge, and a muted looping <video> on drop" (retired UI: the <video> insert is the retired canvas's assetOps.insertVideoElement with no live caller; the import cap is covered by editor-images.spec.ts 250 'file validation guards refuse invalid resource batches'.)
 - 2026-10-18 `e2e/assets.spec.ts`: 7 case(s) removed with the assets group revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "import via the Assets tab: rows appear grouped, and a multi-file import is ONE undo step" (covered: e2e/editor-images.spec.ts 27 'Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo' imports a multi-file batch through assets-import-input in the new editor and one Undo restores the whole source.); "remove is undoable; a Lottie file imports with its badge; junk JSON is rejected" (covered: editor-images.spec.ts 27 removes an unused asset and Undo restores the source, 280 'SVG, font and Lottie resource import stays separate from placement' accepts a Lottie, 250 refuses bad.json.); "moving an asset into a new folder nests its path; undo restores it" (covered: e2e/editor-folders-bins.spec.ts 90 'bins persist empty, rename and move references in one exact undo' and 142 'asset moves preserve folder labels and retain emptied inferred bins in one history receipt'.); "dragging an asset onto the canvas inserts a positioned <img> as one undo step" (covered: editor-images.spec.ts 127 'OS drop and chooser produce the same source; asset drag and a drop over an image always add layers' adds a positioned layer on an asset drop and undo removes it.); "dropping a Lottie asset on the canvas inserts a playing animation element" (retired UI: the canvas Lottie drop is the retired CanvasInteraction's lottieInsert, its only caller; the Lottie import itself runs in editor-images.spec.ts 280.); "a saved v2 layout gains the Assets tab once (v2 -> v3 migration)" (retired UI: the v2 to v3 layout migration and the dock-right tab labels are the deleted WorkspaceDock's record.); "mobile: the Assets tab is in the side-panel strip" (retired UI: `.panel-tabs .tab` is the old SidePanel's mobile strip, deleted 2026-10-17.)
 - 2026-10-18 `e2e/project-format.spec.ts`: 1 case(s) removed with the seventh singles revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "blank artwork requires an authored format before creation" (retired UI: the Blank entry card is gone (EntryStep.tsx says there is no Blank card, and no data-entry=blank or blank-step exists in src); no-old-editor.spec.ts pins its absence, and the import half runs in the same file's import case.)
+- 2026-10-18 `e2e/preview-error.spec.ts`: 1 case(s) removed with the eighth singles revival (its Phase 2 receipt above), and the file deleted with it; receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "a simulator command that throws is worn on the stage, not swallowed" (covered: e2e/editor-foundation.spec.ts 361 'scrub suppresses calls at zero and mid-step; broken source reports failure and recovers' shows a throwing template as the new editor's `.ef-stage-error` and clears it on the source that works; the new protocol answers a load and a command with the same error reply (components/editorFoundation/PreviewController.ts), and the old composer's simulator channel is no longer the editor's.)
 - 2026-10-18 `e2e/counting-settle.spec.ts`: 1 case(s) removed with the counting-settle revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "every counting design settles on its real figure (canvas)" (retired UI: the canvas recipe composed with the old editor's simulator channel (composeDocument with simulate), which no live surface composes with; the shared settle recipe, what every card and thumbnail composes with, keeps the sweep as "every counting design settles on its real figure". The recipe loop was one declaration, so the declaration count is unchanged; this is the runtime case that went.)
 
 ## Budget exceptions
@@ -964,6 +985,13 @@ queue job `j-0063`).
 - e2e/render.spec.ts: 0.9 min, protects the render section measured off the saved record in the standalone export window, expires 2026-11-16
 - e2e/video-project.spec.ts: 0.7 min, protects the video shell's reload, explicit save and reopen, expires 2026-11-16
 - e2e/project-format.spec.ts: 0.6 min, protects the explicit render scaling and a restored unsupported format still opening, expires 2026-11-16
+
+The eighth singles revival (Phase 2, #800) turns three cases back on across two files and removes
+one file. The minutes below are this change's local measurement (case-minutes, two workers,
+queue job `j-0065`).
+
+- e2e/machine-graph.spec.ts: 0.3 min, protects styled transitions playing and landing on their pose, the lifecycle arrows' styles and guards, and the region re-emits under older interpreters, expires 2026-11-16
+- e2e/timeline-v2.spec.ts: 0.1 min, protects a scoreboard's data block and the score pop around the region at runtime, expires 2026-11-16
 
 ## Acceptance criteria
 
