@@ -119,6 +119,8 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   ]);
   const zipBuffer = readFileSync(await download.path());
   await JSZip.loadAsync(zipBuffer); // sanity: it is a real zip
+  await page.keyboard.press('Escape'); // the export window, whose backdrop covers the topbar
+  await expect(page.getByTestId('export-window')).toBeHidden();
 
   // Re-import the zip through the wizard (inside "Create with AI", no AI involved).
   await startNewProject(page);
