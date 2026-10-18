@@ -60,6 +60,9 @@ function codexUsage(transcripts, sessionId, since, until) {
       throw new Error('Native cumulative counters decreased; split the measurement at the reset');
     }
     const delta = (key) => total[key] - (previous?.[key] ?? 0);
+    if (previous && delta('cached_input_tokens') > delta('input_tokens')) {
+      throw new Error('Native interval cached input exceeds total input; split invalid cumulative measurements');
+    }
     if (sample.at >= since && (delta('input_tokens') > 0 || delta('output_tokens') > 0)) {
       // A resumed transcript without its pre-window baseline cannot attribute a lifetime total
       // to this recovery. A new session's zero baseline must be recorded explicitly too.

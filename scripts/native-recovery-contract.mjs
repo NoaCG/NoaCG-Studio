@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 const nonempty = (value) => typeof value === 'string' && value.trim().length > 0;
 const timestamp = (value) => typeof value === 'string' ? Date.parse(value) : NaN;
 const unknown = (reason) => ({ state: 'unknown', reason });
+const bindingFields = ['provider', 'sessionId', 'environmentId', 'revision', 'policySha256'];
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
@@ -21,9 +22,8 @@ export function policyFingerprint(policy) {
 
 /** A read-only native inspection must establish identity, freshness and equivalent permissions. */
 export function inspectNative(expected, observed, now = Date.now(), maxAgeMs = 30_000) {
-  const fields = ['provider', 'sessionId', 'environmentId', 'revision', 'policySha256'];
-  if (!expected || fields.some((key) => !nonempty(expected[key]))) return unknown('incomplete expected native binding');
-  if (!observed || fields.some((key) => observed[key] !== expected[key])) return unknown('native identity or effective policy differs');
+  if (!expected || bindingFields.some((key) => !nonempty(expected[key]))) return unknown('incomplete expected native binding');
+  if (!observed || bindingFields.some((key) => observed[key] !== expected[key])) return unknown('native identity or effective policy differs');
   const at = timestamp(observed.observedAt);
   if (!Number.isFinite(maxAgeMs) || maxAgeMs < 0 || !Number.isFinite(at) || at > now || now - at > maxAgeMs
       || !nonempty(observed.evidence)) return unknown('inspection is stale or lacks evidence');
@@ -40,8 +40,10 @@ export function inspectNative(expected, observed, now = Date.now(), maxAgeMs = 3
 
 /** Used for a launch, follow-up or scheduler submission after its intent was persisted. */
 export function reconcileNative(intent, observation) {
-  if (!intent || !nonempty(intent.actionId) || !nonempty(intent.requestSha256)) return unknown('durable intent required');
+  if (!intent || !nonempty(intent.actionId) || !nonempty(intent.requestSha256)
+      || bindingFields.some((key) => !nonempty(intent[key]))) return unknown('durable intent and native binding required');
   if (!observation || observation.actionId !== intent.actionId || observation.requestSha256 !== intent.requestSha256
+      || bindingFields.some((key) => observation[key] !== intent[key])
       || !nonempty(observation.evidence)) return unknown('submission is not uniquely reconciled');
   if (observation.state === 'accepted' && nonempty(observation.nativeId)) {
     if (intent.nativeId && intent.nativeId !== observation.nativeId) return unknown('native submission identity changed');
@@ -49,7 +51,7 @@ export function reconcileNative(intent, observation) {
   }
   // Only the receiving provider can establish final non-delivery. An empty catalog, matching
   // title/nonce, timeout, missing local receipt or a successful list is insufficient.
-  if (!intent.nativeId && observation.state === 'not-delivered' && observation.authoritative === true
+  if (!intent.nativeId && !observation.nativeId && observation.state === 'not-delivered' && observation.authoritative === true
       && observation.final === true) return { state: 'not-delivered' };
   return unknown('retain the original intent; do not resubmit');
 }
@@ -76,6 +78,16 @@ export function rearmNative({ authorization, target, previous, next, terminal = 
   }
   for (const key of ['provider', 'sessionId', 'environmentId', 'policySha256']) {
     if (previous[key] !== target[key] || next[key] !== target[key]) return unknown('wake target or effective policy changed');
+  }
+  // Optional exact cadence is anchored to raw executor arrival, never provider fire or
+  // update time. dueAt is the timestamp actually encoded in the proposed request.
+  if (Object.hasOwn(authorization, 'cadenceMs')) {
+    const arrival = timestamp(previous.arrivedAt);
+    if (!Number.isSafeInteger(authorization.cadenceMs) || authorization.cadenceMs <= 0
+        || !Number.isFinite(arrival) || arrival < start || arrival > now
+        || timestamp(next.dueAt) !== arrival + authorization.cadenceMs) {
+      return unknown('encoded due must equal executor arrival plus the exact authorized cadence');
+    }
   }
   return { state: 'eligible', actionId: next.actionId, dueAt: next.dueAt, deadline: authorization.deadline };
 }
