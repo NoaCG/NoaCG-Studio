@@ -2,7 +2,7 @@
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
-import { addToProductionFromFinish, enableAdvancedMode } from './_create';
+import { addToProductionFromFinish, finishIntoNewEditor } from './_create';
 import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 
@@ -11,7 +11,7 @@ import { settleDurableWrites } from './_durable';
 // What is pinned here is the branch: everything before Finish configures the graphic, and
 // Finish asks where it goes. THE PRIMARY DOOR is a production (docs/GOALS_ARCHIVE.md "Student
 // release" step 6) — the road to air; Export ships just the files; the editor door is
-// Advanced mode's continuation and the default studio does not offer it.
+// current artwork-editing continuation. The retired code-editor door stays absent.
 
 /** Walk Entry → Browse → pick a design, then Next through to the Finish step. */
 async function toFinishStep(page: Page, variantName = 'Hairline') {
@@ -25,7 +25,7 @@ async function toFinishStep(page: Page, variantName = 'Hairline') {
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 }
 
-test('finish: the production door leads, export follows, and the editor door needs Advanced', async ({ page }) => {
+test('finish: the production door leads, export follows, and the retired code door is absent', async ({ page }) => {
   await toFinishStep(page);
 
   await expect(page.locator('.wz-dot').last()).toHaveText(/Finish/);
@@ -218,15 +218,15 @@ test('finish: skip-to-finish jumps from Browse once a design is picked', async (
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 });
 
-test('finish: the editor door (Advanced) creates the project and leaves saving to the user', async ({ page }) => {
-  await enableAdvancedMode(page);
+test('finish: the editor door creates the project and leaves saving to the user', async ({ page }) => {
   await toFinishStep(page);
   await page.getByTestId('wz-finish-name').fill('Studio Guest Strap');
-  await page.getByTestId('wz-finish-editor').click();
+  await finishIntoNewEditor(page);
 
   await expect(page.getByTestId('creation-wizard')).toBeHidden();
   // The name reaches the template itself, so the topbar and a later Save agree with it.
-  await expect(page.locator('.topbar .tpl-name')).toContainText('Studio Guest Strap');
+  await expect(page.locator('.ef-document-name')).toContainText('Studio Guest Strap');
+  await expect(page.getByTestId('save-status')).toHaveText('Not saved');
   // Nothing was written to the library: this door hands over to the editor, where Save is
   // the user's move — exactly as it was before the step existed.
   const saved = await page.evaluate(async () => {

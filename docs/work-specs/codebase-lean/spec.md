@@ -1,8 +1,8 @@
 # Make the codebase lean, starting with the retired editor
 
 Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
-through singles-i have landed. The approved panels group is this branch; live-gap checks,
-obsolete helpers and VERIFICATION docs remain before #800 closes, with step 6 last.**
+through singles-i, the panels and the released editor/account checks have landed. This branch restores the kept Sheet and insertion cases; obsolete helpers and verification docs remain
+before #800 closes, with step 6 last.**
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
 `3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
@@ -792,6 +792,51 @@ targets. Simplification kept this to deletion and reference repair. No local ful
 app production build ran: these files had no entry-point consumer, and Actions supplies the
 authoritative bundle and broader checks.
 
+### Released editor cases: current UI restoration
+
+Why: nine carried skips still hide live library, persistence, control, video and wizard
+behavior. Goal: restore those exact subjects through the current editor, Home rows, control
+page and wizard. Non-goals: no Phase 2 repair-check or acceptance change, and no production
+behavior change merely to satisfy an obsolete selector. Keep every original live promise;
+retired code-pane highlighting and the old Advanced door are replaced by current source,
+preview and editor-door assertions. Drive edits through Artwork text and wizard controls,
+not direct store writes. Observe durable writes before reload. Acceptance: all nine subjects
+run without retired helpers; save state follows edits/reopen, navigation preserves the right
+working source, entry deletion stays armed, custom looks persist/apply, and Finish names the
+working graphic without saving a library record. Preparation selection `j-4611` passed all
+nine cases in 31.4 seconds. Review then changed the old-package assertion to a fresh bookmark
+load so prior Home visibility cannot satisfy it. Queue job `j-4612` then passed all 49 cases in the three files in 1.3 minutes, with no
+skips, including the stronger bookmark assertion. A stale Advanced-era title was clarified
+without changing that running case's assertions. The branch then merged panel main `2c36ba0be224d464938538428d02b8b77c56b5b9` with a merge commit. Its production source is identical to the panel source already in the tested branch. No production behavior changed during these restorations. Review corrected the project disposition left as RESERVED after handover; all nine are resolved G rows with executed evidence. Final branch gates pass, including all 27 configured-verdict tests.
+The source has no retired helper calls in these three files; eleven live gaps remain outside
+them: four configured account cases, two Sheet cases and five insertion cases.
+
+### Configured account cases: current surfaces
+
+Why: the remaining account skips still point to the retired graphics editor. Goal: keep the
+four live promises on Home, the current editor and the explicit recovery notice. The signed-in
+bar retains its width/name/title/settings checks; the save dialog keeps its account-location
+words; the anonymous gate keeps account-purpose copy and Escape dismissal; real session loss
+preserves saved local work and resumes sync after the user chooses Sign in. An unsolicited
+expiry modal is obsolete: the current notice says editing is paused and preserves pending
+work. Non-goals: no auth, sync, stored-data or Phase 2 repair behavior change. Run these
+against the existing isolated configured stack in Actions, never the production environment.
+Raise the configured test floor by four and remove the three old-editor skip allowances.
+Preparation: the four restored cases and shared helper pass ESLint; all 27 configured-verdict
+Node checks pass with the floor raised from 100 to 104 and the three old-editor allowances
+removed. All four restored cases passed first attempt against the isolated stack in Actions
+[39150461649](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39150461649) on
+`d0c5c2d5079f918211252778981afae0ea472e6f`. The full suite ran 108 cases: 107 passed,
+one unchanged deep-link case failed then passed, and three permitted skips. Its overall
+workflow verdict remains failure. Read the whole configured job log; account loss, account
+purpose, the width ladder and signed-in save wording all passed without retries. The standard quarantine command confirms that this file is already recorded since
+2026-10-16 from run 38874823120, so it writes nothing. Off-main configured dispatches deliberately
+keep every flake red, including existing quarantine files. Preserve that policy and the failed
+workflow verdict. The file keeps running on every main push and earns release through the
+existing 20-pass rule; no assertion, floor, skip allowance, workflow or limit changes. Local changed
+gates and ESLint pass; no offline skip substitutes for this configured evidence. Still
+skipping: the remaining seven live-gap cases in Sheet data and template insertion.
+
 ### Kept live features: Sheet data and template insertion
 
 Why: the owner kept Sheet live data and Add template graphic, but their entry points were
@@ -822,10 +867,11 @@ full catalog sweep or production build ran; authoritative bundle/factory and bro
 checks remain in Actions. The 75-file affected plan is recorded as broad, not claimed locally.
 Rendered captures show the existing picker at 1440px, the merged artwork and the Sheet form
 at 1280px. Catalog thumbnails load only on intersection; wait for the six visible roots before
-judging the picker. Review also corrected duplicate component keys, modal Escape/focus return
-the binding covers headers, and carrying the donor entrance when its appearance moves. All 27 changed Node checks pass. Public copy is plain; only its two reduced copy-baseline
+judging the picker. Review also corrected duplicate component keys, modal Escape/focus return, the binding covers headers, and carrying the donor entrance when its appearance moves. All 27 changed Node checks pass. Public copy is plain; only its two reduced copy-baseline
 counts change (AssetsPanel 10 to 9, InsertTemplateDialog 5 to zero). The retained generator and
-merge helper remain the only implementations, with one bounded session edit per UI action.
+merge helper remain the only implementations, with one bounded session edit per UI action. The final targeted navigation check `j-4623` also passed: Escape restores focus, browser Back closes the picker, and Forward cannot resurrect it or change the document.
+
+Reconciled on main `f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` after PR #1489 landed, with a merge commit and regenerated contracts. All seven kept live-gap cases now run; one covered production duplicate still calls the retired skip helper and needs its final equivalence audit before helper deletion. Final main-reconciled queue job `j-4625` passed all 13 cases in both complete files in 35.0 seconds, with no skips. Changed gates passed all 27 selected Node checks, and contract regeneration produced no additional branch changes.
 
 ### Remaining order and the #800 exit condition
 

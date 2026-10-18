@@ -284,4 +284,13 @@ test('templates that need their own runtime are greyed with the reason, not hidd
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('insert-tpl-dialog')).toHaveCount(0);
   await expect(page.getByTestId('assets-insert-template')).toBeFocused();
+  await page.getByTestId('assets-insert-template').click();
+  await expect(page.getByTestId('insert-tpl-dialog')).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('insert-tpl-dialog')).toHaveCount(0);
+  await page.goForward();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('insert-tpl-dialog')).toHaveCount(0);
+  expect((await state(page)).template).toEqual(before.template);
 });

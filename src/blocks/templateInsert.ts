@@ -192,7 +192,7 @@ export function insertTemplateGraphic(
 ): InsertResult {
   const curData = parseAnimData(current.js);
   if (!curData) {
-    return { error: 'this project has no editable animation data block — open a data-block project (every catalog template is one)' };
+    return { error: 'Open a graphic with editable animation data before inserting a template.' };
   }
 
   const donor = buildDonor(variant, opts.steps ?? false);
@@ -223,7 +223,7 @@ export function insertTemplateGraphic(
   const newIds = fieldMap.map((m) => m.to);
   const htmlSnippet =
     `  <!-- Inserted template graphic: ${variant.name}` +
-    `${newIds.length > 0 ? ` (fields ${newIds.join(', ')})` : ''} — its styles are scoped under #${gfxId}. -->\n` +
+    `${newIds.length > 0 ? ` (fields ${newIds.join(', ')})` : ''}. Its styles are scoped under #${gfxId}. -->\n` +
     `  ${subtree}`;
 
   // ── CSS: strip the reset, re-scope :root onto the inserted root ────────────
