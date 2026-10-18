@@ -74,9 +74,9 @@ function renderControls() {
   for (const field of snapshot.fields ?? []) {
     const label = document.createElement('label');
     label.textContent = field.label;
-    const input = document.createElement(field.kind === 'lines' ? 'textarea' : field.kind === 'select' ? 'select' : 'input');
+    const input = document.createElement(field.kind === 'lines' ? 'textarea' : ['select', 'image'].includes(field.kind) ? 'select' : 'input');
     input.setAttribute('aria-label', field.label);
-    if (field.kind === 'select') {
+    if (['select', 'image'].includes(field.kind)) {
       for (const item of field.options ?? []) {
         const option = document.createElement('option');
         option.textContent = item.label;

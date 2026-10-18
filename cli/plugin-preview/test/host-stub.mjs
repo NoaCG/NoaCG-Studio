@@ -8,6 +8,10 @@ export async function mountHost(client, bench, initial) {
   const page = await bench.newPage();
   const errors = [];
   const calls = [];
+  const consoleMessages = [];
+  const failedRequests = [];
+  page.on('console', (message) => { if (['warning', 'error'].includes(message.type())) consoleMessages.push({ type: message.type(), text: message.text().slice(0, 2000) }); });
+  page.on('requestfailed', (request) => failedRequests.push({ url: request.url().startsWith('data:') ? '<embedded resource>' : request.url(), error: request.failure()?.errorText }));
   page.on('pageerror', (error) => errors.push(error.message));
   const prefix = 'mcp__preview_trial__';
   const openTool = (await client.listTools()).tools.find(({ name }) => name === 'noacg_preview');
@@ -35,5 +39,5 @@ export async function mountHost(client, bench, initial) {
   }, { html, initial, qualifiedTool: { ...openTool, name: prefix + openTool.name } });
   const ui = page.frameLocator('#app');
   await ui.getByRole('status').filter({ hasText: 'Ready' }).waitFor();
-  return { page, ui, graphic: ui.frameLocator('#graphic'), errors, calls };
+  return { page, ui, graphic: ui.frameLocator('#graphic'), errors, calls, consoleMessages, failedRequests };
 }

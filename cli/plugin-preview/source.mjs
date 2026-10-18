@@ -8,7 +8,7 @@ export const FIXTURE_ROOT = fileURLToPath(new URL('./fixture/', import.meta.url)
 export const SOURCE_FILES = ['badge.svg', 'graphic.css', 'graphic.html', 'graphic.js'];
 export const SIZE = { width: 1920, height: 1080 };
 const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript', json: 'application/json', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf' };
-const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; navigate-to 'none'";
+const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 const escapeEnd = (text, tag) => text.replace(new RegExp(`</${tag}`, 'gi'), `<\\/${tag}`);
 async function replaceAsync(text, expression, replacement) {
   const matches = [...text.matchAll(expression)];
@@ -127,5 +127,5 @@ export async function readSource(root = FIXTURE_ROOT, entry = 'graphic.html') {
   const sourceFiles = [...files.keys()].sort();
   const hash = createHash('sha256');
   for (const name of sourceFiles) { const bytes = files.get(name); hash.update(`${name}\0${bytes.length}\0`).update(bytes); }
-  return { packageId: root === path.resolve(FIXTURE_ROOT) || sourceFiles.join() === SOURCE_FILES.join() ? 'noacg-preview-lower-third' : path.basename(root), revision: `files-sha256:${hash.digest('hex')}`, sourceRoot: root, sourceFiles, entry, document };
+  return { packageId: root === path.resolve(FIXTURE_ROOT) || sourceFiles.join() === SOURCE_FILES.join() ? 'noacg-preview-lower-third' : path.basename(root), revision: `files-sha256:${hash.digest('hex')}`, sourceRoot: root, sourceFiles, entry, document, assetUrls: Object.fromEntries([...files].filter(([name]) => MIME[name.split('.').pop().toLowerCase()].startsWith('image/')).map(([name, bytes]) => [name, `data:${MIME[name.split('.').pop().toLowerCase()]};base64,${bytes.toString('base64')}`])) };
 }

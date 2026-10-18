@@ -64,13 +64,13 @@ jobs stayed within five minutes and the existing one-browser-job queue.
 | --- | --- |
 | Plugin unit/protocol/source tests | Host-qualified calls, app-only tools, fixed fixture digest, closure revision, traversal/symlink/size/cycle refusal and distribution exclusion |
 | Existing browser journey | Actual before/after PNGs, native-source-style CSS edit, refresh, keyboard/click/region selection and superseded-view refusal in a simulated host |
-| New square-package browser journey | Loaded relative SVG and Inter WOFF2 through nested CSS, 1080 × 1080 canvas, six field kinds, Update/action/Out/Take/reset, source unchanged, current PNG/context and both selection modes at 800/460 px |
+| New square-package browser journey | Loaded relative SVG and Inter WOFF2 through nested CSS, 1080 × 1080 canvas, seven field kinds, Update/action/Out/Take/reset, source unchanged, current PNG/context and both selection modes at 800/460 px |
 | Isolation probes | Parent DOM/cookie/storage denial, absent OpenAI/product bridge, blocked network/file fetches and ignored graphic-origin tool messages |
 | Rendered frames inspected by builder | Initial/rehearsed source PNGs and wide/narrow panel screenshots; font, composition, text wrapping and selection alignment checked visually |
 | Actual Windows Codex inspection | **Not checked**; required by #1491 |
 
 The square fixture's exact source revision is
-`files-sha256:814340f0f956be12d9fa8e347734767f048c5d2824b51d47b8e093aaeb328daa`.
+`files-sha256:400f2668c955a44a7e9d4e7264e9bdb8e3e9f1301e3b4ab1ec47ad75b6c9f8ed`.
 The baseline phase-1 revision remains
 `files-sha256:8dde8a7398c3d3a09d8bf499bdee9643d931a759ee7af28de7e34d5bf4db086f`.
 The browser receipt records the actual tested implementation SHA, dirty paths,
@@ -94,6 +94,7 @@ through the iframe's rendered scale and compares it with the highlight. No basel
 or existing gate was weakened. j-0006 passed both journeys. j-0007 exposed the old
 test's extra preview call superseding its displayed view and the product's premature
 Ready before replay finished; both were fixed, and j-0008 passed both journeys.
+Independent review then reproduced two defects on the immutable first candidate: viewport-dependent initialization captured960 px instead of authored540 px, and an image default over4000 characters was truncated/broken. The fix detects canvas size inside the browser before source execution and keeps image values as package asset keys while passing complete image bytes only inside the graphic. The square fixture now regresses both, including a filelist picker. Review evidence is preserved under review/.
 Final exact-tip evidence supersedes these intermediate candidates. Logs retain all
 observed failures and source changes; an old pass is not claimed for a newer tip.
 
@@ -130,7 +131,7 @@ that worktree. Do not remove or replace the original plugin/marketplace/cache.
 
 Discover the phase2 MCP connection and open its actual Codex conversation panel.
 Record app/CLI versions, source SHA, plugin0.1.4/SDK1.31.0, actual runtime/package
-paths and source digest. Inspect square aspect, SVG/font, all six field kinds,
+paths and source digest. Inspect square aspect, SVG/font, all seven field kinds,
 Update/Goal+1/Out/Take/Next/reset, named keyboard/click selection and a Region at
 wide and narrow panel sizes. Inspect actual alignment; verify source stays unchanged.
 Send one explicit selection request and confirm the active native task receives

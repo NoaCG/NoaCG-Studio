@@ -166,3 +166,16 @@ reference files; use repository fixtures until the explicit local check.
   Neither currently registers an MCP App preview resource or conversation panel.
 - Local installation is host work. Record actual installation/reload outcomes
   before treating the platform documentation as proof of this user's app.
+
+- Phase 2 carry/decisions: the private candidate loads a configured source-package
+  closure with assets/fonts, derives fields/actions from the existing control
+  seams in the contained browser and keeps responsive element/region selection
+  bound to the rehearsal frame. It uses separate plugin/marketplace/MCP identities
+  to preserve the installed 0.1.3 runtime. Details and the standalone Windows
+  continuation prompt are in [phase-2.md](phase-2.md).
+- Phase 2 remains incomplete until actual Windows rendered AC-3 inspection and an
+  independent verdict in [#1491](https://github.com/NoaCG/NoaCG-Studio/issues/1491).
+  Phase 1 is already independently passed in #1314; its installed0.1.3/SDK1.30.0
+  proof does not establish candidate0.1.4/SDK1.31.0 native compatibility. Do not
+  repeat phase 1, treat a browser stub as the native gate, touch the preserved
+  installed runtime/draft, or unlock phase 3 from cloud evidence alone.

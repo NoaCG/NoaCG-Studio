@@ -73,7 +73,7 @@ Sending uses the host-qualified tool name and MCP Apps `ui/message` with OpenAI
 
 1. Confirm the real panel is square (1080 × 1080), with the relative badge and bundled
    Inter font rendered. Inspect the graphic and controls at wide and narrow panel sizes.
-2. Edit Headline, Score, Edition, Show badge, Accent and Notes; press **Update preview**.
+2. Edit Headline, Logo, Score, Edition, Show badge, Accent and Notes; press **Update preview**.
    Use **Goal +1**, **Out**, **Take**, **Next** and **Reset rehearsal**. The graphic and
    inputs must agree; Out disables an action the current state cannot accept.
 3. Select **Headline** by click or its named keyboard button. Resize the panel and
@@ -96,6 +96,7 @@ not the full phase-3 validation/history/restoration workflow.
 
 The supported input is the ordinary SPX/NoaCG source layout: a chosen HTML entry,
 relative classic JavaScript (including defer), stylesheets/imports, images and fonts.
+Image controls choose local package assets (or complete embedded defaults), keeping full image bytes inside the graphic while sample values retain their source asset keys.
 The exact-byte digest covers its sorted dependency closure; unrelated files are not read.
 Relative markup, CSS URLs and literal image/font paths in classic JS are embedded as data.
 Authored dimensions come from the product's existing format detector, not a fixed 16:9 box.
@@ -104,7 +105,7 @@ OGraf-only web components are not supported by this trial. Missing resources fai
 
 Only the configured directory is readable. Traversal, hidden paths, symlinks, special files
 and external resource paths are refused. Limits: 128 dependencies, 4 MiB per file, 16 MiB
-source bytes, 24 MiB expanded document and a 4096 px maximum canvas dimension. These bound
+source bytes, 40 fields, 40 actions, 100 authored choices per field, 4000 characters per sample value, 24 MiB expanded document and a 4096 px maximum canvas dimension. These bound
 the local trial; they do not change repository test/resource limits.
 
 All package execution and metadata extraction occur in the CLI's contained, fresh browser
@@ -128,7 +129,7 @@ npm run queue -- "npm run test:browser --prefix cli/plugin-preview" --cap 5
 ```
 
 The browser tests cover the original source-edit journey and a square source package with
-nested CSS, a local font, six field kinds, a custom action and both selection modes at two
+nested CSS, a local font, seven field kinds, a custom action and both selection modes at two
 sizes. They inspect actual PNGs, source bytes, sandbox access and blocked network/file reads.
 The host is simulated. Focused Actions artifact `preview-trial-browser-stub` retains the
 phase2 frames, receipt and reconstructable source package alongside phase-1 evidence.

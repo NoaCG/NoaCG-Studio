@@ -34,18 +34,22 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
     const refused = await client.callTool({ name: 'noacg_preview_rehearse', arguments: { revision: initial.structuredContent.revision, viewId: initial.structuredContent.viewId, cmd: 'update', values: { undeclared: 'never' } } });
     assert.equal(refused.isError, true);
     assert.deepEqual(initial.structuredContent.size, { width: 1080, height: 1080 });
-    assert.equal(initial._meta.preview.fields.length, 6);
-    assert.deepEqual(initial._meta.preview.fields.map((f) => f.kind), ['text', 'number', 'select', 'toggle', 'color', 'lines']);
+    assert.equal(initial._meta.preview.fields.length, 7);
+    assert.deepEqual(initial._meta.preview.fields.map((f) => f.kind), ['text', 'image', 'number', 'select', 'toggle', 'color', 'lines']);
+    assert.equal(initial._meta.preview.fields.find((field) => field.key === 'badge').defaultValue, 'images/badge.svg');
+    assert.equal(initial._meta.preview.targets.find((target) => target.id === 'headline').bounds.width, 540);
     assert.equal(initial._meta.preview.actions[0].label, 'Goal +1');
     assert.equal(initial._meta.preview.actions[0].disabled, false);
     const png = Buffer.from(initial.content[1].data, 'base64');
     assert.equal(png.readUInt32BE(16), 1080);
     assert.equal(png.readUInt32BE(20), 1080);
     await writeFile(path.join(evidence, 'square-initial.png'), png);
-    const { page, ui, graphic, errors, calls } = await mountHost(client, bench, initial);
+    const { page, ui, graphic, errors, calls, consoleMessages, failedRequests } = await mountHost(client, bench, initial);
     await graphic.locator('#panel').waitFor();
     await graphic.locator('#panel').evaluate(() => document.fonts.ready);
     assert.deepEqual(await graphic.locator('body').evaluate(() => ({ faces: [...document.fonts].map((font) => font.status), imageLoaded: document.getElementById('badge').naturalWidth > 0, imageWidth: document.getElementById('badge').getBoundingClientRect().width, family: getComputedStyle(document.getElementById('headline')).fontFamily })), { faces: ['loaded'], imageLoaded: true, imageWidth: 68, family: 'Trial, sans-serif' });
+    assert.equal(await ui.getByLabel('Logo', { exact: true }).inputValue(), 'images/badge.svg');
+    assert.ok(await graphic.locator('#badge').evaluate((node) => node.src.length > 4000 && node.naturalWidth > 0), 'complete image data survives metadata and Update');
     const stage = await ui.locator('#stage').boundingBox();
     assert.ok(Math.abs(stage.width - stage.height) < 1);
     await ui.getByLabel('Headline', { exact: true }).fill('Evening report from the studio');
@@ -58,6 +62,7 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
     assert.equal(await graphic.locator('#headline').textContent(), 'Evening report from the studio');
     assert.equal(await graphic.locator('#score').textContent(), '7');
     assert.equal(await graphic.locator('#edition').textContent(), 'REPLAY');
+    assert.ok(await graphic.locator('#badge').evaluate((node) => node.src.length > 4000 && node.naturalWidth > 0));
     await ui.getByRole('button', { name: 'Goal +1', exact: true }).click();
     await ui.getByRole('status').filter({ hasText: 'Ready' }).waitFor();
     await graphic.locator('#score').filter({ hasText: /^8$/ }).waitFor();
@@ -138,7 +143,7 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
     assert.equal(await graphic.locator('#score').textContent(), '2');
     assert.equal(await ui.getByRole('button', { name: 'Send change to this task' }).isDisabled(), true);
     assert.equal((await readSource(root, 'square.html')).revision, original.revision, 'rehearsal never writes source');
-    await writeFile(path.join(evidence, 'receipt.json'), JSON.stringify({ implementation: { sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), dirtyPaths: execFileSync('git', ['status', '--short'], { encoding: 'utf8' }).trim(), plugin: JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version, sdk: JSON.parse(await readFile(new URL('../node_modules/@modelcontextprotocol/sdk/package.json', import.meta.url), 'utf8')).version }, revision: original.revision, sourceFiles: original.sourceFiles, size: initial.structuredContent.size, context, region, isolation, errors }, null, 2));
+    await writeFile(path.join(evidence, 'receipt.json'), JSON.stringify({ implementation: { sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), dirtyPaths: execFileSync('git', ['status', '--short'], { encoding: 'utf8' }).trim(), plugin: JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version, sdk: JSON.parse(await readFile(new URL('../node_modules/@modelcontextprotocol/sdk/package.json', import.meta.url), 'utf8')).version }, revision: original.revision, sourceFiles: original.sourceFiles, size: initial.structuredContent.size, context, region, isolation, errors, consoleMessages, failedRequests }, null, 2));
     assert.deepEqual(errors, []);
     process.stdout.write('Phase-2 package/browser checks passed; Windows rendered desktop inspection remains unverified.\n');
   } finally {
