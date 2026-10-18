@@ -284,6 +284,24 @@ file, 7 passing, none skipped, 0.5 case-minutes locally on two workers (queue jo
 The file's minutes are under Budget exceptions. Still skipping: the remaining 87 live-gap cases,
 in the pack and single-case families.
 
+### Phase 2 receipt: the holding-pack revival
+
+The fifth revival, on main `50c677af` (2026-10-18): holding-pack's wizard walk and its
+runtime-harness cases opened with the retired advanced-mode switch. Nine live-gap cases run
+again: the three families browsable with every design offered, the holding set found under its
+own type, the ceremony card created and landed in the new editor through the Finish step's
+door, and the six harness cases (the wall-clock countdown, its self-correction through a stalled
+loop, Update re-arming a running countdown while an unrelated update leaves it alone, the
+clock-less holding screen, the reel's seam and clone count, the static board) on the bench's app
+door, driving play() and update() in their own iframe the way playout does. No case was removed:
+the classification had marked the browsability and the running-countdown cases as covered, and
+the pull request's review showed the named replacements partial (wizard-filters compares
+filtered counts for two other categories only; on-air-corrections sends its updates to a
+finished timer and never moves the wall-clock field), so both run again and their rows say so.
+10 cases in the file, 10 passing, none skipped, 0.8 case-minutes locally on two workers (queue
+job `j-0036`). The file's minutes are under Budget exceptions. Still skipping: the remaining 80
+live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -479,6 +497,12 @@ and removes three; the table weighs the file at 0.02 minutes from its all-skippe
 below is this change's local measurement (case-minutes, two workers, queue job `j-0034`).
 
 - e2e/design-rules-product.spec.ts: 0.5 min, protects the viewing and floors controls reaching the request and the working document, and the legibility warnings in the export window, expires 2026-11-16
+
+The holding-pack revival (Phase 2, #800) turns nine live-gap cases in one file back on and
+removes none; the table weighs the file at 0.1 minutes from its earlier runs. The minute below is
+this change's local measurement (case-minutes, two workers, queue job `j-0035`).
+
+- e2e/holding-pack.spec.ts: 0.8 min, protects the holding set's wizard discovery and editor door, the wall-clock countdown, the credit reel's loop and the static board at runtime, expires 2026-11-16
 
 ## Acceptance criteria
 
