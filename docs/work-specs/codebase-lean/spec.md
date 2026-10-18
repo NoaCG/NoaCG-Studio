@@ -453,6 +453,21 @@ passing, none skipped, 0.2 case-minutes locally on two workers (queue job `j-005
 test passes 1 of 1. The file's minutes are under Budget exceptions. Still skipping: the
 remaining 42 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the counting-settle revival
+
+The fifteenth revival, on main `71ac6227a` (2026-10-18): the counting-settle sweeps opened the app
+behind the retired advanced-mode switch. Three cases run again, their bodies as they were
+behind the app door: every counting design settling on its real figure the way every card and
+thumbnail settles it, every counting design playing its figure up from zero on both seeds, and
+a counting graphic taken again on air never painting its old figure. The settle sweep used to
+run twice, once per recipe; the canvas recipe composed with the old editor's simulator channel,
+which no live surface composes with, so the sweep runs the shared settle recipe alone and its
+title drops the recipe, so the sweep's canvas run went (listed under Test maintenance).
+4 cases in the file (the seed loop counts two), 4
+passing, none skipped, 3.1 case-minutes locally on two workers (queue job `j-0053`). The file's
+minutes are under Budget exceptions. Still skipping: the remaining 39 live-gap cases, in the
+pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -607,6 +622,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/format.spec.ts`: 6 case(s) removed with the format revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "formatHtml / formatCss / formatJs normalize messy code" (covered: scripts/format-code.test.mjs 'formatHtml / formatCss / formatJs normalize messy code', the same inputs and assertions in Node.); "formatJs refuses any file that owns an animation region" (covered: scripts/format-code.test.mjs 'formatJs refuses any file that owns an animation region', the data-block and legacy fixtures as they were.); "formatTemplate formats HTML but leaves CSS and JS alone by default" (covered: scripts/format-code.test.mjs 'formatTemplate formats HTML but leaves CSS and JS alone by default', the same three strings; formatTemplate reads nothing else of its fixture.); "minimalTextChange returns only the changed span (cursor-stable, merge-friendly)" (retired UI: minimalTextChange served only the deleted Monaco code pane, which the Phase 1 receipt names orphaned by the CodeEditor deletion.); "the Format button reformats the active tab through Monaco and the store" (retired UI: `.format-btn` of the deleted CodeEditor toolbar, opened by showCode.); "the Format button is disabled on the JS tab of a data-block template (region protected)" (retired UI: the same deleted Format button and JS tab.)
 - 2026-10-18 `e2e/wave2.spec.ts`: 3 case(s) removed with the wave2 revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "scoreboard: all four fields bind and a score change lands" (covered: e2e/production-controls.spec.ts 398 'a scoreboard GOAL raises the flag AND moves that side's score on the same press' moves House Score's program #f1 0 to 1 to 2 on a live press; dashboard-operator-walk.spec.ts 80 lands typed and stepped score fields on program and preview.); "corner bug: plays with the placeholder mark" (covered: e2e/catalog-baseline.spec.ts 392 'every catalog variant renders identically' settles Glass Mark on air with its placeholder mark and 'LIVE' text, fingerprinted per element.); "quiz: options bind and Next reveals the correct answer" (covered: e2e/community-packs.spec.ts 29 'the shelf lists the seeded pub quiz, and Install opens a production whose graphic takes, reveals and goes out' marks .quiz-option-2 correct on verb-next and dims the rest, the shared quiz runtime; production-controls.spec.ts 129 judges Arena Quiz.)
 - 2026-10-18 `e2e/ux.spec.ts`: 4 case(s) removed with the ux revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "layout: code dock left ONCE OPENED, canvas + timeline in the centre, tool tabs right" (retired UI: `.editor-host`, the dock-right tab labels and the centre stage are the deleted AppShell and WorkspaceDock geometry.); "data: add-field lands as a REAL line on a catalog template, in the assembler's own idiom" (covered: e2e/editor-base-edits.spec.ts 313 'B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition' lands a REAL field painted in the preview on a catalog template through baseEdits and addCatalogLine; the Data panel's add row is retired.); "data: the catalog-line add is gated on the standard line SHAPE, never the category" (covered: scripts/catalog-line-gate.test.mjs 'the catalog-line add is gated on the standard line SHAPE, never the category', the same five designs and verdicts.); "style: a color change highlights the changed CSS lines" (retired UI: `.editor-host .changed-line` is the deleted Monaco pane's change highlight.)
+- 2026-10-18 `e2e/counting-settle.spec.ts`: 1 case(s) removed with the counting-settle revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "every counting design settles on its real figure (canvas)" (retired UI: the canvas recipe composed with the old editor's simulator channel (composeDocument with simulate), which no live surface composes with; the shared settle recipe, what every card and thumbnail composes with, keeps the sweep as "every counting design settles on its real figure". The recipe loop was one declaration, so the declaration count is unchanged; this is the runtime case that went.)
 
 ## Budget exceptions
 
@@ -714,6 +730,13 @@ removes three; the table weighs the file at 0.009 minutes from its earlier runs.
 below is this change's local measurement (case-minutes, two workers, queue job `j-0052`).
 
 - e2e/ux.spec.ts: 0.2 min, protects export validation gating the download on a broken template and the wizard's direction control mixing a different exit preset at create, expires 2026-11-16
+
+The counting-settle revival (Phase 2, #800) turns three sweeps in one file back on and drops the
+settle sweep's canvas run; the table
+weighs the file at 0.007 minutes from its earlier runs. The minute below is this change's
+local measurement (case-minutes, two workers, queue job `j-0053`).
+
+- e2e/counting-settle.spec.ts: 3.1 min, protects every counting design settling on its real figure, playing its figure up from zero on both seeds and never painting its old figure on a re-take, expires 2026-11-16
 
 ## Acceptance criteria
 
