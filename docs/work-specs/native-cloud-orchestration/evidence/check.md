@@ -100,3 +100,44 @@ Findings:
 2. Main CI 39061580332 on `0b3790fb` had not finished: `E2E 9/13 (full)` was cancelled and `E2E retry (failed specs, same commit)` was still running at 19:44:35Z. That is a pass or fail still to come, not a pass.
 3. The queue entry came from the builder's `mcp__github__enable_pr_auto_merge` at 19:08:41Z, after the owner gave explicit permission in the builder session. Shell calls to the auto_merge route were refused as self-approval at 18:56:51Z and 19:08:37Z.
 4. AC-5 is the coordinator's step after this verdict, so it cannot be checked here.
+
+## Second check (late record)
+
+Requested by the coordinator through `send_message` (queued 19:46:47Z) after its repair. Same
+checker session, same rules; the first verdict above stays as written.
+Late record: the checker stopped after its 20:04:15Z read, before pushing this (the coordinator
+records a usage-limit stop at 20:04:17Z), and resumed only after the window closed at 20:39:59Z. It is pushed at the owner's request on 2026-10-18,
+unlanded; the values below are the ones read before 20:05Z, plus the run's later conclusion.
+
+Coordinator ledger lines after the build lines, verbatim from its `plan-run.mjs` output in its
+native events (`list_events`), read by this checker at 19:49Z:
+
+```text
+- 2026-10-17T19:15:00.681Z phase 1 landed #1408 0b3790fb87a5629bf2b66c1f668d93d838a56d68 (merged 19:14:13Z; PR CI 39060617075 success on 1d130798, merge-group CI 39061191312 success; main CI 39061580332, post-land 39061580299, configured-suite 39061580297, quarantine 39061580321 pending at record time; deploy-verify skipped)
+- 2026-10-17T19:15:07.815Z phase 1 check branch claude/native-cloud-phase-1-check, source 0b3790fb87a5629bf2b66c1f668d93d838a56d68 (origin/main), nonce ncp1-check-20261017T191507Z-a7c8b381, env env_017nuiDZBW9smUNLdWVQK8cf, native create_session pending
+- 2026-10-17T19:45:59.236Z phase 1 fail product: AC-3 repair-owner comment issuecomment-6239053255 lacked queue entry, merge SHA and post-land conclusions (last edit 19:01:51Z); main CI 39061580332 pending at 19:44Z. AC-1 pass, AC-2 pass. Checker session_01JKvaTpJJTCKavDDJ91zLdo, receipt 81545a7a9e9c1302843c27927381a27e759a72e8 on claude/native-cloud-phase-1-check
+- 2026-10-17T19:46:27.485Z phase 1 repair coordinator updates repair-owner comment issuecomment-6239053255 with queue entry 19:08:41Z, merge 0b3790fb87a5629bf2b66c1f668d93d838a56d68 and post-land conclusions; no code change, no new branch
+- 2026-10-17T19:46:35.920Z phase 1 landed #1408 0b3790fb87a5629bf2b66c1f668d93d838a56d68 unchanged; repair was the owner comment edit at 19:47Z (no new merge)
+- 2026-10-17T19:46:36.023Z phase 1 check second check: same checker session_01JKvaTpJJTCKavDDJ91zLdo by send_message follow-up (not the builder), branch claude/native-cloud-phase-1-check, main 0b3790fb87a5629bf2b66c1f668d93d838a56d68
+```
+
+Repair-owner comment issuecomment-6239053255, re-read from GitHub at 19:48:17Z: `updated_at`
+2026-10-17T19:46:28Z. The body now names `added_to_merge_queue` 19:08:41Z on head `1d130798`, the
+merge at 19:14:13Z as `0b3790fb87a5629bf2b66c1f668d93d838a56d68`, PR CI 39060617075 and
+merge-group CI 39061191312 success, Post-landing, configured-suite and Quarantine success,
+deploy-verify skipped, and main CI 39061580332 as pending with shard 9/13 cancelled. Each value
+matches what this checker read itself above.
+
+Main CI 39061580332 on `0b3790fb`, read at 20:04:15Z: still in_progress. `E2E 9/13 (full)`
+cancelled at 19:37:24Z, `E2E retry (failed specs, same commit)` in_progress. Read again on
+2026-10-18 at 04:20Z: completed, conclusion cancelled, updated 2026-10-17T20:20:47Z. It never
+reached success.
+
+Notes PR #1412 (first check) merged at 2026-10-17T19:58:13Z as `116022568682`, after
+`enable_pr_auto_merge` by this session at 19:47:05Z and `added_to_merge_queue` at 19:52:41Z.
+
+Criteria at the second check: AC-1 PASS (ledger lines above, verbatim), AC-2 PASS, AC-3 PASS
+(the repaired comment names the queue entry, merge SHA and conclusions, with main CI explicitly
+pending), AC-4 not complete because main CI was not terminal, AC-5 the coordinator's step.
+
+FAIL blocked: main CI not terminal at 20:05Z (run 39061580332 later cancelled at 20:20:47Z)
