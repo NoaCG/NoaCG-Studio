@@ -339,6 +339,21 @@ no live surface. 6 cases in the file, 6 passing, none skipped, 0.6 case-minutes 
 workers (queue job `j-0043`). The file's minutes are under Budget exceptions. Still skipping: the
 remaining 68 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the image-purpose revival
+
+The eighth revival, on main `0bdf5a47` (2026-10-18): the image-purpose cases opened the Create
+with AI step behind the retired advanced-mode switch, which one of them needed for the old
+editor's Assets panel. Five cases run again: the preselect reading a picture as mark or not,
+the fixed/swappable choice belonging to "use it as it is" alone, each purpose reaching the
+model as its own instruction, a reference never bundled into the created template, and a
+design that improves an as-is picture being held back. Four of them only drop the switch; the
+bundle case reads the package the export writes, through the Finish step's export door, because
+every entry of the template's assets list ships there as a file (`src/export/common.ts`
+`addSharedAssets`), so the zip's listing is the assets list as playout receives it. No case was
+removed. 6 cases in the file, 6 passing, none skipped, 0.5 case-minutes locally on two
+workers (queue job `j-0044`). The file's minutes are under Budget exceptions. Still skipping: the
+remaining 63 live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -553,6 +568,12 @@ table weighs the file at 0.01 minutes from its earlier runs. The minute below is
 change's local measurement (case-minutes, two workers, queue job `j-0043`).
 
 - e2e/package.spec.ts: 0.6 min, protects the custom hex and imported font reaching the package, the info card, the credits field and the ticker's marquee and timed hold at runtime, expires 2026-11-16
+
+The image-purpose revival (Phase 2, #800) turns five cases in one file back on; the table weighs
+the file at 0.075 minutes from its earlier runs. The minute below is this change's local
+measurement (case-minutes, two workers, queue job `j-0044`).
+
+- e2e/image-purpose.spec.ts: 0.5 min, protects the purpose preselect, the as-is binding choice, each purpose's instruction in the request, the reference kept out of the package and the as-is guard, expires 2026-11-16
 
 ## Acceptance criteria
 
