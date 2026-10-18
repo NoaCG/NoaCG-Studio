@@ -13,9 +13,8 @@
 // covers: src/components/save/SaveDialogs.tsx
 
 import { test, expect } from '@playwright/test';
-import { awaitPreviewAfterReload, awaitPreviewRebuild } from './_preview';
-import { showCode } from './_code';
-import { finishIntoEditor, enableAdvancedMode } from './_create';
+import { finishIntoNewEditor } from './_create';
+import { editorPreview } from './_frame';
 import { durableValue } from './_storage';
 import { chooseType, pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
@@ -23,52 +22,34 @@ import * as rules from '../scripts/rules.mjs';
 
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
 // from it: only a first-ever visit (no autosaved project) opens the wizard, and a returning
-// user lands on Home. The reload test below edited the old code editor, which is closed, so it
-// skips until it is rewritten (https://github.com/NoaCG/NoaCG-Studio/issues/800).
+// user lands on Home. The reload case edits artwork through the current editor.
 
 test('project autosave: the working graphic survives a reload', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, 'Lower thirds');
   await pickDesign(page, 'Hairline');
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-  });
-
-  // A distinctive edit into the code (the pane ships closed — open it as a user would).
-  await showCode(page);
-  await page.locator('.editor-host .monaco-editor').click();
-  await page.keyboard.press('Control+End');
-  await page.keyboard.type('<!-- autosave-marker-42 -->');
-  await page.waitForTimeout(1200); // let the 800ms autosave debounce fire
-
-  // It persisted to the durable store (IndexedDB), and the test that follows is a RELOAD - so
-  // what has to be true is that the DATABASE holds it, not that the app's mirror does
-  // (e2e/_storage.ts durableValue).
-  await expect
-    .poll(async () => (await durableValue(page, 'spx-gfx-project'))?.includes('autosave-marker-42') ?? false)
-    .toBe(true);
-
-  // Reload → the working template is restored, and the user lands STRAIGHT in it: no wizard
-  // over a returning user's work (the wizard auto-opens only when there is no project).
+  await finishIntoNewEditor(page);
+  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+  await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
+  await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill('autosave-marker-42');
+  await page.getByRole('button', { name: 'Apply text', exact: true }).click();
+  await expect(editorPreview(page).locator('#f0')).toHaveText('autosave-marker-42');
+  await expect.poll(async () => (await durableValue(page, 'spx-gfx-project'))?.includes('autosave-marker-42') ?? false).toBe(true);
+  await settleDurableWrites(page);
   await page.reload();
-  await awaitPreviewAfterReload(page);
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  const restored = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.html;
-  });
-  expect(restored).toContain('autosave-marker-42');
-
-  // The wizard stays one step away: the routed #/new opens it, and leaving the route (the
-  // in-app ✕) rewinds cleanly back to the editor.
+  await expect(editorPreview(page).locator('#f0')).toHaveText('autosave-marker-42');
   await page.goto('/app#/new');
   await expect(page.locator('.wz-modal')).toBeVisible();
-  await page.locator('.gallery-close').click();
+  await page.locator('.wz-header .gallery-close').click();
   await expect(page.locator('.wz-modal')).toBeHidden();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const restored = await page.evaluate(async () =>
+    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.html);
+  expect(restored).toContain('autosave-marker-42');
 });
 
 test('the wizard door is on every /app surface, beside Home', async ({ page }) => {

@@ -8,8 +8,9 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openWorkingGraphicInEditor, skipOldEditor } from './_create';
-import { showCode } from './_code';
+import { bootstrapGraphic, finishIntoNewEditor, openWorkingGraphicInEditor } from './_create';
+import { pickDesign } from './_browse';
+import { editorPreview } from './_frame';
 import { settleDurableWrites } from './_durable';
 
 // docs/SAVED_CONTENT_MODEL.md — the graphics LIBRARY, the Save flow, routed Home, brand
@@ -18,6 +19,16 @@ import { settleDurableWrites } from './_durable';
 // code, and browser Back/Forward walk the surfaces like pages. (Packages are retired -
 // docs/GOALS_ARCHIVE.md "Student release" step 3: every save is standalone in the flat library and
 // grouping for air is a PRODUCTION, covered by shows/productions specs.)
+
+const workingSource = (page: Page) => page.evaluate(async () =>
+  (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+async function editTitle(page: Page, text: string) {
+  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+  await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
+  await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill(text);
+  await page.getByRole('button', { name: 'Apply text', exact: true }).click();
+  await expect(editorPreview(page).locator('#f0')).toHaveText(text);
+}
 
 async function saveAs(page: Page, name: string) {
   await page.getByTestId('save-graphic').click();
@@ -39,29 +50,22 @@ async function openControlPanel(page: Page, name: string) {
 }
 
 test('save names the graphic; the status stays honest through edits and reopen', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await expect(page.getByTestId('save-status')).toHaveText('Not saved');
-
   await saveAs(page, 'Presenter lower third');
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
-
-  // An edit flips the badge; Ctrl+S saves it back without a dialog.
-  await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const s = useTemplateStore.getState();
-    s.applyTemplate({ ...s.template, css: s.template.css + '\n/* tweak */\n' });
-  });
+  await editTitle(page, 'Saved artwork edit');
   await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
   await page.keyboard.press('Control+s');
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
-
-  // A reload keeps the link (the slot carries graphicId + dirty) and lands straight back
-  // in the saved graphic — no startup wizard over a returning user's work.
+  await settleDurableWrites(page);
   await page.reload();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await expect(page.locator('.wz-modal')).toBeHidden();
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
-  await expect(page.locator('.tpl-name')).toHaveText('Presenter lower third');
+  await expect(page.locator('.ef-document-name')).toHaveText('Presenter lower third');
+  await expect(editorPreview(page).locator('#f0')).toHaveText('Saved artwork edit');
 });
 
 test('save dialog: a text-selection drag that ends on the backdrop never closes it', async ({ page }) => {
@@ -95,18 +99,12 @@ test('save dialog: a text-selection drag that ends on the backdrop never closes 
 });
 
 test('Home lists the library; Back walks the history; an old package link lands on Home', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Presenter lower third');
-
   await page.getByTestId('open-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
-  // The DASHBOARD carries a shelf of recent graphics; the library ROWS belong to the Graphics
-  // section, which is where the ⋯ menu and the per-row doors live.
   await expect(page.getByTestId('shelf-graphic').filter({ hasText: 'Presenter lower third' })).toBeVisible();
-
-  // Graphics section → the row's ⋯ menu → the control panel → Back returns to Home
-  // (history is real). The per-graphic control panel lives one step from every row.
   await page.getByTestId('home-nav-graphics').click();
   const row = page.locator('.lib-row', { hasText: 'Presenter lower third' });
   await row.getByTestId('row-menu').click();
@@ -114,14 +112,16 @@ test('Home lists the library; Back walks the history; an old package link lands 
   await expect(page.getByTestId('graphic-control-page')).toBeVisible();
   await page.goBack();
   await expect(page.getByTestId('home-page')).toBeVisible();
-
-  // A bookmarked pre-retirement package link degrades to Home, never a dead surface.
-  await page.evaluate(() => { window.location.hash = '#/package/00000000-0000-4000-8000-000000000000'; });
+  // A fresh bookmark load cannot pass just because Home was already on screen.
+  await settleDurableWrites(page);
+  await page.goto('/app#/package/00000000-0000-4000-8000-000000000000');
   await expect(page.getByTestId('home-page')).toBeVisible();
-
-  // Continue editing returns to the editor with the same document.
-  await page.getByTestId('home-continue-editing').click();
-  await expect(page.locator('.tpl-name')).toHaveText('Presenter lower third');
+  await page.getByTestId('home-nav-graphics').click();
+  await page.locator('.lib-row', { hasText: 'Presenter lower third' }).getByTestId('open-graphic').click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await page.getByTestId('control-open-editor').click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.locator('.ef-document-name')).toHaveText('Presenter lower third');
 });
 
 test('a first-ever visit is offered creation, not a door to an empty Home', async ({ page }) => {
@@ -134,10 +134,10 @@ test('a first-ever visit is offered creation, not a door to an empty Home', asyn
 });
 
 test('the wizard leads with the Home card once there is saved work, and it lands on Home', async ({ page }) => {
-  skipOldEditor();
   // The old per-graphic "Recent" chips are gone deliberately: in the default studio they
   // opened the EDITOR (the demoted surface). Saved work continues from Home's rows.
   await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Presenter lower third');
   await page.getByTestId('open-home').click(); // → Home (the logo is the front page now)
   await expect(page.getByTestId('home-page')).toBeVisible();
@@ -169,26 +169,30 @@ test('the wizard header carries its own Home door', async ({ page }) => {
 });
 
 test('opening another graphic with unsaved changes asks first; Discard proceeds', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, 'Hairline');
   await openWorkingGraphicInEditor(page);
+  await editTitle(page, 'First saved title');
   await saveAs(page, 'First graphic');
-  // Second graphic, saved, then dirtied.
-  await bootstrapGraphic(page, { category: 'lower-third', index: 1 });
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
+  await editTitle(page, 'Second saved title');
   await saveAs(page, 'Second graphic');
-  await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const s = useTemplateStore.getState();
-    s.applyTemplate({ ...s.template, css: s.template.css + '\n/* dirty */\n' });
-  });
+  await editTitle(page, 'Unsaved second title');
   await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
-
+  // The current editor guards leaving for Home, before the other graphic can be opened.
   await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-graphics').click(); // the library rows live in the section
-  await page.locator('.lib-row', { hasText: 'First graphic' }).getByTestId('open-graphic').click();
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-discard').click();
-  await expect(page.locator('.tpl-name')).toHaveText('First graphic');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  await page.getByTestId('home-nav-graphics').click();
+  await page.locator('.lib-row', { hasText: 'First graphic' }).getByTestId('open-graphic').click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await page.getByTestId('control-open-editor').click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  await expect(page.locator('.ef-document-name')).toHaveText('First graphic');
+  await expect(editorPreview(page).locator('#f0')).toHaveText('First saved title');
 });
 
 test('a graphic row opens from its NAME, the same door a production row offers', async ({ page }) => {
@@ -315,11 +319,11 @@ test('switching entries re-settles the SAME preview document instead of reloadin
 });
 
 test('the control panel reports the state and greys an event the machine would drop', async ({ page }) => {
-  skipOldEditor();
   // Parity with the editor's Rehearse panel, the event strip and the hosted page: all three
   // poll the runtime's pointers and grey an illegal event. This surface shipped with neither,
   // so a live operator had no on-air indication and every button looked pressable.
-  await bootstrapGraphic(page, { category: 'quiz' });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  await openWorkingGraphicInEditor(page);
   await saveAs(page, 'Quiz board');
   await openControlPanel(page, 'Quiz board');
 
@@ -549,56 +553,41 @@ test('phone width: every row action is reachable, the text stays two lines, the 
 });
 
 test('video and graphics stay separate but connected: #/video, back to graphics, never trapped', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, 'Hairline');
-  await page.evaluate(() => {
-    window.location.hash = '#/video';
-  });
+  await openWorkingGraphicInEditor(page);
+  const before = await workingSource(page);
+  await page.evaluate(() => { window.location.hash = '#/video'; });
   await expect(page.getByTestId('video-shell')).toBeVisible();
   await expect(page.locator('.video-workspace-badge')).toContainText('Video');
   await page.getByTestId('back-to-graphics').click();
-  await expect(page.locator('.tpl-name')).toHaveText('Hairline');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('home-nav-graphics')).toHaveAttribute('aria-current', 'page');
+  expect(await workingSource(page)).toEqual(before);
 });
 
 test('looks: capture the current look in Home, apply it to another graphic, survive reload', async ({ page }) => {
-  skipOldEditor();
-  // Moved from the retired packets.spec.ts (packages removed): brand LOOKS are their own
-  // store and stay first-class.
-  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-
-  // Tweak the accent through the Style panel, then capture the look in Home.
-  await page.getByTestId('dock-tab-style').click();
-  await page
-    .getByTestId('style-var-accent')
-    .first()
-    .locator('input.grow')
-    .fill('#12e29a');
+  await page.goto('/app');
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.locator('[data-palette="custom"]').click();
+  await page.locator('.wz-custom-colors .field-row', { hasText: 'Accent' }).locator('input.grow').fill('#12e29a');
+  await finishIntoNewEditor(page);
   await page.getByTestId('open-home').click();
   await page.getByTestId('home-nav-looks').click();
   await page.getByPlaceholder(/Look name/).fill('Mint look');
   await page.getByRole('button', { name: 'Save current look' }).click();
+  await expect(page.getByText('Look saved from the graphic open in the editor.', { exact: false })).toBeVisible();
   await expect(page.locator('.lib-row', { hasText: 'Mint look' })).toBeVisible();
-
-  // The look survives a full reload (localStorage) and applies to a FRESH graphic. A fresh
-  // graphic matters for determinism too: whether the autosave (800 ms debounce) caught the
-  // accent tweak before the reload decides if the restored project already carries it — and
-  // applying a look that is already active changes nothing, so nothing would highlight.
   await page.reload();
-  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' }); // the wizard opens on load — make the fresh graphic
-  await page.getByTestId('open-home').click();
+  await bootstrapGraphic(page, 'Hairline');
+  expect((await workingSource(page)).css).not.toContain('--accent: #12e29a');
   await page.getByTestId('home-nav-looks').click();
   await page.locator('.lib-row', { hasText: 'Mint look' }).getByRole('button', { name: 'Apply', exact: true }).click();
-  // Apply returns to the editor (the look retints the OPEN graphic).
-  const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.css;
-  });
-  expect(css).toContain('--accent: #12e29a');
-  // The applied change is highlighted in the CSS tab — for a user who has the code pane open
-  // (it ships closed; applying a look works either way, this asserts what they'd then see).
-  await showCode(page);
-  await expect(page.locator('.tabs .tab.active')).toHaveText('CSS');
-  await expect(page.locator('.editor-host .changed-line').first()).toBeVisible();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect.poll(async () => (await workingSource(page)).css).toContain('--accent: #12e29a');
+  await expect.poll(() => editorPreview(page).locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--accent').trim())).toBe('#12e29a');
 });
 
 test('a look carries SHAPE, and never grafts a token onto a design that reads none', async ({ page }) => {

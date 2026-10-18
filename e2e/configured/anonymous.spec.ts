@@ -23,7 +23,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, mintAccount, SERVICE_ROLE_KEY, signInOnHome, SUPABASE_URL } from './_helpers';
-import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { chooseNoacgAgent } from '../_ai-step';
 import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from '../../src/components/auth/accountCopy';
@@ -118,23 +118,10 @@ test.describe('anonymous visitor (open editor)', () => {
   });
 
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
-    // An old-EDITOR subject (the AI panel). That editor is closed, so
-    // enableAdvancedMode skips this test until it is rewritten
-    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
-    await enableAdvancedMode(page);
-    await page.goto('/app');
-    await dismissWizard(page); // reach the topbar + panels underneath
-
-    // Topbar offers Sign in (and no signed-in account status).
-    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+    await page.goto('/app#/home');
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
     await expect(page.locator('.auth-status')).toHaveCount(0);
-
-    // WHAT THE ACCOUNT IS FOR, said at the moment we ask (owner, 2026-09-04: "I don't have a
-    // really good reason for people to be logged in"). The reason is ONE sentence
-    // (src/components/auth/accountCopy.ts), derived from what a signed-in visitor actually gets,
-    // and it is asserted as words as well as as the constant: an emptied constant would still
-    // equal itself. From the topbar there is no door, so the sentence is the whole answer and the
-    // no-wall line sits under it.
     expect(ACCOUNT_IS_FOR).toMatch(/free account/);
     expect(ACCOUNT_IS_FOR).toMatch(/any computer/);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -143,18 +130,18 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
     await card.locator('.gallery-close').click();
     await expect(card).toHaveCount(0);
-
-    // AI is an account feature in hosted mode: the panel shows the sign-in prompt, not controls,
-    // and the prompt carries the same sentence under its own reason.
-    await page.getByRole('button', { name: 'AI', exact: true }).click();
-    await expect(page.getByTestId('signin-prompt')).toBeVisible();
-    await expect(page.getByTestId('signin-prompt').getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
-
-    // Esc closes the dialog — signing in is always optional.
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByTestId('home-new-project').click();
+    await page.locator('[data-entry="ai"]').click();
+    await chooseNoacgAgent(page);
+    const prompt = page.getByTestId('signin-prompt');
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
+    await prompt.getByTestId('signin-prompt-signin').click();
     await expect(card).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(card).toHaveCount(0);
+    // Escape also rewinds the wizard, so the no-account creation route is still available.
+    await expect(page.locator('[data-entry="template"]')).toBeVisible();
   });
 
   test('an expiry notification leaves anonymous creation usable and sign-in stays explicit', async ({ page }) => {
