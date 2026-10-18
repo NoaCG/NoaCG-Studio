@@ -136,7 +136,7 @@ function movedToCopy(before: EditingContext, now: EditingContext): boolean {
 }
 
 /** How long a save waits for a "(conflicted copy)" to reach this tab's library. Its write
- *  commits and is announced in well under a second; past this, the save asks for a name. */
+ *  commits and is announced in well under a second; past this, the save stops waiting. */
 const COPY_ARRIVAL_MS = 10_000;
 
 /** A "(conflicted copy)" another tab's sync pass wrote reaches this tab's library mirror only once
@@ -219,7 +219,8 @@ export function saveCurrentGraphic(opts?: {
 }
 
 async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'failed'> {
-  if (!useTemplateStore.getState().saved.graphicId) return 'needs-name';
+  const initial = useTemplateStore.getState().saved;
+  if (!initial.graphicId) return 'needs-name';
   const waited = new Set<string>();
   for (;;) {
     const { saved, setSaved } = useTemplateStore.getState();
@@ -234,6 +235,13 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
     await arriving;
     const now = useTemplateStore.getState().saved;
     if (now.status === 'saving') setSaved({ ...now, status: saved.status });
+  }
+  const current = useTemplateStore.getState();
+  if (!initial.dirty && current.saved.graphicId && waited.has(current.saved.graphicId) && !graphicById(current.saved.graphicId)) {
+    // This work was already saved in its own copy when Save started. Mirror lag cannot
+    // unsave it. Keep the live link and any edit made during the wait; a later Save retries.
+    current.setSaved({ ...current.saved, status: 'failed' });
+    return 'failed';
   }
   prepareEmptyOut();
   const s = useTemplateStore.getState();

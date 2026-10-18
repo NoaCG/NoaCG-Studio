@@ -699,6 +699,13 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-18: clean saved-copy arrival timeout repair
+
+- Last check: [tenth independent receipt](work-specs/editor-leave-reliability/independent-10/README.md) on `1ac6093a` (#1478). A second tab linked cleanly to its own conflicted copy before its library mirror could read that copy. Save waited ten seconds, unlinked the draft and asked naming; Home then asked about already-saved work. Source and winner stayed intact; reload recovered the durable clean link.
+- [Repair receipt](work-specs/editor-leave-reliability/repair-11/README.md): when Save starts clean, an unreadable known copy after the existing bounded wait yields a retryable Save failure. The live copy id and dirty flag stay as they are, so no edit means no unsaved question, while an edit made during the wait stays unsaved. A later Save writes the copy once readable, never the winner. The existing per-id wait follows chained conflicts too.
+- Compatibility decision: an edit already present **before** Save keeps the maintained matrix's existing missing-record/naming fallback. The repair closes the clean-started wait, including edits made during it. Every existing maintained and carried file remains byte-identical, including the matrix's `save-timeout` row; only additional focused regression coverage is added. No timeout, assertion, skip or gate changes.
+- Phase 3 remains gated on a fresh independent check after this repair lands. The conflicted-copy notice/name distinction from #1466 remains Phase 3 work. The ten-second mirror lag is transient unreadability of a known saved copy, not evidence that its clean source needs another record.
+
 ### 2026-10-18: tenth independent leave-editor check failed
 
 - [Tenth independent receipt](work-specs/editor-leave-reliability/independent-10/README.md), on main `1ac6093a` after #1476. The conflict relink and chained-copy wait work in the maintained matrix (49/49), and the earlier carried checks keep their assertions. The fresh check found an AC 2 failure in the disclosed timeout fallback: a second tab hears the clean link to its conflicted copy before its library adopts that copy. Pressing Save with **no further edit**, then waiting ten seconds, unlinks it, marks it dirty and asks for a name. Cancel naming and let the copy arrive: Home still asks about "unsaved changes". The source and remote winner are intact. A reload restores the durable clean copy link; this finding does not claim a question after that reload.
