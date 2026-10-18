@@ -302,6 +302,25 @@ finished timer and never moves the wall-clock field), so both run again and thei
 job `j-0036`). The file's minutes are under Budget exceptions. Still skipping: the remaining 80
 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the end-credits revival
+
+The sixth revival, on main `aeafa14e` (2026-10-18): end-credits' paste cases created their
+graphic through the old "Create project" door and read the old stage, and its wizard and
+harness cases opened with the retired advanced-mode switch. Eight cases run again: the credit
+roll pasted as one field and read as one role over its names, the unmarked list read as names,
+the column design's geometry, the Fields step's one paste box, the closing logo as a default,
+the Style step's emphasis choice, and the two harness loops (every credits design settling with
+its names on screen on both recipes; the roll and the crawl running the list off the frame
+before the mark). The paste cases bootstrap the design through the live door and read the
+working graphic mounted the way playout composes it (`mountWorkingDocument` and
+`updateWorkingDocument` in `e2e/_frame.ts`), the wizard cases land in the new editor through the
+Finish step's door and read the same mounted document, and the harness loops open on the bench's
+app door. No case was removed: the classification had marked the unmarked-list case as covered
+by the parser's Node test, which pins the parsing and not the DOM the roll paints, so it runs
+again and its row says so. 10 cases in the file (the two loops count four), 10 passing, none skipped, 0.7 case-minutes
+locally on two workers (queue job `j-0039`). The file's minutes are under Budget exceptions.
+Still skipping: the remaining 73 live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -503,6 +522,12 @@ removes none; the table weighs the file at 0.1 minutes from its earlier runs. Th
 this change's local measurement (case-minutes, two workers, queue job `j-0035`).
 
 - e2e/holding-pack.spec.ts: 0.8 min, protects the holding set's wizard discovery and editor door, the wall-clock countdown, the credit reel's loop and the static board at runtime, expires 2026-11-16
+
+The end-credits revival (Phase 2, #800) turns ten cases in one file back on and removes none;
+the table weighs the file at 0.01 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0039`).
+
+- e2e/end-credits.spec.ts: 0.7 min, protects the one-field credit roll in the DOM, the Fields step's paste box, the logo default, the emphasis choice and the settle and travel of every credits design, expires 2026-11-16
 
 ## Acceptance criteria
 
