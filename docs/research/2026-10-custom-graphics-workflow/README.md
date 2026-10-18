@@ -2,7 +2,9 @@
 
 Research only, prepared 18 October 2026 for the morning review. The revised brief and the owner's election-source clarification are covered. No product implementation, existing work-spec change, hosted write or plan execution.
 
-**Start with the [concrete Finnish election walkthrough](election/README.md).** It explains who collects each input, the sample files, exact API body/bindings, four graphic types, February rehearsal and 18 April 2027 operation. [The source investigation](election/source-investigation.md) distinguishes verified Yle/Ministry provenance from the unverified delivery interface.
+**For the morning: [read the whole-plan verdict](morning-review.md).** The [full assessment](08-whole-plan-assessment.md) reviews the agreed run against current main `4569b9622`, including live candidate selection, the legacy Sheet path, export limits and the minimum completion rehearsal. The earlier experiment and mockups retain their historical evidence baseline.
+
+For the concrete use case, open the [Finnish election walkthrough](election/README.md). It explains who collects each input, the sample files, exact API body/bindings, four graphic types, February rehearsal and 18 April 2027 operation. [The source investigation](election/source-investigation.md) distinguishes verified Yle/Ministry provenance from the unverified delivery interface. The local proof uses one fixed live candidate; the new assessment explains the additional work needed for selecting different candidates on one reusable live card.
 
 ## Review artifacts
 
@@ -21,6 +23,7 @@ Research only, prepared 18 October 2026 for the morning review. The revised brie
 5. [Options and external benchmarks](05-options-and-external-benchmarks.md): Option A recommended, B conditional, C rejected; primary source links.
 6. [Validation and acceptance criteria](06-validation-and-acceptance-criteria.md): seven usability tasks and setup/action/observable results with honest evidence status.
 7. [Proposed plan amendments](07-proposed-plan-amendments.md): exact relevant decisions/ACs/phases, dependencies and compatibility; existing specs untouched.
+8. [Whole-plan assessment](08-whole-plan-assessment.md): completion boundary, source-backed gaps, output-route matrix, supplemental amendments and a complete custom-show rehearsal; [short morning review](morning-review.md).
 
 ## Focused screen index
 
