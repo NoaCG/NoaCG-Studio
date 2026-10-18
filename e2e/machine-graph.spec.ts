@@ -81,15 +81,21 @@ test('a styled transition plays the arrow\'s change and lands exactly on the tar
       await sleep(900); // the entrance settles
       w.noacgDispatch?.('select');
       const pointerMovedSynchronously = w.noacgMachineState?.().groups.main === 'selected';
-      // The styled change is 0.6 s total; give it time plus slack, then read the pose.
-      await sleep(1400);
+      // The pose alone also passes for a broken fade. Sample the change itself in-frame.
       const root = document.querySelector('.quiz') as HTMLElement;
+      let minimumOpacity = 1;
+      const until = performance.now() + 1400;
+      while (performance.now() < until) {
+        minimumOpacity = Math.min(minimumOpacity, Number(getComputedStyle(root).opacity));
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
       const opacity = Number(getComputedStyle(root).opacity);
-      return { pointerMovedSynchronously, opacity, state: w.noacgMachineState?.().groups.main };
+      return { pointerMovedSynchronously, minimumOpacity, opacity, state: w.noacgMachineState?.().groups.main };
     });
 
   expect(result.pointerMovedSynchronously).toBe(true);
   expect(result.state).toBe('selected');
+  expect(result.minimumOpacity).toBeLessThan(0.9);
   // The fade ends ON the pose: fully visible again, never stuck half-faded.
   expect(result.opacity).toBeGreaterThan(0.99);
 });

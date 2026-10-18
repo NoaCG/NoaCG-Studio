@@ -1815,6 +1815,44 @@ test('a shared model, rendering or storage change runs the shared-change set, an
   }
 });
 
+// #1349: importTemplate is CORE, so its covers header is bypassed before the shared set is
+// applied. Pin the journey through the default CLI too; a full-suite plan would hide this miss.
+for (const [shape, changed] of [
+  ['package import', ['src/model/importTemplate.ts']],
+  ['shared model', ['src/model/structure.ts']],
+  ['shared storage', ['src/store/templateStore.ts']],
+  ['integration union', ['src/model/importTemplate.ts', 'src/legal.css', 'src/templates/lowerThirds/lt01.ts', 'e2e/configured/pro-wizard.spec.ts']],
+]) {
+  test(`${shape} selects the CLI round-trip journey before landing`, () => {
+    const plan = planFor(changed, { sprintFocus: true });
+    assert.equal(plan.mode, 'subset');
+    assert.equal(plan.focusApplied, true);
+    assert.ok(plan.specs.includes('editor-cli-round-trip.spec.ts'), '#1349 must not escape to main');
+
+    const parts = changed.map((file) => planFor([file], { sprintFocus: true }));
+    assert.deepEqual(plan.specs, [...new Set(parts.flatMap((part) => part.specs))].sort(), 'keep every constituent selection');
+    assert.equal(plan.catalog, parts.some((part) => part.catalog));
+    assert.equal(plan.configured, parts.some((part) => part.configured));
+
+    const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', ...changed], {
+      cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true,
+    }));
+    assert.equal(cli.mode, 'subset');
+    assert.ok(cli.specs.includes('editor-cli-round-trip.spec.ts'), 'the journey must reach the blocking CLI plan');
+    assert.equal(cli.catalog, plan.catalog);
+    assert.deepEqual([...cli.specs, ...cli.quarantined].sort(), plan.specs);
+  });
+}
+
+test('docs-only CLI plans no browser tests after adding the round-trip journey', () => {
+  const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', 'docs/ARCHITECTURE.md'], {
+    cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true,
+  }));
+  assert.equal(cli.mode, 'none');
+  assert.deepEqual(cli.specs, []);
+  assert.equal(cli.catalog, false);
+});
+
 test('an uncertain change (a new file no header names) escalates to the shared-change set and is named as unmapped', () => {
   const plan = planFor(['src/sync/replication.ts'], { sprintFocus: true });
   assert.equal(plan.focusApplied, true);
