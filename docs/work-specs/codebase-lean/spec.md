@@ -689,8 +689,8 @@ No full local suite or production build was run.
 ### Phase 2 receipt: the retired and covered removals (ten files)
 
 The twenty-sixth cleanup, on main `60320e909` (2026-10-18), was reviewed case by case.
-Fourteen retired or already-covered cases go from ten files: the old AI panel's three cases,
-ai-consent's old-panel stub case, four code-pane comment-visibility cases, three old Control
+Ten retired or already-covered cases go from ten files: the old AI panel's three cases,
+ai-consent's old-panel stub case, three old Control
 tab cases, one anonymous old-editor case and the Data-panel/canvas-context insertion doors.
 Their individual evidence remains under Test maintenance. Only ai-panel's empty file goes.
 
@@ -705,7 +705,9 @@ preparation evidence, not the final main-reconciled verdict. After merging curre
 1.2 minutes on three workers. The seven skips are the retained Sheet and insertion cases.
 The configured anonymous file is excluded by the offline runner and was linted, not locally
 verified against a backend; the landed configured-suite supplies its authoritative result.
-ESLint on all nine existing changed specs, the protection check against origin/main and
+The comment-control checks were subsequently restored after Codex review found their live
+video consumer; that repair has its own verification below. ESLint on all nine existing
+changed specs, the protection check against origin/main and
 the changed-file gates passed. No production source or check limit changed.
 
 The owner kept Google Sheet live data and Add template graphic on 2026-10-18. The Sheet block's
@@ -717,10 +719,29 @@ owner released those nine skipped cases to this cleanup, bringing the remaining 
 work to eighteen. Current coverage precedes removing the retired helpers.
 The old `j-0066` result (52 passed, 5 skipped) predates the continuation and is not evidence
 for the revised branch. The original receipt also miscounted its removals as eighteen; the
-actual original diff removed twenty-one declarations, seven of which are retained here.
+actual original diff removed twenty-one declarations, eleven of which are retained here.
 The additional configured account case stays because the named replacements omit its inline
 account-purpose text and Escape dismissal. It remains a live gap until that journey runs
 through current Home and wizard doors.
+
+### Continuation review: live video comment controls
+
+Codex review of PR #1484 found the graphics-pane classification too broad: VideoCodeEditor
+still mounts CommentVisibilitySelect and useCommentVisibility. All four interaction cases
+therefore stay, with their rows corrected to G. They drive the video pane's mode control,
+check transparent/35%/normal rendering without source or history writes, edit and undo a
+comment through Monaco, remount and reload the pane with the mode remembered, and exercise
+selection and find reveals. The controller's model-swap contract uses Monaco's API explicitly;
+there is no model-tab UI in the video pane. Queue job `j-4608` passed all five comment cases.
+The temporary mutation probe was rejected by automatic approval review before execution;
+no production source changed and no fault-injection result is claimed. The actual mode
+round trip supplies the visible positive and negative assertions.
+
+The first PR CI build also reproduced an affected-planner failure: offline.spec.ts named
+all wizard imports although its flow only creates a catalog graphic. Its covers header now
+excludes wizard/import, matching the journey it runs, and the unchanged affected-planner
+checks pass all 92 cases. No assertion, selector expectation, gate or limit was relaxed.
+The earlier 56-case receipt is superseded by the final repair selection below.
 
 ### Remaining order and the #800 exit condition
 
@@ -885,7 +906,6 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/project-format.spec.ts`: 1 case(s) removed with the seventh singles revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "blank artwork requires an authored format before creation" (retired UI: the Blank entry card is gone (EntryStep.tsx says there is no Blank card, and no data-entry=blank or blank-step exists in src); no-old-editor.spec.ts pins its absence, and the import half runs in the same file's import case.)
 - 2026-10-18 `e2e/ai-consent.spec.ts`: 1 case(s) removed with the retired and covered removals (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "the offline stub generates without ever showing the notice" (retired UI: the old editor's AI panel (dock-tab-ai, 'AI assistant', Generate) is the unmounted AIPromptPanel; the AI step disables Create without a key (ai.spec.ts 1081) and the notice-free Create with AI runs in the same file's first case.)
 - 2026-10-18 `e2e/ai-panel.spec.ts`: 3 case(s) removed with the retired and covered removals (its Phase 2 receipt above), and the file deleted with them; receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "a bench-failing modify burns real repair rounds and the card reports the failure" (retired UI: the old AI panel's Modify and `.change-preview` Apply are the unmounted AIPromptPanel; the live repair rounds run in ai.spec.ts 1014 'invalid first answer triggers the automatic repair round' and 645, and bench.spec.ts 364.); "a clean modify passes the injected gate and applies" (retired UI: the same panel applying into the old preview frame; ai.spec.ts 1028 'refine sends the current code back through modify' and 475 run one clean emit with no repair round.); "with no AI configured, \"add a lower third\" adds one rather than crashing the offline stub" (retired UI: stubProvider.modify was reachable only through the old AI panel; the AI step's Create is disabled without a key (ai.spec.ts 1081) and ProposalPanel disables Propose when unconfigured.)
-- 2026-10-18 `e2e/comments.spec.ts`: 4 case(s) removed with the retired and covered removals (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "Hidden paints comments transparent and leaves the source untouched" (retired UI: the `comment-visibility` select and the Monaco decorations of the deleted CodeEditor pane; src/editor/commentVisibility.ts has no live consumer.); "the mode survives a tab switch, a content edit, and a reload" (retired UI: the same deleted pane's tab model swap and Monaco remount.); "a selection inside a hidden comment reveals it" (retired UI: the same deleted pane's editor.setSelection reveal.); "a find match inside a hidden comment reveals it" (retired UI: the same deleted pane's find-controller reveal.)
 - 2026-10-18 `e2e/control.spec.ts`: 3 case(s) removed with the retired and covered removals (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "control tab live-drives the preview from a field control" (covered: e2e/library.spec.ts 211 'a saved graphic's control panel: entries create, play with the active entry, persist' fills an entry field and plays it into the control page preview; production-data.spec.ts 24 lands cue values on the Cue preview.); "a number field becomes a +/- stepper (no per-template code)" (covered: e2e/import-svg-behaviour.spec.ts 141 'imported scoreboard: a numeric layer is a ± stepper that acts on air, and survives a reload', and production-controls.spec.ts 987 pins the .ctl-num steppers in the cue editor.); "the Control tab renders labeled event buttons from the machine and fires them" (covered: e2e/control-panel-types.spec.ts 175 'the control page drives a quiz-board by its own machine' and 252 'event buttons carry the sections the type declared'; production-controls.spec.ts 129 fires select into the machine.)
 - 2026-10-18 `e2e/configured/anonymous.spec.ts`: 1 case removed: "the topbar says which account state it is in, not only what it offers" measured the retired editor bar; the current wizard and Home account-state words run in anonymous.spec.ts and shared-lab-computer.spec.ts. The account-feature explanation and Escape journey is retained as a live gap because its named replacements were partial.
 - 2026-10-18 `e2e/template-insert.spec.ts`: 2 case(s) removed with the retired and covered removals (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "after an insertion the Data panel still adds a REAL line to the HOST design" (retired UI: the old editor's Data panel '+ Add'; no dock-tab-* test id is left in src.); "the canvas context menu opens the same insert flow" (retired UI: canvas-context-menu and canvas-ctx-insert-template were the old canvas's.)

@@ -1,4 +1,4 @@
-// covers: src/components/editorFoundation/**, src/components/wizard/**
+// covers: src/components/editorFoundation/**, src/components/wizard/**, !src/components/wizard/import/**
 // focus
 
 import { test, expect } from '@playwright/test';
