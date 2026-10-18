@@ -8,7 +8,7 @@
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor, skipOldEditor } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
 
@@ -345,7 +345,6 @@ test('an audience Q&A cue reveals its answer; switching to a plain cue swaps the
 });
 
 test('± LIVE NUMBERS bumps a figure on air without publishing other staged edits', async ({ page }) => {
-  skipOldEditor();
   // The podium board is the block's reason to exist: game-show points change on every
   // question, and stepper-then-✎-Update was two presses under pressure. The block itself is
   // generic — any graphic with a `number` field gets it — so this walk is also the podium
