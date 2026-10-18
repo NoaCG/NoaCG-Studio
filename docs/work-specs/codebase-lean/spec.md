@@ -422,6 +422,20 @@ cases in the file, 5 passing, none skipped, 0.6 case-minutes locally on two work
 `j-0049`). The file's minutes are under Budget exceptions. Still skipping: the remaining 48
 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the wave2 revival
+
+The thirteenth revival, on main `6d5789d9e` (2026-10-18): the wave2 cases created their variant
+through the old "Create project" door and read the old stage. Three cases run again: the
+starting-soon countdown ticking after its hold, the game timer's label binding and its clock
+running, and the infographic stat counting up to its figure. Each bootstraps the variant
+through the live door and reads the working graphic mounted the way playout composes it
+(`mountWorkingDocument`, fed the store's sample data), with `play()` on that document. Three
+cases went (listed under Test maintenance): the scoreboard's score change, the corner bug's
+placeholder mark and the quiz reveal, each pinned on a live surface by production-controls,
+catalog-baseline and community-packs. 3 cases in the file, 3 passing, none skipped, 0.3
+case-minutes locally on two workers (queue job `j-0051`). The file's minutes are under Budget
+exceptions. Still skipping: the remaining 45 live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -574,6 +588,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/design-rules-product.spec.ts`: 3 case(s) removed with the design-rules-product revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "an untouched project serializes NO legibility key at all" (covered: scripts/design-rules.test.mjs 168 'normalizeLegibility: the DEFAULT state serializes to nothing' pins the rule that makes an untouched project carry no key; a bootstrapGraphic + loadProject check would only re-prove the plumbing.); "the editor can change the viewing target of an already-saved project" (retired UI: dock-tab-style / StylePanel.tsx, the ViewingControls host, has no mount left; ViewingControls renders only on the wizard AI step, so no live surface changes a saved project's viewing target.); "supporting text has its own size rule, reported on the readiness row and never gating" (covered: scripts/validator-registries.test.mjs 'the readiness report claims both legibility size rules on its row, as warnings that never gate', the same readinessRows/unclaimedFindings assertions on the same two findings, beside its LEGIBILITY_UNMEASURED sibling.)
 - 2026-10-18 `e2e/package.spec.ts`: 1 case(s) removed with the package revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "the post-creation preset picker withholds a structural preset" (retired UI: inspector-preset-select belonged to the old timeline Inspector, the only reader of swappablePresetsForTemplate's structural flag; the live pickers, the wizard's Animation step and the control page's Motion section, offer no structural swap.)
 - 2026-10-18 `e2e/format.spec.ts`: 6 case(s) removed with the format revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "formatHtml / formatCss / formatJs normalize messy code" (covered: scripts/format-code.test.mjs 'formatHtml / formatCss / formatJs normalize messy code', the same inputs and assertions in Node.); "formatJs refuses any file that owns an animation region" (covered: scripts/format-code.test.mjs 'formatJs refuses any file that owns an animation region', the data-block and legacy fixtures as they were.); "formatTemplate formats HTML but leaves CSS and JS alone by default" (covered: scripts/format-code.test.mjs 'formatTemplate formats HTML but leaves CSS and JS alone by default', the same three strings; formatTemplate reads nothing else of its fixture.); "minimalTextChange returns only the changed span (cursor-stable, merge-friendly)" (retired UI: minimalTextChange served only the deleted Monaco code pane, which the Phase 1 receipt names orphaned by the CodeEditor deletion.); "the Format button reformats the active tab through Monaco and the store" (retired UI: `.format-btn` of the deleted CodeEditor toolbar, opened by showCode.); "the Format button is disabled on the JS tab of a data-block template (region protected)" (retired UI: the same deleted Format button and JS tab.)
+- 2026-10-18 `e2e/wave2.spec.ts`: 3 case(s) removed with the wave2 revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "scoreboard: all four fields bind and a score change lands" (covered: e2e/production-controls.spec.ts 398 'a scoreboard GOAL raises the flag AND moves that side's score on the same press' moves House Score's program #f1 0 to 1 to 2 on a live press; dashboard-operator-walk.spec.ts 80 lands typed and stepped score fields on program and preview.); "corner bug: plays with the placeholder mark" (covered: e2e/catalog-baseline.spec.ts 392 'every catalog variant renders identically' settles Glass Mark on air with its placeholder mark and 'LIVE' text, fingerprinted per element.); "quiz: options bind and Next reveals the correct answer" (covered: e2e/community-packs.spec.ts 29 'the shelf lists the seeded pub quiz, and Install opens a production whose graphic takes, reveals and goes out' marks .quiz-option-2 correct on verb-next and dims the rest, the shared quiz runtime; production-controls.spec.ts 129 judges Arena Quiz.)
 
 ## Budget exceptions
 
@@ -669,6 +684,12 @@ table weighs the file at 0.203 minutes from its earlier runs. The minute below i
 change's local measurement (case-minutes, two workers, queue job `j-0049`).
 
 - e2e/production-chat-intake.spec.ts: 0.6 min, protects a chat line reaching air through inbox, edit, approve, cue and Take, the visible throttle and dedupe refusals, and pause, resume and remove on a chat source, expires 2026-11-16
+
+The wave2 revival (Phase 2, #800) turns three cases in one file back on and removes three; the
+table weighs the file at 0.009 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0051`).
+
+- e2e/wave2.spec.ts: 0.3 min, protects the starting-soon countdown, the game timer's clock and the infographic count-up at runtime, expires 2026-11-16
 
 ## Acceptance criteria
 
