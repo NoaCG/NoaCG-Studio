@@ -36,7 +36,7 @@ import { pickDesign } from './_browse';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
-import { editorPreview, mountWorkingDocument } from './_frame';
+import { editorPreview, mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { boxGrow, boxGrows, dropSvg as dropSvg2, intoProduction, untickTextRow, QUIZ_SVG, SCOREBUG_SVG } from './_svg-import';
 
 // The SVG import road, door to export (docs/SVG_IMPORT_PLAN.md P1): a layered
@@ -67,11 +67,6 @@ async function dropSvgMarkup(page: Page, markup: string, name = 'design.svg') {
     mimeType: 'image/svg+xml',
     buffer: Buffer.from(markup),
   });
-}
-
-/** Create from wherever the walk stands and land in the editor. */
-async function createProject(page: Page) {
-  await finishIntoNewEditor(page);
 }
 
 
@@ -203,7 +198,7 @@ test('svg import: mapping — labels from layer names, all on by default, edits 
   await page.getByTestId('map-svg-title-t2').fill('City');
   await page.getByTestId('map-svg-sample-t2').fill('Tampere');
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The created template: three fields (the clock stayed as drawn), the edited label and
   // sample carried, ids bound in place inside the verbatim SVG.
@@ -234,7 +229,7 @@ test('svg import: mapping — labels from layer names, all on by default, edits 
   // The graphic actually renders the mapped values, and update() drives the SVG's own nodes.
   await expect(editorPreview(page).locator('#f2')).toHaveText('Tampere');
   const doc = await mountWorkingDocument(page);
-  await doc.locator('body').evaluate(() => (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: 'Miriam Holm' })));
+  await updateWorkingDocument(doc, { f0: 'Miriam Holm' });
   await expect(doc.locator('#f0')).toHaveText('Miriam Holm');
 });
 
@@ -276,7 +271,7 @@ test('svg import: a picture layer binds as a filelist field — swap by value, e
   await expect(row.locator('input[type=checkbox]')).not.toBeChecked();
   await row.locator('input[type=checkbox]').check();
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The picture field lands AFTER the text fields, as a real SPX filelist.
   const field = await page.evaluate(async () => {
@@ -409,7 +404,7 @@ test('svg import: a question typed with hard returns is ONE field that NoaCG wra
     'Which Finnish city hosted the 1952 Summer Olympics, and in which month did they open?',
   );
   await expect(page.getByTestId('map-svg-row-t5')).toHaveCount(0);
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const state = await editorPreview(page)
     .locator('#f0')
@@ -485,7 +480,7 @@ test('svg import: an Inkscape design keeps the type it was drawn in', async ({ p
   );
   await dropSvgMarkup(page, svg, 'inkscape-lower-third.svg');
   await page.locator('.wz-next').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const state = await editorPreview(page)
     .locator('#f0')
@@ -557,7 +552,7 @@ test('svg import: a wrapping block keeps the LEADING the designer set', async ({
   await dropSvgMarkup(page, svg, 'info-card.svg');
   await page.locator('.wz-next').click();
   await expect(page.getByTestId('map-svg-title-t2')).toHaveValue('Body');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const step = await editorPreview(page)
     .locator('#f2')
@@ -732,7 +727,7 @@ test('svg import: outlined text — a glyph-shaped group becomes a placed live f
   await page.getByTestId('map-svg-outline-o0').hover();
   await expect(page.getByTestId('wz-preview-highlight')).toBeVisible();
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const state = await page.evaluate(async () => {
     const [{ useTemplateStore }, { getTemplateParts }, { validateTemplate }] = await Promise.all([
@@ -882,7 +877,7 @@ test('svg import: the text-fit budget is the DRAWN text, whenever the first valu
     'budget.svg',
   );
   await page.locator('.wz-next').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const frame = editorPreview(page);
   const fitted = await frame.locator('#f0').evaluate((el) => {
@@ -997,7 +992,7 @@ test('svg import: a growing lower third keeps the space the designer drew around
   // off the rest pose the designer drew - never a constant - so they hold at every rung.
   await dropSvgMarkup(page, GRADIENT_LOWER_THIRD, 'gradient-lower-third.svg');
   await page.locator('.wz-next').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const drawn = await ladderState(page, 'Alexandra Riva');
   const drawnInsetLeft = drawn.nameLeft - drawn.plateLeft;
@@ -1054,7 +1049,7 @@ async function replaceOutline(page: Page, sample: string) {
 
 test('svg import: an outlined-text field is measured by the SAME ladder, against its own slot', async ({ page }) => {
   await replaceOutline(page, 'Ada');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const frame = editorPreview(page);
   const read = (value: string) =>
@@ -1196,7 +1191,7 @@ test('svg import: a field drawn on the artwork becomes a real field, where it wa
   // Typing is what drove the loop hardest — every keystroke is a new draft and a new closure.
   expect(loops).toEqual([]);
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const state = await page.evaluate(async () => {
     const [{ useTemplateStore }, { getTemplateParts }, { validateTemplate }] = await Promise.all([
@@ -1529,7 +1524,7 @@ test('svg import: two boxes in one graphic grow differently', async ({ page }) =
   await expect(boxGrow(page, 1)).toHaveValue('grow-x');
   await expect(page.getByTestId('map-svg-stretch')).toContainText('2 boxes grow');
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const table = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
@@ -1831,7 +1826,7 @@ test('svg import: a line with another drawn right below it stays on one line', a
   await dropSvgMarkup(page, LADDER_SVG, 'ladder.svg');
   await page.locator('.wz-next').click();
   await boxGrow(page).selectOption('shrink'); // the room measurement is under test
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const state = await editorPreview(page).locator('#f0').evaluate((el) => {
     const w = window as unknown as { update: (json: string) => void };
@@ -1926,7 +1921,7 @@ test('svg import: a hugging panel grows with its text, and what is beyond it tra
   await dropSvgMarkup(page, HUG_SVG, 'hug.svg');
   await page.locator('.wz-next').click();
   await boxGrow(page).selectOption('grow-x');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const frame = editorPreview(page);
   // ONE stamp per participant is the whole markup edit; the emitted NOACG_LAYOUT table says
@@ -2116,7 +2111,7 @@ test('svg import: the tracking the designer set survives the import untouched', 
   // type changes.
   await dropSvgMarkup(page, PATH_PANEL_SVG, 'path-panel.svg');
   await page.locator('.wz-next').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const spacing = await editorPreview(page)
     .locator('#f2')
@@ -2146,7 +2141,7 @@ test('svg import: text stays off a decorative end-cap, and the cap travels when 
   await expect(boxGrow(page)).toHaveValue('grow-xy');
   // The cap's own behaviour is a WIDTH story, so it is pinned on the width-only rung.
   await boxGrow(page).selectOption('grow-x');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const frame = editorPreview(page);
   const run = (value: string) =>
@@ -2212,7 +2207,7 @@ test('svg import: a rail spanning the panel still stretches after the reader edi
   await expect(page.getByTestId('map-svg-followers')).not.toContainText('Rail');
   await page.getByTestId('map-svg-follower-drop-s2').click(); // the frame-bottom strap
   await expect(page.getByTestId('map-svg-followers')).not.toContainText('read from your artwork');
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const frame = editorPreview(page);
   const run = (value: string) =>
@@ -2551,7 +2546,7 @@ test('svg import: unticking a text layer keeps the words, says so, and offers re
   await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('stays as drawn');
   await page.getByTestId(`map-svg-off-remove-${id}`).click();
   await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('taken off the artwork');
-  await createProject(page);
+  await finishIntoNewEditor(page);
   await expect(editorPreview(page).locator('.imported-design-removed')).toHaveCount(1);
   const shown = await editorPreview(page)
     .locator('.imported-design-removed')
@@ -3131,7 +3126,7 @@ test('svg import: an unnamed production is not named after the graphic, and the 
 // wizard front page." The old editor is the code workspace (AppShell, `#/editor` and
 // `#/graphic/<id>`); the new one is `#/editor-foundation`. In the default studio every wizard
 // road ends on Finish, whose doors are a production, an export, or the new editor - never the
-// code workspace. Advanced mode keeps its code-editor doors, which the specs above use.
+// code workspace.
 
 /** Nothing on screen right now is a wizard door into the old editor. */
 async function expectNoOldEditorDoor(page: Page) {
@@ -3217,8 +3212,7 @@ test('wizard exits: a finished template file on the Import card walks to Finish'
 });
 
 test('wizard exits: "Open as code" on the AI card goes to Finish in the default studio', async ({ page }) => {
-  // Advanced mode's straight-to-code door; in the default studio the same file takes the
-  // Import card's road to the same Finish.
+  // The no-AI open goes to Finish: the file takes the Import card's road to the same doors.
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();

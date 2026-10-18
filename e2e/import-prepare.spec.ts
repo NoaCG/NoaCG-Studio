@@ -54,10 +54,6 @@ async function drawRect(page: Page, fx0: number, fy0: number, fx1: number, fy1: 
   await page.mouse.up();
 }
 
-async function createProject(page: Page) {
-  await finishIntoNewEditor(page);
-}
-
 
 /** One pixel of the created template's artwork asset, at fractions of its SOURCE size. */
 async function assetPixel(page: Page, fx: number, fy: number) {
@@ -106,7 +102,7 @@ test('erase: a flat background flat-fills cleanly, and the created asset carries
   await expect(page.getByTestId('erase-done')).toContainText('erased cleanly');
   await expect(page.getByTestId('erase-warning')).toHaveCount(0);
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The created template's artwork has the text bar REPLACED by the background colour.
   const px = await assetPixel(page, TEXT_CENTER.x, TEXT_CENTER.y);
@@ -122,7 +118,7 @@ test('erase: a 2x retina export is erased in SOURCE pixels', async ({ page }) =>
   await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
   await expect(page.getByTestId('erase-done')).toContainText('erased cleanly');
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const px = await assetPixel(page, TEXT_CENTER.x, TEXT_CENTER.y);
   expect(px.width).toBe(3840); // full resolution kept
@@ -138,7 +134,7 @@ test('erase: a smooth gradient background is REBUILT per pixel, not averaged', a
   await expect(page.getByTestId('erase-done')).toContainText('erased cleanly');
   await expect(page.getByTestId('erase-warning')).toHaveCount(0);
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   // The fill FOLLOWS the ramp: a pixel near the bar's left edge must be darker than one
   // near its right edge by about the ramp's own slope — a mean fill would paint both the
@@ -166,7 +162,7 @@ test('erase: a busy background is refused honestly, with continue-anyway availab
   await page.getByTestId('erase-continue-anyway').click();
   await expect(page.getByTestId('erase-done')).toBeVisible();
 
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const px = await assetPixel(page, TEXT_CENTER.x, TEXT_CENTER.y);
   expect(px.r).toBeGreaterThan(150); // the dark bar was filled (with the sampled mean)
 });
@@ -187,7 +183,7 @@ test('erase: dropping one mark replays the rest from the original — fills neve
   // blob stays erased, which is exactly what "fills never compound" means.
   await page.getByTestId('erase-remove-0').click();
   await expect(page.getByTestId('erase-marks').locator('li')).toHaveCount(1);
-  await createProject(page);
+  await finishIntoNewEditor(page);
 
   const bar = await assetPixel(page, TEXT_CENTER.x, TEXT_CENTER.y);
   expect(bar.r).toBeLessThan(60); // back

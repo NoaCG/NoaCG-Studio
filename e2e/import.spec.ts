@@ -8,7 +8,7 @@ import { finishIntoNewEditor, openExportWindow, startNewProject } from './_creat
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { chooseType, pickDesign } from './_browse';
-import { mountWorkingDocument } from './_frame';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 
 // Era 2a: import an existing template (.html or SPX-style .zip) to edit and convert.
 
@@ -90,11 +90,8 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
 
   // The graphic actually works: update + play, the way playout drives the document.
   const doc = await mountWorkingDocument(page);
-  await doc.locator('body').evaluate(() => {
-    const w = window as unknown as { update: (d: string) => void; play: () => void };
-    w.update(JSON.stringify({ f0: '2 - 1' }));
-    w.play();
-  });
+  await updateWorkingDocument(doc, { f0: '2 - 1' });
+  await doc.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
   await expect(doc.locator('#f0')).toHaveText('2 - 1');
   await expect
     .poll(async () => doc.locator('#bug').evaluate((el) => getComputedStyle(el).opacity))

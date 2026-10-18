@@ -9,7 +9,7 @@
 import { test, expect } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';
 import { fileURLToPath } from 'node:url';
-import { editorPreview, mountWorkingDocument } from './_frame';
+import { editorPreview, mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { dropSvg, growthNow, rowLabelled } from './_svg-import';
 
 // THE WORKED EXAMPLE the "draw it in Illustrator" guide is written around
@@ -83,7 +83,7 @@ test('the Sticker lower third sample imports with its layer names as fields, and
 
   // A name the drawn label cannot hold: the panel widens, the bottom strip spans it and widens by
   // the same amount, and the right strip sits past the growing edge and travels with it.
-  await doc.locator('body').evaluate(() => (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: 'Aleksandra Konstantinopoulou-Virtanen' })));
+  await updateWorkingDocument(doc, { f0: 'Aleksandra Konstantinopoulou-Virtanen' });
   await expect.poll(() => widthOf('Panel')).toBeGreaterThan(drawnPanel + 40);
   const grownPanel = await widthOf('Panel');
   const grownStrip = await widthOf('Shadow_x20_bottom');

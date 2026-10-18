@@ -11,16 +11,16 @@
 import { test, expect, type Page } from '@playwright/test';
 import { lowerThirdPng } from './_png';
 import { addToProductionFromFinish, finishIntoNewEditor, openExportWindow } from './_create';
-import { editorPreview } from './_frame';
+import { editorPreview, mountWorkingDocument } from './_frame';
 
 // The Import Graphic workflow, end to end (docs/IMPORT_MVP.md): a flat PNG design becomes
 // a working SPX template with editable text fields and per-layer animation.
 //
-// The wizard is a SETUP flow, not a second editor: bring the artwork in, create, and land
-// in the real canvas editor with the Data tab open. Fields are added there (real placed
-// layers, fully wired), styled through the Inspector's Style tab, and animated through its
-// Animations tab — so the spec walks the USER'S path: entry card, drop, create, add fields,
-// drag, style, animate, export.
+// The wizard is a SETUP flow, not a second editor: the entry card and the drop (one file,
+// several, a finished .html, opaque artwork), Prepare (the erase and its opening proposal),
+// the Text step (proposed fields, a picture slot, placement room), Finish's doors (the editor,
+// a production, the export window), and the created document's fit contract and whole-unit
+// animation — the USER'S path, without the old dock's panels.
 
 async function dropDesign(page: Page, width = 1920, height = 1080) {
   await page.goto('/app');
@@ -33,20 +33,15 @@ async function dropDesign(page: Page, width = 1920, height = 1080) {
   });
 }
 
-/** Create the imported design (bare — no fields yet) and land in the editor. */
-async function createBare(page: Page) {
-  await finishIntoNewEditor(page);
-}
-
-/** The standard fixture most tests use: created design + Name (f0) and Title (f1) fields, the
- *  two the Text step proposes for the empty panel (assets/suggestFields.ts) before Finish. */
+/** The fixture with fields: the created design plus Name (f0) and Title (f1), the two the
+ *  Text step proposes for the empty panel (assets/suggestFields.ts) before Finish. */
 async function createImported(page: Page) {
   await dropDesign(page);
   await page.locator('.wz-next').click(); // Prepare
   await page.locator('.wz-next').click(); // Text
   await expect(page.getByTestId('place-field-Name')).toBeVisible();
   await expect(page.getByTestId('place-field-Title')).toBeVisible();
-  await createBare(page);
+  await finishIntoNewEditor(page);
 }
 
 /**
@@ -142,32 +137,28 @@ test('import graphic: the imported design animates — whole unit in, whole unit
   // document: GSAP writes inline styles onto the targets it animates, so the box gets them and a
   // field must not be touched on its own — that is exactly what would tear a flat design away
   // from artwork drawn around it — and the whole graphic leaves together on stop.
-  const played = await page.evaluate(`(async () => {
+  const hasData = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const tpl = useTemplateStore.getState().template;
-    const f = document.createElement('iframe');
-    f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;';
-    document.body.appendChild(f);
-    await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl); });
-    const doc = f.contentDocument, win = f.contentWindow;
+    return !!parseAnimData(useTemplateStore.getState().template.js);
+  });
+  expect(hasData).toBe(true);
+  const doc = await mountWorkingDocument(page);
+  const played = await doc.locator('body').evaluate(async () => {
+    const w = window as unknown as { play: () => void; stop: () => void };
     const settle = () => new Promise((r) => setTimeout(r, 1200));
-    const opacity = () => getComputedStyle(doc.querySelector('.imported-design')).opacity;
-    win.play();
+    const opacity = () => getComputedStyle(document.querySelector('.imported-design')!).opacity;
+    w.play();
     await settle();
     const out = {
-      hasData: !!parseAnimData(tpl.js),
       playedOpacity: opacity(),
-      boxStyled: (doc.querySelector('.imported-design-box').getAttribute('style') ?? '') !== '',
-      fieldStyle: doc.getElementById('f0').getAttribute('style') ?? '',
+      boxStyled: (document.querySelector('.imported-design-box')!.getAttribute('style') ?? '') !== '',
+      fieldStyle: document.getElementById('f0')!.getAttribute('style') ?? '',
     };
-    win.stop();
+    w.stop();
     await settle();
-    out.stoppedOpacity = opacity();
-    return out;
-  })()`) as { hasData: boolean; playedOpacity: string; boxStyled: boolean; fieldStyle: string; stoppedOpacity: string };
-  expect(played.hasData).toBe(true);
+    return { ...out, stoppedOpacity: opacity() };
+  });
   expect(played.playedOpacity).toBe('1');
   expect(played.boxStyled).toBe(true);
   expect(played.fieldStyle).toBe('');
@@ -178,7 +169,7 @@ test('import graphic: a cropped design is placed as an object, not stretched', a
   await dropDesign(page, 900, 260);
   await expect(page.locator('.asset-card')).toContainText('900 × 260');
   await expect(page.locator('.wz-step')).toContainText('Smaller than');
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   // A floating design keeps its own size and sits in the default zone as an object.
   const frame = editorPreview(page);
@@ -196,7 +187,7 @@ test('import graphic: a 2× export is shown frame-sized, not pushed off the fram
   await dropDesign(page, 3840, 2160);
   await expect(page.locator('.asset-card')).toContainText('3840 × 2160');
   await expect(page.locator('.wz-step')).toContainText('2× export');
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   // The design unit is exactly the frame's width: edge to edge, as drawn (--scale is 1 here).
   const frame = editorPreview(page);
@@ -210,8 +201,6 @@ test('import graphic: a 2× export is shown frame-sized, not pushed off the fram
 // ── Fit: a long operator value has to stay inside the room the design gives the line.
 //    Placed lines used to be uncapped and nowrap, so a long name ran clean off the
 //    artwork (templates/shared/textFit.ts). ──
-
-/** A single row of text sits well under 1.8x its own type size; more rows sit above it. */
 
 test('import graphic: a new field is born with a slot, so a long value cannot run off the design', async ({ page }) => {
   await createImported(page);

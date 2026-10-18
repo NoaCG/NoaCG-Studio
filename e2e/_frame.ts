@@ -92,7 +92,9 @@ export function frameOpacity(page: Page, selector: string): Promise<number> {
  * Mount the WORKING document (the template store's) in a hidden iframe on the page, composed the
  * way playout composes it, and return a locator into it. A spec that lands in the editor reads
  * the editor's preview for what the editor shows; it reads this for what `update()` and `play()`
- * do to the document, which the editor's preview does not expose.
+ * do to the document on their own: the editor's preview is driven by its runtime bridge
+ * (editorFoundation/runtime.ts), which pushes its own sample data and pose over anything a spec
+ * calls there.
  */
 export async function mountWorkingDocument(page: Page): Promise<FrameLocator> {
   await page.evaluate(async () => {
@@ -106,4 +108,11 @@ export async function mountWorkingDocument(page: Page): Promise<FrameLocator> {
     await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(useTemplateStore.getState().template); });
   });
   return page.frameLocator('iframe.working-document');
+}
+
+/** A value typed on air: the working document's own `update()`, the way playout drives it. */
+export async function updateWorkingDocument(doc: FrameLocator, data: Record<string, string>): Promise<void> {
+  await doc.locator('body').evaluate((_, d) => {
+    (window as unknown as { update: (payload: string) => void }).update(JSON.stringify(d));
+  }, data);
 }

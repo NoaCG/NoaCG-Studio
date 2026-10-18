@@ -14,7 +14,7 @@
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
-import { mountWorkingDocument } from './_frame';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 
 // The Import Graphic SCALING MODE (docs/IMPORT_MVP.md): fixed (default — the image renders
 // exactly as drawn) vs horizontal 9-slice stretch (the plain middle band widens with the
@@ -62,10 +62,6 @@ async function eraseTextBar(page: Page) {
   await expect(page.getByTestId('erase-done')).toBeVisible();
 }
 
-async function createProject(page: Page) {
-  await finishIntoNewEditor(page);
-}
-
 
 /** The created template's stretch guides + validation, via the app's own readers. */
 async function stretchState(page: Page) {
@@ -87,7 +83,6 @@ async function stretchState(page: Page) {
   });
 }
 
-/** Live metrics from the editor preview iframe (canvas px, transform-free). */
 /** The design box as the document paints it, read in the working document `update()` drives. */
 async function boxMetrics(doc: FrameLocator) {
   return doc
@@ -108,12 +103,7 @@ async function boxMetrics(doc: FrameLocator) {
     });
 }
 
-/** A value typed on air: the document's own update(), the way playout drives it. */
-async function setSample(doc: FrameLocator, value: string) {
-  await doc.locator('body').evaluate((_, v) => {
-    (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: v }));
-  }, value);
-}
+const setSample = (doc: FrameLocator, value: string) => updateWorkingDocument(doc, { f0: value });
 
 test('stretch: picking it writes the 9-slice into the created code, and the guides parse back', async ({ page }) => {
   await dropCard(page);
@@ -169,7 +159,7 @@ test('stretch: a long value grows the design at full type size, and a short one 
   await dropCard(page);
   await eraseTextBar(page);
   await page.getByTestId('mode-stretch').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const doc = await mountWorkingDocument(page);
 
   // Erase + stretch: the guides defaulted to the erased text's edges (the drawn rect).
@@ -202,7 +192,7 @@ test('stretch: growth caps inside the frame edge, then the text-fit shrink answe
   await dropCard(page);
   await eraseTextBar(page);
   await page.getByTestId('mode-stretch').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
   const doc = await mountWorkingDocument(page);
 
   const rest = await boxMetrics(doc);
@@ -232,7 +222,7 @@ test('stretch: dragging a guide lands in the created code', async ({ page }) => 
 test('fixed default: no stretch markers, and a long value shrinks its text instead', async ({ page }) => {
   await dropCard(page);
   await eraseTextBar(page);
-  await createProject(page); // no mode picked — fixed is the default
+  await finishIntoNewEditor(page); // no mode picked — fixed is the default
   const doc = await mountWorkingDocument(page);
 
   const state = await stretchState(page);

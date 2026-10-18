@@ -11,14 +11,9 @@ import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
 import { editorPreview } from './_frame';
 
-// Canvas usability on an imported design (docs/IMPORT_MVP.md): the artwork and the fields
-// placed on it are ONE composition — scaling keeps them together as design-layout CSS — and
-// the canvas behaves like the editors people already know: space-drag pans, a press on the
-// visible topmost element moves THAT element, and the locked artwork never steals the gesture.
-
-async function createBare(page: Page) {
-  await finishIntoNewEditor(page);
-}
+// An imported design's fields (docs/IMPORT_MVP.md): the artwork and the fields placed on it are
+// ONE composition, kept together as design-layout CSS, and the Prepare step's erase seeds the
+// first fields from the ink it measured.
 
 // ── The Prepare step's replacement field: it should land ON the text it replaced ──────────
 //
@@ -97,7 +92,7 @@ test('import graphic: centred baked text seeds a CENTRED field on the same centr
   // A lasso with far more air on the left than the right: its own centre is nowhere near
   // the text's, so matching the text can only come from measuring the ink.
   await eraseRect(page, 0.18, 0.34, 0.69, 0.56);
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   const f = await seededField(page);
   expect(f.style!.align).toBe('center');
@@ -118,7 +113,7 @@ test('import graphic: left-set baked text seeds a LEFT-anchored field on its lef
   await dropCard(page, framedCardPng(1600, 900));
   // Again a loose lasso — generous on every side of the bar at CARD_TEXT_RECT.
   await eraseRect(page, 0.12, 0.35, 0.62, 0.6);
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   const f = await seededField(page);
   expect(f.style!.align).toBe('left');
@@ -216,7 +211,7 @@ test('import graphic: the seed recovers the size and position of REAL typeset te
   });
   // A deliberately loose lasso: well outside the glyphs on every side.
   await eraseRect(page, 0.09, 0.55, 0.66, 0.76);
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   // Give the field the SAME string, so the two ink boxes are comparable.
   await page.evaluate(async (text) => {
@@ -300,7 +295,7 @@ test('import graphic: each marked region seeds its own field', async ({ page }) 
   await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.84, { steps: 5 });
   await page.mouse.up();
   await expect(page.getByTestId('erase-marks').locator('li')).toHaveCount(2);
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   // Only ONE of the marks held ink (the fixture paints a single bar), so the region with no
   // text still contributes a field — the user marked it, so they meant something to go there.
@@ -336,7 +331,7 @@ test('import graphic: one region holding two lines seeds a field per line', asyn
   // ONE loose box around BOTH.
   await eraseRect(page, 0.08, 0.53, 0.58, 0.82);
   await expect(page.getByTestId('erase-marks')).toContainText('2 lines');
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   const fields = await seededFields(page);
   expect(fields.map((f) => f.title)).toEqual(['Name', 'Title']);
@@ -375,7 +370,7 @@ test('import graphic: a region marked over a graphic seeds text that FITS it', a
     buffer: Buffer.from(built, 'base64'),
   });
   await eraseRect(page, 0.68, 0.29, 0.92, 0.66);
-  await createBare(page);
+  await finishIntoNewEditor(page);
 
   const shown = await editorPreview(page)
     .locator('#f0')

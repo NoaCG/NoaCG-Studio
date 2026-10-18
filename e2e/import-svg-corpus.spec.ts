@@ -342,13 +342,6 @@ async function pickPicture(page: Page) {
   await row.locator('input[type=checkbox]').check();
 }
 
-/** Build the project from the mapping step, so the emitted template's field can be operated.
- *  Not `_create.ts`'s `createProject`, which builds a CATALOG design from a spec and never
- *  drives the wizard - a different job under a name that would read as the same one. */
-async function createFromWizard(page: Page) {
-  await finishIntoNewEditor(page);
-}
-
 test('corpus: a positioned embedded picture is a picture field an operator can swap', async ({ page }) => {
   test.slow(); // two walks through the door, an export and a project build
   // The A side of the finding-2 pair. Illustrator writes the plain positioned <image> the spec
@@ -362,7 +355,7 @@ test('corpus: a positioned embedded picture is a picture field an operator can s
 
   await mapCorpusFile(page, 'illustrator-embedded-image-card');
   await pickPicture(page);
-  await createFromWizard(page);
+  await finishIntoNewEditor(page);
   await swapAndRestore(page, 'f2');
 });
 
@@ -389,7 +382,7 @@ test('corpus: a Figma-placed picture is a picture field, and an operator can swa
 
   await mapCorpusFile(page, 'figma-embedded-raster-card');
   await pickPicture(page);
-  await createFromWizard(page);
+  await finishIntoNewEditor(page);
 
   const field = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -438,7 +431,7 @@ test('corpus: a photo-filled backplate is offered as a picture AND as the panel 
 
   await mapCorpusFile(page, 'figma-photo-strap-backplate');
   await pickPicture(page);
-  await createFromWizard(page);
+  await finishIntoNewEditor(page);
 
   // The emitted graphic carries both roles on the two nodes each one needs: the growth stamp on
   // the RECT (the thing that widens), the field id on the <image> the pattern resolves to (the
