@@ -13,6 +13,11 @@ export function previewFrame(page: Page): FrameLocator {
   return page.frameLocator('iframe.preview-frame');
 }
 
+/** The new editor's preview document (editorFoundation/Canvas.tsx), for a spec that lands there. */
+export function editorPreview(page: Page): FrameLocator {
+  return page.frameLocator('iframe[title="Foundation graphic preview"]');
+}
+
 /** Run `fn` inside the preview document's own window/global scope. */
 export function frameEval<T>(page: Page, fn: () => T): Promise<T> {
   return previewFrame(page).locator('body').evaluate(fn);

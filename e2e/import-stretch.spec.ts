@@ -11,8 +11,7 @@
 // covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
-import { switchToAdvancedMode, finishIntoNewEditor } from './_create';
-import { awaitPreviewRebuild } from './_preview';
+import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
 
 // The Import Graphic SCALING MODE (docs/IMPORT_MVP.md): fixed (default — the image renders
@@ -62,13 +61,7 @@ async function eraseTextBar(page: Page) {
 }
 
 async function createProject(page: Page) {
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
-    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
-    // same cold-module cost import-graphic.spec.ts's createBare documents in full.
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  });
+  await finishIntoNewEditor(page);
 }
 
 

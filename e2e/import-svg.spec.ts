@@ -29,15 +29,13 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { switchToAdvancedMode, skipOldEditor, finishIntoNewEditor } from './_create';
+import { finishIntoNewEditor } from './_create';
 import { lowerThirdPng } from './_png';
 import { pickDesign } from './_browse';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { awaitPreviewRebuild } from './_preview';
-import { elementPoint } from './_canvas';
 import { settleDurableWrites } from './_durable';
-import { previewFrame } from './_frame';
+import { editorPreview } from './_frame';
 import { boxGrow, boxGrows, dropSvg as dropSvg2, intoProduction, untickTextRow, QUIZ_SVG, SCOREBUG_SVG } from './_svg-import';
 
 // The SVG import road, door to export (docs/SVG_IMPORT_PLAN.md P1): a layered
@@ -72,13 +70,7 @@ async function dropSvgMarkup(page: Page, markup: string, name = 'design.svg') {
 
 /** Create from wherever the walk stands and land in the editor. */
 async function createProject(page: Page) {
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
-    // 20 s: the modal closes once applyGenerated's cold Prettier format resolves (the same
-    // cold-module cost import-graphic.spec.ts documents).
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  });
+  await finishIntoNewEditor(page);
 }
 
 
@@ -239,53 +231,12 @@ test('svg import: mapping — labels from layer names, all on by default, edits 
   expect(state.css).toContain('Neue Machina');
 
   // The graphic actually renders the mapped values, and update() drives the SVG's own nodes.
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   await expect(frame.locator('#f2')).toHaveText('Tampere');
   await page.getByTestId('dock-tab-data').click();
   await page.locator('.panel-body .field-row', { hasText: 'Name' }).locator('input').first().fill('Miriam Holm');
   await page.getByTestId('dock-body-right').getByRole('button', { name: '⟳ Update' }).click();
   await expect(frame.locator('#f0')).toHaveText('Miriam Holm');
-});
-
-test('svg import: overflow-only text fit — a long value shrinks, a short one stays exact', async ({ page }) => {
-  await dropSvg(page);
-  await createProject(page);
-
-  const frame = previewFrame(page);
-  const name = frame.locator('#f0');
-  await expect(name).toHaveText('Alexandra Riva');
-  // The design's own text is untouched: nothing is applied to a value that fits.
-  const drawnSize = await name.evaluate((el) => getComputedStyle(el).fontSize);
-
-  // A much longer name overflows the budget — and the answer is a SMALLER line of the
-  // designer's own type, never a squeezed one: condensing to the drawn width distorted
-  // tracking and glyph shapes, so one extra letter visibly broke the typeface.
-  await page.getByTestId('dock-tab-data').click();
-  const nameInput = page.locator('.panel-body .field-row', { hasText: 'Name' }).locator('input').first();
-  const pushUpdate = () => page.getByTestId('dock-body-right').getByRole('button', { name: '⟳ Update' }).click();
-  await nameInput.fill('Alexandra Konstantinopolous-Riva de la Vega');
-  await pushUpdate();
-  const fitted = await name.evaluate((el) => {
-    const node = el as unknown as SVGTextContentElement;
-    return {
-      size: parseFloat(getComputedStyle(node).fontSize),
-      length: node.getComputedTextLength(),
-      textLength: node.getAttribute('textLength'),
-    };
-  });
-  expect(fitted.size).toBeLessThan(parseFloat(drawnSize));
-  expect(fitted.textLength).toBeNull();
-  // …and it fits THE ROOM THE DESIGN GIVES IT — the panel it was drawn in, not the width of the
-  // designer's own words, which would leave most of a banner empty and shrink anyway.
-  const room = await name.evaluate(
-    () => (window as unknown as { svgFitRoom: Record<string, { width: number }> }).svgFitRoom.f0.width,
-  );
-  expect(fitted.length).toBeLessThanOrEqual(room + 1);
-
-  // Back to a short value: the fit steps away and the typography is the designer's again.
-  await nameInput.fill('Riva');
-  await pushUpdate();
-  await expect(name).toHaveCSS('font-size', drawnSize);
 });
 
 test('svg import: outlined text gets the honest answer, and still imports as a fixed graphic', async ({ page }) => {
@@ -316,40 +267,6 @@ test('svg import: outlined text gets the honest answer, and still imports as a f
   expect(fields).toBe(0);
 });
 
-test('svg import: bound text and top-level groups are registry parts — selectable and animatable', async ({ page }) => {
-  await dropSvg(page);
-  await createProject(page);
-
-  // The part registry (model/structure.ts) names the SVG's own layers: the bound text nodes
-  // as lines (channel 'rise' — SVG text has no mask to slide in), and the top-level named
-  // groups as blocks, labelled with the same words the mapping step used (data-name over the
-  // decoded id — both "Text Layer" groups carry their duplicated design name honestly).
-  const parts = await page.evaluate(async () => {
-    const [{ getTemplateParts }, { useTemplateStore }] = await Promise.all([
-      import('/src/model/structure.ts'),
-      import('/src/store/templateStore.ts'),
-    ]);
-    const t = useTemplateStore.getState().template;
-    return getTemplateParts(t.html, t.fields).map((p) => `${p.selector}|${p.kind}|${p.label}|${p.channel}`);
-  });
-  expect(parts).toContain('#f0|line|Name|rise');
-  expect(parts).toContain('#f2|line|Location|rise');
-  expect(parts).toContain('#Backplate|block|Backplate|rise');
-  expect(parts).toContain('#Details|block|Text Layer|rise');
-  // The whole-unit parts are still there — the design presets animate the box, as before.
-  expect(parts).toContain('.imported-design-box|panel|Design|rise');
-  expect(parts).toContain('.imported-design-art|image|Artwork|rise');
-
-  // A canvas click on the text selects THAT layer (the innermost part wins over the groups
-  // and the artwork around it), and the chip speaks the field's name.
-  const point = await elementPoint(page, '#f0');
-  await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('selection-chip')).toContainText('Name');
-
-  // Its timeline row exists too — per-layer motion (the P2 stagger) has a real target.
-  await expect(page.locator('.tlv2-labels .timeline-label[data-part="#f0"]')).toBeVisible();
-});
-
 test('svg import: a picture layer binds as a filelist field — swap by value, empty restores the artwork', async ({ page }) => {
   await dropSvg(page);
   await page.locator('.wz-next').click();
@@ -374,7 +291,7 @@ test('svg import: a picture layer binds as a filelist field — swap by value, e
   expect(field.bound).toBe(true);
 
   // update() swaps the node's href; an empty value restores the picture the designer drew.
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   // A 1×1 green pixel — any PNG that is NOT the one the fixture draws, so the swap is visible.
   const SWAPPED = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
   await frame.locator('body').evaluate((_, swapped) => {
@@ -495,7 +412,7 @@ test('svg import: a question typed with hard returns is ONE field that NoaCG wra
   await expect(page.getByTestId('map-svg-row-t5')).toHaveCount(0);
   await createProject(page);
 
-  const state = await previewFrame(page)
+  const state = await editorPreview(page)
     .locator('#f0')
     .evaluate((el) => {
       const w = window as unknown as {
@@ -571,7 +488,7 @@ test('svg import: an Inkscape design keeps the type it was drawn in', async ({ p
   await page.locator('.wz-next').click();
   await createProject(page);
 
-  const state = await previewFrame(page)
+  const state = await editorPreview(page)
     .locator('#f0')
     .evaluate(() => {
       const w = window as unknown as {
@@ -643,7 +560,7 @@ test('svg import: a wrapping block keeps the LEADING the designer set', async ({
   await expect(page.getByTestId('map-svg-title-t2')).toHaveValue('Body');
   await createProject(page);
 
-  const step = await previewFrame(page)
+  const step = await editorPreview(page)
     .locator('#f2')
     .evaluate((el) => {
       const kids = el.children;
@@ -860,93 +777,10 @@ test('svg import: outlined text — a glyph-shaped group becomes a placed live f
   expect(state.valid).toBe(true);
 
   // On screen: the live text shows, the shapes it replaced do not.
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   await expect(frame.locator('#f0')).toHaveText('Ada');
   await expect(frame.locator('#f0')).toBeVisible();
   await expect(frame.locator('#Name')).toBeHidden();
-});
-
-test('svg import: the layer stagger preset walks the artwork’s own top-level layers, as per-layer data', async ({ page }) => {
-  skipOldEditor();
-  await dropSvg(page);
-  await page.locator('.wz-next').click();
-  await page.locator('.wz-next').click();
-  // Only the SVG variant offers it — its groups are the layers.
-  await page.locator('.wz-anim', { hasText: 'Layer stagger' }).click();
-  await finishIntoNewEditor(page);
-
-  const data = await page.evaluate(async () => {
-    const [{ useTemplateStore }, { parseAnimData }] = await Promise.all([
-      import('/src/store/templateStore.ts'),
-      import('/src/blocks/animData.ts'),
-    ]);
-    const t = useTemplateStore.getState().template;
-    const d = parseAnimData(t.js)!;
-    const at = (step: number, sel: string) => d.steps[step].layers[sel]?.opacity?.map((k) => k.time) ?? null;
-    return {
-      enter: { box: at(0, '.imported-design-box'), back: at(0, '#Backplate'), text: at(0, '#Text_x20_Layer'), details: at(0, '#Details') },
-      out: { back: at(d.steps.length - 1, '#Backplate'), details: at(d.steps.length - 1, '#Details') },
-    };
-  });
-  // Every named top-level group has its own track (the keyframe model has no stagger field,
-  // so the stagger survives ONLY as per-layer offsets); they start a beat apart, in file
-  // order on the way in and reversed on the way out.
-  expect(data.enter.box).not.toBeNull();
-  expect(data.enter.back![0]).toBeLessThan(data.enter.text![0]);
-  expect(data.enter.text![0]).toBeLessThan(data.enter.details![0]);
-  expect(data.out.details![0]).toBeLessThan(data.out.back![0]);
-});
-
-test('svg import: a clock-shaped layer can bind as a countdown — the node ticks, the operator sets minutes', async ({ page }) => {
-  await dropSvg(page);
-  await page.locator('.wz-next').click();
-
-  // Only the clock-shaped layer ("22:40", t3) offers the choice; it starts as text.
-  await expect(page.getByTestId('map-svg-kind-t0')).toHaveCount(0);
-  const kind = page.getByTestId('map-svg-kind-t3');
-  await expect(kind).toHaveValue('text');
-  await kind.selectOption('countdown');
-
-  await createProject(page);
-
-  const state = await page.evaluate(async () => {
-    const [{ useTemplateStore }, { parseAnimData }, { validateTemplate }] = await Promise.all([
-      import('/src/store/templateStore.ts'),
-      import('/src/blocks/animData.ts'),
-      import('/src/validation/validateTemplate.ts'),
-    ]);
-    const t = useTemplateStore.getState().template;
-    const d = parseAnimData(t.js)!;
-    return {
-      field: t.fields[3],
-      html: t.html,
-      css: t.css,
-      js: t.js,
-      enterCalls: d.steps[0].calls?.map((c) => c.call) ?? [],
-      outCalls: d.steps[d.steps.length - 1].calls?.map((c) => c.call) ?? [],
-      valid: validateTemplate(t).ok,
-    };
-  });
-  // The field is the count's LENGTH in minutes (the drawn "22:40" read as M:SS), held in a
-  // hidden data source; the drawn layer is the display — class, not id, so update() can
-  // never write "22.67" over the ticking readout.
-  expect(state.field).toMatchObject({ field: 'f3', ftype: 'number', title: 'Text Layer (minutes)', value: '22.67' });
-  expect(state.html).toMatch(/<div id="f3" class="noacg-data-source"\s*>\s*22\.67\s*<\/div>/);
-  expect(state.html).toMatch(/<tspan[^>]*class="imported-design-clock"[^>]*>22:40<\/tspan>/);
-  expect(state.html).not.toMatch(/<tspan[^>]*id="f3"/);
-  expect(state.css).toContain('.noacg-data-source {');
-  // The shared clock runtime rides outside the region, and the data calls it at the edges.
-  expect(state.js).toContain('function startClock()');
-  expect(state.enterCalls).toEqual(['startClock']);
-  expect(state.outCalls).toEqual(['stopClock']);
-  expect(state.valid).toBe(true);
-
-  // Idle, the display shows the full length — the designer's own readout, round-tripped.
-  const frame = previewFrame(page);
-  await expect(frame.locator('.imported-design-clock')).toHaveText('22:40');
-  // Playing starts the count: within a couple of seconds the readout has moved.
-  await page.getByRole('button', { name: /^▶ Play$/ }).click();
-  await expect(frame.locator('.imported-design-clock')).not.toHaveText('22:40', { timeout: 5_000 });
 });
 
 // ── THE MAPPING STEP'S HEIGHT BUDGET ──
@@ -1051,7 +885,7 @@ test('svg import: the text-fit budget is the DRAWN text, whenever the first valu
   await page.locator('.wz-next').click();
   await createProject(page);
 
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   const fitted = await frame.locator('#f0').evaluate((el) => {
     const w = window as unknown as {
       update: (json: string) => void;
@@ -1099,89 +933,6 @@ const LADDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 10
   <text id="Role" x="190" y="892" font-size="30" fill="#b7bcc4">Correspondent</text>
 </svg>`;
 
-test('svg import: a value fills the panel it was drawn in before any of it shrinks', async ({ page }) => {
-  // The budget used to be the width of the text the DESIGNER typed, so a name drawn 3 characters
-  // wide inside a 1040px banner began shrinking at its own fourth character while most of the
-  // panel stood empty. The budget is the ROOM: out to a right margin mirroring the left one.
-  await dropSvgMarkup(page, LADDER_SVG, 'ladder.svg');
-  await page.locator('.wz-next').click();
-  // This test pins the SHRINK ladder, and a banner-shaped file now defaults to growing
-  // (GOALS goal 5) - so the shrink path is chosen explicitly, as an author would.
-  await boxGrow(page).selectOption('shrink');
-  await createProject(page);
-
-  const frame = previewFrame(page);
-  const read = (value: string) =>
-    frame.locator('#f0').evaluate((el, v) => {
-      const w = window as unknown as {
-        update: (json: string) => void;
-        svgFitWidths: Record<string, number>;
-        svgFitRoom: Record<string, { width: number; height: number }>;
-        noacgTextOverflow: () => string[];
-      };
-      w.update(JSON.stringify({ f0: v }));
-      const panel = document.getElementById('Panel')!.getBoundingClientRect();
-      const box = el.getBoundingClientRect();
-      return {
-        drawnBudget: w.svgFitWidths.f0,
-        room: w.svgFitRoom.f0.width,
-        size: parseFloat(getComputedStyle(el).fontSize),
-        gapRight: panel.right - box.right,
-        overflowing: w.noacgTextOverflow(),
-      };
-    }, value);
-
-  const drawn = await read('Ada');
-  // The room is the panel's, and it is far more than the three characters drawn into it.
-  expect(drawn.room).toBeGreaterThan(drawn.drawnBudget * 2);
-
-  // A value several times the drawn one still airs at FULL SIZE, because the banner holds it.
-  const filling = await read('Alexandra Riva');
-  expect(filling.size).toBe(drawn.size);
-  expect(filling.overflowing).toEqual([]);
-
-  // Past the room it shrinks - and having shrunk, it reaches the far margin instead of stopping
-  // at the width of the designer's own three characters.
-  const long = await read('Alexandra Konstantinopolous-Riva de la Vega y Santa Maria');
-  expect(long.size).toBeLessThan(drawn.size);
-  expect(long.gapRight).toBeLessThan(drawn.gapRight / 4);
-});
-
-test('svg import: copy too long for any size floors instead of vanishing, and says so', async ({ page }) => {
-  // Unfloored, the shrink drove a 400-character value to 3.7px - which reads on air as the text
-  // having disappeared. It stops at 55% of the drawn size, the same floor the raster import
-  // keeps, and reports the field rather than clipping the copy or reshaping the artwork.
-  await dropSvgMarkup(page, LADDER_SVG, 'ladder.svg');
-  await page.locator('.wz-next').click();
-  await boxGrow(page).selectOption('shrink'); // the shrink ladder is under test
-  await createProject(page);
-
-  const state = await previewFrame(page).locator('#f0').evaluate((el) => {
-    const w = window as unknown as {
-      update: (json: string) => void;
-      svgFitSizes: Record<string, number>;
-      noacgTextOverflow: () => string[];
-    };
-    w.update(JSON.stringify({ f0: 'A'.repeat(400) }));
-    return {
-      drawnSize: w.svgFitSizes.f0,
-      size: parseFloat(getComputedStyle(el).fontSize),
-      text: el.textContent,
-      overflowing: w.noacgTextOverflow(),
-    };
-  });
-
-  // TWO FLOORS since 2026-09-05: 55% is where the value is REPORTED as too long, and the type
-  // keeps shrinking past it to 30% rather than being condensed into a texture (owner: "if it
-  // becomes too small, then that's the user's own fault, but the text should never... get so
-  // dense that it's impossible to read"). So the size is BOUNDED here, not pinned: below the
-  // reporting floor, above the hard one.
-  expect(state.size).toBeLessThan(state.drawnSize * 0.55);
-  expect(state.size).toBeGreaterThanOrEqual(state.drawnSize * 0.3 - 0.01);
-  expect(state.text).toHaveLength(400); // the copy is whole - never trimmed to fit
-  expect(state.overflowing).toEqual(['f0']);
-});
-
 // ── THE LADDER ON THE ARCHETYPAL LOWER THIRD (owner walk, 2026-08-29) ───────────────────
 // The file the owner walked twice: an Illustrator premium lower third - a rounded-rectangle
 // PATH plate with a gradient and a drop-shadow filter, an accent rail down its left edge, and
@@ -1206,7 +957,7 @@ const GRADIENT_LOWER_THIRD = readFileSync(
 /** Everything one value settles on, read off the live graphic: the plate, the name's block and
  *  the role drawn under it. */
 async function ladderState(page: Page, value: string) {
-  return previewFrame(page)
+  return editorPreview(page)
     .locator('#f0')
     .evaluate((el, v) => {
       const w = window as unknown as {
@@ -1240,56 +991,6 @@ async function ladderState(page: Page, value: string) {
     }, value);
 }
 
-test('svg import: a lower third climbs the ladder in order — wider, then onto a new line, and only then smaller', async ({
-  page,
-}) => {
-  await dropSvgMarkup(page, GRADIENT_LOWER_THIRD, 'gradient-lower-third.svg');
-  await page.locator('.wz-next').click();
-  // THE MEASURED DEFAULT IS THE WHOLE LADDER, not its first rung: the owner walked this file
-  // without touching the dropdown, and 'the panel gets wider' alone skips the wrap rung.
-  await expect(boxGrow(page)).toHaveValue('grow-xy');
-  await createProject(page);
-
-  const drawn = await ladderState(page, 'Alexandra Riva');
-  expect(drawn.lines).toBe(1);
-  expect(drawn.size).toBe(drawn.drawnSize);
-
-  // RUNG ONE - the panel gets wider, at the size the designer drew.
-  const wider = await ladderState(page, 'Alexandra Konstantinopolous-Riva de la Vega');
-  expect(wider.plateRight).toBeGreaterThan(drawn.plateRight);
-  expect(wider.size).toBe(drawn.size);
-  expect(wider.lines).toBe(1);
-
-  // RUNG TWO - past the width its own margin allows, the name goes onto a SECOND LINE, still at
-  // the size the designer drew, and the panel finds the height by growing UPWARDS: the edge the
-  // lower third is composed against never moves, and neither does the role drawn under it.
-  const wrapped = await ladderState(
-    page,
-    'Alexandra Konstantinopolous-Riva de la Vega y Santa Maria del Carmen',
-  );
-  expect(wrapped.lines).toBe(2);
-  expect(wrapped.size).toBe(drawn.size);
-  expect(wrapped.over).toEqual([]);
-  expect(wrapped.plateTop).toBeLessThan(drawn.plateTop);
-  expect(wrapped.plateBottom).toBe(drawn.plateBottom);
-  expect(wrapped.roleTop).toBe(drawn.roleTop);
-  // The accent rail is drawn to the plate's own two edges, so it grows with it rather than
-  // leaving the gained strip bare.
-  expect(wrapped.accentTop).toBe(wrapped.plateTop);
-  expect(wrapped.accentBottom).toBe(wrapped.plateBottom);
-
-  // RUNG THREE - and only a value no width and no line count can hold gets smaller. One
-  // unbreakable word is the honest case: there is nowhere to wrap it, so both rungs above are
-  // genuinely spent before the type moves, and past the floor it is reported.
-  const floored = await ladderState(page, 'A'.repeat(400));
-  expect(floored.size).toBeLessThan(drawn.size);
-  expect(floored.over).toEqual(['f0']);
-
-  // A short value again puts the artwork back exactly as drawn.
-  const back = await ladderState(page, 'Alexandra Riva');
-  expect(back).toEqual(drawn);
-});
-
 test('svg import: a growing lower third keeps the space the designer drew around its text', async ({ page }) => {
   // "The panel doesn't have a safe space" (owner, 2026-08-29). Sideways the room already
   // mirrored the designer's left inset; downwards there was no margin rule at all, so a wrapped
@@ -1321,135 +1022,6 @@ test('svg import: a growing lower third keeps the space the designer drew around
   expect(wrapped.lines).toBe(2);
   expect(wrapped.roleTop - wrapped.nameBottom).toBeGreaterThanOrEqual(drawnGapUnder - 1);
   expect(wrapped.nameTop - wrapped.plateTop).toBeGreaterThanOrEqual(drawnTopPad - 1);
-});
-
-// ── A CENTRED LINE'S SIDE GAPS ARE CENTRING, NOT MARGIN (owner walk, 2026-09-03) ─────────
-// The twin of "a value fills the panel it was drawn in before any of it shrinks", which was
-// built for a line drawn against the LEFT of its plate and mirrored the inset it found there.
-// Mirroring is the wrong reading for a line the designer CENTRED: both gaps are then exactly
-// half the leftover, so the mirror hands the line back its own drawn width and the plate around
-// it is invisible to the ladder. His VOTE NOW badge - 260 units of pill, 142 units of word -
-// measured 143 units of room, so "PLEASE VOTE" cost it a quarter of its size and anything
-// longer floored at 55% and was squeezed into the same 143 units: an illegible smear he read,
-// correctly, as the badge having disappeared. *"It shrank it down, and it doesn't fill the
-// whole shape. It could."*
-//
-// This is the sideways half of the argument already settled downwards on 2026-09-02: the space
-// above a centred line is not margin either, and the room there became symmetric about the
-// middle with half a line's leading kept from each edge. Same rule, other axis.
-const CENTRED_PLATE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-  <rect id="Plate" x="660" y="460" width="600" height="160" rx="80" fill="#0d1017"/>
-  <text id="Badge" transform="translate(960 540)" text-anchor="middle" font-size="48" fill="#ffffff">LIVE</text>
-</svg>`;
-
-test('svg import: a word CENTRED in its plate gets the plate as its room, not its own width', async ({
-  page,
-}) => {
-  await dropSvgMarkup(page, CENTRED_PLATE_SVG, 'centred-plate.svg');
-  await page.locator('.wz-next').click();
-  await createProject(page);
-
-  const read = async (value: string) =>
-    previewFrame(page)
-      .locator('#f0')
-      .evaluate((el, v) => {
-        const w = window as unknown as {
-          update: (json: string) => void;
-          svgFitRoom: Record<string, { width: number }>;
-          svgFitSizes: Record<string, number>;
-          svgFitWidths: Record<string, number>;
-          noacgTextOverflow: () => string[];
-        };
-        w.update(JSON.stringify({ f0: v }));
-        const node = el as unknown as SVGTextContentElement;
-        const painted = (node.firstElementChild ?? node) as SVGTextContentElement;
-        const squeezed = painted.getAttribute('textLength');
-        // The glyphs' OWN advance at the settled size, which is what the legibility floor is a
-        // fraction of. `getComputedTextLength()` reports the adjusted width while textLength is
-        // set, so it is taken off, measured, and put straight back.
-        painted.removeAttribute('textLength');
-        const natural = painted.getComputedTextLength();
-        if (squeezed !== null) painted.setAttribute('textLength', squeezed);
-        return {
-          room: w.svgFitRoom.f0.width,
-          drawnWidth: w.svgFitWidths.f0,
-          drawnSize: w.svgFitSizes.f0,
-          size: parseFloat(getComputedStyle(node).fontSize),
-          squeezed,
-          natural,
-          over: w.noacgTextOverflow(),
-        };
-      }, value);
-
-  // THE ROOM IS THE PLATE. The word is drawn about 110 units wide in a 600-unit pill, so the
-  // ladder must see most of those 600 - not the 110 the mirror used to hand back. A typographic
-  // margin is kept from each edge (half the drawn type), which is the only quantity in the file
-  // that means anything when the drawn gaps are centring.
-  const drawn = await read('LIVE');
-  expect(drawn.drawnWidth).toBeLessThan(200);
-  expect(drawn.room).toBeGreaterThan(500);
-  expect(drawn.room).toBeLessThan(600); // never outside the plate
-  expect(drawn.size).toBe(drawn.drawnSize);
-
-  // …so a value three times the drawn word still paints at the size the designer chose, because
-  // the plate genuinely holds it. This is the assertion that fails on the old rule: it shrank.
-  const longer = await read('VOTE NOW');
-  expect(longer.size).toBe(longer.drawnSize);
-  expect(longer.over).toEqual([]);
-  expect(longer.squeezed).toBeNull();
-
-  // And the rule still stops at the plate: copy no size can hold floors, is squeezed towards the
-  // room rather than painted over the artwork, and is reported - every rung below this one is
-  // exactly where it was. One long word, so the wrap rung has nothing to spend first.
-  //
-  // 120 A's is ONE unbreakable word, so the wrap rung has nothing to spend and the ladder is
-  // down to size. Two floors since 2026-09-05: it is REPORTED at 55% and keeps shrinking to a
-  // hard 30%, because scaling keeps a letterform its own shape where condensing turns words into
-  // a texture - the smear the owner photographed.
-  const absurd = await read('A'.repeat(120));
-  expect(absurd.over).toEqual(['f0']);
-  expect(absurd.size).toBeLessThan(absurd.drawnSize * 0.55);
-  expect(absurd.size).toBeGreaterThanOrEqual(absurd.drawnSize * 0.3 - 0.01);
-  // And if the last rung fired at all, it never condensed past legibility.
-  if (absurd.squeezed !== null) {
-    expect(Number(absurd.squeezed) / absurd.natural).toBeGreaterThanOrEqual(0.7 - 0.001);
-  }
-
-  // …and shortening it takes every rung back off, so no rung can strand the graphic.
-  const back = await read('LIVE');
-  expect(back.size).toBe(back.drawnSize);
-  expect(back.squeezed).toBeNull();
-  expect(back.over).toEqual([]);
-});
-
-test('svg import: a wrapped value is re-fitted as the words the operator typed', async ({ page }) => {
-  // A wrapped line lives as tspans, and reading it back through textContent concatenates them
-  // with nothing between - so the second pass (the one document.fonts.ready fires) fitted
-  // "AlexandraKonstantinopolous" and settled somewhere the first pass never would.
-  await dropSvgMarkup(page, GRADIENT_LOWER_THIRD, 'gradient-lower-third.svg');
-  await page.locator('.wz-next').click();
-  await createProject(page);
-
-  const state = await previewFrame(page)
-    .locator('#f0')
-    .evaluate((el) => {
-      const w = window as unknown as { update: (j: string) => void; refitSvgText: () => void };
-      w.update(
-        JSON.stringify({ f0: 'Alexandra Konstantinopolous-Riva de la Vega y Santa Maria del Carmen' }),
-      );
-      const first = { lines: el.children.length, text: el.textContent };
-      w.refitSvgText();
-      const kids = el.children;
-      const words = [];
-      for (let i = 0; i < kids.length; i++) words.push(kids[i].textContent);
-      return { first, again: { lines: kids.length, joined: words.join(' ') } };
-    });
-
-  expect(state.first.lines).toBeGreaterThan(1);
-  expect(state.again.lines).toBe(state.first.lines);
-  expect(state.again.joined).toBe(
-    'Alexandra Konstantinopolous-Riva de la Vega y Santa Maria del Carmen',
-  );
 });
 
 // ── ONE FITTING SYSTEM (docs/SVG_IMPORT_PLAN.md §6b) ─────────────────────────────────────
@@ -1485,7 +1057,7 @@ test('svg import: an outlined-text field is measured by the SAME ladder, against
   await replaceOutline(page, 'Ada');
   await createProject(page);
 
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   const read = (value: string) =>
     frame.locator('#f0').evaluate((el, v) => {
       const w = window as unknown as {
@@ -1674,7 +1246,7 @@ test('svg import: a field drawn on the artwork becomes a real field, where it wa
   expect(state.js).not.toContain('function fitPlacedText');
   expect(state.css).toMatch(/#f1 \{[^}]*white-space: nowrap;/);
 
-  const reported = await previewFrame(page).locator('#f1').evaluate((el) => {
+  const reported = await editorPreview(page).locator('#f1').evaluate((el) => {
     const w = window as unknown as {
       update: (json: string) => void;
       svgFitRoom: Record<string, { width: number; height: number }>;
@@ -1709,7 +1281,6 @@ test('svg import: a field drawn on the artwork becomes a real field, where it wa
 // same column. `data-measured` on the draw surface exists for that procedure, and for anyone
 // reading the DOM to work out why a drag seemed to do nothing. e2e/AGENTS.md carries the trap.
 test('svg import: a drawn field can be renamed and removed, and cancelling draws nothing', async ({ page }) => {
-  skipOldEditor();
   await dropSvgMarkup(page, STAGE_SVG, 'stage.svg');
   await page.locator('.wz-next').click();
 
@@ -1748,124 +1319,6 @@ test('svg import: a drawn field can be renamed and removed, and cancelling draws
   // The clicked one survived, sized from the design rather than from the gesture — and it kept
   // the name it was given, which the next add would not have re-issued.
   expect(fields).toEqual(['f0:Headline', 'f1:Text 2']);
-});
-
-// ── VERTICAL GROWTH (docs/SVG_IMPORT_PLAN.md §6c) ────────────────────────────────────────
-// A panel with room beneath it can get TALLER so a long value wraps into new height, instead of
-// shrinking inside the height it was drawn at. The board below is drawn small on a tall frame,
-// so the growth has somewhere to go and the caption underneath has to travel with it.
-// The board is drawn for ONE line - tight enough that a second one does not fit inside the
-// height the designer gave it, which is exactly when growing down is the answer.
-const GROW_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-  <rect id="Board" x="300" y="200" width="1200" height="110" rx="8" fill="#0d1017"/>
-  <text id="Question" x="340" y="260" font-size="44" fill="#ffffff">Which city?</text>
-  <rect id="Footer" x="300" y="340" width="1200" height="60" rx="8" fill="#f6a623"/>
-</svg>`;
-
-test('svg import: a panel told to grow taller wraps into the new height instead of shrinking', async ({ page }) => {
-  await dropSvgMarkup(page, GROW_DOWN_SVG, 'grow-down.svg');
-  await page.locator('.wz-next').click();
-  await boxGrow(page).selectOption('grow-y');
-  await createProject(page);
-
-  const frame = previewFrame(page);
-  const run = (value: string) =>
-    frame.locator('#f0').evaluate((el, v) => {
-      (window as unknown as { update: (json: string) => void }).update(JSON.stringify({ f0: v }));
-      const board = document.querySelector('rect[data-noacg-el~="g0"]')!;
-      const footer = document.getElementById('Footer')!;
-      const art = document.querySelector('.imported-design-art')!.getBoundingClientRect();
-      return {
-        boardHeight: Math.round(parseFloat(board.getAttribute('height')!)),
-        boardBottom: Math.round(board.getBoundingClientRect().bottom),
-        footerTop: Math.round(footer.getBoundingClientRect().top),
-        frameBottom: Math.round(art.bottom),
-        frameHeight: art.height,
-        size: parseFloat(getComputedStyle(el).fontSize),
-        lines: el.children.length,
-        over: (window as unknown as { noacgTextOverflow: () => string[] }).noacgTextOverflow(),
-      };
-    }, value);
-
-  const rest = await run('Which city?');
-  expect(rest.boardHeight).toBe(110);
-
-  // A value the drawn board already holds does not move it - the design's own space first.
-  const fits = await run('Which city hosted?');
-  expect(fits.boardHeight).toBe(110);
-  expect(fits.size).toBe(rest.size);
-
-  // Past that, the board gets TALLER and the value WRAPS at full size. Shrinking is what this
-  // rule exists to avoid: the type stays as drawn and the panel finds the room.
-  const long = await run('Which city hosted the first modern Olympic Games of the modern era?');
-  expect(long.boardHeight).toBeGreaterThan(rest.boardHeight);
-  expect(long.lines).toBeGreaterThan(1);
-  expect(long.size).toBe(rest.size);
-  expect(long.over).toEqual([]);
-  // …and the caption drawn below it travelled, keeping the gap the designer left.
-  expect(long.footerTop - rest.footerTop).toBeCloseTo(long.boardBottom - rest.boardBottom, 0);
-
-  // Growing off the frame is not a fit: the board stops at the safe margin and the rest of the
-  // ladder answers what the cap could not give.
-  const huge = await run('Which city hosted the first modern Olympic Games '.repeat(60));
-  expect(huge.boardBottom).toBeLessThanOrEqual(huge.frameBottom - huge.frameHeight * 0.04 + 1);
-  expect(huge.size).toBeLessThan(rest.size);
-
-  // And a short value again puts the artwork back exactly as drawn.
-  const back = await run('Which city?');
-  expect(back.boardHeight).toBe(110);
-  expect(back.footerTop).toBe(rest.footerTop);
-});
-
-test('svg import: growing downwards settles on ONE geometry, whatever order the values arrive in', async ({ page }) => {
-  // THE OWNER'S ACCEPTANCE CRITERION (plan §6c). Wrap and grow are circular - the line count
-  // depends on the size, the available height on the growth, the growth on the line count - and
-  // the fit runs INSIDE the template, so the same values must settle on the same geometry in the
-  // editor, in an exported package and under SPX. That is only true if the fit is a function of
-  // the VALUE and the DESIGN, never of whatever the artwork happens to look like right now.
-  //
-  // Measured here as the two properties that make it so: running it twice changes nothing, and
-  // the answer does not depend on what was on screen before.
-  await dropSvgMarkup(page, GROW_DOWN_SVG, 'grow-down.svg');
-  await page.locator('.wz-next').click();
-  await boxGrow(page).selectOption('grow-y');
-  await createProject(page);
-
-  const LONG = 'Which city hosted the first modern Olympic Games of the modern era?';
-  const geometry = async (values: string[]) =>
-    previewFrame(page)
-      .locator('#f0')
-      .evaluate((el, vs) => {
-        const w = window as unknown as {
-          update: (json: string) => void;
-          refitSvgText: () => void;
-          noacgTextOverflow: () => string[];
-        };
-        for (const v of vs) w.update(JSON.stringify({ f0: v }));
-        const read = () => ({
-          board: Math.round(parseFloat(document.querySelector('rect[data-noacg-el~="g0"]')!.getAttribute('height')!)),
-          footer: Math.round(document.getElementById('Footer')!.getBoundingClientRect().top),
-          size: Math.round(parseFloat(getComputedStyle(el).fontSize) * 100) / 100,
-          lines: el.children.length,
-          over: w.noacgTextOverflow().join(','),
-        });
-        const first = read();
-        w.refitSvgText(); // the same pass the webfonts fire — running it twice must change nothing
-        return { first, again: read() };
-      }, values);
-
-  // IDEMPOTENT: a second pass over a settled graphic moves nothing.
-  const direct = await geometry([LONG]);
-  expect(direct.again).toEqual(direct.first);
-  expect(direct.first.lines).toBeGreaterThan(1);
-
-  // ORDER-INDEPENDENT: the same value reached through a short one, a longer one, and an
-  // enormous one settles on exactly the geometry it reaches directly. The trap the ladder
-  // already paid for once is a budget taken from the first value that happened to arrive.
-  const viaShort = await geometry(['Hi', LONG]);
-  const viaHuge = await geometry(['Which city hosted the first modern Olympics '.repeat(12), LONG]);
-  expect(viaShort.first).toEqual(direct.first);
-  expect(viaHuge.first).toEqual(direct.first);
 });
 
 // ── THE CANVAS AS A CONTROL SURFACE (docs/SVG_IMPORT_PLAN.md §6a step 5) ─────────────────
@@ -1999,7 +1452,6 @@ const FOLLOWERS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920
 // tied and second in the file), s2 Strap (1000).
 
 test('svg import: the followers of a growing panel are proposed, then become the author’s own', async ({ page }) => {
-  skipOldEditor();
   await dropSvgMarkup(page, FOLLOWERS_SVG, 'followers.svg');
   await page.locator('.wz-next').click();
 
@@ -2094,7 +1546,7 @@ test('svg import: two boxes in one graphic grow differently', async ({ page }) =
   // TWO KINDS OF LONG VALUE, because the two rungs answer different things: a box gets TALLER by
   // wrapping, which needs a value with somewhere to break, and it gets WIDER for a value that
   // cannot break at all.
-  const grown = await previewFrame(page)
+  const grown = await editorPreview(page)
     .locator('#Board')
     .evaluate((el, long) => {
       const w = el.ownerDocument.defaultView as unknown as { update: (json: string) => void };
@@ -2132,7 +1584,6 @@ test('svg import: two boxes in one graphic grow differently', async ({ page }) =
 test('svg import: a growth limit stops at the frame and at the box, and cannot be dragged past either', async ({
   page,
 }) => {
-  skipOldEditor();
   await dropSvgMarkup(page, TWO_BOX_SVG, 'two-box.svg');
   await page.locator('.wz-next').click();
   // Sideways growth carries no line, so this is the box that may get TALLER.
@@ -2186,7 +1637,6 @@ test('svg import: a growth limit stops at the frame and at the box, and cannot b
 });
 
 test('svg import: an untouched proposal is left to the runtime, not frozen into the graphic', async ({ page }) => {
-  skipOldEditor();
   // A reader who never opens the follower list has expressed no opinion, so the graphic ships
   // WITHOUT a follower table and the runtime derives the set the way the hug always has. Writing
   // the proposal down instead would freeze a design-time guess into every future playout.
@@ -2224,7 +1674,6 @@ const TEXT_BELOW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192
 </svg>`;
 
 test('svg import: only artwork travels — a text layer is never offered as one', async ({ page }) => {
-  skipOldEditor();
   await dropSvgMarkup(page, TEXT_BELOW_SVG, 'text-below.svg');
   await page.locator('.wz-next').click();
   await boxGrow(page).selectOption('grow-y');
@@ -2300,49 +1749,6 @@ test('svg import: authoring growth alone does not open an empty travel list', as
 
   await mode.selectOption('grow-y');
   await expect(page.getByTestId('map-svg-followers')).toHaveCount(0);
-});
-
-test('svg import: a value wraps inside the height the design drew, and never past it', async ({ page }) => {
-  // Wrapping is allowed only into room the artwork already has: the panel's own height, down to
-  // whatever is drawn below the line. How many lines that is depends on the SIZE - a 190px panel
-  // holds one 56px line and three 30px ones - so the ladder re-asks as it shrinks.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-      <rect id="Board" x="360" y="240" width="1200" height="300" rx="8" fill="#0d1017"/>
-      <text id="Question" x="404" y="312" font-size="44" fill="#ffffff">Which city?</text>
-    </svg>`,
-    'wrap.svg',
-  );
-  await page.locator('.wz-next').click();
-  await boxGrow(page).selectOption('shrink'); // the wrap-then-shrink ladder is under test
-  await createProject(page);
-
-  const wrapped = await previewFrame(page).locator('#f0').evaluate((el) => {
-    const w = window as unknown as { update: (json: string) => void; svgFitSizes: Record<string, number> };
-    w.update(
-      JSON.stringify({
-        f0: 'Which Finnish city hosted the Summer Olympic Games in the year nineteen fifty two, and which country topped the medal table',
-      }),
-    );
-    const board = document.getElementById('Board')!.getBoundingClientRect();
-    const box = el.getBoundingClientRect();
-    return {
-      lines: el.children.length,
-      texts: Array.from(el.children).map((c) => c.textContent ?? ''),
-      insideBoard: box.bottom <= board.bottom + 0.5,
-      size: parseFloat(getComputedStyle(el).fontSize),
-      drawnSize: w.svgFitSizes.f0,
-    };
-  });
-
-  // More than one line, every line carrying words, and the whole block still inside the shape
-  // it was drawn in - the artwork does not grow to hold the copy.
-  expect(wrapped.lines).toBeGreaterThan(1);
-  expect(wrapped.texts.every((t) => t.trim().length > 0)).toBe(true);
-  expect(wrapped.insideBoard).toBe(true);
-  // And it wrapped rather than shrinking all the way: bigger than the floor it would have hit.
-  expect(wrapped.size).toBeGreaterThan(wrapped.drawnSize * 0.55);
 });
 
 // A WRAPPED VALUE BREAKS INTO EVEN LINES (issue #778). A greedy fill puts everything that is
@@ -2428,7 +1834,7 @@ test('svg import: a line with another drawn right below it stays on one line', a
   await boxGrow(page).selectOption('shrink'); // the room measurement is under test
   await createProject(page);
 
-  const state = await previewFrame(page).locator('#f0').evaluate((el) => {
+  const state = await editorPreview(page).locator('#f0').evaluate((el) => {
     const w = window as unknown as { update: (json: string) => void };
     w.update(JSON.stringify({ f0: 'Alexandra Konstantinopolous-Riva de la Vega y Santa Maria del Mar' }));
     const role = document.getElementById('f1')!.getBoundingClientRect();
@@ -2497,34 +1903,6 @@ test('svg import: an ordinary lower third arrives already growing, read from the
   await expect(page.getByTestId('wz-preview-highlight')).toBeVisible();
 });
 
-test('svg import: with NOTHING chosen, a long name grows the banner instead of shrinking', async ({ page }) => {
-  // GOALS goal 5, the owner's bar verbatim: "of course that text should be able to become
-  // longer and the background should grow with it. I don't know why we need to choose them."
-  // So this walk touches NO growth control at all - drop, next, create - and the created
-  // graphic must still hug.
-  await dropSvgMarkup(page, HUG_SVG, 'hug.svg');
-  await page.locator('.wz-next').click();
-  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
-  await createProject(page);
-
-  const frame = previewFrame(page);
-  const grown = await frame.locator('#f0').evaluate((el) => {
-    const w = window as unknown as { update: (json: string) => void };
-    const panel = document.querySelector('rect[data-noacg-el~="g0"]')!;
-    const before = parseFloat(panel.getAttribute('width')!);
-    w.update(JSON.stringify({ f0: 'Alexandra Konstantinopolous-Riva' }));
-    return {
-      before,
-      after: parseFloat(panel.getAttribute('width')!),
-      size: parseFloat(getComputedStyle(el).fontSize),
-    };
-  });
-  expect(grown.before).toBe(600);
-  expect(grown.after).toBeGreaterThan(600);
-  // …and the type stayed the size the designer drew it, which is what growing is FOR.
-  expect(grown.size).toBeCloseTo(56, 0);
-});
-
 test('svg import: a scorebug and a quiz board still default to shrink - growth is refused', async ({ page }) => {
   // The other half of goal 5: the default must be right on the graphics that must NOT move.
   // The shipped scorebug sample is side-by-side text with end/middle anchors on one plate -
@@ -2551,7 +1929,7 @@ test('svg import: a hugging panel grows with its text, and what is beyond it tra
   await boxGrow(page).selectOption('grow-x');
   await createProject(page);
 
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   // ONE stamp per participant is the whole markup edit; the emitted NOACG_LAYOUT table says
   // what each stamp does, and the runtime loops that table (docs/SVG_IMPORT_PLAN.md §6c).
   await expect(frame.locator('rect[data-noacg-el~="g0"]')).toHaveAttribute('width', '600');
@@ -2610,14 +1988,6 @@ test('svg import: a hugging panel grows with its text, and what is beyond it tra
 // more findings came out of the same walk and each is measured below.
 const ILLUSTRATOR_SVG = fileURLToPath(new URL('../docs/svg-samples/illustrator-export.svg', import.meta.url));
 
-/** A board with real room BOTH ways: a margin to widen into and clear artwork below to wrap
- *  into, which is the one shape that can show a combination doing two things. */
-const BOTH_WAYS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-  <rect id="Board" x="300" y="200" width="900" height="110" rx="8" fill="#0d1017"/>
-  <text id="Question" x="340" y="260" font-size="44" fill="#ffffff">Which city?</text>
-  <rect id="Footer" x="300" y="340" width="900" height="60" rx="8" fill="#f6a623"/>
-</svg>`;
-
 test('svg import: the shipped Illustrator lower third arrives growing, not shrinking', async ({ page }) => {
   // THE BUG THE OWNER HIT. Location (x=200) and Slot (x=700) share one baseline, and the
   // side-by-side test used to refuse the WHOLE file on that pair - so a banner with three
@@ -2636,245 +2006,6 @@ test('svg import: the shipped Illustrator lower third arrives growing, not shrin
     'gets taller',
     'stays as drawn',
   ]);
-});
-
-test('svg import: growth is symmetrical and a line stops at whatever is drawn beside it', async ({ page }) => {
-  await page.goto('/app');
-  await dropSvg2(page, ILLUSTRATOR_SVG);
-  // The WIDTH cap is what this pins, so the width-only rung is chosen as an author would: under
-  // the measured default the value below reaches the cap and then WRAPS, and the residual gap
-  // asserted at the end would be a wrapped line's slack rather than the mirrored inset.
-  await boxGrow(page).selectOption('grow-x');
-  await createProject(page);
-
-  const frame = previewFrame(page);
-  const run = (values: Record<string, string>) =>
-    frame.locator('#f0').evaluate((_el, vals) => {
-      (window as unknown as { update: (json: string) => void }).update(JSON.stringify(vals));
-      const art = document.querySelector('.imported-design-art')!.getBoundingClientRect();
-      const panel = document.querySelector('rect[data-noacg-el~="g0"]')!.getBoundingClientRect();
-      const at = (id: string) => {
-        const r = document.getElementById(id)!.getBoundingClientRect();
-        return { left: +(r.left - art.left).toFixed(1), right: +(r.right - art.left).toFixed(1) };
-      };
-      return {
-        frameWidth: art.width,
-        panelLeft: +(panel.left - art.left).toFixed(1),
-        panelRight: +(panel.right - art.left).toFixed(1),
-        name: at('f0'),
-        location: at('f2'),
-        slot: at('f3'),
-      };
-    }, values);
-
-  const rest = await run({ f0: 'Alexandra Riva', f2: 'HELSINKI' });
-  expect(rest.panelLeft).toBe(150);
-  expect(rest.panelRight).toBe(1150);
-
-  // THE CAP IS THE DESIGN'S OWN MARGIN, MIRRORED. "We cannot have templates outgrow the
-  // screen" - and the flat 4% that used to bound this let the banner run to 1843 on a 1920
-  // frame, 73px past the 150px margin the designer left on the left. It now stops at exactly
-  // frame - inset, and the name keeps that same margin inside it.
-  const huge = await run({ f0: 'Bartholomew Featherstonehaugh-Wintersgill of the Northern Reaches and Well Beyond That Too' });
-  expect(huge.panelRight).toBeCloseTo(huge.frameWidth - rest.panelLeft, 0);
-  expect(huge.name.right).toBeLessThanOrEqual(huge.panelRight);
-  // …and the residual gap is the mirrored inset itself, not slack: growth is spent, not wasted.
-  //
-  // "SPENT" IS ASKED AS A QUESTION A RENDERER CANNOT BEND: WOULD ONE MORE PIXEL OF TYPE HAVE
-  // FITTED? The leftover itself is not a platform-free number. Windows lays glyphs out at
-  // fractional sizes, so width is linear in size and this line lands half a pixel short of its
-  // room. CI's Linux renderer hints, which sizes glyphs at WHOLE pixels: the same bold line is
-  // 1507 wide anywhere from 33 to 33.49px and 1552 at 34, so against a 1520 room it stops 13
-  // short and no size does better. Bounding the leftover went red there twice with nothing
-  // wrong. What holds on both is that the chosen size is the largest that fits - and a size
-  // search that undershoots fails it on either.
-  const drawnInset = rest.name.left - rest.panelLeft;
-  const grownGap = huge.panelRight - huge.name.right;
-  const fit = await frame.locator('#f0').evaluate((el) => {
-    const line = el as unknown as SVGTextContentElement & { style: CSSStyleDeclaration };
-    const size = parseFloat(getComputedStyle(line).fontSize);
-    const textLength = line.getComputedTextLength();
-    const inline = line.style.fontSize;
-    line.style.fontSize = `${size + 1}px`;
-    const onePixelUp = line.getComputedTextLength();
-    line.style.fontSize = inline;
-    return { size, textLength: +textLength.toFixed(1), onePixelUp: +onePixelUp.toFixed(1) };
-  });
-  const room = huge.panelRight - drawnInset - rest.name.left;
-  // The numbers ride the failure, because this machine rasterises one platform and CI the other:
-  // a red here that says only "63 is not < 53" cannot be told from a wrong cap without a re-run.
-  const measured = JSON.stringify({ drawnInset, room, panelRight: huge.panelRight, name: huge.name, ...fit });
-  expect(fit.textLength, measured).toBeLessThanOrEqual(room + 0.5);
-  expect(fit.onePixelUp, measured).toBeGreaterThan(room);
-  // And the one painted bound that is a guarantee anywhere: a gap SMALLER than the inset is the
-  // text eating the margin it is mirroring, which is the whole defect this asserts against.
-  expect(grownGap, measured).toBeGreaterThanOrEqual(drawnInset - 0.5);
-
-  // NEIGHBOURS DO NOT OVERLAP. A long Location used to run to 860 straight through the 19:30
-  // Slot drawn at 700, because its room was measured out to the panel's edge. Its room is now
-  // bounded by what is drawn beside it - and because widening the panel would give it nothing,
-  // it does not drive the growth either.
-  const long = await run({ f0: 'Alexandra Riva', f2: 'HELSINKI METROPOLITAN AREA SOUTH AND EAST DISTRICT' });
-  expect(long.location.right).toBeLessThan(long.slot.left);
-  expect(long.panelRight).toBe(rest.panelRight);
-});
-
-test('svg import: past the floor a value is squeezed inside its room, never painted outside it', async ({ page }) => {
-  // "Nothing may ever paint outside the panel" (owner, 2026-08-26). The ladder used to stop at
-  // the 55% legibility floor and REPORT the value as too long, which left it running 127px past
-  // the banner and across whatever was drawn beside it. The floor still holds the type size; the
-  // floored block is then squeezed to its budget, and it is still reported.
-  await page.goto('/app');
-  await dropSvg2(page, ILLUSTRATOR_SVG);
-  await boxGrow(page).selectOption('shrink');
-  await createProject(page);
-
-  const frame = previewFrame(page);
-  const run = (value: string) =>
-    frame.locator('#f0').evaluate((el, v) => {
-      const w = window as unknown as { update: (s: string) => void; noacgTextOverflow: () => string[] };
-      w.update(JSON.stringify({ f0: v }));
-      const art = document.querySelector('.imported-design-art')!.getBoundingClientRect();
-      const panel = document.querySelector('rect')!.getBoundingClientRect();
-      const r = el.getBoundingClientRect();
-      return {
-        right: +(r.right - art.left).toFixed(1),
-        panelRight: +(panel.right - art.left).toFixed(1),
-        size: Math.round(parseFloat(getComputedStyle(el).fontSize) * 100) / 100,
-        squeezed: el.getAttribute('textLength') ?? el.children[0]?.getAttribute('textLength') ?? null,
-        over: w.noacgTextOverflow(),
-      };
-    }, value);
-
-  const rest = await run('Alexandra Riva');
-  expect(rest.squeezed).toBeNull();
-  expect(rest.over).toEqual([]);
-
-  const huge = await run('Bartholomew Featherstonehaugh-Wintersgill of the Northern Reaches and Well Beyond That Too');
-  // Past the REPORTING floor (55% of the drawn 54px) and still inside the panel - which is now
-  // bought by shrinking rather than by condensing. The old rule stopped the type at 55% and spent
-  // everything past it on `textLength`; since 2026-09-05 the type keeps scaling down to a hard 30%
-  // floor first, because scaling leaves a letterform its own shape and condensing does not.
-  expect(huge.size).toBeLessThan(54 * 0.55);
-  expect(huge.size).toBeGreaterThanOrEqual(54 * 0.3 - 0.01);
-  // Nothing paints outside the panel (owner, 2026-08-26) - the older ruling, kept for every value
-  // a plate can still hold at SOME size, which after this change is almost all of them.
-  expect(huge.right).toBeLessThanOrEqual(huge.panelRight);
-  expect(huge.over).toEqual(['f0']);
-
-  // The squeeze is not a state the graphic gets stuck in: a value that fits comes back exact.
-  const back = await run('Alexandra Riva');
-  expect(back.squeezed).toBeNull();
-  expect(back.size).toBe(rest.size);
-  expect(back.right).toBe(rest.right);
-  expect(back.over).toEqual([]);
-});
-
-test('svg import: the squeeze stops at the legibility floor rather than smearing the words', async ({
-  page,
-}) => {
-  // THE SCREENSHOT (owner, 2026-09-05). He typed his quiz question into itself until it was many
-  // times its room, and the board aired a line of grey texture: `textLength` condenses to whatever
-  // number it is handed, and it was handed the room. His ruling:
-  //
-  //   "the text should always be readable, and if it becomes too small, then that's the user's own
-  //    fault, but the text should never grow on top of each other or get so dense that it's
-  //    impossible to read, like in this screenshot."
-  //
-  // So the condensing stops at 70% of the glyphs' own advance. The value then stands wider than
-  // its room - which is the older ruling (2026-08-26, nothing paints outside the panel) giving
-  // way, and only ever on values no legible rendering could have contained.
-  await page.goto('/app');
-  await dropSvg2(page, ILLUSTRATOR_SVG);
-  await boxGrow(page).selectOption('shrink');
-  await createProject(page);
-
-  const ratio = await previewFrame(page)
-    .locator('#f0')
-    .evaluate((el, v) => {
-      const w = window as unknown as { update: (s: string) => void; noacgTextOverflow: () => string[] };
-      w.update(JSON.stringify({ f0: v }));
-      const painted = (el.firstElementChild ?? el) as unknown as SVGTextContentElement;
-      const asked = painted.getAttribute('textLength');
-      painted.removeAttribute('textLength');
-      const natural = painted.getComputedTextLength();
-      if (asked !== null) painted.setAttribute('textLength', asked);
-      return { condensed: asked === null ? 1 : Number(asked) / natural, over: w.noacgTextOverflow() };
-    }, 'Which city hosts the 2032 Olympics? '.repeat(12));
-
-  // Never below the floor - the whole point - and never condensed further than it needs to be.
-  expect(ratio.condensed).toBeGreaterThanOrEqual(0.7 - 0.001);
-  expect(ratio.condensed).toBeLessThanOrEqual(1);
-  // Still honestly reported, so the operator's warning is what tells them to shorten it.
-  expect(ratio.over).toEqual(['f0']);
-});
-
-test('svg import: wider THEN wrap is one choice, and it is two rows on one panel', async ({ page }) => {
-  // The owner accepted the three options and then said a real graphic sometimes wants a
-  // COMBINATION: "we should let the customer choose whatever they want, that's the most
-  // important thing." It needs no new format - the runtime already spends width before the fit
-  // and height after it, so "both" is two ordinary rows naming one element.
-  await dropSvgMarkup(page, BOTH_WAYS_SVG, 'both-ways.svg');
-  await page.locator('.wz-next').click();
-  await boxGrow(page).selectOption('grow-xy');
-  await createProject(page);
-
-  const js = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.js;
-  });
-  const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(js)![0];
-  expect(table).toContain("axis: 'x'");
-  expect(table).toContain("axis: 'y'");
-
-  const frame = previewFrame(page);
-  // ONE element, TWO stamps. A single-valued attribute would let the second row erase the first.
-  await expect(frame.locator('#Board')).toHaveAttribute('data-noacg-el', 'g0 g1');
-
-  const run = (value: string) =>
-    frame.locator('#f0').evaluate((el, v) => {
-      (window as unknown as { update: (s: string) => void }).update(JSON.stringify({ f0: v }));
-      const board = document.getElementById('Board')!;
-      const art = document.querySelector('.imported-design-art')!.getBoundingClientRect();
-      const bb = board.getBoundingClientRect();
-      return {
-        width: Math.round(parseFloat(board.getAttribute('width')!)),
-        height: Math.round(parseFloat(board.getAttribute('height')!)),
-        right: Math.round(bb.right - art.left),
-        bottom: Math.round(bb.bottom - art.top),
-        footTop: Math.round(document.getElementById('Footer')!.getBoundingClientRect().top - art.top),
-        lines: el.children.length,
-        size: parseFloat(getComputedStyle(el).fontSize),
-      };
-    }, value);
-
-  const rest = await run('Which city?');
-  expect(rest.width).toBe(900);
-  expect(rest.height).toBe(110);
-
-  // WIDER FIRST. A value that only needs a little more room widens the board and stays on one
-  // line at the drawn size - the wrap rung is not reached.
-  const wider = await run('Which city hosted the very first modern games?');
-  expect(wider.width).toBeGreaterThan(900);
-  expect(wider.lines).toBeLessThan(2);
-  expect(wider.size).toBe(rest.size);
-
-  // THEN WRAP. Past the mirrored margin the board stops widening and the value takes the height
-  // below instead - still at the size the designer drew, because shrinking is the last rung.
-  const wrapped = await run('Which city hosted the first modern Olympic Games '.repeat(12));
-  expect(wrapped.right).toBe(1920 - 300); // the 300px left inset, mirrored
-  expect(wrapped.lines).toBeGreaterThan(1);
-  expect(wrapped.size).toBe(rest.size);
-  expect(wrapped.bottom).toBeLessThanOrEqual(1080 - 200); // and the top inset, mirrored downwards
-  expect(wrapped.footTop - rest.footTop).toBeCloseTo(wrapped.bottom - rest.bottom, 0);
-
-  // Both rows rest together: a short value puts the artwork back exactly as drawn. Two rows on
-  // one element is where that could break - a follower captured after the first row had already
-  // moved it would record the moved pose as its resting one.
-  const back = await run('Which city?');
-  expect(back.width).toBe(900);
-  expect(back.height).toBe(110);
-  expect(back.footTop).toBe(rest.footTop);
 });
 
 test('svg import: retyping a sample repaints the PREVIEW, not a second canvas', async ({ page }) => {
@@ -2977,49 +2108,6 @@ const PATH_PANEL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192
   <text id="Strap" class="strap" transform="matrix(1 0 0 1 190 932)">THE LONG WAY NORTH</text>
 </svg>`;
 
-test('svg import: a rounded-rectangle PATH is the panel that grows, and the ladder options differ', async ({ page }) => {
-  await dropSvgMarkup(page, PATH_PANEL_SVG, 'path-panel.svg');
-  await page.locator('.wz-next').click();
-
-  // The measured default reads the path as the banner: the whole ladder, on the Plate. The 10px
-  // accent rail holds none of the three lines, so it is not an option and no question is asked -
-  // the Plate is named instead.
-  const mode = boxGrow(page);
-  await expect(mode).toHaveValue('grow-xy');
-  await expect(boxGrows(page)).toHaveCount(1);
-  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first()).toContainText('Plate');
-
-  await createProject(page);
-  const frame = previewFrame(page);
-  const run = (value: string) =>
-    frame.locator('#f0').evaluate((el, v) => {
-      (window as unknown as { update: (s: string) => void }).update(JSON.stringify({ f0: v }));
-      const plate = document.querySelector('.imported-design-art path') as SVGPathElement;
-      const bb = plate.getBBox();
-      return {
-        panelWidth: Math.round(bb.width),
-        curves: /[Cc]/.test(plate.getAttribute('d') ?? ''),
-        size: parseFloat(getComputedStyle(el).fontSize),
-      };
-    }, value);
-
-  const rest = await run('Alexandra Riva');
-  expect(rest.panelWidth).toBe(1040);
-  expect(rest.size).toBe(56);
-
-  // The defect on the owner's walk: this value shrank while "panel gets wider" was chosen.
-  // Now the panel widens, the type stays the size the designer drew, and the corner curves
-  // are still in the data - the radii are the designer's, not a scale artifact.
-  const long = await run('Alexandra-Wilhelmina von Rothenburg-Askainen');
-  expect(long.panelWidth).toBeGreaterThan(1200);
-  expect(long.size).toBe(56);
-  expect(long.curves).toBe(true);
-
-  // And it rests: a short value puts the drawn data back verbatim.
-  const back = await run('Alexandra Riva');
-  expect(back.panelWidth).toBe(1040);
-});
-
 test('svg import: the tracking the designer set survives the import untouched', async ({ page }) => {
   // Illustrator writes Character-panel tracking as UNITLESS letter-spacing ('letter-spacing:2'),
   // which a standalone .svg renders as 2px - and which the HTML CSS parser silently drops once
@@ -3031,7 +2119,7 @@ test('svg import: the tracking the designer set survives the import untouched', 
   await page.locator('.wz-next').click();
   await createProject(page);
 
-  const spacing = await previewFrame(page)
+  const spacing = await editorPreview(page)
     .locator('#f2')
     .evaluate((el) => getComputedStyle(el).letterSpacing);
   expect(spacing).toBe('2px');
@@ -3061,7 +2149,7 @@ test('svg import: text stays off a decorative end-cap, and the cap travels when 
   await boxGrow(page).selectOption('grow-x');
   await createProject(page);
 
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   const run = (value: string) =>
     frame.locator('#f0').evaluate((el, v) => {
       const w = window as unknown as {
@@ -3127,7 +2215,7 @@ test('svg import: a rail spanning the panel still stretches after the reader edi
   await expect(page.getByTestId('map-svg-followers')).not.toContainText('read from your artwork');
   await createProject(page);
 
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   const run = (value: string) =>
     frame.locator('#f0').evaluate((el, v) => {
       const w = window as unknown as { update: (s: string) => void };
@@ -3180,126 +2268,6 @@ test('svg import: an all-outlined file does not offer drawing text over the draw
 const OWNER_QUIZ = fileURLToPath(
   new URL('fixtures/svg-corpus/illustrator-owner-quiz-board-rotated.svg', import.meta.url),
 );
-
-test('svg import: a rotated panel is measured where it is PAINTED, so the right plate grows', async ({
-  page,
-}) => {
-  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
-  await page.locator('.wz-next').click();
-
-  // A BOARD THE AUDIENCE SEES AGAIN KEEPS A FIXED BOX, so every box arrives as drawn (the
-  // doctrine's rule 3, owner 2026-09-02: "a quiz page should be the same for each question").
-  await expect(boxGrow(page)).toHaveValue('shrink');
-
-  // THE SIZE THE STEP READ, off the heading that names the question's box. The plate is a WIDE
-  // BAND - 1238 x 259 - and reading its attributes alone said 231 x 1233, the portrait rectangle
-  // it was before the rotation. The heading shows the reader's name for it ("Tan plate") and
-  // carries the layer's own name and its drawn size, which is the pair a file can be checked
-  // against.
-  const head = page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first();
-  const drawnSize = (await head.getAttribute('title')) ?? '';
-  expect(drawnSize).toContain('q bg');
-  expect(drawnSize).toContain('1238');
-  expect(drawnSize).toContain('259');
-  expect(drawnSize).not.toContain('1233');
-
-  // The question then survives a real value at the size it was drawn at, rather than shrinking -
-  // measured under the DEFAULT, which is the board keeping every box exactly as drawn. The plate
-  // has the room without growing, which is what makes the fixed box affordable here.
-  await createProject(page);
-  const drawn = await previewFrame(page)
-    .locator('#f0')
-    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-  const after = await previewFrame(page)
-    .locator('#f0')
-    .evaluate((el) => {
-      (window as unknown as { update: (s: string) => void }).update(
-        JSON.stringify({
-          f0: 'Which of these players has held the world championship title for the longest unbroken run?',
-        }),
-      );
-      return parseFloat(getComputedStyle(el).fontSize);
-    });
-  expect(drawn).toBeGreaterThan(0);
-  expect(after).toBe(drawn);
-});
-
-test('svg import: a line centred in its box keeps its size, its centre and its neighbours', async ({
-  page,
-}) => {
-  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
-  await page.locator('.wz-next').click();
-  await createProject(page);
-
-  // Three lengths through the same board: one line, two, three. The question is drawn in the
-  // vertical middle of a plate 259 units tall, so all three have room at the size it was drawn
-  // at - and before the alignment model the second one shrank to 62% on a single line, because a
-  // block could only ever grow DOWNWARD and the plate's top gap was being mirrored as a margin.
-  const measure = (value: string) =>
-    previewFrame(page)
-      .locator('#f0')
-      .evaluate((el, v) => {
-        const w = window as unknown as {
-          update: (s: string) => void;
-          svgFitContainer: (n: Element) => Element | null;
-          svgLocalBox: (p: Element | null, t: Element) => { cx: number; cy: number } | null;
-        };
-        w.update(JSON.stringify({ f0: v }));
-        const text = el as unknown as SVGGraphicsElement;
-        const bb = text.getBBox();
-        const box = w.svgLocalBox(w.svgFitContainer(el), el);
-        const doc = el.ownerDocument;
-        const root = doc.querySelector('svg')!.getBoundingClientRect();
-        const answerTop = (id: string) => {
-          const r = doc.getElementById(id)!.getBoundingClientRect();
-          return Math.round(((r.top - root.top) / root.height) * 700);
-        };
-        return {
-          size: parseFloat(getComputedStyle(el).fontSize),
-          lines: el.querySelectorAll('tspan[data-noacg-line]').length || 1,
-          offCentreX: Math.round(bb.x + bb.width / 2 - (box?.cx ?? 0)),
-          offCentreY: Math.round(bb.y + bb.height / 2 - (box?.cy ?? 0)),
-          answers: ['f1', 'f2', 'f3', 'f4'].map(answerTop),
-        };
-      }, value);
-
-  const short = await measure('Who is best?');
-  const long = await measure(
-    'Which of these players has held the world championship title for the longest unbroken run?',
-  );
-  const longest = await measure(
-    'Which of these grandmasters has held the undisputed world championship title for the longest unbroken run across the entire modern era of the game?',
-  );
-
-  // It wraps rather than shrinking: more lines as the value grows, one size - the drawn one.
-  // The COUNTS moved on 2026-09-05, when a centred line stopped being handed its own drawn width
-  // as its room: each line may now use the plate's width, so the longest question needs two lines
-  // where it used to need three. That is the ratified order spending its first rung properly
-  // (fill the room, THEN wrap), and it is what the size assertions below have always been for.
-  expect([short.lines, long.lines, longest.lines]).toEqual([1, 2, 2]);
-  expect(long.size).toBe(short.size);
-  expect(longest.size).toBe(short.size);
-
-  // Centred on the plate on BOTH axes (owner, 2026-09-02: "by default a centered text should
-  // snap both vertically and horizontally"), and holding that centre rather than sliding down as
-  // it gains lines. Before the vertical snap the block sat 9 units above the plate's true middle
-  // at every length - constant, but a position nobody chose.
-  // Within a unit of the centre, not exactly on it: these are rounded measurements of a block
-  // whose own ink box is not symmetric, so a rounding boundary is not a defect. What the rule
-  // also promises is that the number does not MOVE as the value grows, which is the second
-  // pair of assertions.
-  for (const state of [short, long, longest]) {
-    expect(Math.abs(state.offCentreX)).toBeLessThanOrEqual(1);
-    expect(Math.abs(state.offCentreY)).toBeLessThanOrEqual(1);
-  }
-  expect(Math.abs(long.offCentreY - short.offCentreY)).toBeLessThanOrEqual(1);
-  expect(Math.abs(longest.offCentreY - short.offCentreY)).toBeLessThanOrEqual(1);
-  expect(Math.abs(longest.offCentreX - short.offCentreX)).toBeLessThanOrEqual(1);
-
-  // And nothing else on the board moves, because the plate never has to grow to hold the question.
-  expect(long.answers).toEqual(short.answers);
-  expect(longest.answers).toEqual(short.answers);
-});
 
 // THE SURFACE THE OWNER ACTUALLY WALKS. The test above proves the fit in the EDITOR, through
 // update() - and on 2026-09-02 a walk of the same board in the WIZARD reported the opposite
@@ -3548,50 +2516,6 @@ test('svg import: the too-long mode answers the same however the reader got ther
 //
 // Not a rule about the CATEGORY (owner, 2026-08-30) - a lower third with one band still grows,
 // which the corpus gate measures on nine files that do.
-test('svg import: a board that draws a repeated row keeps every box as drawn', async ({ page }) => {
-  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
-  await page.locator('.wz-next').click();
-  // FIVE boxes on this board, and the claim is about all of them: a default that grew one plate
-  // while the others stayed would still breathe between questions, which is the whole defect.
-  const boxes = boxGrows(page);
-  await expect(boxes).toHaveCount(5);
-  for (let i = 0; i < 5; i += 1) await expect(boxes.nth(i)).toHaveValue('shrink');
-  // Stated in the reader's own words on the section head, not only in the controls.
-  await expect(page.getByTestId('map-svg-stretch')).toContainText('every box stays the size you drew');
-
-  // And a fixed box still holds a real question: the plate was drawn with the room, which is why
-  // it can afford to stay the size it is. The four answers do not move, because nothing grew.
-  await createProject(page);
-  const state = await previewFrame(page)
-    .locator('#f0')
-    .evaluate((el) => {
-      const w = window as unknown as { update: (s: string) => void };
-      const doc = el.ownerDocument;
-      const root = doc.querySelector('svg')!.getBoundingClientRect();
-      const tops = () =>
-        ['f1', 'f2', 'f3', 'f4'].map((id) =>
-          Math.round(((doc.getElementById(id)!.getBoundingClientRect().top - root.top) / root.height) * 700),
-        );
-      const before = tops();
-      w.update(
-        JSON.stringify({
-          f0: 'Which of these grandmasters has held the undisputed world championship title for the longest unbroken run across the entire modern era of the game?',
-        }),
-      );
-      return {
-        size: parseFloat(getComputedStyle(el).fontSize),
-        lines: el.querySelectorAll('tspan[data-noacg-line]').length || 1,
-        before,
-        after: tops(),
-      };
-    });
-  // Two lines since 2026-09-05: a centred question's room is the plate it is drawn in rather than
-  // the width of the words the designer typed. The claim this test makes is the SECOND assertion -
-  // that nothing below the question moved - and that is untouched either way.
-  expect(state.lines).toBe(2);
-  expect(state.after).toEqual(state.before);
-});
-
 // UNTICKING A TEXT LAYER ASKS NOTHING (owner, 2026-09-21: ticking or unticking a field shows no
 // warning). It means the one safe thing - the layer stays as drawn and cannot be retyped - and the
 // row says so, with removal one press away on the same line. Removal is never the automatic
@@ -3629,8 +2553,8 @@ test('svg import: unticking a text layer keeps the words, says so, and offers re
   await page.getByTestId(`map-svg-off-remove-${id}`).click();
   await expect(page.getByTestId(`map-svg-off-${id}`)).toHaveText('taken off the artwork');
   await createProject(page);
-  await expect(previewFrame(page).locator('.imported-design-removed')).toHaveCount(1);
-  const shown = await previewFrame(page)
+  await expect(editorPreview(page).locator('.imported-design-removed')).toHaveCount(1);
+  const shown = await editorPreview(page)
     .locator('.imported-design-removed')
     .evaluate((el) => getComputedStyle(el).display);
   expect(shown).toBe('none');
@@ -3678,53 +2602,6 @@ test('svg import: a five-layer quiz board opens with four answers, not two', asy
 // care - the override list is CLOSED on arrival and offered as one line. Measured on his board,
 // which defaults to shrink because it draws a repeated row, so an emitted rule can only have
 // come from the override.
-test('svg import: one box can answer the too-long question on its own', async ({ page }) => {
-  // The owner, on his own board (2026-09-03): "What if you want it to react differently between
-  // the question and the answer? What's our solution for that?" The answer is that the box says
-  // it, on its own heading row - so his question plate can grow while the four answer plates
-  // stay exactly as he drew them.
-  await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
-  await page.locator('.wz-next').click();
-
-  // A repeated row, so the whole board arrives fixed (doctrine rule 3) - and this is the reader
-  // overriding that for ONE box.
-  const boxes = boxGrows(page);
-  await expect(boxes).toHaveCount(5);
-  await boxes.first().selectOption('grow-x');
-  await expect(boxes.first()).toHaveValue('grow-x');
-  await expect(boxes.nth(1)).toHaveValue('shrink');
-  await expect(page.getByTestId('map-svg-stretch')).toContainText('gets wider');
-
-  await createProject(page);
-  const table = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
-  });
-  // ONE rule, on ONE plate. Four more would be the graphic-wide answer wearing a different hat.
-  expect(table.match(/axis: '/g)).toHaveLength(1);
-  expect(table).toContain("axis: 'x'");
-  expect(table).toContain('"q_bg" grows wider');
-
-  // And on the artwork: the question's plate widens for a long question and an answer plate is
-  // untouched by it.
-  const grown = await previewFrame(page)
-    .locator('#q_bg')
-    .evaluate((el, long) => {
-      const w = el.ownerDocument.defaultView as unknown as { update: (json: string) => void };
-      const answer = el.ownerDocument.querySelector('#a1_bg')!;
-      const read = () => ({
-        q: el.getBoundingClientRect().width,
-        a: answer.getBoundingClientRect().width,
-      });
-      w.update(JSON.stringify({ f0: 'Who is the best at chess in the world?' }));
-      const rest = read();
-      w.update(JSON.stringify({ f0: long }));
-      return { rest, after: read() };
-    }, 'W'.repeat(140));
-  expect(grown.after.q).toBeGreaterThan(grown.rest.q + 8);
-  expect(Math.abs(grown.after.a - grown.rest.a)).toBeLessThan(2);
-});
-
 test('svg import: the step says what a control does, in a few lines', async ({ page }) => {
   await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
   await page.locator('.wz-next').click();

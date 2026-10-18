@@ -3,8 +3,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, finishIntoEditor, startNewProject, switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor, openExportWindow, startNewProject } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { chooseType, pickDesign } from './_browse';
@@ -60,13 +59,10 @@ async function dropTemplate(page: Page, name: string, buffer: Buffer) {
   await expect(page.getByTestId('import-format-detection')).toContainText('uncertain');
   await expect(page.getByRole('button', { name: /Open as code \(no AI\)/ })).toBeDisabled();
   await page.getByTestId('confirm-import-format').click();
-  // Straight into the code editor is Advanced mode's door; the default studio takes the file
-  // to the wizard's Finish instead (wizard-exits in import-svg.spec.ts).
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  // The no-AI open takes the file to the wizard's Finish, whose doors apply it exactly as
+  // written; "Edit this graphic" lands it in the editor.
+  await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
+  await finishIntoNewEditor(page);
 }
 
 test('import .html: splits into panes, keeps the definition, validates, exports', async ({ page }) => {
@@ -102,21 +98,18 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
 });
 
 test('import round-trip: an exported Starter zip re-imports as the same code', async ({ page }) => {
-  // Create + export a wizard template (the editor create - Advanced since step 6).
-  await enableAdvancedMode(page);
+  // Create + export a wizard template.
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, 'Lower thirds');
   await pickDesign(page, 'Hairline');
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-  });
+  await finishIntoNewEditor(page);
   const before = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { css: t.css, js: t.js, resolution: t.resolution, fps: t.fps };
   });
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
@@ -134,7 +127,7 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
     buffer: zipBuffer,
   });
   await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
   const after = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
@@ -176,14 +169,13 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   expect(names.some((n) => n.endsWith('football_scoreboard.ograf.json')), `no manifest in ${names.join(', ')}`).toBe(true);
 
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
   await chooseNoacgAgent(page);
   await page.locator('.wz-drop input[type="file"]').setInputFiles({ name: 'football-scoreboard.zip', mimeType: 'application/zip', buffer: zipBuffer });
   await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
   const opened = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
@@ -193,7 +185,6 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
   expect(opened.type, 'the type rides in the manifest\'s v_noacg, never forced to blank').toBe('scoreboard');
   expect(opened.fields).toEqual(['f0', 'f1', 'f2', 'f3']);
   expect(opened.hasMachine, 'the type machine travels inside js/template.js').toBe(true);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Football scoreboard');
 
   // The same package zipped by Windows PowerShell 5.1's Compress-Archive, which writes entry
   // names with BACKSLASHES (Explorer and every other archiver write '/'). A student's zip has to

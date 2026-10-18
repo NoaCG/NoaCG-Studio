@@ -11,8 +11,7 @@
 // covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
-import { switchToAdvancedMode, skipOldEditor, finishIntoNewEditor } from './_create';
-import { awaitPreviewRebuild } from './_preview';
+import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
 
 // The Import Graphic PREPARE step (docs/IMPORT_MVP.md): erasing baked-in text from the
@@ -54,13 +53,7 @@ async function drawRect(page: Page, fx0: number, fy0: number, fx1: number, fy1: 
 }
 
 async function createProject(page: Page) {
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
-    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
-    // same cold-module cost import-graphic.spec.ts's createBare documents in full.
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  });
+  await finishIntoNewEditor(page);
 }
 
 
@@ -201,7 +194,6 @@ test('erase: dropping one mark replays the rest from the original — fills neve
 });
 
 test('erase: the erased region seeds the first text field, placed and sized from the mark', async ({ page }) => {
-  skipOldEditor();
   await dropCard(page, framedCardPng(1000, 600));
   await toEraseSurface(page);
   await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
