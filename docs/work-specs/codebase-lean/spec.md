@@ -354,6 +354,20 @@ removed. 6 cases in the file, 6 passing, none skipped, 0.5 case-minutes locally 
 workers (queue job `j-0044`). The file's minutes are under Budget exceptions. Still skipping: the
 remaining 63 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the house revival
+
+The ninth revival, on main `6d303a14` (2026-10-18): the house cases created their variant through
+the old "Create project" door and read the old stage. Four cases run again: the house strap
+creating and playing in the mono label voice, the clock bug ticking with the three-bar
+placeholder, the markets ticker colouring its deltas by sign, and the breaking strap stacking
+its chip above the headline. Each bootstraps the variant through the live door and reads the
+working graphic mounted the way playout composes it (`mountWorkingDocument`), fed the sample
+data the create put in the store (`updateWorkingDocument`): the mounted document renders the
+design's own defaults until an update arrives, and the markets list lives in the sample. No
+case was removed. 4 cases in the file, 4 passing, none skipped, 0.3 case-minutes locally on two
+workers (queue job `j-0046`). The file's minutes are under Budget exceptions. Still skipping: the
+remaining 59 live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -574,6 +588,12 @@ the file at 0.075 minutes from its earlier runs. The minute below is this change
 measurement (case-minutes, two workers, queue job `j-0044`).
 
 - e2e/image-purpose.spec.ts: 0.5 min, protects the purpose preselect, the as-is binding choice, each purpose's instruction in the request, the reference kept out of the package and the as-is guard, expires 2026-11-16
+
+The house revival (Phase 2, #800) turns four cases in one file back on; the table weighs the
+file at 0.006 minutes from its earlier runs. The minute below is this change's local
+measurement (case-minutes, two workers, queue job `j-0046`).
+
+- e2e/house.spec.ts: 0.3 min, protects the house family's runtime: the strap's mono label voice, the ticking clock bug, the sign-coloured market deltas and the chip-over-headline stack, expires 2026-11-16
 
 ## Acceptance criteria
 
