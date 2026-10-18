@@ -712,11 +712,11 @@ the changed-file gates passed. No production source or check limit changed.
 
 The owner kept Google Sheet live data and Add template graphic on 2026-10-18. The Sheet block's
 add/remove check and the incompatible-donor refusal therefore stay too. Still skipping:
-the remaining 9 live-gap cases outside the nine formerly reserved editor cases: two Sheet
-cases, five insertion cases, the configured signed-in header layout and the anonymous
-account-purpose and dismissal journey. On 2026-10-18 the
+the remaining 11 live-gap cases outside the nine formerly reserved editor cases: two Sheet
+cases, five insertion cases and four configured account cases (signed-in header layout,
+anonymous account-purpose/dismissal, signed-in save wording and expiry recovery). On 2026-10-18 the
 owner released those nine skipped cases to this cleanup, bringing the remaining live-gap
-work to eighteen. Current coverage precedes removing the retired helpers.
+work to twenty. Current coverage precedes removing the retired helpers.
 The old `j-0066` result (52 passed, 5 skipped) predates the continuation and is not evidence
 for the revised branch. The original receipt also miscounted its removals as eighteen; the
 actual original diff removed twenty-one declarations, eleven of which are retained here.
@@ -743,9 +743,16 @@ excludes wizard/import, matching the journey it runs, and the unchanged affected
 checks pass all 92 cases. No assertion, selector expectation, gate or limit was relaxed.
 The final repair selection `j-4609` passed 60 cases with the same seven retained Sheet
 and insertion skips in 1.2 minutes. All nine existing changed specs passed ESLint;
-changed protection and gates passed after the repair. Review fixed nine findings including
-the live video consumer and the planner header; simplification removed only dead helpers
+changed protection and gates passed after the repair. Review fixed ten findings including
+the live video consumer, the planner header and the complete helper-chain count; simplification removed only dead helpers
 from retired flows. The earlier 56-case receipt is superseded by this final selection.
+
+The final helper-chain audit also found two cases outside the original 474-row inventory:
+configured/account's expiry recovery and configured/signed-in-ux's save wording both call
+configured/_helpers.createGraphic, which calls finishIntoEditor and skips. They are appended
+to the disposition evidence as live gaps. The pinned original inventory is preserved as
+history; the current remaining count includes these two cases. No test body changed for
+this receipt correction, so the final 60-pass selection still covers the reviewed source.
 
 ### Remaining order and the #800 exit condition
 
