@@ -33,10 +33,12 @@
 // `unknown`, and the next firing asks again. A transcript's age is not used: a coordinator stopped
 // on the owner's answer is silent for hours and still alive.
 //
-// THE USAGE LIMIT stops a coordinator without ending its process: its turn ends on a rate-limit
-// error and no timer of its own fires again. So a running coordinator whose transcript ends on that
-// error is `waiting` until the limit's reset time the error records, and `resume` once it has
-// passed: the same message starts its next turn.
+// THE USAGE LIMIT stops a coordinator without ending its process, and no timer of its own fires
+// again: its turn ends on a rate-limit error, or it wraps up cleanly under the harness's grace
+// notice. So a running coordinator whose transcript ends on that error, or whose last turn ran under
+// that notice, is `waiting` until the limit's reset and `resume` once it has passed: the same
+// message starts its next turn. The error records the reset; the notice does not, so the latest
+// error's reset is used while it still lay ahead at the notice, else an hour after the notice.
 //
 // THE MACHINE stays awake through `awake`, not the app's request_keep_awake, which lets go after
 // about five idle minutes and when the app quits. It starts a detached holder that keeps Windows
@@ -96,22 +98,37 @@ function transcriptOf(id, projects = path.join(process.env.CLAUDE_CONFIG_DIR || 
   return null;
 }
 
+/** How long after its grace notice a coordinator is resumed when no reset is recorded. */
+export const GRACE_WAIT_MS = 60 * 60 * 1000;
+
 /**
- * Did the conversation in this transcript text stop on the usage limit? Its last main-chain message
- * is then the harness's rate-limit error: `{ resetsAt }` (ms, or null when the error has none).
- * Otherwise null. Lines that do not parse, such as a first line cut by the tail read, are skipped.
+ * Did the conversation in this transcript text stop on the usage limit? Then `{ resetsAt }` (ms, or
+ * null when nothing records it, plus `assumed` when it is the grace wait), otherwise null:
+ * - its last main-chain message is the harness's rate-limit error, which records the reset;
+ * - or its last turn, the user entries sharing the latest `promptId`, holds the harness's grace
+ *   notice (`usageLimitNote: 'wrap_up'`) with no `release` note after it. A later prompt (the
+ *   owner's answer, a timer, a wake-up) is a new turn, so an earlier grace never counts.
+ * Lines that do not parse, such as a first line cut by the tail read, are skipped.
  */
 export function usageStopIn(text) {
-  const lines = String(text).split('\n');
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    let entry;
-    try { entry = JSON.parse(lines[i]); } catch { continue; }
-    if ((entry.type !== 'user' && entry.type !== 'assistant') || entry.isSidechain) continue;
-    if (entry.type !== 'assistant' || entry.error !== 'rate_limit') return null;
-    const at = Number(entry.quotaLimits?.resetsAt);
-    return { resetsAt: at > 0 ? at * 1000 : null };
-  }
-  return null;
+  const entries = String(text).split('\n').flatMap((line) => {
+    try {
+      const entry = JSON.parse(line);
+      return (entry?.type === 'user' || entry?.type === 'assistant') && !entry.isSidechain ? [entry] : [];
+    } catch { return []; }
+  });
+  const limited = (entry) => entry.type === 'assistant' && entry.error === 'rate_limit';
+  const resetOf = (entry) => (Number(entry.quotaLimits?.resetsAt) > 0 ? Number(entry.quotaLimits.resetsAt) * 1000 : null);
+  if (entries.length && limited(entries.at(-1))) return { resetsAt: resetOf(entries.at(-1)) };
+  const prompts = entries.filter((entry) => entry.type === 'user');
+  const turn = prompts.at(-1)?.promptId;
+  const notes = turn ? prompts.filter((entry) => entry.promptId === turn && entry.usageLimitNote) : [];
+  if (notes.at(-1)?.usageLimitNote !== 'wrap_up') return null;
+  const at = Date.parse(notes.at(-1).timestamp);
+  const error = entries.findLast(limited);
+  const recorded = error ? resetOf(error) : null;
+  if (recorded > at) return { resetsAt: recorded };
+  return Number.isNaN(at) ? { resetsAt: null } : { resetsAt: at + GRACE_WAIT_MS, assumed: true };
 }
 
 /** `usageStopIn` for session `id`'s transcript, read from its tail; null (working) when it cannot be read. */
@@ -158,10 +175,11 @@ export function wakeVerdict({ text, inventory, now = Date.now(), stopped = usage
   if (working) return { verdict: 'alive', why: `session ${working} is running (pid ${index.bySession.get(working).pid})` };
   const resets = stops.map((stop) => stop.resetsAt);
   const until = resets.includes(null) ? null : Math.max(...resets);
+  const guess = stops.some((stop) => stop.assumed) ? ' (an hour after the grace notice, which records no reset)' : '';
   if (until && until > now) {
-    return { verdict: 'waiting', why: `session ${live.join(', ')} stopped on the usage limit, which resets at ${new Date(until).toISOString()}` };
+    return { verdict: 'waiting', why: `session ${live.join(', ')} stopped on the usage limit, which resets at ${new Date(until).toISOString()}${guess}` };
   }
-  return { verdict: 'resume', usage: true, why: `session ${live.join(', ')} stopped on the usage limit, which has reset`, ...wake };
+  return { verdict: 'resume', usage: true, why: `session ${live.join(', ')} stopped on the usage limit, which has reset${guess}`, ...wake };
 }
 
 /**
@@ -174,7 +192,7 @@ export function wakeReport(runs) {
   const resume = open.find((run) => run.verdict === 'resume');
   if (resume) {
     const stop = resume.usage
-      ? 'you stopped on the usage limit, which has now reset, and this message starts your next turn'
+      ? 'you stopped on the usage limit, which should have reset by now, and this message starts your next turn'
       : 'your process had stopped and this message started it again';
     return [
       `resume: ${resume.why} for ${resume.file}`,

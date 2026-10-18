@@ -63,6 +63,48 @@ test('a transcript that ends on the usage-limit error reports when the limit res
   assert.equal(usageStopIn(`${limited}\n${line({ type: 'user', message: { content: 'retry' } })}`), null);
   assert.equal(usageStopIn(line({ type: 'assistant', message: {} })), null);
   assert.equal(usageStopIn(''), null);
+  // A grace notice counts only while it is the last turn's latest limit note.
+  const note = (usageLimitNote, promptId = 'p1') => line({ type: 'user', promptId, isMeta: true, usageLimitNote, timestamp: '2026-10-17T20:11:14Z' });
+  assert.deepEqual(usageStopIn(note('wrap_up')), { resetsAt: Date.parse('2026-10-17T21:11:14Z'), assumed: true });
+  assert.equal(usageStopIn(`${note('wrap_up')}\n${note('release')}`), null);
+  assert.equal(usageStopIn(`${note('wrap_up')}\n${line({ type: 'user', promptId: 'p2', message: { content: 'go on' } })}`), null);
+});
+
+test('fixture transcripts, read where the harness files them: grace waits for the reset, the error is unchanged, an owner wait stays alive', () => {
+  const config = mkdtempSync(path.join(tmpdir(), 'run-wake-config-'));
+  const previous = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = config;
+  try {
+    const folder = path.join(config, 'projects', 'C--claude-NoaCG-Studio');
+    mkdirSync(folder, { recursive: true });
+    // The night of 2026-10-17: the coordinator's process stayed listed, so the firings at 23:39Z and
+    // later answered `alive` until the owner typed "continue" at 04:19Z.
+    const night = (fixture, now) => {
+      const id = `coordinator-${fixture}`;
+      writeFileSync(path.join(folder, `${id}.jsonl`), readFileSync(new URL(`./fixtures/run-wake/${fixture}.jsonl`, import.meta.url)));
+      const text = writeWake(`# Plan run harness-ladder\n\nWindow ends: 2026-10-18T22:00:00+03:00\nSession: ${id}\n`, { host: 'local_1', session: id, resume: '/plan-run harness-ladder' });
+      return wakeVerdict({ text, inventory: inventory(id, 'firing'), now: Date.parse(now) });
+    };
+    // Grace notice, then a clean end: the earlier rate-limit error records the reset, 21:50Z.
+    assert.match(night('grace-after-error', '2026-10-17T21:39:00Z').why, /stopped on the usage limit, which resets at 2026-10-17T21:50:00.000Z$/);
+    const resumed = night('grace-after-error', '2026-10-17T23:39:00Z');
+    assert.equal(resumed.verdict, 'resume');
+    assert.equal(resumed.usage, true);
+    // A grace notice with no error recorded: an hour after the notice.
+    const guessed = night('grace-no-reset', '2026-10-17T20:39:00Z');
+    assert.equal(guessed.verdict, 'waiting');
+    assert.match(guessed.why, /resets at 2026-10-17T21:11:14.147Z \(an hour after the grace notice, which records no reset\)/);
+    assert.equal(night('grace-no-reset', '2026-10-17T21:39:00Z').verdict, 'resume');
+    // The rate-limit error, unchanged: waiting until the reset it records, then resume.
+    assert.match(night('rate-limit-error', '2026-10-17T21:39:00Z').why, /which resets at 2026-10-17T22:00:00.000Z$/);
+    assert.equal(night('rate-limit-error', '2026-10-17T22:09:00Z').verdict, 'resume');
+    // Waiting on the owner after an earlier grace: alive however long it is quiet.
+    for (const now of ['2026-10-17T23:39:00Z', '2026-10-18T04:09:00Z']) assert.equal(night('owner-wait', now).verdict, 'alive');
+  } finally {
+    if (previous === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = previous;
+    rmSync(config, { recursive: true, force: true });
+  }
 });
 
 test('a running coordinator stopped on the usage limit waits for the reset, then is resumed', () => {
@@ -75,7 +117,7 @@ test('a running coordinator stopped on the usage limit waits for the reset, then
   assert.equal(resumed.verdict, 'resume');
   assert.equal(resumed.usage, true);
   assert.equal(resumed.host, 'local_1');
-  assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /^message: Wake-up: you stopped on the usage limit, which has now reset/);
+  assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /^message: Wake-up: you stopped on the usage limit, which should have reset by now/);
   // A limit with no recorded reset is resumed at once; another recorded session still working keeps it alive.
   assert.equal(verdict({ inventory: inventory('aaa'), stopped: () => ({ resetsAt: null }) }).verdict, 'resume');
   assert.equal(verdict({ inventory: inventory('aaa', 'bbb'), stopped }).verdict, 'alive');
