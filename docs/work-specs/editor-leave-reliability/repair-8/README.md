@@ -87,7 +87,24 @@ is empty). Each run records the carried files' sha256. Control `claude/probe-edi
 (`4f7a89fd`): main `0b3790f8`, whose `src/` is identical to the checked main `0ea3b314`'s, plus the same
 carried files and this branch's matrix. Neither is ever queued. CI used `--workers=1 --retries=0`.
 
-RESULTS_TABLE
+The probe that counts is `claude/probe-editor-p2-repair-8-ci2` (`55ac278d`): this branch rebased
+on main `a1c9efb5` (the matrix split, #1409) with the simplification from review, plus the same
+carried files. The first probe (`a31e8e73`, before the rebase) gave the same seventh, sixth,
+unchanged, `:228`, references, visual and signed-in results; its other runs were cancelled.
+
+| Run | Result |
+| --- | --- |
+| Seventh checker, CI [39064629759](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064629759) | **16/16**, H included. sha256 `352905b1…`. |
+| Control: seventh checker on main, CI [39063725534](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39063725534) | **15 passed, H failed**, as independent-7 recorded. |
+| Unchanged checkers, CI [39064631520](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064631520) | Original **3/3**, second **4/4**, third **10/10**, `:24` x20 **20/20**, fourth **11/11**. |
+| `:228` x20, CI [39064633574](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064633574) | **20/20**. |
+| Sixth checker, CI [39064635654](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064635654) | **10/10**, S6 included. |
+| Fifth, and fifth B1 bounded, CI [39064637161](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064637161) | **17 passed, 3 failed**: B1 (its unbounded read) and F-hold, F-late (`:447`), the departures independent-7 judged. Bounded B1 **1/1**. A1 passes. |
+| `e2e/save-transaction.spec.ts`, CI [39064639233](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064639233) | **37/37** (29 + the 8 new). The other five split files are the pull request's own CI. |
+| Maintained selection and export, CI [39064640870](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064640870) | **85 passed**, the same **8 legacy skips**. Two-graphic export **1/1**. |
+| References, CI [39064642698](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064642698) | **6/6**. |
+| 125% cumulative, CI [39064644492](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064644492) | **4/4**. |
+| Signed-in task, CI [39064646166](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39064646166) | **1/1**. |
 
 Local runs (this VM, 2 workers, `--retries=0`), before the probe:
 
@@ -95,6 +112,8 @@ Local runs (this VM, 2 workers, `--retries=0`), before the probe:
 | --- | --- |
 | j-0002, the fix: seventh H, sixth S6, fifth A1, matrix `refuse+reload`, `reservation kept`, `double refusal` | **16/16** |
 | j-0003, the fix: the eight new cases | **8/8** |
+| j-0011, the rebased tip: all of `save-transaction.spec.ts`, seventh H, sixth S6, fifth A1 | **40/40** |
+| j-0012, the same after merging main `50c677a1` (which retired the legacy editor; none of this change's files moved) | **40/40** |
 
 Mutations, each run in this VM and reverted:
 
