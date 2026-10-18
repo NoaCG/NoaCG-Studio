@@ -661,8 +661,10 @@ preparation evidence, not the final main-reconciled verdict.
 
 The owner kept Google Sheet live data and Add template graphic on 2026-10-18. The Sheet block's
 add/remove check and the incompatible-donor refusal therefore stay too. Still skipping:
-the remaining 7 live-gap cases outside the editor phase's reserved files: two Sheet cases
-and five insertion cases. Their current UI restoration precedes removing the retired helpers.
+the remaining 8 live-gap cases outside the nine formerly reserved editor cases: two Sheet
+cases, five insertion cases and the configured signed-in header layout. On 2026-10-18 the
+owner released those nine skipped cases to this cleanup, bringing the remaining live-gap
+work to seventeen. Current coverage precedes removing the retired helpers.
 The old `j-0066` result (52 passed, 5 skipped) predates the continuation and is not evidence
 for the revised branch. The original receipt also miscounted its removals as eighteen; the
 actual original diff removed twenty-one declarations, six of which are retained here.
@@ -685,10 +687,12 @@ actual original diff removed twenty-one declarations, six of which are retained 
    coverage already exists, demonstrate equivalence and remove the duplicate instead of
    porting every old test. Where protection is missing, add a minimal current-surface check
    and prove its relevant failure. Each removal has its reviewed per-spec maintenance entry.
-4. **Schedule mixed editor specs after the editor phase releases them.** library, project and
-   wizard-finish contain the eight legacy skips carried in the repair receipts. Leave those
-   files and the carried challenges untouched until editor Phase 2 closes or its owner
-   explicitly hands over the paths. Record the changed baseline in the editor phase note.
+4. **Resolve the released mixed-editor skips.** On 2026-10-18 the owner explicitly released
+   the nine skipped cases in library (seven), project (one) and wizard-finish (one) to this
+   cleanup. The earlier eight-case receipt omitted one library case. This handover covers
+   those skipped cases only; editor Phase 2 keeps its repair checks and acceptance work.
+   Classify each released subject and prove current coverage before removing its old helper.
+   Record the changed skip baseline in the editor phase note without claiming its acceptance.
 5. **Remove obsolete helpers only after #800's consumers are resolved.** No remaining test may
    call skipOldEditor, enableAdvancedMode, switchToAdvancedMode, finishIntoEditor or createProject.
    Keep _create's live exports, including bootstrapGraphic and addToProductionFromFinish.
