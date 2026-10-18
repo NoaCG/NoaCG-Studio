@@ -35,7 +35,7 @@ import { pickDesign } from './_browse';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
-import { editorPreview } from './_frame';
+import { editorPreview, mountWorkingDocument } from './_frame';
 import { boxGrow, boxGrows, dropSvg as dropSvg2, intoProduction, untickTextRow, QUIZ_SVG, SCOREBUG_SVG } from './_svg-import';
 
 // The SVG import road, door to export (docs/SVG_IMPORT_PLAN.md P1): a layered
@@ -231,12 +231,10 @@ test('svg import: mapping — labels from layer names, all on by default, edits 
   expect(state.css).toContain('Neue Machina');
 
   // The graphic actually renders the mapped values, and update() drives the SVG's own nodes.
-  const frame = editorPreview(page);
-  await expect(frame.locator('#f2')).toHaveText('Tampere');
-  await page.getByTestId('dock-tab-data').click();
-  await page.locator('.panel-body .field-row', { hasText: 'Name' }).locator('input').first().fill('Miriam Holm');
-  await page.getByTestId('dock-body-right').getByRole('button', { name: '⟳ Update' }).click();
-  await expect(frame.locator('#f0')).toHaveText('Miriam Holm');
+  await expect(editorPreview(page).locator('#f2')).toHaveText('Tampere');
+  const doc = await mountWorkingDocument(page);
+  await doc.locator('body').evaluate(() => (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: 'Miriam Holm' })));
+  await expect(doc.locator('#f0')).toHaveText('Miriam Holm');
 });
 
 test('svg import: outlined text gets the honest answer, and still imports as a fixed graphic', async ({ page }) => {

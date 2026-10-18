@@ -7,6 +7,7 @@ import { finishIntoNewEditor, openExportWindow, startNewProject } from './_creat
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { chooseType, pickDesign } from './_browse';
+import { mountWorkingDocument } from './_frame';
 
 // Era 2a: import an existing template (.html or SPX-style .zip) to edit and convert.
 
@@ -67,13 +68,13 @@ async function dropTemplate(page: Page, name: string, buffer: Buffer) {
 
 test('import .html: splits into panes, keeps the definition, validates, exports', async ({ page }) => {
   await dropTemplate(page, 'old-score-bug.html', Buffer.from(FOREIGN_HTML));
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Old Score Bug');
 
   const tpl = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
-    return { html: t.html, css: t.css, js: t.js, fields: t.fields.map((f) => f.field) };
+    return { name: t.name, html: t.html, css: t.css, js: t.js, fields: t.fields.map((f) => f.field) };
   });
+  expect(tpl.name).toBe('Old Score Bug');
   expect(tpl.css).toContain('#bug');                       // style moved to the CSS pane
   expect(tpl.js).toContain('function play()');             // script moved to the JS pane
   expect(tpl.html).toContain('SPXGCTemplateDefinition');   // definition stays in the HTML
@@ -82,18 +83,20 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
   expect(tpl.js).not.toContain('export {}');               // ...never in the classic JS pane
   expect(tpl.fields).toEqual(['f0']);
 
-  // Landed on Export with the inline validation — this one is already valid.
-  await expect(page.locator('[data-testid="dock-right"] .dock-tab.active .dock-tab-label')).toHaveText('Export');
-  await expect(page.locator('.panel-body .status-ok')).toContainText('valid and ready');
+  // The export window's inline validation — this one is already valid.
+  await openExportWindow(page);
+  await expect(page.getByTestId('export-window').locator('.status-ok')).toContainText('valid and ready');
 
-  // The graphic actually works: update + play through the simulator.
-  await page.getByTestId('dock-tab-data').click();
-  await page.locator('.field-row', { hasText: 'Score' }).locator('input').first().fill('2 - 1');
-  await page.getByRole('button', { name: '▶ Play' }).click();
-  const frame = page.frameLocator('iframe.preview-frame');
-  await expect(frame.locator('#f0')).toHaveText('2 - 1');
+  // The graphic actually works: update + play, the way playout drives the document.
+  const doc = await mountWorkingDocument(page);
+  await doc.locator('body').evaluate(() => {
+    const w = window as unknown as { update: (d: string) => void; play: () => void };
+    w.update(JSON.stringify({ f0: '2 - 1' }));
+    w.play();
+  });
+  await expect(doc.locator('#f0')).toHaveText('2 - 1');
   await expect
-    .poll(async () => frame.locator('#bug').evaluate((el) => getComputedStyle(el).opacity))
+    .poll(async () => doc.locator('#bug').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('1');
 });
 

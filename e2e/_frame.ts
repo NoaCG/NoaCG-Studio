@@ -88,3 +88,22 @@ export function frameOpacity(page: Page, selector: string): Promise<number> {
     .evaluate((el) => Number(getComputedStyle(el).opacity));
 }
 
+/**
+ * Mount the WORKING document (the template store's) in a hidden iframe on the page, composed the
+ * way playout composes it, and return a locator into it. A spec that lands in the editor reads
+ * the editor's preview for what the editor shows; it reads this for what `update()` and `play()`
+ * do to the document, which the editor's preview does not expose.
+ */
+export async function mountWorkingDocument(page: Page): Promise<FrameLocator> {
+  await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    document.querySelectorAll('iframe.working-document').forEach((f) => f.remove());
+    const f = document.createElement('iframe');
+    f.className = 'working-document';
+    f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;';
+    document.body.appendChild(f);
+    await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(useTemplateStore.getState().template); });
+  });
+  return page.frameLocator('iframe.working-document');
+}
