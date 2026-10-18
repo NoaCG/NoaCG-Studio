@@ -496,6 +496,22 @@ skipped, 0.4 case-minutes locally on two workers (queue job `j-0055`). The file'
 under Budget exceptions. Still skipping: the remaining 33 live-gap cases, in the pack and
 single-case families.
 
+### Phase 2 receipt: the first singles (mark-legibility, production-controls, productions)
+
+The eighteenth revival, on main `b18a652c3` (2026-10-18): three single cases in three files whose
+bodies already ran on live surfaces and which only a retired call kept skipping. The wizard's
+mark-legibility notice while the palette that broke it is still on screen (the advanced-mode
+switch dropped, the walk as it was); the production page's live-number bump airing a figure
+without publishing other staged edits, and a published production reading SHOW while an
+unpublished one says so and offers no rehearsal (each with its `skipOldEditor()` deleted and
+nothing else changed). No case was removed. mark-legibility: 4 cases, 4 passing;
+production-controls: every case in the file passing; productions: every case in the file
+passing, the covered case at line 40 of the classification still skipping for its own
+disposition; none skipped otherwise. Case-minutes locally on two workers (queue job `j-0056`):
+mark-legibility 0.3, production-controls 1.8, productions 1.1. The files' minutes are under
+Budget exceptions. Still skipping: the remaining 30 live-gap cases, in the pack and single-case
+families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -777,6 +793,14 @@ the file at 0.005 minutes from its earlier runs. The minute below is this change
 measurement (case-minutes, two workers, queue job `j-0055`).
 
 - e2e/adapt-first.spec.ts: 0.4 min, protects the retrieval shortlist reaching the design stage, the kept zone and the named proven design, the free rebuild on another shortlisted design and the untouched create route, expires 2026-11-16
+
+The first singles revival (Phase 2, #800) turns one case back on in each of three files. The
+minutes below are this change's local measurement (case-minutes, two workers, queue job
+`j-0056`).
+
+- e2e/mark-legibility.spec.ts: 0.3 min, protects the wizard's mark-legibility notice raised and cleared on the Style step, expires 2026-11-16
+- e2e/production-controls.spec.ts: 1.8 min, protects the live-number bump airing without publishing other staged edits, expires 2026-11-16
+- e2e/productions.spec.ts: 1.1 min, protects the published and unpublished production readings and the withheld rehearsal, expires 2026-11-16
 
 ## Acceptance criteria
 
