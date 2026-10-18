@@ -251,25 +251,50 @@ The owner starts it with `/plan-run harness-ladder until <time>`.
 Each phase's pull request adds its notes here, newest first: the last check's findings, what the
 next phase must allow for, decisions, traps, spend, shas and the revert.
 
-### L2. Teaching (in progress: PAUSED 2026-10-18 08:35Z in round 4)
+### L2. Teaching (in progress: PAUSED 2026-10-18 11:10Z in round 4, three sessions left)
 
-- **Checkpoint 2026-10-18 08:40Z (the subscription's usage limit again, resets 10:10Z).** Rounds
-  1 and 3 kept, round 2 reverted; every figure, decision and hypothesis is in
-  `benchmarks/harness/ladder/evidence/phase-L2.md`. No round has matched D6 (as amended: $1.35);
-  the best on the eight is 5 of 8 usable (round 2, reverted) and the cheapest per usable $2.02.
-  Round 4 (hypothesis `d4993df07`, changes `759061291`: same-picture look counting, logos without
-  tiles) ran 3 of its 23 sessions before the limit, all delivered (collegiate scorebug $0.99,
-  nominee reveal $0.89, matchup $1.92; cells in `benchmarks/harness/ladder/L2/round-4/`, partly
-  judged). The alerts were paused by the limit and rerun by the bench; the volleyball board was cut
-  by the limit with nothing printed, so the bench recorded it `failed` and will not rerun it under
-  `round-4`. Resume in worktree `agent-a1258e6d4dd34801a` (branch `l2-teaching-resume`, pushing to
-  `claude/plan-harness-ladder-p3-build`; `cli/dist` is built from the head): `node
-  scripts/harness-bench.mjs --build L2 --arms subscription --model claude-sonnet-5-5 --effort high
-  --stage round-4 --lanes 2 --out C:/claude/noacg-bench-archive/harness-ladder-L2/round-4 --briefs`
-  with the 20 briefs not yet delivered in `RUNG_ORDER` and tuning order, then the volleyball board
-  alone with `--stage round-4-rerun` into the same `--out`; judge with `--judge <dir> --phase L2
-  --delivered-only --concurrency 2`, tally with and without `--order tuning`, keep or revert per the
-  round's lines, then land the curve (no fifth round fits the window).
+- **Checkpoint 2026-10-18 11:10Z: where L2 stands and how to finish it.**
+  - *Done.* Baseline and rounds 1 to 3 measured and decided (rounds 1 and 3 kept, round 2
+    reverted); every figure, hypothesis and decision is in
+    `benchmarks/harness/ladder/evidence/phase-L2.md`. No round has matched D6 (cost line $1.35
+    as the owner amended it); the best on the eight is 5 of 8 usable, the cheapest $2.02 a usable.
+  - *Round 4 in flight* (hypothesis `d4993df07`, changes `759061291`: coverage marks a frame drawn
+    exactly as before so a look at that picture counts; the skill keeps logos off tiles). 20 of
+    its 23 sessions delivered; their `cell.json` and the readings so far are in
+    `benchmarks/harness/ladder/L2/round-4/` (not all judged yet). Interim: the eight 4 usable of 7
+    run, $8.94, every frame opened in 3; the tuning briefs 6 usable of 13 run, $12.22.
+  - *Left:* `futsal-cup-winner-card` and `cross-country-race-clock` (stopped mid-run by this
+    checkpoint, no ledger entry, so the bench runs them again under `round-4`), and
+    `volleyball-set-board`, which the usage limit cut at 08:35Z with nothing printed: the ledger
+    holds it `failed` under `round-4`, so it runs under `round-4-rerun` (#1469); its 11:04Z start
+    under that stage was stopped by this checkpoint and left no ledger entry.
+  - *Where:* worktree `C:\claude\NoaCG-Studio\.claude\worktrees\agent-a1258e6d4dd34801a`, local
+    branch `l2-teaching-resume` pushing to `claude/plan-harness-ladder-p3-build`. The run folder,
+    with every session's files and the readings, is
+    `C:/claude/noacg-bench-archive/harness-ladder-L2/round-4` on the owner's machine. A fresh
+    checkout needs `npm ci` at the root, then `npm ci && npm run build` in `cli/`; a session on
+    another host (Codex) needs the subscription's `claude` CLI on PATH, since every session and
+    reading is a `claude -p` child.
+  - *Commands, in order:*
+    1. `node scripts/harness-bench.mjs --build L2 --arms subscription --model claude-sonnet-5-5
+       --effort high --stage round-4 --lanes 2 --out
+       C:/claude/noacg-bench-archive/harness-ladder-L2/round-4 --briefs
+       futsal-cup-winner-card,cross-country-race-clock`
+    2. the same with `--stage round-4-rerun --lanes 1 --briefs volleyball-set-board`
+    3. `node scripts/harness-bench.mjs --judge C:/claude/noacg-bench-archive/harness-ladder-L2/round-4
+       --phase L2 --delivered-only --concurrency 2` (three readings a graphic; it asks only the
+       missing ones)
+    4. copy each delivered cell's `cell.json`, `judgements.jsonl` and `summary.json` into
+       `benchmarks/harness/ladder/L2/round-4/`, add a `readings.json` for a gate flag the operator
+       surface offers under another name (as rounds 1 to 3 did for the volleyball board's Undo),
+       and run `--tally benchmarks/harness/ladder/L2/round-4` and the same with `--order tuning`
+    5. keep or revert round 4 by its pre-registered lines in the evidence file, write its result
+       there, and rewrite this `### L2` section as built: a draft with every figure but round 4's
+       is `C:/claude/noacg-bench-archive/harness-ladder-L2/l2-phase-notes-draft.md`
+    6. merge `origin/main` (main moved; its skill change is only the CLI version in the `npx` line),
+       `npm run build` in `cli/`, run the changed tests (`node --test scripts/harness-ladder.test.mjs
+       scripts/harness-bench.test.mjs`, `node --test cli/test/coverage.test.mjs
+       cli/test/screenshot-states.test.mjs`), then `/check` and `/queue-merge`. No round 5.
 
 - **Check's findings (L1's second check, PASS on `905fabec1`):** three Opus readings a graphic
   (usable at 2 of 3), repeatability 19 of 21 at 3/3; no rung matched D6; D7 as written teaches

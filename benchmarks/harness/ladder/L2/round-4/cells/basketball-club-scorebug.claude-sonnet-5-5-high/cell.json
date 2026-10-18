@@ -1,0 +1,156 @@
+{
+  "costUnread": false,
+  "brief": "basketball-club-scorebug",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "304bfcd6-67e7-4bea-a032-ad3d3dadbaa9",
+  "costCents": 0,
+  "notionalUsd": 1.4448821,
+  "wallSeconds": 418,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design sb05 --out ./ref",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:9fb78b6f757ac40cf77117fdef22750082a7811b5453bec9b3b8309d6e065607"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 1,
+      "digest": "sha256:32c98458ceea84b9f8d4e3864c113137eb53c8c4681644786607a55cc6ed1a08"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Saint-Étienne-du-Rouvray --data f2=Mont-Saint-Aignan Étretat --data f1=87 --data f3=102 --data f4=Q3 --data f5=7:42 --data f6=#f2c200 --data f7=#0b7a3b --background video --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Saint-Étienne-du-Rouvray --data f2=Mont-Saint-Aignan --event interval --background video --out shots/half.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Saint-Étienne-du-Rouvray --data f2=Mont-Saint-Aignan Étretat --data f3=102 --background video --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:5219f8e2253524131d88e457c76b87982d4615269b4ab0f111efd312dbff8b2f"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:29bffd49d234eb43b29fc67291146200c581a0668efa38bb54c773baee84107b"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:ecb24c45205805d9b50902df050b735fc2a232430e0a96649a8fe8d74229b057"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:ecb24c45205805d9b50902df050b735fc2a232430e0a96649a8fe8d74229b057"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:ecb24c45205805d9b50902df050b735fc2a232430e0a96649a8fe8d74229b057"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\basketball-club-scorebug.claude-sonnet-5-5-high\\frames",
+    "frames": 99,
+    "crops": 4,
+    "findings": [
+      "event-clockstop: clockStop did not move the machine (still main=enter, score=idle, clock=armed, play=inPlay, result=live). If it should have, the machine does not answer clockStop from there. It did not move it after any other event either.",
+      "event-clockreset: clockReset did not move the machine (still main=enter, score=idle, clock=armed, play=inPlay, result=live). If it should have, the machine does not answer clockReset from there. It did not move it after any other event either.",
+      "event-resumeplay: resumePlay did not move the machine (still main=enter, score=idle, clock=armed, play=inPlay, result=live). If it should have, the machine does not answer resumePlay from there. It did not move it after any other event either."
+    ],
+    "failures": [],
+    "digest": "sha256:ecb24c45205805d9b50902df050b735fc2a232430e0a96649a8fe8d74229b057"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "aPlus1",
+      "aPlus2",
+      "aPlus3",
+      "bPlus1",
+      "bPlus2",
+      "bPlus3",
+      "clockStart",
+      "clockStop",
+      "clockReset",
+      "interval",
+      "resumePlay",
+      "final"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:ecb24c45205805d9b50902df050b735fc2a232430e0a96649a8fe8d74229b057",
+    "benchValidated": "sha256:ecb24c45205805d9b50902df050b735fc2a232430e0a96649a8fe8d74229b057",
+    "reviewed": "sha256:ecb24c45205805d9b50902df050b735fc2a232430e0a96649a8fe8d74229b057",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 39,
+    "opened": 39,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}
