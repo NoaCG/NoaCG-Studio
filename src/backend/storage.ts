@@ -95,8 +95,9 @@ export interface StorageProvider {
   putMany?(records: StoredRecord[]): Promise<void>;
   remove(kind: SyncKind, id: string): Promise<void>;
   /** A record of this side lost a true conflict (sync.ts): the other side's version is about to
-   *  replace it, and its own edit has just been written as a "(conflicted copy)". */
-  lostConflict?(record: StoredRecord): void;
+   *  replace it, and its own edit has just been written as a "(conflicted copy)". Answers the
+   *  records of this side it rewrote in response. */
+  lostConflict?(record: StoredRecord): StoredRecord[];
 }
 
 // The project brand is a per-user singleton. NOTE: 'default' is NOT a valid uuid, so brand is
@@ -194,8 +195,10 @@ export class LocalStorageProvider implements StorageProvider {
 
   /** The working draft stops being that graphic: another device's version holds its id now, so
    *  the draft's next Save asks for a name rather than writing over it (#1443). */
-  lostConflict(record: StoredRecord): void {
-    if (record.kind === 'graphic') graphicSuperseded(record.id);
+  lostConflict(record: StoredRecord): StoredRecord[] {
+    if (record.kind !== 'graphic' || !graphicSuperseded(record.id)) return [];
+    const project = loadProject();
+    return project ? [toStoredRecord('project', project.id, project)] : [];
   }
 
   async remove(kind: SyncKind, id: string): Promise<void> {

@@ -262,7 +262,13 @@ export async function runSync(
       continue;
     }
     // Before the pull replaces it: a draft still linked to the loser would write over the winner.
-    local.lostConflict?.(loser);
+    // What the local side rewrites for that is this pass's own write, not an edit made meanwhile,
+    // so it does not hold back a pull of the same record.
+    try {
+      for (const rewritten of local.lostConflict?.(loser) ?? []) original.set(recordKey(rewritten), JSON.stringify(rewritten));
+    } catch (e) {
+      fail('conflict-copy', loser, e);
+    }
     // Push the copy best-effort; if it fails, next pass sees a local-only record and pushes it.
     try {
       sameWorkspace();

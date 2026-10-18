@@ -73,7 +73,7 @@ let reservation: { id: string; baseline: SpxTemplate | undefined; minting: boole
 export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
   if (!reservation || reservation.baseline !== baseline || (!reservation.minting && graphicIdTaken(reservation.id))) {
     reservation = { id: uuid(), baseline, minting: false };
-    recordOwnReservation(reservation.id);
+    rememberDeviceId(OWN_RESERVATIONS_KEY, reservation.id);
   }
   return reservation.id;
 }
@@ -86,32 +86,35 @@ export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
 // reservation must never be minted or relinked anywhere but on the device that made it. The
 // device keeps its own reservations here, in localStorage, which never syncs; boot honours the
 // slot's reservation only when it is one of them (templateStore), and a pull keeps the device's
-// own (`upsertProject`). A handful is enough: boot reads the slot's current one, or one a mint
-// took moments before a refused link write.
+// own (`upsertProject`).
 const OWN_RESERVATIONS_KEY = 'spx-gfx-reservations';
-const OWN_RESERVATIONS_KEPT = 20;
-function ownReservations(): string[] {
+/** The ids of graphics whose record lost a sync conflict on this device (`graphicSuperseded`). */
+const SUPERSEDED_KEY = 'spx-gfx-superseded';
+/** A handful is enough: boot reads the slot's current reservation, or one a mint took moments
+ *  before a refused link write. */
+const IDS_KEPT = 20;
+function deviceIds(key: string): string[] {
   try {
-    const ids: unknown = JSON.parse(localStorage.getItem(OWN_RESERVATIONS_KEY) ?? '[]');
+    const ids: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
     return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
   } catch {
     return [];
   }
 }
-function recordOwnReservation(id: string): void {
+function rememberDeviceId(key: string, id: string): void {
   try {
-    localStorage.setItem(OWN_RESERVATIONS_KEY, JSON.stringify([id, ...ownReservations()].slice(0, OWN_RESERVATIONS_KEPT)));
+    localStorage.setItem(key, JSON.stringify([id, ...deviceIds(key).filter((kept) => kept !== id)].slice(0, IDS_KEPT)));
   } catch {
-    // Not recorded, this device's reload treats the id as another device's: the draft asks for
-    // a name rather than relinking, which can make a second record but never overwrites one.
+    // Not recorded: this device's reload treats its own reservation as another device's, so the
+    // draft asks for a name rather than relinking (a second record at worst, nothing overwritten).
   }
 }
 /** Did THIS device make the reservation `id`? */
-export function isOwnReservation(id: string | undefined): id is string {
-  return !!id && ownReservations().includes(id);
+export function isOwnReservation(id: string | undefined): boolean {
+  return !!id && deviceIds(OWN_RESERVATIONS_KEY).includes(id);
 }
-/** Boot: the slot's persisted reservation (this device's own) is the document's, so a reload before its first Save
- *  keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
+/** Boot: the slot's persisted reservation, when it is this device's own, is the document's, so a
+ *  reload before its first Save keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
  *  the mint never takes, and a double refusal after the reload could not relink. */
 export function resumeReservation(id: string, baseline: SpxTemplate | undefined): void {
   reservation = { id, baseline, minting: false };
@@ -204,36 +207,53 @@ export function upsertProject(project: SavedProject): void {
 }
 
 const supersededListeners = new Set<(graphicId: string) => void>();
-/** Hear `graphicSuperseded` (templateStore drops the live link). */
+/** Hear `graphicSuperseded`, in this tab or another (templateStore drops the live link). */
 export function onGraphicSuperseded(listener: (graphicId: string) => void): void {
   supersededListeners.add(listener);
+}
+function forgetSuperseded(graphicId: string): void {
+  if (reservation?.id === graphicId) reservation = null;
+  supersededListeners.forEach((listener) => listener(graphicId));
+}
+// Another tab's pass found the conflict and rewrote the slot; this tab drops its own link.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== SUPERSEDED_KEY) return;
+    const [graphicId] = deviceIds(SUPERSEDED_KEY);
+    if (graphicId) forgetSuperseded(graphicId);
+  });
+}
+/** Did a sync conflict on this device give `graphicId` to another device's record? */
+export function isGraphicSuperseded(graphicId: string): boolean {
+  return deviceIds(SUPERSEDED_KEY).includes(graphicId);
 }
 /** A library record lost a sync conflict (backend/sync.ts): another device's version now holds
  *  its id, and this device's own lives on as a "(conflicted copy)". When it is the record a
  *  first Save just minted, the id turned out to be taken. The draft stops naming it, as its link
  *  or its reservation, so its next Save asks for a name instead of writing over the other
- *  device's graphic (#1443). The slot's time moves, so the next pass shares the unlinked draft. */
-export function graphicSuperseded(graphicId: string): void {
-  if (reservation?.id === graphicId) reservation = null;
+ *  device's graphic (#1443). The slot's time moves, so the next pass shares the unlinked draft.
+ *  Answers whether the slot was rewritten. */
+export function graphicSuperseded(graphicId: string): boolean {
+  rememberDeviceId(SUPERSEDED_KEY, graphicId);
   const p = loadProject();
+  let rewritten = false;
   if (p && (p.graphicId === graphicId || p.reservedGraphicId === graphicId)) {
-    const { reservedGraphicId, mintingReserved, ...rest } = p;
-    const keepsReservation = reservedGraphicId !== graphicId;
-    const rec: SavedProject = {
-      ...rest,
-      updatedAt: new Date().toISOString(),
-      graphicId: p.graphicId === graphicId ? null : p.graphicId,
-      dirty: p.graphicId === graphicId ? true : p.dirty,
-      ...(keepsReservation ? { reservedGraphicId, ...(mintingReserved ? { mintingReserved } : {}) } : {}),
-    };
+    const rec: SavedProject = { ...p, updatedAt: new Date().toISOString() };
+    if (p.graphicId === graphicId) Object.assign(rec, { graphicId: null, dirty: true });
+    if (p.reservedGraphicId === graphicId) {
+      delete rec.reservedGraphicId;
+      delete rec.mintingReserved;
+    }
     try {
       durable.setItem(STORAGE_KEY, JSON.stringify(rec));
       notifyDataChanged();
+      rewritten = true;
     } catch {
       // Non-fatal: the live link below still drops, and the next autosave writes it.
     }
   }
-  supersededListeners.forEach((listener) => listener(graphicId));
+  forgetSuperseded(graphicId);
+  return rewritten;
 }
 
 export function clearProject(): void {

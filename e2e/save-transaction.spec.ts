@@ -403,6 +403,9 @@ test('matrix device reservation: the id a first Save minted turns out to be take
   await firstSaveNamed(page, 'Beta');
   const beta = (await library(page))[0];
   const bSource = await source(page);
+  // A second tab has the same draft open, linked to Beta.
+  const other = await secondTab(page, 'tab');
+  expect(await link(other)).toMatchObject({ graphicId: beta.id });
   // The next pass finds another device's "Alpha" under that id in the cloud.
   const conflicts = await page.evaluate(async beta => {
     const { runSync } = await import('/src/backend/sync.ts');
@@ -429,6 +432,8 @@ test('matrix device reservation: the id a first Save minted turns out to be take
   expect(body(afterPass.find(g => g.name === 'Beta (conflicted copy)')!.template), 'B\'s save lives on as the conflicted copy').toEqual(body(bSource));
   expect(await link(page), 'the draft stayed linked to the other device\'s record').toMatchObject({ graphicId: null, dirty: true });
   expect((await slotOf(page)).graphicId, 'the slot stayed linked to the other device\'s record').toBeNull();
+  await expect.poll(async () => (await link(other)).graphicId, { message: 'the other tab stayed linked to the other device\'s record' }).toBeNull();
+  await other.close();
   await draw(page, .40); await flush(page);
   await firstSaveNamed(page, 'Beta again');
   const all = await library(page);
