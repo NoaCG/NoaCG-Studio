@@ -55,7 +55,10 @@ into it (#1367). Writes anything else makes meanwhile stay theirs. A new door th
 through these functions, never through its own sequence of writes. The reserved id is carried by
 EVERY slot write of the document (`model/project.ts` `reservedGraphicId`), so it is durable before
 the record even when the save's own reservation and link writes are both refused (#1383); a mint
-calls `releaseReservation()` before its link write. While a transaction runs or waits,
+takes it with `mintReservedGraphicId`, calls `releaseReservation()` before its link write and
+`endMint()` when it settles. The reservation is the minting tab's: once a record holds the id,
+other tabs' writes take a fresh one, and boot relinks only a slot written during that mint
+(`mintingReserved`) or one holding exactly the record's source (#1402). While a transaction runs or waits,
 `useSaveUi.inFlight` is true, and `requestSwitch` asks rather than reading `saved.dirty`, which a
 Save clears before its link write settles (#1392). The leave dialog shows that save's answer over
 the editor and continues only on the user's word (`saveBeforeLeave`). `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the

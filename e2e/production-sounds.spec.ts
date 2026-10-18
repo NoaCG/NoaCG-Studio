@@ -293,3 +293,38 @@ test('stalled preparation retries and restores the current countdown loop once w
   expect(await f.evaluate('starts')).toEqual([true]);
   await f.evaluate('stop();play()');await expect.poll(()=>f.evaluate('starts')).toEqual([true,false,true]);
 });
+
+test('single-file sound data stays inert through the HTML parser', async ({ page }) => {
+  await page.goto('/app');
+  const fixture = await page.evaluate(async () => {
+    const exportModule = '/src/export/selfContained.ts', templateModule = '/src/templates/blank.ts';
+    const { composeSelfContainedHtml } = await import(exportModule);
+    const { createBlankTemplate } = await import(templateModule);
+    const payload = '</ScRiPt><script id="injected">window.injected=true</script><!--<script>';
+    const key = 'sounds/' + payload + '.wav', value = 'data:audio/wav;base64,' + payload;
+    const imagePath = 'images/picture.png', image = 'data:image/png;base64,' + payload;
+    const config = { visuals: { ['picture:' + imagePath]: { topology: imagePath, bindings: {} } } };
+    const template = createBlankTemplate();
+    template.html = '<html><head></head><body><p id="control">Picture and sound</p></body></html>';
+    template.css = '';
+    template.js = `var NOACG_PRODUCTION_SOUNDS = ${JSON.stringify(config).replace(/\//g, '\\u002f')};\nvar noacgSoundConfigError = null;\nvar noacgSoundVisual = ${JSON.stringify('picture:' + imagePath).replace(/\//g, '\\u002f')};\nwindow.authored = 1 < 2;`;
+    const audio = { hash: 'a'.repeat(64), name: 'test.wav', bytes: 4, mime: 'audio/wav' };
+    template.assets = [
+      { path: key, data: value, audio },
+      { path: 'sounds/blob.wav', data: new Blob(['RIFF'], { type: 'audio/wav' }), audio },
+      { path: imagePath, data: image },
+    ];
+    return { html: await composeSelfContainedHtml(template), key, value, image, imagePath };
+  });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.setContent(fixture.html);
+  await expect(page.locator('#control')).toHaveText('Picture and sound');
+  await expect(page.locator('#injected')).toHaveCount(0);
+  const state = await page.evaluate(({ key, image }) => {
+    const scope = window as unknown as { injected?: boolean; authored: boolean; noacgSoundVisual: string; NOACG_PRODUCTION_SOUNDS: { visuals: Record<string, { topology: string }> }; noacgResolveSound: (key: string) => string };
+    return { injected: scope.injected ?? false, authored: scope.authored, sound: scope.noacgResolveSound(key), blob: scope.noacgResolveSound('sounds/blob.wav'), selector: scope.noacgSoundVisual, topology: scope.NOACG_PRODUCTION_SOUNDS.visuals['picture:' + image].topology };
+  }, fixture);
+  expect(state).toEqual({ injected: false, authored: true, sound: fixture.value, blob: 'data:audio/wav;base64,UklGRg==', selector: 'picture:' + fixture.image, topology: fixture.imagePath });
+  expect(errors).toEqual([]);
+});

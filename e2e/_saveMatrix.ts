@@ -1,5 +1,5 @@
 // THE SAVE-TRANSACTION MATRIX: its fault injector and its doors, shared by the six
-// save-transaction*.spec.ts files (Phase 2, repairs 6 and 7). Five independent checks each failed
+// save-transaction*.spec.ts files (Phase 2, repairs 6 to 8). Five independent checks each failed
 // on a new ordering of a Save's separate durable writes, so the matrix crosses every write the
 // transaction makes or settles with every way storage can treat it, across every door that runs
 // it. Each case fault-injects ONE write, picked out by the stack of its IndexedDB put, so another
@@ -26,7 +26,8 @@
 // whatever the shard count. The rows are split by operation; every case keeps its title and
 // assertions, and this module keeps the helpers in one place so the files cannot drift apart:
 //
-//   save-transaction.spec.ts                 refuse+retry, refuse+reload, the double refusal (R and K)
+//   save-transaction.spec.ts                 refuse+retry, refuse+reload, the double refusal (R and K),
+//                                            whose the reservation is across tabs (repair 8, #1402)
 //   save-transaction-holds.spec.ts           hold+edit, the reservation kept, replace, double, in-flight
 //   save-transaction-wizard.spec.ts          the wizard's Finish doors (its walk helper lives there)
 //   save-transaction-leave.spec.ts           the leave replay and the in-flight leave under the topbar Save
