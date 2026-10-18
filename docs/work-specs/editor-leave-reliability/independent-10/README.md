@@ -79,7 +79,7 @@ bounded facts are in
 | V-superseded, newer list / refused list | Both tabs link clean to the copy; second-tab Save asks no name; Alpha unchanged. Both fail at `:199` on null-link. The new channel closes the earlier overwrite despite the list problem. Accept the behavior. |
 | C-pull | Both live tabs link clean to the copy during the pass. That pass also pulls the newer account-wide working slot, containing the other device's draft and link. Reload opens **that other draft**, linked to Alpha. The subsequent deliberate rectangle edit/Save updates Alpha (`alphaUnchanged: false`); it does not put this device's conflicted source there (`alphaHoldsMine: false`, `copyHoldsMine: true`). Its `:117` null-link assertion is replaced. Accept within the existing single account-wide slot semantics, with this source-replacement limit explicit; do not call Alpha byte-equal in this case or claim the same draft stayed on its copy after reload. |
 | V-reservations, newer / corrupt / missing | After both reservation and link writes are refused, an unusable/lost device-local reservation list causes naming and a second record. Original minted source is preserved; two records, no overwrite. These remain red at `:247`. Accept the earlier disclosed degraded-storage limit, requiring both write refusals and the list problem; it is not evidence that normal double-refusal handling failed. S6 passes unchanged. |
-| Ninth R-departure | Inspect the unchanged configured spec's facts separately from its red `:281` pristine-baseline expectation. The baseline must leave without asking (AC 4). The cloud reservation field remains data that this build does not honour on another device; the older-build/rollback window remains disclosed. |
+| Ninth R-departure | The independent configured facts show B unlinked at both boots and after sign-in, no A id in its own list, Beta minted under B’s own id, the pulled mint mark absent, C unlinked, `cLeave: {asked: 0, named: 0}`, `cMinted: null`, and `alphaFinalUnchanged: true`. Red only at `:281`, which wrongly expects that pristine-baseline C must ask. Accept the AC 4 baseline behavior and the reservation-field departure: this build does not honour another device’s id. The older-build/rollback window stays disclosed. |
 | Fifth B1 | The unchanged spec times out on the unbounded read of an absent storage alert at `:246`; the carried bounded-B1 variant passes 1/1. No notice is the required behavior. Accept the expectation's product meaning, retain the original timeout. |
 | Fifth F-hold / F-late | Both unchanged specs time out waiting for a library row after pressing Cancel at the guarded Open (`:464`). Cancel correctly keeps the editor (AC 1/3); letting Open proceed during the write would reopen #1392. Accept that departure, retain the red results. |
 
@@ -106,11 +106,22 @@ authoritative for broad scopes; no full suite was run locally.
 | Seventh | 16/16, including #1402 H | [39125990453](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39125990453) |
 | Eighth | 7/7 | [39125993415](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39125993415) |
 | Ninth | 7 failed, departures above | [39125996198](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39125996198) |
-| Maintained | Running at the initial 12:20 UTC receipt snapshot; terminal result will be recorded before landing | [39125998711](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39125998711) |
+| Maintained | 85 passed, the same 8 legacy skips; two-graphic export 1/1 | [39125998711](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39125998711) |
 | Matrix | 49/49, unchanged | [39126001394](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39126001394) |
 | References | 6/6; all 17 source hashes match the earlier pins | [39126004350](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39126004350) |
 | Visual | 125% cumulative 4/4 | [39126006993](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39126006993) |
 | Configured | signed-in task 1/1, eighth X-device 1/1, ninth S-concurrent 2/2; R-departure red only at `:281` | [39126009521](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39126009521) |
+
+The final facts workflow [39126488754](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39126488754)
+is terminal **failure**, with all three jobs red: ninth 7 failed, fifth 17 passed / 3 timed out
+(and bounded B1 passed), tenth 2 failed / edited control passed. No red job is relabelled green.
+
+The configured facts were also printed independently in
+[39126381213, job 117672279500](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39126381213/job/117672279500).
+Both S-concurrent orders keep B linked clean to B’s conflicted copy, Home asks nothing, and the
+leaves-at-once order asks nothing at New before or after reload. Gamma keeps A’s source and B’s
+source has its own record. The configured **run remains red** solely on R-departure’s baseline
+expectation; passing subcases are identified individually.
 
 ## References and criteria
 
@@ -136,9 +147,28 @@ behavior cannot excuse NoaCG's false unsaved question. No upstream source was co
 | AC 1: normal import/wizard; ask over editor; cancellation keeps source/history/selection | Preserved by original through eighth carried scopes. The new timeout dialog also remains over the editor; its reason for asking is the AC 2 failure. |
 | AC 2: saves retain source; discard mints nothing; saved copies preserved; no repeated/delayed question | **FAIL** on the fresh unedited timeout challenge. Ordinary S-concurrent and maintained conflict rows pass. No source loss or winner overwrite in the new finding. |
 | AC 3: Home/New/Open/Back/hash boundary; no early navigation/duplicates; no resurrection | Preserved in carried normal/refusal paths. The earlier V-reservations degraded-storage duplicate exception remains explicitly red. |
-| AC 4: pristine baseline, wizard walk, library/cloud/production separation | Configured pristine C correctly asks nothing. Maintained terminal evidence is still being collected at this snapshot. No new source mutation was run: this check forbids product edits; held writes/announcements and the existing negative destination assertions supply the adversarial checks. |
+| AC 4: pristine baseline, wizard walk, library/cloud/production separation | Configured pristine C correctly asks nothing. Maintained selection passes 85 with the same 8 legacy skips; two-graphic export passes 1/1. No new source mutation was run: this check forbids product edits; held writes/announcements and the existing negative destination assertions supply the adversarial checks. |
 | AC 5: comparable pinned reference tasks and source | 6/6 fresh executions and independent pinned source inspection, with hashes in evidence. No conflict-wait equivalent or whole-editor parity claim. |
 | AC 6: desktop/laptop/native 125%, cumulative text/artwork/animation, save/reopen and outputs | 4/4 fresh carried tasks preserve source and executable SPX/CasparCG/OGraf browser outputs. Native allocation remains 196px canvas, 180px timeline, 280px inspector at 1093×545 CSS; no comfort, physical-host or owner-acceptance claim. |
+
+## Local visual inspection
+
+The carried four-case visual scope passed on Actions. Fresh local screenshots were also opened
+and inspected at desktop 1920×1080, laptop 1366×768 and actual browser 125% zoom: text/artwork and
+selection handles render, the inspector and timeline remain present, and the 125% Fit artwork
+is still small with Properties scrolling, as earlier receipts disclose. Native measurements are
+1093×545 CSS, viewport height 196, timeline height 180 and inspector width 280. All nine
+SPX/CasparCG/OGraf exports execute without page errors and keep the authored data. This preserves
+engineering qualification; it does not settle comfort or owner acceptance.
+
+Local queue results: `j-0011` gave three passes (nested, desktop, laptop) and one native launch
+failure because DISPLAY was not forwarded by the queue. `j-0012`, with the explicit queued
+command `DISPLAY=:97 npm run test:e2e -- e2e/interaction-probe-task.spec.ts --grep "actual 125"
+--retries=0` at cap 5, passed 1/1 in 14.8 seconds on an isolated Xorg dummy display. No test changed.
+`j-0013`, desktop/laptop with a separate output directory, passed 2/2 in 17.2 seconds and retained
+the screenshots for inspection. The initial wrapper command `j-0010` was refused by source
+admission before any test ran; the named queue selections were used instead. These prerequisite
+failures are recorded, not counted as passes. The dummy display was stopped afterwards.
 
 ## Exact-source landing checks and limits
 
@@ -151,10 +181,13 @@ succeeded. Later deployment verification
 production verification and deep-link jobs; drift was skipped. Earlier deployment-status runs
 were skipped, not passed. Vercel's later commit status says deployment completed.
 
-At the 12:20 UTC snapshot, exact-source push CI `39125792438`, full configured suite
-`39125792534` and CodeQL `39125792547` are still running. Their terminal results must be read and
-recorded before the findings land; pending is not green and does not itself make this product
-failure blocked.
+Exact-source push CI [39125792438](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39125792438)
+succeeded: all 15 full browser shards passed, and its retry job was skipped. CodeQL
+[39125792547](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39125792547) succeeded for Python,
+JavaScript/TypeScript and Actions. The full configured suite `39125792534` remains running at
+12:29 UTC. The coordinator explicitly accepted this pending observation for the already-proven
+FAIL product verdict and owns recording its terminal result in the findings PR and wave ledger.
+Pending is not green and does not itself make the product failure blocked.
 
 The new fault injection delays this tab's library notifications; the conflicted record itself
 is committed. The real-timer reproduction rules out clock acceleration as the cause. There is

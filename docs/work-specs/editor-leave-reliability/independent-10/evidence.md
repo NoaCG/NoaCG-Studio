@@ -443,3 +443,13 @@ These match the fresh reference-run log and earlier receipts. Every Studio file 
 | eyevinn `src/components/PropertyPanel.js` | `5ed93cad5b40ae4142f7ddb3ac9898aead86c4d9a0635e0fb1c098181ff1ba68` |
 | eyevinn `test/bugfix-model-io.test.js` | `2947ff09946a6916b990f05fcb7a1a6588023a3f80d09e22acaccbcd193ea9b2` |
 | eyevinn `test/ograf-lifecycle.test.js` | `8f102ad3b76cd0e92cf7c59d554062016bb94e36b5ee9d74201260d2a10631e5` |
+
+## Local visual measurements
+
+The unchanged carried spec produced these facts. Screenshots were opened, rather than inferred from test success.
+
+| Task | CSS content | Canvas height | Timeline height | Inspector width | Outputs |
+| --- | --- | --- | --- | --- | --- |
+| desktop | 1920×1080 | 534.203125 | 334.796875 | 280 | SPX, CasparCG, OGraf; no errors |
+| laptop | 1366×768 | 317 | 240 | 280 | SPX, CasparCG, OGraf; no errors |
+| actual-125 | 1093×545 | 196 | 180 | 280 | SPX, CasparCG, OGraf; no errors |
