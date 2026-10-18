@@ -1,4 +1,5 @@
 // covers: src/control/**, src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/export/showExport.ts, src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // The two walks that drive a CasparCG package's own operator page live with the imported
@@ -49,7 +50,7 @@
 // covers: docs/svg-samples/**
 
 import { test, expect, type BrowserContext, type FrameLocator, type Page, type Route } from '@playwright/test';
-import { switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor, openExportWindow } from './_create';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -1276,11 +1277,9 @@ test('imported quiz: the behaviour survives the export and runs standalone from 
   // Driven over file:// on purpose — the trap this catches is a reference that silently resolves
   // in the dev server and dangles on disk (docs/VERIFICATION.md).
   await openImportDoor(page, QUIZ_SVG);
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -1476,7 +1475,7 @@ async function casparPackageOnAir(
   context: BrowserContext,
   origin: string,
 ): Promise<{ air: Page; panel: Page }> {
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -1519,9 +1518,7 @@ async function casparPackageOnAir(
 test('CasparCG package: the standalone panel drives the imported SCORE board, reset included', async ({ page, context }) => {
   test.setTimeout(180_000);
   await openImportDoor(page, SCORE_SVG);
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
   const { air, panel } = await casparPackageOnAir(page, context, 'http://caspar-score.local');
   const events = panel.locator('.events');
@@ -1564,9 +1561,7 @@ test('CasparCG package: the standalone panel drives the imported SCORE board, re
 test('CasparCG package: the standalone panel drives the imported QUIZ board through lock and reveal', async ({ page, context }) => {
   test.setTimeout(180_000);
   await openImportDoor(page, QUIZ_SVG);
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
   const { air, panel } = await casparPackageOnAir(page, context, 'http://caspar-quiz.local');
   const select = panel.getByRole('button', { name: '⚡ Select answer' });
@@ -2219,9 +2214,7 @@ test('CasparCG package: the standalone panel drives the bingo caller, add and ta
   // list box has to move with the press, or a later ✎ Update re-sends the board before the call.
   test.setTimeout(180_000);
   await openImportDoor(page, SHOW('bingo-board'));
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
   const { air, panel } = await casparPackageOnAir(page, context, 'http://caspar-bingo.local');
   const events = panel.locator('.events');

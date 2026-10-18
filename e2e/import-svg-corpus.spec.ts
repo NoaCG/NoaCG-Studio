@@ -1,4 +1,5 @@
 // covers: src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // The motion picker matches no directory rule, so every surface that MOUNTS it names it here;
@@ -25,12 +26,11 @@
 // focus
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
-import { switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor } from './_create';
 import { fileURLToPath } from 'node:url';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { awaitPreviewRebuild } from './_preview';
-import { previewFrame } from './_frame';
+import { editorPreview } from './_frame';
 import { boxGrow, boxGrowOf, boxGrows, dropSvg, growthNow, rowLabelled, rowLayerName } from './_svg-import';
 import { LADDER_VALUES, LADDER_MODES } from '../scripts/ladder-values.mjs';
 
@@ -321,7 +321,7 @@ const SWAPPED_PNG =
  * why the restore is asserted here rather than taken on trust from the swap.
  */
 async function swapAndRestore(page: Page, field: string) {
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   const drawn = await frame.locator(`image#${field}`).getAttribute('href');
   expect(drawn).toMatch(/^data:image\/png;base64,/);
   await frame.locator('body').evaluate((_, args) => {
@@ -342,17 +342,6 @@ async function pickPicture(page: Page) {
   await row.locator('input[type=checkbox]').check();
 }
 
-/** Build the project from the mapping step, so the emitted template's field can be operated.
- *  Not `_create.ts`'s `createProject`, which builds a CATALOG design from a spec and never
- *  drives the wizard - a different job under a name that would read as the same one. */
-async function createFromWizard(page: Page) {
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  });
-}
-
 test('corpus: a positioned embedded picture is a picture field an operator can swap', async ({ page }) => {
   test.slow(); // two walks through the door, an export and a project build
   // The A side of the finding-2 pair. Illustrator writes the plain positioned <image> the spec
@@ -366,7 +355,7 @@ test('corpus: a positioned embedded picture is a picture field an operator can s
 
   await mapCorpusFile(page, 'illustrator-embedded-image-card');
   await pickPicture(page);
-  await createFromWizard(page);
+  await finishIntoNewEditor(page);
   await swapAndRestore(page, 'f2');
 });
 
@@ -393,7 +382,7 @@ test('corpus: a Figma-placed picture is a picture field, and an operator can swa
 
   await mapCorpusFile(page, 'figma-embedded-raster-card');
   await pickPicture(page);
-  await createFromWizard(page);
+  await finishIntoNewEditor(page);
 
   const field = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -402,7 +391,7 @@ test('corpus: a Figma-placed picture is a picture field, and an operator can swa
   expect(field.ftype).toBe('filelist');
   expect(field.title).toBe('Guest photo');
 
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   // The field id landed on the <image> in <defs>, and the pattern's <use> came WITH it - an id
   // renamed on its own would leave the rect painting nothing at all. The reference stays in the
   // spelling Figma wrote it in (`xlink:href`), because it is the designer's markup and it
@@ -442,12 +431,12 @@ test('corpus: a photo-filled backplate is offered as a picture AND as the panel 
 
   await mapCorpusFile(page, 'figma-photo-strap-backplate');
   await pickPicture(page);
-  await createFromWizard(page);
+  await finishIntoNewEditor(page);
 
   // The emitted graphic carries both roles on the two nodes each one needs: the growth stamp on
   // the RECT (the thing that widens), the field id on the <image> the pattern resolves to (the
   // only node a swap repaints). One marker named them both; the binding still splits them.
-  const frame = previewFrame(page);
+  const frame = editorPreview(page);
   await expect(frame.locator('rect[id="Strap backplate"]')).toHaveAttribute('data-noacg-el', /(^|\s)g0(\s|$)/);
   await expect(frame.locator('image#f2')).toHaveCount(1);
   await expect(frame.locator('pattern use')).toHaveAttribute('xlink:href', '#f2');
