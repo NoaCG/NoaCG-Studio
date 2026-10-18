@@ -962,6 +962,12 @@ test('corpus: a panel told to get wider AND taller spends both, at the drawn siz
         lines: name.querySelectorAll('tspan[data-noacg-line]').length || 1,
         size: parseFloat(getComputedStyle(name as unknown as Element).fontSize),
         drawn: (window as unknown as { svgFitSizes: Record<string, number> }).svgFitSizes.f0,
+        // The outline the plate is drawn with. Illustrator writes a rounded rectangle as a path
+        // of straight runs and corner curves, and growing it moves the far side's points while
+        // the curve commands ride along (runtime/svgShapeShift.js).
+        curves: /[Cc]/.test(
+          (plate.matches('path') ? plate : plate.querySelector('path'))?.getAttribute('d') ?? '',
+        ),
       };
     }, null);
 
@@ -970,6 +976,7 @@ test('corpus: a panel told to get wider AND taller spends both, at the drawn siz
   await awaitPainted(page, 'Alexandra Riva');
   const rest = await read();
   expect(rest.lines, 'the drawn name is one line').toBe(1);
+  expect(rest.curves, 'the drawn plate is a path with corner curves').toBe(true);
   // The drawn size is ASSERTED, not merely read: every shrink claim below compares against it,
   // and comparing against an unmeasured NaN is false for any size at all - so a missing datum
   // would turn the one rung that must not fire into an assertion that cannot.
@@ -995,6 +1002,9 @@ test('corpus: a panel told to get wider AND taller spends both, at the drawn siz
   if (grown.block.bottom > grown.roleTop + 1) {
     said.push(`the name runs ${Math.round(grown.block.bottom - grown.roleTop)} px into the role`);
   }
+  // The radii are the designer's, not a scale artifact: a resize that flattened the corners into
+  // straight runs would widen the plate above and still have damaged the drawing.
+  if (!grown.curves) said.push('the plate lost its corner curves');
   expect(said, 'the wider-then-taller ladder did not spend both rungs').toEqual([]);
 });
 
