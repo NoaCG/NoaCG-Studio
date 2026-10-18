@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { findRetired, HISTORY_WORDS, isInstructionFile, loadRetired, paragraphs, sentenceAround } from './check-retired-names.mjs';
+import { findRetired, HISTORY_WORDS, isInstructionFile, isRetiredRule, loadRetired, paragraphs, sentenceAround } from './check-retired-names.mjs';
 
 const list = JSON.stringify({
   v: 1,
@@ -83,4 +83,14 @@ test('a malformed list is refused, never read as nothing retired', () => {
   assert.throws(() => loadRetired(JSON.stringify({ retired: [{ name: 'x', pattern: '(', since: '2026-09-06', replacement: 'y', why: 'z' }] })), /does not compile/);
   assert.throws(() => loadRetired(JSON.stringify({ retired: [{ name: 'x', pattern: 'x', since: 'yesterday', replacement: 'y', why: 'z' }] })), /YYYY-MM-DD/);
   assert.throws(() => loadRetired(JSON.stringify({ retired: 'x' })), /must be an array/);
+});
+
+test('a retired rule file is history however its text is worded, and an active one is scanned', () => {
+  // The old code editor's rules were retired before the shell was deleted; their text still says
+  // "AppShell renderPanel supplies the bodies" in the imperative, and that is the record, not an
+  // instruction (contracts/README.md: a retired rule is never deleted).
+  const retired = '---\nv: 1\nscope: src/components/AppShell.tsx\nkind: rule\nfires: contract\nstatus: retired\nsince: 2026-09-07\n---\nLay the workspace out in AppShell.\n';
+  assert.ok(isRetiredRule('contracts/rules/components/lay-workspace-out.md', retired));
+  assert.ok(!isRetiredRule('contracts/rules/components/lay-workspace-out.md', retired.replace('status: retired', 'status: active')));
+  assert.ok(!isRetiredRule('src/components/AGENTS.md', retired), 'only the rule store carries retired rules');
 });

@@ -142,7 +142,7 @@ const CORE = [
   /^src\/model\//,
   /^src\/preview\//,
   /^src\/validation\//,
-  /^src\/components\/(PreviewFrame|App\.)/,
+  /^src\/components\/App\./,
   /^src\/(App|main)\./,
   // The hash router. Every surface in /app is reached through it and browser Back/Forward are
   // part of what it promises, so a route-shape change fans out to every flow that navigates -

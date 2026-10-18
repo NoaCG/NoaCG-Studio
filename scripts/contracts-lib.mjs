@@ -300,7 +300,9 @@ export function validateAgainstTree(rule, root, files = []) {
   // refused only an EMPTY scope, so nothing said a word.
   // No listing means no checkout to check against - a test fixture, a tarball - and a gate that
   // fires where it cannot see is worse than no gate. Stand down rather than refuse everything.
-  for (const glob of files.length === 0 ? [] : rule.scope) {
+  // A RETIRED rule never loads by design and is never deleted (contracts/README.md), so its scope
+  // is history: the code it pinned is routinely gone, and that is not the silent failure above.
+  for (const glob of files.length === 0 || rule.status === 'retired' ? [] : rule.scope) {
     if (glob === '**') continue;
     if (!files.some((file) => globMatches(glob, file))) {
       problems.push(

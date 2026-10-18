@@ -339,6 +339,29 @@ test('wizard: the layer stagger spends its beats on what is visible, and the wor
   expect(Math.min(...gaps.filter((g) => g > 0))).toBeGreaterThanOrEqual(0.07);
   // …and the whole cascade still lands in a broadcast entrance rather than a slideshow.
   expect(starts[starts.length - 1]).toBeLessThan(2.5);
+
+  // AND IN REVERSE ON THE WAY OUT, the preset's own promise ("Out: they leave in reverse") and the
+  // half an entrance reading cannot see: the last step walks the same members back, the words
+  // first and then the artwork, each in the opposite order to its entrance. An emitter that kept
+  // the entrance offsets but left in file order would pass everything above.
+  const order = await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const g = loadGraphics().find((x) => x.name === 'Staggered quiz')!;
+    const steps = parseAnimData(g.template.js)!.steps;
+    const byStart = (step: { layers: Record<string, Record<string, { time: number }[]>> }) =>
+      Object.entries(step.layers)
+        .map(([selector, tracks]) => ({ selector, start: Math.min(...Object.values(tracks).map((kfs) => kfs[0].time)) }))
+        .filter((m) => m.selector !== '.imported-design-box')
+        .sort((a, b) => a.start - b.start)
+        .map((m) => m.selector);
+    return { enter: byStart(steps[0]), exit: byStart(steps[steps.length - 1]) };
+  });
+  const isWord = (s: string) => /^#f\d+$/.test(s);
+  expect(order.exit, 'the exit does not walk the members back in reverse').toEqual([
+    ...order.enter.filter(isWord).reverse(),
+    ...order.enter.filter((s) => !isWord(s)).reverse(),
+  ]);
 });
 
 // THE EASING DROPDOWN REACTS TO THE MOTION (session A, 2026-08-23). The owner: "I never use the

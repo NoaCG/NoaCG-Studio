@@ -1,4 +1,5 @@
 // covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
+// covers: src/blocks/designLayout.ts, src/export/registry.ts
 // covers: src/assets/**
 //
 // The Import Graphic flow's Prepare and Text steps are driven from the wizard; mapped from
@@ -10,10 +11,10 @@
 // select them too.
 // covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 
-import { test, expect, type Page } from '@playwright/test';
-import { switchToAdvancedMode, finishIntoNewEditor } from './_create';
-import { awaitPreviewRebuild } from './_preview';
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 
 // The Import Graphic SCALING MODE (docs/IMPORT_MVP.md): fixed (default — the image renders
 // exactly as drawn) vs horizontal 9-slice stretch (the plain middle band widens with the
@@ -61,16 +62,6 @@ async function eraseTextBar(page: Page) {
   await expect(page.getByTestId('erase-done')).toBeVisible();
 }
 
-async function createProject(page: Page) {
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
-    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
-    // same cold-module cost text-tools.spec.ts's createBareDesign documents in full.
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  });
-}
-
 
 /** The created template's stretch guides + validation, via the app's own readers. */
 async function stretchState(page: Page) {
@@ -92,18 +83,16 @@ async function stretchState(page: Page) {
   });
 }
 
-/** Live metrics from the editor preview iframe (canvas px, transform-free). */
-async function boxMetrics(page: Page) {
-  return page
-    .frameLocator('iframe.preview-frame')
+/** The design box as the document paints it, read in the working document `update()` drives. */
+async function boxMetrics(doc: FrameLocator) {
+  return doc
     .locator('.imported-design-box')
     .evaluate((box) => {
       const art = box.querySelector<HTMLElement>('.imported-design-art')!;
       const f0 = box.querySelector<HTMLElement>('#f0');
       return {
         width: Math.round(box.getBoundingClientRect().width),
-        // Canvas px: the editor preview pads the viewport (the pasteboard), so measure
-        // from the body's edge — inside the document, the body IS the 1920px canvas.
+        // Canvas px: inside the document the body IS the 1920px canvas, so measure from its edge.
         right: Math.round(
           box.getBoundingClientRect().right - document.body.getBoundingClientRect().left,
         ),
@@ -113,15 +102,7 @@ async function boxMetrics(page: Page) {
     });
 }
 
-async function setSample(page: Page, value: string) {
-  await page.evaluate(async (v) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    useTemplateStore.getState().setSampleValue('f0', v);
-    // The live-edit pair the field rows use: the value lands in the store, the control
-    // command pushes it into the running preview's update().
-    useTemplateStore.getState().sendControl('update');
-  }, value);
-}
+const setSample = (doc: FrameLocator, value: string) => updateWorkingDocument(doc, { f0: value });
 
 test('stretch: picking it writes the 9-slice into the created code, and the guides parse back', async ({ page }) => {
   await dropCard(page);
@@ -177,45 +158,46 @@ test('stretch: a long value grows the design at full type size, and a short one 
   await dropCard(page);
   await eraseTextBar(page);
   await page.getByTestId('mode-stretch').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
+  const doc = await mountWorkingDocument(page);
 
   // Erase + stretch: the guides defaulted to the erased text's edges (the drawn rect).
   const { info } = await stretchState(page);
   expect(Math.abs(info!.left - 160)).toBeLessThan(12);
   expect(Math.abs(info!.right - 570)).toBeLessThan(12);
 
-  // The artwork actually PAINTS after the editor's settle (which clears inline styles —
-  // the reason the image ref lives in the CSS rule and never on the element).
-  const painted = await page
-    .frameLocator('iframe.preview-frame')
+  // The artwork actually PAINTS from its CSS rule: the image ref lives there and never on the
+  // element, so a runtime that clears inline styles cannot blank it.
+  const painted = await doc
     .locator('.imported-design-art')
     .evaluate((el) => getComputedStyle(el).borderImageSource.startsWith('url'));
   expect(painted).toBe(true);
 
-  const rest = await boxMetrics(page);
+  const rest = await boxMetrics(doc);
   // A value long enough to need more room than the design was drawn with, but still short
   // enough to get it — the seeded field is sized from the erased text's own ink, so the
   // headroom before the frame edge is whatever that type size leaves.
-  await setSample(page, 'Alexandra Riva');
-  await expect.poll(async () => (await boxMetrics(page)).width).toBeGreaterThan(rest.width + 40);
-  const grown = await boxMetrics(page);
+  await setSample(doc, 'Alexandra Riva');
+  await expect.poll(async () => (await boxMetrics(doc)).width).toBeGreaterThan(rest.width + 40);
+  const grown = await boxMetrics(doc);
   expect(grown.font).toBe(rest.font); // the image answered — the type never shrank
   expect(grown.capLeft).toBe(rest.capLeft); // the left cap keeps its exact painted width
 
-  await setSample(page, 'Bo Li');
-  await expect.poll(async () => (await boxMetrics(page)).width).toBeLessThan(rest.width + 4);
+  await setSample(doc, 'Bo Li');
+  await expect.poll(async () => (await boxMetrics(doc)).width).toBeLessThan(rest.width + 4);
 });
 
 test('stretch: growth caps inside the frame edge, then the text-fit shrink answers the rest', async ({ page }) => {
   await dropCard(page);
   await eraseTextBar(page);
   await page.getByTestId('mode-stretch').click();
-  await createProject(page);
+  await finishIntoNewEditor(page);
+  const doc = await mountWorkingDocument(page);
 
-  const rest = await boxMetrics(page);
-  await setSample(page, 'Alexandra Konstantinopoulos-Virtanen Extraordinaire de la Grande Maison');
-  await expect.poll(async () => (await boxMetrics(page)).width).toBeGreaterThan(rest.width + 40);
-  const extreme = await boxMetrics(page);
+  const rest = await boxMetrics(doc);
+  await setSample(doc, 'Alexandra Konstantinopoulos-Virtanen Extraordinaire de la Grande Maison');
+  await expect.poll(async () => (await boxMetrics(doc)).width).toBeGreaterThan(rest.width + 40);
+  const extreme = await boxMetrics(doc);
   expect(extreme.right).toBeLessThanOrEqual(Math.round(1920 * 0.96) + 2); // the safe cap
   expect(extreme.font).toBeLessThan(rest.font!); // past the cap, shrink takes over
 });
@@ -239,14 +221,15 @@ test('stretch: dragging a guide lands in the created code', async ({ page }) => 
 test('fixed default: no stretch markers, and a long value shrinks its text instead', async ({ page }) => {
   await dropCard(page);
   await eraseTextBar(page);
-  await createProject(page); // no mode picked — fixed is the default
+  await finishIntoNewEditor(page); // no mode picked — fixed is the default
+  const doc = await mountWorkingDocument(page);
 
   const state = await stretchState(page);
   expect(state.info).toBeNull();
   expect(state.cssRef).toBe(false); // the classic <img> artwork, untouched
 
-  const rest = await boxMetrics(page);
-  await setSample(page, 'Alexandra Konstantinopoulos-Virtanen');
-  await expect.poll(async () => (await boxMetrics(page)).font).toBeLessThan(rest.font!);
-  expect((await boxMetrics(page)).width).toBe(rest.width); // the image never grew
+  const rest = await boxMetrics(doc);
+  await setSample(doc, 'Alexandra Konstantinopoulos-Virtanen');
+  await expect.poll(async () => (await boxMetrics(doc)).font).toBeLessThan(rest.font!);
+  expect((await boxMetrics(doc)).width).toBe(rest.width); // the image never grew
 });
