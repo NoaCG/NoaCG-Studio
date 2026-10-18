@@ -111,29 +111,26 @@ spec edits that spec and nothing shared; `scripts/e2e-lists.mjs` reads the heade
 The build refuses, in `scripts/e2e-affected.test.mjs`: a spec with no `covers:` line (it would run
 only at night), a glob or exclusion that matches no file (a stale path is silent otherwise), a
 central rule naming a spec that does not exist, and a malformed header, named by file and line.
-Bootstrap non-wizard specs with `createProject` (`e2e/_create.ts`).
+Bootstrap non-wizard fixtures with `bootstrapGraphic` (`e2e/_create.ts`), then use the current
+surface, such as `openWorkingGraphicInEditor`. Creation journeys drive the wizard and
+`finishIntoNewEditor` instead. Fixture setup must never stand in for the UI action under test.
 
 **A spec that enumerates the catalog must be selected by a `src/templates/` change**, and
 `scripts/e2e-affected.test.mjs` pins that rule rather than trusting the list: it scans `e2e/` for
 specs importing `CATALOG`, `TYPES`, `KITS` or `PACKS` and fails the build if one of them does not
 cover `src/templates/**`. Six were missing until 2026-08-08, which is how `competition-pack.spec.ts` sat stale.
 
-**Some behaviour has no offline spec at all, and the planner now SAYS so.** `e2e/configured/`
-runs against a real backend and a throwaway account (`npm run test:e2e:live:queued`), so it can
-neither run in CI nor be selected by the affected gate - which left hosted Pro's door, its
-metering and its allowance read-back covered only by offline specs that pin their ABSENCE.
-`CONFIGURED_TRIGGERS` (`scripts/e2e-lists.mjs`, built from the configured specs' `covers:` lines)
-names the files whose coverage lives there; a
-change touching one prints a line telling you to run that suite. It is reported, never run:
-starting it would bring up a dev server on the real `.env`, which is what the offline pin exists
-to prevent.
+**Backend behavior has a separate configured suite.** `e2e/configured/` runs against an
+explicitly configured backend and a throwaway account. `CONFIGURED_TRIGGERS` in
+`scripts/e2e-lists.mjs` reads its covers headers and reports affected backend coverage; the
+offline planner never starts it against the local production `.env`.
 
-**That suite now has its own nightly, `configured-suite.yml` (01:10 UTC), against a LOCAL Supabase
-stack.** Per-change selection still cannot reach it, so nothing commit-driven ever will; a
-schedule can. The job runs `supabase start` on the runner, applies the repository's own
-migrations, mints a throwaway account, and runs the whole suite against that - then tears down
-with the runner. It files its own rolling issue, separate from `nightly.yml`.
-
+`configured-suite.yml` runs on every push to main, nightly at 01:10 UTC, and by explicit
+dispatch. It starts an isolated local backend stack on the Actions runner, applies the
+repository migrations, authenticates a throwaway account, and runs the configured suite.
+Each landing has its own run, so post-landing evidence identifies one commit. These checks
+report after landing and do not replace the merge group's required CI. See the workflow for
+its current selection, environment and reporting guards.
 Two things that route buys, and one it costs:
 
 - **No Supabase secret lives in GitHub.** The local stack's keys are the CLI's published shared

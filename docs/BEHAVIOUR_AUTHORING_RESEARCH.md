@@ -94,8 +94,10 @@ in the timeline dock of the editor, and the editor is Advanced mode - the surfac
 release deliberately demoted. The target user never arrives. Real, but fixing the route without
 causes 1-3 would only deliver more people to a surface that fails them.
 
-**The canvas half is the sibling's.** The WYSIWYG canvas editor's own failure analysis is being
-written into `docs/WYSIWYG_PLAN.md` and is not duplicated here; the one-paragraph summary that
+**The canvas half is the sibling's.** The first canvas editor's observed failures and
+limits are retained in
+[editor outcomes and review readiness](research/editor-outcomes-and-review-readiness-2026-09-20.md).
+The dated hypotheses are not new implementation scope. The one-paragraph summary that
 matters to THIS thread is that the canvas failed at a different job - direct manipulation of the
 graphic's look - and its lessons bind P7, not the logic question. The two failures share only the
 conclusion GOALS.md already draws: neither a better canvas nor a better graph is assumed to be

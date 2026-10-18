@@ -873,6 +873,23 @@ merge helper remain the only implementations, with one bounded session edit per 
 
 Reconciled on main `f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` after PR #1489 landed, with a merge commit and regenerated contracts. All seven kept live-gap cases now run; one covered production duplicate still calls the retired skip helper and needs its final equivalence audit before helper deletion. Final main-reconciled queue job `j-4625` passed all 13 cases in both complete files in 35.0 seconds, with no skips. Changed gates passed all 27 selected Node checks, and contract regeneration produced no additional branch changes.
 
+### Helper and historical-document cleanup (2026-10-18)
+
+Why: the final skip still hides a live production assertion, and retired bootstraps and old
+plans still give readers obsolete instructions. Goal: restore that case through the current
+production UI, remove the five skip helpers at zero callers, and retire the eight approved
+plans after retaining their current contracts and observed failure lessons. Non-goals: no
+editor Phase 2 acceptance claim, saved-format change, new runtime or later research work.
+Acceptance: the complete production case runs without skipping; no retired helper or _code
+import remains; current animation contracts and failure evidence have maintained references;
+no source behavior changes from comment/reference edits; documentation and targeted gates pass.
+
+The original C disposition for productions:40 was incomplete: the existing persistence case
+renames its duplicate before checking the default copy label and insertion position. Four
+replacement checks passed in j-4624, but partial coverage is insufficient. Keep the original
+case, change its row to G with this evidence, and replace only its retired setup with current
+Home, save and production controls. No declaration is removed and no maintenance entry is added.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -1260,3 +1277,39 @@ Before deleting support for the old dock-layout format, ask that separate stored
 Do not ask about retiring AI experiments during the active harness work; they are outside this
 phase. The first seven-file source PR needs no further technical discovery from the owner.
 Approval of that PR's scope and an execution window remain distinct from this research update.
+
+### Helper and old-document verification receipt (2026-10-18)
+
+All five retired skip exports and OLD_EDITOR_SKIP are gone from e2e/_create.ts; its live
+fixtures and wizard helpers remain. The complete E2E tree has no caller or import of those
+identities. _code.ts had zero imports and its 28 lines are deleted. _ai-notice.ts stays because
+_video.ts still imports it. The helpers remove 80 physical lines including comments.
+
+The last production case is retained as G, not recorded as a covered removal. j-4628 reached
+the current production UI and found its old note-as-row-text expectation obsolete: CueRundown
+exposes the note icon's accessible label and title instead. The case now asserts the exact
+note title and also verifies the note and field after reload. j-4629 passed all 28 production
+cases with zero skips in 47.2 seconds. j-4630 passed all 19 animation-engine, legacy-timeline
+and brand-editor cases with zero skips in 34.4 seconds. No test declaration was removed.
+
+The approved eight timeline/WYSIWYG documents remove exactly 1,280 physical lines. Their
+current step/keyframe, visibility, calls, loops, dynamics, importer, preset and writer-pairing
+facts live in STATE_MACHINE_SCHEMA. The first-editor observations and explicitly hypothetical
+causal rankings remain in editor-outcomes-and-review-readiness, with pinned historical source.
+Current source references point to maintained contracts; dated research links point to the
+verified archive at 2c36ba0be224d464938538428d02b8b77c56b5b9. Immutable inventory and contract
+records keep their provenance. VERIFICATION now names live fixture helpers and the existing
+per-landing configured workflow. No editor-repair acceptance or new research idea is claimed.
+
+ESLint and TypeScript passed. Changed gates passed 17 Node files and 165 tests. Docs indexing
+passed with 150 top-level documents; contract compilation/freshness/citations/evidence passed.
+Catalog emit compared all 528 designs with their committed baseline and passed in 3.5 seconds.
+Comment-free TypeScript syntax is identical after normalizing line endings in all 11 changed
+production files. Untouched line endings were preserved; no emitted graphic code changed.
+The configured production-links edit only corrects a fixture-helper name in a comment; its
+behavior is unchanged and its live backend journey remains in authoritative Actions.
+
+Review fixed incomplete C evidence, an obsolete note presentation assertion, stale source
+section numbers and source newline churn. Simplify kept the original production assertions
+and shared helpers, with only current setup replacing the retired setup. The passing phase
+uses inline review, simplify and verify; no local production build or full suite was run.

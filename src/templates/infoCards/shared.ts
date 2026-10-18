@@ -35,7 +35,7 @@ const CARD_CATEGORY: CategorySpec = {
   // Cards may be wider than lower thirds: up to 56% of frame width inside safe areas.
   maxTextWidth: (res: Resolution) =>
     Math.round(Math.min(res.width * 0.56, res.width - 2 * (res.width * 0.0625))),
-  // The LAST category to flip (docs/TIMELINE_V2_PLAN.md): info cards are the standard
+  // The LAST category to flip (docs/STATE_MACHINE_SCHEMA.md): info cards are the standard
   // contract's other line-based family, so they convert exactly like lower thirds — steps and
   // all. They flipped last only because they hosted the classic strip's spec suite, which now
   // runs against a SAVED legacy template instead (the case the strip actually still serves).

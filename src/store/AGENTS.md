@@ -140,7 +140,7 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   `controlCommand` nonce and are no-ops on templates without the machine runtime; the preview
   snaps with `{ timers: false }` so a parked design view never auto-advances.
 - **selectedParts / selectedPart** - the SHARED SELECTION (multi since the interaction
-  model, docs/TIMELINE_INTERACTION_MODEL.md): an ordered list of TemplatePart selectors the
+  model, docs/EDITOR_REBUILD_PLAN.md): an ordered list of TemplatePart selectors the
   canvas, the timeline, and the Inspector all highlight; selectedPart is the PRIMARY
   (first) and every setter keeps the two in sync. setSelectedPart replaces, setSelectedParts
   replaces wholesale (the lasso), toggleSelectedPart is shift-click. UI state only - no

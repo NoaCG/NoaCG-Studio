@@ -56,7 +56,6 @@ Layers of documentation, top to bottom:
 | `PROMISE_AUDIT.md` | What the landing page may claim: one row per promise `index.html` and `ograf.html` make, graded WORKS NOW / WORKS WITH A STATED LIMITATION / NOT YET IMPLEMENTED, each with the spec, source line or run that proves it. The page never outranks its row. Re-run before any landing rewrite. |
 | `SPX_TEMPLATE_FORMAT.md` | The external SPX contract this product targets (reference; keep in sync with SPX). |
 | `TEMPLATE_CATEGORIES.md` | The index of what lives under `src/templates/`: the two registries and the twenty categories, each pointing at its own contract. Orientation only - a category's rules are in its own `AGENTS.md`. |
-| `TIMELINE_INTERACTION_MODEL.md` | Archived legacy interaction contract; current proposed mechanisms are in EDITOR_REBUILD_PLAN.md. |
 | `IMPORT_MVP.md` | The Import Graphic flow: the structure contract, fit modes, Prepare/erase, 9-slice stretch. Shipped; doubles as the domain record. |
 | `RENDER.md` | The render service: manifest kinds, virtual clock, tiers, security posture, deploy checklist. |
 | `ADMIN.md` | The private admin surface and the entitlement system: the resolver and its precedence, plans/grants/overrides, roles, the 404-not-403 gate, the audit log, the internal-account usage scope, the beta feedback inbox, migrations 0017+. |
@@ -167,9 +166,6 @@ Layers of documentation, top to bottom:
 |---|---|
 | `GOALS_ARCHIVE.md` | Every milestone that shipped up to 2026-08-07, with its date and rationale, plus the ratified decisions behind them. The live roadmap is `GOALS.md`. |
 | `ERA5_PLAN.md` | Why the server era is shaped as it is (Supabase, AGPL split, offline invariance). Shipped through 5.6. Its 5.7 payments step will not be built: NoaCG has no paid surface (`GOALS.md`, Posture). |
-| `TIMELINE_PLAN.md` | Archived pre-v2 timeline research; forward direction is EDITOR_PLAN.md. |
-| `WYSIWYG_PLAN.md` | Archived first-editor history and failure lessons; superseded as forward direction. |
-| `TIMELINE_V2_PLAN.md` | Archived v2 implementation history and migration evidence; forward direction is EDITOR_PLAN.md. |
 | `DYNAMIC_MOTION_SCOPE.md` | Why measured motion is a named-builder primitive (`dynamics`) and not an expression language. Shipped. |
 | `PRESET_MODEL_REVIEW.md` | The keyframe model's expressive range: which gaps closed (most) and which stay open by choice (stagger knob, springs, per-property duration, motion paths). |
 | `THEME_DEFAULTS_REVIEW.md` | The family-token audit behind the applied 2026-07-21 defaults. Open remnant: the `labelColor` / `displayTracking` re-modelling questions. |

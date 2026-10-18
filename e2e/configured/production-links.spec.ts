@@ -38,7 +38,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
     const { syncNow } = await import('/src/backend/syncController.ts');
     await syncNow();
   });
-  // createProject's `name` is the CATALOG DESIGN to build from, not the project's own name -
+  // bootstrapGraphic's `name` is the CATALOG DESIGN to build from, not the project's own name -
   // "Link Keeper" is this spec's production, named below. Passing it here asked the catalog
   // for a design that has never existed, so this walk threw before it reached the claim.
   await bootstrapGraphic(page);

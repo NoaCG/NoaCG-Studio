@@ -7,15 +7,16 @@ import or research knowledge; it does not authorize adding a node editor to the 
 
 The contract for how a graphic's STATES live in the code. Phase 1 of the template-library /
 state-machine / control-layer stage put the model in the schema, the runtime, the serializer
-and the validator; Phase 4 added the NODE EDITOR on top (the machine graph surface,
-`src/components/timeline/MachineGraph.tsx` + `src/blocks/machineEdit.ts` — see §6a); Phase 5 built the
+and the validator. Phase 4 added the former machine graph over `src/blocks/machineEdit.ts`
+(historical UI, see §6a). Phase 5 built the
 GENERATED CONTROL PAGES on it (`docs/CONTROL_LAYER.md` — every operator event a button via
 the additive `machine.controls` metadata, the event/snap transport cues, staging, the event
 log, hosted control).
 
-Companion docs: `TIMELINE_V2_PLAN.md` (the step/keyframe model this extends),
-`TIMELINE_INTERACTION_MODEL.md` (the timeline's interaction contract),
-`DYNAMIC_MOTION_SCOPE.md` (measured motion, which stays outside the machine).
+Companion docs: [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) for current authoring,
+[animData.ts](../src/blocks/animData.ts) for the stored shape,
+[animRuntime.ts](../src/templates/shared/animRuntime.ts) for playback, and
+[DYNAMIC_MOTION_SCOPE.md](DYNAMIC_MOTION_SCOPE.md) for measured-motion rationale.
 
 ---
 
@@ -124,6 +125,51 @@ they are exactly the legal `event` values of a `lifecycle` transition, which is 
 entrance and the exit carry a style. `next` is NOT reserved - it is an ordinary event name,
 conventionally the default path's arrows, and a branch state may author its own `next` edge
 as the rejoin arrow.
+
+---
+
+## Animation steps and runtime hooks
+
+This is the retained step/keyframe contract from the completed timeline migration, not a
+plan to restore its retired UI. A data-driven graphic carries strict JSON in
+`var NOACG_ANIM = { ... };` and the shared ES5 interpreter inside its marked animation region.
+`root` selects the graphic, `speed` scales time, and `steps` carries the ordered path. Each
+step has `name`, `duration`, `ease` and `layers[selector][property] = Keyframe[]`; a keyframe
+has `time`, numeric or string `value`, and an optional ease into that keyframe.
+
+Times are cue-local stored seconds. Playback divides them and durations by `speed`; an
+editor ruler may concatenate the effective durations without changing storage. Play enters
+the first step, Next advances the middle steps on operator presses, and Stop plays the final
+Out from any state. The SPX Continue count is derived by `spxSteps`, not separately authored.
+The optional machine binds its default path positionally as described above.
+
+The first keyframe holds backward to the step start. A missing track inherits an earlier
+step's last value, or the design CSS when no previous track exists. Same-shaped strings
+interpolate their numbers; different shapes hold the previous value. Editor evaluation uses
+the runtime's shared ease source, `easeRuntime.ts`, rather than copying its curves.
+`reveals` and `hides` explicitly mark legacy middle-step visibility; the first keyframe's time
+never implies an activation. The interpreter pre-hides press-revealed layers and shows the
+CSS-hidden root through the lifecycle. Layers outside that root leave with Out unless Out
+already animates them. Current visibility spans and carried Out motion remain defined by
+`AnimStep` and the maintained editor contracts; no stored shape is removed by this summary.
+
+Step `calls: [{ time, call }]` invoke named global template functions at speed-relative
+moments. Names are identifiers, not code, arguments or an expression language. Clock and
+other design-owned runtimes stay outside the animation region. Settle and scrub suppress
+callbacks, so they do not start clocks or state timers. Step `dynamics: [{ time, build,
+target? }]` invoke a named builder outside the region that measures the DOM and returns a
+GSAP object. An authored duration remains a floor when measured motion lasts longer. The
+legacy reader accepts `tl.add(builderName(target))`, never guesses arbitrary measured JS.
+`loops[selector][property]` repeats only that property track, with repeat, yoyo and repeatDelay.
+
+`parseAnimData` validates the literal and `serializeAnimData` writes its canonical shape.
+Use the writer's data/interpreter pairing checks: splicing a literal alone cannot upgrade an
+old interpreter. An unknown or unconvertible source stays preserved and readable/playable;
+unsupported visual edits must refuse it rather than regenerate it silently. The one-time
+legacy importer reads known emitted choreography, including lifecycle calls and static loops.
+Presets derive keyframes from the existing emitter through that importer. Applying one cleanly
+replaces the chosen layer and direction, preserving other motion; only a whole-graphic apply
+adopts the donor's step calls and dynamics. See `presetApply.ts` for the live contract.
 
 ---
 
@@ -250,10 +296,10 @@ land under an interpreter that predates the machine engine: check
   operator permissions, nested machines** - all consciously deferred. The schema does not block
   any of them.
 
-## 6a. The node editor (Phase 4 — shipped)
+## 6a. Historical node editor (retired 2026-10-17)
 
-The machine GRAPH surface, toggling with the step timeline in the bottom dock (Rive-style):
-`src/components/timeline/MachineGraph.tsx` over the pure mutators in `src/blocks/machineEdit.ts`.
+The graph UI was deleted on 2026-10-17. The following records its shipped behavior, not a
+current surface. The pure `src/blocks/machineEdit.ts` mutators and their tests remain live.
 
 - **One generic editor for every graphic.** A template without an authored machine shows its
   DERIVED machine, labelled "derived from the steps"; the first graph edit MATERIALIZES exactly
@@ -313,7 +359,7 @@ landing, and the styles pairing rule).
 | `src/blocks/animData.ts` | The contract: types, normalizing parse + `migrateAnimData`, shape gate, canonical serializer, `TRANSITION_STYLES`. |
 | `src/blocks/animMachine.ts` | The graph seam: `deriveMachine`, `spxSteps`, `canonicalPath`, `operatorEvents`, `validateMachine`. |
 | `src/blocks/machineEdit.ts` | The node editor's pure mutators: materialization, transitions (trigger/event/timer/style), states, groups, box positions. |
-| `src/components/timeline/MachineGraph.tsx` | The graph surface (§6a): boxes, arrows, lanes, cards, port-drag, live state. |
+| Former `MachineGraph.tsx` | Retired graph surface, recorded historically in §6a. |
 | `src/templates/shared/animRuntime.ts` | The emitted ES5 interpreter: the version-1 statements verbatim + the machine engine (queue, dispatch, timers, snap, introspection, `noacgStyleTimeline`) + `hasMachineRuntime` / `hasTransitionStyleRuntime` + the pairing-safe `writeAnimData`. |
 | `src/validation/validateTemplate.ts` | Semantic machine errors/warnings + the pairing-rule errors (machine, styles). |
 | `src/components/timeline/PlayoutSimulator.tsx` | `event` / `snap` commands, the event strip. |

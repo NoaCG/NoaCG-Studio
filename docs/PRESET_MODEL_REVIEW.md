@@ -16,7 +16,7 @@ This answers three questions about the Timeline v2 animation model
    timeline and Inspector?
 
 It is a living design note. The presets themselves apply cleanly as of the clean-swap rework
-(see `docs/TIMELINE_V2_PLAN.md` ratification point 7, amended); the gaps below are about the
+(see `src/blocks/presetApply.ts` clean-swap contract); the gaps below are about the
 _expressive range_ of the underlying keyframe model, not about preset application.
 
 ## The model in one paragraph
@@ -65,7 +65,7 @@ parse-degrades-gracefully contract. None require a graph editor or expressions.
   existence span ends where it is hidden; the timeline layer-block's right edge drags to set it,
   and the runtime hides the layer at the step boundary (setLayerHide + the block right edge +
   hideStep; a template with a pre-hides interpreter is re-emitted on first use).
-- **`calls?: { time, call }[]` on a step** (gap 10) — **DONE** (`docs/TIMELINE_V2_PLAN.md` §3b).
+- **`calls?: { time, call }[]` on a step** (gap 10): **DONE**, see `STATE_MACHINE_SCHEMA.md`, Animation steps and runtime hooks.
   The interpreter `tl.call`s `window[name]` at the local time, name-resolved (no eval).
   `resizeStep`/`duplicateStep`/`deleteStep` carry them; `parseTimeline` learns `tl.call` as a
   zero-duration entry; `presetApply` carries calls through `'all'` scope only. This unblocked

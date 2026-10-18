@@ -5,7 +5,7 @@ import { bootstrapGraphic } from './_create';
 import { applyLegacyRegion } from './_legacy';
 
 // PHASE 8 — what happens to a LEGACY TEMPLATE now that the classic strip's editing patchers are
-// gone (docs/TIMELINE_V2_PLAN.md, DYNAMIC_MOTION_SCOPE §8.1).
+// gone (docs/STATE_MACHINE_SCHEMA.md, DYNAMIC_MOTION_SCOPE §8.1).
 //
 // This suite replaced the old 33-test classic-strip suite. Those tests drove the strip's literal
 // patchers — bar drags, edge resizes, ease chips, the enters-from drawer, phase preset swaps,

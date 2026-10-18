@@ -47,7 +47,7 @@ their detailed mechanisms. It is not a third implementation design alongside the
 5. [Starter Collections plan](../../STARTER_COLLECTIONS_PLAN.md): brand provenance, shared controls,
    installation identity, durable changes and guarded revert.
 6. [Pinned Studio research](OGRAF_STUDIO_RESEARCH.md) and
-   [previous failure analysis](WYSIWYG_PLAN.md), followed by code relevant to the next slice.
+   [previous failure analysis](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md), followed by code relevant to the next slice.
 
 If scope or order disagrees, this dated roadmap governs. If technical rules disagree, resolve
 the conflict in the owning plan before implementation and link the decision here. Do not
