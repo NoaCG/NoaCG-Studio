@@ -1,11 +1,11 @@
-name: Eighth-check probe of the carried leave-editor checkers (disposable, never merge)
+name: Ninth-check probe of the carried leave-editor checkers (disposable, never merge)
 on:
   workflow_dispatch:
     inputs:
       scope:
         description: Bounded independent verification selection
         type: choice
-        options: [unchanged, fifth, maintained, references, visual, mutation, diag, repeat228, matrix, sixth, seventh, eighth]
+        options: [unchanged, fifth, maintained, references, visual, mutation, diag, repeat228, matrix, sixth, seventh, eighth, ninth]
         default: unchanged
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node scripts/build-player-host.mjs
-      - run: mkdir -p .noacg/results && sha256sum e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts e2e/leave-third-checker.spec.ts e2e/leave-fourth-checker.spec.ts e2e/leave-fifth-checker.spec.ts e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts e2e/leave-sixth-checker.spec.ts e2e/leave-fifth-b1-bounded.spec.ts $(ls e2e/leave-seventh-checker.spec.ts e2e/leave-eighth-checker.spec.ts e2e/configured/leave-eighth-device.spec.ts 2>/dev/null) | tee .noacg/results/spec-hashes.txt && git rev-parse HEAD | tee .noacg/results/head.txt
+      - run: mkdir -p .noacg/results && sha256sum e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts e2e/leave-third-checker.spec.ts e2e/leave-fourth-checker.spec.ts e2e/leave-fifth-checker.spec.ts e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts e2e/leave-sixth-checker.spec.ts e2e/leave-fifth-b1-bounded.spec.ts $(ls e2e/leave-seventh-checker.spec.ts e2e/leave-eighth-checker.spec.ts e2e/configured/leave-eighth-device.spec.ts e2e/leave-ninth-checker.spec.ts e2e/configured/leave-ninth-device.spec.ts 2>/dev/null) | tee .noacg/results/spec-hashes.txt && git rev-parse HEAD | tee .noacg/results/head.txt
       - name: Unchanged original independent assertions (leave-checker.spec.ts)
         if: always() && inputs.scope == 'unchanged'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/original.json }
@@ -81,6 +81,10 @@ jobs:
         if: always() && inputs.scope == 'eighth'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/eighth.json }
         run: $PW e2e/leave-eighth-checker.spec.ts --output=.noacg/results/eighth
+      - name: Ninth checker challenges
+        if: always() && inputs.scope == 'ninth'
+        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/ninth.json }
+        run: $PW e2e/leave-ninth-checker.spec.ts --output=.noacg/results/ninth
       - name: Maintained lifecycle and preserved regressions
         if: always() && inputs.scope == 'maintained'
         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/maintained.json }

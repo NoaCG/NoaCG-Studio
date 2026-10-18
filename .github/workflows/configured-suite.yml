@@ -257,6 +257,9 @@ jobs:
       - name: Eighth checker, the reservation across two devices
         if: always() && hashFiles('e2e/configured/leave-eighth-device.spec.ts') != ''
         run: sha256sum e2e/configured/leave-eighth-device.spec.ts && npm run test:e2e:live -- e2e/configured/leave-eighth-device.spec.ts --retries=0 --workers=1
+      - name: Ninth checker, repair-9 across two devices
+        if: always() && hashFiles('e2e/configured/leave-ninth-device.spec.ts') != ''
+        run: sha256sum e2e/configured/leave-*.spec.ts && npm run test:e2e:live -- e2e/configured/leave-ninth-device.spec.ts --retries=0 --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
