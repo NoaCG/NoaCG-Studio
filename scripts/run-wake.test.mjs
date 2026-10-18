@@ -68,6 +68,10 @@ test('a transcript that ends on the usage-limit error reports when the limit res
   assert.deepEqual(usageStopIn(note('wrap_up')), { resetsAt: Date.parse('2026-10-17T21:11:14Z'), assumed: true });
   assert.equal(usageStopIn(`${note('wrap_up')}\n${note('release')}`), null);
   assert.equal(usageStopIn(`${note('wrap_up')}\n${line({ type: 'user', promptId: 'p2', message: { content: 'go on' } })}`), null);
+  // An earlier error's reset is used only while it still lay ahead at the notice.
+  const error = (iso) => line({ type: 'assistant', error: 'rate_limit', quotaLimits: { resetsAt: Date.parse(iso) / 1000 } });
+  assert.equal(usageStopIn(`${error('2026-10-17T20:00:00Z')}\n${note('wrap_up')}`).assumed, true);
+  assert.deepEqual(usageStopIn(`${error('2026-10-17T21:50:00Z')}\n${note('wrap_up')}`), { resetsAt: Date.parse('2026-10-17T21:50:00Z') });
 });
 
 test('fixture transcripts, read where the harness files them: grace waits for the reset, the error is unchanged, an owner wait stays alive', () => {

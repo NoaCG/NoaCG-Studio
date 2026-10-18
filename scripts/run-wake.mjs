@@ -99,7 +99,7 @@ function transcriptOf(id, projects = path.join(process.env.CLAUDE_CONFIG_DIR || 
 }
 
 /** How long after its grace notice a coordinator is resumed when no reset is recorded. */
-export const GRACE_WAIT_MS = 60 * 60 * 1000;
+const GRACE_WAIT_MS = 60 * 60 * 1000;
 
 /**
  * Did the conversation in this transcript text stop on the usage limit? Then `{ resetsAt }` (ms, or
@@ -117,18 +117,21 @@ export function usageStopIn(text) {
       return (entry?.type === 'user' || entry?.type === 'assistant') && !entry.isSidechain ? [entry] : [];
     } catch { return []; }
   });
-  const limited = (entry) => entry.type === 'assistant' && entry.error === 'rate_limit';
-  const resetOf = (entry) => (Number(entry.quotaLimits?.resetsAt) > 0 ? Number(entry.quotaLimits.resetsAt) * 1000 : null);
-  if (entries.length && limited(entries.at(-1))) return { resetsAt: resetOf(entries.at(-1)) };
+  const limited = (entry) => entry?.type === 'assistant' && entry.error === 'rate_limit';
+  const resetOf = (entry) => {
+    const seconds = Number(entry?.quotaLimits?.resetsAt);
+    return seconds > 0 ? seconds * 1000 : null;
+  };
+  const last = entries.at(-1);
+  if (limited(last)) return { resetsAt: resetOf(last) };
   const prompts = entries.filter((entry) => entry.type === 'user');
   const turn = prompts.at(-1)?.promptId;
-  const notes = turn ? prompts.filter((entry) => entry.promptId === turn && entry.usageLimitNote) : [];
-  if (notes.at(-1)?.usageLimitNote !== 'wrap_up') return null;
-  const at = Date.parse(notes.at(-1).timestamp);
-  const error = entries.findLast(limited);
-  const recorded = error ? resetOf(error) : null;
-  if (recorded > at) return { resetsAt: recorded };
-  return Number.isNaN(at) ? { resetsAt: null } : { resetsAt: at + GRACE_WAIT_MS, assumed: true };
+  const note = turn ? prompts.findLast((entry) => entry.promptId === turn && entry.usageLimitNote) : null;
+  if (note?.usageLimitNote !== 'wrap_up') return null;
+  const at = Date.parse(note.timestamp);
+  const recorded = resetOf(entries.findLast(limited));
+  if (recorded > at || Number.isNaN(at)) return { resetsAt: recorded };
+  return { resetsAt: at + GRACE_WAIT_MS, assumed: true };
 }
 
 /** `usageStopIn` for session `id`'s transcript, read from its tail; null (working) when it cannot be read. */
@@ -175,7 +178,7 @@ export function wakeVerdict({ text, inventory, now = Date.now(), stopped = usage
   if (working) return { verdict: 'alive', why: `session ${working} is running (pid ${index.bySession.get(working).pid})` };
   const resets = stops.map((stop) => stop.resetsAt);
   const until = resets.includes(null) ? null : Math.max(...resets);
-  const guess = stops.some((stop) => stop.assumed) ? ' (an hour after the grace notice, which records no reset)' : '';
+  const guess = stops.find((stop) => stop.resetsAt === until)?.assumed ? ' (an hour after the grace notice, which records no reset)' : '';
   if (until && until > now) {
     return { verdict: 'waiting', why: `session ${live.join(', ')} stopped on the usage limit, which resets at ${new Date(until).toISOString()}${guess}` };
   }
