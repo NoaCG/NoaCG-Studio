@@ -220,10 +220,16 @@ export function saveCurrentGraphic(opts?: {
 
 async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'failed'> {
   if (!useTemplateStore.getState().saved.graphicId) return 'needs-name';
-  const arriving = conflictCopyArriving(useTemplateStore.getState().saved.graphicId);
-  if (arriving) {
-    // The wait shows as saving; whatever follows sets the status it ends in.
+  const waited = new Set<string>();
+  for (;;) {
     const { saved, setSaved } = useTemplateStore.getState();
+    if (!saved.graphicId || waited.has(saved.graphicId)) break;
+    const arriving = conflictCopyArriving(saved.graphicId);
+    if (!arriving) break;
+    // A later conflict can move the link again during this wait. Check the live id next,
+    // but never restart a timed-out wait for the same missing copy.
+    waited.add(saved.graphicId);
+    // The wait shows as saving; whatever follows sets the status it ends in.
     setSaved({ ...saved, status: 'saving' });
     await arriving;
     const now = useTemplateStore.getState().saved;
