@@ -251,7 +251,25 @@ The owner starts it with `/plan-run harness-ladder until <time>`.
 Each phase's pull request adds its notes here, newest first: the last check's findings, what the
 next phase must allow for, decisions, traps, spend, shas and the revert.
 
-### L2. Teaching (in progress: PAUSED 2026-10-17 in round 1)
+### L2. Teaching (in progress: PAUSED 2026-10-18 08:35Z in round 4)
+
+- **Checkpoint 2026-10-18 08:40Z (the subscription's usage limit again, resets 10:10Z).** Rounds
+  1 and 3 kept, round 2 reverted; every figure, decision and hypothesis is in
+  `benchmarks/harness/ladder/evidence/phase-L2.md`. No round has matched D6 (as amended: $1.35);
+  the best on the eight is 5 of 8 usable (round 2, reverted) and the cheapest per usable $2.02.
+  Round 4 (hypothesis `d4993df07`, changes `759061291`: same-picture look counting, logos without
+  tiles) ran 3 of its 23 sessions before the limit, all delivered (collegiate scorebug $0.99,
+  nominee reveal $0.89, matchup $1.92; cells in `benchmarks/harness/ladder/L2/round-4/`, partly
+  judged). The alerts were paused by the limit and rerun by the bench; the volleyball board was cut
+  by the limit with nothing printed, so the bench recorded it `failed` and will not rerun it under
+  `round-4`. Resume in worktree `agent-a1258e6d4dd34801a` (branch `l2-teaching-resume`, pushing to
+  `claude/plan-harness-ladder-p3-build`; `cli/dist` is built from the head): `node
+  scripts/harness-bench.mjs --build L2 --arms subscription --model claude-sonnet-5-5 --effort high
+  --stage round-4 --lanes 2 --out C:/claude/noacg-bench-archive/harness-ladder-L2/round-4 --briefs`
+  with the 20 briefs not yet delivered in `RUNG_ORDER` and tuning order, then the volleyball board
+  alone with `--stage round-4-rerun` into the same `--out`; judge with `--judge <dir> --phase L2
+  --delivered-only --concurrency 2`, tally with and without `--order tuning`, keep or revert per the
+  round's lines, then land the curve (no fifth round fits the window).
 
 - **Check's findings (L1's second check, PASS on `905fabec1`):** three Opus readings a graphic
   (usable at 2 of 3), repeatability 19 of 21 at 3/3; no rung matched D6; D7 as written teaches
