@@ -9,7 +9,8 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { lowerThirdPng } from './_png';
-import { addToProductionFromFinish, finishIntoNewEditor } from './_create';
+import { addToProductionFromFinish, finishIntoNewEditor, openExportWindow } from './_create';
+import { editorPreview } from './_frame';
 
 // The Import Graphic workflow, end to end (docs/IMPORT_MVP.md): a flat PNG design becomes
 // a working SPX template with editable text fields and per-layer animation.
@@ -135,34 +136,41 @@ test('import graphic: a multi-file drop names the design used and every design s
 test('import graphic: the imported design animates — whole unit in, whole unit out', async ({ page }) => {
   await createImported(page);
 
-  // The timeline dock reads the template's OWN code, so a real editable strip means the
-  // imported design carries a NOACG_ANIM data block (an import used to get no strip at all).
-  await expect(page.locator('.tlv2-ruler')).toBeVisible();
-
-  // The design unit's row speaks the user's word: this box is their artwork, not a "Panel".
-  await expect(
-    page.locator('.tlv2-labels .timeline-label[data-part=".imported-design-box"]'),
-  ).toContainText('Design');
-
-  const frame = page.frameLocator('iframe.preview-frame');
-  await page.getByRole('button', { name: '▶ Play' }).click();
-  await expect
-    .poll(async () => frame.locator('.imported-design').evaluate((el) => getComputedStyle(el).opacity))
-    .toBe('1');
-
-  // ONE UNIT by default: GSAP writes inline styles onto the targets it animates. The box is
-  // animated, so it gets them; a field must not be touched on its own — that is exactly what
-  // would tear a flat design away from artwork drawn around it.
-  await expect
-    .poll(async () => frame.locator('.imported-design-box').evaluate((el) => el.getAttribute('style') ?? ''))
-    .not.toBe('');
-  expect(await frame.locator('#f0').evaluate((el) => el.getAttribute('style') ?? '')).toBe('');
-
-  // The whole graphic leaves together on Stop.
-  await page.getByRole('button', { name: '■ Stop' }).click();
-  await expect
-    .poll(async () => frame.locator('.imported-design').evaluate((el) => getComputedStyle(el).opacity))
-    .toBe('0');
+  // The created template carries a NOACG_ANIM data block whose default motion names the design
+  // box as one unit. Played the way playout plays it, in a composer iframe of the working
+  // document: GSAP writes inline styles onto the targets it animates, so the box gets them and a
+  // field must not be touched on its own — that is exactly what would tear a flat design away
+  // from artwork drawn around it — and the whole graphic leaves together on stop.
+  const played = await page.evaluate(`(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const tpl = useTemplateStore.getState().template;
+    const f = document.createElement('iframe');
+    f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;';
+    document.body.appendChild(f);
+    await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl); });
+    const doc = f.contentDocument, win = f.contentWindow;
+    const settle = () => new Promise((r) => setTimeout(r, 1200));
+    const opacity = () => getComputedStyle(doc.querySelector('.imported-design')).opacity;
+    win.play();
+    await settle();
+    const out = {
+      hasData: !!parseAnimData(tpl.js),
+      playedOpacity: opacity(),
+      boxStyled: (doc.querySelector('.imported-design-box').getAttribute('style') ?? '') !== '',
+      fieldStyle: doc.getElementById('f0').getAttribute('style') ?? '',
+    };
+    win.stop();
+    await settle();
+    out.stoppedOpacity = opacity();
+    return out;
+  })()`) as { hasData: boolean; playedOpacity: string; boxStyled: boolean; fieldStyle: string; stoppedOpacity: string };
+  expect(played.hasData).toBe(true);
+  expect(played.playedOpacity).toBe('1');
+  expect(played.boxStyled).toBe(true);
+  expect(played.fieldStyle).toBe('');
+  expect(played.stoppedOpacity).toBe('0');
 });
 
 test('import graphic: a cropped design is placed as an object, not stretched', async ({ page }) => {
@@ -172,7 +180,7 @@ test('import graphic: a cropped design is placed as an object, not stretched', a
   await createBare(page);
 
   // A floating design keeps its own size and sits in the default zone as an object.
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = editorPreview(page);
   await expect(frame.locator('.imported-design-art')).toBeVisible();
   const width = await frame
     .locator('.imported-design-box')
@@ -190,7 +198,7 @@ test('import graphic: a 2× export is shown frame-sized, not pushed off the fram
   await createBare(page);
 
   // The design unit is exactly the frame's width: edge to edge, as drawn (--scale is 1 here).
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = editorPreview(page);
   await expect(frame.locator('.imported-design-art')).toBeVisible();
   const width = await frame
     .locator('.imported-design-box')
@@ -205,12 +213,10 @@ test('import graphic: a 2× export is shown frame-sized, not pushed off the fram
 /** A single row of text sits well under 1.8x its own type size; more rows sit above it. */
 
 test('import graphic: a new field is born with a slot, so a long value cannot run off the design', async ({ page }) => {
-  await dropDesign(page);
-  await createBare(page);
-  await addFieldViaDataTab(page, 'Name');
+  await createImported(page);
 
-  // The add emits the whole fit contract: the wrapper's slot, the shrink marker on the
-  // line, and the design-owned runtime (with the shared update()'s hook calling it).
+  // The Text step's field emits the whole fit contract: the wrapper's slot, the shrink marker
+  // on the line, and the design-owned runtime (with the shared update()'s hook calling it).
   const state = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { lineFit } = await import('/src/blocks/designLayout.ts');
@@ -231,9 +237,9 @@ test('import graphic: a new field is born with a slot, so a long value cannot ru
 
 test('import graphic: the exported SPX package validates', async ({ page }) => {
   await createImported(page);
-  await page.getByTestId('dock-tab-export').click();
-  // Export is gated on zero validation errors; the panel says so inline.
-  await expect(page.locator('.panel-body')).not.toContainText('✗');
+  await openExportWindow(page);
+  // Export is gated on zero validation errors; the window says so inline.
+  await expect(page.getByTestId('export-window')).not.toContainText('✗');
 });
 
 test('the Text step places fields in the artwork’s empty panel by itself', async ({ page }) => {

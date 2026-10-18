@@ -8,6 +8,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
+import { editorPreview } from './_frame';
 
 // Canvas usability on an imported design (docs/IMPORT_MVP.md): the artwork and the fields
 // placed on it are ONE composition — scaling keeps them together as design-layout CSS — and
@@ -74,8 +75,7 @@ async function seededField(page: Page) {
       lineHeightPinned: /#f0\s*\{[^}]*line-height:\s*1\b/.test(s.template.css),
     };
   });
-  const rendered = await page
-    .frameLocator('iframe.preview-frame')
+  const rendered = await editorPreview(page)
     .locator('.imported-design-art')
     .evaluate((art) => {
       const a = art.getBoundingClientRect();
@@ -227,8 +227,7 @@ test('import graphic: the seed recovers the size and position of REAL typeset te
   // Where the replacement's glyphs actually render, in the artwork's own pixels. Measured
   // through the font's metrics rather than the element box: the box is the em, the ink is
   // what a reader sees, and the ink is what has to land back on the original.
-  const shown = await page
-    .frameLocator('iframe.preview-frame')
+  const shown = await editorPreview(page)
     .locator('#f0')
     .evaluate(async (el, text) => {
       const doc = el.ownerDocument;
@@ -377,8 +376,7 @@ test('import graphic: a region marked over a graphic seeds text that FITS it', a
   await eraseRect(page, 0.68, 0.29, 0.92, 0.66);
   await createBare(page);
 
-  const shown = await page
-    .frameLocator('iframe.preview-frame')
+  const shown = await editorPreview(page)
     .locator('#f0')
     .evaluate((el) => ({
       text: el.textContent,

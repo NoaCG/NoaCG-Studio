@@ -49,7 +49,7 @@
 // covers: docs/svg-samples/**
 
 import { test, expect, type BrowserContext, type FrameLocator, type Page, type Route } from '@playwright/test';
-import { finishIntoNewEditor } from './_create';
+import { finishIntoNewEditor, openExportWindow } from './_create';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -1278,7 +1278,7 @@ test('imported quiz: the behaviour survives the export and runs standalone from 
   await openImportDoor(page, QUIZ_SVG);
   await finishIntoNewEditor(page);
 
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -1474,7 +1474,7 @@ async function casparPackageOnAir(
   context: BrowserContext,
   origin: string,
 ): Promise<{ air: Page; panel: Page }> {
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),

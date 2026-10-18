@@ -13,6 +13,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
+import { editorPreview } from './_frame';
 
 // The Import Graphic SCALING MODE (docs/IMPORT_MVP.md): fixed (default — the image renders
 // exactly as drawn) vs horizontal 9-slice stretch (the plain middle band widens with the
@@ -87,8 +88,7 @@ async function stretchState(page: Page) {
 
 /** Live metrics from the editor preview iframe (canvas px, transform-free). */
 async function boxMetrics(page: Page) {
-  return page
-    .frameLocator('iframe.preview-frame')
+  return editorPreview(page)
     .locator('.imported-design-box')
     .evaluate((box) => {
       const art = box.querySelector<HTMLElement>('.imported-design-art')!;
@@ -179,8 +179,7 @@ test('stretch: a long value grows the design at full type size, and a short one 
 
   // The artwork actually PAINTS after the editor's settle (which clears inline styles —
   // the reason the image ref lives in the CSS rule and never on the element).
-  const painted = await page
-    .frameLocator('iframe.preview-frame')
+  const painted = await editorPreview(page)
     .locator('.imported-design-art')
     .evaluate((el) => getComputedStyle(el).borderImageSource.startsWith('url'));
   expect(painted).toBe(true);

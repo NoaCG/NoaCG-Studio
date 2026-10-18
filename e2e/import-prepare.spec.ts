@@ -13,6 +13,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';
 import { framedCardPng, CARD_TEXT_RECT } from './_png';
+import { editorPreview } from './_frame';
 
 // The Import Graphic PREPARE step (docs/IMPORT_MVP.md): erasing baked-in text from the
 // artwork, deterministically and offline. The user drags a box over the text; the engine
@@ -201,7 +202,7 @@ test('erase: the erased region seeds the first text field, placed and sized from
   await finishIntoNewEditor(page);
 
   // The field exists on the design, showing its sample where the baked text was.
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = editorPreview(page);
   await expect(frame.locator('#f0')).toHaveText('Name');
 
   // …as a real placed line built from the INK the erase measured — the bar at
