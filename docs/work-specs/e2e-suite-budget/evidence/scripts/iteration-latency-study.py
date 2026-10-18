@@ -65,6 +65,7 @@ def main():
                 "finalRunToGate": minutes(run["created_at"], gate["completed_at"]),
                 "gateToLand": minutes(gate["completed_at"], pr["mergedAt"]),
                 "lastDependency": critical["name"],
+                "runToLastDependencyReady": minutes(run["created_at"], ready),
                 "lastDependencyReadyToStart": minutes(ready, critical["started_at"]),
                 "lastDependencyExecution": minutes(critical["started_at"], critical["completed_at"]),
                 "gateReadyToStart": minutes(critical["completed_at"], gate["started_at"]),
@@ -72,6 +73,9 @@ def main():
             })
             assert abs(row["queueToFinalRunCreated"] + row["finalRunToGate"]
                        + row["gateToLand"] - row["queueToLand"]) < 1e-8
+            assert abs(sum(row[key] for key in ["runToLastDependencyReady",
+                       "lastDependencyReadyToStart", "lastDependencyExecution",
+                       "gateReadyToStart", "gateExecution"]) - row["finalRunToGate"]) < 1e-8
         out.append({key: round(value, 3) if isinstance(value, float) else value
                     for key, value in row.items()})
     deltas = [minutes(row[1], row[2]) for row in baseline["landingRows"] if row[1] != row[2]]

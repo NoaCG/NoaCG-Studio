@@ -84,7 +84,7 @@ The stage definitions prevent false attribution:
   #1318's first entry → final run creation was 126.6 minutes, including failed/removed attempts;
   its last entry → final creation was 10.65. Neither is pure runner wait.
 - **Runner/scheduler waiting versus execution:** in #1318's final run `38976210147`, creation →
-  plan completion was 6.88 minutes, last-finishing shard readiness → start **26.35**, that shard's
+  plan completion was 6.90 minutes, last-finishing shard readiness → start **26.35**, that shard's
   execution **8.42**, gate readiness → start **6.08**, gate execution **0.07**: **47.82 total**.
   Merge followed 0.08 minutes later. In #673, Build executed for 2.88 minutes but the ready gate
   waited another 3.97. More test workers cannot remove that gate wait.
