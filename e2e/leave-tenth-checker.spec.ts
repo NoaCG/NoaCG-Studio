@@ -65,7 +65,7 @@ async function conflicted(page: Page) {
 }
 
 for (const mode of ['without another edit', 'after another edit'] as const) {
-  test(`tenth held-copy timeout ${mode}: cancel naming, recover adoption, leave and reload`, async ({ page }) => {
+  test(`tenth held-copy timeout ${mode}: cancel naming, recover adoption, leave`, async ({ page }) => {
     test.setTimeout(120_000);
     const facts: Record<string, unknown> = { mode };
     try {
@@ -109,3 +109,38 @@ for (const mode of ['without another edit', 'after another edit'] as const) {
     }
   });
 }
+
+test('tenth real-time timeout: an unedited saved copy stays clean after adoption recovers', async ({ page }) => {
+  test.setTimeout(60_000);
+  const facts: Record<string, unknown> = { clock: 'real wall time, no clock injection' };
+  try {
+    const { other, copy } = await conflicted(page);
+    facts.before = await link(other);
+    const before = await source(other), start = Date.now();
+    await other.getByTestId('save-graphic').click();
+    await expect(other.getByTestId('save-status')).toHaveText('Saving…');
+    await expect(other.getByTestId('save-name')).toBeVisible({ timeout: 15_000 });
+    facts.waitedMs = Date.now() - start;
+    facts.afterTimeout = await link(other);
+    await other.getByTestId('save-dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+    await other.evaluate(() => {
+      const w = window as unknown as { check10Hold: boolean; check10Queue: (() => void)[] };
+      w.check10Hold = false; for (const adopt of w.check10Queue.splice(0)) adopt();
+    });
+    await expect.poll(async () => (await library(other)).some(g => g.id === copy.id)).toBe(true);
+    facts.afterAdoption = await link(other);
+    facts.exactSourcePreserved = JSON.stringify(await source(other)) === JSON.stringify(before);
+    await other.getByTestId('open-home').click();
+    await expect(other.getByTestId('confirm-switch').or(other.getByTestId('home-page')).first()).toBeVisible();
+    facts.homeAsked = await other.getByTestId('confirm-switch').count();
+    if (facts.homeAsked) await other.getByTestId('switch-cancel').click();
+    await settleDurableWrites(other); await other.reload();
+    await expect(other.getByTestId('editor-foundation')).toBeVisible();
+    facts.afterReload = await link(other);
+    console.log('TENTH REAL FACTS', JSON.stringify(facts));
+    expect(facts.exactSourcePreserved).toBe(true);
+    expect(facts.homeAsked, 'no edit was made after the saved conflict, yet Home asks').toBe(0);
+  } finally {
+    writeFileSync(test.info().outputPath('tenth-realtime.json'), JSON.stringify(facts, null, 2));
+  }
+});
