@@ -15,7 +15,7 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { conflictCopyOf, endMint, isGraphicSuperseded, linkAfterLoss, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
+import { conflictCopyOf, endMint, isConflictCopy, isGraphicSuperseded, linkAfterLoss, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
@@ -135,6 +135,29 @@ function movedToCopy(before: EditingContext, now: EditingContext): boolean {
   return !!before.saved.graphicId && conflictCopyOf(before.saved.graphicId)?.id === now.saved.graphicId;
 }
 
+/** How long a save waits for a "(conflicted copy)" to reach this tab's library. Its write
+ *  commits and is announced in well under a second; past this, the save asks for a name. */
+const COPY_ARRIVAL_MS = 10_000;
+
+/** A "(conflicted copy)" another tab's sync pass wrote reaches this tab's library mirror only once
+ *  that write commits and is announced (model/durableStore.ts), and the draft's link to it can
+ *  arrive first (#1466). Until then a save into it finds no record and would ask for a name, and a
+ *  discard would find nothing to restore. Resolves once the copy is readable here (or the wait
+ *  runs out); null when there is nothing to wait for, so the caller stays in its own turn. */
+function conflictCopyArriving(id: string | null): Promise<void> | null {
+  if (!id || typeof window === 'undefined' || graphicById(id) || !isConflictCopy(id)) return null;
+  return new Promise((resolve) => {
+    const settle = () => {
+      window.removeEventListener('spx-data-changed', check);
+      clearTimeout(timer);
+      resolve();
+    };
+    const check = () => { if (graphicById(id)) settle(); };
+    const timer = setTimeout(settle, COPY_ARRIVAL_MS);
+    window.addEventListener('spx-data-changed', check);
+  });
+}
+
 /** A refused save leaves the link as it is NOW: an edit made during the wait stays dirty. */
 function markSaveFailed(before: EditingContext): void {
   if (replacedSince(before)) return;
@@ -197,6 +220,21 @@ export function saveCurrentGraphic(opts?: {
 
 async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'failed'> {
   if (!useTemplateStore.getState().saved.graphicId) return 'needs-name';
+  const waited = new Set<string>();
+  for (;;) {
+    const { saved, setSaved } = useTemplateStore.getState();
+    if (!saved.graphicId || waited.has(saved.graphicId)) break;
+    const arriving = conflictCopyArriving(saved.graphicId);
+    if (!arriving) break;
+    // A later conflict can move the link again during this wait. Check the live id next,
+    // but never restart a timed-out wait for the same missing copy.
+    waited.add(saved.graphicId);
+    // The wait shows as saving; whatever follows sets the status it ends in.
+    setSaved({ ...saved, status: 'saving' });
+    await arriving;
+    const now = useTemplateStore.getState().saved;
+    if (now.status === 'saving') setSaved({ ...now, status: saved.status });
+  }
   prepareEmptyOut();
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
@@ -352,6 +390,8 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
   flushPendingProject();
   const pendingFailure = await commitDurableWrites();
   if (pendingFailure) return pendingFailure;
+  const arriving = conflictCopyArriving(before.saved.graphicId);
+  if (arriving) await arriving;
   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
   const template = doc?.template ?? createDefaultTemplate();
   // Changing source or baseline clears the editor's private command history. Persist
