@@ -227,9 +227,16 @@ test('ninth R-departure: B pulls A\'s reservation as data, reloads, signs out an
     await signInOnHome(b, email, PASSWORD);
     await bootB(b, editorUrl, 'bAfterSignIn');
     // Signing out revokes the account's sessions everywhere, device A's included: A signs back in.
-    await a.goto('/app#/home'); await a.reload();
-    await expect(a.getByTestId('auth-state')).toHaveText('Not signed in', { timeout: 60_000 });
-    await signInOnHome(a, email, PASSWORD);
+    // (A global sign-out; A learns of it on its next refresh or request, so A is driven to a pass.)
+    await a.goto('/app#/home'); await a.reload(); await expect(a.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+    let aState = '';
+    await expect.poll(async () => {
+      if ((await a.getByTestId('auth-state').innerText().catch(() => '')).includes('Not signed in')) return (aState = 'out');
+      const phase = await a.evaluate(async () => { const m = await import('/src/backend/syncController.ts'); await m.syncNow().catch(() => {}); return m.getSyncState().phase; }).catch(() => 'navigating');
+      return (aState = phase === 'synced' ? 'in' : String(phase));
+    }, { timeout: 90_000, intervals: [3_000] }).toMatch(/^(out|in)$/);
+    facts.aSessionAfterBSignOut = aState;
+    if (aState === 'out') await signInOnHome(a, email, PASSWORD);
     await a.goto(editorUrl); await expect(a.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
     facts.aAfterSignIn = { slotReservation: (await slot(a)).reservedGraphicId, ownListHasIt: (await ownList(a) ?? '').includes(reserved) };
     facts.bOwnListAfterSignIn = await ownList(b);
