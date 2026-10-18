@@ -139,6 +139,34 @@ collision, lost conflict), the edit-between case is not linked to it, and with t
 second tab stays linked to the record that won. Mutations of single rules were not run: the
 session's permission policy refused editing the source for them.
 
+## Copy-arrival completion after #1474
+
+#1474 merged at `89ca46c37` without the fix for review comment
+[r4306741476](https://github.com/NoaCG/NoaCG-Studio/pull/1474#discussion_r4306741476).
+The three follow-up commits, through `0ccd8754e`, add the wait above and its held-adoption row.
+This completes the same authorised #1466 repair. Current `origin/main` was merged into the
+follow-up branch as `f6755fe93`; no rebase or force push.
+
+The previously unread ci3 runs on `2546da73` have now been read in full. That probe's `src/`
+and maintained matrix are byte-identical to the reconciled follow-up:
+
+- [Configured 39121557623](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39121557623):
+  signed-in task and eighth X-device pass, ninth S-concurrent **2/2**, R-departure fails only
+  at line 281, as on main and as the ninth checker explains.
+- [Ninth 39121561735](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39121561735):
+  C-pull `:117`, C-overlap `:158`, and both V-superseded `:199` fail on the replaced
+  null-link assertions. All three V-reservations fail at `:247` (two records rather than one),
+  the same disclosed reservation-list departure recorded by independent-9, not a new failure.
+- [Matrix 39121559522](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39121559522): **46/46**.
+
+This continuation's local targeted checks on `f6755fe93`: device-reservation and lost-conflict
+rows **9/9**, including the held-adoption row; sync **2/2**; TypeScript, changed-file ESLint and
+changed gates pass. Review and simplification ran inline over the five changed files, against
+merge base `89ca46c37`, with no additional defect or behaviour-preserving simplification found.
+No build was needed for this save-transaction change; full PR and merge-group checks remain CI's.
+The fresh tenth independent check must judge the disclosed departures against the owner's
+acceptance itself; this repair receipt is not its verdict.
+
 ## Limits
 
 - A Save whose record write lands after the pass listed the library but before it wrote the copy:
