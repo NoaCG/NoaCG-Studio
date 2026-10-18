@@ -128,6 +128,19 @@ same-action reconciliation then run before delivery. Failed inspection or change
 ownership stays unresolved for the active technical repair path, without prompting
 the user or inventing permission to replay.
 
+An `absent` result on a durable intent requires `reconcileNative`'s exact action/hash,
+native binding, evidence and authoritative final non-delivery fields. An empty
+catalog or an incomplete assertion stays unknown. Once final non-delivery is proved,
+a changed packet or ledger creates a new action/hash for the restored paths; the
+original attempt count and backoff carry forward. The original intent remains in
+checkpoint history and its final proof is retained. Accepted/unknown requests are
+never rewritten or replayed to manufacture this case. Adapter receipts, waits and
+GitHub observations are reduced to their allowed fields before storage; auxiliary
+tokens/debug/provider responses are not copied into the remote record.
+Known original native identity/policy fields cannot be changed by a checkpoint;
+temporarily unavailable values can be null and remain parked. A regression also
+reproduced unauthorized owner/policy changes before this validation was added.
+
 ## Verification and limits
 
 `/check` reviewed these five changed paths against merge base
@@ -146,11 +159,17 @@ a missing replacement adapter claiming a new generation; adapter path/access che
 now precede restoration. An additional inline regression proved unknown policy could
 dispatch on initial registration; every durable tick now parks incomplete native
 bindings, including before the first restoration. Both cases failed before fixing.
+Two later findings reproduced stale paths after a final non-delivery and raw adapter
+receipt retention. Exact native non-delivery reconciliation now gates any new request
+for restored paths, preserving retry limits; receipt/wait/GitHub field allow-lists
+keep auxiliary adapter responses out of durable storage. Their regressions failed
+before correction and now also inspect checkpoint history for sentinel responses.
 The first source CI build
 `39153528551` failed ESLint on an empty cleanup catch in the new test. Its complete
 19,623-line job log was fetched and inspected; adding the cleanup explanation fixed
 that source defect. This is one CI repair, not a same-commit fail-then-pass.
-Final verification passed nine changed-path checks and all 55 selected tests
+Final verification passed nine changed-path checks and all 57 selected tests,
+plus the existing ten native-contract tests for the newly wired reconciliation guard,
 in five files, plus targeted ESLint and `git diff --check`. Contract regeneration changed no generated
 files. No product, bundle or browser inputs changed, so no production build or
 browser run was needed. Initial subprocess execution was refused by the command

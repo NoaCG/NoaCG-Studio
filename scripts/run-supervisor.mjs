@@ -8,7 +8,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { publishRun, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { reconcileNative } from './native-recovery-contract.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
 const LEASE_MS = 60_000;
@@ -42,6 +43,7 @@ function validateWait(wait) {
   if (!wait || !WAIT_KINDS.includes(wait.kind) || !required(wait.reason)
       || (wait.until !== null && !iso(wait.until))) throw new Error('Wait needs kind, reason and until (ISO or null)');
   if (wait.kind === 'transient' && wait.until === null) throw new Error('Transient wait needs a retry time');
+  return { kind: wait.kind, reason: wait.reason, until: wait.until };
 }
 
 /** SQLite serializes claims, not agent work. Keep it on a local disk, never a shared network FS. */
@@ -105,7 +107,7 @@ export function updateRun(db, id, operation, value) {
   return transaction(db, () => {
     const { doc } = rowFor(db, id);
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
-    if (operation === 'wait') { validateWait(value); doc.wait = value; }
+    if (operation === 'wait') doc.wait = validateWait(value);
     else if (operation === 'clear-wait') {
       if (!required(value)) throw new Error('Clearing a wait needs evidence or the owner answer');
       doc.wait = null; doc.waitResolution = value;
@@ -147,6 +149,8 @@ function save(db, claim, now) {
  * reconcile: delivered(workerId) | absent | unknown
  * deliver: delivered(workerId) | not-delivered | unknown
  * All three are deterministic; deliver only accepts/enqueues work, never waits for its completion.
+ * Durable runs require exact native binding/hash/evidence and authoritative final non-delivery
+ * for an absent intent, using reconcileNative's receipt shape. Empty catalogs are not absence.
  */
 export function callAdapter(adapter, request) {
   return new Promise((resolve, reject) => {
@@ -170,11 +174,6 @@ export function callAdapter(adapter, request) {
     });
     child.stdin.end(JSON.stringify(request));
   });
-}
-
-function deliveryReceipt(result) {
-  if (result?.state !== 'delivered' || !required(result.workerId)) throw new Error('Delivery needs a stable workerId');
-  return result;
 }
 
 export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } = {}) {
@@ -220,8 +219,8 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
         if (!restoredObservation(doc, receipt, now())) return result('unknown', 'restored native/GitHub state needs exact reconciliation');
         doc.restoration.reconciled = true;
         doc.restoration.evidence = receipt.evidence;
-        if (receipt.native.state === 'waiting') { validateWait(receipt.native.wait); doc.wait = receipt.native.wait; }
-        doc.packet.restoredGithub = receipt.github;
+        if (receipt.native.state === 'waiting') doc.wait = validateWait(receipt.native.wait);
+        doc.packet.restoredGithub = githubObservations(receipt.github);
         validatePacket(doc.packet);
         save(db, claim, now());
       }
@@ -233,7 +232,23 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     if (doc.pending) {
       const receipt = await ask('reconcile');
       if (receipt?.state === 'delivered') { doc.pending.receipt = deliveryReceipt(receipt); save(db, claim, now()); }
-      else if (receipt?.state !== 'absent' || doc.pending.receipt) return result('unknown', 'pending delivery needs reconciliation');
+      else if (doc.pending.receipt) return result('unknown', 'pending delivery needs reconciliation');
+      else if (manifest.recovery) {
+        const r = doc.pending.packet.recovery;
+        const intent = { provider: r.native.provider, sessionId: r.native.sessionId, environmentId: r.native.environmentId,
+          policySha256: r.native.policySha256, revision: r.revision, actionId: doc.pending.id, requestSha256: doc.pending.requestSha256 };
+        const observation = { ...receipt, state: receipt?.state === 'absent' ? 'not-delivered' : receipt?.state,
+          nativeId: receipt?.nativeId ?? receipt?.workerId };
+        if (reconcileNative(intent, observation).state !== 'not-delivered') return result('unknown', 'exact authoritative final non-delivery required');
+        const context = { ...doc.pending.packet }; delete context.ledger; delete context.waveSha256;
+        if (JSON.stringify(context) !== JSON.stringify(doc.packet) || doc.pending.packet.waveSha256 !== hash(readFileSync(manifest.wave, 'utf8'))) {
+          // A final rejection permits a new request for the replacement paths. Keep the
+          // original intent in checkpoint history and preserve its bounded retry budget.
+          doc.previousIntent = { ...intent, state: 'not-delivered', authoritative: true, final: true, evidence: receipt.evidence };
+          doc.retryBudget = { attempts: doc.pending.attempts, retryAt: doc.pending.retryAt };
+          doc.pending = null; save(db, claim, now());
+        }
+      } else if (receipt?.state !== 'absent') return result('unknown', 'pending delivery needs reconciliation');
     }
     let observed = await ask('inspect');
     if (observed?.state === 'waiting') {
@@ -242,20 +257,21 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
         // A quota-limited process may still exist; the reset authorizes its next turn.
         observed = { state: 'gone' };
       } else {
-        doc.wait = observed.wait; save(db, claim, now());
+        doc.wait = validateWait(observed.wait); save(db, claim, now());
         return result('waiting', doc.wait.reason);
       }
     }
     if (observed?.state === 'running') {
       if (!required(observed.workerId)) throw new Error('Running observation needs workerId');
       if (doc.pending?.receipt && doc.pending.receipt.workerId !== observed.workerId) return result('unknown', 'worker identity differs from delivery');
-      doc.pending = null; save(db, claim, now()); return result('alive');
+      doc.pending = null; delete doc.retryBudget; save(db, claim, now()); return result('alive');
     }
     if (observed?.state !== 'gone') return result('unknown', 'coordinator absence is unproven');
     if (doc.pending?.receipt) { doc.pending = null; save(db, claim, now()); }
     if (!doc.pending) {
       doc.sequence += 1;
-      doc.pending = { id: `${id}:${doc.sequence}`, attempts: 0, retryAt: 0 };
+      doc.pending = { id: `${id}:${doc.sequence}`, attempts: doc.retryBudget?.attempts ?? 0, retryAt: doc.retryBudget?.retryAt ?? 0 };
+      delete doc.retryBudget;
       if (manifest.recovery) {
         doc.pending.packet = deliveryPacket();
         doc.pending.requestSha256 = hash(JSON.stringify({ actionId: doc.pending.id, authorization: manifest.authorization, packet: doc.pending.packet }));

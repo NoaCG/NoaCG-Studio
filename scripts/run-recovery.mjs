@@ -7,6 +7,13 @@ import { inspectNative } from './native-recovery-contract.mjs';
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const required = (s) => typeof s === 'string' && s.trim().length > 0;
+const pick = (value, fields) => Object.fromEntries(fields.map((field) => [field, value[field]]));
+const GITHUB_FIELDS = ['repositoryFullName', 'prNumber', 'headSha', 'ownerSessionId', 'commentId', 'state', 'observedAt', 'evidence'];
+export const githubObservations = (rows) => rows.map((row) => pick(row, GITHUB_FIELDS));
+export function deliveredReceipt(result) {
+  if (result?.state !== 'delivered' || !required(result.workerId)) throw new Error('Delivery needs a stable workerId');
+  return { state: 'delivered', workerId: result.workerId };
+}
 const revision = (s) => /^[a-f0-9]{40}$/.test(s ?? '');
 const runId = (s) => /^[a-zA-Z0-9_-]+$/.test(s ?? '');
 const COMMIT_IDENTITY = {
@@ -70,6 +77,9 @@ function validateState(doc, ledger) {
   if (doc.pending && (!doc.pending.packet || doc.pending.requestSha256 !== sha(JSON.stringify({
     actionId: doc.pending.id, authorization: auth, packet: doc.pending.packet,
   })))) throw new Error('Unresolved intent needs its exact persisted request hash');
+  if (doc.pending?.packet?.restoredGithub?.some((row) => Object.keys(row).some((key) => !GITHUB_FIELDS.includes(key)))) {
+    throw new Error('Pending request contains auxiliary adapter fields; reconcile without publishing or rewriting it');
+  }
   if (doc.wait && (!['owner', 'permission', 'dependency', 'usage', 'transient'].includes(doc.wait.kind)
       || !required(doc.wait.reason) || (doc.wait.until !== null && !Number.isFinite(Date.parse(doc.wait.until))))) throw new Error('Invalid durable wait');
   const r = doc.packet.recovery;
@@ -78,9 +88,15 @@ function validateState(doc, ledger) {
       || r.evidence.some((e) => !safePath(e.path) || !/^[a-f0-9]{64}$/.test(e.sha256 ?? ''))
       || !['codex', 'claude'].includes(r.native?.provider)
       || !['sessionId', 'environmentId', 'policySha256'].every((key) => Object.hasOwn(r.native, key) && (r.native[key] === null || required(r.native[key])))
+      || (r.native.policySha256 !== null && !/^[a-f0-9]{64}$/.test(r.native.policySha256))
       || !Array.isArray(r.repairOwners) || r.repairOwners.some((o) => !Number.isSafeInteger(o.prNumber) || o.prNumber <= 0
         || !Number.isSafeInteger(o.commentId) || o.commentId <= 0 || !required(o.sessionId) || !revision(o.headSha))) {
     throw new Error('Recovery packet needs pinned source, spec/evidence hashes, native binding and acknowledged PR owners');
+  }
+  const original = m.packet.recovery?.native;
+  if (!original || ['provider', 'sessionId', 'environmentId', 'policySha256'].some((key) =>
+    original[key] !== null && r.native[key] !== null && original[key] !== r.native[key])) {
+    throw new Error('Checkpoint cannot change the original native owner or policy');
   }
   return r;
 }
@@ -121,6 +137,11 @@ export function publishRun(db, id) {
   // adapter; keep the entire original executable configuration in the local store only.
   const durableDoc = structuredClone(doc);
   delete durableDoc.manifest.adapter;
+  if (durableDoc.pending?.receipt) durableDoc.pending.receipt = deliveredReceipt(durableDoc.pending.receipt);
+  if (durableDoc.wait) durableDoc.wait = pick(durableDoc.wait, ['kind', 'reason', 'until']);
+  for (const packet of [durableDoc.packet, durableDoc.manifest.packet]) {
+    if (packet.restoredGithub) packet.restoredGithub = githubObservations(packet.restoredGithub);
+  }
   const payload = JSON.stringify({ version: 1, doc: durableDoc, ledger });
   if (Buffer.byteLength(payload) > 256 * 1024) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
   const ref = refFor(id);

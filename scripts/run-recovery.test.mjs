@@ -149,6 +149,8 @@ test('hash mismatch, unpushed source and changed authorization cannot become dur
     (p) => { p.recovery.spec.sha256 = '0'.repeat(64); },
     (p) => { p.recovery.evidence[0].sha256 = '0'.repeat(64); },
     (p) => { p.recovery.revision = 'f'.repeat(40); },
+    (p) => { p.recovery.native.policySha256 = hash('broader policy'); },
+    (p) => { p.recovery.native.sessionId = 'another-owner'; },
   ]) { const bad = structuredClone(packet); mutate(bad); assert.throws(() => updateRun(f.db, f.manifest.id, 'checkpoint', bad)); }
   writeFileSync(f.manifest.wave, readFileSync(f.manifest.wave, 'utf8').replace(f.manifest.authorization.deadline, new Date(f.now + 12_000_000).toISOString()));
   assert.throws(() => publishRun(f.db, f.manifest.id), /authorization differs/);
@@ -281,5 +283,65 @@ test('a missing replacement adapter cannot create files or claim a new remote ge
     assert.throws(() => restoreRun(db, { ...f.manifest.recovery, id: f.manifest.id, worktree,
       wave: `${worktree}.md`, adapter: { ...f.manifest.adapter, [field]: path.join(f.root, 'does-not-exist') } }, f.now));
     assert.equal(git(f.remote, 'rev-parse', ref), before); assert.equal(existsSync(worktree), false);
+  }
+});
+
+test('only exact final non-delivery can rebuild an intent for the restored worktree', async (t) => {
+  const f = fixture(t);
+  await tickRun(f.db, f.manifest.id, { now: () => f.now, invoke: async (_, r) => r.operation === 'inspect' ? { state: 'gone' } : { state: 'unknown' } });
+  const original = docFor(f.db), restored = f.restore(), clock = f.now + 61_000;
+  let doc = docFor(restored.db), deliveries = [];
+  const partial = await tickRun(restored.db, f.manifest.id, { now: () => clock, invoke: async (_, r) => {
+    if (r.operation === 'restore') return receipt(doc, clock);
+    if (r.operation === 'reconcile') return { state: 'absent' };
+    if (r.operation === 'inspect') return { state: 'gone' };
+    deliveries.push(r); return { state: 'delivered', workerId: 'must-not-launch' };
+  } });
+  assert.equal(partial.verdict, 'unknown'); assert.deepEqual(deliveries, []);
+  doc = docFor(restored.db);
+  const r = original.pending.packet.recovery;
+  const proof = { ...r.native, revision: r.revision, actionId: original.pending.id, requestSha256: original.pending.requestSha256,
+    state: 'absent', authoritative: true, final: true, evidence: 'authoritative final native non-delivery' };
+  const resumed = await tickRun(restored.db, f.manifest.id, { now: () => clock, invoke: async (_, request) => {
+    if (request.operation === 'restore') return receipt(doc, clock);
+    if (request.operation === 'reconcile') return proof;
+    if (request.operation === 'inspect') return { state: 'gone' };
+    deliveries.push(request); return { state: 'delivered', workerId: 'new-owner-turn' };
+  } });
+  assert.equal(resumed.verdict, 'resumed'); assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].packet.workspace.worktree, restored.config.worktree);
+  assert.notEqual(deliveries[0].actionId, original.pending.id);
+  assert.notEqual(deliveries[0].requestSha256, original.pending.requestSha256);
+  assert.equal(docFor(restored.db).pending.attempts, original.pending.attempts + 1);
+});
+
+test('automatic adapter observations cannot export auxiliary token or raw-response fields', async (t) => {
+  const sentinel = 'private-adapter-response-sentinel', f = fixture(t);
+  await tickRun(f.db, f.manifest.id, { invoke: async (_, r) => r.operation === 'inspect' ? { state: 'gone' }
+    : { state: 'delivered', workerId: 'owned-worker', token: sentinel, rawProviderResponse: { secret: sentinel } } });
+  assert.deepEqual(docFor(f.db).pending.receipt, { state: 'delivered', workerId: 'owned-worker' });
+  let raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  assert.ok(!raw.includes(sentinel));
+  const legacy = docFor(f.db);
+  legacy.pending.packet.restoredGithub = [{ ...receipt({ ...legacy, restoration: { checkpoint: 'test' } }, f.now).github[0], token: sentinel }];
+  legacy.pending.requestSha256 = hash(JSON.stringify({ actionId: legacy.pending.id, authorization: legacy.manifest.authorization, packet: legacy.pending.packet }));
+  f.db.prepare('UPDATE runs SET doc=? WHERE id=?').run(JSON.stringify(legacy), f.manifest.id);
+  assert.throws(() => publishRun(f.db, f.manifest.id), /Pending request contains auxiliary adapter fields/);
+  const restored = f.restore(), doc = docFor(restored.db), proof = receipt(doc, f.now);
+  proof.github[0].rawProviderResponse = { token: sentinel };
+  proof.native = { ...proof.native, state: 'waiting', wait: { kind: 'permission', reason: 'same approval', until: null, token: sentinel } };
+  assert.equal((await tickRun(restored.db, f.manifest.id, { now: () => f.now, invoke: async () => proof })).verdict, 'waiting');
+  raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  assert.ok(!raw.includes(sentinel));
+  const g = fixture(t);
+  await tickRun(g.db, g.manifest.id, { invoke: async () => ({ state: 'waiting',
+    wait: { kind: 'dependency', reason: 'same dependency', until: null, rawProviderResponse: { token: sentinel } } }) });
+  updateRun(g.db, g.manifest.id, 'clear-wait', 'dependency inspected');
+  await tickRun(g.db, g.manifest.id, { now: () => g.now, invoke: async (_, r) => r.operation === 'inspect' ? { state: 'gone' } : { state: 'unknown' } });
+  await tickRun(g.db, g.manifest.id, { now: () => g.now + 61_000, invoke: async (_, r) => r.operation === 'reconcile'
+    ? { state: 'delivered', workerId: 'second-worker', rawProviderResponse: { token: sentinel } } : { state: 'running', workerId: 'second-worker' } });
+  const ref = `refs/heads/noacg-recovery/${g.manifest.id}`;
+  for (const commit of git(g.remote, 'log', '--format=%H', ref, '--', 'checkpoint.json').split('\n')) {
+    assert.ok(!git(g.remote, 'show', `${commit}:checkpoint.json`).includes(sentinel));
   }
 });
