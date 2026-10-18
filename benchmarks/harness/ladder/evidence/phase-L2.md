@@ -239,3 +239,91 @@ D6's cost line for L2 is now at most $1.35 estimated per usable (owner, 2026-10-
   command line. So the strips are now `noacg coverage`'s default (CLI only, as D3 asks), with
   `--frames` for a frame per moment; the bench's capture passes `--frames`, so what the judge
   sees still does not change. Everything else in this hypothesis stands.
+
+### Round 2 result, and the decision
+
+Sessions 05:16Z to 06:45Z (the matchup and the scorebug last, under the stage name
+`round-2-rerun`: the ledger still held the discarded start's two failed entries under `round-2`,
+which would have kept the bench from running them again; the ledger is append-only, so they stay
+there, $1.29 notional); readings 05:18Z to 06:51Z. Evidence: `benchmarks/harness/ladder/L2/
+round-2/` (23 cells, `judgements.jsonl`, `readings.json`, both tallies); `--tally
+benchmarks/harness/ladder/L2/round-2` and `--tally ... --order tuning` reproduce them.
+
+| the eight | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| round 1 | 7 | 4 | $16.32 | $2.04 | $4.08 | 600.5 s | 5 of 8 | 3 |
+| round 2 | 8 | **5** | $10.09 | **$1.26** | **$2.02** | 463 s | 4 of 8 | 3 |
+
+| 15 tuning briefs | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| round 1 | 15 | 8 | $20.93 | $1.40 | $2.62 | 261 s | 11 of 15 | 7 |
+| round 2 | 15 | **5** | $14.71 | **$0.98** | **$2.94** | 267 s | 10 of 15 | 10 |
+
+- The cost fell as predicted: per session by 38% on the eight and 30% on the tuning briefs;
+  frames reviewed per session from 64 to 27 on the eight. The median wall fell to 463 s.
+- On the eight, usable rose from 4 to 5: the quiz now draws its Select (3/3), and the matchup
+  delivered; the volleyball board's `undoPoint` flag is read as round 1 read it (`readings.json`:
+  its `undo` button, which two readings name as working). The matchup, the scorebug and the
+  hockey board fail on design: each logo or crest boxed on a plate of its own (all three), the
+  scorebug's Next map still drawing nothing, the hockey goals strip without team labels.
+- On the tuning briefs, usable fell from 8 to 5: the school scoreboard (a wrapped long name cut by
+  the bar), the basketball scorebug ("QQ4", a score that drops), the choir vote (an empty band
+  after voting closes, 2 of 3 readings) and the debate clock (2 of 3) left; the cross-country clock
+  joined. Three of the four ended with a look left incomplete after a fix (1 of 25, 13 of 47, 11
+  of 21 frames opened after the last coverage): the agent fixed something, covered again and
+  reopened only what it expected to change.
+- Against the hypothesis: not refuted (cost per session down 38% on the eight, usable not below
+  3). **Decision: round 2 is reverted**, by its own pre-registered line: usable fell by 2 or more
+  on a set (8 to 5 on the tuning briefs). Round 3's base is round 1.
+- The look line got no better with fewer frames (4 of 8, 10 of 15), and in every round it fails
+  the same way (round 3's hypothesis below). Two counts are low for a reason that is not a
+  missing look: the timing tower (0 of 23) went back to an earlier version and handed it in, and
+  17 of its 23 frames had been read after an earlier coverage of that same version.
+- Spend: $0 credit; 23 counted sessions $25.12 notional (the discarded start $1.29 more); 69
+  readings $95.31 notional.
+
+## Round 3: the look after a fix is the frames that changed
+
+**Hypothesis**, committed and pushed before the round's first session. Base: round 1 (round 2
+reverted). The change: round 2's strips, again, together with carried verdicts. Two changes in one
+round, on purpose: the strips are the only measured cost lever, and round 2 suggests they lost
+usable graphics through the look after a fix, which the second change targets; this window has
+room for one more round after this one at most.
+
+- **Which failure.** D6's look line and the tuning loss behind round 2's revert. Every reviewed
+  frame was opened in 6, 5 and 4 of the 8 sessions in the baseline and rounds 1 and 2 (12, 11 and
+  10 of 15 on the tuning briefs), and the traces (each session's reads between its coverage runs)
+  show one pattern: an agent opens every frame, finds a defect, fixes it, runs coverage again,
+  then opens only the few frames it expects the fix to change and sets `ok` on the rest. The
+  frames it does not reopen are mostly the same pictures it already looked at, but the review
+  cannot tell them from frames that changed, so they count as not opened; and when the agent
+  guesses wrong, a changed frame goes out unseen (round 2's school scoreboard, basketball
+  scorebug and choir vote; round 1's collegiate scorebug, 8 of 69 after four coverage runs).
+- **Which change** (CLI and skill; the bench's count follows):
+  - The strips as in round 2: each timeline one picture of its moments, the state an action, a
+    step or the update settles in a full frame of its own; `--frames` for a frame per moment,
+    which the bench's capture passes, so what the judge sees does not change.
+  - Carried verdicts, new: `noacg coverage` run again into the same folder compares each new
+    frame with the picture the last review there closed (`ok` or `fixed:`), byte for byte. A
+    frame drawn identically keeps its verdict as `ok`, marked `carried`; only the others come
+    back empty, so the look after a fix is exactly the frames that changed, and the command says
+    how many to open. `record --review` carries the mark into the record. `references/hand-in.md`
+    says so. On round 1's hockey board, coverage run twice with nothing changed carries 30 of its
+    33 frames; the three strips of a moving entrance or exit are drawn slightly differently each
+    time and come back to be opened.
+  - The bench counts a carried frame as opened when the session read it after any coverage run
+    (it was that very picture then); an uncarried one, as before, only when read after the last.
+    With no carried frame, as in every earlier round, the count is unchanged.
+- **What should move.** On the eight: every frame opened in at least 7 sessions, from round 1's
+  5; notional per session near round 2's $1.26 (at most $1.45); usable at least round 1's 4. On
+  the 15 tuning briefs: every frame opened in at least 13 sessions; usable back to round 1's 8,
+  give or take one; notional per session at most $1.15.
+- **Refuted** if the eight's look line rises by fewer than 2 sessions over round 1, or usable on
+  the tuning briefs stays 2 or more below round 1 (the strips then lose graphics for another
+  reason than the look after a fix). **Reverted** (D7) if usable falls by 2 or more on either set
+  against round 1, or if nothing moves (cost per session down by less than 10% and the look line
+  unchanged on both sets).
+- **How it runs**: as round 2, with `--stage round-3 --lanes 2 --out
+  C:/claude/noacg-bench-archive/harness-ladder-L2/round-3`, the eight in `RUNG_ORDER` and then the
+  15 tuning briefs, judged three times a graphic with `--phase L2 --delivered-only`, counted with
+  `--tally <dir>` (D6 as amended) and `--tally <dir> --order tuning`.
