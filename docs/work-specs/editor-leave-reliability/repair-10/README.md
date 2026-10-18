@@ -53,6 +53,11 @@ the loser (`StorageProvider.lostConflict(record, copy)`), and the draft moves to
    the slot, it pushes the relinked slot rather than the one it listed, which was linked to the
    record that won. Repair-9's limit ("another device that pulls the slot and reloads would see that
    draft linked to the record") is closed for that pass.
+5. **A save waits for a copy its tab has not adopted yet.** Another tab hears of the copy on the
+   channel before its library mirror adopts the copy, which the durable store announces only once
+   the write commits. A Save or Discard of a draft linked to a copy this tab heard of but cannot
+   read yet waits for it (`conflictCopyArriving`, at most ten seconds, shown as saving), instead of
+   finding no record and asking for a name. It never falls back to the record that won.
 
 Repairs 8 and 9's reservation rules are untouched: `reservedGraphicId`, `isOwnReservation`, the
 pull rule in `upsertProject` and the boot relink.
@@ -120,7 +125,7 @@ and the ninth checker's facts read the same in both. CI used `--workers=1 --retr
 | Maintained | **85 passed, 8 legacy skips**; two-graphic export **1/1** | [39119770403](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119770403) | [39111760989](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111760989) |
 | References | **6/6** | [39119772196](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119772196) | [39111762754](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111762754) |
 | Visual | 125% cumulative **4/4** | [39119774342](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119774342) | [39111764648](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111764648) |
-| Matrix | `save-transaction.spec.ts` **45/45** (42, the conflict row rewritten, three new) | [39119776363](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119776363) | [39111766544](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111766544) |
+| Matrix | `save-transaction.spec.ts` **45/45** (42, the conflict row rewritten, three new); the fourth new row's run is below | [39119776363](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119776363) | [39111766544](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111766544) |
 
 The control for S-concurrent is the ninth check's own: main fails it
 ([39107860639](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39107860639) and the three runs
@@ -141,15 +146,14 @@ session's permission policy refused editing the source for them.
   draft moves there reading unsaved until the next pass, which the slot rewrite schedules. That
   pass writes a second copy holding the Save, and the draft follows it, clean (`lostLinks`). The
   first copy stays, holding the earlier version.
-- A tab that receives the message before its library mirror has adopted the copy (the durable
-  store announces a write once it commits) and saves in that moment finds no record under the
-  copy's id; its Save then asks for a name.
+- A copy that has not reached the tab's library ten seconds after the message (the durable store
+  degraded, say) makes the waiting Save ask for a name, as a record deleted elsewhere does.
 - A tab of an older build, open across a deploy, tells other tabs only through the list, with no
   copy: those tabs unlink, as that build does.
 - The topbar shows the draft's own name ("Gamma") while the record is "Gamma (conflicted copy)";
   the sync never renamed the copy's template. Phase 3 says so.
 - A tab that cannot receive the message (no `BroadcastChannel`) keeps its link until it reloads,
   when it reads the rewritten slot.
-- Budget: the three rows add about 25 seconds to `e2e/save-transaction.spec.ts` at one worker. The
+- Budget: the four rows add about 35 seconds to `e2e/save-transaction.spec.ts` at one worker. The
   suite reads 98% of its envelope (`scripts/e2e-capacity.mjs`); the pre-run estimate counts an
   edited spec at its table value, so no exception was written.
