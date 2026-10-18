@@ -53,6 +53,15 @@ the loser (`StorageProvider.lostConflict(record, copy)`), and the draft moves to
    the slot, it pushes the relinked slot rather than the one it listed, which was linked to the
    record that won. Repair-9's limit ("another device that pulls the slot and reloads would see that
    draft linked to the record") is closed for that pass.
+5. **A save waits for a copy its tab has not adopted yet.** Another tab hears of the copy on the
+   channel before its library mirror adopts the copy, which the durable store announces only once
+   the write commits. A Save or Discard of a draft linked to a copy this tab heard of but cannot
+   read yet waits for it (`conflictCopyArriving`, at most ten seconds per id, Save shown as saving),
+   instead of finding no record and asking for a name. Save rechecks the live linked id after
+   each wait: a later loss can move A's link to B while A is still missing. It waits at most once
+   for each id, so the same missing copy still times out. Discard keeps its click-time context
+   and refuses a changed link rather than discarding the newer draft. Neither falls back to
+   the record that won.
 
 Repairs 8 and 9's reservation rules are untouched: `reservedGraphicId`, `isOwnReservation`, the
 pull rule in `upsertProject` and the boot relink.
@@ -120,7 +129,7 @@ and the ninth checker's facts read the same in both. CI used `--workers=1 --retr
 | Maintained | **85 passed, 8 legacy skips**; two-graphic export **1/1** | [39119770403](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119770403) | [39111760989](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111760989) |
 | References | **6/6** | [39119772196](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119772196) | [39111762754](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111762754) |
 | Visual | 125% cumulative **4/4** | [39119774342](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119774342) | [39111764648](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111764648) |
-| Matrix | `save-transaction.spec.ts` **45/45** (42, the conflict row rewritten, three new) | [39119776363](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119776363) | [39111766544](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111766544) |
+| Matrix | `save-transaction.spec.ts` **45/45** (42, the conflict row rewritten, three new); the fourth new row's run is below | [39119776363](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39119776363) | [39111766544](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111766544) |
 
 The control for S-concurrent is the ninth check's own: main fails it
 ([39107860639](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39107860639) and the three runs
@@ -134,6 +143,70 @@ collision, lost conflict), the edit-between case is not linked to it, and with t
 second tab stays linked to the record that won. Mutations of single rules were not run: the
 session's permission policy refused editing the source for them.
 
+## Copy-arrival completion after #1474
+
+#1474 merged at `89ca46c37` without the fix for review comment
+[r4306741476](https://github.com/NoaCG/NoaCG-Studio/pull/1474#discussion_r4306741476).
+The three follow-up commits, through `0ccd8754e`, add the wait above and its held-adoption row.
+This completes the same authorised #1466 repair. Current `origin/main` was merged into the
+follow-up branch as `f6755fe93`; no rebase or force push.
+
+The previously unread ci3 runs on `2546da73` have now been read in full. That probe's `src/`
+and maintained matrix were byte-identical to the reconciled follow-up before the chained-wait
+review completion below:
+
+- [Configured 39121557623](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39121557623):
+  signed-in task and eighth X-device pass, ninth S-concurrent **2/2**, R-departure fails only
+  at line 281, as on main and as the ninth checker explains.
+- [Ninth 39121561735](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39121561735):
+  C-pull `:117`, C-overlap `:158`, and both V-superseded `:199` fail on the replaced
+  null-link assertions. All three V-reservations fail at `:247` (two records rather than one),
+  the same disclosed reservation-list departure recorded by independent-9, not a new failure.
+- [Matrix 39121559522](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39121559522): **46/46**.
+
+This continuation's local targeted checks on `f6755fe93`: device-reservation and lost-conflict
+rows **9/9**, including the held-adoption row; sync **2/2**; TypeScript, changed-file ESLint and
+changed gates pass. Review and simplification ran inline over the five changed files, against
+merge base `89ca46c37`, with no additional defect or behaviour-preserving simplification found.
+No build was needed for this save-transaction change; full PR and merge-group checks remain CI's.
+The fresh tenth independent check must judge the disclosed departures against the owner's
+acceptance itself; this repair receipt is not its verdict.
+
+### Chained wait review completion (#1476)
+
+Review [r4306865330](https://github.com/NoaCG/NoaCG-Studio/pull/1476#discussion_r4306865330)
+found that Save awaited only its initial missing copy A. A second loss of the original record
+can move the live link to B (`lostLinks`) during that wait; A's arrival or timeout then resumed
+Save against missing B, unlinked the edited draft and asked for a name. The repair rechecks the
+live linked copy after every wait, with a per-operation set of ids already waited for.
+
+Three new matrix rows hold adoption deterministically. The first sync creates A; the test then
+injects the next loss notification with B while Save or Discard waits, and advances the first
+ten-second timeout with Playwright's clock. No existing row or carried checker changed.
+
+- Before the loop fix (j-0003): `save-chain` fails at the assertion that Save remains "Saving…"
+  for B, receiving "Not saved". `discard-chain` and `save-timeout` pass.
+- After the fix (j-0005): **3/3 pass**. Save writes the edit durably into B, stays linked and
+  clean after reload, asks no name and mints nothing extra. The other device's winner and A
+  are unchanged. Discard refuses the changed link, retains the edit and B link through reload.
+  The same missing id still times out and asks for a name, with its draft intact.
+- The first post-fix run (j-0004) passed the wait assertion but read an old B in the immediate
+  library mirror after releasing accumulated adoption callbacks. The final row also waits for
+  the committed announcement in the other tab and reloads before checking B. The edit is
+  durable; the late refreshes did not overwrite the saved record. No durable-store change was
+  made, and this receipt does not claim the immediate mirror was current.
+- Final affected selection (j-0006), `save-transaction.spec.ts --grep 'matrix (device
+  reservation|lost conflict|copy wait)' --retries=0`: **12/12 pass**, 32.2 seconds, 2 workers
+  on this 4-CPU cloud worker. This includes the unchanged held-adoption and device rows.
+
+Frontend TypeScript, changed-file ESLint and changed gates pass. An additional API typecheck
+could not resolve the unrelated `@anthropic-ai/sdk` in this worker's shared dependencies; no
+API file or dependency changed. No build is needed for this save-transaction logic. Full PR
+and merge-group checks remain authoritative CI, and a tenth independent check has not run.
+The final review and simplification ran inline against merge base `89ca46c37` across the same
+five paths: this receipt, the phase notes, the matrix, `project.ts` and `saveActions.ts`. The
+review's one confirmed defect is fixed; no further simplification was appropriate.
+
 ## Limits
 
 - A Save whose record write lands after the pass listed the library but before it wrote the copy:
@@ -141,15 +214,15 @@ session's permission policy refused editing the source for them.
   draft moves there reading unsaved until the next pass, which the slot rewrite schedules. That
   pass writes a second copy holding the Save, and the draft follows it, clean (`lostLinks`). The
   first copy stays, holding the earlier version.
-- A tab that receives the message before its library mirror has adopted the copy (the durable
-  store announces a write once it commits) and saves in that moment finds no record under the
-  copy's id; its Save then asks for a name.
+- A copy that has not reached the tab's library after its ten-second wait (the durable store
+  degraded, say) makes the waiting Save ask for a name, as a record deleted elsewhere does.
 - A tab of an older build, open across a deploy, tells other tabs only through the list, with no
   copy: those tabs unlink, as that build does.
 - The topbar shows the draft's own name ("Gamma") while the record is "Gamma (conflicted copy)";
   the sync never renamed the copy's template. Phase 3 says so.
 - A tab that cannot receive the message (no `BroadcastChannel`) keeps its link until it reloads,
   when it reads the rewritten slot.
-- Budget: the three rows add about 25 seconds to `e2e/save-transaction.spec.ts` at one worker. The
+- Budget: the first four rows add about 35 seconds to `e2e/save-transaction.spec.ts` at one worker;
+  the three chained-wait rows totalled about 16 seconds of test time in j-0005. The
   suite reads 98% of its envelope (`scripts/e2e-capacity.mjs`); the pre-run estimate counts an
   edited spec at its table value, so no exception was written.
