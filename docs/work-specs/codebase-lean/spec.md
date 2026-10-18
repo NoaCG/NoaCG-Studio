@@ -632,8 +632,9 @@ One case went (listed under Test maintenance): blank artwork requiring an author
 entry card is gone. Every case in the five files passes, none skipped. Case-minutes locally on
 two workers (queue job `j-0063`): production-audience 0.7, google-fonts 0.1, render 0.9,
 video-project 0.7, project-format 0.6. The files' minutes are under Budget exceptions. Still
-skipping: the remaining 9 live-gap cases: two machine-graph runtime cases, one timeline-v2
-case, the preview command-error case, the Google Sheet live-data case, and four Add template graphic cases. The last five are
+skipping: the remaining 10 live-gap cases: two machine-graph runtime cases, one timeline-v2
+case, the preview command-error case, the configured signed-in header case, the Google Sheet
+live-data case, and four Add template graphic cases. The last five are
 retained by the owner decisions above, rather than counted as two undecided families.
 
 Continuation verification on that merged main: queue job `j-4597` ran all 46 cases in the
@@ -671,15 +672,17 @@ Those diagnostic runs preceded reconciliation with singles-g. The final main-rec
 selection below is the landing verdict.
 Acceptance: a fade visibly fades and lands; lifecycle guards and scoreboard score-pop still
 hold; a command exception after a healthy load is visible and Reload preview recovers. No
-new runtime behavior or graph UI is introduced. Still skipping: the remaining 5 live-gap
-cases are the kept Google Sheet CSV case and four kept Add template graphic cases, before
-singles-i's own subject review.
+new runtime behavior or graph UI is introduced. Still skipping: the remaining 6 live-gap
+cases are the configured signed-in header case, the kept Google Sheet CSV case and four kept
+Add template graphic cases, before singles-i's own subject review.
 
 Final verification on the merged main: queue job `j-4604`, 8 passed, none skipped in
 19.5 seconds. ESLint on all three changed specs, changed-path gates and E2E protection passed.
 Review fixed two coverage findings inline; simplify ran inline without a behavior change.
-The preceding receipt's skip count is corrected from eight to nine because it omitted the
-still-skipped command-error case. This revival resolves four cases, leaving the five above.
+The preceding receipt's skip count is corrected from eight to ten because it omitted the
+still-skipped command-error and configured signed-in header cases. This revival resolves four
+cases, leaving the six above. A complete remaining-caller scan confirms the signed-in case
+is still a live gap and separately identifies nine RESERVED cases in library/project/wizard-finish.
 No full local suite or production build was run.
 
 
