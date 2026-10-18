@@ -209,6 +209,23 @@ edit of each file. The helpers only the removed cases called (`timelineProgress`
 `applyUnconvertibleRegion`, `applyUnreadableRegion`, `frameRect`, `frameStyleProp`) are gone from
 `e2e/_keys.ts`, `e2e/_legacy.ts` and `e2e/_frame.ts`.
 
+### Phase 2 receipt: the runtime-harness revival
+
+The first revival, on main `54ee2dcc` (2026-10-18): the eight specs whose live-gap cases boot
+in-page against the composer and the runtime (sports, public-service, anim-engine,
+competition-pack, audience-pack, graphic-types, state-machine, machine-edit) lose the retired
+advanced-mode call from their boot helper, so 73 live-gap cases run again, 87 cases in all
+across the eight files, 5.2 minutes locally on two workers (queue job `j-0010`, every case
+passing, none skipped). Three cases needed more than the boot swap: the kicker-on-air case
+drives the production page's cue editor and Update and reads PROGRAM, the competition pack's
+discoverability case plays the created graphic in the harness iframe, and the measured-motion
+case keeps its runtime half without the old step timeline's row. One case went: the simulator
+snap case duplicated production-controls.spec.ts's live control page check (its entry under Test
+maintenance). The machine-edit header names `src/blocks/**`. The duration table still weighs the
+eight files at seconds, so their minutes stand as budget exceptions until the weekly refresh
+records them. Still skipping: the other 158 live-gap cases, whose bootstraps create a graphic
+through the retired wizard door; they are the next revival groups.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -358,15 +375,15 @@ reserved by the editor phase.
 
 ## Budget exceptions
 
-The runtime-harness revival (Phase 2, #800) turns 72 live-gap cases in eight files back on. They
+The runtime-harness revival (Phase 2, #800) turns 73 live-gap cases in eight files back on. They
 skipped since the old editor went, so the duration table weighs each file at a few seconds; the
 minutes below are this change's local measurement (two workers, `j-0010`), recorded so the
 capacity gate can see the delta it will measure on the pull request's own run. The weekly
 refresh records the real figures and these lines expire.
 
-- e2e/sports.spec.ts: 1.2 min, protects the match clock, score and state machines of the sports pack at runtime, expires 2026-11-16
-- e2e/public-service.spec.ts: 1.3 min, protects the ticker, alert and public-information runtimes and the kicker's control path, expires 2026-11-16
-- e2e/anim-engine.spec.ts: 0.7 min, protects data-block parity with the legacy emits, measured motion and the serializer, expires 2026-11-16
+- e2e/sports.spec.ts: 1.1 min, protects the match clock, score and state machines of the sports pack at runtime, expires 2026-11-16
+- e2e/public-service.spec.ts: 1.1 min, protects the ticker, alert and public-information runtimes and the kicker's control path, expires 2026-11-16
+- e2e/anim-engine.spec.ts: 0.6 min, protects data-block parity with the legacy emits, measured motion and the serializer, expires 2026-11-16
 - e2e/competition-pack.spec.ts: 1.1 min, protects the match-up, scorebug, veto, verdict, nominee and board machines at runtime, expires 2026-11-16
 - e2e/audience-pack.spec.ts: 0.5 min, protects the message clamp, queue, vote board, chat highlight and pack round trips, expires 2026-11-16
 - e2e/graphic-types.spec.ts: 0.6 min, protects promotion identity, the quiz walk, ticker pause and the countdown clock, expires 2026-11-16
