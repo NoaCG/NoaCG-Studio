@@ -15,11 +15,19 @@ test('the pasteboard pad never enters persisted state; export stays clipped to t
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
     const tpl = useTemplateStore.getState().template;
+    // The composer's own style tags, read apart from the template CSS: Hairline clips in its own
+    // CSS too, so only these tags show what the composer adds.
+    const styleOf = (doc: string, id: string) =>
+      new DOMParser().parseFromString(doc, 'text/html').getElementById(id)?.textContent ?? null;
+    // The preview/export composition WITHOUT authoring keeps the canvas clip and no pasteboard;
+    // an authoring margin is the composer's option, so any non-zero pad shows the difference.
+    const exportDoc = composeDocument(tpl);
+    const authoringDoc = composeDocument(tpl, { authoring: { padX: 200, padY: 0 } });
     return {
-      // The preview/export composition WITHOUT authoring keeps the canvas clip and no pasteboard;
-      // an authoring margin is the composer's option, so any non-zero pad shows the difference.
-      exportDoc: composeDocument(tpl),
-      authoringDoc: composeDocument(tpl, { authoring: { padX: 200, padY: 0 } }),
+      resolution: tpl.resolution,
+      exportBase: styleOf(exportDoc, 'spx-base-style'),
+      exportAuthoring: styleOf(exportDoc, 'spx-authoring-style'),
+      authoring: styleOf(authoringDoc, 'spx-authoring-style'),
       // Everything persisted lives in the template — serialize it whole and search for the pad.
       serialized: JSON.stringify(tpl),
     };
@@ -30,7 +38,8 @@ test('the pasteboard pad never enters persisted state; export stays clipped to t
   expect(probe.serialized).not.toContain('padX');
   expect(probe.serialized).not.toContain('spx-authoring-style');
   // The exported/on-air document clips to the true canvas; only the authoring preview opts in.
-  expect(probe.exportDoc).toContain('overflow: hidden');
-  expect(probe.exportDoc).not.toContain('spx-authoring-style');
-  expect(probe.authoringDoc).toContain('spx-authoring-style');
+  const { width, height } = probe.resolution;
+  expect(probe.exportBase).toContain(`html, body { width: ${width}px; height: ${height}px; overflow: hidden; }`);
+  expect(probe.exportAuthoring).toBeNull();
+  expect(probe.authoring).toMatch(/body \{[^}]*overflow: visible !important;[^}]*margin: 0px 200px !important;/);
 });
