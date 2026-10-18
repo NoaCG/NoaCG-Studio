@@ -663,3 +663,40 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
   // not the snapshot embedded at add time.
   expect(css).toContain('EDITED-AFTER-ADD');
 });
+
+test('Home lists productions and the production page exports the package', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'lower-third', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Home Production');
+  await page.getByTestId('production-back').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.getByTestId('home-nav-productions').click();
+  const row = page.locator('[data-testid^="production-row-"]');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('Home Production');
+  await expect(row).toContainText('1 graphic');
+  // Adding a graphic auto-creates its first cue (docs/CLOUD_PLAYOUT.md §2).
+  await expect(row).toContainText('1 cue');
+
+  // The export door is on the CARD too (acceptance ask: export straight from Home), with the
+  // same target picker the production page opens.
+  await row.getByTestId('export-production-row').click();
+  await expect(page.getByTestId('production-export-dialog')).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('prod-export-download').click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/production\.zip$/);
+  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+  await expect(page.getByTestId('production-export-dialog')).toBeHidden();
+
+  // The production page owns everything about one production, the offline export included.
+  await row.getByTestId('open-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
+  await expect(page.getByTestId('export-production')).toBeVisible();
+
+  // Packages are retired (docs/GOALS_ARCHIVE.md "Student release" step 3): no Packages nav on Home.
+  await page.getByTestId('production-back').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('home-nav-packages')).toHaveCount(0);
+});
