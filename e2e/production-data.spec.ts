@@ -486,9 +486,14 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
   await expect(data.getByTestId('data-value-match.home.name')).toHaveValue('Sweden');
   // The seed was never written, because saving one is a deliberate act - this is the whole
   // anti-churn rule (plan 2.1): live values must not touch the synced Show record.
-  const onRecord = await page.evaluate(() => {
-    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as { name: string; data?: unknown }[];
-    return shows.find((s) => s.name === 'Match Night')?.data ?? null;
+  // Read through the durable model: the shows key lives in IndexedDB (model/durableStore.ts),
+  // so a localStorage read answers [] whatever was written, and a missing record must fail here
+  // rather than read as "nothing on it".
+  const onRecord = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.name === 'Match Night');
+    if (!show) throw new Error('production not saved');
+    return show.data ?? null;
   });
   expect(onRecord).toBe(null);
 });
@@ -826,13 +831,15 @@ test('an adjust on a bound field patches the tree, and the event still fires', a
 
   // The cue did NOT take the figure: a bound field is never a cue value, so taking this cue again
   // airs the tree rather than re-airing whatever the press happened to leave behind.
-  const stored = await page.evaluate(() => {
-    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
-      name: string;
-      cues: { values: Record<string, string> }[];
-    }[];
-    return shows.find((s) => s.name === 'Goal Data')?.cues.map((c) => c.values.f1 ?? null) ?? [];
+  // Read through the durable model (the shows key lives in IndexedDB, so localStorage answers
+  // nothing), and from both cues, so an empty read cannot pass as "no cue took it".
+  const stored = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.name === 'Goal Data');
+    if (!show) throw new Error('production not saved');
+    return (show.cues ?? []).map((c) => c.values?.f1 ?? null);
   });
+  expect(stored).toHaveLength(2);
   expect(stored).not.toContain('3');
   await page.getByTestId('verb-take').click();
   await expect(strip.locator('#f1')).toHaveText('3');
