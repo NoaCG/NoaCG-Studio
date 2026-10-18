@@ -1,131 +1,41 @@
 // covers: src/blocks/**, src/templates/**
 // covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
 // covers: src/components/wizard/**, !src/components/wizard/import/**
+// covers: src/components/ExportWindow.tsx
 //
 // The motion picker mounts in the wizard's Travel box. On 2026-08-23 it grew a direction-arrow
 // row sharing that box's class, this spec broke on the ambiguous locator, and it had not been
 // planned: the picker matches no directory rule, so the surfaces that mount it name it.
 // covers: src/components/MotionPresetPicker.tsx
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
-import { test, expect, type Page, type FrameLocator } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
-import { showCode } from './_code';
+import { bootstrapGraphic, finishIntoNewEditor, openExportWindow } from './_create';
+import { test, expect } from '@playwright/test';
+import { mountWorkingDocument } from './_frame';
 import { chooseType, pickDesign } from './_browse';
 
-// The UX overhaul: preview-over-tabs layout, validation inside Export, motion phase
-// control + auto-replay (on the timeline strip — the Motion tab is retired), add-field
-// in Data, and the editor's change highlighting.
-
-async function createHairline(page: Page) {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.wz-modal')).toBeVisible();
-  await page.locator('[data-entry="template"]').click();
-  await chooseType(page, 'Lower thirds');
-  await pickDesign(page, 'Hairline');
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
-}
-
-function frame(page: Page): FrameLocator {
-  return page.frameLocator('iframe.preview-frame');
-}
-
-test('layout: code dock left ONCE OPENED, canvas + timeline in the centre, tool tabs right', async ({ page }) => {
-  await createHairline(page);
-  // The code pane ships CLOSED (model/layout.ts); opened, it takes the left of the centre.
-  await showCode(page);
-  const editor = await page.locator('.editor-host').boundingBox();
-  const stage = await page.locator('.preview-stage').boundingBox();
-  const rightTabs = await page.locator('[data-testid="dock-right"] .dock-tabs').boundingBox();
-  expect(editor && stage && rightTabs).toBeTruthy();
-  // Code on the left of the centre stage…
-  expect(editor!.x + editor!.width).toBeLessThanOrEqual(stage!.x + 2);
-  // …and the tool tabs are a dock to the RIGHT of the stage.
-  expect(rightTabs!.x).toBeGreaterThanOrEqual(stage!.x + stage!.width - 4);
-  // The right dock holds the Inspector plus the focused tool panels — Blocks/Learn/Validate
-  // are gone; Content = design values, Rehearse = the in-editor operator view; Motion lives on
-  // the timeline, not in a tab.
-  await expect(page.locator('[data-testid="dock-right"] .dock-tab-label')).toHaveText([
-    'Inspector', 'Content', 'Rehearse', 'Style', 'Assets', 'AI', 'Export',
-  ]);
-});
+// The UX overhaul's surviving subjects: validation inside Export, and the wizard's motion phase
+// control. (The old shell's dock geometry, its Data-panel add row and the code pane's change
+// highlight went with that shell; the catalog-line shape gate runs in Node,
+// scripts/catalog-line-gate.test.mjs.)
 
 test('export: validation shows inline and gates the download on a broken template', async ({ page }) => {
-  await createHairline(page);
-  await page.getByTestId('dock-tab-export').click();
-  await expect(page.locator('.panel-body .status-ok')).toContainText('valid and ready');
-  // Break the runtime: blank the JS in the editor (the pane ships closed — open it first).
-  await showCode(page);
-  await page.locator('.tabs .tab', { hasText: 'JS' }).click();
-  await page.locator('.editor-host .monaco-editor').click();
-  await page.keyboard.press('Control+a');
-  await page.keyboard.type('// gone');
-  await expect(page.locator('.panel-body .status-bad')).toContainText('must be fixed before export');
-  await expect(page.getByRole('button', { name: /Validate & download/ })).toBeDisabled();
-});
-
-
-test('data: add-field lands as a REAL line on a catalog template, in the assembler\'s own idiom', async ({ page }) => {
-  await createHairline(page);
-  await page.getByTestId('dock-tab-data').click();
-  await page.getByPlaceholder(/Label the operator sees/).fill('Sponsor');
-  await awaitPreviewRebuild(page, () => page.getByRole('button', { name: '+ Add' }).click());
-  // The field landed in the definition (f2 after the two lines)…
-  const html = await page.evaluate(async () => {
+  await bootstrapGraphic(page, 'Hairline');
+  await openExportWindow(page);
+  const window = page.getByTestId('export-window');
+  await expect(window.locator('.status-ok')).toContainText('valid and ready');
+  // Break the runtime: blank the JS, then open the window on the broken graphic (the window
+  // reads the working graphic when it opens).
+  await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.html;
+    const s = useTemplateStore.getState();
+    s.applyTemplate({ ...s.template, js: '// gone' });
   });
-  expect(html).toContain('"title": "Sponsor"');
-  // …and — the part the definition-only add used to skip — as a REAL element in the
-  // standard line idiom, so update() has somewhere to write. It renders in the preview and
-  // arrives selected, like any wizard-made line (that selection reveals the Inspector, which
-  // is why the Data panel is re-opened before its row is asserted).
-  expect(html).toMatch(/<span id="f2" class="lower-third-[a-z]+">Sponsor<\/span>/);
-  await expect(frame(page).locator('#f2')).toHaveText('Sponsor');
-  const selected = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().selectedPart;
-  });
-  expect(selected).toBe('#f2');
-  await page.getByTestId('dock-tab-data').click();
-  await expect(page.locator('.field-row', { hasText: 'Sponsor' })).toBeVisible();
-  // …and for someone with the code pane open, it switched to HTML and highlighted the change.
-  await showCode(page);
-  await expect(page.locator('.tabs .tab.active')).toHaveText('HTML');
-  await expect(page.locator('.editor-host .changed-line').first()).toBeVisible();
-});
-
-test('data: the catalog-line add is gated on the standard line SHAPE, never the category', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-  const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { addCatalogLine } = await import('/src/blocks/edit.ts');
-    const tryAdd = (id: string) =>
-      addCatalogLine(variantById(id)!.create({}), { title: 'Extra', ftype: 'textfield' }) !== null;
-    return {
-      lowerThird: tryAdd('lt01'),
-      infoCard: tryAdd('card01'),
-      // Fixed contracts and data-driven categories fail the shape gate - the Data panel
-      // then REFUSES the add with the reason (a definition-only field nothing shows is the
-      // silent on-air no-op this gate exists to end): a scoreboard's cells are a grid
-      // ({p}-team / {p}-score, not the line ladder), a quiz's rows are their own shape, a
-      // ticker's lines live in one hidden textarea source.
-      scoreboard: tryAdd('sb01'),
-      quiz: tryAdd('qz01'),
-      ticker: tryAdd('tk01'),
-    };
-  });
-  expect(result).toEqual({ lowerThird: true, infoCard: true, scoreboard: false, quiz: false, ticker: false });
+  await openExportWindow(page);
+  await expect(window.locator('.status-bad')).toContainText('must be fixed before export');
+  await expect(window.getByRole('button', { name: /Validate & download/ })).toBeDisabled();
 });
 
 test('wizard: direction control mixes a different exit preset at create', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -144,10 +54,7 @@ test('wizard: direction control mixes a different exit preset at create', async 
   await page.getByRole('button', { name: 'Out only' }).click();
   await page.locator('.wz-anim-travel .wz-anim-dirs button', { hasText: '↓' }).click();
   await expect(page.locator('.wz-step .hint').first()).toContainText('Out Slide down');
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await finishIntoNewEditor(page);
   // Lower thirds create as data blocks: the mix is real keyframe data — the entrance
   // keeps Line reveal's choreography (the accent draws in) while the Out step carries
   // Slide down's exit (the box lifts away: y + opacity keyframes).
@@ -160,24 +67,10 @@ test('wizard: direction control mixes a different exit preset at create', async 
   expect(Object.keys(data!.steps[0].layers['.lower-third-accent'] ?? {})).toContain('scaleX');
   const outBox = data!.steps[data!.steps.length - 1].layers['.lower-third-box'] ?? {};
   expect(Object.keys(outBox)).toEqual(expect.arrayContaining(['y', 'opacity']));
-  // …and the mixed runtime already rebuilt above — play it.
-  await page.getByRole('button', { name: '▶ Play' }).click();
+  // …and the mixed runtime plays: the created graphic, mounted the way playout composes it.
+  const doc = await mountWorkingDocument(page);
+  await doc.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
   await expect
-    .poll(async () => frame(page).locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity))
+    .poll(async () => doc.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('1');
-});
-
-test('style: a color change highlights the changed CSS lines', async ({ page }) => {
-  await createHairline(page);
-  await showCode(page); // the highlight below lives in the code pane, which ships closed
-  await page.getByTestId('dock-tab-style').click();
-  const accentRow = page.getByTestId('style-var-accent');
-  await accentRow.locator('input[type="color"]').evaluate((el) => {
-    const input = el as HTMLInputElement;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-    setter.call(input, '#ff0066');
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  });
-  await expect(page.locator('.editor-host .changed-line').first()).toBeVisible({ timeout: 5000 });
 });
