@@ -453,6 +453,20 @@ passing, none skipped, 0.2 case-minutes locally on two workers (queue job `j-005
 test passes 1 of 1. The file's minutes are under Budget exceptions. Still skipping: the
 remaining 42 live-gap cases, in the pack and single-case families.
 
+### Phase 2 receipt: the counting-settle revival
+
+The fifteenth revival, on main `71ac6227a` (2026-10-18): the counting-settle sweeps opened the app
+behind the retired advanced-mode switch. Three cases run again, their bodies as they were
+behind the app door: every counting design settling on its real figure the way every card and
+thumbnail settles it, every counting design playing its figure up from zero on both seeds, and
+a counting graphic taken again on air never painting its old figure. The settle sweep used to
+run twice, once per recipe; the canvas recipe composed with the old editor's simulator channel,
+which no live surface composes with, so the sweep runs the shared settle recipe alone and its
+title drops the recipe. No case was removed. 4 cases in the file (the seed loop counts two), 4
+passing, none skipped, 3.1 case-minutes locally on two workers (queue job `j-0053`). The file's
+minutes are under Budget exceptions. Still skipping: the remaining 39 live-gap cases, in the
+pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -714,6 +728,12 @@ removes three; the table weighs the file at 0.009 minutes from its earlier runs.
 below is this change's local measurement (case-minutes, two workers, queue job `j-0052`).
 
 - e2e/ux.spec.ts: 0.2 min, protects export validation gating the download on a broken template and the wizard's direction control mixing a different exit preset at create, expires 2026-11-16
+
+The counting-settle revival (Phase 2, #800) turns three sweeps in one file back on; the table
+weighs the file at 0.007 minutes from its earlier runs. The minute below is this change's
+local measurement (case-minutes, two workers, queue job `j-0053`).
+
+- e2e/counting-settle.spec.ts: 3.1 min, protects every counting design settling on its real figure, playing its figure up from zero on both seeds and never painting its old figure on a re-take, expires 2026-11-16
 
 ## Acceptance criteria
 
