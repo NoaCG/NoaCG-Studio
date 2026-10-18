@@ -54,22 +54,22 @@ affected; what stays uncertain.
 | 2 | Navigation | Stable content entry; tab rules unchanged | Stop opening Data and Messages in their own browser tab; dock a drawer on Playout | Stable Messages and Data entries | Keep today's own-tab views and the "views in use" switcher rule, which is pinned by a spec and justified in the code (monitors stay on screen). Make the Setup items permanent so nothing vanishes. The main journeys never leave Playout. A docked tray is not built in this run; the trial can ask for it. | `PLAYOUT_DASHBOARD.md` 102-121; `ProductionPage.tsx` 5614-5626 | C0 | Single-screen students may still want a drawer |
 | 3 | Refactor before content | All fourteen phases first | Keep 1-2 trimmed, 7, 13; defer ten | Keep 1 (defects), 2+7, a props-only cue editor move; defer the rest | **Run 1, 2+7 and 13a (props only); the rest in a later window.** Phase 1 stays because S1 and S3 are reliability defects, not maintenance. | `production-page-refactor/spec.md` §2 names 3/4/6/8/9 droppable; 11-13 safety-sensitive | Steps 2-4 | None |
 | 4 | When paste lands | Phase 21, after feeds and the API, gated on 23 | Stage 1 after extraction | First, before phase 1, as a declared feature change | **First (C0).** It touches the audience workspace and one cue-editor menu; it needs no extraction. | B §5.1; verified: the staging path is `addShowCue` plus values | C0 | None |
-| 5 | Protection of a prepared message | Field-level snapshot flag; refuse later bindings; `/update` cannot bypass | Pool-graphic role: message graphics unbound; `/update` refuses them (409); auto-clone a graphic | Destination hygiene: no binding on body or name field; warn on a later binding; leave `/update` alone | **Destination hygiene** (B), with A's offer to add a separate card when the only candidate is bound. No `/update` protection: an integrator addressing a graphic by name is deliberate and documented; the data API is not a message intake. A later binding on a graphic with prepared cues names those cues and asks, offering a card. | §1 rows 1, 2; `DATA_API.md` 8-14, 235-238 | C0 | None |
-| 6 | Candidate record and persistence | Reuse audience records; local persistence required | A uniform candidate shape; `stagedFrom` on the cue | Keep `AudienceSubmission`; add `externalId` and `source`; durable local provider; published rows in the audience table | **B's record plus A's receipt.** `AudienceSubmission` gains optional `externalId`, `source`, `reference`; the cue gains optional `stagedFrom`. Local provider durable for authored and imported rows; simulated rows stay in memory. Published: the audience table gains the same optional columns. | `audienceTypes.ts` 35-53; `0035` 89-112 | C0, C2 | None |
-| 7 | Identity of ID-less Sheet rows | "Never row position"; rule left to phase 16 | Content hash plus occurrence index; staged receipt | Content hash over Name, Message, Source, Reference; a changed row is a new candidate | **Both say the same thing.** Hash of the four cells plus an occurrence index for identical rows. Edited row: new candidate, old one shown as changed once; prepared cue untouched. | None needed | C2 | None |
+| 5 | Protection of a prepared message | Field-level snapshot flag; refuse later bindings; `/update` cannot bypass | Pool-graphic role: message graphics unbound; `/update` refuses them (409); auto-clone a graphic | Destination hygiene: no binding on body or name field; warn on a later binding; leave `/update` alone | **Destination hygiene** (B), enforced at both doors: a bound body or name field is not a destination, and a binding is never added to a field that prepared cues use; both refuse with A's offer of a separate card (B proposed a warning for the second; the refusal keeps the rule an invariant). No `/update` protection: an integrator addressing a graphic by name is deliberate and documented; the data API is not a message intake. | §1 rows 1, 2; `DATA_API.md` 8-14, 235-238 | C0 | None |
+| 6 | Candidate record and persistence | Reuse audience records; local persistence required | A uniform candidate shape; `stagedFrom` on the cue | Keep `AudienceSubmission`; add `externalId` and `source`; durable local provider; published rows in the audience table | **B's record plus A's receipt.** `AudienceSubmission` gains optional `externalId`, `source`, `reference`; the cue gains optional `stagedFrom`. Local provider durable for authored and imported rows; simulated rows stay in memory. Published: the audience table gains the same optional columns. `Show.sources` carries no writes list: bindings stay the one relation between a source and the fields it feeds, and one source feeds bindings, the inbox, or both. | `audienceTypes.ts` 35-53; `0035` 89-112 | C0, C3 | None |
+| 7 | Identity of ID-less Sheet rows | "Never row position"; rule left to phase 16 | Content hash plus occurrence index; staged receipt | Content hash over Name, Message, Source, Reference; a changed row is a new candidate | **Both say the same thing.** Hash of the four cells plus an occurrence index for identical rows. An edit is a vanished row and a new one, and nothing pairs them (content identity cannot); a used candidate stays as the operator's record; the prepared cue is untouched. | None needed | C3 | None |
 | 8 | Duplicate staging | AC-2 asks for it | `stagedFrom` dedupe with "add as another cue" | Pending guard; dedupe by (submission, graphic) | Both. Button disabled while pending; a second prepare of the same candidate focuses the existing cue; "Prepare again" for deliberate reuse. | §1 row 5 | C0 | None |
 | 9 | Format adapters | Six shapes with fixtures | Four adapters with specific rules | Four shapes: lines, standings, row table, values | **Five small adapters plus values:** lines (ticker), schedule, standings, credits, rows. Named by what the graphic parses, not by catalog type. | §1 rows 7-9 | C1 | None |
-| 10 | Empty list | Valid empty clears (DS18); mechanism unsaid | Write `""` | Clears under the new contract only | **Adapters write strings, and `""` for a valid empty read.** Legacy `[]` and null behaviour untouched. | §1 row 3 | C1, C3 | None |
-| 11 | Who reads a Sheet, how fresh | Server when published, browser when not; 5 s read, 10 s on screen; server scheduler to qualify | Browser or output renderer every 5 s through a cached proxy; no server cron yet | Browser lead at 5 s under a lease; server tick about once a minute when no page is open; measure | **B.** Browser at 5 s while any page of the production is open, local or published, under one lease; a server tick about once a minute for published sources with no live lease. Closed-page latency is reported as measured, not promised. Revises D1 and the closed-page half of D3. | §1 rows 10, 15 | C1, C3, Q | Google export limits unmeasured until Q |
+| 10 | Empty list | Valid empty clears (DS18); mechanism unsaid | Write `""` | Clears under the new contract only | **Adapters write strings, and `""` for a valid empty read.** Legacy `[]` and null behaviour untouched. | §1 row 3 | C1, C2 | None |
+| 11 | Who reads a Sheet, how fresh | Server when published, browser when not; 5 s read, 10 s on screen; server scheduler to qualify | Browser or output renderer every 5 s through a cached proxy; no server cron yet | Browser lead at 5 s under a lease; server tick about once a minute when no page is open; measure | **B.** Browser at 5 s while any page of the production is open, local or published, under one lease; a server tick about once a minute for published sources with no live lease. Closed-page latency is reported as measured, not promised. Revises D1 and the closed-page half of D3. | §1 rows 10, 15 | C1, C2, Q | Google export limits unmeasured until Q |
 | 12 | A fetch proxy or renderer poll | None | `/api/data/sheet-fetch`; renderer heartbeat | None | **Neither.** The export URL answers cross-origin (measured 2026-10-16); the browser reads it directly. The renderer never writes (§1 last row). | sheet spec "Measured" | C1 | A change by Google would need the proxy later |
-| 13 | Bindings on a published production (DS17) | Reach the server at once | New RPC `control_update_data_config` | Owner-authenticated write of the `bindings` column | **B.** The owner already writes the row at publish; a partial update of `bindings` and `sources` needs no RPC. | §1 row 14 | C3 | None |
+| 13 | Bindings on a published production (DS17) | Reach the server at once | New RPC `control_update_data_config` | Owner-authenticated write of the `bindings` column | **B.** The owner already writes the row at publish; a partial update of `bindings` and `sources` needs no RPC. | §1 row 14 | C2 | None |
 | 14 | Pause for pushed data (DS20) | Held patches with null deletions and order, for `/patch` and `/update` | `data_paused` plus held patch and held per-graphic updates | Suppress-and-diff: merge into the tree, skip dispatch, store what was dispatched, diff on Resume; or defer | **B's suppress-and-diff, late (C5).** The tree stays the authority, so `/state` stays truthful; held `/update` rows are a per-graphic last-write map applied after the tree diff. If C5 finds it disproportionate, the card states today's doctrine ("to freeze, stop the sender") and Pause ships for Sheets and feeds only. | `0060` 93-102; `0047` 66-99 | C5 | Cost of the two held streams |
-| 15 | YouTube scope | Qualify live chat and comments separately; server credentials and closed-page intake in 25 | Comments (1 unit, one-shot or 30-60 s poll) and live chat fixes now; server intake deferred; key in localStorage | Comments one-shot; live chat kept; history page decided; key in memory with an opt-in to remember; server intake deferred | **Both, browser-side only.** Comments: one call, newest 100, refresh is a press. Live chat: first page delivered marked "earlier"; the 5 s floor stays. Key remembered only on opt-in (B). Video and mode persist with the production. Server intake and all new Twitch work deferred. | §1 row 6; B Appendix B quota figures | C2, Q | Key-only authorization for public content: expected, confirmed by a receipt in Q |
+| 15 | YouTube scope | Qualify live chat and comments separately; server credentials and closed-page intake in 25 | Comments (1 unit, one-shot or 30-60 s poll) and live chat fixes now; server intake deferred; key in localStorage | Comments one-shot; live chat kept; history page decided; key in memory with an opt-in to remember; server intake deferred | **Both, browser-side only.** Comments: one call, newest 100, refresh is a press. Live chat: first page delivered marked "earlier"; the 5 s floor stays. Key remembered only on opt-in (B). Video and mode persist with the production. Server intake and all new Twitch work deferred. | §1 row 6; B Appendix B quota figures | C3, Q | Key-only authorization for public content: expected, confirmed by a receipt in Q |
 | 16 | Twitch | Compatibility and an extension path | Untouched behind a disclosure | Untouched; documented flow needs auth | Untouched; one regression check in C7. | `twitchChat.ts` 95-97 | C7 | None |
-| 17 | Trial targets | Under 2 min paste, under 5 min Sheet | Sharper times with embedded safety checks | Unaided completion and comprehension questions; times recorded, no target | **B's measures with A's embedded safety checks.** Pass: four of five complete unaided and answer the three comprehension questions; medians reported. | None | Q, C7 | None |
+| 17 | Trial targets | Under 2 min paste, under 5 min Sheet | Sharper times with embedded safety checks | Unaided completion and comprehension questions; times recorded, no target | **B's measures with A's embedded safety checks.** Pass: four of five complete unaided and answer the three comprehension questions; medians reported. One full trial, in C7, when every task's feature exists; the paste tasks also run early on C0's build. | None | Q, C7 | None |
 | 18 | Feeds | Guarded cached route, 5 min | Same, plus a colon toggle | Same; colon convention shown, never altered | **Keep; no toggle.** The split lives in the template parser, which this run does not change; the preview shows it. Route: a public segment of the existing data catch-all; budget unchanged. | §1 rows 9, 11 | C4 | None |
 | 19 | Scoreboard preset, grid editors | Not in plan | One-click scoreboard preset; two-column grid editors | Not proposed | **Not built.** Scores already have controls; list fields already are textareas, and "Paste rows" converts pasted cells through the same adapter. | GOALS outcome 4 | C1 | Trial may ask for a grid later |
-| 20 | Private metadata on air | Source and Reference never fill fields | Reference hidden | Platform suffix rides the author line today | Source and Reference are provenance only. The " · YouTube" suffix moves to provenance; owner's taste (§7). | `chatIntake.ts` 135-140 | C0, C2 | Owner |
+| 20 | Private metadata on air | Source and Reference never fill fields | Reference hidden | Platform suffix rides the author line today | Source and Reference are provenance only. The " · YouTube" suffix moves to provenance; owner's taste (§7). | `chatIntake.ts` 135-140 | C0, C3 | Owner |
 | 21 | Verification gaps | Phase 15 writes the matrix | Per-phase tests named | Output player check, comprehension, migration test, metadata check | **All four added.** The matrix is in the data-sources spec, per phase, with file names. | None | all | None |
 | 22 | Standings, credits, schedule details | Headers and rows together; breaks survive | Both fields bound; interior blanks kept; tab join for two-column tickers | Trailing cells trimmed; role-only row becomes `Role:`; fixtures named | All adopted in the adapter contract (C1). The schedule's second field is the heading, not a note. | §1 rows 7-9 | C1 | None |
 
@@ -95,11 +95,11 @@ production), then Takes it in Playout. Nothing airs from this view. The **Data**
 content set, its source and the graphics using it, with Pause; paths, seed, Raw JSON and per-field
 bindings sit behind Advanced. The **Playout** tab shows one line per source with status and Pause.
 
-Storage is additive: `Show.sources[]` (kind, config, use, paused, label, writes), `Show.bindings`
-unchanged as the resolution contract, `AudienceSubmission` with optional `externalId`, `source`
-and `reference`, `ShowCue.stagedFrom`, a durable local inbox for authored and imported rows, and
-the same optional columns on the published audience table. No new general store, no new wire
-format, no template change.
+Storage is additive: `Show.sources[]` (id, kind, config, paused, label, inbox), `Show.bindings`
+unchanged as the one relation between a source and the fields it feeds, `Show.messageTarget`,
+`AudienceSubmission` with optional `externalId`, `source` and `reference`, `ShowCue.stagedFrom`,
+a durable local inbox for authored and imported rows, and the same optional columns on the
+published audience table. No new general store, no new wire format, no template change.
 
 Five small format adapters turn rows into the text each graphic already parses: lines (ticker),
 schedule, standings (headers and rows in one update), credits (headings, `Role:` groups, section
@@ -113,8 +113,9 @@ own key. Feeds are fetched by a guarded public route. The data API keeps `/patch
 with a generated example; Pause for it comes last and smallest.
 
 The three protective sentences: a message destination has no live binding on its body or name
-field; a destination is chosen explicitly or offered as a new card, never guessed; a candidate's
-identity is its content, never its row position.
+field, and no binding is added to a field that prepared cues use; a destination is named on the
+action, chosen explicitly and remembered, never guessed; a candidate's identity is its content,
+never its row position.
 
 ## 4. Operator journeys
 
@@ -129,16 +130,18 @@ pastes a new message into a new cue; the first cue keeps its text. On air: nothi
 reaches NoaCG by itself. The candidate is kept in Messages with "In rundown (cue 4)" and its
 original text. Today: impossible without a published production and a phone.
 
-**No compatible graphic.** The production holds one scoreboard. "Fill from… Paste a message" says
-"No graphic here can show a message" and offers the four Q&A cards; one press adds the card and a
-cue on it; nothing airs. The same offer appears in Messages. Today: a scoreboard cue is created
-with the message as Team A (#1313). The mutation test restores the fallback and must fail.
+**No compatible graphic.** The production holds one scoreboard. The cue editor offers "Paste a
+message" on no field, because no field can hold one. In Messages, "Prepare cue" says "No graphic
+here can show a message" and offers the four Q&A cards; one press adds the card and a cue on it;
+nothing airs. Today: a scoreboard cue is created with the message as Team A (#1313). The mutation
+test restores the fallback and must fail.
 
 **Select a message from a Sheet.** Messages › "Add a message Sheet": "Copy starter rows" (Name,
 Message, Source, Reference), a link box. Candidates show Name and Message; Source and Reference
-are small grey provenance and never fill a field. Pick one, edit, "Prepare cue on…", pick the card
-once, Take. Reordering the Sheet changes nothing. Editing a row makes a new candidate and marks the
-old one changed; the cue is untouched. Deleting a row removes the candidate, not the cue. On a
+are small grey provenance and never fill a field. Pick one, edit, "Prepare cue on House Q&A" (chosen
+once, remembered), Take. Reordering the Sheet changes nothing. Editing a row is a vanished row and
+a new one; the cue is untouched. A vanished row leaves an unused candidate and keeps a used one,
+marked "no longer in the Sheet". On a
 later cue the operator can also "Fill from… Pick a message" in the cue editor. Today: a Sheet
 cannot reach the inbox.
 
@@ -176,7 +179,8 @@ keeps the last list.
 **Two prepared messages on one card.** Cue A and cue B on the same card. Take A; prepare B from a
 new message; Take B replaces A on the layer; A's cue still holds A's text; re-Take A brings it
 back. Editing B's candidate in Messages after preparing changes nothing in cue B. Binding the
-card's Question field later names cues A and B and asks, offering a separate card.
+card's Question field later is refused while cues A and B use it, with the offer of a separate
+card.
 
 **Failure, reload, Pause, retries.** A Sheet that stops answering: the line says "can't read it
 (not shared) since 20:14"; after 15 seconds the fields show the stale mark; reading resumes by
@@ -199,28 +203,31 @@ Dispositions of the 26 phases at `7313cd8`:
 | 11, 12 | liveCue move, graphic verbs | Defer; safety-sensitive and unrelated to content; their own window |
 | 13 | Cue draft and editor | Split: props-only `CueEditor.tsx` now (step 4, "13a"); the draft part later ("13b") |
 | 14 | Close-out | Defer with the later window; the compiled rule can land with 13a |
-| 15 | Prototype, qualification, matrix | Becomes track Q: measurements and the trial on C0's build; no A/B of two workspaces; the matrix is written now (§6) |
-| 16 | Contracts | Dissolved into C0 (messages), C1 (connections, formats) and C2 (identity) |
+| 15 | Prototype, qualification, matrix | Becomes track Q: measurements and the paste tasks on C0's build; the one full trial is in C7; no A/B of two workspaces; the matrix is written now (§6) |
+| 16 | Contracts | Dissolved into C0 (messages), C1 (connections, formats) and C3 (identity) |
 | 17 | Native lists, local Sheets | C1 |
-| 18 | Published ownership | C3, with the lease model and DS17 |
+| 18 | Published ownership | C2, with the lease model and DS17 |
 | 19 | Feeds | C4 |
 | 20 | API setup and Pause | C5, smallest form |
-| 21 | Selected rows, paste, Sheet messages | Paste to C0; Sheet messages and the cue-editor pick to C2 |
+| 21 | Selected rows, paste, Sheet messages | Paste to C0; Sheet messages and the cue-editor pick to C3 |
 | 22 | Journeys, compatibility, docs | C6 |
 | 23 | Safe staging, #1313 | C0, first |
 | 24 | Shared workflow, join, presenter, votes | One primary action to C0; the walks to C7 |
-| 25 | YouTube, Twitch compatibility | C2 (browser-side scope) and C7 (Twitch check) |
+| 25 | YouTube, Twitch compatibility | C3 (browser-side scope) and C7 (Twitch check) |
 | 26 | Combined rehearsal | C7 |
 
-Run order, one `/plan-run production-page`, sequential:
+Run order, one `/plan-run production-page`, sequential (the parent spec's "Run order" section is
+the living copy; this list is the record of what was decided):
 
 1. **C0 Paste and safe staging** (feature change, outside the refactor fence).
 2. **Refactor phase 1** safety net and the two suspected defects.
 3. **Refactor phases 2+7** store part, session skeleton, production-data session.
 4. **Refactor phase 13a** props-only cue editor extraction.
 5. **C1 Native lists and local Sheets** (adapters, starter rows, browser reader, status line).
-6. **C2 Sheet messages and YouTube** (identity, cue-editor pick, comments and live chat).
-7. **C3 Published ownership** (sources and bindings persist at once; lease; server tick; cost).
+6. **C2 Published ownership** (sources and bindings persist at once; lease; server tick; Pause;
+   cost).
+7. **C3 Sheet messages and YouTube** (identity, cue-editor pick, comments and live chat); may run
+   in a parallel session to C2.
 8. **C4 Feeds.**
 9. **C5 Another-system card and Pause.**
 10. **C6 Journeys, compatibility, docs** (retire the graphic-level panel for new graphics).
@@ -228,8 +235,9 @@ Run order, one `/plan-run production-page`, sequential:
 
 Track **Q** (qualification and trial) runs beside C0 in its own session with network access and
 the owner's keys: 20 real Sheet edits timed; an hour of 5-second export reads; five public feeds;
-a YouTube video and a live stream with the operator's key; the trial of §7 of the data-sources
-spec on C0's build and a disposable Connect dialog. Q is recorded before step 5 starts. A miss
+a YouTube video and a live stream with the operator's key; the paste tasks of audience AC-7 with
+students on C0's build. The one full trial of data-sources AC-14 runs in C7, when every task's
+feature exists. Q is recorded before step 5 starts. A miss
 on the Sheet measurement stops the plan at step 5 and asks (D3's rule, kept).
 
 Later window, its own run: refactor phases 3, 4, 5, 6, 8, 9, 10, 11, 12, 13b and 14, as the
@@ -238,7 +246,7 @@ refactor spec describes them.
 What this costs against the current plan: `docs/GOALS.md` outcome 5's bullet ("the page cleanup,
 then the Sheet data flow, then audience") changes to this order; the refactor spec's "After the
 refactor" section is replaced by the run order; sheet D1 and the closed-page half of D3 are
-revised; DS1/3/7/9/11/14/16/18/20 and A1/A4 are superseded where they conflict (each spec marks
+revised; DS1/3/7/9/10/14/15/16/19/20 and A1/A4 are superseded where they conflict (each spec marks
 which).
 
 ## 6. Verification
@@ -265,11 +273,11 @@ Recommendation first. Routine choices are made in the specs and not repeated her
    Recommended yes: no seconds-scale scheduler exists, Google's limits are unmeasured, and the
    teaching case has the page open. The alternative is building and paying for one before knowing
    either.
-3. **Protection by destination hygiene.** No `/update` protection; a later binding on a card with
-   prepared cues names them and asks, offering a separate card, rather than being refused.
-   Recommended yes: the prepared cue is already plain values; the only live routes are a binding
-   on the destination and a deliberate graphic-addressed write, and the first is closed by the
-   picker.
+3. **Protection by destination hygiene.** No `/update` protection; a bound body or name field is
+   never a destination, and a binding is never added to such a field while prepared cues use it;
+   both refusals offer a separate card. Recommended yes: the prepared cue is already plain values;
+   the only live routes are a binding on the destination and a deliberate graphic-addressed
+   write, and the first is closed at both doors.
 4. **YouTube key and the platform word.** The key is remembered only when the operator ticks
    "Remember on this browser"; " · YouTube" moves from the broadcast name to provenance.
    Recommended yes for both; the second is taste.

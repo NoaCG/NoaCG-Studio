@@ -673,9 +673,7 @@ content work needs the data session and a props-only cue editor move, not the pr
 reconciliation (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`) replaces the
 "cleanup first" order with the one below. The refactor's safety contracts (§4-§8) are unchanged.
 
-One `/plan-run production-page`, sequential; the wave file names each step in §9's format,
-`N. Phase <k> of the spec: <name> (AC-...)`, where `<k>` is `C0`..`C7` for the data-sources
-spec's phases (the §9 line says so):
+One `/plan-run production-page`, sequential; the wave file names each step in §9's format:
 
 | Step | Phase | Spec | Result |
 | --- | --- | --- | --- |
@@ -684,8 +682,8 @@ spec's phases (the §9 line says so):
 | 3 | 2+7 | this spec | Store part, session skeleton, the production-data session (one phase; both §6 rows run in full: phase 2's targeted specs, Node tests and configured dispatch, and phase 7's) |
 | 4 | 13a | this spec | Props-only cue editor extraction |
 | 5 | C1 | data-sources | Native lists (paste rows), starter rows, local Sheets, the browser reader, the sources line, the Data overview with Advanced |
-| 6 | C2 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat |
-| 7 | C3 | data-sources | Published ownership: bindings and sources persist at once, the lease, the server tick, cost |
+| 6 | C2 | data-sources | Published ownership: bindings and sources persist at once, the lease, the server tick, Pause, cost |
+| 7 | C3 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat (may run in a parallel session to C2) |
 | 8 | C4 | data-sources | Feeds |
 | 9 | C5 | data-sources | The another-system card and Pause |
 | 10 | C6 | data-sources | Journeys, compatibility, docs |
@@ -730,13 +728,10 @@ Added 2026-10-16: the phase 1 builder reads `evidence/reconcile-2026-10-16.md` f
 here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reused. The owner
 answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settled.
 
-Before C0 (step 1): the run preflight above and nothing from the refactor; C0 lands before phase
-1's baseline, and phase 1's characterisation then covers it. Before C1 (step 5): phases 1, 2+7
-and 13a checked PASS on
-`main`; track Q recorded with the Sheet measurement inside D3, or the plan stopped and asked; the
-data-sources and audience-flow specs agreed; digests current and `work-spec.mjs status` clean.
-Later readiness per content phase is in the data-sources spec. A manual YouTube copy does not
-prove a direct connector; optional Twitch work is not a completion gate.
+C0 (step 1) needs nothing from the refactor beyond the run preflight; it lands before phase 1's
+baseline, and phase 1's characterisation then covers it. Readiness for C1 and the later content
+phases is in the data-sources spec. A manual YouTube copy does not prove a direct connector;
+optional Twitch work is not a completion gate.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with

@@ -8,8 +8,8 @@ accepting every recommendation, and asked for a second opinion before the phases
 
 **Second opinion, 2026-10-17:** [the follow-up](second-opinion.md) checks the code independently,
 reads primary documentation directly, supplies six starter layouts, and proposes scoped
-connections, explicit list formats and a smaller operator workflow. Its proposed P1-P5 shaped
-the candidate that the two reviews below then reconciled. Original owner answers stay recorded;
+connections, explicit list formats and a smaller operator workflow. Its proposals shaped the
+candidate that the two reviews below then reconciled. Original owner answers stay recorded;
 changes remain draft. The source-access note below describes this first research pass only.
 
 ## Latest owner direction and full-plan review, 2026-10-17
@@ -40,21 +40,20 @@ window, destination hygiene instead of snapshot flags, a browser-led Sheet reade
 tick, five format adapters, browser-side YouTube. Four decisions remain for the owner (its §7).
 The parent, Sheet and message specs carry the result; the plan is draft until he agrees it.
 
-The full-plan read found these questions worth challenging; the synthesis answers each:
+The full-plan read raised these questions before the reviews; the synthesis answered each:
 
-- Phases 1-14 have detailed command, lifecycle, rollback and verification contracts. Those are
-  valuable; the number of extractions is not itself a user outcome. Review maintenance phases
-  3/4/6/8/9 and any dependency on them before the first useful feature.
-- The manual message result currently waits until 23, after feed/API work. Review whether its
-  smallest safe path can come earlier, while keeping feature changes out of refactor commits.
-- The old §6 matrix only covers 1-14. The data-sources spec now carries a named verification
-  matrix for C0-C7 and track Q; citing the old matrix alone cannot verify the new features.
-- Navigation, source kind, use policy and storage are distinct choices. A coherent workflow
-  should not require a new generic platform, nor permit a Sheet message to bypass staging.
-- Existing live binding precedence can override prepared cue text. Prototype and verify two
-  messages on one graphic and a competing binding, not only the first successful message.
-- YouTube direct scope, authentication, recent-history behavior and closed-page hosting remain
-  unproven. No quota or runtime claim should be inferred from fixtures or manual copying.
+- Which refactor extractions the content work needs. Answer: phases 1, 2+7 and a props-only
+  cue editor move; the rest wait for a later window.
+- Whether the manual message result, then scheduled as phase 23 after feed and API work, could
+  come earlier. Answer: first, as content phase C0, a declared feature change before phase 1.
+- How the continuation is verified, since the parent's §6 matrix covers only 1-14. Answer: the
+  data-sources spec carries a matrix for C0-C7 and track Q, with file names.
+- How navigation, source kind, use and storage relate. Answer: the cue editor is the home; one
+  source feeds bindings, the inbox, or both; no new store.
+- How a competing binding is kept off a prepared message. Answer: destination hygiene at both
+  doors, proved with two cues on one graphic and a binding attempted before and after.
+- What YouTube scope is real. Answer: browser-side comments and live chat with the operator's
+  key, receipts from track Q before anything is promised.
 
 No code, migration, browser walkthrough, provider trial or implementation phase was run in this
 update or in the reconciliation. The continuation remains draft pending the owner's agreement on
@@ -67,8 +66,7 @@ rows can be section breaks; a CSV read does not discover other tabs. Google's im
 only IMPORTDATA/HTML/XML in its hourly-while-open sentence, while its settings page separately
 lists IMPORTFEED as hourly. IMPORTRANGE's own page says hourly checks while open as well as
 describing reload behavior; the settings page still says 30 minutes. A database scheduler is not
-itself a durable chat listener. `DATA_API.md` already documents finding the key in the Data tab;
-the stale SQL-key instruction mentioned below has been corrected in that guide.
+itself a durable chat listener. `DATA_API.md`'s two stale lines are noted in §1.2 below.
 
 **How the outside facts were read.** The cloud environment's network policy denied the hosts
 (support.google.com, developers.google.com, rssboard.org, dev.twitch.tv, owasp.org), so no page
