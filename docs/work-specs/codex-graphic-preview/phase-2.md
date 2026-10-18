@@ -70,11 +70,11 @@ jobs stayed within five minutes and the existing one-browser-job queue.
 | Actual Windows Codex inspection | **Not checked**; required by #1491 |
 
 The square fixture's exact source revision is
-`files-sha256:400f2668c955a44a7e9d4e7264e9bdb8e3e9f1301e3b4ab1ec47ad75b6c9f8ed`.
+`files-sha256:9d5eb424bbbf33553476ddb1cf07e3ec533678228fd6ef89dfd8765397e18a8f`.
 The baseline phase-1 revision remains
 `files-sha256:8dde8a7398c3d3a09d8bf499bdee9643d931a759ee7af28de7e34d5bf4db086f`.
 The browser receipt records the actual tested implementation SHA, dirty paths,
-installed plugin/SDK versions, package files, selected context and isolation results.
+candidate package/MCP dependency versions, package files, selected context and isolation results.
 The PR records the exact reviewed tip, targeted commands and Actions job links.
 
 Rendered evidence is outside Git at
@@ -94,7 +94,7 @@ through the iframe's rendered scale and compares it with the highlight. No basel
 or existing gate was weakened. j-0006 passed both journeys. j-0007 exposed the old
 test's extra preview call superseding its displayed view and the product's premature
 Ready before replay finished; both were fixed, and j-0008 passed both journeys.
-Independent review then reproduced two defects on the immutable first candidate: viewport-dependent initialization captured960 px instead of authored540 px, and an image default over4000 characters was truncated/broken. The fix detects canvas size inside the browser before source execution and keeps image values as package asset keys while passing complete image bytes only inside the graphic. The square fixture now regresses both, including a filelist picker. Review evidence is preserved under review/.
+Independent review then reproduced two defects on the immutable first candidate: viewport-dependent initialization captured 960 px instead of authored 540 px, and an image default over4000 characters was truncated/broken. The fix detects canvas size inside the browser before source execution and keeps image values as package asset keys while passing complete image bytes only inside the graphic. The square fixture now regresses both, including a filelist picker. A further independent actual-runtime probe found authored image action.set values still carried URLs instead of asset keys; normalizing those values fixes action→picker→Update agreement, now regressed with an alternate logo. Review evidence is preserved under review/.
 Final exact-tip evidence supersedes these intermediate candidates. Logs retain all
 observed failures and source changes; an old pass is not claimed for a newer tip.
 
@@ -116,7 +116,7 @@ cli/plugin-preview/README.md. Phase 1 independently passed #1314; do not repeat 
 Never access, modify, rebuild, delete or clean
 C:/Users/ahonemi/.codex/worktrees/graphic-preview-resume/NoaCG-Studio.
 Preserve its installed plugin 0.1.3 and edited draft. Create a NEW feature
-worktree from the exact implementation SHA recorded by the phase-2 PR. Use Node24
+worktree with command-local core.autocrlf=false from the exact implementation SHA recorded by the phase-2 PR. Use Node 24
 and an existing Chrome/Edge; obey this Windows machine's current verification queue
 and resource guards. No model API, account/credential changes, public release,
 delivery, production or on-air action is authorized.
@@ -130,9 +130,9 @@ noacg-preview-phase2-trial@noacg-preview-phase2-local from this new runtime and 
 that worktree. Do not remove or replace the original plugin/marketplace/cache.
 
 Discover the phase2 MCP connection and open its actual Codex conversation panel.
-Record app/CLI versions, source SHA, plugin0.1.4/SDK1.31.0, actual runtime/package
+Record app/CLI versions, source SHA, plugin 0.1.4/SDK 1.31.0, actual runtime/package
 paths and source digest. Inspect square aspect, SVG/font, all seven field kinds,
-Update/Goal+1/Out/Take/Next/reset, named keyboard/click selection and a Region at
+Update/Goal+1/Alternate logo/Out/Take/Next/reset, named keyboard/click selection and a Region at
 wide and narrow panel sizes. Inspect actual alignment; verify source stays unchanged.
 Send one explicit selection request and confirm the active native task receives
 its matching PNG, package identity/revision, bounds, values and rehearsal state.

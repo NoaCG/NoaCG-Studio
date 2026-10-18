@@ -175,7 +175,7 @@ reference files; use repository fixtures until the explicit local check.
   continuation prompt are in [phase-2.md](phase-2.md).
 - Phase 2 remains incomplete until actual Windows rendered AC-3 inspection and an
   independent verdict in [#1491](https://github.com/NoaCG/NoaCG-Studio/issues/1491).
-  Phase 1 is already independently passed in #1314; its installed0.1.3/SDK1.30.0
-  proof does not establish candidate0.1.4/SDK1.31.0 native compatibility. Do not
+  Phase 1 is already independently passed in #1314; its installed 0.1.3 / SDK 1.30.0
+  proof does not establish candidate 0.1.4 / SDK 1.31.0 native compatibility. Do not
   repeat phase 1, treat a browser stub as the native gate, touch the preserved
   installed runtime/draft, or unlock phase 3 from cloud evidence alone.

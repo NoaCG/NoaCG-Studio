@@ -14,7 +14,7 @@ test('package dependency closure includes nested styles, relative assets and fon
   try {
     await writePackage(root);
     const first = await readSource(root, 'square.html');
-    assert.deepEqual(first.sourceFiles, ['css/template.css', 'css/type.css', 'fonts/inter.woff2', 'images/badge.svg', 'js/template.js', 'square.html']);
+    assert.deepEqual(first.sourceFiles, ['css/template.css', 'css/type.css', 'fonts/inter.woff2', 'images/alternate.svg', 'images/badge.svg', 'js/template.js', 'square.html']);
     assert.match(first.document, /data:font\/woff2;base64,/);
     assert.match(first.document, /data:image\/svg\+xml;base64,/);
     assert.ok(first.document.startsWith('<!doctype html><meta http-equiv="Content-Security-Policy"'));

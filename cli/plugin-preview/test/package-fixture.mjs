@@ -14,8 +14,8 @@ export async function writePackage(root) {
     { field: 'notes', ftype: 'textarea', title: 'Notes', value: 'First line\nSecond line' },
   ];
   const animation = { version: 2, root: '#panel', speed: 1, steps: [{ name: 'In', duration: 0, ease: 'none', layers: {} }, { name: 'Out', duration: 0, ease: 'none', layers: {} }], machine: {
-    groups: [{ id: 'main', initial: 'off', defaultPath: ['live', 'off'], states: [{ id: 'off' }, { id: 'live' }], transitions: [{ from: 'live', to: 'live', trigger: 'operator', event: 'goal' }] }],
-    controls: [{ event: 'goal', label: 'Goal +1', adjust: { score: 1 } }],
+    groups: [{ id: 'main', initial: 'off', defaultPath: ['live', 'off'], states: [{ id: 'off' }, { id: 'live' }], transitions: [{ from: 'live', to: 'live', trigger: 'operator', event: 'goal' }, { from: 'live', to: 'live', trigger: 'operator', event: 'switchLogo' }] }],
+    controls: [{ event: 'goal', label: 'Goal +1', adjust: { score: 1 } }, { event: 'switchLogo', label: 'Alternate logo', set: { badge: 'images/alternate.svg' } }],
   } };
   const files = {
     'square.html': `<!doctype html><html><head><meta name="noacg-project-format" content="width=1080;height=1080;fps=25"><title>Square rehearsal</title><link href="./css/template.css" rel="stylesheet"><script>globalThis.__NOACG_PREVIEW_NODE_PROBE=true;window.SPXGCTemplateDefinition=${JSON.stringify({ DataFields: fields })};</script><script src="js/template.js"></script></head><body><section id="panel" data-preview-target="Panel"><img id="badge" src="images/badge.svg" alt=""><p id="edition">LIVE</p><h1 id="headline">Studio report</h1><p id="score">2</p><p id="notes">First line<br>Second line</p><div id="unmapped">Unmapped artwork</div></section></body></html>`,
@@ -32,6 +32,7 @@ export async function writePackage(root) {
       window.noacgMachineState=()=>({groups:{main:state}});`,
   };
   for (const [name, text] of Object.entries(files)) await writeFile(path.join(root, name), text);
-  await writeFile(path.join(root, 'images/badge.svg'), (await readFile(new URL('../fixture/badge.svg', import.meta.url), 'utf8')).replace('</svg>', '<!--' + 'image-default-regression '.repeat(250) + '--></svg>'));
+  await writeFile(path.join(root, 'images/badge.svg'), (await readFile(new URL('../fixture/badge.svg', import.meta.url), 'utf8')).replace(/\r\n/g, '\n').replace('</svg>', '<!--' + 'image-default-regression '.repeat(250) + '--></svg>'));
+  await writeFile(path.join(root, 'images/alternate.svg'), (await readFile(path.join(root, 'images/badge.svg'), 'utf8')).replace('#f6a623', '#48a5ff'));
   await writeFile(path.join(root, 'fonts/inter.woff2'), await readFile(new URL('../../../public/fonts/inter.woff2', import.meta.url)));
 }

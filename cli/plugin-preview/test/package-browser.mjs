@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -27,6 +28,8 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
   try {
     await mkdir(evidence, { recursive: true });
     await cp(root, path.join(evidence, 'source-package'), { recursive: true });
+    const hashes = Object.fromEntries(await Promise.all(original.sourceFiles.map(async (name) => [name, createHash('sha256').update(await readFile(path.join(root, name))).digest('hex')])));
+    await writeFile(path.join(evidence, 'source-hashes.json'), JSON.stringify(hashes, null, 2));
     await server.connect(a);
     await client.connect(b);
     const initial = await client.callTool({ name: 'noacg_preview', arguments: {} });
@@ -40,6 +43,7 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
     assert.equal(initial._meta.preview.targets.find((target) => target.id === 'headline').bounds.width, 540);
     assert.equal(initial._meta.preview.actions[0].label, 'Goal +1');
     assert.equal(initial._meta.preview.actions[0].disabled, false);
+    assert.equal(initial._meta.preview.actions.find((action) => action.event === 'switchLogo').set.badge, 'images/alternate.svg');
     const png = Buffer.from(initial.content[1].data, 'base64');
     assert.equal(png.readUInt32BE(16), 1080);
     assert.equal(png.readUInt32BE(20), 1080);
@@ -63,6 +67,14 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
     assert.equal(await graphic.locator('#score').textContent(), '7');
     assert.equal(await graphic.locator('#edition').textContent(), 'REPLAY');
     assert.ok(await graphic.locator('#badge').evaluate((node) => node.src.length > 4000 && node.naturalWidth > 0));
+    await ui.getByRole('button', { name: 'Alternate logo', exact: true }).click();
+    await ui.getByRole('status').filter({ hasText: 'Ready' }).waitFor();
+    assert.equal(await ui.getByLabel('Logo', { exact: true }).inputValue(), 'images/alternate.svg');
+    assert.ok(await graphic.locator('#badge').evaluate((node) => node.naturalWidth > 0 && atob(node.src.split(',')[1]).includes('#48a5ff')));
+    await ui.getByRole('button', { name: 'Update preview', exact: true }).click();
+    await ui.getByRole('status').filter({ hasText: 'Ready' }).waitFor();
+    assert.equal(await ui.getByLabel('Logo', { exact: true }).inputValue(), 'images/alternate.svg');
+    assert.ok(await graphic.locator('#badge').evaluate((node) => node.naturalWidth > 0 && atob(node.src.split(',')[1]).includes('#48a5ff')), 'Update preserves the image selected by an authored operator action');
     await ui.getByRole('button', { name: 'Goal +1', exact: true }).click();
     await ui.getByRole('status').filter({ hasText: 'Ready' }).waitFor();
     await graphic.locator('#score').filter({ hasText: /^8$/ }).waitFor();
@@ -77,6 +89,8 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
     const request = (await page.evaluate(() => window.received))[0];
     const context = messageContext(request);
     assert.equal(context.sampleValues.score, '8');
+    assert.equal(context.sampleValues.badge, 'images/alternate.svg');
+    assert.ok(context.rehearsal.operations.some((operation) => operation.event === 'switchLogo'));
     assert.equal(context.rehearsal.last, 'event');
     assert.equal(context.selection.id, 'headline');
     assert.equal(context.revision, original.revision);
@@ -143,7 +157,7 @@ test('real square package: font/assets, generated fields/actions, rehearsal PNG 
     assert.equal(await graphic.locator('#score').textContent(), '2');
     assert.equal(await ui.getByRole('button', { name: 'Send change to this task' }).isDisabled(), true);
     assert.equal((await readSource(root, 'square.html')).revision, original.revision, 'rehearsal never writes source');
-    await writeFile(path.join(evidence, 'receipt.json'), JSON.stringify({ implementation: { sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), dirtyPaths: execFileSync('git', ['status', '--short'], { encoding: 'utf8' }).trim(), plugin: JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version, sdk: JSON.parse(await readFile(new URL('../node_modules/@modelcontextprotocol/sdk/package.json', import.meta.url), 'utf8')).version }, revision: original.revision, sourceFiles: original.sourceFiles, size: initial.structuredContent.size, context, region, isolation, errors, consoleMessages, failedRequests }, null, 2));
+    await writeFile(path.join(evidence, 'receipt.json'), JSON.stringify({ implementation: { sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), dirtyPaths: execFileSync('git', ['status', '--short'], { encoding: 'utf8' }).trim(), candidatePackageVersion: JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version, mcpSdkDependencyVersion: JSON.parse(await readFile(new URL('../node_modules/@modelcontextprotocol/sdk/package.json', import.meta.url), 'utf8')).version, nativeCodexInstallationObserved: false }, revision: original.revision, sourceFiles: original.sourceFiles, size: initial.structuredContent.size, context, region, isolation, errors, consoleMessages, failedRequests }, null, 2));
     assert.deepEqual(errors, []);
     process.stdout.write('Phase-2 package/browser checks passed; Windows rendered desktop inspection remains unverified.\n');
   } finally {

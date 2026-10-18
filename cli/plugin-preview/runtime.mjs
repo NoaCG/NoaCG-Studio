@@ -20,17 +20,19 @@ function describe(assetUrls) {
   const rawFields = Array.isArray(definition?.DataFields) ? definition.DataFields : [];
   if (rawFields.length > 40) throw new Error('The trial supports up to 40 declared fields.');
   const images = new Map(Object.entries(assetUrls));
+  const imageKey = (value, tag) => {
+    const path = [...images].find(([, url]) => url === value)?.[0];
+    if (path) return path;
+    if (/^data:image\//i.test(value)) {
+      const key = `embedded:${tag}`;
+      images.set(key, value);
+      return key;
+    }
+    return value;
+  };
   const fields = rawFields.filter((field) => /^[a-zA-Z][\w-]{0,79}$/.test(field.field) && !['constructor', 'prototype', '__proto__'].includes(field.field)).map((field) => {
     let value = String(field.value ?? '');
-    if (field.ftype === 'filelist') {
-      const path = [...images].find(([, url]) => url === value)?.[0];
-      if (path) value = path;
-      else if (value.startsWith('data:image/')) {
-        const key = `embedded:${field.field}`;
-        images.set(key, value);
-        value = key;
-      }
-    }
+    if (field.ftype === 'filelist') value = imageKey(value, `default:${field.field}`);
     if (value.length > 4000) throw new Error('A sample field exceeds the trial limit (4000 characters).');
     if (Array.isArray(field.items) && field.items.length > 100) throw new Error('A field exceeds the trial limit (100 choices).');
     return {
@@ -43,7 +45,8 @@ function describe(assetUrls) {
     };
   });
   const js = [...document.scripts].filter((script) => script.id !== 'noacg-preview-runtime').map((script) => script.textContent).join('\n');
-  const actions = eventButtons(js);
+  const imageFields = new Set(fields.filter((field) => field.ftype === 'filelist').map((field) => field.field));
+  const actions = eventButtons(js).map((action) => action.set ? { ...action, set: Object.fromEntries(Object.entries(action.set).map(([key, value]) => [key, imageFields.has(key) ? imageKey(value, `action:${action.event}:${key}`) : value])) } : action);
   if (actions.length > 40) throw new Error('The trial supports up to 40 operator actions.');
   return { images, info: {
     size: authoredSize(document.documentElement.outerHTML),

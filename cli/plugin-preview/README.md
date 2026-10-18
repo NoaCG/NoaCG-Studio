@@ -21,7 +21,19 @@ recorded by the PR. Never access, rebuild, modify or clean the preserved install
 runtime at `C:/Users/ahonemi/.codex/worktrees/graphic-preview-resume/NoaCG-Studio`.
 Do not remove its plugin or original marketplace.
 
-From the new worktree in PowerShell:
+Create that worktree from another safe checkout, using the exact SHA in the PR's
+review receipt. This command keeps the new checkout's source bytes LF without
+changing Git configuration or any existing worktree:
+
+```powershell
+$Phase2Worktree = Join-Path $env:USERPROFILE '.codex/worktrees/graphic-preview-phase2-new/NoaCG-Studio'
+git fetch origin
+git -c core.autocrlf=false worktree add -b codex/local-graphic-preview-phase2 "$Phase2Worktree" <reviewed-phase2-sha>
+Set-Location "$Phase2Worktree"
+```
+
+If that branch/path already exists, choose a fresh candidate name; do not clean it.
+From this new worktree in PowerShell:
 
 ```powershell
 npm ci --prefix cli/plugin-preview
@@ -74,7 +86,7 @@ Sending uses the host-qualified tool name and MCP Apps `ui/message` with OpenAI
 1. Confirm the real panel is square (1080 × 1080), with the relative badge and bundled
    Inter font rendered. Inspect the graphic and controls at wide and narrow panel sizes.
 2. Edit Headline, Logo, Score, Edition, Show badge, Accent and Notes; press **Update preview**.
-   Use **Goal +1**, **Out**, **Take**, **Next** and **Reset rehearsal**. The graphic and
+   Use **Goal +1**, **Alternate logo**, **Out**, **Take**, **Next** and **Reset rehearsal**. The graphic and
    inputs must agree; Out disables an action the current state cannot accept.
 3. Select **Headline** by click or its named keyboard button. Resize the panel and
    inspect the outline against the actual rendered text. In **Region** mode drag an
@@ -129,7 +141,7 @@ npm run queue -- "npm run test:browser --prefix cli/plugin-preview" --cap 5
 ```
 
 The browser tests cover the original source-edit journey and a square source package with
-nested CSS, a local font, seven field kinds, a custom action and both selection modes at two
+nested CSS, a local font, seven field kinds, a custom actions and both selection modes at two
 sizes. They inspect actual PNGs, source bytes, sandbox access and blocked network/file reads.
 The host is simulated. Focused Actions artifact `preview-trial-browser-stub` retains the
 phase2 frames, receipt and reconstructable source package alongside phase-1 evidence.

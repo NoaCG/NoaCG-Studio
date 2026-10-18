@@ -26,9 +26,15 @@ jobs:
           cache-dependency-path: cli/plugin-preview/package-lock.json
       - run: npm ci --prefix cli/plugin-preview --no-audit --no-fund
       - run: npm run build --prefix cli/plugin-preview
-      - run: npm test --prefix cli/plugin-preview
+      - name: Unit and protocol checks
+        shell: bash
+        run: |
+          mkdir -p cli/plugin-preview/dist/phase2
+          npm test --prefix cli/plugin-preview 2>&1 | tee cli/plugin-preview/dist/phase2/unit.log
       - run: node cli/plugin-preview/node_modules/playwright-core/cli.js install --with-deps chromium
-      - run: npm run test:browser --prefix cli/plugin-preview
+      - name: Package preview browser checks
+        shell: bash
+        run: npm run test:browser --prefix cli/plugin-preview 2>&1 | tee cli/plugin-preview/dist/phase2/browser.log
       - name: Validate the native edited package with NoaCG
         working-directory: cli/plugin-preview
         run: |
