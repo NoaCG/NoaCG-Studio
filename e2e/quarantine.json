@@ -11,6 +11,16 @@
       "since": "2026-10-18",
       "count": 11,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39111170382"
+    },
+    "e2e/editor-arrangement.spec.ts": {
+      "since": "2026-10-18",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39148411585"
+    },
+    "e2e/import-svg-behaviour.spec.ts": {
+      "since": "2026-10-18",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39148411585"
     }
   },
   "released": {
@@ -37,10 +47,6 @@
     "e2e/docs.spec.ts": {
       "count": 1,
       "last": "2026-10-08"
-    },
-    "e2e/editor-arrangement.spec.ts": {
-      "count": 2,
-      "last": "2026-10-17"
     },
     "e2e/editor-base-edits.spec.ts": {
       "count": 2,
