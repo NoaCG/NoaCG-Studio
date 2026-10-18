@@ -81,7 +81,7 @@ for (const mode of ['without another edit', 'after another edit'] as const) {
       await expect(other.getByTestId('save-name')).toBeVisible();
       facts.afterTimeout = await link(other);
       facts.named = await other.getByTestId('save-name').count();
-      await other.getByTestId('save-cancel').click();
+      await other.getByTestId('save-dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
       await other.evaluate(() => {
         const w = window as unknown as { check10Hold: boolean; check10Queue: (() => void)[] };
         w.check10Hold = false; for (const adopt of w.check10Queue.splice(0)) adopt();
