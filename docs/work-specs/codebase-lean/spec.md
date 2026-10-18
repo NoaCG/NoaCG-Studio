@@ -1,7 +1,7 @@
 # Make the codebase lean, starting with the retired editor
 
 Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
-through singles-i, the panels and the released editor/account checks have landed. This branch restores the kept Sheet and insertion cases; obsolete helpers and verification docs remain,
+through singles-i, the panels and the released editor/account checks have landed. This branch restores the kept Sheet and insertion cases; obsolete helpers and verification docs remain
 before #800 closes, with step 6 last.**
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
@@ -871,7 +871,7 @@ judging the picker. Review also corrected duplicate component keys, modal Escape
 counts change (AssetsPanel 10 to 9, InsertTemplateDialog 5 to zero). The retained generator and
 merge helper remain the only implementations, with one bounded session edit per UI action. The final targeted navigation check `j-4623` also passed: Escape restores focus, browser Back closes the picker, and Forward cannot resurrect it or change the document.
 
-Reconciled on main `f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` after PR #1489 landed, with a merge commit and regenerated contracts. All seven kept live-gap cases now run; one covered production duplicate still calls the retired skip helper and needs its final equivalence audit before helper deletion. Final main-reconciled targeted checks are recorded below.
+Reconciled on main `f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` after PR #1489 landed, with a merge commit and regenerated contracts. All seven kept live-gap cases now run; one covered production duplicate still calls the retired skip helper and needs its final equivalence audit before helper deletion. Final main-reconciled queue job `j-4625` passed all 13 cases in both complete files in 35.0 seconds, with no skips. Changed gates passed all 27 selected Node checks, and contract regeneration produced no additional branch changes.
 
 ### Remaining order and the #800 exit condition
 
