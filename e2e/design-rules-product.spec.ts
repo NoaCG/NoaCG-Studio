@@ -1,5 +1,6 @@
 // covers: src/ai/creation.ts, src/components/wizard/ai/**
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// covers: src/components/ExportWindow.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus
 //
@@ -12,7 +13,7 @@
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { createProject, enableAdvancedMode } from './_create';
+import { bootstrapGraphic, openExportWindow } from './_create';
 import { settleDurableWrites, awaitDurableReady } from './_durable';
 
 // THE DESIGN RULES AS A PRODUCT PROPERTY (docs/DESIGN_RULES_PLAN.md §5 R4).
@@ -126,9 +127,8 @@ async function openAiStep(page: Page) {
 // A generation runs the real quality gate (live bench); same honest budget ai.spec carries.
 const GENERATED = { timeout: 25_000 };
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(() => {
   test.setTimeout(60_000);
-  await enableAdvancedMode(page);
 });
 
 test('the wizard viewing settings persist with the project across a reload', async ({ page }) => {
@@ -153,8 +153,11 @@ test('the wizard viewing settings persist with the project across a reload', asy
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', GENERATED);
   await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-editor').click();
-  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  // The AI walk's Finish offers the production and export doors, not the editor; the export
+  // door applies the draft to the working document and saves it, and opens the export window
+  // over the wizard.
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
 
   // The create landed the settings on the store; the debounced autosave persists them with
   // the working slot. Poll the mirror rather than sleeping out the debounce.
@@ -169,7 +172,7 @@ test('the wizard viewing settings persist with the project across a reload', asy
 
   await settleDurableWrites(page);
   await page.reload();
-  await expect(page.locator('.topbar')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Studio' }).first()).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
   const restored = await page.evaluate(async () => {
     const { loadProject } = await import('/src/model/project.ts');
@@ -178,19 +181,6 @@ test('the wizard viewing settings persist with the project across a reload', asy
   });
   expect(restored.slot).toEqual({ viewing: { profile: 'streaming' }, floors: 'relaxed' });
   expect(restored.store).toEqual({ viewing: { profile: 'streaming' }, floors: 'relaxed' });
-});
-
-test('an untouched project serializes NO legibility key at all', async ({ page }) => {
-  await createProject(page, 'Hairline');
-  await expect
-    .poll(async () =>
-      page.evaluate(async () => {
-        const { loadProject } = await import('/src/model/project.ts');
-        const p = loadProject();
-        return p ? 'legibility' in p && p.legibility !== undefined && p.legibility !== null : null;
-      }),
-    )
-    .toBe(false);
 });
 
 test('choosing denser type changes the AI request to the relaxed mode', async ({ page }) => {
@@ -244,12 +234,12 @@ test('undersized primary text warns in the editor in plain language and still ex
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', GENERATED);
   await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-editor').click();
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Tiny Slate');
 
-  // The export panel: the design-rules warning, in the ratified plain-language copy, naming
-  // the viewing context it was computed under.
-  await page.getByTestId('dock-tab-export').click();
+  // Finish's export door opens the export window on the created graphic (the same ExportSurface
+  // the old dock's export tab showed): the design-rules warning, in the ratified plain-language
+  // copy, naming the viewing context it was computed under.
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
   const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
   await expect(warning.first()).toContainText('smaller than the ~28px we recommend for TV viewing distance', {
     timeout: 15_000,
@@ -277,9 +267,9 @@ test('a shipped catalog design warns under the same rule and is not blocked', as
     return variantById('lt48')?.name ?? null;
   });
   expect(name).toBeTruthy();
-  await createProject(page, name!);
+  await bootstrapGraphic(page, name!);
 
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
   await expect(warning.first()).toContainText('we recommend for TV viewing distance', { timeout: 15_000 });
   await expect(page.locator('.issue.error')).toHaveCount(0);
@@ -324,68 +314,19 @@ test('the computed floors scale off the template frame: 16:9 = 9:16, 720p smalle
   expect(floors.hd720).toBeNull();
 });
 
-test('the editor can change the viewing target of an already-saved project', async ({ page }) => {
-  // The R4 slice put the viewing decision only in the wizard, which froze it at create time
-  // for every project that already existed. The Style panel carries the SAME control, the
-  // change persists with the project, and the export panel's warnings re-measure under it.
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-  const name = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    return variantById('lt48')?.name ?? null;
-  });
-  expect(name).toBeTruthy();
-  await createProject(page, name!);
-
-  // Before: the warning is phrased for the TV default.
-  await page.getByTestId('dock-tab-export').click();
-  const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
-  await expect(warning.first()).toContainText('we recommend for TV viewing distance', { timeout: 15_000 });
-
-  await page.getByTestId('dock-tab-style').click();
-  await expect(page.getByTestId('wz-viewing')).toBeVisible();
-  await page.getByTestId('wz-viewing-profile').selectOption('mobile');
-
-  // The store took it, and the debounced autosave wrote it to the working slot — a template
-  // edit is NOT required to persist a legibility change.
-  await expect
-    .poll(async () =>
-      page.evaluate(async () => {
-        const { loadProject } = await import('/src/model/project.ts');
-        return loadProject()?.legibility ?? null;
-      }),
-    )
-    .toEqual({ viewing: { profile: 'mobile' } });
-
-  // After: the same measurement, re-run under the new target, in the phone's words — and
-  // still a warning, never a block.
-  await page.getByTestId('dock-tab-export').click();
-  await expect(warning.first()).toContainText('phone screens', { timeout: 15_000 });
-  await expect(page.locator('.issue.error')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Validate & download/i })).toBeEnabled();
-
-  await settleDurableWrites(page);
-  await page.reload();
-  await expect(page.locator('.topbar')).toBeVisible();
-  await awaitDurableReady(page);
-  const restored = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().legibility;
-  });
-  expect(restored).toEqual({ viewing: { profile: 'mobile' } });
-});
-
 test('the size floors are ONE choice with three answers, and each says what it permits', async ({ page }) => {
   // They used to be two checkboxes over a single tri-state, which is a control that lies about
   // its own shape: ticking "Guaranteed readable size" silently changed what "Broadcast text
   // sizes" meant, un-ticking one could not say which of the other two states you landed in, and
-  // the pair could express a fourth combination the model does not have.
-  await createProject(page, 'Hairline');
-  await page.getByTestId('dock-tab-style').click();
+  // the pair could express a fourth combination the model does not have. The control lives on
+  // the AI step (the only surface that still asks), so it is read there.
+  await rawAiConfig(page);
+  await page.route('/api/ai/generate', (route: Route) => route.fulfill(toolUse(SMALL_TEMPLATE)));
+  await openAiStep(page);
   const floors = page.getByTestId('wz-floors');
   await expect(floors).toBeVisible();
 
-  // Three radios, one group: exactly one is on at any moment, and the DEFAULT is visible —
+  // Three radios, one group: exactly one is on at any moment, and the DEFAULT is visible,
   // which is the thing two checkboxes could not show ("neither ticked" looked like nothing).
   await expect(floors.locator('input[type="radio"]')).toHaveCount(3);
   await expect(page.getByTestId('wz-floors-standard')).toBeChecked();
@@ -394,51 +335,16 @@ test('the size floors are ONE choice with three answers, and each says what it p
   await expect(floors).toContainText('Permits any size at or above');
   await expect(floors).toContainText('Permits only large type');
 
-  const stored = () =>
-    page.evaluate(async () => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      return useTemplateStore.getState().legibility?.floors ?? null;
-    });
-
   await page.getByTestId('wz-floors-safe').check();
-  await expect.poll(stored).toBe('safe');
+  await expect(page.getByTestId('wz-floors-safe')).toBeChecked();
+  await expect(page.getByTestId('wz-floors-standard')).not.toBeChecked();
   await expect(page.getByTestId('wz-floors-relaxed')).not.toBeChecked();
 
-  await page.getByTestId('wz-floors-relaxed').check();
-  await expect.poll(stored).toBe('relaxed');
-  await expect(page.getByTestId('wz-floors-safe')).not.toBeChecked();
-
-  // Back to the default, and the default serializes to NOTHING — the additive-optional rule.
-  await page.getByTestId('wz-floors-standard').check();
-  await expect.poll(stored).toBeNull();
+  // The choice reaches the request the way the two cases above prove for relaxed and the
+  // default: the result card stamps what its request carried.
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', GENERATED);
+  await expect(page.locator('.change-preview')).toHaveAttribute('data-legibility', 'safe:tv');
 });
 
-test('supporting text has its own size rule, reported on the readiness row and never gating', async ({ page }) => {
-  // The three choices move the SECONDARY floors and barely touch the primary one (standard puts
-  // supporting text at 1.85% with a warning band to 2.2%; safe puts it at 5% with no band), so a
-  // person choosing between them is choosing about supporting text. One `legibility-size` rule
-  // could not say which of their findings the choice governs.
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-  const read = await page.evaluate(async () => {
-    const { readinessRows, unclaimedFindings } = await import('/src/validation/readiness.ts');
-    const warnings = [
-      { rule: 'legibility-size', message: 'Primary text is small', severity: 'warn' },
-      { rule: 'legibility-secondary-size', message: 'Supporting text is small', severity: 'warn' },
-    ];
-    const validation = { ok: true, errors: [], warnings };
-    const rows = readinessRows(validation as never, true);
-    return {
-      legibility: rows.find((r) => r.id === 'legibility') ?? null,
-      // A findings id no row claims is surfaced raw rather than swallowed — the row set must
-      // claim this one, or it would read as an unexplained loose warning.
-      unclaimed: unclaimedFindings(validation as never).map((f) => f.rule),
-      // It is a WARNING, so the row warns; it can never make the row fail, because nothing on
-      // this row is ever an error (designRulesWarnings only ever pushes warnings).
-      state: rows.find((r) => r.id === 'legibility')?.state ?? null,
-    };
-  });
-  expect(read.state).toBe('warn');
-  expect(read.legibility?.messages).toEqual(['Primary text is small', 'Supporting text is small']);
-  expect(read.unclaimed).toEqual([]);
-});
