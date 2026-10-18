@@ -229,14 +229,12 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
   // the topbar line and the canvas chip (components/ProjectFormatMeta.tsx). That is also why
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
+  if (replacedSince(s)) return 'saved';
   // A sync pass found the record taken by another device's version while it was written, and
   // moved the draft to the "(conflicted copy)" holding its work (#1466): the save settles there.
-  const now = useTemplateStore.getState();
-  if (movedToCopy(s, now) && !replacedSince(s)) {
-    return (await commitLink({ graphicId: now.saved.graphicId, dirty: now.saved.dirty, formatIssues })) ? 'failed' : 'saved';
-  }
-  if (replacedSince(s)) return 'saved';
-  return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), formatIssues })) ? 'failed' : 'saved';
+  const now = useTemplateStore.getState(), moved = movedToCopy(s, now);
+  const link = moved ? { graphicId: now.saved.graphicId, dirty: now.saved.dirty } : { graphicId: doc.id, dirty: changedSince(s) };
+  return (await commitLink({ ...link, formatIssues })) ? 'failed' : 'saved';
 }
 
 /** First save or Save As: mint a new library record and link the working document to it. The

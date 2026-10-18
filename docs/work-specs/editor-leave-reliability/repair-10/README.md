@@ -31,19 +31,22 @@ the loser (`StorageProvider.lostConflict(record, copy)`), and the draft moves to
 1. **The draft links to the copy** (`graphicSuperseded(id, copy)`, model/project.ts). A slot
    linked to the record that lost is relinked to the copy, and the live link in every tab moves the
    same way (templateStore's `onGraphicSuperseded`). It reads clean only when the draft holds
-   exactly the copy's source (`holdsCopySource`: template and legibility); an edit made between the
+   exactly the copy's source (`linkAfterLoss`: everything a Save writes, the template, legibility,
+   AI spec and thread); an edit made between the
    Save and the pass stays unsaved, asks as usual, and its Save writes into the copy. A slot that
    named the record only as its reservation (a first Save whose link write was refused) links to
    the copy when it is that save's draft (same source, or the mint mark); the reservation is dropped
    as before. Without a copy (none known) the draft is unlinked, as repair-9 did.
 2. **Every tab hears it with the copy.** A `BroadcastChannel` (`noacg-graphic-superseded`) carries
-   the record's id and the copy. It replaces the `storage` event on `spx-gfx-superseded`, which
-   carried no copy and never fired when that list could not be written (a newer build's version,
-   or localStorage refusing it): the ninth check's V-superseded cases, where the second tab stayed
-   linked to the record that won and its Save wrote over it. The list is still written, unchanged
-   in format, for the mint-overlap fallback below.
+   the record's id and the copy. The `storage` event on `spx-gfx-superseded` carried no copy and
+   never fired when that list could not be written (a newer build's version, or localStorage
+   refusing it): the ninth check's V-superseded cases, where the second tab stayed linked to the
+   record that won and its Save wrote over it. The list is still written, unchanged in format, for
+   the mint-overlap fallback below, and its event is still heard half a second later when no
+   message came, which is how a tab of an older build tells (the draft is then unlinked).
 3. **A Save the pass overlapped settles on the copy.** A linked Save whose record write a pass
-   overlapped finds its draft already moved and links the copy (`saveLinked`); a first Save
+   overlapped finds its draft already moved and links the copy (`saveLinked`; a move during its
+   link write is the same document, so the Save still settles, `movedToCopy`); a first Save
    whose record write a pass overlapped links the copy it heard of (`conflictCopyOf`), or stays
    unlinked when it heard of none (`isGraphicSuperseded`, repair-9's fallback).
 4. **The pass shares the rewritten slot.** When the pass that found the conflict is also pushing
@@ -84,6 +87,11 @@ pull rule in `upsertProject` and the boot relink.
   later, and the rule would unlink it after every reload.
 - Persisting the copy mapping: only a first Save whose record write a pass overlapped needs it,
   within one session; without it the draft is unlinked and asks a name (repair-9's outcome).
+- From review: keeping the relinked slot when the same pass pulls a newer slot. The pulled slot is
+  the other device's draft, linked to that device's own record (the ninth C-pull), and this tab's
+  live link stays on the copy. Sending only ids on the channel instead of the copy's source: a
+  receiving tab cannot read the copy from its mirror until the durable store announces it, and
+  losses are rare enough that the source in memory costs little.
 
 ## References
 
@@ -127,8 +135,14 @@ session's permission policy refused editing the source for them.
 
 - A Save whose record write lands after the pass listed the library but before it wrote the copy:
   the pass skips the pull (`unchanged`), the copy holds the version before that Save, and the
-  draft moves there reading unsaved. The next pass writes a second copy holding the Save. Nothing
-  is lost; the leave asks, and its Save writes into the first copy, so two copies hold the same work.
+  draft moves there reading unsaved until the next pass, which the slot rewrite schedules. That
+  pass writes a second copy holding the Save, and the draft follows it, clean (`lostLinks`). The
+  first copy stays, holding the earlier version.
+- A tab that receives the message before its library mirror has adopted the copy (the durable
+  store announces a write once it commits) and saves in that moment finds no record under the
+  copy's id; its Save then asks for a name.
+- A tab of an older build, open across a deploy, tells other tabs only through the list, with no
+  copy: those tabs unlink, as that build does.
 - The topbar shows the draft's own name ("Gamma") while the record is "Gamma (conflicted copy)";
   the sync never renamed the copy's template. Phase 3 says so.
 - A tab that cannot receive the message (no `BroadcastChannel`) keeps its link until it reloads,

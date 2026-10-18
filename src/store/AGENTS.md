@@ -62,7 +62,7 @@ other tabs' writes take a fresh one, and boot relinks only a slot written during
 DEVICE's: the slot syncs with it, so boot honours only a reservation this device made
 (`isOwnReservation`, a device-local list), a pull keeps the device's own, and a record that loses
 a sync conflict moves the draft, in every tab, to the "(conflicted copy)" holding its saved work
-(`graphicSuperseded`, `holdsCopySource`): clean when it holds exactly that, never linked to the
+(`graphicSuperseded`, `linkAfterLoss`): clean when it holds exactly that, never linked to the
 record that won (#1443, #1466). While a transaction runs or waits,
 `useSaveUi.inFlight` is true, and `requestSwitch` asks rather than reading `saved.dirty`, which a
 Save clears before its link write settles (#1392). The leave dialog shows that save's answer over
