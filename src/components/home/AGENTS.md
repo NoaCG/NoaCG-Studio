@@ -106,8 +106,8 @@ stays there, because every surface owes it.
   strip of its graphics, then Open dashboard / Output URL / export; the dashed last card makes
   one. Published tints GREEN - amber is preview and red is on air (Brand §3).
 - **home/GraphicThumb** - a card's THUMBNAIL: the real graphic rendered small through
-  preview/composeDocument and parked at its settled on-air state (the PlayoutSimulator settle
-  recipe; a template with no builder contract falls back to its own play(), since a card has no
+  preview/composeDocument and parked at its settled on-air state (the settle recipe the retired
+  PlayoutSimulator used to run; a template with no builder contract falls back to its own play(), since a card has no
   Play button beside it). A LIVE render, deliberately not a picture stored on GraphicDoc: no
   persisted-format change, no migration, nothing extra to sync, and it can never disagree with
   the template it previews. The iframe mounts only when the card scrolls into view

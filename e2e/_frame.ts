@@ -83,34 +83,3 @@ export function frameOpacity(page: Page, selector: string): Promise<number> {
     .evaluate((el) => Number(getComputedStyle(el).opacity));
 }
 
-/** A computed style property of an element inside the preview document (e.g. `'transform'`). */
-export function frameStyleProp(page: Page, selector: string, prop: string): Promise<string> {
-  return previewFrame(page)
-    .locator(selector)
-    .evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop), prop);
-}
-
-export interface FrameDocRect {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-/**
- * An element's bounding box in the preview document's OWN internal coordinate space (doc px —
- * unscaled, as `getBoundingClientRect()` reports it from inside the iframe). Deliberately NOT
- * `locator.boundingBox()` — that returns the element's box in the MAIN PAGE's viewport space
- * (scaled and positioned by the iframe's own on-page transform), a different coordinate system
- * entirely from the "doc px" the app's own logic (computePad, hit-testing, …) works in. Evaluating
- * `getBoundingClientRect()` FROM INSIDE the frame (like e2e/_canvas.ts's `elementPoint` already
- * does) is what gives the right space.
- */
-export function frameRect(page: Page, selector: string): Promise<FrameDocRect> {
-  return previewFrame(page)
-    .locator(selector)
-    .evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      return { left: r.left, top: r.top, width: r.width, height: r.height };
-    });
-}

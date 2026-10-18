@@ -1,4 +1,4 @@
-// covers: src/blocks/**, src/templates/**, src/components/timeline/MachineGraph.tsx
+// covers: src/blocks/**, src/templates/**
 
 import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';

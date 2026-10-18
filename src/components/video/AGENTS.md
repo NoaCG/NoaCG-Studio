@@ -10,7 +10,7 @@ the source download all branch on it, while the rest stay one surface.
 **The player stage carries a READINESS SIGNAL and every waiter uses it.** VideoPlayerFrame
 stamps `data-player-pending` on the iframe the moment a (re)load becomes owed - synchronously,
 before the debounce - and `data-player-rev` once the composition has MOUNTED, exactly the
-two-halves contract PreviewFrame uses for SPX (`data-doc-pending`/`data-doc-rev`, and
+two-halves contract the retired PreviewFrame used for SPX (`data-doc-pending`/`data-doc-rev`, and
 src/components/AGENTS.md says why one half alone cannot work). It matters more here: a load ends
 in `autoplay`, so anything read off the stage or the transport while one is owed is about to be
 undone rather than merely early. Keep both halves stamped on every exit from that effect - a

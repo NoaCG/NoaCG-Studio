@@ -338,7 +338,7 @@ function motionSpeed() {
  *
  * Hide it with the STYLESHEET rule below, deliberately NOT an inline `style="display: none"`:
  * the editor returns a graphic to its resting state by clearing GSAP's inline properties across
- * the whole root subtree (components/PlayoutSimulator.tsx resetGraphic), which wipes the style
+ * the whole root subtree (the editor's reset, components/editorFoundation/runtime.ts), which wipes the style
  * attribute — and an inline-hidden holder then comes back VISIBLE on the canvas. A CSS rule
  * cannot be cleared that way, so the holder stays hidden in the editor, in SPX, and in every
  * export. This is the general form of cornerBug/statusParts.ts STATUS_SOURCE_CSS.

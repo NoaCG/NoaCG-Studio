@@ -120,7 +120,7 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   through.
 - **lastChange** - per-tab changed-line ranges from every apply (drives the editor's
   change-highlight decorations).
-- **replayNonce** - motion applies (timeline/Inspector edits) auto-replay via PlayoutSimulator.
+- **replayNonce** - motion applies used to auto-replay via the retired PlayoutSimulator; no live reader.
 - **patchCss** - Style-panel patches: highlight without history spam.
 - **sendScrub** - timeline view -> simulator pauses the preview's in/out timeline at a time.
 - **sendControl** - the Control panel live-drives the preview through the simulator
@@ -137,7 +137,7 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   (first) and every setter keeps the two in sync. setSelectedPart replaces, setSelectedParts
   replaces wholesale (the lasso), toggleSelectedPart is shift-click. UI state only - no
   history, never written into the template.
-- **partLocks / setPartLock** - EXPLICIT canvas locks by part selector. A locked part takes no
+- **partLocks / setPartLock** - EXPLICIT canvas locks by part selector, read by the retired canvas (no live reader). A locked part takes no
   direct-manipulation gesture (drag, handle, lasso) but stays selectable by click and from the
   timeline. Only user toggles live here; a part with no entry follows the canvas's own default
   (an imported design's artwork starts locked - see src/components/AGENTS.md). UI state, no
@@ -162,9 +162,9 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   whole-project swap, and the dock falls back to the path when a target stops resolving (its
   state deleted).
 - **machineGroups / setMachineGroups** - the preview's live machine pointers `{group: state}`,
-  null before the graphic reports. PlayoutSimulator owns the iframe and is the only thing that
-  can poll it, so it publishes here and every surface showing operator event buttons (its own
-  strip, the Control panel) greys from ONE source via controlModel `isEventLegal` - the same
+  null before the graphic reports. The retired PlayoutSimulator used to own the iframe and publish
+  here, so every surface showing operator event buttons (the Control panel) greys from ONE source
+  via controlModel `isEventLegal` - the same
   structural guard a hosted control page mirrors. The setter drops a tick that changed nothing,
   so subscribers re-render on a real state change rather than every 500ms. UI state, no
   history; CLEARED on a whole-project swap, or the previous graphic's pointers would grey the
@@ -174,7 +174,7 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   highlight). `addAssets` batches a multi-file import into ONE history slot; `addAsset`
   delegates to it. Undo/redo restore whole-template snapshots, so assets travel with them.
 - **canvasGestureActive / setCanvasGestureActive** - true while a canvas gesture is in flight
-  (inline edit, root/layer/scale drag; published by CanvasInteraction). The retired AppShell's
+  (inline edit, root/layer/scale drag; the retired CanvasInteraction used to publish it). The retired AppShell's
   deferred Inspector auto-open used to check it at fire time so the workspace never resized under a gesture.
   UI state only - no history.
 - **activePanel** (`SidePanel` type; the panel component itself is retired) - the mobile strip's tab AND the desktop docks' "reveal

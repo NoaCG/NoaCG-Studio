@@ -29,7 +29,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { isInstructionFile } from './check-retired-names.mjs';
+import { isInstructionFile, isRetiredRule } from './check-retired-names.mjs';
 import { repositoryFiles } from './gates.mjs';
 import { measured } from './measured.mjs';
 
@@ -157,8 +157,11 @@ function main() {
     // which is exactly what the contract compiler leaves when it retires a generated rule file.
     // A file that is gone names nothing, so there is nothing in it to go stale.
     if (!existsSync(resolve(ROOT, file))) continue;
-    scanned += 1;
     const text = readFileSync(resolve(ROOT, file), 'utf8');
+    // A retired rule's text is the record of what it used to instruct (contracts/README.md): the
+    // spec or source it names may rightly be gone, like the index's retired rows below.
+    if (isRetiredRule(file, text)) continue;
+    scanned += 1;
     const refs = extractRefs(file === 'contracts/index.md' ? withoutRetiredRows(text) : text);
     for (const stale of staleRefs(refs, { tracked, trackedDirs, definedScripts })) candidates.push({ file, ...stale });
   }

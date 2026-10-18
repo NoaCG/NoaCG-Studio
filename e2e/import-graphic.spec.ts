@@ -1,6 +1,5 @@
 // covers: src/ai/**, src/templates/importedDesign/designTypes.ts, src/blocks/**
-// covers: src/components/wizard/import/**, src/components/canvas/**
-// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+// covers: src/components/wizard/import/**
 // covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
@@ -40,8 +39,11 @@ async function createBare(page: Page) {
   await switchToAdvancedMode(page);
   await awaitPreviewRebuild(page, async () => {
     await page.getByRole('button', { name: 'Create project' }).click();
-    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves — the
-    // same cold-module cost text-tools.spec.ts's createBareDesign documents in full.
+    // 20 s: Create fires applyGenerated, which formats the new template through Prettier -
+    // five lazy dynamic imports (standalone + the html/postcss/babel/estree plugins), cold on
+    // this page's first create. The modal only closes once that resolves, so the default 7 s
+    // expect budget was timing a cold module load as if it were a render. The other import
+    // specs' bare creates wait for the same reason.
     await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
   });
 }
