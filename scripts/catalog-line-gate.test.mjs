@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/blocks/edit.ts
+// guards: src/blocks/edit.ts, src/templates/catalog.ts, src/templates/**
 //
 // The catalog-line add (src/blocks/edit.ts addCatalogLine, live through blocks/baseEdits.ts's
 // text tool) is gated on the standard line SHAPE, never the category. Fixed contracts and
