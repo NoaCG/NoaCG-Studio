@@ -1,8 +1,15 @@
 # Faster landings within $50/month
 
 Research date: 2026-10-17. Application source: `3010e41134f1e3a6ebf3933582eb9b7e52055241`.
-No landing configuration, account plan or purchase changed. The worker pilot ran only on
+The research itself changed no landing configuration, account plan or purchase. The worker pilot ran only on
 `scratch/landing-worker-pilot`, without a pull request or land label.
+
+Follow-up, 2026-10-18: the owner upgraded NoaCG to GitHub Team for a one-month trial on
+2026-10-17. The comparison window is 2026-10-17 20:15:36 through 2026-10-24 20:15:36 UTC;
+results are pending. Standard public runners remain in use; paid runners are deferred.
+Secret scanning, Dependabot and CodeQL were also activated during the trial, followed by
+security fixes. Count their added CI workload separately when interpreting the comparison.
+The measurements below remain the original pre-upgrade baseline, not a measured Team result.
 
 **Recommendation: try GitHub Team for one month, then finish the agreed selection safety and
 batched validation work.** For the observed one-member organization, the expected additional
@@ -222,15 +229,12 @@ production landing behavior yet.
 The existing [spec](../spec.md) and [cadence replay](cadence-replay.md) remain authoritative.
 The current selection audit does **not** yet satisfy their historical safety requirement.
 
-## Owner decisions, asked in order
+## Recorded decisions and remaining proposals
 
-```text
-Approve a one-month GitHub Team trial for the NoaCG organization, about $4 plus tax for its current single billable member? I recommend yes, while keeping standard public runners.
-```
-
-```text
-Approve the phased implementation above, with batching enabled only after the historical selection audit and recovery drill pass? I recommend yes, keeping every existing protection and detection deadline.
-```
+The one-month Team trial was approved and started. Publishing this research preserves its
+baseline and methods and changes no CI settings. Implementation follows the agreed budget spec
+and the prerequisites above. Use the trial results to choose the next bounded improvement,
+keeping every existing protection and detection deadline.
 
 No server, hardware or third-party runner purchase is recommended. A later change to the
 external runner trust boundary would need a separate concrete proposal and owner decision.
@@ -241,6 +245,11 @@ Run `scripts/landing-speed-study.mjs` in this evidence directory with modes `run
 `jobs ci.yml configured-suite.yml nightly.yml`, then `analyze`. It uses cached responses,
 at most three fetching workers, a per-invocation request cap and a shared-rate-limit reserve.
 Resume deferred jobs from cache; use a fresh `NOACG_CI_CACHE` directory for a different window.
+The script refuses a cache recorded for a different window; set both dates and use a fresh cache
+for a new study. Cached responses are not refreshed automatically: refresh incomplete runs,
+attempts and PR timelines before interpreting an ongoing trial. Invalid or missing timings are
+excluded from both percentiles and their sample counts. Weekly intervals stop at the study end.
+Collection includes both partial calendar days when the requested window starts after midnight.
 The raw cache is outside the repository. [Aggregate receipts](landing-speed-measurements.json)
 record coverage and the pilot; uncached auxiliary workflows mean runner cost is a lower bound.
 Partial-rerun aliases are deduplicated by actual execution interval, not job ID, to avoid

@@ -43,9 +43,17 @@ async function pool(items, fn) {
 }
 const mode = process.argv[2];
 if (!['runs', 'jobs', 'prs', 'analyze'].includes(mode)) throw new Error('Expected runs, jobs, prs or analyze');
+if (existsSync(join(cache, 'window.json'))) {
+  const captured = read('window.json');
+  if (captured.from !== from || captured.to !== to) {
+    throw new Error('Cached study window differs from STUDY_FROM/STUDY_TO; use a fresh NOACG_CI_CACHE');
+  }
+}
 if (mode === 'runs') {
   const runs = new Map();
-  for (let d = new Date(from); d < new Date(to); d.setUTCDate(d.getUTCDate() + 1)) {
+  const firstDay = new Date(from);
+  firstDay.setUTCHours(0, 0, 0, 0);
+  for (let d = firstDay; d < new Date(to); d.setUTCDate(d.getUTCDate() + 1)) {
     const day = d.toISOString().slice(0, 10);
     for (let page = 1; ; page++) {
       const name = `runs-${day}-${page}.json`;
@@ -114,7 +122,10 @@ if (mode === 'analyze') {
     const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
     return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] : null;
   };
-  const stats = values => ({ n: values.length, p50: quantile(values, .5), p90: quantile(values, .9), max: quantile(values, 1) });
+  const stats = values => {
+    const valid = values.filter(value => Number.isFinite(value) && value >= 0);
+    return { n: valid.length, p50: quantile(valid, .5), p90: quantile(valid, .9), max: quantile(valid, 1) };
+  };
   for (const r of runs) {
     const wf = r.path.split('/').pop();
     const c = coverage[wf] ||= { runs: 0, attempts: 0, fetched: 0 };
@@ -175,8 +186,9 @@ if (mode === 'analyze') {
   });
   const main = rows.filter(r => r.event === 'push' && r.branch === 'main' && r.shardCount);
   const weekly = [];
-  const weekBoundary = new Date(Date.parse(window.from) + 7 * 86400000).toISOString().replace('.000Z', 'Z');
+  const weekBoundary = new Date(Math.min(Date.parse(window.to), Date.parse(window.from) + 7 * 86400000)).toISOString().replace('.000Z', 'Z');
   for (const [start, end] of [[window.from, weekBoundary], [weekBoundary, window.to]]) {
+    if (start >= end) continue;
     const ps = prs.filter(p => p.merged >= start && p.merged < end);
     const js = allJobs.filter(j => j.started_at >= start && j.started_at < end);
     weekly.push({ start, end, landed: stats(ps.map(p => p.firstToLanded)), lastEntry: stats(ps.map(p => p.lastToLanded)),
@@ -205,7 +217,7 @@ if (mode === 'analyze') {
   }).filter(Number.isFinite);
   const configured = allJobs.filter(j => j.wf === 'configured-suite.yml' && j.name.startsWith('Configured E2E'));
   const configuredStep = pattern => stats(configured.flatMap(j => j.steps.filter(s => pattern.test(s.name) && s.started_at && s.completed_at).map(s => minutes(s.started_at, s.completed_at))));
-  const matched = prs.filter(p => p.optimisticNoWait !== null);
+  const matched = prs.filter(p => Number.isFinite(p.optimisticNoWait));
   const summary = { window, coverage, fetchedJobs: allJobs.length, landing: stats(prs.map(p => p.firstToLanded)), lastEntry: stats(prs.map(p => p.lastToLanded)),
     reentered: prs.filter(p => p.entries > 1).length, weekly, runnerMinutesByWorkflow: byWorkflow,
     ciRunnerMinutesByEvent: byEvent, prOutcomes,
