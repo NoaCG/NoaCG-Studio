@@ -21,7 +21,10 @@ const flush = (page: Page) => page.evaluate(async () => (await import('/src/stor
 const slot = (page: Page) => page.evaluate(async () => JSON.parse((await import('/src/model/durableStore.ts')).durable.getItem('spx-gfx-project') ?? 'null'));
 const syncPhase = (page: Page) => page.evaluate(async () => (await import('/src/backend/syncController.ts')).getSyncState().phase);
 const unnamed = (t: unknown) => ({ ...(t as object), name: '' });
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+// Key order aside: a body that went through the cloud comes back from jsonb with its keys reordered.
+const canonical = (v: unknown): unknown => Array.isArray(v) ? v.map(canonical)
+  : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v as object).sort().map(k => [k, canonical((v as Record<string, unknown>)[k])])) : v;
+const same = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 const dialog = (page: Page) => page.getByTestId('confirm-switch');
 
 async function leaveSaving(page: Page, name: string) {
