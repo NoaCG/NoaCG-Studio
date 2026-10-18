@@ -118,7 +118,7 @@ test('eighth X-device: device B boots device A\'s never-saved draft from the syn
     await expect.poll(() => syncPhase(b), { timeout: 30_000 }).toBe('synced');
     const final = await cloudGraphics();
     const alphaFinal = final.find(g => g.id === alpha.id);
-    Object.assign(facts, { cloudFinal: final.map(g => ({ id: g.id, name: g.body.name })), alphaFinalUnchanged: !!alphaFinal && same(alphaFinal.body.template, alphaCloud.template) });
+    Object.assign(facts, { cloudFinal: final.map(g => ({ id: g.id, name: g.body.name })), alphaFinalUnchanged: !!alphaFinal && same(alphaFinal.body.template, alphaCloud.template), alphaFinalHoldsBSecondSave: !!alphaFinal && same(unnamed(alphaFinal.body.template), unnamed(await source(b))) });
     writeFileSync(test.info().outputPath('x-device.json'), JSON.stringify(facts, null, 2));
     expect(facts.bLibraryHasAlpha, 'precondition: B had already learnt of Alpha').toBe(false);
     expect(facts.bLeave, 'B\'s never-saved draft: Home asks and Save asks for a name').toEqual({ asked: 1, named: 1 });
