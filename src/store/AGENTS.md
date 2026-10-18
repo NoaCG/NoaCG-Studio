@@ -58,7 +58,10 @@ the record even when the save's own reservation and link writes are both refused
 takes it with `mintReservedGraphicId`, calls `releaseReservation()` before its link write and
 `endMint()` when it settles. The reservation is the minting tab's: once a record holds the id,
 other tabs' writes take a fresh one, and boot relinks only a slot written during that mint
-(`mintingReserved`) or one holding exactly the record's source (#1402). While a transaction runs or waits,
+(`mintingReserved`) or one holding exactly the record's source (#1402). It is also the minting
+DEVICE's: the slot syncs with it, so boot honours only a reservation this device made
+(`isOwnReservation`, a device-local list), a pull keeps the device's own, and a record that loses
+a sync conflict unlinks the draft (`graphicSuperseded`), so its next Save asks for a name (#1443). While a transaction runs or waits,
 `useSaveUi.inFlight` is true, and `requestSwitch` asks rather than reading `saved.dirty`, which a
 Save clears before its link write settles (#1392). The leave dialog shows that save's answer over
 the editor and continues only on the user's word (`saveBeforeLeave`). `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the

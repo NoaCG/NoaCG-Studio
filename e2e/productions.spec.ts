@@ -812,7 +812,6 @@ test('the verbs answer their keyboard shortcuts, and never while a field has foc
 });
 
 test('a published production reads SHOW; an unpublished one says so and offers no rehearsal', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Evening News');
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
