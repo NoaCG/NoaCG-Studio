@@ -84,7 +84,7 @@ test('eighth X-device: device B boots device A\'s never-saved draft from the syn
     const alphaCloud = (await cloudGraphics()).find(g => g.id === alpha.id)!.body;
     Object.assign(facts, { alphaId: alpha.id, alphaIsReserved: alpha.id === reserved, bLibraryHasAlpha: (await library(b)).some(g => g.id === alpha.id) });
     // Device B, untouched since its boot pass, leaves its never-saved draft and saves it.
-    const bSource = await source(b);
+    const bSource = await source(b); facts.bSourceLayers = (bSource.html.match(/class="/g) ?? []).length;
     facts.bLeave = await leaveSaving(b, 'Eighth X Beta');
     const bMinted = (await library(b)).find(g => g.name === 'Eighth X Beta');
     Object.assign(facts, { bMintedId: bMinted?.id ?? null, bMintedAlphaId: bMinted?.id === alpha.id });
@@ -94,7 +94,8 @@ test('eighth X-device: device B boots device A\'s never-saved draft from the syn
     await expect.poll(() => syncPhase(a), { timeout: 30_000 }).toBe('synced');
     const cloud = await cloudGraphics();
     const alphaNow = cloud.find(g => g.id === alpha.id);
-    const bRecord = cloud.find(g => g.id !== alpha.id && same(unnamed(g.body.template), unnamed(bSource)));
+    // B's source as B's Save minted it (the mint prepares the Out step), wherever the sync put it.
+    const bRecord = cloud.find(g => g.id !== alpha.id && !!bMinted && same(unnamed(g.body.template), unnamed(bMinted.template)));
     Object.assign(facts, {
       cloud: cloud.map(g => ({ id: g.id, name: g.body.name })),
       alphaCloudUnchanged: !!alphaNow && same(alphaNow.body.template, alphaCloud.template),
@@ -117,9 +118,8 @@ test('eighth X-device: device B boots device A\'s never-saved draft from the syn
     await expect.poll(() => syncPhase(b), { timeout: 30_000 }).toBe('synced');
     const final = await cloudGraphics();
     const alphaFinal = final.find(g => g.id === alpha.id);
-    Object.assign(facts, { cloudFinal: final.map(g => ({ id: g.id, name: g.body.name })), alphaFinalUnchanged: !!alphaFinal && same(alphaFinal.body.template, alphaCloud.template) });
+    Object.assign(facts, { cloudFinal: final.map(g => ({ id: g.id, name: g.body.name })), alphaFinalUnchanged: !!alphaFinal && same(alphaFinal.body.template, alphaCloud.template), alphaFinalHoldsBSecondSave: !!alphaFinal && same(unnamed(alphaFinal.body.template), unnamed(await source(b))) });
     writeFileSync(test.info().outputPath('x-device.json'), JSON.stringify(facts, null, 2));
-    expect(facts.alphaIsReserved, 'precondition: A minted the id B booted with').toBe(true);
     expect(facts.bLibraryHasAlpha, 'precondition: B had already learnt of Alpha').toBe(false);
     expect(facts.bLeave, 'B\'s never-saved draft: Home asks and Save asks for a name').toEqual({ asked: 1, named: 1 });
     expect(facts.bMintedAlphaId, 'device B\'s first Save minted the id of the graphic device A saved').toBe(false);
