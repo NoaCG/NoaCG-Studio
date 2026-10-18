@@ -43,7 +43,8 @@ export interface SavedProject {
    *  the document carries it, so it is durable BEFORE its record is written: when the save's own
    *  slot writes (the reservation and the link) are both refused, a reload still finds the record
    *  by this id instead of minting a second one (templateStore's initial link). The link write
-   *  of a mint carries a fresh one. Additive optional. */
+   *  of a mint carries a fresh one. The slot syncs to the account's other devices with it, but
+   *  only the device that made it honours it (`isOwnReservation`, #1443). Additive optional. */
   reservedGraphicId?: string;
   /** Set on a slot write made while this tab's save was minting `reservedGraphicId` for this
    *  draft (the save's own reservation write, and an autosave that fired during it). Only such a
@@ -72,10 +73,44 @@ let reservation: { id: string; baseline: SpxTemplate | undefined; minting: boole
 export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
   if (!reservation || reservation.baseline !== baseline || (!reservation.minting && graphicIdTaken(reservation.id))) {
     reservation = { id: uuid(), baseline, minting: false };
+    recordOwnReservation(reservation.id);
   }
   return reservation.id;
 }
-/** Boot: the slot's persisted reservation is the document's, so a reload before its first Save
+
+// ── Whose device a reservation is (#1443) ────────────────────────────────────────────────────
+//
+// The working slot syncs to every device on the account (backend/storage.ts SINGLETON_KINDS), and
+// the reservation rides it as data. Another device cannot see a record this device minted until
+// its next sync pass, so `graphicIdTaken` there cannot stop it minting the same id: a pulled
+// reservation must never be minted or relinked anywhere but on the device that made it. The
+// device keeps its own reservations here, in localStorage, which never syncs; boot honours the
+// slot's reservation only when it is one of them (templateStore), and a pull keeps the device's
+// own (`upsertProject`). A handful is enough: boot reads the slot's current one, or one a mint
+// took moments before a refused link write.
+const OWN_RESERVATIONS_KEY = 'spx-gfx-reservations';
+const OWN_RESERVATIONS_KEPT = 20;
+function ownReservations(): string[] {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(OWN_RESERVATIONS_KEY) ?? '[]');
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function recordOwnReservation(id: string): void {
+  try {
+    localStorage.setItem(OWN_RESERVATIONS_KEY, JSON.stringify([id, ...ownReservations()].slice(0, OWN_RESERVATIONS_KEPT)));
+  } catch {
+    // Not recorded, this device's reload treats the id as another device's: the draft asks for
+    // a name rather than relinking, which can make a second record but never overwrites one.
+  }
+}
+/** Did THIS device make the reservation `id`? */
+export function isOwnReservation(id: string | undefined): id is string {
+  return !!id && ownReservations().includes(id);
+}
+/** Boot: the slot's persisted reservation (this device's own) is the document's, so a reload before its first Save
  *  keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
  *  the mint never takes, and a double refusal after the reload could not relink. */
 export function resumeReservation(id: string, baseline: SpxTemplate | undefined): void {
@@ -153,14 +188,52 @@ export function saveProject(
   }
 }
 
-/** Write a whole SavedProject to the slot (used by the sync engine's put('project') on a pull). */
+/** Write a pulled SavedProject to the slot (the sync engine's put('project')). The draft is the
+ *  cloud's; the reservation is not (#1443). A slot holding this device's own reservation keeps
+ *  it, and no pull brings a mint mark, which speaks only for the draft this device was minting.
+ *  Another device's reservation can arrive with the draft as data; nothing here honours it. */
 export function upsertProject(project: SavedProject): void {
   try {
-    durable.setItem(STORAGE_KEY, JSON.stringify(project));
+    const { mintingReserved: _mark, ...pulled } = project;
+    const own = loadProject()?.reservedGraphicId;
+    durable.setItem(STORAGE_KEY, JSON.stringify(isOwnReservation(own) ? { ...pulled, reservedGraphicId: own } : pulled));
     notifyDataChanged();
   } catch {
     // Non-fatal.
   }
+}
+
+const supersededListeners = new Set<(graphicId: string) => void>();
+/** Hear `graphicSuperseded` (templateStore drops the live link). */
+export function onGraphicSuperseded(listener: (graphicId: string) => void): void {
+  supersededListeners.add(listener);
+}
+/** A library record lost a sync conflict (backend/sync.ts): another device's version now holds
+ *  its id, and this device's own lives on as a "(conflicted copy)". When it is the record a
+ *  first Save just minted, the id turned out to be taken. The draft stops naming it, as its link
+ *  or its reservation, so its next Save asks for a name instead of writing over the other
+ *  device's graphic (#1443). The slot's time moves, so the next pass shares the unlinked draft. */
+export function graphicSuperseded(graphicId: string): void {
+  if (reservation?.id === graphicId) reservation = null;
+  const p = loadProject();
+  if (p && (p.graphicId === graphicId || p.reservedGraphicId === graphicId)) {
+    const { reservedGraphicId, mintingReserved, ...rest } = p;
+    const keepsReservation = reservedGraphicId !== graphicId;
+    const rec: SavedProject = {
+      ...rest,
+      updatedAt: new Date().toISOString(),
+      graphicId: p.graphicId === graphicId ? null : p.graphicId,
+      dirty: p.graphicId === graphicId ? true : p.dirty,
+      ...(keepsReservation ? { reservedGraphicId, ...(mintingReserved ? { mintingReserved } : {}) } : {}),
+    };
+    try {
+      durable.setItem(STORAGE_KEY, JSON.stringify(rec));
+      notifyDataChanged();
+    } catch {
+      // Non-fatal: the live link below still drops, and the next autosave writes it.
+    }
+  }
+  supersededListeners.forEach((listener) => listener(graphicId));
 }
 
 export function clearProject(): void {

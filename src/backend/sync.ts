@@ -261,6 +261,8 @@ export async function runSync(
       fail('conflict-copy', loser, e);
       continue;
     }
+    // Before the pull replaces it: a draft still linked to the loser would write over the winner.
+    local.lostConflict?.(loser);
     // Push the copy best-effort; if it fails, next pass sees a local-only record and pushes it.
     try {
       sameWorkspace();

@@ -21,7 +21,7 @@ import {
   type SavedLook,
 } from '../model/packets';
 import { loadLegacyBrand, saveLegacyBrand, clearLegacyBrand, type ProjectBrand } from '../model/brand';
-import { loadProject, upsertProject, clearProject, type SavedProject } from '../model/project';
+import { loadProject, upsertProject, clearProject, graphicSuperseded, type SavedProject } from '../model/project';
 import { loadAllShows, upsertShow, upsertShows, deleteShow, type Show } from '../model/shows';
 import { loadAllGraphics, upsertGraphic, upsertGraphics, deleteGraphic, type GraphicDoc } from '../model/library';
 import {
@@ -94,6 +94,9 @@ export interface StorageProvider {
    *  everything it fetched at once. Rejects when any kind's write failed. */
   putMany?(records: StoredRecord[]): Promise<void>;
   remove(kind: SyncKind, id: string): Promise<void>;
+  /** A record of this side lost a true conflict (sync.ts): the other side's version is about to
+   *  replace it, and its own edit has just been written as a "(conflicted copy)". */
+  lostConflict?(record: StoredRecord): void;
 }
 
 // The project brand is a per-user singleton. NOTE: 'default' is NOT a valid uuid, so brand is
@@ -187,6 +190,12 @@ export class LocalStorageProvider implements StorageProvider {
     ].filter((error): error is string => error !== null);
     for (const record of rest) await this.put(record);
     if (errors.length > 0) throw new Error(errors[0]);
+  }
+
+  /** The working draft stops being that graphic: another device's version holds its id now, so
+   *  the draft's next Save asks for a name rather than writing over it (#1443). */
+  lostConflict(record: StoredRecord): void {
+    if (record.kind === 'graphic') graphicSuperseded(record.id);
   }
 
   async remove(kind: SyncKind, id: string): Promise<void> {
