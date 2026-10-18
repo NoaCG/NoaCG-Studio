@@ -192,8 +192,8 @@ export function restoreRun(db, config, now = Date.now()) {
   // A local preparation journal makes interrupted restoration repeatable without replacing
   // unrelated directories or changed local work. It contains no credentials or executable code.
   const journal = `${config.wave}.restore.json`;
-  const prepared = JSON.stringify({ id: config.id, revision: r.revision, worktree: config.worktree,
-    ledgerSha256: sha(ledger), authorizationSha256: sha(JSON.stringify(doc.manifest.authorization)) });
+  const prepared = JSON.stringify({ id: config.id, repositoryFullName: config.repositoryFullName,
+    worktree: config.worktree, authorizationSha256: sha(JSON.stringify(doc.manifest.authorization)) });
   if (existsSync(journal)) {
     if (readFileSync(journal, 'utf8') !== prepared) throw new Error('Interrupted restoration identity differs');
   } else {

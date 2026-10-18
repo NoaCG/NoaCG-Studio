@@ -66,10 +66,10 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
     return repo;
   };
   const restore = (clock = now) => {
-    const repository = bootstrap(), fresh = open(`fresh-${dbs.length}.sqlite`);
+    const repository = bootstrap(), database = path.join(root, `fresh-${dbs.length}.sqlite`), fresh = open(path.basename(database));
     const config = { ...recovery, repository, id: manifest.id, worktree: path.join(root, `restored-${dbs.length}`), wave: path.join(root, `ledger-${dbs.length}.md`),
       adapter: { command: process.execPath, args: ['-e', ''], cwd: repository } };
-    return { db: fresh, config, result: restoreRun(fresh, config, clock) };
+    return { db: fresh, database, config, result: restoreRun(fresh, config, clock) };
   };
   return { root, remote, source, manifest, db, now, restore, open, transport };
 }
@@ -173,6 +173,15 @@ test('database reset during restoration can reuse only its own unchanged prepare
   writeFileSync(path.join(first.config.worktree, 'uncommitted.txt'), 'must be preserved');
   assert.throws(() => restoreRun(another, first.config, f.now), /Prepared worktree changed/);
   assert.equal(readFileSync(path.join(first.config.worktree, 'uncommitted.txt'), 'utf8'), 'must be preserved');
+});
+
+test('a later database reset reuses current published progress rather than the initial preparation hash', async (t) => {
+  const f = fixture(t), first = f.restore();
+  assert.equal(await main(['record', first.database, f.manifest.id, '1', 'build', 'resumed-worker'], { recoveryGit: f.transport }), 0);
+  const replacement = f.open('after-progress.sqlite');
+  restoreRun(replacement, first.config, f.now);
+  assert.match(readFileSync(first.config.wave, 'utf8'), /phase 1 build resumed-worker/);
+  assert.equal(docFor(replacement).restoration.reconciled, false);
 });
 
 test('restored accepted delivery reconciles the original worker and never launches a replacement', async (t) => {

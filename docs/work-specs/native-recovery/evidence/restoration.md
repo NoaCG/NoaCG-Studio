@@ -113,7 +113,10 @@ hashes, creates a detached worktree at the retained revision, restores the ledge
 and inserts the original run state with no old local lease. It publishes a new
 restoration generation. A stale host's subsequent publication is rejected.
 The local preparation journal permits retries after interruption without replacing
-unrelated paths or overwriting dirty work. Expired and terminal runs remain stopped.
+unrelated paths or overwriting dirty work. It binds run/repository/worktree/window;
+current source and ledger contents are independently checked against the latest
+remote checkpoint. It does not freeze the initial ledger hash and block a later
+database reset after valid phase progress. Expired and terminal runs remain stopped.
 
 The first active tick requests read-only adapter operation `restore`, carrying
 `restoration` and `recovery`. Its response includes the same `checkpoint`, an
@@ -164,13 +167,16 @@ receipt retention. Exact native non-delivery reconciliation now gates any new re
 for restored paths, preserving retry limits; receipt/wait/GitHub field allow-lists
 keep auxiliary adapter responses out of durable storage. Their regressions failed
 before correction and now also inspect checkpoint history for sentinel responses.
+A repeated-reset regression then reproduced a stale preparation hash rejecting
+already published phase progress; journal identity is now stable while restored
+contents must still match the latest checkpoint. It failed before the correction.
 The first source CI build
 `39153528551` failed ESLint on an empty cleanup catch in the new test. Its complete
 19,623-line job log was fetched and inspected; adding the cleanup explanation fixed
 that source defect. This is one CI repair, not a same-commit fail-then-pass.
-Final verification passed nine changed-path checks and all 57 selected tests,
-plus the existing ten native-contract tests for the newly wired reconciliation guard,
-in five files, plus targeted ESLint and `git diff --check`. Contract regeneration changed no generated
+Final verification passed nine changed-path checks, all 58 selected tests in five
+files, the existing ten native-contract tests for the newly wired reconciliation
+guard, targeted ESLint and `git diff --check`. Contract regeneration changed no generated
 files. No product, bundle or browser inputs changed, so no production build or
 browser run was needed. Initial subprocess execution was refused by the command
 sandbox; the supported per-command grant resolved it without source/test changes.
