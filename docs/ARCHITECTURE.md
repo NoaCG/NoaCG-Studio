@@ -327,9 +327,10 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
   export/ *    the export registry - 6 targets + whole-SHOW export + packaging conventions
   render/ *    RenderManifest, HOLD schedule, tier limits, virtual clock, job store (docs/RENDER.md)
   landing/ *   the landing page's GSAP motion system. POLICY: never fakes product UI
-  components/ * the React app: editorFoundation/ (the editor), home/, wizard/, video/, canvas/,
-               timeline dock, Inspector, auth/, save/, icons.tsx. The old code editor shell
-               (AppShell, CodeEditor, their dock and teaching layer) was retired on 2026-10-17
+  components/ * the React app: editorFoundation/ (the editor), home/, wizard/, video/, auth/,
+               save/, canvas/ (CanvasGuides, the video stage's guides), icons.tsx. The old code
+               editor (AppShell, CodeEditor, its docks, timeline, canvas gestures and preview stage)
+               was retired on 2026-10-17
     wizard/ *  the creation wizard (§5): CreationWizard.tsx is the thin shell over shell/ (the
                walks, the walk state, the Finish doors, open and close) and template/ * (the
                template and kit walks, the kit plan, its tray, moves and confirms, reached only

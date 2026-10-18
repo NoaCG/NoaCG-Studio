@@ -793,12 +793,11 @@ test('the Import-graphic folder plans the import road, and only the import road'
     'import-svg-behaviour.spec.ts',
     // Not named after the road, but they drive it through the import entry and assert on testids
     // only these components render: the quiz and behaviour rows of MapSvgFieldsStep, the format
-    // and raster warnings of ImportDesignStep, the tool area and the font field of
-    // PlaceFieldsStep. The generic wizard rule reached them until the lookahead took this folder
-    // out of it, so the narrowing has to name them or it runs FEWER specs with no alarm.
+    // and raster warnings of ImportDesignStep, the font field of PlaceFieldsStep. The generic
+    // wizard rule reached them until the lookahead took this folder out of it, so the narrowing
+    // has to name them or it runs FEWER specs with no alarm.
     'student-rehearsal.spec.ts',
     'project-format.spec.ts',
-    'text-tools.spec.ts',
     'google-fonts.spec.ts',
   ];
   const { mode, specs } = planFor(['src/components/wizard/import/MapSvgFieldsStep.tsx']);
