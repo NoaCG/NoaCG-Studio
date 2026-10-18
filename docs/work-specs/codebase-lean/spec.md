@@ -829,10 +829,11 @@ removed. All four restored cases passed first attempt against the isolated stack
 `d0c5c2d5079f918211252778981afae0ea472e6f`. The full suite ran 108 cases: 107 passed,
 one unchanged deep-link case failed then passed, and three permitted skips. Its overall
 workflow verdict remains failure. Read the whole configured job log; account loss, account
-purpose, the width ladder and signed-in save wording all passed without retries. Enter the
-unrelated deep-link file through the existing quarantine command using that exact run as
-its receipt. It keeps running on every main push and earns release through the existing
-20-pass rule; no assertion, floor, skip allowance, workflow or limit changes. Local changed
+purpose, the width ladder and signed-in save wording all passed without retries. The standard quarantine command confirms that this file is already recorded since
+2026-10-16 from run 38874823120, so it writes nothing. Off-main configured dispatches deliberately
+keep every flake red, including existing quarantine files. Preserve that policy and the failed
+workflow verdict. The file keeps running on every main push and earns release through the
+existing 20-pass rule; no assertion, floor, skip allowance, workflow or limit changes. Local changed
 gates and ESLint pass; no offline skip substitutes for this configured evidence. Still
 skipping: the remaining seven live-gap cases in Sheet data and template insertion.
 
