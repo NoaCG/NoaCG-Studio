@@ -1,4 +1,4 @@
-// covers: src/blocks/**, src/components/canvas/**
+// covers: src/blocks/**
 // covers: src/components/{AssetsPanel.tsx,InsertTemplateDialog.tsx}, src/assets/**
 
 import { test, expect, type Page } from '@playwright/test';

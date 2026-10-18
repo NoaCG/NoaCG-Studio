@@ -1,5 +1,4 @@
-// covers: none - the mobile stack it drives is Home and the wizard shell, both in the focus set
-// this spec is in, and a change to either runs it
+// covers: src/components/home/**, src/components/wizard/**, !src/components/wizard/import/**
 //
 // focus
 

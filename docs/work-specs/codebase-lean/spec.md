@@ -184,24 +184,30 @@ The second deletion, on main `116022568` (2026-10-17): `src/components/PreviewFr
 `ProjectFormatMeta.tsx`, `canvas/{CanvasInteraction,CanvasSelection}.tsx`,
 `canvas/{partLocks,pasteboard}.ts`, `timeline/{Inspector,LegacyTimeline,MachineGraph,PlayoutSimulator,StepTimeline}.tsx`
 and `src/blocks/{layerTimeline,stepAssign}.ts`: thirteen files, 8,249 lines, reached only through
-the deleted AppShell (`src` TS/TSX 298,231 to 289,984). `CanvasGuides` stays for the video stage.
+the deleted AppShell (`src` TS/TSX 298,233 to 289,911, the Space-key helpers below included). `CanvasGuides` stays for the video stage.
 With them went the tests whose subject was that UI, from the complete classification of all 474
 old-helper cases ([evidence/test-dispositions.tsv](evidence/test-dispositions.tsv): 122 retired,
 107 covered by a named running check, 231 live gaps, 5 undecided, 9 reserved): seven spec files
 deleted (canvas-fit, canvas-keyframe, canvas-selection, inline-edit, keyboard, multi-select,
 text-tools) and nine trimmed (timeline-v2, machine-graph, legacy-timeline, inspector, layout,
-pasteboard, machine-edit, wysiwyg, preview-error), 3,714 `e2e` lines, each case listed under
-Test maintenance with its retired surface or covering check. The ten live cases left in the
+pasteboard, machine-edit, wysiwyg, preview-error), 3,735 `e2e` spec lines, each case listed under
+Test maintenance with its retired surface or covering check. The eleven live cases left in the
 trimmed files still skip through the retired bootstrap and are revived or re-homed with the other
-gaps in the next PRs; twelve covers headers that named the deleted paths now name what the specs
-observe, the planner test that pinned the old dock's mapping pins the new editor's directory,
+gaps in the next PRs; fourteen covers headers that named the deleted paths, or planned nothing for
+what a spec drives, now name what the specs observe (the canvas folder is the video stage's guides), the planner test that pinned the old dock's mapping pins the new editor's directory,
 the two active contract rules scoped to the deleted files are retired or reworded, the timeline
 folder's contracts are gone and the canvas folder's describes CanvasGuides, and `retired.json`
 lists the group so an instruction that names it fails the build. No store, router, prefs or CSS
 line changed. `src/components/spaceKey.ts` lost the Space pan-or-tap helpers nothing called any
 more, so `activeSurface` and `pointerOverStage` join `partLocks`, `replayNonce` and
-`setFilterComponent` as reader-less store state for step 6, and the eight code comments that
-named the deleted files now name what replaced them.
+`setFilterComponent` as reader-less store state for step 6. Eight code comments in six live files
+now name what replaced the deleted ones; 28 comment lines in `src/preview/{simulatorRuntime,composeDocument,canvasControlProtocol,previewProtocol,settleGraphic}.ts`,
+`src/blocks/{timelineModel,timelineLens}.ts`, `src/store/{templateStore,saveActions}.ts`,
+`src/styles/{editor,video-editor,timeline-switch}.css`, `src/templates/cornerBug/statusParts.ts`
+and `src/validation/runtimeBench.ts` still name them as history and go with step 6 or the next
+edit of each file. The helpers only the removed cases called (`timelineProgress`,
+`applyUnconvertibleRegion`, `applyUnreadableRegion`, `frameRect`, `frameStyleProp`) are gone from
+`e2e/_keys.ts`, `e2e/_legacy.ts` and `e2e/_frame.ts`.
 
 ### Remaining order and the #800 exit condition
 

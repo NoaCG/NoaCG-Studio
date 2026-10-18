@@ -62,11 +62,6 @@ function readPlayhead(page: Page): Promise<PlayheadSample> {
   );
 }
 
-/** Read the next pushed playhead sample, including its exact phase-local clock. */
-export function timelineProgress(page: Page): Promise<PlayheadSample> {
-  return readPlayhead(page);
-}
-
 /** 'none' = nothing running, 'parked' = the stamped timeline survives, 'fresh' = play() ran. */
 export async function timelineState(page: Page): Promise<string> {
   const sample = await readPlayhead(page);

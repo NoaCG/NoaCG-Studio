@@ -5,11 +5,11 @@ import { awaitPreviewRebuild } from './_preview';
 import { createProject } from './_create';
 import { elementPoint } from './_canvas';
 
-// The off-canvas pasteboard (src/components/canvas/pasteboard.ts, the retired code editor's
-// working margin) was deleted on 2026-10-17 with the four cases that drove it. What is left is
-// the invariant that outlived it: the pad never entered persisted state, and an exported document
-// stays clipped to the canvas. It still boots through the retired helper and skips until it is
-// rewritten onto the composer (issue #800).
+// The off-canvas pasteboard (the retired code editor's working margin) was deleted on 2026-10-17
+// with the four cases that drove it. What is left is the invariant that outlived it: no pad ever
+// enters persisted state, and an exported document stays clipped to the canvas while only the
+// composer's authoring option opens a margin. It still boots through the retired helper and
+// skips until it is rewritten onto the composer (issue #800).
 
 async function createHairline(page: Page) {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
@@ -44,21 +44,17 @@ test('the pasteboard pad never enters persisted state; export stays clipped to t
   const probe = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { computePad } = await import('/src/components/canvas/pasteboard.ts');
     const tpl = useTemplateStore.getState().template;
-    const { padX } = computePad(tpl);
     return {
-      padX,
-      // The preview/export composition WITHOUT authoring keeps the canvas clip and no pasteboard.
+      // The preview/export composition WITHOUT authoring keeps the canvas clip and no pasteboard;
+      // an authoring margin is the composer's option, so any non-zero pad shows the difference.
       exportDoc: composeDocument(tpl),
-      authoringDoc: composeDocument(tpl, { authoring: { padX, padY: 0 } }),
+      authoringDoc: composeDocument(tpl, { authoring: { padX: 200, padY: 0 } }),
       // Everything persisted lives in the template — serialize it whole and search for the pad.
       serialized: JSON.stringify(tpl),
     };
   });
 
-  // Sanity: the pad is real (non-zero) so the negative-below tests are meaningful.
-  expect(probe.padX).toBeGreaterThan(0);
   // Semantic, not numeric: the persisted template carries no authoring/pad concept at all.
   expect(probe.serialized).not.toContain('pasteboard');
   expect(probe.serialized).not.toContain('padX');

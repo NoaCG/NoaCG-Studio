@@ -180,12 +180,9 @@ When a change needs a transform that does not exist, write it as a named, export
 below `components/`; a UI state machine that reads the store or the draft lives as a `.ts` file
 beside its component.
 
-Grandfathered offenders (hoist the inline assembly into `blocks/` **when you are already
-touching that code path** - never as a drive-by campaign). Each count below is inline-assembly
-sites, not total `applyTemplate` calls, and is reproduced by
-`grep -c 'applyTemplate({ *\.\.\.template' <file>`: `src/components/canvas/CanvasInteraction.tsx`
-(5 sites), `src/components/timeline/StepTimeline.tsx` (6 sites) and
-`src/components/timeline/Inspector.tsx` (4 sites).
+No grandfathered offender is left: the three files that assembled templates inline went with
+the old code editor. `grep -c 'applyTemplate({ *\.\.\.template' <file>` counts a new one; hoist
+it into `blocks/` **when you are already touching that code path**, never as a drive-by campaign.
 
 **The wizard's draft stays in `components/wizard/draft/`** (`core.ts`, `template.ts`, `format.ts`;
 `draft.ts` re-exports them for the e2e and script loaders that import it by path). It is the

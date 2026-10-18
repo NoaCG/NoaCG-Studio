@@ -74,7 +74,7 @@
     },
     {
       "name": "the old editor's timeline dock, canvas and preview stage",
-      "pattern": "\\b(PreviewFrame|CanvasInteraction|CanvasSelection|StepTimeline|LegacyTimeline|MachineGraph|PlayoutSimulator|ProjectFormatMeta|partLocks|layerTimeline|stepAssign)\\b|src/components/timeline/|canvas/pasteboard",
+      "pattern": "\\b(PreviewFrame|CanvasInteraction|CanvasSelection|StepTimeline|LegacyTimeline|MachineGraph|PlayoutSimulator|ProjectFormatMeta|layerTimeline|stepAssign)\\b|src/components/timeline/|canvas/pasteboard|canvas/partLocks",
       "since": "2026-10-17",
       "replacement": "the new editor (src/components/editorFoundation/: its stage, timeline, Inspector and keys) and the preview composer (src/preview/composeDocument.ts); the video workspace keeps CanvasGuides and its own stage",
       "why": "The second deletion of docs/work-specs/codebase-lean/spec.md: the old editor's step timeline, machine graph, legacy chart, Inspector, playout simulator, canvas gestures, selection, pasteboard, part locks and preview stage (thirteen files) were reached only through the deleted AppShell. A contract that still instructs one of them instructs code that is gone."

@@ -1,5 +1,5 @@
 // covers: src/ai/**, src/templates/importedDesign/designTypes.ts, src/blocks/**
-// covers: src/components/wizard/import/**, src/components/canvas/**
+// covers: src/components/wizard/import/**
 // covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
