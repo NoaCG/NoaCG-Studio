@@ -28,7 +28,8 @@ rule) are unchanged; they now apply only to a reservation this device made.
 
 1. **A reservation is honoured only on the device that made it.** Each device keeps the ids it
    reserved in a device-local list (`spx-gfx-reservations`, localStorage, the last 20; never a
-   sync kind). `reservedGraphicId` (model/project.ts) records each fresh id there. Boot
+   sync kind; versioned `{ version: 1, ids }` in `model/deviceIds.ts`, a newer version read as
+   empty and never written over). `reservedGraphicId` (model/project.ts) records each fresh id there. Boot
    (store/templateStore.ts) resumes or relinks the slot's reservation only when
    `isOwnReservation` says so; a pulled draft naming another device's reservation is left
    unlinked and its first write names a fresh id of this device's own. Tabs and duplicated tabs of
@@ -78,7 +79,50 @@ reserves an id another device can resume, so neither has this case to compare.
 
 ## Results
 
-TODO
+Disposable dispatch-only probes, never queued. Each is this branch's `src/`, matrix and tests
+plus the carried files and dispatch recipes taken byte-identical from
+`claude/probe-editor-p2-check-8-ci` `0040421e`. A `git diff` over those 19 paths is empty, and each
+run logs every carried sha256 equal to independent-8's: device spec `a1a991e0…`, eighth `5f64b001…`,
+seventh `352905b1…`, sixth `0b5207f2…`, and the rest. The probe that counts is
+`claude/probe-editor-p2-repair-9-ci3` (`6fdffc85`), the final `src/` (8e5e255, versioned lists).
+`…-ci2` (`c451f1ed`, after the review fixes) and `…-ci` (`0d3695db`, before them) gave the same
+result in every scope. CI used `--workers=1 --retries=0`.
+
+| Scope | ci3 (final) | ci2 | ci |
+| --- | --- | --- | --- |
+| Configured: signed-in task, eighth X-device | **1/1**, X-device **passes**, [39104861595](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104861595) | the same, [39104204278](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104204278) | the same, [39103621856](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103621856) |
+| Eighth checker | **7/7**, [39104863945](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104863945) | 7/7, [39104205770](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104205770) | 7/7, [39103623155](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103623155) |
+| Unchanged: original, second, third, `:24` x20, fourth | **3/3, 4/4, 10/10, 20/20, 11/11**, [39104866236](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104866236) | the same, [39104207093](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104207093) | the same, [39103624408](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103624408) |
+| `:228` x20 | **20/20**, [39104868261](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104868261) | 20/20, [39104208641](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104208641) | 20/20, [39103625608](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103625608) |
+| Sixth (S6 included) | **10/10**, [39104870116](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104870116) | 10/10, [39104210207](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104210207) | 10/10, [39103627206](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103627206) |
+| Seventh (H included) | **16/16**, [39104872096](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104872096) | 16/16, [39104211318](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104211318) | 16/16, [39103628641](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103628641) |
+| Fifth; bounded B1 | **17 passed, 3 timed out**: B1, F-hold and F-late, the recorded departures (A1 passes); bounded B1 **1/1**, [39104874328](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104874328) | the same, [39104212619](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104212619) | the same, [39103629742](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103629742) |
+| Maintained; two-graphic export | **85 passed, 8 legacy skips; 1/1**, [39104875995](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104875995) | the same, [39104213899](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104213899) | the same, [39103630829](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103630829) |
+| References | **6/6**, [39104877742](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104877742) | 6/6, [39104215107](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104215107) | 6/6, [39103631975](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103631975) |
+| 125% cumulative | **4/4**, [39104879798](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104879798) | 4/4, [39104216257](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104216257) | 4/4, [39103633558](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103633558) |
+| Matrix `save-transaction.spec.ts` | **42/42** (37 + 5 device rows), [39104881584](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104881584) | 42/42, [39104217506](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39104217506) | 42/42, [39103635044](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39103635044) |
+
+The control is the eighth check's own: main fails the X-device case ([39101304436](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39101304436)).
+
+Local (this VM, 2 workers, `--retries=0`): j-0026, all of `save-transaction.spec.ts` and
+`sync.spec.ts` after review, **44/44**; the eighth checker **7/7** (j-0023, j-0027), the sixth **10/10**
+(j-0028) and the seventh **16/16** (j-0030) on the reviewed source; the five device rows **5/5** on the
+final one (j-0029); `scripts/device-ids.test.mjs` **5/5**.
+
+Mutations, each run here on the five device rows and reverted:
+
+- M1, every reservation honoured (`isOwnReservation` always true), j-0020: **the two pulled-draft
+  rows fail** ("this device minted the id another device reserved"; "a draft is linked to a record
+  another device minted"). The other three pass. Before the rows started from a device with no
+  draft (j-0019), M1 passed all five: the pull rule masked it (Trap, phase note).
+- M2, a pull writes the slot whole, j-0021: **the own-reservation and S6-after-pull rows fail**
+  ("the pull replaced this device's reservation"; "this device's reservation did not survive the
+  pull").
+- M3, no `lostConflict` call, j-0022: **the conflict row fails** ("the draft stayed linked to the
+  other device's record").
+- M4, no `storage` listener, j-0025: **the conflict row fails** ("the other tab stayed linked to
+  the other device's record").
+- All three of M1 to M3 together (main's behaviour), j-0018: all five rows fail.
 
 ## Limits
 
