@@ -7,12 +7,8 @@ import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
 import { awaitPreviewRebuild } from './_preview';
 
-// A template whose JS throws at load must not fail SILENTLY on the canvas. The preview document
-// posts the error back (composeDocument's error hook -> store previewError), and before this
-// spec the only surface that showed it was the Export panel - a person watching the stage saw a
-// broken graphic and no explanation anywhere. PreviewFrame now wears the error on the stage
-// itself (.preview-runtime-error), cleared automatically because every rebuild starts by
-// resetting previewError.
+// The preview document posts a runtime error back (composeDocument's error hook -> store
+// previewError), and the stage wore it as the `preview-runtime-error` badge the case below reads.
 
 /** Swap the working template's JS through the same one-apply path every editor surface uses. */
 async function applyJs(page: import('@playwright/test').Page, js: string | null) {

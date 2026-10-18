@@ -1,5 +1,5 @@
-// covers: none - its subject, src/model/layout.ts, is CORE: a change there runs the full suite, or
-// the focus set this spec is in
+// covers: none - the mobile stack it drives is Home and the wizard shell, both in the focus set
+// this spec is in, and a change to either runs it
 //
 // focus
 
@@ -8,10 +8,8 @@ import { chooseType } from './_browse';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // The dockable-panel workspace (model/layout.ts over the retired code editor's docks) was
-// deleted on 2026-10-17 with the eight cases that drove it. What is left is the MOBILE stack:
-// Home and the wizard on a phone-width viewport.
-
-// ── Mobile (≤768px): the single-column stack. ──
+// deleted on 2026-10-17 with the eight cases that drove it. What is left is the MOBILE stack
+// (≤768px): Home and the wizard as a single column on a phone-width viewport.
 
 test('mobile: Home leads with Productions and a dashboard is two taps from open', async ({ page }) => {
   // The student phone path (docs/GOALS_ARCHIVE.md "Student release" step 8): open the app, tap the

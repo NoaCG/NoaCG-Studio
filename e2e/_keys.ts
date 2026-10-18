@@ -104,7 +104,7 @@ export async function holdKeyRepeats(page: Page, n: number, code = 'Space', key 
  * Put focus somewhere Space means nothing, so a press can only be answered by the surface under
  * test.
  *
- * Space belongs to a FOCUSED BUTTON (spaceKey.ts; pinned on its own in keyboard.spec.ts), and
+ * Space belongs to a FOCUSED BUTTON (spaceKey.ts), and
  * clicking any panel or toolbar control leaves one focused - the Data tab's "+ Add" is the usual
  * culprit, since adding a field is how these specs get something to aim at. Whether that button
  * is STILL focused when a later Space lands is decided by unrelated timing: the new field arrives

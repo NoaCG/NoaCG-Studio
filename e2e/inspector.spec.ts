@@ -6,7 +6,7 @@ import { bootstrapGraphic, skipOldEditor } from './_create';
 // The old Inspector column (src/components/timeline/Inspector.tsx, the retired code editor's
 // panel) was deleted on 2026-10-17 with the seven cases that drove it; the new editor's own
 // Inspector is pinned by e2e/editor-*.spec.ts. Left here: the filter-track runtime check, and
-// the redo-branch case, which still boots through the retired helper and skips until it is
+// the redo-branch case, which skips itself (its speed knob was the old Inspector's) until it is
 // rewritten as a store test (issue #800).
 
 async function createHairline(page: Page) {

@@ -54,12 +54,3 @@ test('v2: scoreboards create as data blocks — the score pop keeps working arou
   });
   expect(peakScale).toBeGreaterThan(1.05);
 });
-
-
-// ── Read-only, code-owned motion on the timeline ──
-// Three things in the animation data are NOT keyframes you can grab: a `loops` repeat (a
-// property of a TRACK, not a moment on it), a §3b `calls` lifecycle hook (a side effect with no
-// duration), and a `dynamics` measured segment (a builder that reads the DOM — pinned in
-// e2e/anim-engine.spec.ts). Each is SURFACED, so the timeline never silently hides motion, and
-// each is READ-ONLY, so it never implies an affordance it doesn't have. Starting Soon carries
-// both a loop and lifecycle calls.

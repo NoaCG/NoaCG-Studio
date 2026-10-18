@@ -2,17 +2,15 @@
 
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { createProject } from './_create';
-import { showCode } from './_code';
 import { applyLegacyRegion } from './_legacy';
 
 // PHASE 8 — what happens to a LEGACY TEMPLATE now that the classic strip's editing patchers are
 // gone (docs/TIMELINE_V2_PLAN.md, DYNAMIC_MOTION_SCOPE §8.1).
 //
-// This suite replaces the old 33-test classic-strip suite. Those tests drove the strip's literal
+// This suite replaced the old 33-test classic-strip suite. Those tests drove the strip's literal
 // patchers — bar drags, edge resizes, ease chips, the enters-from drawer, phase preset swaps,
-// the steps toggle. All of that is deleted, because motion is now edited as DATA, and every one
-// of those capabilities has an equivalent on the step timeline that e2e/timeline-v2.spec.ts
-// already pins. Nothing about the product's editing model is untested; it just moved.
+// the steps toggle. All of that is deleted, because motion is now edited as DATA, and the new
+// editor's timeline and keyframe edits are pinned by e2e/editor-*.spec.ts.
 //
 // What is left to guarantee, and what this suite covers, is that a template written before the
 // migration still WORKS. The dock, the read-only chart and the escape hatch were the retired
@@ -25,8 +23,6 @@ import { applyLegacyRegion } from './_legacy';
 
 async function createCard(page: Page) {
   await createProject(page, { category: 'Info cards', name: 'Hairline Card' });
-  // Several cases assert which code TAB the surface jumps to, so the pane must be open.
-  await showCode(page);
 }
 
 function frame(page: Page): FrameLocator {
