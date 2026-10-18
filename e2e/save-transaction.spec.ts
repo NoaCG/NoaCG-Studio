@@ -1,10 +1,12 @@
 // covers: src/store/saveActions.ts, src/model/durableStore.ts, src/model/project.ts, src/store/templateStore.ts
 // covers: src/components/save/SaveDialogs.tsx, src/components/save/SaveControls.tsx, src/components/save/StorageAlertDialog.tsx, src/app/router.ts
 // covers: src/components/wizard/shell/walkState.ts
+// covers: src/backend/storage.ts, src/backend/sync.ts
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 6): a write REFUSED once, then the door pressed
 // again or the page reloaded, and the reservation and link both refused (#1383, sixth check S6);
-// then whose the reservation is, across two tabs, a duplicated tab and a new tab (#1402, repair 8).
+// then whose the reservation is, across two tabs, a duplicated tab and a new tab (#1402, repair 8),
+// and across devices: a pulled reservation, a pull over this device's own, a sync conflict (#1443, repair 9).
 // Row map and shared helpers: e2e/_saveMatrix.ts.
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
@@ -280,6 +282,11 @@ for (const holds of ['other work', 'its own source'] as const) {
 // own. A pull is replayed through the sync engine's own local write (LocalStorageProvider.put), and
 // a sync conflict through runSync against a cloud that holds another device's record.
 
+/** This browser as a device with no draft of its own, as a device signing in fresh is. */
+const noDraft = (page: Page) => page.evaluate(async () => {
+  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  await new LocalStorageProvider().remove('project', '');
+});
 /** A sync pull of one record, written as the sync engine writes it. */
 const pull = (page: Page, kind: 'project' | 'graphic', body: { id: string; updatedAt?: string }) => page.evaluate(async ({ kind, body }) => {
   const { LocalStorageProvider } = await import('/src/backend/storage.ts');
@@ -302,7 +309,8 @@ test('matrix device reservation: a pulled draft names another device\'s reservat
   const url = page.url();
   const elsewhere = crypto.randomUUID();
   const slot = await slotOf(page);
-  // Device A's never-saved draft arrives, naming A's reservation.
+  // Device A's never-saved draft arrives, naming A's reservation, on a device with no draft.
+  await noDraft(page);
   await pull(page, 'project', { ...slot, updatedAt: new Date().toISOString(), reservedGraphicId: elsewhere });
   await settleDurableWrites(page); await page.reload();
   await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
@@ -335,6 +343,7 @@ test('matrix device reservation: an older build\'s synced draft carries its rese
   const slot = await slotOf(page);
   await otherDevicesRecord(page, elsewhere, 'Alpha', slot.template);
   const alpha = await record(page, elsewhere);
+  await noDraft(page);
   await pull(page, 'project', { ...slot, updatedAt: new Date().toISOString(), graphicId: null, reservedGraphicId: elsewhere, mintingReserved: true });
   await settleDurableWrites(page); await page.reload();
   await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
