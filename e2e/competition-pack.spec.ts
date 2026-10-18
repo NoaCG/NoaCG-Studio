@@ -2,9 +2,12 @@
 // Until 2026-08-08 it was reachable from no template path and ten designs landed with every
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
+// covers: src/blocks/**, src/export/**
 
-import { enableAdvancedMode, bootstrapGraphic, skipOldEditor } from './_create';
-import { test, expect, type Page } from '@playwright/test';
+import { bootstrapGraphic, finishIntoNewEditor } from './_create';
+import { chooseCategory, pickDesign } from './_browse';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // THE COMPETITION PACK (docs/COMPETITION_PACK.md) — the esports, competition, result and
 // reveal graphics.
@@ -17,13 +20,11 @@ import { test, expect, type Page } from '@playwright/test';
 
 const CATEGORIES = ['esports-score', 'matchup', 'results-board', 'reveal'] as const;
 
-/** Boot a hidden iframe running one catalog variant, and return a handle to drive it. */
+/** Mount a template in a hidden iframe (one catalog variant, or any document), and return a handle to drive it. */
 const HARNESS = `
-  async function boot(id, options) {
-    const { variantById } = await import('/src/templates/catalog.ts');
+  async function mount(tpl) {
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
     document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
-    const tpl = variantById(id).create(options || {});
     const f = document.createElement('iframe');
     f.className = 'pack-frame';
     f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1280px;height:720px;';
@@ -32,17 +33,13 @@ const HARNESS = `
     await new Promise((r) => setTimeout(r, 80));
     return { tpl, win: f.contentWindow, doc: f.contentDocument };
   }
+  async function boot(id, options) {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return mount(variantById(id).create(options || {}));
+  }
   // Let a dispatched event's timeline settle (they are all well under 700 ms).
   const settle = () => new Promise((r) => setTimeout(r, 700));
 `;
-
-async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 test('the pack ships its four categories, and every design creates and validates', async ({ page }) => {
   test.setTimeout(180_000);
@@ -565,12 +562,26 @@ test('a pack graphic saves to the library and reloads with its machine and marks
 });
 
 test('the pack is discoverable in the wizard and creates from a category card', async ({ page }) => {
-  skipOldEditor();
-  await bootstrapGraphic(page, { category: 'esports-score', name: 'House Series' });
-  const frame = page.frameLocator('iframe.preview-frame');
-  await page.getByRole('button', { name: '▶ Play' }).click();
-  await expect.poll(async () => frame.locator('.esports-score').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-  await expect(frame.locator('#f0')).toHaveText('TEAM LIQUID');
+  // The real door: the wizard's Browse step narrowed to the shelf the scorebug sits on (the
+  // pack's category is browsed as a scoreboard, src/templates/meta.ts), the design's card, and
+  // Finish into the editor, which makes the created graphic the working document.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await chooseCategory(page, 'scoreboard');
+  await pickDesign(page, 'House Series');
+  await finishIntoNewEditor(page);
+  // Played in a hidden composer iframe, it settles on its entrance pose with the sample data the
+  // category card promised.
+  const played = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { win, doc } = await mount(useTemplateStore.getState().template);
+    win.play();
+    await settle();
+    return { opacity: getComputedStyle(doc.querySelector('.esports-score')).opacity, f0: doc.getElementById('f0').textContent };
+  })()`) as { opacity: string; f0: string };
+  expect(played).toEqual({ opacity: '1', f0: 'TEAM LIQUID' });
   // The generated control page's buttons come from the machine — the phase events are there.
   const events = await page.evaluate(`(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

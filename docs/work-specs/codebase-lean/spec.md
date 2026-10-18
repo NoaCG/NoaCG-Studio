@@ -209,6 +209,28 @@ edit of each file. The helpers only the removed cases called (`timelineProgress`
 `applyUnconvertibleRegion`, `applyUnreadableRegion`, `frameRect`, `frameStyleProp`) are gone from
 `e2e/_keys.ts`, `e2e/_legacy.ts` and `e2e/_frame.ts`.
 
+### Phase 2 receipt: the runtime-harness revival
+
+The first revival, on main `54ee2dcc` (2026-10-18): the eight specs whose live-gap cases boot
+in-page against the composer and the runtime (sports, public-service, anim-engine,
+competition-pack, audience-pack, graphic-types, state-machine, machine-edit) boot through
+`e2e/_bench.ts`'s shared `toApp` instead of a local copy that called the retired advanced mode,
+so 73 live-gap cases run again: 87 cases in all across the eight files, 5.0 case-minutes (2.6 min
+wall on two workers, queue job `j-0011`, every case passing, none skipped). Twelve of the 87 are
+cases the classification marked covered; each cover is partial by its own TSV note (a chip, a
+column or a design the named check does not pin), they cost half a case-minute together, and
+they stay. Three cases needed more than the boot swap: the kicker-on-air case drives the
+production page's cue editor and Update and reads PROGRAM, the competition pack's
+discoverability case walks the wizard's Browse shelf and card and plays the created graphic in
+the harness iframe, and the measured-motion
+case keeps its runtime half without the old step timeline's row. One case went: the simulator
+snap case duplicated production-controls.spec.ts's live control page check (its entry under Test
+maintenance). The covers headers now name what the running cases drive beyond the templates:
+`src/blocks/**` and `src/export/**` on the pack sweeps, the production page and its field
+control on the kicker case, `src/templates/shared/**` on machine-edit. The eight files' minutes
+are under Budget exceptions. Still skipping: the other 158 live-gap cases, whose bootstraps
+create a graphic through the retired wizard door; they are the next revival groups.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -354,6 +376,24 @@ reserved by the editor phase.
 - 2026-10-17 `e2e/inline-edit.spec.ts`: 2 case(s) removed with the old editor's timeline, canvas and preview sources, file deleted; receipt evidence/test-dispositions.tsv. "double-click edits text in place: live value + definition default, undoable" (covered: e2e/editor-base-edits.spec.ts:94 'B04 artwork content, appearance and structure': dblclick -> .ef-inline-text textarea, Apply -> preview #f0 shows the text, Undo restores the source; the operator sample value is deliberately kept (design change).); "Escape cancels an inline edit without changes" (covered: e2e/editor-base-edits.spec.ts:94: fill 'Canceled' in the inline textarea, Escape, source equals the pre-edit template.)
 - 2026-10-17 `e2e/canvas-fit.spec.ts`: 2 case(s) removed with the old editor's timeline, canvas and preview sources, file deleted; receipt evidence/test-dispositions.tsv. "the graphic is scaled onto the canvas, not collapsed" (retired UI: Asserts iframe.preview-frame transform + preview-stage: PreviewFrame-only (no live importer). New editor Canvas.tsx:65 clamps fit>=0.01 with editor-canvas-short-height.spec.ts:17 (viewport>=180px at five sizes); the wizard stage is pinned by layout.spec.ts:217 (running).); "a zero-sized stage never commits a zero scale" (retired UI: The zero-measurement commit rule is PreviewFrame's ResizeObserver path (retired). New editor Canvas.tsx:65 Math.max(0.01, fit) cannot commit zero; its layout checks are editor-canvas-short-height.spec.ts:17 and editor-foundation.spec.ts:263.)
 - 2026-10-17 `e2e/preview-error.spec.ts`: 1 case(s) removed with the old editor's timeline, canvas and preview sources, 1 live case(s) kept for issue #800; receipt evidence/test-dispositions.tsv. "a template runtime error is worn on the stage, and clears on the next good build" (covered: e2e/editor-foundation.spec.ts:361 'broken source reports failure and recovers': applyTemplate with a throwing js shows .ef-stage-error with the message; restoring the source returns to ready. (ExportWindow no longer passes runtimeError to ExportSurface; only the deleted ExportPanel did.))
+- 2026-10-18 `e2e/state-machine.spec.ts`: 1 case(s) removed with the old editor's playout simulator, its surface; receipt evidence/test-dispositions.tsv. "preview: snap-to-state works in the editor, and the event strip guards like the graph" (covered: sim-events/sim-state-chip/.simulator are PlayoutSimulator.tsx (retired). The live surface is covered: production-controls.spec.ts:129 snaps to 'Locked in' (chip, locked pose), greys select after lock, and a legal event (judge) plays through to PROGRAM; control.spec.ts:209 for the exported panel.)
+
+## Budget exceptions
+
+The runtime-harness revival (Phase 2, #800) turns 73 live-gap cases in eight files back on. They
+skipped since the old editor went, so the duration table weighs each file at a few seconds; the
+minutes below are this change's local measurement (case-minutes, two workers, `j-0011`), recorded so the
+capacity gate can see the delta it will measure on the pull request's own run. The weekly
+refresh records the real figures and these lines expire.
+
+- e2e/sports.spec.ts: 1.1 min, protects the match clock, score and state machines of the sports pack at runtime, expires 2026-11-16
+- e2e/public-service.spec.ts: 1.1 min, protects the ticker, alert and public-information runtimes and the kicker's control path, expires 2026-11-16
+- e2e/anim-engine.spec.ts: 0.6 min, protects data-block parity with the legacy emits, measured motion and the serializer, expires 2026-11-16
+- e2e/competition-pack.spec.ts: 1.1 min, protects the match-up, scorebug, veto, verdict, nominee and board machines at runtime, expires 2026-11-16
+- e2e/audience-pack.spec.ts: 0.5 min, protects the message clamp, queue, vote board, chat highlight and pack round trips, expires 2026-11-16
+- e2e/graphic-types.spec.ts: 0.6 min, protects promotion identity, the quiz walk, ticker pause and the countdown clock, expires 2026-11-16
+- e2e/state-machine.spec.ts: 0.3 min, protects the machine schema, the derived machine and the export-surface walk, expires 2026-11-16
+- e2e/machine-edit.spec.ts: 0.1 min, protects step edits under a machine and the off-shape export gate, expires 2026-11-16
 
 ## Acceptance criteria
 

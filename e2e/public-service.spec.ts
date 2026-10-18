@@ -4,16 +4,17 @@
 // somebody judges a template by, and both specs that measure it live here rather than under the
 // `timeline` covers line.
 // covers: src/blocks/animData.ts
+// covers: src/export/**, src/components/home/{ProductionPage,PlayoutMonitors,ProgramStage,PayloadStage}.tsx, src/components/fields/FieldControl.tsx
 //
 // This spec iterates the CATALOG, so a design added anywhere under src/templates/ must select it.
 // Until 2026-08-08 it was reachable from no template path and ten designs landed with every
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
 
-import { createProject, enableAdvancedMode } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
-import { awaitPreviewRebuild } from './_preview';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 import JSZip from 'jszip';
 
 // The public-service pack: tickers, alerts and public-information panels.
@@ -27,14 +28,6 @@ import JSZip from 'jszip';
 //
 // It deliberately does not re-prove the shared machinery (the data-block interpreter, the
 // preset bank, the export packaging): anim-engine, timeline-v2 and exports already do.
-
-async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape'); // close the creation wizard — these tests run in-page
-}
 
 /** Runs in the page: build a catalog variant and boot it into a hidden iframe. */
 const HARNESS = `
@@ -762,20 +755,14 @@ test('every export target packages the new categories with no dangling reference
 // the playout dashboard's monitors, the browser-output renderer and an exported package all
 // call. Proving it at the design-time preview alone would prove the parser and not the product.
 test('a kicker typed on air reaches the strip through the control path', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await createProject(page, 'House Wire');
-  // The preview rebuilds on a debounce after the create; the control update has to land on the
-  // NEW document rather than the one it is replacing (e2e/AGENTS.md).
-  await awaitPreviewRebuild(page);
+  // The operator's door is the production page: the cue editor's field and Update.
+  await bootstrapGraphic(page, 'House Wire');
+  await openProductionWithCurrent(page, 'Kicker on air');
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('cue-field-f0').fill('SPORT:\nUnited win 3-0\nCity held at home\n\nStorm warning issued');
+  await page.getByTestId('verb-update').click();
 
-  await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const store = useTemplateStore.getState();
-    store.setSampleValue('f0', 'SPORT:\nUnited win 3-0\nCity held at home\n\nStorm warning issued');
-    store.sendControl('update');
-  });
-
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(frame.locator('.ticker-kicker').first()).toHaveText('SPORT', { timeout: 10_000 });
   // Two stories under one kicker, and the story after the blank line carrying none.
   const strip = await frame.locator('#ticker-track').textContent();

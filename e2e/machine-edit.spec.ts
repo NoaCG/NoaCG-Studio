@@ -1,8 +1,7 @@
-// covers: none - no source path selected this spec when coverage moved into spec headers
-// (2026-09-27); it runs when edited, on a full escalation and at night
+// covers: src/blocks/**, src/templates/shared/**
 
-import { enableAdvancedMode } from './_create';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 import { MILLIONAIRE } from './_machines';
 
 // Phase 1 left the step editor frozen under an explicit machine: adding, removing or
@@ -13,14 +12,6 @@ import { MILLIONAIRE } from './_machines';
 // unique, validateMachine stays clean, settings.steps stays derived, and the graphic still
 // walks. A structural edit that quietly broke any of those would ship a graphic whose
 // operator presses no longer line up with what is on screen.
-
-async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 /** Build the Millionaire acceptance template in page, apply an edit, and report the state of
  *  the binding afterwards. `edit` runs against the parsed data with the module's mutators. */

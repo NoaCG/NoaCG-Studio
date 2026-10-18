@@ -1,11 +1,12 @@
 // covers: src/templates/**
+// covers: src/blocks/**, src/export/**
 //
 // The quiz runtime is also the exported control panel's recovery subject and the audience
 // pack's answer boards.
 // covers: src/templates/quiz/**
 
-import { enableAdvancedMode } from './_create';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // THE AUDIENCE PACK — viewer questions, Q&A cards, chat highlights, question queues, community
 // requests, live votes, and the two- and three-answer boards.
@@ -15,14 +16,6 @@ import { test, expect, type Page } from '@playwright/test';
 // gives no platform; a moderator pastes a bare list with no names; a poll has no votes yet, or a
 // dead heat; an operator locks an answer and then replays. Every one of those is ordinary on
 // air, and every one of them is a way for a graphic to render something untrue.
-
-async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 /** Build a variant, load it in an iframe, play it, and hand back the window + document. */
 const HARNESS = `
