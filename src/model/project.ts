@@ -213,21 +213,71 @@ export function upsertProject(project: SavedProject): void {
   }
 }
 
-const supersededListeners = new Set<(graphicId: string) => void>();
-/** Hear `graphicSuperseded`, in this tab or another (templateStore drops the live link). */
-export function onGraphicSuperseded(listener: (graphicId: string) => void): void {
+/** What a "(conflicted copy)" holds: the source of the record that lost a sync conflict
+ *  (backend/sync.ts), now under its own id (#1466). */
+export interface ConflictCopy extends DraftSource {
+  id: string;
+}
+/** What a Save writes of the draft, and so what its link's `dirty` speaks for. */
+interface DraftSource {
+  template: SpxTemplate;
+  legibility?: ProjectLegibility | null;
+  aiSpec?: GenerationSpec | null;
+  aiThread?: AiThread | null;
+}
+const sourceOf = ({ template, legibility, aiSpec, aiThread }: DraftSource) =>
+  JSON.stringify([template, legibility ?? null, aiSpec ?? null, aiThread ?? null]);
+/** The link of a draft whose record lost a sync conflict: the copy that holds its saved work,
+ *  clean only when the draft holds exactly that (an edit made since the losing Save stays
+ *  unsaved, as it was). With no copy known, none, so its next Save asks for a name. */
+export function linkAfterLoss(draft: DraftSource, copy: ConflictCopy | null): { graphicId: string | null; dirty: boolean } {
+  return copy ? { graphicId: copy.id, dirty: sourceOf(draft) !== sourceOf(copy) } : { graphicId: null, dirty: true };
+}
+
+/** The copy each superseded record's work went to, as this tab heard it. In memory: a Save whose
+ *  record write a pass overlapped settles there (store/saveActions.ts). */
+const conflictCopies = new Map<string, ConflictCopy>();
+export function conflictCopyOf(graphicId: string): ConflictCopy | null {
+  return conflictCopies.get(graphicId) ?? null;
+}
+/** The links that stand for the record `graphicId` that lost: itself, and the copy an earlier
+ *  loss of it went to. A Save written after a pass listed the library is copied only by the next
+ *  pass, and the draft already moved to the first copy then. */
+function lostLinks(graphicId: string): string[] {
+  const earlier = conflictCopies.get(graphicId);
+  return earlier ? [graphicId, earlier.id] : [graphicId];
+}
+
+const supersededListeners = new Set<(lost: string[], copy: ConflictCopy | null) => void>();
+/** Hear `graphicSuperseded`, in this tab or another (templateStore moves the live link): a draft
+ *  linked to one of `lost` takes `linkAfterLoss`. */
+export function onGraphicSuperseded(listener: (lost: string[], copy: ConflictCopy | null) => void): void {
   supersededListeners.add(listener);
 }
-function forgetSuperseded(graphicId: string): void {
+function forgetSuperseded(graphicId: string, copy: ConflictCopy | null): void {
+  const lost = lostLinks(graphicId);
+  if (copy) conflictCopies.set(graphicId, copy);
   if (reservation?.id === graphicId) reservation = null;
-  supersededListeners.forEach((listener) => listener(graphicId));
+  supersededListeners.forEach((listener) => listener(lost, copy));
 }
-// Another tab's pass found the conflict and rewrote the slot; this tab drops its own link.
+// Every tab of this browser hears the conflict a pass found in one of them, the copy with it. A
+// message, not only the device-local list: a list this build cannot write (a newer build's, or
+// localStorage refusing it) told no other tab, and that tab stayed linked to the record that won.
+const supersededChannel = typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('noacg-graphic-superseded') : null;
+if (supersededChannel) {
+  supersededChannel.onmessage = (event: MessageEvent<{ graphicId?: unknown; copy?: ConflictCopy | null }>) => {
+    if (typeof event.data?.graphicId === 'string') forgetSuperseded(event.data.graphicId, event.data.copy ?? null);
+  };
+}
+// A tab of an older build (open across a deploy) tells only through the list, with no copy: the
+// draft linked to that record here is unlinked, as that build does. A tab of this build sends the
+// copy on the channel as well, so its message is given the moment it takes to arrive.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key !== SUPERSEDED_KEY) return;
     const [graphicId] = deviceIds(SUPERSEDED_KEY);
-    if (graphicId) forgetSuperseded(graphicId);
+    if (graphicId) setTimeout(() => { if (!conflictCopies.has(graphicId)) forgetSuperseded(graphicId, null); }, 500);
   });
 }
 /** Did a sync conflict on this device give `graphicId` to another device's record? */
@@ -235,18 +285,23 @@ export function isGraphicSuperseded(graphicId: string): boolean {
   return deviceIds(SUPERSEDED_KEY).includes(graphicId);
 }
 /** A library record lost a sync conflict (backend/sync.ts): another device's version now holds
- *  its id, and this device's own lives on as a "(conflicted copy)". When it is the record a
- *  first Save just minted, the id turned out to be taken. The draft stops naming it, as its link
- *  or its reservation, so its next Save asks for a name instead of writing over the other
- *  device's graphic (#1443). The slot's time moves, so the next pass shares the unlinked draft.
- *  Answers whether the slot was rewritten. */
-export function graphicSuperseded(graphicId: string): boolean {
+ *  its id, and this device's own lives on as a "(conflicted copy)", `copy`. The draft linked to
+ *  the record links to the copy instead (`linkAfterLoss`), the record that holds its saved work,
+ *  so it never writes over the other device's graphic (#1443) and is not asked about as unsaved
+ *  work (#1466). A draft that named the record only as its reservation (a first Save whose link
+ *  write was refused) links there when it is that save's draft; the reservation is dropped either
+ *  way. The slot's time moves, so the next pass shares the rewritten draft. Answers whether the
+ *  slot was rewritten. */
+export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null = null): boolean {
   rememberDeviceId(SUPERSEDED_KEY, graphicId);
   const p = loadProject();
+  const linked = !!p?.graphicId && lostLinks(graphicId).includes(p.graphicId);
   let rewritten = false;
-  if (p && (p.graphicId === graphicId || p.reservedGraphicId === graphicId)) {
+  if (p && (linked || p.reservedGraphicId === graphicId)) {
     const rec: SavedProject = { ...p, updatedAt: new Date().toISOString() };
-    if (p.graphicId === graphicId) Object.assign(rec, { graphicId: null, dirty: true });
+    const link = linkAfterLoss(p, copy);
+    if (linked) Object.assign(rec, link);
+    else if (copy && !p.graphicId && (!link.dirty || p.mintingReserved)) Object.assign(rec, link);
     if (p.reservedGraphicId === graphicId) {
       delete rec.reservedGraphicId;
       delete rec.mintingReserved;
@@ -256,10 +311,15 @@ export function graphicSuperseded(graphicId: string): boolean {
       notifyDataChanged();
       rewritten = true;
     } catch {
-      // Non-fatal: the live link below still drops, and the next autosave writes it.
+      // Non-fatal: the live link below still moves, and the next autosave writes it.
     }
   }
-  forgetSuperseded(graphicId);
+  forgetSuperseded(graphicId, copy);
+  try {
+    supersededChannel?.postMessage({ graphicId, copy });
+  } catch {
+    // A copy that cannot be cloned: the other tabs hear the list, and unlink.
+  }
   return rewritten;
 }
 

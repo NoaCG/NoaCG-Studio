@@ -95,9 +95,9 @@ export interface StorageProvider {
   putMany?(records: StoredRecord[]): Promise<void>;
   remove(kind: SyncKind, id: string): Promise<void>;
   /** A record of this side lost a true conflict (sync.ts): the other side's version is about to
-   *  replace it, and its own edit has just been written as a "(conflicted copy)". Answers the
-   *  records of this side it rewrote in response. */
-  lostConflict?(record: StoredRecord): StoredRecord[];
+   *  replace it, and its own edit has just been written as `copy`, a "(conflicted copy)".
+   *  Answers the records of this side it rewrote in response. */
+  lostConflict?(record: StoredRecord, copy: StoredRecord): StoredRecord[];
 }
 
 // The project brand is a per-user singleton. NOTE: 'default' is NOT a valid uuid, so brand is
@@ -194,9 +194,12 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   /** The working draft stops being that graphic: another device's version holds its id now, so
-   *  the draft's next Save asks for a name rather than writing over it (#1443). */
-  lostConflict(record: StoredRecord): StoredRecord[] {
-    if (record.kind !== 'graphic' || !graphicSuperseded(record.id)) return [];
+   *  the draft links to the copy that holds its own saved work instead of writing over the
+   *  other device's (#1443, #1466). */
+  lostConflict(record: StoredRecord, copy: StoredRecord): StoredRecord[] {
+    if (record.kind !== 'graphic') return [];
+    const { template, legibility, aiSpec, aiThread } = copy.body as GraphicDoc;
+    if (!graphicSuperseded(record.id, { id: copy.id, template, legibility, aiSpec, aiThread })) return [];
     const project = loadProject();
     return project ? [toStoredRecord('project', project.id, project)] : [];
   }
