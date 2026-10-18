@@ -45,12 +45,12 @@ function validateWait(wait) {
 }
 
 /** SQLite serializes claims, not agent work. Keep it on a local disk, never a shared network FS. */
-export function openStore(file) {
+export function openStore(file, { recoveryGit } = {}) {
   const db = new DatabaseSync(file);
   db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
     CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, wave TEXT UNIQUE NOT NULL,
       doc TEXT NOT NULL, owner TEXT, leaseUntil INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0);`);
-  recoveryTables(db);
+  recoveryTables(db, recoveryGit);
   return db;
 }
 
@@ -282,7 +282,7 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
   }
 }
 
-export async function main(args = process.argv.slice(2)) {
+export async function main(args = process.argv.slice(2), options = {}) {
   const [command, file, id, value] = args;
   if (!file || !['register', 'restore', 'resume', 'record', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'finish', 'cancel'].includes(command)) {
     process.stderr.write('Usage: run-supervisor.mjs register <db> <manifest.json> | restore|resume <db> <config.json> | record <db> <id> <phase> <event> [detail] | tick|status <db> [id] | wait|checkpoint <db> <id> <json> | clear-wait <db> <id> <evidence> | finish|cancel <db> <id>\n'); return 2;
@@ -290,7 +290,7 @@ export async function main(args = process.argv.slice(2)) {
   let db;
   try {
     if (['restore', 'resume'].includes(command)) mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
-    db = openStore(file);
+    db = openStore(file, options);
     let output;
     if (command === 'register') output = registerRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'restore') output = restoreRun(db, JSON.parse(readFileSync(id, 'utf8')));

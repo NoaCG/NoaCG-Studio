@@ -13,12 +13,13 @@ const COMMIT_IDENTITY = {
   GIT_AUTHOR_NAME: 'NoaCG Recovery', GIT_AUTHOR_EMAIL: 'noacg-recovery@users.noreply.github.com',
   GIT_COMMITTER_NAME: 'NoaCG Recovery', GIT_COMMITTER_EMAIL: 'noacg-recovery@users.noreply.github.com',
 };
-const git = (cwd, args, input) => execFileSync('git', args, {
+export const recoveryGit = (cwd, args, input) => execFileSync('git', args, {
   cwd, input, encoding: 'utf8', timeout: 30_000, maxBuffer: 2 * 1024 * 1024,
   stdio: ['pipe', 'pipe', 'pipe'],
   ...(args[0] === 'commit-tree' ? { env: { ...process.env, ...COMMIT_IDENTITY } } : {}),
   windowsHide: true,
 }).trimEnd();
+const transports = new WeakMap();
 const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
   return `refs/heads/noacg-recovery/${id}`;
@@ -26,17 +27,24 @@ const refFor = (id) => {
 const safePath = (s) => required(s) && !s.startsWith('-') && !s.includes('\\') && !path.posix.isAbsolute(s)
   && s.split('/').every((part) => part && part !== '.' && part !== '..');
 
-function settings(config) {
+function settings(config, git) {
   if (!path.isAbsolute(config?.repository ?? '') || !/^[a-zA-Z0-9_-]+$/.test(config?.remote ?? '')
       || !/^[\w.-]+\/[\w.-]+$/.test(config?.repositoryFullName ?? '')) throw new Error('Recovery needs repository, named remote and repositoryFullName');
   // Do not store credentials or alternate hosting in the recovery document.
   const url = git(config.repository, ['config', '--get', `remote.${config.remote}.url`]);
   const escaped = config.repositoryFullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (!new RegExp(`^(?:https://github\\.com/|git@github\\.com:)${escaped}(?:\\.git)?$`, 'i').test(url)) throw new Error('Recovery remote must be the existing GitHub repository');
+  const expected = new RegExp(`^(?:https://github\\.com/|git@github\\.com:)${escaped}(?:\\.git)?$`, 'i');
+  if (!expected.test(url)) throw new Error('Recovery remote must be the existing GitHub repository');
+  const destinations = [
+    ...git(config.repository, ['remote', 'get-url', '--all', config.remote]).split('\n'),
+    ...git(config.repository, ['remote', 'get-url', '--push', '--all', config.remote]).split('\n'),
+  ];
+  if (destinations.some((destination) => !expected.test(destination))) throw new Error('Recovery effective fetch/push destination differs from the existing repository');
   return config;
 }
 
-export function recoveryTables(db) {
+export function recoveryTables(db, transport = recoveryGit) {
+  transports.set(db, transport);
   db.exec('CREATE TABLE IF NOT EXISTS recovery_heads (id TEXT PRIMARY KEY, sha TEXT NOT NULL)');
 }
 
@@ -73,7 +81,7 @@ function validateState(doc, ledger) {
   return r;
 }
 
-function verifySource(config, r, published = null) {
+function verifySource(config, r, published, git) {
   git(config.repository, ['check-ref-format', `refs/heads/${r.branch}`]);
   if (r.branch === 'main' || r.branch.startsWith('noacg-recovery/')) throw new Error('Recovery source must be an owned feature branch');
   let retained = false;
@@ -94,16 +102,17 @@ function verifySource(config, r, published = null) {
 
 /** Publish before dispatch. A rejected/unknown push cannot authorize an external action. */
 export function publishRun(db, id) {
+  const git = transports.get(db) ?? recoveryGit;
   const row = db.prepare('SELECT doc FROM runs WHERE id=?').get(id);
   const doc = JSON.parse(row.doc), config = doc.manifest.recovery;
   if (!config) return;
-  settings(config);
+  settings(config, git);
   const ledger = readFileSync(doc.manifest.wave, 'utf8'), r = validateState(doc, ledger);
   const worktree = doc.packet.workspace?.worktree;
   if (!path.isAbsolute(worktree ?? '') || git(worktree, ['rev-parse', 'HEAD']) !== r.revision
       || git(worktree, ['status', '--porcelain'])) throw new Error('Commit and push owned work before checkpointing; dirty files are not durable');
   const old = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha ?? '';
-  verifySource(config, r, old);
+  verifySource(config, r, old, git);
   // Adapter arguments may carry credentials. A replacement host supplies its own trusted
   // adapter; keep the entire original executable configuration in the local store only.
   const durableDoc = structuredClone(doc);
@@ -132,7 +141,8 @@ export function publishRun(db, id) {
 
 /** Rebuild an empty local store and worktree from the latest remote checkpoint. Never dispatch. */
 export function restoreRun(db, config, now = Date.now()) {
-  settings(config);
+  const git = transports.get(db) ?? recoveryGit;
+  settings(config, git);
   if (!runId(config.id) || !path.isAbsolute(config.worktree ?? '') || !path.isAbsolute(config.wave ?? '')
       || !path.isAbsolute(config.adapter?.command ?? '') || !path.isAbsolute(config.adapter?.cwd ?? '')
       || !Array.isArray(config.adapter.args) || config.adapter.args.some((s) => typeof s !== 'string')
@@ -146,7 +156,7 @@ export function restoreRun(db, config, now = Date.now()) {
   if (snapshot.version !== 1 || doc?.manifest?.id !== config.id
       || doc.manifest.recovery?.repositoryFullName !== config.repositoryFullName) throw new Error('Recovery checkpoint identity differs');
   const r = validateState(doc, ledger);
-  verifySource(config, r, checkpoint);
+  verifySource(config, r, checkpoint, git);
   mkdirSync(path.dirname(config.wave), { recursive: true });
   // A local preparation journal makes interrupted restoration repeatable without replacing
   // unrelated directories or changed local work. It contains no credentials or executable code.

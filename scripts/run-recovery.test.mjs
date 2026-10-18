@@ -8,7 +8,7 @@ import { devNull, tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { main, openStore, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
-import { publishRun, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 
 // Defense in depth: every child git process is restricted to the temporary file remote.
 process.env.GIT_ALLOW_PROTOCOL = 'file';
@@ -18,8 +18,10 @@ const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8',
 const docFor = (db) => JSON.parse(db.prepare('SELECT doc FROM runs').get().doc);
 const remoteUrl = 'https://github.com/NoaCG/recovery-test.git';
 
-function fixture(t, adapterArgs = ['-e', '']) {
+function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'noacg-recovery-'));
+  const dbs = [];
+  t.after(() => { for (const d of dbs) { try { d.close(); } catch { /* The loss test may already have closed this handle. */ } } rmSync(root, { recursive: true, force: true }); });
   const remote = path.join(root, 'remote.git'), source = path.join(root, 'source');
   git(root, 'init', '--bare', remote);
   git(root, 'init', '-b', 'codex/test', source);
@@ -47,8 +49,16 @@ function fixture(t, adapterArgs = ['-e', '']) {
         evidence: [{ path: 'evidence.md', sha256: hash(readFileSync(path.join(source, 'evidence.md'))) }],
         native: { provider: 'codex', sessionId: 'native-owner', environmentId: 'original-environment', policySha256: hash('original policy') },
         repairOwners: [{ prNumber: 42, commentId: 123, sessionId: 'native-owner', headSha: revision }] } } };
-  const dbs = [], open = (name) => { const db = openStore(path.join(root, name)); dbs.push(db); return db; };
+  const transport = (cwd, args, input) => {
+    const result = recoveryGit(cwd, args, input);
+    // The file-only transport stands in for this exact configured repository. Other
+    // effective destinations remain unchanged, so forks/mirrors must still be rejected.
+    return args[0] === 'remote' && args[1] === 'get-url'
+      ? result.split('\n').map((url) => url === remote ? remoteUrl : url).join('\n') : result;
+  };
+  const open = (name) => { const db = openStore(path.join(root, name), { recoveryGit: transport }); dbs.push(db); return db; };
   const db = open('control.sqlite');
+  prepareSource({ source, remote, root });
   registerRun(db, manifest, now);
   const bootstrap = () => {
     const repo = path.join(root, `bootstrap-${dbs.length}`);
@@ -61,8 +71,7 @@ function fixture(t, adapterArgs = ['-e', '']) {
       adapter: { command: process.execPath, args: ['-e', ''], cwd: repository } };
     return { db: fresh, config, result: restoreRun(fresh, config, clock) };
   };
-  t.after(() => { for (const d of dbs) { try { d.close(); } catch { /* The loss test may already have closed this handle. */ } } rmSync(root, { recursive: true, force: true }); });
-  return { root, remote, source, manifest, db, now, restore, open };
+  return { root, remote, source, manifest, db, now, restore, open, transport };
 }
 
 function receipt(doc, now) {
@@ -180,7 +189,7 @@ test('restored accepted delivery reconciles the original worker and never launch
 
 test('phase records publish their ledger before the command acknowledges success', async (t) => {
   const f = fixture(t);
-  assert.equal(await main(['record', path.join(f.root, 'control.sqlite'), f.manifest.id, '1', 'build', 'worker-1']), 0);
+  assert.equal(await main(['record', path.join(f.root, 'control.sqlite'), f.manifest.id, '1', 'build', 'worker-1'], { recoveryGit: f.transport }), 0);
   const restored = f.restore();
   assert.match(readFileSync(restored.config.wave, 'utf8'), /phase 1 build worker-1/);
 });
@@ -209,7 +218,7 @@ test('unknown policy remains null in durable storage and cannot unlock dispatch'
 test('resume automatically reconstructs an absent database directory but cannot bypass native read-back', async (t) => {
   const f = fixture(t), original = f.restore(), database = path.join(f.root, 'lost-state', 'control.sqlite');
   const configFile = path.join(f.root, 'bootstrap.json'); writeFileSync(configFile, JSON.stringify(original.config));
-  assert.equal(await main(['resume', database, configFile]), 0);
+  assert.equal(await main(['resume', database, configFile], { recoveryGit: f.transport }), 0);
   const recovered = openStore(database);
   try { assert.equal(docFor(recovered).restoration.reconciled, false); } finally { recovered.close(); }
 });
@@ -218,7 +227,7 @@ test('a durable phase update invalidates an already inspecting local tick before
   const f = fixture(t); let deliveries = 0;
   const result = await tickRun(f.db, f.manifest.id, { invoke: async (_, request) => {
     if (request.operation === 'inspect') {
-      assert.equal(await main(['record', path.join(f.root, 'control.sqlite'), f.manifest.id, '1', 'build', 'owned-worker']), 0);
+      assert.equal(await main(['record', path.join(f.root, 'control.sqlite'), f.manifest.id, '1', 'build', 'owned-worker'], { recoveryGit: f.transport }), 0);
       return { state: 'gone' };
     }
     deliveries++; return { state: 'delivered', workerId: 'must-not-launch' };
@@ -242,4 +251,19 @@ test('recovery commits have a machine identity even when the host has none', (t)
   updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'persist without host identity', until: null });
   const identity = git(f.remote, 'show', '-s', '--format=%an <%ae> / %cn <%ce>', `refs/heads/noacg-recovery/${f.manifest.id}`);
   assert.equal(identity, 'NoaCG Recovery <noacg-recovery@users.noreply.github.com> / NoaCG Recovery <noacg-recovery@users.noreply.github.com>');
+});
+
+test('separate and multiple effective push destinations are rejected before any checkpoint export', (t) => {
+  for (const multiple of [false, true]) {
+    let fork;
+    assert.throws(() => fixture(t, ['-e', ''], ({ source, root }) => {
+      fork = path.join(root, 'fork.git');
+      const forkUrl = 'https://github.com/Other/fork.git';
+      git(root, 'init', '--bare', fork);
+      git(source, 'config', `url.${fork}.insteadOf`, forkUrl);
+      if (multiple) git(source, 'config', '--add', 'remote.origin.pushurl', remoteUrl);
+      git(source, 'config', '--add', 'remote.origin.pushurl', forkUrl);
+    }), /effective.*destination/);
+    assert.equal(git(fork, 'for-each-ref', '--format=%(refname)', 'refs/heads/noacg-recovery/'), '');
+  }
 });

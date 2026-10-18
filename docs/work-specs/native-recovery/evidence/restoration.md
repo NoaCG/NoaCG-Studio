@@ -52,6 +52,8 @@ after its feature branch is deleted. Only `checkpoint.json` appears in their tre
 The original adapter executable/arguments/cwd are omitted from the durable document;
 they remain local and are replaced explicitly at restoration. Generated commits use
 a fixed NoaCG Recovery author/committer identity without changing host Git settings.
+All effective fetch and push URLs, including separate or multiple push URLs and
+Git URL rewrites, must identify that same repository before any record is exported.
 The dedicated `refs/heads/noacg-recovery/<run-id>` ref is state storage, never a
 product landing branch; product changes still use `/check` → `/queue-merge`.
 
@@ -128,18 +130,20 @@ the user or inventing permission to replay.
 
 `/check` reviewed these five changed paths against merge base
 `2c36ba0be224d464938538428d02b8b77c56b5b9`, then reconciled with current main
-`f79b9b5176aa540944bda5f3b0d4d91fa7bc0745` before the final check. Review ran inline and fixed three
+`25384c35d66f22062cf90f81461ddd46ff5b6261` before the final check. Review ran inline and fixed three
 issues: preserving a restored native permission wait, waiting before the original
 authorization start on a replacement clock, and invalidating an in-flight local
 tick when a phase record changes. The permission-wait regression failed before
 the correction. Simplification ran inline and reused a single delivery-packet
 builder. Automated review then found adapter-argument exposure and missing commit
 identity on fresh hosts; both were reproduced before omitting adapter configuration
-and setting a machine identity per commit command. The first source CI build
+and setting a machine identity per commit command. A subsequent review reproduced
+publication to a different `pushurl`; checking all effective fetch/push destinations
+now rejects that configuration before export. The first source CI build
 `39153528551` failed ESLint on an empty cleanup catch in the new test. Its complete
 19,623-line job log was fetched and inspected; adding the cleanup explanation fixed
 that source defect. This is one CI repair, not a same-commit fail-then-pass.
-Final verification passed nine changed-path checks and all 53 selected tests
+Final verification passed nine changed-path checks and all 54 selected tests
 in five files, plus targeted ESLint and `git diff --check`. Contract regeneration changed no generated
 files. No product, bundle or browser inputs changed, so no production build or
 browser run was needed. Initial subprocess execution was refused by the command
@@ -148,7 +152,9 @@ Automatic approval initially rejected the Git tests as possible external writes;
 restricting child Git to file transport allowed their safe local execution.
 
 The automated Git transport tests use temporary bare repositories and restrict all
-child Git processes to `file` transport. They perform real publication and fresh
+child Git processes to `file` transport. An injected Git transport maps the expected
+endpoint to that exact temporary repository; other destinations stay distinguishable
+and are rejected. The CLI always uses the real transport. Tests perform real publication and fresh
 repository/worktree reconstruction after deleting the original filesystem state,
 including original-request preservation, stale-host rejection, expired/terminal
 suppression, deleted source branches, interrupted restoration, accepted-worker
