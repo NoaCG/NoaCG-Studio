@@ -53,9 +53,12 @@ test('actual PNG, isolated live fixture, selection, stale refusal and refreshed 
     const prefix = 'mcp__preview_trial__';
     const openTool = (await client.listTools()).tools.find(({ name }) => name === 'noacg_preview');
     const qualifiedTool = { ...openTool, name: prefix + openTool.name };
-    await page.exposeFunction('callTrialTool', ({ name, ...params }) => {
+    let latest = initial;
+    await page.exposeFunction('callTrialTool', async ({ name, ...params }) => {
       assert.ok(name.startsWith(prefix), 'host requires the qualified tool name');
-      return client.callTool({ ...params, name: name.slice(prefix.length) });
+      const result = await client.callTool({ ...params, name: name.slice(prefix.length) });
+      if (result._meta?.preview) latest = result;
+      return result;
     });
     await page.setContent('<iframe id="app" style="width:800px;height:800px;border:0"></iframe>');
     await page.evaluate(({ html, initial, qualifiedTool }) => {
@@ -108,7 +111,7 @@ test('actual PNG, isolated live fixture, selection, stale refusal and refreshed 
     await ui.getByRole('status').filter({ hasText: 'Ready' }).waitFor();
     assert.equal(await graphic.locator('#f0').evaluate((node) => getComputedStyle(node).fontSize), '66px');
     assert.equal(await ui.locator('#highlight').isVisible(), false);
-    const after = await client.callTool({ name: 'noacg_preview', arguments: {} });
+    const after = latest;
     assert.notEqual(after.structuredContent.revision, initial.structuredContent.revision);
     assert.notEqual(after.content[1].data, initial.content[1].data);
     await page.evaluate(() => { document.getElementById('app').style.width = '460px'; });
@@ -128,6 +131,10 @@ test('actual PNG, isolated live fixture, selection, stale refusal and refreshed 
     assert.ok(Math.abs(context.selection.bounds.width - 768) < 8);
     assert.equal(context.revision, after.structuredContent.revision);
     await page.screenshot({ path: fileURLToPath(new URL('../dist/browser-stub.png', import.meta.url)) });
+    await client.callTool({ name: 'noacg_preview', arguments: {} });
+    await ui.getByRole('button', { name: 'Send change to this task' }).click();
+    await ui.getByRole('status').filter({ hasText: 'rehearsal changed' }).waitFor();
+    assert.equal((await page.evaluate(() => window.received)).length, 2);
     assert.deepEqual(errors, []);
     process.stdout.write(`Browser stub PNG and before/after revisions verified; native desktop remains unverified.\n`);
   } finally {

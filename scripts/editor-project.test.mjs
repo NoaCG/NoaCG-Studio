@@ -9,8 +9,8 @@ async function load(input) {
   const { output } = await bundle.generate({ format: 'esm', codeSplitting: false }); await bundle.close();
   return import('data:text/javascript;base64,' + Buffer.from(output[0].code).toString('base64'));
 }
-const [{ applyOperations }, { EditorSession }] = await Promise.all([
-  load('src/components/editorFoundation/operations.ts'), load('src/components/editorFoundation/session.ts'),
+const [{ applyOperations }, { EditorSession }, { parseAnimData, spliceAnimData }] = await Promise.all([
+  load('src/components/editorFoundation/operations.ts'), load('src/components/editorFoundation/session.ts'), load('src/blocks/animData.ts'),
 ]);
 const fixture = () => JSON.parse(readFileSync('docs/research/editor-r1-foundation/fixture-catalog.json', 'utf8'));
 const add = { kind: 'liveData.set', csvUrl: 'https://example.com/sheet.csv', pollSeconds: 2 };
@@ -65,4 +65,19 @@ test('Sheet edits use the session history and a stale request preserves the newe
   session.undo(); assert.deepEqual(source, original);
   session.redo(); assert.deepEqual(source, installed);
   session.dispose();
+});
+
+
+test('insertion preserves an authored one-step machine rather than extending its graph implicitly', () => {
+  const original = fixture(), data = parseAnimData(original.js);
+  assert.ok(data);
+  data.steps = data.steps.slice(0, 1);
+  data.machine = { groups: [{ id: 'main', initial: 'off', defaultPath: ['in'],
+    states: [{ id: 'off', name: 'Off' }, { id: 'in', name: 'In' }],
+    transitions: [{ from: 'off', to: 'in', trigger: 'lifecycle', event: 'play' }] }] };
+  original.js = spliceAnimData(original.js, data);
+  assert.ok(parseAnimData(original.js));
+  const snapshot = structuredClone(original);
+  assert.throws(() => applyOperations(original, [{ kind: 'graphic.insert', variant: { create() { assert.fail('Donor build must not run on an unsupported graph'); } }, placement: 'start', steps: false }]), /separate Out step/);
+  assert.deepEqual(original, snapshot);
 });

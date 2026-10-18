@@ -1,10 +1,10 @@
 {
-  "name": "noacg-preview-trial",
-  "version": "0.1.3",
+  "name": "noacg-preview-phase2-trial",
+  "version": "0.1.4",
   "description": "Opt-in local graphic preview compatibility trial.",
   "mcpServers": "./codex-mcp.json",
   "interface": {
-    "displayName": "NoaCG preview trial",
+    "displayName": "NoaCG package preview trial",
     "shortDescription": "Local graphic selection beside this task",
     "category": "Developer Tools"
   }

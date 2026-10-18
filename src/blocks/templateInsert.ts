@@ -37,7 +37,7 @@ import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
 import { writeAnimData } from '../templates/shared/animRuntime';
 import { parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
-import { addStep, renameStep } from './animEdit';
+import { addStep, renameStep, withOut } from './animEdit';
 import { spxSteps } from './animMachine';
 import { addLayer, appendCss, insertGraphicHtml, nextFieldId } from './edit';
 
@@ -195,6 +195,12 @@ export function insertTemplateGraphic(
     return { error: 'Open a graphic with editable animation data before inserting a template.' };
   }
 
+  // A legacy In is not its own Out. An authored one-state graph needs a graph edit,
+  // not an implicit rewrite of its path or transitions.
+  if (curData.steps.length === 1 && curData.machine) {
+    return { error: 'Template insertion needs a separate Out step. This graphic is unchanged.' };
+  }
+
   const donor = buildDonor(variant, opts.steps ?? false);
   const donorData = parseAnimData(donor.js);
   const blocked = insertBlocker(donor, donorData);
@@ -258,7 +264,7 @@ export function insertTemplateGraphic(
   const inLayers = prepLayers(donorIn.layers);
   const outLayers = prepLayers(donorOut.layers);
 
-  let data = clone(curData);
+  let data = withOut(clone(curData));
   // Where the donor's step run starts — the placement choice, in one index.
   let runAt: number;
   if (opts.placement === 'new-step') {

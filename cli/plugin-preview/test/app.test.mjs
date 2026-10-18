@@ -2,15 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-import { regionFromPoints, selectionAt } from '../protocol.mjs';
+import { FRAME_READY_TYPE, regionFromPoints, selectionAt } from '../protocol.mjs';
 
 // UI behavior with a minimal DOM and host, not a native Codex compatibility test.
 async function mount({ toolName = 'noacg_preview', serverTools = {} } = {}) {
   const elements = new Map();
+  const fakeWindow = { handlers: {}, addEventListener(name, handler) { this.handlers[name] = handler; }, removeEventListener(name) { delete this.handlers[name]; } };
   const domNode = () => ({
+    contentWindow: {},
+    set srcdoc(value) { this.document = value; queueMicrotask(() => fakeWindow.handlers.message?.({ source: this.contentWindow, data: { type: FRAME_READY_TYPE, viewId: 'revision-view' } })); },
     style: {}, dataset: {}, value: '', handlers: {}, attributes: {}, children: [],
     addEventListener(name, handler) { this.handlers[name] = handler; },
     setAttribute(name, value) { this.attributes[name] = value; },
+    replaceChildren() { this.children = []; },
     append(node) { this.children.push(node); node.parent = this; },
     remove() { this.parent.children = this.parent.children.filter((node) => node !== this); },
     getBoundingClientRect() { return { left: 0, top: 0, width: 1920, height: 1080 }; }
@@ -20,7 +24,7 @@ async function mount({ toolName = 'noacg_preview', serverTools = {} } = {}) {
     return elements.get(id);
   };
   element('mode').value = 'element';
-  const snapshot = { document: '<p>Preview</p>', targets: [{ id: 'f0', label: 'Name', bounds: { x: 10, y: 20, width: 30, height: 10 } }], sourceRoot: '/fixture', sourceFiles: ['graphic.css'], revision: 'revision' };
+  const snapshot = { viewId: 'revision-view', size: { width: 1920, height: 1080 }, sampleValues: {}, fields: [], document: '<p>Preview</p>', targets: [{ id: 'f0', label: 'Name', bounds: { x: 10, y: 20, width: 30, height: 10 } }], sourceRoot: '/fixture', sourceFiles: ['graphic.css'], revision: 'revision' };
   const calls = [];
   let app;
   class HostApp {
@@ -37,9 +41,9 @@ async function mount({ toolName = 'noacg_preview', serverTools = {} } = {}) {
   }
   class Extensions { message = { async send() { return {}; } }; }
   const source = (await readFile(new URL('../app.mjs', import.meta.url), 'utf8')).replace(/^import .*;\r?$/gm, '');
-  vm.runInNewContext(source, { App: HostApp, OpenAIExtensions: Extensions, regionFromPoints, selectionAt, document: { getElementById: element, createElement: domNode }, ResizeObserver: class { observe() {} } });
+  vm.runInNewContext(source, { App: HostApp, OpenAIExtensions: Extensions, FRAME_READY_TYPE, regionFromPoints, selectionAt, window: fakeWindow, setTimeout, clearTimeout, document: { getElementById: element, createElement: domNode }, ResizeObserver: class { observe() {} } });
   await new Promise(setImmediate);
-  app.ontoolresult({ _meta: { preview: snapshot } });
+  await app.ontoolresult({ _meta: { preview: snapshot } });
   element('selection-layer').handlers.pointerdown({ clientX: 20, clientY: 25 });
   element('request').value = 'Make the name larger';
   element('request').handlers.input();
