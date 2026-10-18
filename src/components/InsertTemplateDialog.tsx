@@ -166,7 +166,7 @@ export default function InsertTemplateDialog({ insert }: { insert: (variant: Tem
                   <MiniPreview variant={v} />
                   <span className="insert-tpl-card-name">
                     {v.name}
-                    {blocked && <span className="insert-tpl-card-blocked" title={blocked}>own runtime, opens as its own project</span>}
+                    {blocked && <span className="insert-tpl-card-blocked" title={blocked}>requires a separate project</span>}
                   </span>
                 </button>
               );
