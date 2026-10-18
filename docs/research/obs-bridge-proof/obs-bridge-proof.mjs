@@ -560,10 +560,13 @@ async function plan() {
 
 function probeServer() {
   const reports = [];
+  const attribute = (value) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  // HTML parses script end tags before JavaScript reads its string literals.
+  const scriptJson = (value) => json(value).replace(/</g, '\\u003c');
   const page = (graphic, marked) => `<!doctype html><html><head><meta charset="utf-8">${marked ? `
-<meta name="noacg-graphic" content="${graphic}">` : ''}
+<meta name="noacg-graphic" content="${attribute(graphic)}">` : ''}
 <style>html,body{margin:0;background:transparent}</style></head><body><script>
-var GRAPHIC = ${json(graphic)};
+var GRAPHIC = ${scriptJson(graphic)};
 function report(o) { o.page = GRAPHIC; o.at = Date.now(); fetch('/report', { method: 'POST', body: JSON.stringify(o) }); }
 report({ t: 'load', href: location.href, visibility: document.visibilityState, obs: !!window.obsstudio });
 window.addEventListener(${json(EVENT_NAME)}, function (e) { var d = e.detail || {}; report({ t: 'noacg', mine: d.graphic === GRAPHIC, detail: d }); });
