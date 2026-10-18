@@ -1,10 +1,12 @@
 // covers: src/ai/creation.ts, src/components/wizard/ai/**
 // covers: src/components/wizard/**, !src/components/wizard/import/**
+// covers: src/components/ExportWindow.tsx
 
+import { readFile } from 'node:fs/promises';
 import { test, expect, type Page, type Route } from '@playwright/test';
+import JSZip from 'jszip';
 import { chooseNoacgAgent } from './_ai-step';
 import { mockClaude, useFakeAiKey } from './_video';
-import { enableAdvancedMode } from './_create';
 
 // What an uploaded picture is FOR (src/model/imagePurpose.ts). The step used to bundle every
 // dropped image into the graphic; four purposes now travel with the request, and the ones that
@@ -149,10 +151,6 @@ async function attach(page: Page, specs: { name: string; w: number; h: number; a
 }
 
 async function openAiStep(page: Page) {
-  // The Finish step's "open in the editor" door is ADVANCED-ONLY (docs/GOALS_ARCHIVE.md "Student
-  // release" step 4), and these tests read the created template through the editor's Assets
-  // panel. Without this the door never renders and the click waits out the whole timeout.
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
@@ -271,18 +269,25 @@ test('a reference is never bundled into the created template', async ({ page }) 
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', { timeout: 25_000 });
   await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-editor').click();
 
-  // Read the bundled assets through the ASSETS PANEL, not through an imported store module:
-  // `import('/src/store/…')` in an eval context can resolve a different module instance than
-  // the running app (the ghost-store trap in AGENTS.md), and it did here - the assertion
-  // passed alone and failed in the parallel run, reading state the UI never had.
-  await page.getByRole('button', { name: 'Assets', exact: true }).click();
-  const panel = page.locator('.assets-panel');
-  await expect(panel).toContainText('crest');
+  // Read the bundled assets off the PACKAGE the export writes, through Finish's export door:
+  // every entry of the template's assets list ships as a file (src/export/common.ts
+  // addSharedAssets), so the zip's listing is the assets list as playout receives it. Not
+  // through an imported store module: `import('/src/store/…')` in an eval context can resolve
+  // a different module instance than the running app (the ghost-store trap in AGENTS.md), and
+  // it did here once - the assertion passed alone and failed in the parallel run.
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /Validate & download/ }).click(),
+  ]);
+  const zip = await JSZip.loadAsync(await readFile(await download.path()));
+  const files = Object.keys(zip.files);
+  expect(files.some((f) => f.endsWith('images/crest.png'))).toBe(true);
   // The mood board informed the design and stopped there. Bundling it would ship a file the
   // export references nowhere and the user never chose to include.
-  await expect(panel).not.toContainText('moodboard');
+  expect(files.filter((f) => f.includes('moodboard'))).toEqual([]);
 });
 
 test('a design that "improves" an as-is picture is held back', async ({ page }) => {
