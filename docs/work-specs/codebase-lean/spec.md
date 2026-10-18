@@ -1313,3 +1313,11 @@ Review fixed incomplete C evidence, an obsolete note presentation assertion, sta
 section numbers and source newline churn. Simplify kept the original production assertions
 and shared helpers, with only current setup replacing the retired setup. The passing phase
 uses inline review, simplify and verify; no local production build or full suite was run.
+
+The closing title audit found 23 original G rows whose titles were renamed, generated or
+moved to a cheaper test layer. Each now names its actual maintained destination in the
+existing disposition table. Describe prefixes and generated names explain the configured,
+counting and credits rows; three format cases and the readiness/catalog-line checks have
+explicit Node destinations. Current wizard, video code, history, offline, preview recovery,
+landing and hosted-control cases retain their live subjects. The G label records an original
+coverage gap, not a remaining skip; no row is silently reclassified as a covered removal.
