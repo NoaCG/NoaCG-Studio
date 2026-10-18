@@ -4,7 +4,8 @@
 // pack's answer boards.
 // covers: src/templates/quiz/**
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // THE AUDIENCE PACK — viewer questions, Q&A cards, chat highlights, question queues, community
 // requests, live votes, and the two- and three-answer boards.
@@ -14,12 +15,6 @@ import { test, expect, type Page } from '@playwright/test';
 // gives no platform; a moderator pastes a bare list with no names; a poll has no votes yet, or a
 // dead heat; an operator locks an answer and then replays. Every one of those is ordinary on
 // air, and every one of them is a way for a graphic to render something untrue.
-
-async function toApp(page: Page) {
-  // These cases run in-page against the composer and the runtime; no project and no editor.
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 /** Build a variant, load it in an iframe, play it, and hand back the window + document. */
 const HARNESS = `

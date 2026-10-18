@@ -1,6 +1,7 @@
 // covers: src/templates/**
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // GRAPHIC TYPES (docs/GRAPHIC_TYPES.md) — the conformance suite every registered type passes.
 //
@@ -8,12 +9,6 @@ import { test, expect, type Page } from '@playwright/test';
 // events) independently of what it looks like. These checks are what "to the quality bar
 // everything else is measured against" means in practice, and they run per type, so adding a
 // type either passes them or fails the build.
-
-async function toApp(page: Page) {
-  // These cases run in-page against the composer and the runtime; no project and no editor.
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 const HARNESS = `
   async function types() {

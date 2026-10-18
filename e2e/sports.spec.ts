@@ -5,7 +5,8 @@
 // with every branch gate green.
 // covers: src/templates/**
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // THE SPORTS PACK (docs/SPORTS_PACK.md) — the conformance and behaviour suite for the eight
 // sports graphic types and their thirty-two designs.
@@ -22,12 +23,6 @@ import { test, expect, type Page } from '@playwright/test';
 //     uploaded — both of which are the DEFAULT state for the amateur half of the pack;
 //   - the repeating-data boards rebuilding from whatever was pasted into them;
 //   - the whole set surviving export.
-
-async function toApp(page: Page) {
-  // These cases run in-page against the composer and the runtime; no project and no editor.
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 /** Boot one catalog variant into a hidden frame and hand back its window. */
 const HARNESS = `

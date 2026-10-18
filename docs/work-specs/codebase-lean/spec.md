@@ -213,17 +213,16 @@ edit of each file. The helpers only the removed cases called (`timelineProgress`
 
 The first revival, on main `54ee2dcc` (2026-10-18): the eight specs whose live-gap cases boot
 in-page against the composer and the runtime (sports, public-service, anim-engine,
-competition-pack, audience-pack, graphic-types, state-machine, machine-edit) lose the retired
-advanced-mode call from their boot helper, so 73 live-gap cases run again, 87 cases in all
+competition-pack, audience-pack, graphic-types, state-machine, machine-edit) boot through
+`e2e/_bench.ts`'s shared `toApp` instead of a local copy that called the retired advanced mode, so 73 live-gap cases run again, 87 cases in all
 across the eight files, 5.2 minutes locally on two workers (queue job `j-0010`, every case
 passing, none skipped). Three cases needed more than the boot swap: the kicker-on-air case
 drives the production page's cue editor and Update and reads PROGRAM, the competition pack's
 discoverability case plays the created graphic in the harness iframe, and the measured-motion
 case keeps its runtime half without the old step timeline's row. One case went: the simulator
 snap case duplicated production-controls.spec.ts's live control page check (its entry under Test
-maintenance). The machine-edit header names `src/blocks/**`. The duration table still weighs the
-eight files at seconds, so their minutes stand as budget exceptions until the weekly refresh
-records them. Still skipping: the other 158 live-gap cases, whose bootstraps create a graphic
+maintenance). The machine-edit header names `src/blocks/**`. The eight files' minutes are under
+Budget exceptions. Still skipping: the other 158 live-gap cases, whose bootstraps create a graphic
 through the retired wizard door; they are the next revival groups.
 
 ### Remaining order and the #800 exit condition

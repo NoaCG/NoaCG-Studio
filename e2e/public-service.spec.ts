@@ -12,7 +12,8 @@
 
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 import JSZip from 'jszip';
 
 // The public-service pack: tickers, alerts and public-information panels.
@@ -26,12 +27,6 @@ import JSZip from 'jszip';
 //
 // It deliberately does not re-prove the shared machinery (the data-block interpreter, the
 // preset bank, the export packaging): anim-engine, timeline-v2 and exports already do.
-
-async function toApp(page: Page) {
-  // These cases run in-page against the composer and the runtime; no project and no editor.
-  await page.goto('/app');
-  await page.keyboard.press('Escape'); // close the creation wizard — these tests run in-page
-}
 
 /** Runs in the page: build a catalog variant and boot it into a hidden iframe. */
 const HARNESS = `
@@ -759,8 +754,7 @@ test('every export target packages the new categories with no dangling reference
 // the playout dashboard's monitors, the browser-output renderer and an exported package all
 // call. Proving it at the design-time preview alone would prove the parser and not the product.
 test('a kicker typed on air reaches the strip through the control path', async ({ page }) => {
-  // The operator's door is the production page: the cue editor's field and Update, the same
-  // `update()` the playout monitors, the browser output and an exported package all call.
+  // The operator's door is the production page: the cue editor's field and Update.
   await bootstrapGraphic(page, 'House Wire');
   await openProductionWithCurrent(page, 'Kicker on air');
   await page.getByTestId('verb-take').click();

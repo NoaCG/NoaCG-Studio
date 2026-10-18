@@ -7,7 +7,8 @@
 // that import.
 // covers: src/templates/**
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // Timeline v2 Phase 1 (docs/TIMELINE_V2_PLAN.md) — the golden parity harness for the
 // declarative animation engine. Lower thirds now CREATE as data blocks, so the harness
@@ -15,12 +16,6 @@ import { test, expect, type Page } from '@playwright/test';
 // the same template) and proves the two representations behave identically: same
 // durations, same settled states, same press chain, and a playhead resolver that agrees
 // with real playback.
-
-async function toApp(page: Page) {
-  // These cases run in-page against the composer and the runtime; no project and no editor.
-  await page.goto('/app');
-  await page.keyboard.press('Escape'); // the wizard modal — these tests don't need a project
-}
 
 /** Runs in the page: boot templates into hidden iframes; build legacy twins. */
 const HARNESS = `
@@ -578,8 +573,6 @@ test('measured motion actually tracks the content', async ({ page }) => {
   );
   expect(result.longerWithMoreText).toBe(true);
   expect(result.survived).toBe(true);
-  // The read-only measured row this case also checked was the old step timeline's; the new
-  // editor's timeline is pinned by e2e/editor-*.spec.ts.
 });
 
 // The importer can carry a NAMED builder across (that is what `tl.add(tickerMarquee(...))`

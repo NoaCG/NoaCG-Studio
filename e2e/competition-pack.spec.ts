@@ -4,7 +4,8 @@
 // covers: src/templates/**
 
 import { bootstrapGraphic } from './_create';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // THE COMPETITION PACK (docs/COMPETITION_PACK.md) — the esports, competition, result and
 // reveal graphics.
@@ -17,13 +18,11 @@ import { test, expect, type Page } from '@playwright/test';
 
 const CATEGORIES = ['esports-score', 'matchup', 'results-board', 'reveal'] as const;
 
-/** Boot a hidden iframe running one catalog variant, and return a handle to drive it. */
+/** Mount a template in a hidden iframe (one catalog variant, or any document), and return a handle to drive it. */
 const HARNESS = `
-  async function boot(id, options) {
-    const { variantById } = await import('/src/templates/catalog.ts');
+  async function mount(tpl) {
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
     document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
-    const tpl = variantById(id).create(options || {});
     const f = document.createElement('iframe');
     f.className = 'pack-frame';
     f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1280px;height:720px;';
@@ -32,15 +31,13 @@ const HARNESS = `
     await new Promise((r) => setTimeout(r, 80));
     return { tpl, win: f.contentWindow, doc: f.contentDocument };
   }
+  async function boot(id, options) {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return mount(variantById(id).create(options || {}));
+  }
   // Let a dispatched event's timeline settle (they are all well under 700 ms).
   const settle = () => new Promise((r) => setTimeout(r, 700));
 `;
-
-async function toApp(page: Page) {
-  // These cases run in-page against the composer and the runtime; no project and no editor.
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 test('the pack ships its four categories, and every design creates and validates', async ({ page }) => {
   test.setTimeout(180_000);
@@ -569,16 +566,8 @@ test('the pack is discoverable in the wizard and creates from a category card', 
   const played = await page.evaluate(`(async () => {
     ${HARNESS}
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const tpl = useTemplateStore.getState().template;
-    const f = document.createElement('iframe');
-    f.className = 'pack-frame';
-    f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1280px;height:720px;';
-    document.body.appendChild(f);
-    await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl); });
-    await new Promise((r) => setTimeout(r, 80));
-    const doc = f.contentDocument;
-    f.contentWindow.play();
+    const { win, doc } = await mount(useTemplateStore.getState().template);
+    win.play();
     await settle();
     return { opacity: getComputedStyle(doc.querySelector('.esports-score')).opacity, f0: doc.getElementById('f0').textContent };
   })()`) as { opacity: string; f0: string };

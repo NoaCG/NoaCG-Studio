@@ -1,6 +1,7 @@
 // covers: src/blocks/**, src/templates/**
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 import { LOWER_THIRD_EXPLICIT, LOWER_THIRD_IMPLICIT, MILLIONAIRE, SCOREBUG, TICKER } from './_machines';
 
 // Phase 1 of the state-machine model (docs/noacg-master-goals.md §1.4,
@@ -9,12 +10,6 @@ import { LOWER_THIRD_EXPLICIT, LOWER_THIRD_IMPLICIT, MILLIONAIRE, SCOREBUG, TICK
 // editor UI involved. Version-1 parity for machine-less templates is NOT re-proven here:
 // the whole existing wall (anim-engine parity, timeline-v2, exports, bench, house sweeps)
 // runs against the same interpreter and IS that proof.
-
-async function toApp(page: Page) {
-  // These cases run in-page against the composer and the runtime; no project and no editor.
-  await page.goto('/app');
-  await page.keyboard.press('Escape'); // the wizard modal — most of these tests need no project
-}
 
 /** Runs in the page: build a MachineDef into a real SpxTemplate via the actual emitters,
  *  then boot it into a hidden iframe (the anim-engine harness idiom). */
