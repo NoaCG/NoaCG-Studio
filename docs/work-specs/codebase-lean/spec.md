@@ -70,6 +70,17 @@ separate admin removal is explicitly authorized under decision 8 below.
    Future role-management UI waits for a real need; no speculative dashboard is kept. No paid
    benchmarks, model promotions or database mutations are authorized by the reporting routine.
 
+### Owner decisions and load-time format notice (2026-10-18)
+
+The owner kept Google Sheet live data and Add template graphic, and requested a notice when
+loading a saved format absent from the catalogue. Their original live-subject cases stay gaps
+until their current UI checks run. The format notice belongs to the existing save status.
+Why: loading compatibility alone does not warn the operator. Goal: warn before Save while
+preserving authored dimensions, frame rate and playback. No format migration or new dialog.
+Acceptance: a restored 1920×1880 graphic opens and shows an amber warning before any save;
+a supported catalogue format clears it; saved/dirty/failure wording remains truthful and
+the header fits at its existing width bands. The regression must fail without the load validator.
+
 ## Measured baseline
 
 Physical lines include blanks/comments, tracked files only. `src` and `e2e` below count TS/TSX;
@@ -601,6 +612,43 @@ locally on two workers (queue job `j-0062`): assets 0.1, asset-workflow 0.1, wys
 files' minutes are under Budget exceptions. Still skipping: the remaining 12 live-gap cases,
 in the pack and single-case families.
 
+### Phase 2 receipt: the seventh singles (production-audience, google-fonts, render, video-project, project-format)
+
+The twenty-fourth revival, on main `3c036da34` (2026-10-18): seven cases in five files. The two
+production-audience workflows (a chat line arriving, edited, approved, sent and aired; a vote
+reaching air the way a question does) only carried a `skipOldEditor()` and run again with it
+deleted. The Google typeface case ends the import walk in the new editor through the Finish
+step's door instead of the retired "Create project" footer. The render section measured off the
+saved record saves in the new editor's header first, then takes the Home row's export door as
+before. The video reload case replaces the retired Blank SPX door with the live catalogue walk,
+checks that the SPX editor replaces the video shell, and then reopens the saved video. The
+render output settings case opens the working graphic's export window instead of the old
+Export dock. The restored unsupported-format case retains both compatibility and a visible
+warning before Save, per the owner's decision. SaveControls derives that notice from the loaded
+document while preserving the saved/dirty/failure wording; narrow widths keep an accessible
+warning icon. The save case separately checks the save validator's recorded issues. The vote
+case waits for each staged write and now checks the final tally after the operator presses Take.
+One case went (listed under Test maintenance): blank artwork requiring an authored format, whose Blank
+entry card is gone. Every case in the five files passes, none skipped. Case-minutes locally on
+two workers (queue job `j-0063`): production-audience 0.7, google-fonts 0.1, render 0.9,
+video-project 0.7, project-format 0.6. The files' minutes are under Budget exceptions. Still
+skipping: the remaining 8 live-gap cases: two machine-graph runtime cases, one timeline-v2
+case, the Google Sheet live-data case, and four Add template graphic cases. The last five are
+retained by the owner decisions above, rather than counted as two undecided families.
+
+Continuation verification on that merged main: queue job `j-4597` ran all 46 cases in the
+five files, all passed and none skipped (1.4 minutes wall time). ESLint on the changed specs
+and SaveControls, `tsc --noEmit -p tsconfig.json`, E2E protection and the changed-path gates
+passed. The missing load warning reproduced first in `j-4592`; the final check covers its
+visible notice and accessible icon at 1440, 1366, 1280 and 1100 pixels, with screenshots
+visually inspected at 1440 and 1100. Earlier selections are not green evidence: `j-4594`
+was cancelled for missing player-host setup, and `j-4596` had 45 passes and a failed added
+vote assertion that selected the existing House Vote cue. The final test selects the exact
+staged cue and verifies the eight-vote closed tally on Program. Review and simplify ran inline;
+no full local production build or suite was run. The player-host dependency bundle was prepared
+for this fresh worktree, without changing package inputs or Vite access rules.
+
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -759,6 +807,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/images.spec.ts`: 2 case(s) removed with the images revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "data panel: the add-field types are the broadcast set, and an unanswerable add is refused" (retired UI: the 'Add a field' select and `add-field-refused` exist only in the retired SampleDataPanel; the new editor adds text through its text tool, editor-base-edits.spec.ts 313, and the shape gate's pure half is scripts/catalog-line-gate.test.mjs.); "export: the zip is [project]/[project].html with images under [project]/images/" (covered: e2e/editor-images.spec.ts 357 'saved image and its binding reopen and execute in SPX, CasparCG and OGraf' downloads the SPX zip with the image under images/ as a real binary.)
 - 2026-10-18 `e2e/asset-workflow.spec.ts`: 6 case(s) removed with the assets group revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "drop a logo, make it the NEXT STEP from the canvas chip — connected everywhere, fully undoable" (retired UI: the old canvas chip `canvas-appears`, the timeline surface toggle and the old timeline rows; the drop-adds-one-layer half runs in editor-images.spec.ts 127 and the new editor's step model in editor-steps.spec.ts 352.); "an image kept visible from the beginning stays out of every reveal list, and its row exists" (retired UI: `canvas-appears` and the old timeline's `.timeline-label[data-part]`, which nothing live renders.); "drop into an EXISTING step, then retarget participation afterwards from the Inspector" (retired UI: `inspector-appears` of the old timeline Inspector and the old canvas chip.); "the Inspector names the preset targets and writes an early exit (Disappears)" (retired UI: `inspector-preset-target` and `inspector-disappears` of the old timeline Inspector.); "a preset Delay shifts the written keyframes and grows the step — no keyframe editing needed" (retired UI: the old Inspector's preset select, duration and delay rows; no live surface applies a per-layer preset delay.); "video assets: capped import, VIDEO badge, and a muted looping <video> on drop" (retired UI: the <video> insert is the retired canvas's assetOps.insertVideoElement with no live caller; the import cap is covered by editor-images.spec.ts 250 'file validation guards refuse invalid resource batches'.)
 - 2026-10-18 `e2e/assets.spec.ts`: 7 case(s) removed with the assets group revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "import via the Assets tab: rows appear grouped, and a multi-file import is ONE undo step" (covered: e2e/editor-images.spec.ts 27 'Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo' imports a multi-file batch through assets-import-input in the new editor and one Undo restores the whole source.); "remove is undoable; a Lottie file imports with its badge; junk JSON is rejected" (covered: editor-images.spec.ts 27 removes an unused asset and Undo restores the source, 280 'SVG, font and Lottie resource import stays separate from placement' accepts a Lottie, 250 refuses bad.json.); "moving an asset into a new folder nests its path; undo restores it" (covered: e2e/editor-folders-bins.spec.ts 90 'bins persist empty, rename and move references in one exact undo' and 142 'asset moves preserve folder labels and retain emptied inferred bins in one history receipt'.); "dragging an asset onto the canvas inserts a positioned <img> as one undo step" (covered: editor-images.spec.ts 127 'OS drop and chooser produce the same source; asset drag and a drop over an image always add layers' adds a positioned layer on an asset drop and undo removes it.); "dropping a Lottie asset on the canvas inserts a playing animation element" (retired UI: the canvas Lottie drop is the retired CanvasInteraction's lottieInsert, its only caller; the Lottie import itself runs in editor-images.spec.ts 280.); "a saved v2 layout gains the Assets tab once (v2 -> v3 migration)" (retired UI: the v2 to v3 layout migration and the dock-right tab labels are the deleted WorkspaceDock's record.); "mobile: the Assets tab is in the side-panel strip" (retired UI: `.panel-tabs .tab` is the old SidePanel's mobile strip, deleted 2026-10-17.)
+- 2026-10-18 `e2e/project-format.spec.ts`: 1 case(s) removed with the seventh singles revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "blank artwork requires an authored format before creation" (retired UI: the Blank entry card is gone (EntryStep.tsx says there is no Blank card, and no data-entry=blank or blank-step exists in src); no-old-editor.spec.ts pins its absence, and the import half runs in the same file's import case.)
 - 2026-10-18 `e2e/counting-settle.spec.ts`: 1 case(s) removed with the counting-settle revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "every counting design settles on its real figure (canvas)" (retired UI: the canvas recipe composed with the old editor's simulator channel (composeDocument with simulate), which no live surface composes with; the shared settle recipe, what every card and thumbnail composes with, keeps the sweep as "every counting design settles on its real figure". The recipe loop was one declaration, so the declaration count is unchanged; this is the runtime case that went.)
 
 ## Budget exceptions
@@ -931,6 +980,16 @@ workers, queue job `j-0062`).
 - e2e/assets.spec.ts: 0.1 min, protects the Assets panel's derived info section in the new editor, expires 2026-11-16
 - e2e/asset-workflow.spec.ts: 0.1 min, protects the Assets panel's usage marks and a second placement being a new element, expires 2026-11-16
 - e2e/wysiwyg.spec.ts: 0.1 min, protects the Style step's zone pick re-anchoring the created graphic's root rule, expires 2026-11-16
+
+The seventh singles revival (Phase 2, #800) turns seven cases back on across five files and
+removes one. The minutes below are this change's local measurement (case-minutes, two workers,
+queue job `j-0063`).
+
+- e2e/production-audience.spec.ts: 0.7 min, protects the audience workflow and the vote reaching air, expires 2026-11-16
+- e2e/google-fonts.spec.ts: 0.1 min, protects a Google typeface embedded in the created graphic with nothing reaching Google at play time, expires 2026-11-16
+- e2e/render.spec.ts: 0.9 min, protects the render section measured off the saved record in the standalone export window, expires 2026-11-16
+- e2e/video-project.spec.ts: 0.7 min, protects the video shell's reload, explicit save and reopen, expires 2026-11-16
+- e2e/project-format.spec.ts: 0.6 min, protects the explicit render scaling and a restored unsupported format still opening, expires 2026-11-16
 
 ## Acceptance criteria
 
