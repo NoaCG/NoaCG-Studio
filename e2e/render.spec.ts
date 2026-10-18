@@ -5,7 +5,7 @@
 // move behaviour in either - and in the admin surface that explains it.
 // covers: src/entitlements/**
 
-import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
+import { bootstrapGraphic, openExportWindow, openWorkingGraphicInEditor } from './_create';
 import { pickDesign } from './_browse';
 
 // The Export tab's Video & image render section (src/components/render/RenderPanel.tsx).
@@ -181,11 +181,11 @@ test('cancel mid-render returns to the idle form', async ({ page }) => {
 // cases only ever drive the dock panel; these two exercise the modal.
 
 test('the standalone export window carries the render section, measured off the saved record', async ({ page }) => {
-  skipOldEditor();
   await createHairline(page);
-  // Save it, then export from the Home row's ⋯ menu — the door that reads the RECORD's
-  // template, not the store, so the render section measures a graphic independent of the
-  // working doc.
+  // Save it in the new editor's header, then export from the Home row's ⋯ menu — the door that
+  // reads the RECORD's template, not the store, so the render section measures a graphic
+  // independent of the working doc.
+  await openWorkingGraphicInEditor(page);
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Saved Render Target');
   await page.getByTestId('save-confirm').click();

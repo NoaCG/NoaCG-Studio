@@ -1,5 +1,5 @@
 // covers: src/blocks/**, src/templates/**
-// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // covers: src/components/ExportWindow.tsx
 //

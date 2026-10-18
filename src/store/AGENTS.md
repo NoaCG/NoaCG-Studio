@@ -90,8 +90,8 @@ templateStore.ts (zustand) holds the template plus editor UI state.
 - **aiThread / setAiThread** - the Create-with-AI CONVERSATION the project was created from
   (model/aiThread.ts; null = not carried). Exact same rails as aiSpec - the autosave slot
   (SavedProject.aiThread) and every Save (GraphicDoc.aiThread), cleared by a whole-project swap,
-  reset from the record by openGraphicDoc. Additive optional; NO version bump. Shown read-only
-  by components/AIPromptPanel.tsx.
+  reset from the record by openGraphicDoc. Additive optional; NO version bump. The former
+  read-only panel is gone; preserve the stored conversation and its save/open rails.
 - **legibility / setLegibility** - the project's `ProjectLegibility` settings
   (model/designRules.ts; null = the defaults). EXACT same rails as aiSpec: the autosave slot
   and every Save (GraphicDoc.legibility), cleared by a whole-project swap, set by the wizard's

@@ -20,8 +20,8 @@
 // the pick / reveal arc and the wizard's "Answers shown" choice.
 // focus
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
+import { finishIntoNewEditor } from './_create';
 import { chooseType, pickDesign } from './_browse';
 
 // THE QUIZ SHOW SET: a quiz board whose answer count is a FIELD, a two-player score, and the
@@ -226,7 +226,6 @@ for (const id of SCORE_DESIGNS) {
 }
 
 test('the wizard offers the answer count and the correct answer, and not the contestant\'s pick', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -241,7 +240,7 @@ test('the wizard offers the answer count and the correct answer, and not the con
   await expect(setup.getByTestId('wz-setup-selectedAnswer')).toHaveCount(0);
   await setup.getByTestId('wz-setup-answerCount-opt-2').click();
 
-  await finishIntoEditor(page);
+  await finishIntoNewEditor(page);
   await expect(page.locator('.wz-modal')).toBeHidden();
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

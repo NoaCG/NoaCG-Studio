@@ -13,7 +13,9 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitVideoPreview, expectOfflineAi, reloadVideoShell } from './_video';
-import { enableAdvancedMode, startNewProject } from './_create';
+import { finishIntoNewEditor, startNewProject } from './_create';
+import { pickDesign } from './_browse';
+import { settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage } from './_storage';
 import { evaluateInPage } from './_evaluate';
 
@@ -344,15 +346,11 @@ test('chat refinement applies an undoable change', async ({ page }) => {
 
 test('reload restores the project; save/reopen and the SPX switch work', async ({ page }) => {
   // Genuinely slow, not flaky-slow: this one test waits out TWO video generations (each an
-  // unbounded validation probe against the player host) and then a blank SPX create, which
-  // cold-loads Prettier and its four plugins before the doc-kind switch flips. Under the
+  // unbounded validation probe against the player host). Under the
   // suite's default 30 s it was failing on the clock with no assertion message at all, which
   // reads like a broken app. test.slow() triples the budget for this test alone rather than
   // loosening the global one, so a real regression elsewhere still trips at 30 s.
   test.slow();
-  // Advanced: this test reloads expecting the video shell straight back (default mode boots
-  // to Home) and reaches for the Blank card (an Advanced-only door).
-  await enableAdvancedMode(page);
   await createCountdownProject(page);
   await waitForGeneration(page);
 
@@ -364,33 +362,16 @@ test('reload restores the project; save/reopen and the SPX switch work', async (
   await waitForGeneration(page);
   await awaitVideoPreview(page);
 
-  // Explicit save, then create an SPX blank - the app switches to the SPX shell.
+  // Save, then switch through the live catalogue door into a different graphic.
   await page.getByTestId('video-save').click();
+  await settleDurableWrites(page);
   await startNewProject(page);
-  await page.getByRole('button', { name: 'Blank project' }).click();
-  await page.getByTestId('blank-create').click();
-  // Blank creation is ASYNC and the click does not wait for it: createBlank fires applyGenerated
-  // without awaiting, and that formats the new template through Prettier - five lazy dynamic
-  // imports (standalone + the html/postcss/babel/estree plugins) - BEFORE it flips the doc-kind
-  // switch that unmounts the video shell. On a busy dev server those cold module graphs take
-  // longer than the default expect timeout, so asserting that the video shell has VANISHED is
-  // waiting on a clock rather than on a signal, and it loses whenever the box is loaded.
-  // The SPX preview being stamped is the signal: PreviewFrame only sets data-doc-rev once its
-  // rebuild has LOADED, and the frame itself cannot exist until the whole chain above has run.
-  // `:not(.video-player-frame)` is load-bearing - the video player iframe carries the same
-  // `preview-frame` class, so a bare `iframe.preview-frame` matches it too and would resolve
-  // against the shell we are waiting to leave.
-  await expect(page.locator('iframe.preview-frame:not(.video-player-frame)')).toHaveAttribute(
-    'data-doc-rev',
-    /\d/,
-    { timeout: 30_000 },
-  );
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  await finishIntoNewEditor(page);
   await expect(page.getByTestId('video-shell')).toHaveCount(0);
-  await expect(page.locator('.tpl-name')).toHaveText('Blank');
 
-  // Reopen the saved video from the wizard's reopen strip (the ▶-prefixed chip; the ↩
-  // Continue chip for the autosaved slot also appears - both open the same project here).
-  // Back in the SPX shell now, holding a freshly created Blank - so this one raises the guard.
+  // Reopen the saved video after the SPX shell has replaced it.
   await startNewProject(page);
   await page.getByRole('button', { name: 'Video or animation with AI' }).click();
   await expect(page.getByTestId('video-step')).toBeVisible();

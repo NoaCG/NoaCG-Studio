@@ -1,4 +1,4 @@
-// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/{AssetsPanel.tsx,InsertTemplateDialog.tsx}, src/assets/**
 //
 // This spec CREATES catalog variants and asserts on the markup they emit (Classic Roll's logo

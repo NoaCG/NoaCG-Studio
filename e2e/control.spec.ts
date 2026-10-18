@@ -1,6 +1,6 @@
 // covers: src/export/**, src/control/**
 // covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
-// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 // covers: src/components/NewGraphicButton.tsx, src/components/{ExportWindow,ExportSurface}.tsx
 // focus
@@ -29,42 +29,6 @@ import { readFileSync } from 'node:fs';
 async function createScoreboard(page: Page) {
   await bootstrapGraphic(page, { category: 'Scoreboards', name: 'Match Strip' });
 }
-
-test('control tab live-drives the preview from a field control', async ({ page }) => {
-  skipOldEditor();
-  await createScoreboard(page);
-  await page.getByTestId('dock-tab-control').click();
-
-  // Score A (f1) is a bound NUMBER field; editing it drives the preview live (Live is on).
-  // Name the value box rather than taking the first input: a stepper renders the value AND an
-  // operator step-size box, so `input` alone passed here by DOM order rather than by intent.
-  await page.locator('.field-row', { hasText: 'Score A' })
-    .locator('input.ctl-num:not(.ctl-num-step)').fill('7');
-  const frame = page.frameLocator('iframe.preview-frame');
-  await expect(frame.locator('#f1')).toHaveText('7');
-
-  // The control panel's own Play button plays the graphic out.
-  await page.locator('.panel-body').getByRole('button', { name: '▶ Play' }).click();
-  await expect
-    .poll(async () => frame.locator('.scoreboard').evaluate((el) => getComputedStyle(el).opacity))
-    .toBe('1');
-});
-
-test('a number field becomes a +/- stepper (no per-template code)', async ({ page }) => {
-  skipOldEditor();
-  // A design that SHIPS a genuine wired number field (Election Bars' percent). The old walk
-  // added one to a scoreboard through the Data panel - which the panel now refuses, because
-  // a scoreboard's fixed contract has no place for it and the add landed definition-only
-  // (docs/GOALS_ARCHIVE.md "Student release" step 5). The stepper is this test's subject, not the add.
-  await bootstrapGraphic(page, { category: 'infographic', name: 'Election Bars' });
-  await page.getByTestId('dock-tab-control').click();
-  const row = page.locator('.field-row', { hasText: 'percent' }).first();
-  await expect(row.locator('.ctl-step')).toHaveCount(2); // − and +
-  const num = row.locator('.ctl-num').first();
-  const before = Number(await num.inputValue());
-  await row.getByRole('button', { name: '+', exact: true }).click();
-  await expect(num).toHaveValue(String(before + 1));
-});
 
 test("export bundles controlpanel.shtml + injects the receiver into the graphic's own html", async ({ page }) => {
   await createScoreboard(page);
@@ -180,31 +144,6 @@ test('live data: a published CSV drives the graphic (mocked sheet)', async ({ pa
 // ── Phase 5: the state machine's side of the panel ──────────────────────────
 // A template with an explicit machine grows event buttons GENERATED from it — labels and
 // sections from the machine's own `controls` metadata, legality from the graph.
-
-test('the Control tab renders labeled event buttons from the machine and fires them', async ({ page }) => {
-  skipOldEditor();
-  await bootstrapGraphic(page, { name: 'Arena Quiz' });
-  await page.getByTestId('dock-tab-control').click();
-
-  // The quiz type's declared controls, by section, wearing their labels.
-  const section = page.locator('.ctl-event-section', { hasText: 'Pick, then lock' });
-  await expect(section.getByRole('button', { name: '⚡ Select answer' })).toBeVisible();
-  await expect(section.getByRole('button', { name: '⚡ Lock it in' })).toBeVisible();
-  const reveal = page.locator('.ctl-event-section', { hasText: 'Reveal correct' });
-  await expect(reveal.getByRole('button', { name: '⚡ Reveal correct' })).toBeVisible();
-
-  // Play, then Select — the event rides the store into the preview's machine.
-  await page.locator('.ctl-actions').getByRole('button', { name: '▶ Play' }).click();
-  await section.getByRole('button', { name: '⚡ Select answer' }).click();
-  await expect
-    .poll(async () =>
-      page.frameLocator('iframe.preview-frame').locator('body').evaluate(() => {
-        const w = window as unknown as { noacgMachineState?: () => { groups: Record<string, string> } };
-        return w.noacgMachineState?.().groups.main ?? null;
-      }),
-    )
-    .toBe('selected');
-});
 
 test('round-trip: the exported panel fires machine events, greys illegal ones, and shows the state', async ({ page, context }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });

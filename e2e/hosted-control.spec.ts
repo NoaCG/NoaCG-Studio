@@ -1,10 +1,11 @@
 // covers: src/control/**
-// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/playoutKeys.ts, src/components/{home,save}/**
 // focus
 
 import { test, expect } from '@playwright/test';
-import { bootstrapGraphic, skipOldEditor } from './_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
+import { settleDurableWrites } from './_durable';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
 
@@ -18,8 +19,8 @@ import { appliedIn, receiverHost } from './_receiverHost';
 // their rundown rows at all: which library record a show graphic's entries come from.
 
 test('a saved graphic carries its entries into the show it is added to', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
 
   // Save it, then build two entries on its control panel — the operator's rundown rows.
   await page.getByTestId('save-graphic').click();
@@ -40,15 +41,12 @@ test('a saved graphic carries its entries into the show it is added to', async (
   await page.getByTestId('entry-field-f0').fill('Michael Smith');
   await expect(page.locator('.control-entry')).toHaveCount(2);
 
-  // Back into the editor (the document keeps its library link) and into a show.
-  await page.getByTestId('control-open-editor').click();
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Presenter lower third');
-  await page.getByTestId('dock-tab-control').click();
-  const shows = page.locator('.panel-section', { hasText: 'Productions' });
-  await shows.getByPlaceholder('New production name').fill('Evening Show');
-  await shows.getByRole('button', { name: 'Create', exact: true }).click();
-  await shows.getByRole('button', { name: '+ Add current' }).click();
-  await expect(shows.locator('.status-ok')).toContainText('is in the production');
+  // Pool the saved graphic from its current control page after its entries are durable.
+  await settleDurableWrites(page);
+  await page.getByTestId('control-add-production').click();
+  await page.getByTestId('control-new-production-name').fill('Evening Show');
+  await page.getByTestId('control-new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
 
   // The show's copy records WHICH library graphic it came from — the link the panel follows
   // (a name match would pass here by luck; this pins the id).
