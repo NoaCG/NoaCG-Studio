@@ -1,7 +1,8 @@
 // The Assets panel: every file bundled with the template (images, Lottie animations,
 // imported fonts) as folder-grouped rows, with drag-and-drop import, drag-to-canvas
-// placement (editorFoundation/Canvas.tsx takes the drop), reference-safe move/rename, and an info section
-// that derives metadata on demand (src/assets/assetInfo.ts) — the model stays { path, data }.
+// placement (editorFoundation/Canvas.tsx takes the drop), reference-safe move/rename, and an
+// info section that derives metadata on demand (src/assets/assetInfo.ts)
+// — the model stays { path, data }.
 
 import { useEffect, useRef, useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
