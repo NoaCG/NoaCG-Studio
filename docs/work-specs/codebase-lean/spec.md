@@ -1283,7 +1283,7 @@ Approval of that PR's scope and an execution window remain distinct from this re
 All five retired skip exports and OLD_EDITOR_SKIP are gone from e2e/_create.ts; its live
 fixtures and wizard helpers remain. The complete E2E tree has no caller or import of those
 identities. _code.ts had zero imports and its 28 lines are deleted. _ai-notice.ts stays because
-_video.ts still imports it. The helpers remove 80 physical lines including comments.
+_video.ts still imports it. The helpers remove 78 physical lines including comments.
 
 The last production case is retained as G, not recorded as a covered removal. j-4628 reached
 the current production UI and found its old note-as-row-text expectation obsolete: CueRundown

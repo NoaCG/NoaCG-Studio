@@ -69,7 +69,7 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   const preview = page.frameLocator('iframe[title="Cue preview"]');
   await expect(preview.locator('#f0')).toHaveText('Anna Andersson');
 
-  // A second cue on the SAME pool graphic. the point of the cue model (§2).
+  // A second cue on the same pool graphic proves the cue model (§2).
   await page.getByTestId('rundown-add').click();
   await page.getByTestId('add-cue').click();
   await expect(cueRows).toHaveCount(2);

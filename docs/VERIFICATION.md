@@ -131,6 +131,7 @@ repository migrations, authenticates a throwaway account, and runs the configure
 Each landing has its own run, so post-landing evidence identifies one commit. These checks
 report after landing and do not replace the merge group's required CI. See the workflow for
 its current selection, environment and reporting guards.
+
 Two things that route buys, and one it costs:
 
 - **No Supabase secret lives in GitHub.** The local stack's keys are the CLI's published shared
