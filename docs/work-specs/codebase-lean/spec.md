@@ -792,6 +792,26 @@ targets. Simplification kept this to deletion and reference repair. No local ful
 app production build ran: these files had no entry-point consumer, and Actions supplies the
 authoritative bundle and broader checks.
 
+### Released editor cases: current UI restoration
+
+Why: nine carried skips still hide live library, persistence, control, video and wizard
+behavior. Goal: restore those exact subjects through the current editor, Home rows, control
+page and wizard. Non-goals: no Phase 2 repair-check or acceptance change, and no production
+behavior change merely to satisfy an obsolete selector. Keep every original live promise;
+retired code-pane highlighting and the old Advanced door are replaced by current source,
+preview and editor-door assertions. Drive edits through Artwork text and wizard controls,
+not direct store writes. Observe durable writes before reload. Acceptance: all nine subjects
+run without retired helpers; save state follows edits/reopen, navigation preserves the right
+working source, entry deletion stays armed, custom looks persist/apply, and Finish names the
+working graphic without saving a library record. Preparation selection `j-4611` passed all
+nine cases in 31.4 seconds. Review then changed the old-package assertion to a fresh bookmark
+load so prior Home visibility cannot satisfy it. Queue job `j-4612` then passed all 49 cases in the three files in 1.3 minutes, with no
+skips, including the stronger bookmark assertion. A stale Advanced-era title was clarified
+without changing that running case's assertions. Main reconciliation after the panel landing
+and the final branch checks are still due.
+The source has no retired helper calls in these three files; eleven live gaps remain outside
+them: four configured account cases, two Sheet cases and five insertion cases.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.

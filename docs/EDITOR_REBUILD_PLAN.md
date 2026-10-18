@@ -1,5 +1,10 @@
 # Editor animation and preview contract
 
+Cleanup handover, 2026-10-18: the owner released only the nine skipped cases in
+library (seven), project (one) and wizard-finish (one) to issue #800. Their current-UI
+restoration does not change this phase's repair checks, carried challenges or acceptance
+verdict. The cleanup records their executed baseline in its own work spec.
+
 Updated 2026-09-19. [EDITOR_PLAN.md](EDITOR_PLAN.md) owns scope, order and acceptance. This document
 owns the source, interaction and preview mechanisms. The owner authorized R1.0 on 2026-09-19;
 R1.0 landed in PR #331 and is live as cfb28e74. The [outcome/delivery contract](research/editor-outcomes-and-review-readiness-2026-09-20.md) supersedes the historical hold: usable static-authoring follow-up is next, verified slices deploy without waiting for owner review, and default-switch acceptance remains separate.
