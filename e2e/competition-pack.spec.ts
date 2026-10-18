@@ -2,6 +2,7 @@
 // Until 2026-08-08 it was reachable from no template path and ten designs landed with every
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
+// covers: src/blocks/**, src/export/**
 
 import { bootstrapGraphic } from './_create';
 import { test, expect } from '@playwright/test';

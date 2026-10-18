@@ -1,4 +1,5 @@
 // covers: src/templates/**
+// covers: src/blocks/**
 
 import { test, expect } from '@playwright/test';
 import { toApp } from './_bench';

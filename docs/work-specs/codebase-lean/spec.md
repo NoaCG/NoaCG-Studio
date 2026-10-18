@@ -214,16 +214,21 @@ edit of each file. The helpers only the removed cases called (`timelineProgress`
 The first revival, on main `54ee2dcc` (2026-10-18): the eight specs whose live-gap cases boot
 in-page against the composer and the runtime (sports, public-service, anim-engine,
 competition-pack, audience-pack, graphic-types, state-machine, machine-edit) boot through
-`e2e/_bench.ts`'s shared `toApp` instead of a local copy that called the retired advanced mode, so 73 live-gap cases run again, 87 cases in all
-across the eight files, 5.2 minutes locally on two workers (queue job `j-0010`, every case
-passing, none skipped). Three cases needed more than the boot swap: the kicker-on-air case
-drives the production page's cue editor and Update and reads PROGRAM, the competition pack's
+`e2e/_bench.ts`'s shared `toApp` instead of a local copy that called the retired advanced mode,
+so 73 live-gap cases run again: 87 cases in all across the eight files, 5.0 case-minutes (2.6 min
+wall on two workers, queue job `j-0011`, every case passing, none skipped). Twelve of the 87 are
+cases the classification marked covered; each cover is partial by its own TSV note (a chip, a
+column or a design the named check does not pin), they cost half a case-minute together, and
+they stay. Three cases needed more than the boot swap: the kicker-on-air case drives the
+production page's cue editor and Update and reads PROGRAM, the competition pack's
 discoverability case plays the created graphic in the harness iframe, and the measured-motion
 case keeps its runtime half without the old step timeline's row. One case went: the simulator
 snap case duplicated production-controls.spec.ts's live control page check (its entry under Test
-maintenance). The machine-edit header names `src/blocks/**`. The eight files' minutes are under
-Budget exceptions. Still skipping: the other 158 live-gap cases, whose bootstraps create a graphic
-through the retired wizard door; they are the next revival groups.
+maintenance). The covers headers now name what the running cases drive beyond the templates:
+`src/blocks/**` and `src/export/**` on the pack sweeps, the production page and its field
+control on the kicker case, `src/templates/shared/**` on machine-edit. The eight files' minutes
+are under Budget exceptions. Still skipping: the other 158 live-gap cases, whose bootstraps
+create a graphic through the retired wizard door; they are the next revival groups.
 
 ### Remaining order and the #800 exit condition
 
@@ -376,7 +381,7 @@ reserved by the editor phase.
 
 The runtime-harness revival (Phase 2, #800) turns 73 live-gap cases in eight files back on. They
 skipped since the old editor went, so the duration table weighs each file at a few seconds; the
-minutes below are this change's local measurement (two workers, `j-0010`), recorded so the
+minutes below are this change's local measurement (case-minutes, two workers, `j-0011`), recorded so the
 capacity gate can see the delta it will measure on the pull request's own run. The weekly
 refresh records the real figures and these lines expire.
 

@@ -1,4 +1,5 @@
 // covers: src/templates/**
+// covers: src/blocks/**, src/export/**
 //
 // The quiz runtime is also the exported control panel's recovery subject and the audience
 // pack's answer boards.
