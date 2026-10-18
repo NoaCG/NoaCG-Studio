@@ -482,6 +482,20 @@ skipped, 0.3 case-minutes locally on two workers (queue job `j-0054`). The file'
 under Budget exceptions. Still skipping: the remaining 36 live-gap cases, in the pack and
 single-case families.
 
+### Phase 2 receipt: the adapt-first revival
+
+The seventeenth revival, on main `85911aa73` (2026-10-18): the adapt-first cases opened the Create
+with AI step behind the retired advanced-mode switch, which the first of them needed for the
+Finish step's editor door. Three cases run again: a brief becoming a customized graphic
+adapted from a proven design, whose last claim now takes the Finish step's export door and
+reads the working graphic mounted the way playout composes it (the bottom band measured in
+that document, the brief's content in its field, validation and the override block off the
+store); the shortlist shown and another design rebuilding for free; and an off-catalog brief
+keeping the full catalog listing. No case was removed. 3 cases in the file, 3 passing, none
+skipped, 0.4 case-minutes locally on two workers (queue job `j-0055`). The file's minutes are
+under Budget exceptions. Still skipping: the remaining 33 live-gap cases, in the pack and
+single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -757,6 +771,12 @@ weighs the file at 0.006 minutes from its earlier runs. The minute below is this
 local measurement (case-minutes, two workers, queue job `j-0054`).
 
 - e2e/ai-more-control.spec.ts: 0.3 min, protects the structured setup reaching the design request and the created project, the setup draft surviving a collapse and a close, and the prompt-only default, expires 2026-11-16
+
+The adapt-first revival (Phase 2, #800) turns three cases in one file back on; the table weighs
+the file at 0.005 minutes from its earlier runs. The minute below is this change's local
+measurement (case-minutes, two workers, queue job `j-0055`).
+
+- e2e/adapt-first.spec.ts: 0.4 min, protects the retrieval shortlist reaching the design stage, the kept zone and the named proven design, the free rebuild on another shortlisted design and the untouched create route, expires 2026-11-16
 
 ## Acceptance criteria
 
