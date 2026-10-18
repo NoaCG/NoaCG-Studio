@@ -16,6 +16,9 @@ const cases = [
   ['prefixed animation', `<s:set xmlns:s="${SVG}" attributeName="href" to="javascript:window.svgSentinel++"/>`],
   ['aliased executable URL', `<a xmlns:link="${XLINK}" link:href="jav&#x09;ascript:window.svgSentinel++"><text x="2" y="20">Click</text></a>`],
   ['encoded URL whitespace', '<a href="java&#x0a;script:window.svgSentinel++"><text x="2" y="20">Click</text></a>'],
+  ['CDATA at an HTML integration point', '<title><style><![CDATA[</style><img src="data:," onerror="window.svgSentinel++">]]></style></title>'],
+  ['XML comment reparsing', '<!--><img src="data:," onerror="window.svgSentinel++">-->'],
+  ['XML processing instruction reparsing', '<?probe ><img src="data:," onerror="window.svgSentinel++">?>'],
 ];
 const observations = await withBundledPage([{ entry: fileURLToPath(new URL('../src/assets/svgImport.ts', import.meta.url)), globalName: 'SVG_IMPORT' }], async page => {
   await page.route('**/*', route => route.abort());
@@ -27,7 +30,7 @@ const observations = await withBundledPage([{ entry: fileURLToPath(new URL('../s
       const append = document.body.append;
       const inspect = root => Array.from(root.querySelectorAll('*')).filter(node =>
         ['script', 'iframe', 'foreignobject', 'animate', 'set'].includes(node.localName.toLowerCase()) ||
-        Array.from(node.attributes).some(attr => attr.localName.toLowerCase() === 'href' && /^javascript:/i.test(attr.value.replace(/[\t\r\n]/g, '').trim()))
+        Array.from(node.attributes).some(attr => /^on/i.test(attr.localName) || (attr.localName.toLowerCase() === 'href' && /^javascript:/i.test(attr.value.replace(/[\t\r\n]/g, '').trim())))
       ).map(node => node.outerHTML);
       document.body.append = function (...nodes) {
         for (const node of nodes) if (node instanceof Element) observed.push(...inspect(node));
@@ -40,7 +43,7 @@ const observations = await withBundledPage([{ entry: fileURLToPath(new URL('../s
       rendered.innerHTML = result.markup;
       const reparsed = inspect(rendered);
       document.body.append(rendered);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const executed = window.svgSentinel;
       rendered.remove();
       return { name, observed, reparsed, executed };
@@ -56,9 +59,8 @@ const observations = await withBundledPage([{ entry: fileURLToPath(new URL('../s
 });
 
 for (const row of observations.rows) test(`SVG import removes ${row.name} before live insertion and HTML reparse`, () => {
-  assert.deepEqual(row.observed, [], 'active content reached the live import measurement');
-  assert.deepEqual(row.reparsed, [], 'active content survived XML serialization and HTML parsing');
-  assert.equal(row.executed, 0, 'the imported SVG executed code');
+  assert.deepEqual(row, { name: row.name, observed: [], reparsed: [], executed: 0 },
+    'imported SVG must not expose active content in either live DOM or execute code');
 });
 test('ordinary SVG artwork and internal image/definition references survive sanitization', () => {
   assert.deepEqual(observations.control, { notices: [], sample: ['Ordinary artwork'], gradient: 'url(#paint)', use: '#curve', textPath: '#curve', images: 1, style: '.label{fill:green}', size: [200, 100] });
