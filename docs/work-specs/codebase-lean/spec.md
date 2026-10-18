@@ -468,6 +468,20 @@ passing, none skipped, 3.1 case-minutes locally on two workers (queue job `j-005
 minutes are under Budget exceptions. Still skipping: the remaining 39 live-gap cases, in the
 pack and single-case families.
 
+### Phase 2 receipt: the ai-more-control revival
+
+The sixteenth revival, on main `1485487ce` (2026-10-18): the More control cases opened the Create
+with AI step behind the retired advanced-mode switch, which one of them needed for the Finish
+step's editor door. Three cases run again: the structured setup's pinned category, user fields
+and intensity landing in the created project, now read off the working document after the
+Finish step's export door (which builds the graphic before it opens the window); collapsing
+sections and closing the wizard preserving the entered setup, with the second close landing on
+Home and the wizard reopened through Home's new-graphic door; and prompt-only generation
+injecting no structured setup. No case was removed. 3 cases in the file, 3 passing, none
+skipped, 0.3 case-minutes locally on two workers (queue job `j-0054`). The file's minutes are
+under Budget exceptions. Still skipping: the remaining 36 live-gap cases, in the pack and
+single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -737,6 +751,12 @@ weighs the file at 0.007 minutes from its earlier runs. The minute below is this
 local measurement (case-minutes, two workers, queue job `j-0053`).
 
 - e2e/counting-settle.spec.ts: 3.1 min, protects every counting design settling on its real figure, playing its figure up from zero on both seeds and never painting its old figure on a re-take, expires 2026-11-16
+
+The ai-more-control revival (Phase 2, #800) turns three cases in one file back on; the table
+weighs the file at 0.006 minutes from its earlier runs. The minute below is this change's
+local measurement (case-minutes, two workers, queue job `j-0054`).
+
+- e2e/ai-more-control.spec.ts: 0.3 min, protects the structured setup reaching the design request and the created project, the setup draft surviving a collapse and a close, and the prompt-only default, expires 2026-11-16
 
 ## Acceptance criteria
 
