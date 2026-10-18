@@ -16,8 +16,8 @@
 // covers: src/components/save/SaveDialogs.tsx
 
 import { test, expect, type Page } from '@playwright/test';
-import { E2E_EMAIL, createGraphic, createGraphicInEditor, haveCreds, settleSync, shot, signIn, wipeMyGraphics } from './_helpers';
-import { openProductionWithCurrent, skipOldEditor } from '../_create';
+import { E2E_EMAIL, E2E_PASSWORD, createGraphicInEditor, haveCreds, settleSync, shot, signIn, signInOnHome, wipeMyGraphics } from './_helpers';
+import { openProductionWithCurrent } from '../_create';
 
 // The signed-in UX walk. The 2026-07 review could only read these surfaces from source — the
 // editor's account features render NOTHING offline, so the whole offline suite is blind to them.
@@ -69,13 +69,9 @@ test.describe('signed-in UX walk (configured)', () => {
   test.use({ permissions: ['clipboard-write'] });
 
   test('the topbar holds one row at laptop widths with the account controls in it', async ({ page }) => {
-    // The bar this measures is the old code editor's (its panel toggles and account cluster),
-    // and that editor is closed. It skips until it is rewritten against Home's bar
-    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
-    skipOldEditor();
+    // Home is the current account surface; keep its real signed-in controls in the measurement.
     await page.setViewportSize({ width: 1366, height: 768 });
-    await signIn(page);
-    await page.keyboard.press('Escape'); // close the wizard signIn() leaves open
+    await signInOnHome(page, E2E_EMAIL, E2E_PASSWORD);
 
     // Every signed-in-only control is really there — otherwise the fit below proves nothing.
     // The sync chip in particular: signing in is what starts the pass that makes it appear.
@@ -152,7 +148,7 @@ test.describe('signed-in UX walk (configured)', () => {
     // The library syncs: start from an empty one so the saved row below is unambiguous by name.
     await settleSync(page);
     await wipeMyGraphics(page);
-    await createGraphic(page, 'Lower thirds', 'Hairline');
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
     await page.getByTestId('save-graphic').click();
     // WHERE THE GRAPHIC GOES, in the signed-in words. The other half of anonymous.spec.ts
     // ("on this computer only"): the two states must read differently at the moment of saving,

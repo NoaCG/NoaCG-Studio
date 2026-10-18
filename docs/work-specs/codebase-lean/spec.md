@@ -812,6 +812,22 @@ and the final branch checks are still due.
 The source has no retired helper calls in these three files; eleven live gaps remain outside
 them: four configured account cases, two Sheet cases and five insertion cases.
 
+### Configured account cases: current surfaces
+
+Why: the remaining account skips still point to the retired graphics editor. Goal: keep the
+four live promises on Home, the current editor and the explicit recovery notice. The signed-in
+bar retains its width/name/title/settings checks; the save dialog keeps its account-location
+words; the anonymous gate keeps account-purpose copy and Escape dismissal; real session loss
+preserves saved local work and resumes sync after the user chooses Sign in. An unsolicited
+expiry modal is obsolete: the current notice says editing is paused and preserves pending
+work. Non-goals: no auth, sync, stored-data or Phase 2 repair behavior change. Run these
+against the existing isolated configured stack in Actions, never the production environment.
+Raise the configured test floor by four and remove the three old-editor skip allowances.
+Preparation: the four restored cases and shared helper pass ESLint; all 27 configured-verdict
+Node checks pass with the floor raised from 100 to 104 and the three old-editor allowances
+removed. Actual configured execution is pending the isolated Actions stack. Do not treat an
+offline skip as configured verification.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
