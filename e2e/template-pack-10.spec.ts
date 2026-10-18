@@ -5,8 +5,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
-import { awaitPreviewRebuild } from './_preview';
+import { bootstrapGraphic, openExportWindow, openWorkingGraphicInEditor } from './_create';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 
 // The gap-list pack (docs/PACK_TAXONOMY.md): the commerce, fundraising, sponsor, location and
 // call-to-action designs, plus the two NEW categories — camera frames and transitions.
@@ -77,11 +77,11 @@ test('the two new categories are browsable, and every design in them creates', a
 });
 
 test('discover → select → edit → timeline → save → reload keeps a commerce card whole', async ({ page }) => {
-  skipOldEditor();
   // A product card is the pack's most field-heavy design: five text lines plus an image slot,
   // with two elements that vanish when their field is cleared. If anything in the round trip
   // drops a field, this is where it shows.
   await bootstrapGraphic(page, { category: 'Info cards', name: 'House Product' });
+  await openWorkingGraphicInEditor(page);
 
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -94,16 +94,22 @@ test('discover → select → edit → timeline → save → reload keeps a comm
   // travels in the template (what an export ships, what a reload restores), and the sample
   // value is what the preview's update() actually writes. Setting only the default leaves the
   // preview showing the old price — correctly, since sample data outranks it on air.
-  await awaitPreviewRebuild(page, () =>
-    page.evaluate(async () => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { setFieldDefault } = await import('/src/blocks/edit.ts');
-      const store = useTemplateStore.getState();
-      store.applyTemplate(setFieldDefault(store.template, 'f1', '€99'));
-      useTemplateStore.getState().setSampleValue('f1', '€99');
-    }),
-  );
-  await expect(page.frameLocator('iframe.preview-frame').locator('#f1')).toHaveText('€99');
+  await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { setFieldDefault } = await import('/src/blocks/edit.ts');
+    const store = useTemplateStore.getState();
+    store.applyTemplate(setFieldDefault(store.template, 'f1', '€99'));
+    useTemplateStore.getState().setSampleValue('f1', '€99');
+  });
+  // The working graphic mounted the way playout composes it, fed the sample data: update()
+  // writes the retyped price.
+  const doc = await mountWorkingDocument(page);
+  const sample = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().sampleData as Record<string, string>;
+  });
+  await updateWorkingDocument(doc, sample);
+  await expect(doc.locator('#f1')).toHaveText('€99');
 
   // TIMELINE: the card is a data-block template with a real entrance and Out step.
   const steps = await page.evaluate(async () => {
@@ -124,9 +130,9 @@ test('discover → select → edit → timeline → save → reload keeps a comm
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
 
   await page.reload();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
-  await expect(page.locator('.tpl-name')).toHaveText('Winter headphones');
+  await expect(page.locator('.ef-document-tab')).toHaveText('Winter headphones');
 
   const after = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

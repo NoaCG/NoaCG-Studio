@@ -3,8 +3,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { bootstrapGraphic, openExportWindow, openWorkingGraphicInEditor, skipOldEditor } from './_create';
-import { awaitPreviewAfterReload } from './_preview';
+import { bootstrapGraphic, openExportWindow, openWorkingGraphicInEditor } from './_create';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // THE TITLE / TOPIC / INFORMATION PACK (src/templates/pack4/).
 //
@@ -286,18 +286,26 @@ test('the notice escalates and stands down without moving the main walk', async 
 });
 
 test('the notice’s level events reach the generated control page', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Info cards', name: 'Public Advisory' });
-  await page.getByTestId('dock-tab-control').click();
-  // The Rehearse panel and the timeline's simulator both offer the event, which is the point:
-  // one button comes from the machine's `controls` metadata, the other from the graph itself.
-  const panel = page.getByTestId('dock-body-right');
+  // The generated control page is the saved graphic's own route, so the graphic is saved first,
+  // through the same save the editor's header runs.
+  const id = await page.evaluate(async () => {
+    const { saveGraphicAs } = await import('/src/store/saveActions.ts');
+    const { ok, error, graphicId } = await saveGraphicAs('Public advisory', { kind: 'standalone' });
+    if (!ok || !graphicId) throw new Error(error ?? 'the save did not land');
+    return graphicId;
+  });
+  await settleDurableWrites(page);
+  await page.goto(`/app#/control/${id}`);
+  // The page's event buttons come from the machine's `controls` metadata, which is the point:
+  // the notice's level events reach the generated page by name.
+  const panel = page.getByTestId('graphic-control-page');
+  await expect(panel).toBeVisible();
   await expect(panel.getByRole('button', { name: /Urgent/ })).toBeVisible();
   await expect(panel.getByRole('button', { name: /Standard/ })).toBeVisible();
 });
 
 test('a pack graphic survives save, reload and reopen unchanged', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Info cards', name: 'Frost Checklist' });
   await openWorkingGraphicInEditor(page);
 
@@ -314,8 +322,8 @@ test('a pack graphic survives save, reload and reopen unchanged', async ({ page 
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
 
   await page.reload();
-  await expect(page.locator('.topbar')).toBeVisible();
-  await awaitPreviewAfterReload(page);
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
 
   const after = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
