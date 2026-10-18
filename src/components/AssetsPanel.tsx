@@ -1,6 +1,6 @@
 // The Assets panel: every file bundled with the template (images, Lottie animations,
 // imported fonts) as folder-grouped rows, with drag-and-drop import, drag-to-canvas
-// placement (see CanvasInteraction), reference-safe move/rename, and an info section
+// placement (editorFoundation/Canvas.tsx takes the drop), reference-safe move/rename, and an info section
 // that derives metadata on demand (src/assets/assetInfo.ts) — the model stays { path, data }.
 
 import { useEffect, useRef, useState } from 'react';
@@ -54,7 +54,7 @@ const PUBLISH_MAX_TOTAL = 12 * 1024 * 1024 * 0.75; // the bench caps data-URL ch
 
 const ACCEPT = '.png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.json,.webm,.mp4';
 
-/** The drag payload type the canvas drop target (CanvasInteraction) listens for. */
+/** The drag payload type the editor's canvas drop target (editorFoundation/Canvas.tsx) listens for. */
 export const ASSET_DRAG_TYPE = 'application/x-noacg-asset';
 
 function fmtBytes(n: number): string {

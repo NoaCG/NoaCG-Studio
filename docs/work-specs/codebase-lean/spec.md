@@ -180,7 +180,7 @@ retired rows as history, so later deletions need no edit to the retired rules th
 
 ### Phase 1 receipt: the timeline, canvas and preview group
 
-The second deletion, on main `71d12e34c` (2026-10-17): `src/components/PreviewFrame.tsx`,
+The second deletion, on main `116022568` (2026-10-17): `src/components/PreviewFrame.tsx`,
 `ProjectFormatMeta.tsx`, `canvas/{CanvasInteraction,CanvasSelection}.tsx`,
 `canvas/{partLocks,pasteboard}.ts`, `timeline/{Inspector,LegacyTimeline,MachineGraph,PlayoutSimulator,StepTimeline}.tsx`
 and `src/blocks/{layerTimeline,stepAssign}.ts`: thirteen files, 8,249 lines, reached only through
@@ -193,13 +193,15 @@ text-tools) and nine trimmed (timeline-v2, machine-graph, legacy-timeline, inspe
 pasteboard, machine-edit, wysiwyg, preview-error), 3,714 `e2e` lines, each case listed under
 Test maintenance with its retired surface or covering check. The ten live cases left in the
 trimmed files still skip through the retired bootstrap and are revived or re-homed with the other
-gaps in the next PRs; six covers headers that named the deleted paths now name what the specs
+gaps in the next PRs; twelve covers headers that named the deleted paths now name what the specs
 observe, the planner test that pinned the old dock's mapping pins the new editor's directory,
 the two active contract rules scoped to the deleted files are retired or reworded, the timeline
 folder's contracts are gone and the canvas folder's describes CanvasGuides, and `retired.json`
 lists the group so an instruction that names it fails the build. No store, router, prefs or CSS
-line changed; `spacePansCanvas`, `activeSurface`, `partLocks`, `replayNonce` and
-`setFilterComponent` are now reader-less store state for step 6.
+line changed. `src/components/spaceKey.ts` lost the Space pan-or-tap helpers nothing called any
+more, so `activeSurface` and `pointerOverStage` join `partLocks`, `replayNonce` and
+`setFilterComponent` as reader-less store state for step 6, and the eight code comments that
+named the deleted files now name what replaced them.
 
 ### Remaining order and the #800 exit condition
 
