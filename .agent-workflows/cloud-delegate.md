@@ -100,6 +100,15 @@ native status plus wave/plan/job/PR state before continuing. Reuse existing
 cloud-landing-recovery qualification and #1307's local helpers only within their
 proved scope. Inert-process controls do not prove native restart or filesystem recovery.
 
+For durable supervisor runs, opt into the existing repository's recovery ref and use
+`run-supervisor.mjs record` for phase events. `resume` restores a missing local store,
+pinned source and ledger, then requires exact native/GitHub reconciliation before
+dispatch. Keep the run ID/repository locator in the existing bootstrap or wake prompt.
+See `docs/work-specs/native-recovery/evidence/restoration.md` for the packet and adapter
+contract. Technical errors and state discrepancies are diagnosed and repaired by the
+active owner without asking the user; unknown delivery still requires reconciliation,
+and missing provider support never authorizes duplicate work or broader permissions.
+
 Follow `.agent-workflows/queue-merge.md` for exactly one acknowledged repair owner,
 including no-webhook base-conflict checks and at most three repairs per failure.
 A scheduled check-in while active is not durable recovery. Before claiming unattended
