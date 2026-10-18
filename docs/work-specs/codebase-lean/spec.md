@@ -564,6 +564,22 @@ case in the three files passes, none skipped. Case-minutes locally on two worker
 under Budget exceptions. Still skipping: the remaining 18 live-gap cases, in the pack and
 single-case families.
 
+### Phase 2 receipt: the images revival
+
+The twenty-second revival, on main `7088e031f` (2026-10-18): the images cases walked the wizard into
+the retired advanced mode and uploaded through the old Data panel's image control. Three cases
+run again: a logo uploaded through the Logo field landing in the credits end block, an oversized
+logo shrunk to the frame at the door with a small one left alone, and the corner bug's logo
+field replacing the placeholder mark. The upload makes the same two writes the live field row
+makes (`components/fields/SpxFieldRow.tsx`: the asset shrunk by `importImageFile`, the field's
+value set to its path), the wizard walk lands in the new editor through the Finish step's door,
+and the runtime claims read the working graphic mounted the way playout composes it, which
+inlines the asset the field names. Two cases went (listed under Test maintenance): the Data
+panel's add-field row, retired with that panel, and the export folder structure, which
+editor-images pins. 3 cases in the file, 3 passing, none skipped, 0.2 case-minutes locally on
+two workers (queue job `j-0060`). The file's minutes are under Budget exceptions. Still skipping:
+the remaining 15 live-gap cases, in the pack and single-case families.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
@@ -719,6 +735,7 @@ reserved by the editor phase.
 - 2026-10-18 `e2e/wave2.spec.ts`: 3 case(s) removed with the wave2 revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "scoreboard: all four fields bind and a score change lands" (covered: e2e/production-controls.spec.ts 398 'a scoreboard GOAL raises the flag AND moves that side's score on the same press' moves House Score's program #f1 0 to 1 to 2 on a live press; dashboard-operator-walk.spec.ts 80 lands typed and stepped score fields on program and preview.); "corner bug: plays with the placeholder mark" (covered: e2e/catalog-baseline.spec.ts 392 'every catalog variant renders identically' settles Glass Mark on air with its placeholder mark and 'LIVE' text, fingerprinted per element.); "quiz: options bind and Next reveals the correct answer" (covered: e2e/community-packs.spec.ts 29 'the shelf lists the seeded pub quiz, and Install opens a production whose graphic takes, reveals and goes out' marks .quiz-option-2 correct on verb-next and dims the rest, the shared quiz runtime; production-controls.spec.ts 129 judges Arena Quiz.)
 - 2026-10-18 `e2e/ux.spec.ts`: 4 case(s) removed with the ux revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "layout: code dock left ONCE OPENED, canvas + timeline in the centre, tool tabs right" (retired UI: `.editor-host`, the dock-right tab labels and the centre stage are the deleted AppShell and WorkspaceDock geometry.); "data: add-field lands as a REAL line on a catalog template, in the assembler's own idiom" (covered: e2e/editor-base-edits.spec.ts 313 'B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition' lands a REAL field painted in the preview on a catalog template through baseEdits and addCatalogLine; the Data panel's add row is retired.); "data: the catalog-line add is gated on the standard line SHAPE, never the category" (covered: scripts/catalog-line-gate.test.mjs 'the catalog-line add is gated on the standard line SHAPE, never the category', the same five designs and verdicts.); "style: a color change highlights the changed CSS lines" (retired UI: `.editor-host .changed-line` is the deleted Monaco pane's change highlight.)
 - 2026-10-18 `e2e/flows.spec.ts`: 4 case(s) removed with the third singles revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "wizard: create a lower third with defaults" (covered: e2e/wizard-finish.spec.ts 239 'finish: the export door saves the graphic and opens the export window over the wizard' lands a defaults-created Hairline record; e2e/catalog-baseline.spec.ts 392 renders every catalog variant on air.); "reset: the topbar button restores the original state, undoably" (retired UI: `reset-project` left src with AppShell's topbar.); "style panel: accent retints the live preview" (retired UI: `dock-tab-style` and `style-var-accent` are the old StylePanel's; custom colours at create are package.spec.ts 43's subject.); "export: downloads a plug-and-play SPX zip" (covered: e2e/exports.spec.ts 371 'spx: the folder package plays like a host drives it, and a late update never hides it' downloads the SPX zip through the export window and plays it.)
+- 2026-10-18 `e2e/images.spec.ts`: 2 case(s) removed with the images revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "data panel: the add-field types are the broadcast set, and an unanswerable add is refused" (retired UI: the 'Add a field' select and `add-field-refused` exist only in the retired SampleDataPanel; the new editor adds text through its text tool, editor-base-edits.spec.ts 313, and the shape gate's pure half is scripts/catalog-line-gate.test.mjs.); "export: the zip is [project]/[project].html with images under [project]/images/" (covered: e2e/editor-images.spec.ts 357 'saved image and its binding reopen and execute in SPX, CasparCG and OGraf' downloads the SPX zip with the image under images/ as a real binary.)
 - 2026-10-18 `e2e/counting-settle.spec.ts`: 1 case(s) removed with the counting-settle revival (its Phase 2 receipt above); receipt evidence/test-dispositions.tsv, whose line numbers are the classification's, at main `116022568`. "every counting design settles on its real figure (canvas)" (retired UI: the canvas recipe composed with the old editor's simulator channel (composeDocument with simulate), which no live surface composes with; the shared settle recipe, what every card and thumbnail composes with, keeps the sweep as "every counting design settles on its real figure". The recipe loop was one declaration, so the declaration count is unchanged; this is the runtime case that went.)
 
 ## Budget exceptions
@@ -877,6 +894,12 @@ minutes below are this change's local measurement (case-minutes, two workers, qu
 - e2e/inspector.spec.ts: 0.1 min, protects the store's redo branch being cut by a new edit, and the filter track's shape at runtime, expires 2026-11-16
 - e2e/pasteboard.spec.ts: 0.1 min, protects the composer's default document clipping to the canvas with no pad in persisted state, expires 2026-11-16
 - e2e/legacy-timeline.spec.ts: 0.1 min, protects a legacy-region template rendering settled on the shared settle recipe, expires 2026-11-16
+
+The images revival (Phase 2, #800) turns three cases in one file back on and removes two; the
+table weighs the file at 0.007 minutes from its earlier runs. The minute below is this
+change's local measurement (case-minutes, two workers, queue job `j-0060`).
+
+- e2e/images.spec.ts: 0.2 min, protects a logo field reaching the credits end block and the corner bug at runtime, and the import door shrinking an oversized picture without growing a small one, expires 2026-11-16
 
 ## Acceptance criteria
 
