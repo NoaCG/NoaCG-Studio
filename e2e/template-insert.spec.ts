@@ -314,3 +314,52 @@ test('templates that need their own runtime are greyed with the reason, not hidd
   await expect(page.getByTestId('insert-tpl-dialog')).toHaveCount(0);
   expect((await state(page)).template).toEqual(before.template);
 });
+
+
+test('a saved one-step graphic keeps its entrance when a template adds an Out and appearance step', async ({ page }) => {
+  for (const placement of ['start', 'new-step']) {
+    await bootstrapGraphic(page, 'Hairline');
+    // Fixture setup: an older saved data block has its In only, with no authored machine.
+    await page.evaluate(async () => {
+      const { useTemplateStore, flushPendingProject } = await import('/src/store/templateStore.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { spxSteps } = await import('/src/blocks/animMachine.ts');
+      const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
+      const store = useTemplateStore.getState(), data = parseAnimData(store.template.js)!;
+      data.steps = data.steps.slice(0, 1); delete data.machine;
+      const settings = { ...store.template.settings, steps: String(spxSteps(data)) };
+      store.applyTemplate({ ...store.template, settings, html: replaceDefinitionInHtml(store.template.html, settings, store.template.fields), js: writeAnimData(store.template.js, data)! }, { resetSampleData: true });
+      flushPendingProject();
+      const error = await commitDurableWrites(); if (error) throw new Error(error);
+      await new Promise(resolve => setTimeout(resolve));
+    });
+    await openWorkingGraphicInEditor(page);
+    const before = await state(page);
+    expect(before.anim!.steps).toHaveLength(1);
+    await openInsertDialog(page);
+    await page.getByTestId('insert-tpl-placement').selectOption(placement);
+    await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Info cards' }).click();
+    await page.getByTestId('insert-tpl-card-card01').click();
+    await expect(page.getByTestId('insert-tpl-dialog')).toBeHidden();
+    const after = await state(page);
+    expect(after.anim!.steps).toHaveLength(placement === 'start' ? 2 : 3);
+    for (const [selector, tracks] of Object.entries(before.anim!.steps[0].layers)) {
+      expect(after.anim!.steps[0].layers[selector]).toEqual(tracks);
+    }
+    const emitted = await mountWorkingDocument(page), selector = after.selected!;
+    await emitted.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+    await expect(emitted.locator(selector)).toHaveCSS('opacity', placement === 'start' ? '1' : '0');
+    if (placement === 'new-step') {
+      await emitted.locator('body').evaluate(() => (window as unknown as { next: () => void }).next());
+      await expect(emitted.locator(selector)).toHaveCSS('opacity', '1');
+    }
+    await emitted.locator('body').evaluate(() => (window as unknown as { stop: () => void }).stop());
+    await expect(emitted.locator(selector)).toHaveCSS('opacity', '0');
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect.poll(async () => (await state(page)).template).toEqual(before.template);
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    await expect.poll(async () => (await state(page)).template).toEqual(after.template);
+  }
+});
