@@ -1,4 +1,4 @@
-// covers: none - no source path selected this spec when coverage moved into spec headers
+// covers: src/blocks/**
 // (2026-09-27); it runs when edited, on a full escalation and at night
 
 import { test, expect, type Page } from '@playwright/test';

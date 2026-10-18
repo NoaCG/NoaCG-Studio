@@ -545,7 +545,7 @@ test('parity: measured motion matches the legacy emit across content lengths', a
   expect(failures).toEqual([]);
 });
 
-test('measured motion actually tracks the content — and the timeline shows it read-only', async ({ page }) => {
+test('measured motion actually tracks the content', async ({ page }) => {
   test.setTimeout(90_000);
   await toApp(page);
   const result = await page.evaluate(
@@ -578,18 +578,8 @@ test('measured motion actually tracks the content — and the timeline shows it 
   );
   expect(result.longerWithMoreText).toBe(true);
   expect(result.survived).toBe(true);
-
-  // The timeline surfaces the segment read-only: it names the builder, and it carries no
-  // keyframe diamonds — there is nothing here to edit visually, and the UI must not pretend.
-  await page.evaluate(`(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    useTemplateStore.getState().applyTemplate(variantById('tk01').create(), { resetSampleData: true });
-  })()`);
-  const bar = page.getByTestId('tlv2-measured-tickerMarquee');
-  await expect(bar).toBeVisible();
-  await expect(bar).toContainText('tickerMarquee()');
-  await expect(page.locator('.tlv2-measured-row .tlv2-diamond')).toHaveCount(0);
+  // The read-only measured row this case also checked was the old step timeline's; the new
+  // editor's timeline is pinned by e2e/editor-*.spec.ts.
 });
 
 // The importer can carry a NAMED builder across (that is what `tl.add(tickerMarquee(...))`

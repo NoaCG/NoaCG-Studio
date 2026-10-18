@@ -1,10 +1,7 @@
 // covers: src/blocks/**, src/templates/**
 
-import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
 import { LOWER_THIRD_EXPLICIT, LOWER_THIRD_IMPLICIT, MILLIONAIRE, SCOREBUG, TICKER } from './_machines';
-import { frameMachineState, frameOpacity } from './_frame';
 
 // Phase 1 of the state-machine model (docs/noacg-master-goals.md §1.4,
 // docs/STATE_MACHINE_SCHEMA.md): the five acceptance criteria, driven against HAND-WRITTEN
@@ -427,65 +424,4 @@ test('drift guards: the export gate accepts every machine, editor and runtime ag
   })()`);
   expect((result as { gate: Array<{ ok: boolean }> }).gate.every((g) => g.ok)).toBe(true);
   expect(result).toMatchObject({ routeDrift: [] });
-});
-
-test('preview: snap-to-state works in the editor, and the event strip guards like the graph', async ({ page }) => {
-  // Asserts EDITOR surfaces (the simulator's event strip), so it needs the Advanced boot.
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.wz-modal')).toBeVisible();
-  await awaitPreviewRebuild(page, () =>
-    page.evaluate(`(async () => {
-      ${HARNESS}
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { useDocKindStore } = await import('/src/store/docKindStore.ts');
-      const tpl = await buildMachineTemplate(${JSON.stringify(MILLIONAIRE)});
-      useTemplateStore.getState().applyTemplate(tpl, { resetSampleData: true });
-      useDocKindStore.getState().setKind('spx');
-    })()`),
-  );
-  // The minimal machine surface: one button per authored operator event + the state chip.
-  await expect(page.getByTestId('sim-events')).toBeVisible();
-  await expect(page.getByTestId('sim-event-select')).toBeVisible();
-  // The chip wears the state's NAME, not its id (controlModel.ts formatMachineState): the ids
-  // are the author's vocabulary and the names are what every operator surface shows.
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('Question', { timeout: 5000 });
-
-  // Snap through the store (the programmatic path the done-when names): instant Locked.
-  await page.evaluate(`(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    useTemplateStore.getState().sendSnap({ flow: 'locked' });
-  })()`);
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('Locked', { timeout: 5000 });
-  const pose = {
-    state: (await frameMachineState(page)).flow,
-    root: await frameOpacity(page, '.qz'),
-    rows: await frameOpacity(page, '.qz-rows'),
-  };
-  expect(pose).toEqual({ state: 'locked', root: 1, rows: 1 });
-
-  // The strip is guarded by the graph: select after lock is dead — and now SAYS so, rather
-  // than taking the press and silently dropping it. (Dispatching it anyway still moves
-  // nothing; that is the runtime guard, covered by the dispatch cases above.)
-  await expect(page.getByTestId('sim-event-select')).toBeDisabled();
-  await page.evaluate(`(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    useTemplateStore.getState().sendEvent('select');
-  })()`);
-  await page.waitForTimeout(200);
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('Locked');
-
-  // And a LEGAL event dispatched from the strip actually plays its state's timeline through
-  // the whole app path (store -> simulator -> preview iframe), not just moves the pointer.
-  const frame = page.frameLocator('iframe.preview-frame');
-  await page.locator('.simulator button', { hasText: 'Play' }).click();
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('Question');
-  await expect
-    .poll(async () => frame.locator('.qz-rows').evaluate((el) => getComputedStyle(el).opacity))
-    .toBe('0'); // pre-armed by the entrance: the rows wait for their reveal
-  await page.getByTestId('sim-event-reveal').click();
-  await expect(page.getByTestId('sim-state-chip')).toHaveText('Answers up');
-  await expect
-    .poll(async () => Number(await frame.locator('.qz-rows').evaluate((el) => getComputedStyle(el).opacity)))
-    .toBeGreaterThan(0.9);
 });

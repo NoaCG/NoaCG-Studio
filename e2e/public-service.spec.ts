@@ -10,9 +10,8 @@
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
 
-import { createProject, enableAdvancedMode } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
-import { awaitPreviewRebuild } from './_preview';
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 
@@ -760,20 +759,15 @@ test('every export target packages the new categories with no dangling reference
 // the playout dashboard's monitors, the browser-output renderer and an exported package all
 // call. Proving it at the design-time preview alone would prove the parser and not the product.
 test('a kicker typed on air reaches the strip through the control path', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await createProject(page, 'House Wire');
-  // The preview rebuilds on a debounce after the create; the control update has to land on the
-  // NEW document rather than the one it is replacing (e2e/AGENTS.md).
-  await awaitPreviewRebuild(page);
+  // The operator's door is the production page: the cue editor's field and Update, the same
+  // `update()` the playout monitors, the browser output and an exported package all call.
+  await bootstrapGraphic(page, 'House Wire');
+  await openProductionWithCurrent(page, 'Kicker on air');
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('cue-field-f0').fill('SPORT:\nUnited win 3-0\nCity held at home\n\nStorm warning issued');
+  await page.getByTestId('verb-update').click();
 
-  await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const store = useTemplateStore.getState();
-    store.setSampleValue('f0', 'SPORT:\nUnited win 3-0\nCity held at home\n\nStorm warning issued');
-    store.sendControl('update');
-  });
-
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(frame.locator('.ticker-kicker').first()).toHaveText('SPORT', { timeout: 10_000 });
   // Two stories under one kicker, and the story after the blank line carrying none.
   const strip = await frame.locator('#ticker-track').textContent();

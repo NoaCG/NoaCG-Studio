@@ -3,7 +3,7 @@
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
 
-import { bootstrapGraphic, skipOldEditor } from './_create';
+import { bootstrapGraphic } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 
 // THE COMPETITION PACK (docs/COMPETITION_PACK.md) — the esports, competition, result and
@@ -563,12 +563,26 @@ test('a pack graphic saves to the library and reloads with its machine and marks
 });
 
 test('the pack is discoverable in the wizard and creates from a category card', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'esports-score', name: 'House Series' });
-  const frame = page.frameLocator('iframe.preview-frame');
-  await page.getByRole('button', { name: '▶ Play' }).click();
-  await expect.poll(async () => frame.locator('.esports-score').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-  await expect(frame.locator('#f0')).toHaveText('TEAM LIQUID');
+  // The created graphic is the working document; played in a hidden composer iframe, it settles
+  // on its entrance pose with the sample data the category card promised.
+  const played = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const tpl = useTemplateStore.getState().template;
+    const f = document.createElement('iframe');
+    f.className = 'pack-frame';
+    f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1280px;height:720px;';
+    document.body.appendChild(f);
+    await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl); });
+    await new Promise((r) => setTimeout(r, 80));
+    const doc = f.contentDocument;
+    f.contentWindow.play();
+    await settle();
+    return { opacity: getComputedStyle(doc.querySelector('.esports-score')).opacity, f0: doc.getElementById('f0').textContent };
+  })()`) as { opacity: string; f0: string };
+  expect(played).toEqual({ opacity: '1', f0: 'TEAM LIQUID' });
   // The generated control page's buttons come from the machine — the phase events are there.
   const events = await page.evaluate(`(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
