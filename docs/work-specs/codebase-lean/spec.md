@@ -632,8 +632,9 @@ One case went (listed under Test maintenance): blank artwork requiring an author
 entry card is gone. Every case in the five files passes, none skipped. Case-minutes locally on
 two workers (queue job `j-0063`): production-audience 0.7, google-fonts 0.1, render 0.9,
 video-project 0.7, project-format 0.6. The files' minutes are under Budget exceptions. Still
-skipping: the remaining 8 live-gap cases: two machine-graph runtime cases, one timeline-v2
-case, the Google Sheet live-data case, and four Add template graphic cases. The last five are
+skipping: the remaining 10 live-gap cases: two machine-graph runtime cases, one timeline-v2
+case, the preview command-error case, the configured signed-in header case, the Google Sheet
+live-data case, and four Add template graphic cases. The last five are
 retained by the owner decisions above, rather than counted as two undecided families.
 
 Continuation verification on that merged main: queue job `j-4597` ran all 46 cases in the
@@ -647,6 +648,42 @@ vote assertion that selected the existing House Vote cue. The final test selects
 staged cue and verifies the eight-vote closed tally on Program. Review and simplify ran inline;
 no full local production build or suite was run. The player-host dependency bundle was prepared
 for this fresh worktree, without changing package inputs or Vite access rules.
+
+
+### Phase 2 receipt: the eighth singles (machine-graph, timeline-v2, preview-error)
+
+The twenty-fifth revival, on main `7b3e3022d` (2026-10-18), keeps the runtime
+halves of machine-graph and timeline-v2 and restores the preview command-error case. The graph
+UI was deleted on 2026-10-17: machine-graph intentionally calls blocks/machineEdit directly
+and runs the composed graphic. The scoreboard case drives update after play in that graphic.
+
+Review found that preview-error's proposed replacement tested a startup exception, not a
+command failing after readiness. The case stays, with Edit Out triggering an injected broken
+interpreter, a visible error from that command, and Reload preview recovering from unchanged
+source. No preview-error case is removed by this branch. Its disposition remains a live gap
+resolved here, rather than claiming that a different startup test covers it.
+
+The fade test now observes the opacity dip during the transition as well as its final pose.
+A temporary fade-to-cut mutation passed the old assertion (`j-4598`) and failed the strengthened
+one (`j-4599`, minimum opacity stayed 1). Restoring the fade passed all eight cases across the
+three files (`j-4600`). Suppressing the command-error reply separately failed the retained
+case (`j-4601`); restoring the runtime passed it (`j-4602`). Both mutations are fully reverted.
+Those diagnostic runs preceded reconciliation with singles-g. The final main-reconciled
+selection below is the landing verdict.
+Acceptance: a fade visibly fades and lands; lifecycle guards and scoreboard score-pop still
+hold; a command exception after a healthy load is visible and Reload preview recovers. No
+new runtime behavior or graph UI is introduced. Still skipping: the remaining 6 live-gap
+cases are the configured signed-in header case, the kept Google Sheet CSV case and four kept
+Add template graphic cases, before singles-i's own subject review.
+
+Final verification on the merged main: queue job `j-4604`, 8 passed, none skipped in
+19.5 seconds. ESLint on all three changed specs, changed-path gates and E2E protection passed.
+Review fixed two coverage findings inline; simplify ran inline without a behavior change.
+The preceding receipt's skip count is corrected from eight to ten because it omitted the
+still-skipped command-error and configured signed-in header cases. This revival resolves four
+cases, leaving the six above. A complete remaining-caller scan confirms the signed-in case
+is still a live gap and separately identifies nine RESERVED cases in library/project/wizard-finish.
+No full local suite or production build was run.
 
 
 ### Remaining order and the #800 exit condition
@@ -990,6 +1027,13 @@ queue job `j-0063`).
 - e2e/render.spec.ts: 0.9 min, protects the render section measured off the saved record in the standalone export window, expires 2026-11-16
 - e2e/video-project.spec.ts: 0.7 min, protects the video shell's reload, explicit save and reopen, expires 2026-11-16
 - e2e/project-format.spec.ts: 0.6 min, protects the explicit render scaling and a restored unsupported format still opening, expires 2026-11-16
+
+The eighth singles revival (Phase 2, #800) restores four cases across three files and removes
+no file. The earlier measurements below cover machine-graph and timeline-v2 only (case-minutes,
+two workers, queue job `j-0065`); the final three-file wall time is recorded in its receipt.
+
+- e2e/machine-graph.spec.ts: 0.3 min, protects styled transitions playing and landing on their pose, the lifecycle arrows' styles and guards, and the region re-emits under older interpreters, expires 2026-11-16
+- e2e/timeline-v2.spec.ts: 0.1 min, protects a scoreboard's data block and the score pop around the region at runtime, expires 2026-11-16
 
 ## Acceptance criteria
 
