@@ -50,6 +50,9 @@ test('the Assets panel marks which assets the graphic actually uses, per row', a
   // A second placement from the same file is a NEW element, not a duplicate asset.
   await row.click();
   await page.getByRole('button', { name: 'Place image', exact: true }).click();
+  // The button starts the placement without awaiting it (it decodes the image first), so the
+  // canvas can read ready before the field lands: wait for the field, then the rebuild.
+  await expect.poll(async () => (await source(page)).fields).toBe(placed.fields + 1);
   await ready(page);
   const twice = await source(page);
   expect(twice.fields).toBe(placed.fields + 1);
