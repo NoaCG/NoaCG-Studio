@@ -106,19 +106,22 @@ export function traceMetrics({ events, createdAt, model, usage = null }) {
 
 const COVERAGE_RUN = /(?:^|[\s;&|(])noacg\s+coverage\b/;
 
-/** The reads that come after the last coverage run of `events` ([{ read } | { coverage }], in order). */
-const sinceLastCoverage = (events) => {
-  const last = events.map((e) => Boolean(e.coverage)).lastIndexOf(true);
-  return events.slice(last + 1).filter((e) => e.read).map((e) => e.read);
+/** The reads that come after the last coverage run of `events` ([{ read } | { coverage }], in
+ *  order), or with `all` after the first: a frame coverage carried (its picture the one an earlier
+ *  verdict closed) was opened when it was read after any coverage. */
+const sinceCoverage = (events, all = false) => {
+  const marks = events.map((e) => Boolean(e.coverage));
+  const from = all ? marks.indexOf(true) : marks.lastIndexOf(true);
+  return events.slice(from + 1).filter((e) => e.read).map((e) => e.read);
 };
 
-/** The paths a Managed Agents trace's `read` steps opened after its last coverage. */
-export function readsOf(steps) {
-  return sinceLastCoverage((steps ?? []).filter((s) => s.kind === 'tool').map((s) => (/^read$/i.test(s.tool ?? '') && typeof s.path === 'string' && s.ok !== false ? { read: s.path } : { coverage: COVERAGE_RUN.test(s.command ?? '') })));
+/** The paths a Managed Agents trace's `read` steps opened after its last coverage (`all`: its first). */
+export function readsOf(steps, { all = false } = {}) {
+  return sinceCoverage((steps ?? []).filter((s) => s.kind === 'tool').map((s) => (/^read$/i.test(s.tool ?? '') && typeof s.path === 'string' && s.ok !== false ? { read: s.path } : { coverage: COVERAGE_RUN.test(s.command ?? '') })), all);
 }
 
-/** The paths a Claude Code session's transcript (its `.jsonl`) opened with Read after its last coverage. */
-export function transcriptReads(text) {
+/** The paths a Claude Code session's transcript (its `.jsonl`) opened with Read after its last coverage (`all`: its first). */
+export function transcriptReads(text, { all = false } = {}) {
   const events = [];
   const failed = new Set();
   for (const line of String(text ?? '').split('\n')) {
@@ -134,7 +137,7 @@ export function transcriptReads(text) {
       else if (block?.type === 'tool_result' && block.is_error) failed.add(block.tool_use_id);
     }
   }
-  return sinceLastCoverage(events.filter((e) => !(e.read && failed.has(e.id))));
+  return sinceCoverage(events.filter((e) => !(e.read && failed.has(e.id))), all);
 }
 
 /**
@@ -170,10 +173,13 @@ const baseName = (p) => String(p).split(/[\\/]/).pop();
  * opened, and which it did not. `review` is the record's `review`, null when it was handed in
  * without one.
  */
-export function framesOpened(review, reads) {
+export function framesOpened(review, reads, readsEarlier = []) {
   if (!review) return { reviewed: 0, opened: 0, unopened: [], all: false, fixed: 0 };
   const read = new Set((reads ?? []).map(baseName));
+  // A carried verdict is one the agent gave the identical picture after an earlier coverage.
+  const earlier = new Set((readsEarlier ?? []).map(baseName));
   const files = (review.verdicts ?? []).map((v) => v.file);
-  const unopened = files.filter((f) => !read.has(baseName(f)));
+  const carried = new Set((review.verdicts ?? []).filter((v) => v.carried).map((v) => v.file));
+  const unopened = files.filter((f) => !read.has(baseName(f)) && !(carried.has(f) && earlier.has(baseName(f))));
   return { reviewed: files.length, opened: files.length - unopened.length, unopened, all: files.length > 0 && unopened.length === 0, fixed: review.fixed ?? 0 };
 }

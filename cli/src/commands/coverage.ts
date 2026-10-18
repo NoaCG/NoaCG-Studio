@@ -6,13 +6,14 @@
 // once each is set (review.ts). An event that did not move the machine, one that moved it but
 // draws nothing on screen, or a graphic call that threw, is a finding (exit 1).
 
+import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient } from '../bridgeClient.js';
 import { cliVersion } from '../config.js';
 import { coveragePlan, frameFile, LATER_MS, settlesOwnState, STRIP_MS, stripFile, type CoverageRender, type Ground } from '../coverage.js';
 import { sourceDigest } from '../digest.js';
-import { REVIEW_FILE, reviewFor } from '../review.js';
+import { closedFrames, REVIEW_FILE, reviewFor } from '../review.js';
 import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { BUSY_PLATE, changedShare, composeStrip, LIGHT_PLATE, mimeTypeOf, momentLabel, safe, shoot, shootSequence, VIDEO_PLATE, type FrameOp, type SequenceShot } from '../screenshot.js';
 import { markFramesDir, readPackageInput } from '../workspace.js';
@@ -57,6 +58,9 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
   const dir = path.resolve(outDir);
   if ((await fs.stat(path.resolve(input)).catch(() => null))?.isDirectory()) await markFramesDir(dir, input);
   await fs.mkdir(dir, { recursive: true });
+  // The pictures the last review in this folder closed, before this run draws over them: a frame
+  // drawn again byte for byte keeps its verdict (review.ts `reviewFor`).
+  const closedBefore = await closedPictures(dir);
 
   const { bytes, fileName } = await readPackageInput(input);
   const bridge = await BridgeClient.connect();
@@ -213,13 +217,16 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
       notes: plan.notes,
     };
     await fs.writeFile(path.join(dir, 'coverage.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-    // A fresh review every time: verdicts belong to the frames of this digest, never an earlier one.
-    await fs.writeFile(path.join(dir, REVIEW_FILE), `${JSON.stringify(reviewFor(digest, frames), null, 2)}\n`);
-    out.result({ ok: findings.length === 0 && failures.length === 0, dir, digest, frames: frames.length, crops: crops.length, findings, failures, notes: plan.notes });
+    // A fresh review every time: verdicts belong to the frames of this digest. Only a frame whose
+    // picture is the very one an earlier verdict closed keeps it.
+    const carried = new Set<string>();
+    for (const f of frames) if (closedBefore.get(f.file) === (await pictureHash(path.join(dir, f.file)))) carried.add(f.file);
+    await fs.writeFile(path.join(dir, REVIEW_FILE), `${JSON.stringify(reviewFor(digest, frames, carried), null, 2)}\n`);
+    out.result({ ok: findings.length === 0 && failures.length === 0, dir, digest, frames: frames.length, carried: carried.size, crops: crops.length, findings, failures, notes: plan.notes });
     out.say(`Coverage of "${template.name}": ${frames.length} frame(s) and ${crops.length} crop(s) in ${dir} (${plan.renders.length + 1} renders, grounds ${plan.grounds.join(', ')}).`);
     out.say(`Digest: ${digest}`);
     out.say(`What each frame shows: ${path.join(dir, 'coverage.json')}`);
-    out.say(`Verdicts, one per frame: ${path.join(dir, REVIEW_FILE)}`);
+    out.say(`Verdicts, one per frame: ${path.join(dir, REVIEW_FILE)}${carried.size ? ` (${carried.size} frame(s) look exactly as when you closed them and keep their verdict, marked carried; open the other ${frames.length - carried.size})` : ''}`);
     for (const n of plan.notes) out.say(`Note: ${n}`);
     for (const f of findings) out.say(`Finding: ${f}`);
     for (const f of failures) out.say(`Not shot: ${f}`);
@@ -229,4 +236,21 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
   } finally {
     await bridge.close();
   }
+}
+
+/** The sha256 of a frame file, or null when there is none. */
+async function pictureHash(file: string): Promise<string | null> {
+  const bytes = await fs.readFile(file).catch(() => null);
+  return bytes ? createHash('sha256').update(bytes).digest('hex') : null;
+}
+
+/** The pictures the review already in `dir` closed, by file, as their hashes. */
+async function closedPictures(dir: string): Promise<Map<string, string>> {
+  const review: unknown = await fs.readFile(path.join(dir, REVIEW_FILE), 'utf8').then(JSON.parse, () => null);
+  const closed = new Map<string, string>();
+  for (const file of closedFrames(review)) {
+    const hash = await pictureHash(path.join(dir, path.basename(file)));
+    if (hash) closed.set(file, hash);
+  }
+  return closed;
 }

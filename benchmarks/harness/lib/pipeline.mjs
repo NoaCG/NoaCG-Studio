@@ -144,7 +144,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     cell.operator = { inputs: (inspect.json?.inspection?.descriptors ?? []).length, buttons: buttons.map((b) => b.event), missing: missingActions(brief, buttons) };
     cell.digest = digestCheck({ delivered: record.digest ?? null, benchValidated: validate.json?.digest ?? null, reviewed: result.reviewedDigest ?? null });
     cell.functional = cell.validation.ok && cell.operator.missing.length === 0 && cell.shape.ok;
-    cell.look = framesOpened(record.review ?? null, result.reads ?? readsOf(result.metrics?.steps));
+    cell.look = framesOpened(record.review ?? null, result.reads ?? readsOf(result.metrics?.steps), result.readsEarlier ?? readsOf(result.metrics?.steps, { all: true }));
   }
   // The forced look gates the hand-in (D1): where the run asks for it, a record without a review is
   // a graphic nobody was made to look at, and it is not delivered.

@@ -12,11 +12,13 @@ export const REVIEW_FORMAT = 'noacg-review-v1';
 export const REVIEW_FILE = 'review.json';
 
 /** What review.json says to whoever opens it. */
-export const REVIEW_HOW = 'Open each frame and set its verdict: "ok", or "fixed: <what>" for a frame you fixed and covered again. Anything else is open, and record --review refuses it.';
+export const REVIEW_HOW = 'Open each frame and set its verdict: "ok", or "fixed: <what>" for a frame you fixed and covered again. Anything else is open, and record --review refuses it. A frame marked carried looks exactly as it did when you closed it in the last review, and keeps that verdict.';
 
 export interface ReviewFrame {
   file: string;
   verdict: string;
+  /** The frame's picture is byte for byte the one the last review in this folder closed. */
+  carried?: boolean;
 }
 
 export interface Review {
@@ -33,8 +35,20 @@ export interface CoverageManifest {
   failures?: string[];
 }
 
-export function reviewFor(digest: string, frames: Array<{ file: string }>): Review {
-  return { format: REVIEW_FORMAT, digest, coverage: 'coverage.json', how: REVIEW_HOW, frames: frames.map((f) => ({ file: f.file, verdict: '' })) };
+/**
+ * A fresh review of `frames`: every verdict empty, except a frame in `carried`, whose picture is
+ * the very one the last review closed (coverage run again after a fix: the frames the fix did not
+ * touch). Those keep `ok`, so the look after a fix is the frames that changed.
+ */
+export function reviewFor(digest: string, frames: Array<{ file: string }>, carried: ReadonlySet<string> = new Set()): Review {
+  return { format: REVIEW_FORMAT, digest, coverage: 'coverage.json', how: REVIEW_HOW, frames: frames.map((f) => (carried.has(f.file) ? { file: f.file, verdict: 'ok', carried: true } : { file: f.file, verdict: '' })) };
+}
+
+/** The frames a review closed (`ok` or `fixed:`), by file; none for anything that is not a review. */
+export function closedFrames(review: unknown): string[] {
+  const r = review as Partial<Review> | null;
+  if (!r || typeof r !== 'object' || r.format !== REVIEW_FORMAT || !Array.isArray(r.frames)) return [];
+  return r.frames.filter((f) => typeof f?.file === 'string' && verdictState(f?.verdict) !== 'open').map((f) => f.file);
 }
 
 /** `ok`, `fixed: <what>`, or open (empty, or anything else: a note of a problem still there). */
@@ -77,5 +91,5 @@ export function reviewProblems({ review, coverage, digest }: { review: unknown; 
 /** What a record carries of the review it was handed in with. */
 export function reviewSummary(review: Review) {
   const count = (state: 'ok' | 'fixed') => review.frames.filter((f) => verdictState(f.verdict) === state).length;
-  return { digest: review.digest, frames: review.frames.length, ok: count('ok'), fixed: count('fixed'), verdicts: review.frames.map((f) => ({ file: f.file, verdict: f.verdict.trim() })) };
+  return { digest: review.digest, frames: review.frames.length, ok: count('ok'), fixed: count('fixed'), verdicts: review.frames.map((f) => ({ file: f.file, verdict: f.verdict.trim(), ...(f.carried ? { carried: true } : {}) })) };
 }
