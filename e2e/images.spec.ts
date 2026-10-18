@@ -12,8 +12,8 @@ import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { lowerThirdPng } from './_png';
 import { chooseType, pickDesign } from './_browse';
 
-// Image support: the logo fields on credits / corner bug, and the import door that shrinks an
-// oversized picture. (The Data panel's add-field row went with the old editor; the export
+// Image support: the logo fields on credits / corner bug, uploaded through the Fields step's own
+// logo door, and that door shrinking an oversized picture. (The Data panel's add-field row went with the old editor; the export
 // folder structure is editor-images's.)
 
 const PNG_1PX = Buffer.from(
@@ -46,34 +46,33 @@ async function mounted(page: Page): Promise<FrameLocator> {
   return doc;
 }
 
-/** Upload a png through the image field's own door (by field label): the same two writes the
- *  live field row makes (components/fields/SpxFieldRow.tsx), the asset shrunk at the door by
- *  importImageFile and the field's value set to the asset's path. */
-async function uploadImage(page: Page, fieldLabel: string, fileName: string, buffer: Buffer = PNG_1PX) {
-  await page.evaluate(
-    async ([label, name, base64]) => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { importImageFile } = await import('/src/assets/imageImport.ts');
-      const { uniqueAssetPath } = await import('/src/assets/assetUtils.ts');
-      const s = useTemplateStore.getState();
-      const field = s.template.fields.find((f) => f.title === label);
-      if (!field) throw new Error(`no field titled ${label}`);
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const file = new File([bytes], name, { type: 'image/png' });
-      const path = uniqueAssetPath(file.name, s.template.assets);
-      s.addAsset({ path, data: (await importImageFile(file)).data });
-      useTemplateStore.getState().setSampleValue(field.field, path);
-    },
-    [fieldLabel, fileName, buffer.toString('base64')] as const,
-  );
+/** Upload a png through the Fields step's own logo door ("Upload a logo"), from the design
+ *  step the walk stands on: the file input a person picks a file with, the shrink at the door
+ *  (assets/imageImport.ts) and the slot pointed at the picked file, all FieldsStep's own. */
+async function toFields(page: Page) {
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await expect(page.getByRole('button', { name: '⬆ Upload a logo…' })).toBeVisible();
+}
+
+/** The Fields step's own live preview: the step mounts each composed document in a fresh frame. */
+function stepPreview(page: Page): FrameLocator {
+  return page.locator('.wz-stage-live iframe').last().contentFrame();
+}
+
+async function uploadLogo(page: Page, fileName: string, buffer: Buffer = PNG_1PX) {
+  const logo = page.locator('.panel-section', { has: page.getByRole('heading', { name: 'Logo' }) });
+  await logo.locator('input[type="file"]').setInputFiles({ name: fileName, mimeType: 'image/png', buffer });
+  // The step names the slot's file once the door has stored it.
+  await expect(logo.locator('.hint', { hasText: fileName })).toBeVisible();
 }
 
 test('end credits: uploading a logo through the Logo field puts it in the end block', async ({ page }) => {
   await createFrom(page, 'Credits', 'Classic Roll');
-  await create(page);
+  await toFields(page);
   // Placeholder first — no logo picked yet.
-  await expect((await mounted(page)).locator('.credits-end .credits-logo-slot')).toBeAttached();
-  await uploadImage(page, 'Logo', 'my_logo.png');
+  await expect(stepPreview(page).locator('.credits-end .credits-logo-slot')).toBeAttached();
+  await uploadLogo(page, 'my_logo.png');
+  await create(page);
   const logo = (await mounted(page)).locator('.credits-end img.credits-logo');
   await expect(logo).toBeAttached();
   // The composition resolves the relative path to the in-memory data URL.
@@ -88,7 +87,7 @@ test('an oversized logo is shrunk to the frame at the door, and a small one is l
   // a press-kit crest into most of a browser quota. Nothing past the frame's own long edge can
   // ever be drawn, so it is dropped here rather than carried through every save and sync.
   await createFrom(page, 'Credits', 'Classic Roll');
-  await create(page);
+  await toFields(page);
 
   const stored = () =>
     page.evaluate(async () => {
@@ -140,13 +139,15 @@ test('an oversized logo is shrunk to the frame at the door, and a small one is l
   // that was picked. A resize that grew a file would be a bug wearing an optimisation's
   // clothes — and a flat design PNG is exactly where a canvas re-encode would do it.
   const flat = lowerThirdPng(3840, 2160);
-  await uploadImage(page, 'Logo', 'huge_logo.png', flat);
+  await uploadLogo(page, 'huge_logo.png', flat);
+  // An image that already fits the frame is stored byte for byte.
+  const small = lowerThirdPng(400, 200);
+  await uploadLogo(page, 'small_logo.png', small);
+  await create(page);
+
   const kept = await stored();
   expect(kept?.chars).toBeLessThanOrEqual(`data:image/png;base64,${flat.toString('base64')}`.length);
 
-  // An image that already fits the frame is stored byte for byte.
-  const small = lowerThirdPng(400, 200);
-  await uploadImage(page, 'Logo', 'small_logo.png', small);
   const untouched = await page.evaluate(async () => {
     const store = await import('/src/store/templateStore.ts');
     const asset = store.useTemplateStore.getState().template.assets.find((a) => a.path.includes('small_logo'));
@@ -157,9 +158,10 @@ test('an oversized logo is shrunk to the frame at the door, and a small one is l
 
 test('corner bug: the logo field replaces the placeholder mark', async ({ page }) => {
   await createFrom(page, 'Bugs & corner logos', 'Glass Mark');
+  await toFields(page);
+  await expect(stepPreview(page).locator('.corner-bug-mark')).toBeVisible();
+  await uploadLogo(page, 'channel_mark.png');
   await create(page);
-  await expect((await mounted(page)).locator('.corner-bug-mark')).toBeVisible();
-  await uploadImage(page, 'Logo', 'channel_mark.png');
   const doc = await mounted(page);
   await expect(doc.locator('.corner-bug-media.has-image')).toBeAttached();
   await expect(doc.locator('.corner-bug-mark')).toBeHidden();
