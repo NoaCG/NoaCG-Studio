@@ -17,7 +17,7 @@
 // covers: {join.html,src/join/**}
 
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
@@ -37,7 +37,6 @@ async function productionFor(page: Page, name: string): Promise<void> {
 }
 
 test('the audience workflow: arrive, edit a broadcast version, approve, send to the rundown, air it', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Phone In');
 
@@ -170,7 +169,6 @@ test('an unknown production workspace degrades to Playout rather than a dead sur
 });
 
 test('the vote reaches air the same way a question does: open, count, stage a cue, take it', async ({ page }) => {
-  skipOldEditor();
   // PHASE 6 (docs/INTERACTIVE_PLAYOUT_PLAN.md). The plane could already open rounds, count
   // votes and tally them — nothing called any of it. What is pinned here is the whole walk,
   // and above all its ENDING: counts become an ordinary cue's field values, so the renderer
