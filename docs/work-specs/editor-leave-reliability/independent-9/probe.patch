@@ -1,0 +1,611 @@
+diff --git a/.github/workflows/configured-suite.yml b/.github/workflows/configured-suite.yml
+index c5fefe0..883448d 100644
+--- a/.github/workflows/configured-suite.yml
++++ b/.github/workflows/configured-suite.yml
+@@ -257,6 +257,9 @@ jobs:
+       - name: Eighth checker, the reservation across two devices
+         if: always() && hashFiles('e2e/configured/leave-eighth-device.spec.ts') != ''
+         run: sha256sum e2e/configured/leave-eighth-device.spec.ts && npm run test:e2e:live -- e2e/configured/leave-eighth-device.spec.ts --retries=0 --workers=1
++      - name: Ninth checker, repair-9 across two devices
++        if: always() && hashFiles('e2e/configured/leave-ninth-device.spec.ts') != ''
++        run: sha256sum e2e/configured/leave-*.spec.ts && npm run test:e2e:live -- e2e/configured/leave-ninth-device.spec.ts --retries=0 --workers=1
+       - uses: actions/upload-artifact@v4
+         if: always()
+         with:
+diff --git a/.github/workflows/deploy-verify.yml b/.github/workflows/deploy-verify.yml
+index c64c00c..745b59c 100644
+--- a/.github/workflows/deploy-verify.yml
++++ b/.github/workflows/deploy-verify.yml
+@@ -1,11 +1,11 @@
+-name: Eighth-check probe of the carried leave-editor checkers (disposable, never merge)
++name: Ninth-check probe of the carried leave-editor checkers (disposable, never merge)
+ on:
+   workflow_dispatch:
+     inputs:
+       scope:
+         description: Bounded independent verification selection
+         type: choice
+-        options: [unchanged, fifth, maintained, references, visual, mutation, diag, repeat228, matrix, sixth, seventh, eighth]
++        options: [unchanged, fifth, maintained, references, visual, mutation, diag, repeat228, matrix, sixth, seventh, eighth, ninth]
+         default: unchanged
+ permissions:
+   contents: read
+@@ -24,7 +24,7 @@ jobs:
+       - run: npm ci
+       - run: npx playwright install --with-deps chromium
+       - run: node scripts/build-player-host.mjs
+-      - run: mkdir -p .noacg/results && sha256sum e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts e2e/leave-third-checker.spec.ts e2e/leave-fourth-checker.spec.ts e2e/leave-fifth-checker.spec.ts e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts e2e/leave-sixth-checker.spec.ts e2e/leave-fifth-b1-bounded.spec.ts $(ls e2e/leave-seventh-checker.spec.ts e2e/leave-eighth-checker.spec.ts e2e/configured/leave-eighth-device.spec.ts 2>/dev/null) | tee .noacg/results/spec-hashes.txt && git rev-parse HEAD | tee .noacg/results/head.txt
++      - run: mkdir -p .noacg/results && sha256sum e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts e2e/leave-third-checker.spec.ts e2e/leave-fourth-checker.spec.ts e2e/leave-fifth-checker.spec.ts e2e/leave-reference.spec.ts e2e/leave-reference-fourth.spec.ts e2e/leave-reference-fifth.spec.ts e2e/leave-sixth-checker.spec.ts e2e/leave-fifth-b1-bounded.spec.ts $(ls e2e/leave-seventh-checker.spec.ts e2e/leave-eighth-checker.spec.ts e2e/configured/leave-eighth-device.spec.ts e2e/leave-ninth-checker.spec.ts e2e/configured/leave-ninth-device.spec.ts 2>/dev/null) | tee .noacg/results/spec-hashes.txt && git rev-parse HEAD | tee .noacg/results/head.txt
+       - name: Unchanged original independent assertions (leave-checker.spec.ts)
+         if: always() && inputs.scope == 'unchanged'
+         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/original.json }
+@@ -81,6 +81,10 @@ jobs:
+         if: always() && inputs.scope == 'eighth'
+         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/eighth.json }
+         run: $PW e2e/leave-eighth-checker.spec.ts --output=.noacg/results/eighth
++      - name: Ninth checker challenges
++        if: always() && inputs.scope == 'ninth'
++        env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/ninth.json }
++        run: $PW e2e/leave-ninth-checker.spec.ts --output=.noacg/results/ninth
+       - name: Maintained lifecycle and preserved regressions
+         if: always() && inputs.scope == 'maintained'
+         env: { PLAYWRIGHT_JSON_OUTPUT_FILE: .noacg/results/maintained.json }
+diff --git a/e2e/configured/leave-ninth-device.spec.ts b/e2e/configured/leave-ninth-device.spec.ts
+new file mode 100644
+index 0000000..8cc5969
+--- /dev/null
++++ b/e2e/configured/leave-ninth-device.spec.ts
+@@ -0,0 +1,295 @@
++// covers: none - disposable ninth independent leave-editor check (Phase 2, check 9); never land
++//
++// Repair-9 (#1455) across two DEVICES on a real local Supabase stack, two browser contexts, one
++// throwaway account per case:
++//
++//   - S-concurrent: one SAVED graphic edited and saved on both devices at once. Repair-9 discloses
++//     that the device whose Save loses the sync conflict now has its draft unlinked. What does the
++//     person at that device see, after a Save that said "Saved"? Two orders: they leave for Home
++//     at once (the pass lands at Home), or they stay in the editor until it lands.
++//   - R-departure: the cloud copy of the working slot still carries device A's reservation (the
++//     repair's departure from the owner's wording). Device B pulls it, reloads, signs out and in,
++//     edits and first-saves; then an older build's slot naming A's record with a mint mark and
++//     exactly that record's source arrives through the cloud, and B reloads onto it.
++import { test, expect, type Page, type Browser } from '@playwright/test';
++import { createClient, type SupabaseClient } from '@supabase/supabase-js';
++import { writeFileSync } from 'node:fs';
++import { SUPABASE_URL, SERVICE_ROLE_KEY, signInOnHome, settleSync, mintAccount, deleteAccountByEmail } from './_helpers';
++import { open, draw, source, ready } from '../_layerProperty';
++import { settleDurableWrites } from '../_durable';
++
++const PASSWORD = 'noacg-e2e-local-pw';
++const library = (page: Page) => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
++const link = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
++const flush = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
++const slot = (page: Page) => page.evaluate(async () => JSON.parse((await import('/src/model/durableStore.ts')).durable.getItem('spx-gfx-project') ?? 'null'));
++const syncPhase = (page: Page) => page.evaluate(async () => (await import('/src/backend/syncController.ts')).getSyncState().phase);
++const ownList = (page: Page) => page.evaluate(() => localStorage.getItem('spx-gfx-reservations'));
++const unnamed = (t: unknown) => { const { html, css, js } = t as { html: string; css: string; js: string }; return { html, css, js }; };
++const canonical = (v: unknown): unknown => Array.isArray(v) ? v.map(canonical)
++  : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v as object).sort().map(k => [k, canonical((v as Record<string, unknown>)[k])])) : v;
++const same = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
++const dialog = (page: Page) => page.getByTestId('confirm-switch');
++
++function cloudOf(admin: SupabaseClient, userId: string) {
++  return {
++    graphics: async () => {
++      const { data, error } = await admin.from('documents').select('id,body,deleted').eq('user_id', userId).eq('kind', 'graphic');
++      expect(error).toBeNull();
++      return (data ?? []).filter(r => !r.deleted) as { id: string; body: { name: string; template: unknown } }[];
++    },
++    slot: async () => {
++      const { data } = await admin.from('documents').select('id,body').eq('user_id', userId).eq('kind', 'project');
++      return (data?.[0] ?? null) as { id: string; body: Record<string, unknown> } | null;
++    },
++  };
++}
++async function device(browser: Browser, email: string) {
++  const page = await (await browser.newContext()).newPage();
++  await signInOnHome(page, email, PASSWORD);
++  return page;
++}
++async function leaveSaving(page: Page, name: string) {
++  await page.getByTestId('open-home').click();
++  await expect(dialog(page).or(page.getByTestId('home-page')).first()).toBeVisible();
++  const asked = await dialog(page).count();
++  if (asked) {
++    await page.getByTestId('switch-save').click();
++    await expect(page.getByTestId('save-name').or(page.getByTestId('home-page')).first()).toBeVisible();
++  }
++  const named = await page.getByTestId('save-name').count();
++  if (named) { await page.getByTestId('save-name').fill(name); await page.getByTestId('save-confirm').click(); }
++  await expect(page.getByTestId('home-page')).toBeVisible();
++  await settleDurableWrites(page);
++  return { asked, named };
++}
++/** Open a saved graphic from Home's library in the editor, as a person would. */
++async function openSaved(page: Page, name: string) {
++  if (!(await page.getByTestId('home-page').count())) { await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible(); }
++  await page.getByTestId('home-nav-graphics').click();
++  await page.locator('.lib-row', { hasText: name }).first().getByTestId('open-graphic').click();
++  await page.getByTestId('control-open-editor').click(); await ready(page);
++}
++async function topbarSave(page: Page) {
++  await page.getByTestId('save-graphic').click();
++  await expect(page.getByTestId('save-name').or(page.getByTestId('save-status').filter({ hasText: /^Saved$/ })).first()).toBeVisible();
++  return page.getByTestId('save-name').count();
++}
++/** Home's + New graphic: whether it asked, and what. Cancel keeps everything as it was. */
++async function newFromHome(page: Page) {
++  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
++  await page.locator('[data-door="new-graphic"]').click();
++  await expect(page.getByTestId('creation-wizard').or(dialog(page)).first()).toBeVisible();
++  const asked = await dialog(page).count();
++  const text = asked ? await dialog(page).innerText() : null;
++  if (asked) { await page.screenshot({ path: test.info().outputPath('new-asks.png') }); await page.getByTestId('switch-cancel').click(); await expect(dialog(page)).toHaveCount(0); }
++  else { await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible(); }
++  return { asked, text };
++}
++
++for (const order of ['leaves at once', 'stays in the editor'] as const) {
++  test(`ninth S-concurrent (${order}): one saved graphic edited and saved on two devices; device B's Save loses the sync conflict`, async ({ browser }) => {
++    test.setTimeout(360_000);
++    expect(new URL(SUPABASE_URL).hostname).toBe('127.0.0.1');
++    const email = `ninth-s-${order === 'leaves at once' ? 'leave' : 'stay'}@noacg.local`;
++    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
++    const userId = await mintAccount(admin, email, PASSWORD);
++    const cloud = cloudOf(admin, userId);
++    const facts: Record<string, unknown> = { order };
++    try {
++      // Device A makes and saves "Gamma".
++      const a = await device(browser, email);
++      await open(a); await draw(a, .3); await flush(a);
++      facts.aFirst = await leaveSaving(a, 'Ninth S Gamma');
++      await settleSync(a);
++      const gamma = (await library(a)).find(g => g.name === 'Ninth S Gamma')!;
++      await expect.poll(async () => (await cloud.graphics()).some(g => g.id === gamma.id), { timeout: 60_000 }).toBe(true);
++      // Device B signs in and opens Gamma; both devices edit it.
++      const b = await device(browser, email);
++      await openSaved(b, 'Ninth S Gamma');
++      facts.bLinkOpened = await link(b);
++      expect(facts.bLinkOpened, 'precondition: B opened Gamma').toMatchObject({ graphicId: gamma.id });
++      await draw(b, .55); await flush(b); await settleDurableWrites(b);
++      // B's pass after its edit has run (its slot reached the cloud): B's next pass is its Save's.
++      const bEdited = await source(b);
++      await expect.poll(async () => same(unnamed((await cloud.slot())?.body.template), unnamed(bEdited)), { timeout: 60_000 }).toBe(true);
++      await expect.poll(() => syncPhase(b), { timeout: 30_000 }).toBe('synced');
++      await openSaved(a, 'Ninth S Gamma');
++      await draw(a, .7); await flush(a);
++      facts.aSaveNamed = await topbarSave(a);
++      await expect(a.getByTestId('save-status')).toHaveText('Saved');
++      await settleDurableWrites(a);
++      const aSaved = await source(a);
++      await expect.poll(async () => same(unnamed((await cloud.graphics()).find(g => g.id === gamma.id)?.body.template), unnamed(aSaved)), { timeout: 60_000 }).toBe(true);
++      const gammaCloudA = (await cloud.graphics()).find(g => g.id === gamma.id)!.body;
++      // B saves its edit from the topbar, before its next sync pass.
++      const bSaved = await source(b);
++      facts.bSaveNamed = await topbarSave(b);
++      await expect(b.getByTestId('save-status')).toHaveText('Saved');
++      facts.bStatusAtSave = await b.getByTestId('save-status').innerText();
++      if (order === 'leaves at once') {
++        await b.getByTestId('open-home').click();
++        await expect(dialog(b).or(b.getByTestId('home-page')).first()).toBeVisible();
++        facts.bLeaveAsked = await dialog(b).count();
++        await expect(b.getByTestId('home-page')).toBeVisible();
++      }
++      // B's pass after the Save meets A's version.
++      await expect.poll(async () => (await library(b)).some(g => g.name.includes('(conflicted copy)')), { timeout: 60_000 }).toBe(true);
++      await expect.poll(() => syncPhase(b), { timeout: 30_000 }).toBe('synced');
++      Object.assign(facts, { bLinkAfterPass: await link(b), bLibrary: (await library(b)).map(g => ({ id: g.id, name: g.name })) });
++      if (order === 'stays in the editor') {
++        facts.bStatusAfterPass = await b.getByTestId('save-status').innerText();
++        await b.screenshot({ path: test.info().outputPath('b-editor-after-pass.png') });
++        await b.getByTestId('open-home').click();
++        await expect(dialog(b).or(b.getByTestId('home-page')).first()).toBeVisible();
++        facts.bLeaveAsked = await dialog(b).count();
++        facts.bLeaveText = facts.bLeaveAsked ? await dialog(b).innerText() : null;
++        if (facts.bLeaveAsked) { await b.screenshot({ path: test.info().outputPath('b-leave-asks.png') }); await b.getByTestId('switch-cancel').click(); }
++      } else {
++        facts.bNew = await newFromHome(b);
++        await settleDurableWrites(b); await b.reload();
++        await expect(b.getByTestId('home-page').or(b.getByTestId('editor-foundation')).first()).toBeVisible({ timeout: 30_000 });
++        await expect.poll(() => syncPhase(b), { timeout: 30_000 }).toBe('synced');
++        facts.bNewAfterReload = await newFromHome(b);
++        // What answering it with "Save first…" does.
++        if ((facts.bNewAfterReload as { asked: number }).asked) {
++          await b.locator('[data-door="new-graphic"]').click();
++          await expect(dialog(b)).toBeVisible();
++          await b.getByTestId('switch-save').click();
++          await expect(b.getByTestId('save-name').or(b.getByTestId('creation-wizard')).first()).toBeVisible();
++          const named = await b.getByTestId('save-name').count();
++          if (named) { await b.getByTestId('save-name').fill('Ninth S Gamma from B'); await b.getByTestId('save-confirm').click(); }
++          await expect(b.getByTestId('creation-wizard')).toBeVisible();
++          await settleDurableWrites(b);
++          facts.bAnsweredSave = { named, library: (await library(b)).map(g => ({ id: g.id, name: g.name })) };
++        }
++      }
++      // Both settle with the cloud.
++      await a.reload(); await expect(a.getByTestId('home-page').or(a.getByTestId('editor-foundation')).first()).toBeVisible({ timeout: 30_000 });
++      await expect.poll(() => syncPhase(a), { timeout: 30_000 }).toBe('synced');
++      const final = await cloud.graphics();
++      const gammaFinal = final.find(g => g.id === gamma.id);
++      const bRecord = final.find(g => g.id !== gamma.id && same(unnamed(g.body.template), unnamed(bSaved)));
++      Object.assign(facts, {
++        cloudFinal: final.map(g => ({ id: g.id, name: g.body.name })),
++        gammaHoldsA: !!gammaFinal && same(gammaFinal.body.template, gammaCloudA.template),
++        bRecord: bRecord ? { id: bRecord.id, name: bRecord.body.name } : null,
++      });
++      writeFileSync(test.info().outputPath('s-concurrent.json'), JSON.stringify(facts, null, 2));
++      expect(facts.bSaveNamed, 'B\'s Save of the linked graphic asked for a name').toBe(0);
++      expect(facts.gammaHoldsA, 'A\'s saved edit was lost from Gamma').toBe(true);
++      expect(facts.bRecord, 'B\'s saved edit is in no record').toBeTruthy();
++      expect(facts.bLinkAfterPass, 'B stayed linked to the version A saved').not.toMatchObject({ graphicId: gamma.id, dirty: false });
++      if (order === 'leaves at once') {
++        expect(facts.bLeaveAsked, 'Home asked after a Save that said Saved').toBe(0);
++        expect((facts.bNew as { asked: number }).asked, 'New from Home asked about the graphic B just saved').toBe(0);
++        expect((facts.bNewAfterReload as { asked: number }).asked, 'after a reload, New from Home asked about the graphic B just saved').toBe(0);
++      } else {
++        expect(facts.bLeaveAsked, 'Home asked about the graphic B just saved').toBe(0);
++      }
++    } finally {
++      writeFileSync(test.info().outputPath('s-concurrent-facts.json'), JSON.stringify(facts, null, 2));
++      await deleteAccountByEmail(admin, email).catch(() => {});
++    }
++  });
++}
++
++test('ninth R-departure: B pulls A\'s reservation as data, reloads, signs out and in, edits and first-saves; then an older build\'s marked slot naming A\'s record arrives', async ({ browser }) => {
++  test.setTimeout(360_000);
++  expect(new URL(SUPABASE_URL).hostname).toBe('127.0.0.1');
++  const email = 'ninth-r@noacg.local';
++  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
++  const userId = await mintAccount(admin, email, PASSWORD);
++  const cloud = cloudOf(admin, userId);
++  const facts: Record<string, unknown> = {};
++  const bootB = async (b: Page, url: string, label: string) => {
++    await b.goto(url); await b.reload();
++    await expect(b.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
++    await expect.poll(() => syncPhase(b), { timeout: 30_000 }).toBe('synced');
++    facts[label] = { link: await link(b), slotReservation: (await slot(b))?.reservedGraphicId ?? null };
++  };
++  try {
++    const a = await device(browser, email);
++    await open(a); await draw(a, .3); await flush(a); await settleDurableWrites(a);
++    const reserved = (await slot(a)).reservedGraphicId as string;
++    const editorUrl = a.url();
++    await expect.poll(async () => (await cloud.slot())?.body.reservedGraphicId, { timeout: 60_000 }).toBe(reserved);
++    facts.cloudSlotCarriesAReservation = true;
++    const b = await device(browser, email);
++    await expect.poll(async () => (await slot(b))?.reservedGraphicId, { timeout: 60_000 }).toBe(reserved);
++    facts.bOwnListAfterPull = await ownList(b);
++    await bootB(b, editorUrl, 'bBoot1');
++    await bootB(b, editorUrl, 'bBoot2');
++    // Sign out and back in on B.
++    await b.goto('/app#/home'); await expect(b.getByTestId('home-page')).toBeVisible();
++    await b.route('**/auth/v1/logout**', route => route.fulfill({ status: 204, body: '' }));
++    await b.getByTestId('account-button').click(); await b.getByRole('menuitem', { name: 'Sign out' }).click();
++    await expect(b.getByTestId('auth-state')).toHaveText('Not signed in', { timeout: 30_000 });
++    await b.unroute('**/auth/v1/logout**');
++    await signInOnHome(b, email, PASSWORD);
++    await bootB(b, editorUrl, 'bAfterSignIn');
++    // Device A keeps its session: B's sign-out revokes only B's own (the request that would end
++    // the account's sessions everywhere is answered locally; the app's sign-out path is unchanged).
++    facts.bOwnListAfterSignIn = await ownList(b);
++    // B edits: its first write names a reservation of its own.
++    await draw(b, .5); await flush(b); await settleDurableWrites(b);
++    facts.bReservationAfterEdit = (await slot(b)).reservedGraphicId;
++    // A first-saves its draft as "Alpha"; it reaches the cloud.
++    await draw(a, .62); await flush(a);
++    facts.aLeave = await leaveSaving(a, 'Ninth R Alpha');
++    await settleSync(a);
++    const alpha = (await library(a)).find(g => g.name === 'Ninth R Alpha')!;
++    facts.alphaIsReserved = alpha.id === reserved;
++    await expect.poll(async () => (await cloud.graphics()).some(g => g.id === alpha.id), { timeout: 60_000 }).toBe(true);
++    const alphaCloud = (await cloud.graphics()).find(g => g.id === alpha.id)!.body;
++    // B leaves and saves its draft.
++    facts.bLeave = await leaveSaving(b, 'Ninth R Beta');
++    const beta = (await library(b)).find(g => g.name === 'Ninth R Beta');
++    facts.betaId = beta?.id ?? null;
++    await settleSync(b);
++    // An older build's slot naming Alpha, marked as minting it, holding exactly Alpha's source,
++    // arrives through the cloud (newer than every device's slot).
++    const row = (await cloud.slot())!;
++    const at = new Date(Date.now() + 5_000).toISOString();
++    const older = { ...row.body, updatedAt: at, template: alpha.template, baseline: alpha.template, graphicId: null, dirty: true, reservedGraphicId: alpha.id, mintingReserved: true };
++    const { error } = await admin.from('documents').update({ body: older }).eq('id', row.id);
++    expect(error).toBeNull();
++    await b.goto('/app#/home'); await b.reload(); await expect(b.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
++    await expect.poll(async () => (await slot(b))?.updatedAt, { timeout: 60_000 }).toBe(at);
++    facts.bPulledOlder = { reservedGraphicId: (await slot(b)).reservedGraphicId, mintingReserved: (await slot(b)).mintingReserved ?? null };
++    await bootB(b, editorUrl, 'bOnOlderSlot');
++    await draw(b, .4); await flush(b);
++    facts.bOlderLeave = await leaveSaving(b, 'Ninth R Beta 2');
++    await settleSync(b);
++    // A third device with no draft of its own signs in while that slot is the cloud's: only the
++    // boot rule stands between it and Alpha (the pull rule keeps nothing there).
++    const latest = (await cloud.slot())!;
++    const atC = new Date(Date.now() + 5_000).toISOString();
++    const { error: errorC } = await admin.from('documents').update({ body: { ...latest.body, updatedAt: atC, template: alpha.template, baseline: alpha.template, graphicId: null, dirty: true, reservedGraphicId: alpha.id, mintingReserved: true } }).eq('id', latest.id);
++    expect(errorC).toBeNull();
++    const c = await device(browser, email);
++    await expect.poll(async () => (await slot(c))?.updatedAt, { timeout: 60_000 }).toBe(atC);
++    facts.cPulled = { reservedGraphicId: (await slot(c)).reservedGraphicId, isAlpha: (await slot(c)).reservedGraphicId === alpha.id, mintingReserved: (await slot(c)).mintingReserved ?? null };
++    await bootB(c, editorUrl, 'cBoot');
++    facts.cLeave = await leaveSaving(c, 'Ninth R Gamma');
++    facts.cMinted = (await library(c)).find(g => g.name === 'Ninth R Gamma')?.id ?? null;
++    await settleSync(c);
++    const final = await cloud.graphics();
++    const alphaFinal = final.find(g => g.id === alpha.id);
++    Object.assign(facts, { cloudFinal: final.map(g => ({ id: g.id, name: g.body.name })), alphaFinalUnchanged: !!alphaFinal && same(alphaFinal.body.template, alphaCloud.template) });
++    writeFileSync(test.info().outputPath('r-departure.json'), JSON.stringify(facts, null, 2));
++    expect(facts.cLeave, 'C on the older build\'s marked slot: Home asks, Save asks for a name').toEqual({ asked: 1, named: 1 });
++    expect(facts.cMinted, 'C minted Alpha\'s id').not.toBe(alpha.id);
++    for (const label of ['bBoot1', 'bBoot2', 'bAfterSignIn', 'bOnOlderSlot', 'cBoot']) expect((facts[label] as { link: { graphicId: string | null } }).link.graphicId, `${label}: B is linked to a record`).toBeNull();
++    expect(facts.bOwnListAfterPull ?? '', 'B recorded A\'s reservation as its own').not.toContain(reserved);
++    expect(facts.bOwnListAfterSignIn ?? '', 'B recorded A\'s reservation as its own').not.toContain(reserved);
++    expect(facts.bReservationAfterEdit, 'B\'s write names A\'s reservation').not.toBe(reserved);
++    expect(facts.betaId, 'B minted the id A reserved').not.toBe(alpha.id);
++    expect(facts.bLeave, 'B\'s never-saved draft: Home asks, Save asks for a name').toEqual({ asked: 1, named: 1 });
++    expect(facts.bOlderLeave, 'B on the older build\'s marked slot: Home asks, Save asks for a name').toEqual({ asked: 1, named: 1 });
++    expect(facts.alphaFinalUnchanged, 'Alpha is not what A saved').toBe(true);
++  } finally {
++    writeFileSync(test.info().outputPath('r-departure-facts.json'), JSON.stringify(facts, null, 2));
++    await deleteAccountByEmail(admin, email).catch(() => {});
++  }
++});
+diff --git a/e2e/leave-ninth-checker.spec.ts b/e2e/leave-ninth-checker.spec.ts
+new file mode 100644
+index 0000000..d02f0f2
+--- /dev/null
++++ b/e2e/leave-ninth-checker.spec.ts
+@@ -0,0 +1,252 @@
++// covers: none - disposable ninth independent leave-editor check (Phase 2, check 9); never land
++//
++// Adversarial challenges written by the ninth checker against repair-9 (#1455, the device
++// reservation). Repair-9's matrix replays a pull through the sync engine's own local write and a
++// conflict through runSync against an in-page cloud. These press what it leaves out, in one
++// browser, the same way:
++//
++//   - a conflict pass whose cloud ALSO holds a newer working slot (the other device's draft,
++//     linked to the record that won), so the same pass pulls the slot after the unlink; then this
++//     tab and a second tab reload, and the draft is saved again;
++//   - a first Save whose record write a conflict pass overlaps (the mint-overlap read);
++//   - the device-local lists in another shape: a newer version of `spx-gfx-superseded` (and the
++//     same list refused by localStorage) when a conflict must reach a second tab, and a newer
++//     version of `spx-gfx-reservations`, a corrupt one and a missing one under the double refusal
++//     (#1383 S6).
++//
++// The two-device forms run on a local Supabase stack in e2e/configured/leave-ninth-device.spec.ts.
++import { test, expect, type Page } from '@playwright/test';
++import { writeFileSync } from 'node:fs';
++import { open, draw, source } from './_layerProperty';
++import { settleDurableWrites } from './_durable';
++import { install, arm, acted, prepare, press, refusedHere, releasable, release, library, link, flush, body } from './_saveMatrix';
++
++const out = (name: string, value: unknown) => writeFileSync(test.info().outputPath(name), JSON.stringify(value, null, 2));
++const slotOf = (page: Page) => page.evaluate(async () => JSON.parse((await import('/src/model/durableStore.ts')).durable.getItem('spx-gfx-project') ?? 'null'));
++const record = async (page: Page, id: string) => JSON.stringify((await library(page)).find(g => g.id === id));
++async function secondTab(page: Page) {
++  const other = await page.context().newPage();
++  await other.goto(page.url()); await expect(other.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
++  return other;
++}
++async function firstSaveNamed(page: Page, name: string) {
++  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill(name);
++  await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
++  await settleDurableWrites(page);
++}
++/** This device last synced a minute ago (so a record changed on both sides is a true conflict). */
++const syncedAMinuteAgo = (page: Page) => page.evaluate(() => localStorage.setItem('spx-gfx-sync', JSON.stringify({ lastSyncedAt: new Date(Date.now() - 60_000).toISOString(), pendingPush: [], pendingConflict: [] })));
++type Row = { kind: string; id: string; updatedAt: string; body: unknown };
++/** One sync pass against an in-page cloud holding `rows` (the engine's own runSync). */
++const passAgainst = (page: Page, rows: Row[]) => page.evaluate(async rows => {
++  const { runSync } = await import('/src/backend/sync.ts');
++  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
++  const map = new Map(rows.map(r => [`${r.kind}:${r.id}`, r]));
++  const cloud = {
++    list: async (kind: string) => [...map.values()].filter(r => r.kind === kind),
++    get: async (kind: string, id: string) => map.get(`${kind}:${id}`) ?? null,
++    put: async (r: Row) => { map.set(`${r.kind}:${r.id}`, r); },
++    remove: async (kind: string, id: string) => { map.delete(`${kind}:${id}`); },
++  };
++  const result = await runSync(new LocalStorageProvider(), cloud as never);
++  await new Promise(r => setTimeout(r));
++  return { conflicts: result.conflicts, failures: result.failures.map(f => `${f.op} ${f.kind}`), cloud: [...map.values()] };
++}, rows);
++/** Another device's "Alpha" under `id`, a moment newer than this device's record. */
++function alphaOf(beta: { id: string; template: { css: string } }, at: string) {
++  const template = { ...beta.template, name: 'Alpha', css: `${beta.template.css}\n/* another device */` };
++  return { kind: 'graphic', id: beta.id, updatedAt: at, body: { ...beta, name: 'Alpha', template, createdAt: at, updatedAt: at } };
++}
++/** Save from the topbar: whether a name was asked (then given), and the answer shown. */
++async function topbarSave(page: Page, name: string) {
++  await page.getByTestId('save-graphic').click();
++  await expect(page.getByTestId('save-name').or(page.getByTestId('save-status').filter({ hasText: /^Saved$/ })).first()).toBeVisible();
++  const named = await page.getByTestId('save-name').count();
++  if (named) { await page.getByTestId('save-name').fill(name); await page.getByTestId('save-confirm').click(); }
++  await expect(page.getByTestId('save-status')).toHaveText('Saved');
++  await settleDurableWrites(page);
++  return named;
++}
++const css = async (page: Page) => (await source(page)).css;
++
++test('ninth C-pull: the conflict pass also pulls a newer working slot (the other device\'s draft, linked to the record that won); both tabs reload and save again', async ({ page }) => {
++  test.setTimeout(180_000);
++  const facts: Record<string, unknown> = {};
++  try {
++    await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
++    await syncedAMinuteAgo(page);
++    await firstSaveNamed(page, 'Beta');
++    const beta = (await library(page))[0];
++    const bSource = await source(page);
++    const other = await secondTab(page);
++    expect(await link(other)).toMatchObject({ graphicId: beta.id });
++    const at = new Date(Date.now() + 1000).toISOString(), slotAt = new Date(Date.now() + 2000).toISOString();
++    const alpha = alphaOf(beta, at);
++    const mine = await slotOf(page);
++    const cloudSlot = { ...mine, id: crypto.randomUUID(), template: alpha.body.template, baseline: alpha.body.template, graphicId: beta.id, dirty: false, updatedAt: slotAt, reservedGraphicId: crypto.randomUUID() };
++    delete (cloudSlot as { mintingReserved?: boolean }).mintingReserved;
++    const pass = await passAgainst(page, [alpha, { kind: 'project', id: cloudSlot.id, updatedAt: slotAt, body: cloudSlot }]);
++    await settleDurableWrites(page);
++    const afterPass = await slotOf(page);
++    Object.assign(facts, {
++      conflicts: pass.conflicts, failures: pass.failures,
++      linkAfterPass: await link(page),
++      slotAfterPass: { graphicId: afterPass.graphicId, dirty: afterPass.dirty, holdsOtherDevice: afterPass.template.css.includes('another device'), reservedIsOwnBefore: afterPass.reservedGraphicId === mine.reservedGraphicId },
++      library: (await library(page)).map(g => ({ id: g.id, name: g.name })),
++    });
++    await expect.poll(async () => (await link(other)).graphicId, { timeout: 10_000 }).toBeNull().catch(() => {});
++    facts.otherLinkAfterPass = await link(other);
++    const alphaLocal = await record(page, beta.id);
++    // This tab reloads.
++    await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
++    Object.assign(facts, { linkAfterReload: await link(page), editorHoldsOtherDevice: (await css(page)).includes('another device'), editorHoldsMine: JSON.stringify(body(await source(page))) === JSON.stringify(body(bSource)) });
++    // The second tab reloads.
++    await other.reload(); await expect(other.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
++    facts.otherLinkAfterReload = await link(other);
++    // This tab edits and saves.
++    await draw(page, .40); await flush(page);
++    facts.saveNamed = await topbarSave(page, 'Beta again');
++    const all = await library(page);
++    Object.assign(facts, {
++      libraryFinal: all.map(g => ({ id: g.id, name: g.name })),
++      alphaUnchanged: (await record(page, beta.id)) === alphaLocal,
++      alphaHoldsMine: (all.find(g => g.id === beta.id)?.template.css ?? '').includes('another device') === false,
++      copyHoldsMine: JSON.stringify(body(all.find(g => g.name === 'Beta (conflicted copy)')?.template ?? {})) === JSON.stringify(body(bSource)),
++    });
++    expect(pass.conflicts).toBe(1);
++    expect(facts.linkAfterPass, 'the draft stayed linked to the other device\'s record').toMatchObject({ graphicId: null });
++    expect(facts.copyHoldsMine, 'this device\'s save is in no record').toBe(true);
++    expect(facts.alphaHoldsMine, 'this device\'s conflicted work was written over the other device\'s record').toBe(false);
++    if (facts.saveNamed === 0) {
++      // Saved into the record with no name asked: the editor must have held the other device's
++      // draft (the pulled slot), never this device's conflicted work.
++      expect(facts.editorHoldsOtherDevice, 'a Save with no name wrote this device\'s work into the other device\'s record').toBe(true);
++    }
++  } finally {
++    out('c-pull.json', facts);
++  }
++});
++
++test('ninth C-overlap: a conflict pass runs while a first Save\'s record write is unconfirmed; the Save must not link to the other device\'s record', async ({ page }) => {
++  test.setTimeout(180_000);
++  const facts: Record<string, unknown> = {};
++  try {
++    await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
++    await syncedAMinuteAgo(page);
++    const reserved = (await slotOf(page)).reservedGraphicId as string;
++    await install(page);
++    await arm(page, 'L', 'hold');
++    await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Beta'); await page.getByTestId('save-confirm').click();
++    await releasable(page);
++    // The record is in this tab's mirror, its write unconfirmed; the pass finds another device's under its id.
++    const local = (await library(page)).find(g => g.name === 'Beta');
++    facts.mirrorHasBeta = !!local; facts.betaIsReserved = local?.id === reserved;
++    const at = new Date(Date.now() + 1000).toISOString();
++    const pass = await passAgainst(page, [alphaOf(local!, at)]);
++    await release(page);
++    await expect(page.getByTestId('save-dialog')).toHaveCount(0);
++    await settleDurableWrites(page);
++    Object.assign(facts, { conflicts: pass.conflicts, failures: pass.failures, acted: await acted(page), status: await page.getByTestId('save-status').textContent(), linkAfterSave: await link(page), slot: (({ graphicId, dirty }) => ({ graphicId, dirty }))(await slotOf(page)), library: (await library(page)).map(g => ({ id: g.id, name: g.name })) });
++    await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
++    facts.linkAfterReload = await link(page);
++    await draw(page, .40); await flush(page);
++    const alphaBefore = await record(page, local!.id);
++    facts.saveNamed = await topbarSave(page, 'Beta again');
++    facts.alphaUnchanged = (await record(page, local!.id)) === alphaBefore;
++    facts.libraryFinal = (await library(page)).map(g => ({ id: g.id, name: g.name }));
++    expect(pass.conflicts).toBe(1);
++    expect(facts.linkAfterSave, 'the first Save linked to the other device\'s record').toMatchObject({ graphicId: null });
++    expect(facts.linkAfterReload, 'after a reload the draft is linked to the other device\'s record').toMatchObject({ graphicId: null });
++    expect(facts.saveNamed, 'the next Save asked no name').toBe(1);
++    expect(facts.alphaUnchanged, 'the next Save wrote over the other device\'s record').toBe(true);
++  } finally {
++    out('c-overlap.json', facts);
++  }
++});
++
++for (const shape of ['newer version', 'refused by localStorage'] as const) {
++  test(`ninth V-superseded ${shape}: a conflict must reach a second tab of this browser`, async ({ page }) => {
++    test.setTimeout(180_000);
++    const facts: Record<string, unknown> = { shape };
++    try {
++      await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
++      await syncedAMinuteAgo(page);
++      await firstSaveNamed(page, 'Beta');
++      const beta = (await library(page))[0];
++      const other = await secondTab(page);
++      expect(await link(other)).toMatchObject({ graphicId: beta.id });
++      if (shape === 'newer version') await page.evaluate(() => localStorage.setItem('spx-gfx-superseded', JSON.stringify({ version: 2, ids: [] })));
++      else await page.evaluate(() => {
++        const original = Storage.prototype.setItem;
++        Storage.prototype.setItem = function(key: string, value: string) {
++          if (key === 'spx-gfx-superseded') throw new DOMException('Quota', 'QuotaExceededError');
++          return original.call(this, key, value);
++        };
++      });
++      const pass = await passAgainst(page, [alphaOf(beta, new Date(Date.now() + 1000).toISOString())]);
++      await settleDurableWrites(page);
++      const alpha = await record(page, beta.id);
++      facts.conflicts = pass.conflicts;
++      facts.linkHere = await link(page);
++      await expect.poll(async () => (await link(other)).graphicId, { timeout: 10_000 }).toBeNull().catch(() => {});
++      facts.otherLink = await link(other);
++      // The second tab edits and saves.
++      await draw(other, .40); await flush(other);
++      facts.otherSaveNamed = await topbarSave(other, 'Beta from the other tab');
++      facts.alphaUnchanged = (await record(other, beta.id)) === alpha;
++      facts.libraryFinal = (await library(other)).map(g => ({ id: g.id, name: g.name }));
++      expect(pass.conflicts).toBe(1);
++      expect(facts.linkHere).toMatchObject({ graphicId: null });
++      expect(facts.otherLink, 'the other tab stayed linked to the other device\'s record').toMatchObject({ graphicId: null });
++      expect(facts.alphaUnchanged, 'the other tab\'s Save wrote over the other device\'s record').toBe(true);
++    } finally {
++      out(`v-superseded-${shape.replace(/ /g, '-')}.json`, facts);
++    }
++  });
++}
++
++for (const shape of ['newer version', 'corrupt', 'missing'] as const) {
++  test(`ninth V-reservations ${shape}: R and K refused, the list is a ${shape} one, reload, save again`, async ({ page }) => {
++    test.setTimeout(180_000);
++    const facts: Record<string, unknown> = { shape };
++    try {
++      // A newer build's list is there before this draft reserves anything; corrupt and missing
++      // happen to the list after it recorded the reservation.
++      if (shape === 'newer version') {
++        await page.goto('/app#/home'); await expect(page.getByTestId('home-page').or(page.getByTestId('creation-wizard')).first()).toBeVisible();
++        await page.evaluate(() => localStorage.setItem('spx-gfx-reservations', JSON.stringify({ version: 2, ids: ['kept-by-a-newer-build'] })));
++      }
++      const { before } = await prepare(page, 'first-kept');
++      await arm(page, 'R', 'refuse');
++      await arm(page, 'K', 'refuse');
++      await press(page, 'first-kept');
++      await expect.poll(() => acted(page)).toEqual(['refuse R', 'refuse K']);
++      await refusedHere(page, 'first-kept');
++      const minted = (await library(page)).find(g => !before.some(old => old.id === g.id))!;
++      const requested = await source(page);
++      await page.evaluate(() => new Promise(r => setTimeout(r, 1000)));
++      await settleDurableWrites(page);
++      if (shape === 'corrupt') await page.evaluate(() => localStorage.setItem('spx-gfx-reservations', '{"version":1,"ids":['));
++      if (shape === 'missing') await page.evaluate(() => localStorage.removeItem('spx-gfx-reservations'));
++      facts.listBeforeReload = await page.evaluate(() => localStorage.getItem('spx-gfx-reservations'));
++      await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
++      facts.linkAfterReload = await link(page);
++      await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
++      await expect(page.getByTestId('home-page').or(page.getByTestId('save-name')).first()).toBeVisible();
++      facts.named = await page.getByTestId('save-name').count();
++      if (facts.named) { await page.getByTestId('save-name').fill('Second'); await page.getByTestId('save-confirm').click(); }
++      await expect(page.getByTestId('home-page')).toBeVisible();
++      await settleDurableWrites(page);
++      const all = await library(page);
++      Object.assign(facts, {
++        records: all.length - before.length,
++        mintedHoldsRequested: JSON.stringify(body(all.find(g => g.id === minted.id)!.template)) === JSON.stringify(body(requested)),
++        newerListKept: shape === 'newer version' ? await page.evaluate(() => localStorage.getItem('spx-gfx-reservations')) : undefined,
++      });
++      expect(facts.mintedHoldsRequested, 'the minted record lost the requested source').toBe(true);
++      expect(facts.records, 'a second record was minted for the same work').toBe(1);
++    } finally {
++      out(`v-reservations-${shape.replace(/ /g, '-')}.json`, facts);
++    }
++  });
++}

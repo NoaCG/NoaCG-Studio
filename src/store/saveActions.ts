@@ -15,7 +15,7 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { endMint, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
+import { conflictCopyOf, endMint, isGraphicSuperseded, linkAfterLoss, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
@@ -126,7 +126,13 @@ function changedSince(before: EditingContext): boolean {
  *  link is then not the waiting save's to settle. */
 function replacedSince(before: EditingContext): boolean {
   const now = useTemplateStore.getState();
-  return now.saved.graphicId !== before.saved.graphicId || now.baseline !== before.baseline;
+  return (now.saved.graphicId !== before.saved.graphicId && !movedToCopy(before, now)) || now.baseline !== before.baseline;
+}
+
+/** A sync pass moved the draft from a record that lost a conflict to the "(conflicted copy)"
+ *  holding its work (#1466): the same document, so a save waiting on it still settles. */
+function movedToCopy(before: EditingContext, now: EditingContext): boolean {
+  return !!before.saved.graphicId && conflictCopyOf(before.saved.graphicId)?.id === now.saved.graphicId;
 }
 
 /** A refused save leaves the link as it is NOW: an edit made during the wait stays dirty. */
@@ -224,7 +230,11 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
   if (replacedSince(s)) return 'saved';
-  return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), formatIssues })) ? 'failed' : 'saved';
+  // A sync pass found the record taken by another device's version while it was written, and
+  // moved the draft to the "(conflicted copy)" holding its work (#1466): the save settles there.
+  const now = useTemplateStore.getState(), moved = movedToCopy(s, now);
+  const link = moved ? { graphicId: now.saved.graphicId, dirty: now.saved.dirty } : { graphicId: doc.id, dirty: changedSince(s) };
+  return (await commitLink({ ...link, formatIssues })) ? 'failed' : 'saved';
 }
 
 /** First save or Save As: mint a new library record and link the working document to it. The
@@ -280,7 +290,12 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
   // The record took the id: the link write names it, and carries the document's next one.
   releaseReservation();
-  const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
+  // A sync pass that ran while the record was written found the id taken by another device's
+  // record (#1443): the draft links to the "(conflicted copy)" that holds its work, clean when it
+  // holds exactly that (#1466). A copy this tab never heard of leaves it unlinked.
+  const copy = conflictCopyOf(doc.id);
+  const lost = copy || isGraphicSuperseded(doc.id);
+  const linkFailure = await commitLink({ ...(lost ? linkAfterLoss(useTemplateStore.getState(), copy) : { graphicId: doc.id, dirty }), formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
   return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
 }

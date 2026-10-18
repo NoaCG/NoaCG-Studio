@@ -773,6 +773,7 @@ function parseGit(part) {
     else if (!/^[\d*&]?>/.test(words[at])) tokens.push(words[at].replace(/^['"]+|['")]+$/g, ''));
   }
   let dir = '';
+  const config = [];
   let at = 0;
   while (at < tokens.length && tokens[at].startsWith('-')) {
     if (tokens[at] === '-C' || tokens[at] === '--work-tree') {
@@ -780,9 +781,10 @@ function parseGit(part) {
       at += 2;
       continue;
     }
+    if (tokens[at] === '-c') config.push(tokens[at + 1]);
     at += tokens[at] === '-c' ? 2 : 1;
   }
-  return { dir, subcommand: tokens[at] ?? '', args: tokens.slice(at + 1) };
+  return { dir, subcommand: tokens[at] ?? '', args: tokens.slice(at + 1), ...(config.length ? { config } : {}) };
 }
 
 /** The create flags of the two subcommands that move the tree they run in. */
@@ -828,8 +830,9 @@ function isDryRun(git) {
  *     `refs/heads/main`, `heads/main`, a `refs/heads/*` glob), the push sends every branch
  *     (`--all`, `--mirror`, `--branches`, or the matching push `:`), or the same line checked
  *     `main` out before a push of the current branch.
- *   - 'current': no refspec, `HEAD`/`@`, or a `$variable`, so it pushes whatever branch `dir`'s
- *     checkout has checked out. Only git can say which that is, so the caller asks.
+ *   - 'current': an implicit destination, including a source-only feature branch. Git's
+ *     push.default, remote push refspecs and upstream configuration decide its destination.
+ * With details=true the caller also receives the parsed invocation for local resolution.
  * `main:claude/x` writes `claude/x` and is not listed; neither is a dry run, which writes nothing.
  * Positional like every matcher here, so `echo "git push origin main"` is not a push.
  *
@@ -837,14 +840,14 @@ function isDryRun(git) {
  * the same line is read as that enqueue's argument and missed, and so is a push to main inside a
  * queued payload, which the job runner later runs outside every hook.
  */
-export function mainPushes(text) {
+export function mainPushes(text, details = false) {
   const found = [];
   let onMain = false;
   for (const git of gitInvocations(text)) {
     onMain ||= checksOutMain(git);
     if (!isRealPush(git)) continue;
     const how = mainPushKind(git.args);
-    if (how) found.push({ dir: git.dir, how: how === 'current' && onMain ? 'named' : how });
+    if (how) found.push({ ...(details ? git : { dir: git.dir }), how: how === 'current' && onMain ? 'named' : how });
   }
   return found;
 }
@@ -855,21 +858,36 @@ const PUSH_VALUE_OPTIONS = ['-o', '--push-option', '--repo', '--receive-pack', '
 /** Push options that send every branch, main among them. */
 const PUSH_EVERY_BRANCH = ['--all', '--mirror', '--branches'];
 
-/** 'named', 'current' or null for one push's arguments - see `mainPushes`. */
-function mainPushKind(args) {
+/** Remote and refspecs, with Git's tag and deletion shorthand expanded. */
+export function pushArguments(args) {
   const positional = [];
+  let remote;
   for (let at = 0; at < args.length; at += 1) {
-    if (PUSH_EVERY_BRANCH.includes(args[at])) return 'named';
-    if (PUSH_VALUE_OPTIONS.includes(args[at])) at += 1;
+    if (args[at] === '--repo') remote = args[++at];
+    else if (args[at].startsWith('--repo=')) remote = args[at].slice(7);
+    else if (PUSH_VALUE_OPTIONS.includes(args[at])) at += 1;
     else if (!args[at].startsWith('-')) positional.push(args[at]);
   }
-  const refspecs = positional.slice(1); // the first positional is the remote
+  if (!remote) remote = positional.shift();
+  const refspecs = [];
+  for (let at = 0; at < positional.length; at += 1) {
+    if (positional[at] === 'tag') {
+      const tag = `refs/tags/${positional[++at]}`;
+      refspecs.push(`${tag}:${tag}`);
+    } else refspecs.push(positional[at]);
+  }
+  return { remote, refspecs: args.includes('--delete') || args.includes('-d') ? refspecs.map((ref) => `:${ref}`) : refspecs };
+}
+
+function mainPushKind(args) {
+  if (args.some((arg) => PUSH_EVERY_BRANCH.includes(arg))) return 'named';
+  const { refspecs } = pushArguments(args);
   const writesMain = (spec) =>
     /^\+?:$/.test(spec) || /^(?:(?:refs\/)?heads\/)?(?:main|\*)$/.test(spec.replace(/^\+/, '').split(':').pop());
   if (refspecs.some(writesMain)) return 'named';
   // `--tags` with no refspec pushes the tags alone, not the checked-out branch.
   if (refspecs.length === 0) return args.includes('--tags') ? null : 'current';
-  return refspecs.some((spec) => /^\+?(?:HEAD|@)$/.test(spec) || spec.includes('$')) ? 'current' : null;
+  return refspecs.some((spec) => spec.includes('$') || !spec.includes(':')) ? 'current' : null;
 }
 
 /** Does this invocation leave `main` checked out (`git switch main`, `git checkout -B main …`)? */

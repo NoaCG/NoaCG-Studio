@@ -8,7 +8,7 @@
 // covers: src/audience/**
 
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
 
 // CHAT INTAKE (src/audience/chatIntake.ts): Twitch / YouTube live chat as a PRODUCER of
@@ -56,7 +56,6 @@ function pushChat(page: Page, author: string, text: string, id?: string): Promis
 }
 
 test('a chat line reaches air the way a phone question does: inbox, edit, approve, cue, Take', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Chat In');
 
@@ -104,7 +103,6 @@ test('a chat line reaches air the way a phone question does: inbox, edit, approv
 });
 
 test('the throttle and the dedupe refuse visibly, and what passes is what the inbox holds', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Firehose');
   const audience = await openWorkspace(page, 'audience');
@@ -152,7 +150,6 @@ test('a closed door refuses chat the same as phones, and the surface says so', a
 });
 
 test('pause stops collecting without counting a backlog, resume collects again, remove disconnects', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Half Time');
   const audience = await openWorkspace(page, 'audience');
