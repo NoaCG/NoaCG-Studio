@@ -545,3 +545,61 @@ test('matrix lost conflict: a second tab of the losing device moves to the confl
   expect(await record(other, beta.id), 'the other tab\'s Save wrote over the other device\'s record').toBe(alpha);
   expect(body(all.find(g => g.id === copy.id)!.template)).toEqual(body(await source(other)));
 });
+
+/** A second tab whose library mirror adopts another tab's writes only when released: the durable
+ *  store's announcements (`noacg-durable-writes`) are held while `window.adoptHeld` is set. */
+async function heldAdoptionTab(page: Page) {
+  const other = await page.context().newPage();
+  await other.addInitScript(() => {
+    if (window.top !== window) return;
+    const w = window as unknown as { adoptHeld: boolean; adoptQueue: (() => void)[] };
+    w.adoptHeld = false; w.adoptQueue = [];
+    const Native = window.BroadcastChannel;
+    const desc = Object.getOwnPropertyDescriptor(Native.prototype, 'onmessage')!;
+    window.BroadcastChannel = class extends Native {
+      set onmessage(fn: ((event: MessageEvent) => void) | null) {
+        const held = fn && this.name === 'noacg-durable-writes'
+          ? (event: MessageEvent) => { if (w.adoptHeld) w.adoptQueue.push(() => fn.call(this, event)); else fn.call(this, event); }
+          : fn;
+        desc.set!.call(this, held);
+      }
+      get onmessage() { return desc.get!.call(this); }
+    };
+  });
+  await other.goto(page.url()); await expect(other.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  return other;
+}
+
+test('matrix lost conflict: a second tab saves before its library holds the conflicted copy; the Save waits for it and writes there, asking no name', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  await syncedAMinuteAgo(page);
+  await firstSaveNamed(page, 'Beta');
+  const beta = (await library(page))[0];
+  const bSource = await source(page);
+  const other = await heldAdoptionTab(page);
+  expect(await link(other)).toMatchObject({ graphicId: beta.id });
+  await other.evaluate(() => { (window as unknown as { adoptHeld: boolean }).adoptHeld = true; });
+  expect((await losingPass(page, beta)).conflicts).toBe(1);
+  const { copy, alpha } = await afterLoss(page, beta.id, 'Beta', bSource);
+  // The other tab has moved to the copy, which its library does not hold yet.
+  await expect.poll(async () => (await link(other)).graphicId, { message: 'the other tab did not move to the conflicted copy' }).toBe(copy.id);
+  expect((await library(other)).some(g => g.id === copy.id), 'the window is not open: the other tab already holds the copy').toBe(false);
+  await draw(other, .40); await flush(other);
+  await other.getByTestId('save-graphic').click();
+  await expect(other.getByTestId('save-status')).toHaveText('Saving…');
+  await other.evaluate(() => new Promise(r => setTimeout(r, 500)));
+  await expect(other.getByTestId('save-name'), 'the Save asked for a name').toHaveCount(0);
+  await other.evaluate(() => {
+    const w = window as unknown as { adoptHeld: boolean; adoptQueue: (() => void)[] };
+    w.adoptHeld = false; for (const adopt of w.adoptQueue.splice(0)) adopt();
+  });
+  await expect(other.getByTestId('save-status')).toHaveText('Saved');
+  await expect(other.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(other);
+  const all = await library(other);
+  expect(all, 'Alpha and the conflicted copy').toHaveLength(2);
+  expect(await record(other, beta.id), 'the other tab\'s Save wrote over the other device\'s record').toBe(alpha);
+  expect(body(all.find(g => g.id === copy.id)!.template), 'the other tab\'s Save is not in the conflicted copy').toEqual(body(await source(other)));
+  expect(await link(other)).toMatchObject({ graphicId: copy.id, dirty: false });
+});

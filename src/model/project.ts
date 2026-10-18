@@ -240,6 +240,10 @@ const conflictCopies = new Map<string, ConflictCopy>();
 export function conflictCopyOf(graphicId: string): ConflictCopy | null {
   return conflictCopies.get(graphicId) ?? null;
 }
+/** Is `id` a "(conflicted copy)" this tab heard of? */
+export function isConflictCopy(id: string): boolean {
+  return [...conflictCopies.values()].some((copy) => copy.id === id);
+}
 /** The links that stand for the record `graphicId` that lost: itself, and the copy an earlier
  *  loss of it went to. A Save written after a pass listed the library is copied only by the next
  *  pass, and the draft already moved to the first copy then. */
