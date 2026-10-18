@@ -700,7 +700,13 @@ Answers shown value reaching the created graphic; opening and editing in the edi
 third-party hosts blocked; and a returning visitor's working source surviving the landing CTA
 and wizard dismissal. These now run through the current editor, control page and wizard.
 Queue job `j-4603` passed those four current-UI cases on the unreconciled branch; it is
-preparation evidence, not the final main-reconciled verdict.
+preparation evidence, not the final main-reconciled verdict. After merging current main
+`60320e909`, queue job `j-4605` ran the eight changed offline files: 56 passed, 7 skipped,
+1.2 minutes on three workers. The seven skips are the retained Sheet and insertion cases.
+The configured anonymous file is excluded by the offline runner and was linted, not locally
+verified against a backend; the landed configured-suite supplies its authoritative result.
+ESLint on all nine existing changed specs, the protection check against origin/main and
+the changed-file gates passed. No production source or check limit changed.
 
 The owner kept Google Sheet live data and Add template graphic on 2026-10-18. The Sheet block's
 add/remove check and the incompatible-donor refusal therefore stay too. Still skipping:
