@@ -1,0 +1,3688 @@
+{
+  "phase": "L2",
+  "runDir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3",
+  "cells": [
+    {
+      "id": "collegiate-cs2-scorebug.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "collegiate-cs2-scorebug",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "695c77d9-a693-467b-9dd3-c013586f73f1",
+      "costCents": 0,
+      "notionalUsd": 1.2388952,
+      "wallSeconds": 342,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types --json",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type esports-score --design es01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type scorebug --design neutral --out C:/Users/ahonemi/AppData/Local/Temp/sbref",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type matchup --design neutral --out C:/Users/ahonemi/AppData/Local/Temp/mu",
+          "code": 2,
+          "digest": null
+        },
+        {
+          "command": "noacg docs contract",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:a7def937ce113cd847586ccd2368f88664a037b2261582052c6ee126331d3cb1"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f6=yellow.png --data f7=burgundy.png --event goLive --at 1.5 --background video --out ../shots/test-logos.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f6=images/yellow.png --data f7=images/burgundy.png --event goLive --at 2 --background video --out ../shots/test-logos.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:1344166509af8fdac90c2bb83104187022d157a0a5868ce3c782b0ab82318fb7"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage . --out ../outputs/coverage",
+          "code": 1,
+          "digest": "sha256:1344166509af8fdac90c2bb83104187022d157a0a5868ce3c782b0ab82318fb7"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=2 --data f3=1 --event goLive --event final --event nextMap --at 1 --background video --out ../shots/nextmap.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:1344166509af8fdac90c2bb83104187022d157a0a5868ce3c782b0ab82318fb7"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 1,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\collegiate-cs2-scorebug.claude-sonnet-5-5-high\\frames",
+        "frames": 74,
+        "crops": 5,
+        "findings": [
+          "event-nextmap: nextMap did not move the machine (still main=enter, phase=pre, pause=running). If it should have, the machine does not answer nextMap from there. It did not move it after any other event either."
+        ],
+        "failures": [],
+        "digest": "sha256:1344166509af8fdac90c2bb83104187022d157a0a5868ce3c782b0ab82318fb7"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 9,
+        "buttons": [
+          "goLive",
+          "final",
+          "nextMap",
+          "pause",
+          "resume"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:1344166509af8fdac90c2bb83104187022d157a0a5868ce3c782b0ab82318fb7",
+        "benchValidated": "sha256:1344166509af8fdac90c2bb83104187022d157a0a5868ce3c782b0ab82318fb7",
+        "reviewed": "sha256:1344166509af8fdac90c2bb83104187022d157a0a5868ce3c782b0ab82318fb7",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 29,
+        "opened": 29,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "boxing-night-matchup.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "boxing-night-matchup",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "569d4d48-c818-4e54-9384-206bcce30f12",
+      "costCents": 0,
+      "notionalUsd": 1.6447481,
+      "wallSeconds": 549,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type matchup --design neutral --out ./graphic",
+          "code": 2,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type matchup --design mu01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:528c0a0dd360e09d27a6207e84ee8652ccf703f86ff1bf205bf079aad1ea2e8a"
+        },
+        {
+          "command": "noacg scaffold --type matchup --design mu01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:3318f931f5426db2e8db22b591f59801b47333669790dc3ddfec63ed71105bc1"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:ba5de10711fe90bcd7b4309b3624703a6250ddd4d4447fe415b8434cc1160522"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=C:/claude/noacg-bench-archive/harness-ladder-L2/round-3/cells/boxing-night-matchup.claude-sonnet-5-5-high/session/work/samples/white.svg --data f7=C:/claude/noacg-bench-archive/harness-ladder-L2/round-3/cells/boxing-night-matchup.claude-sonnet-5-5-high/session/work/samples/green.svg --data f11=Clontarf BC --data f12=Kaunas Boxing Club --out ./shots/logos.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=images/white.svg --data f7=images/green.svg --data f11=Clontarf BC --data f12=Kaunas Boxing Club --out ./shots/logos.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:ba5de10711fe90bcd7b4309b3624703a6250ddd4d4447fe415b8434cc1160522"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:ba5de10711fe90bcd7b4309b3624703a6250ddd4d4447fe415b8434cc1160522"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:a05ad158a692e46a19ff6cc057eadee9cd898af78f7ed459c9ceafec682ff931"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:a05ad158a692e46a19ff6cc057eadee9cd898af78f7ed459c9ceafec682ff931"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:5a2c32cf326cfcce6d67fb0d5e7a670353a232521939d02d50ed0aea4ff9eba5"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=images/white.svg --data f7=images/green.svg --data f11=Clontarf BC --data f12=Kaunas Boxing Club --event redWins --event lock --at 1.5 --out ./shots/logos.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:5a2c32cf326cfcce6d67fb0d5e7a670353a232521939d02d50ed0aea4ff9eba5"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:5a2c32cf326cfcce6d67fb0d5e7a670353a232521939d02d50ed0aea4ff9eba5"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:7b8171973999f7ca65899a7bcbd6787a4a2182b30012ffdd966a5231bea382f9"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:7b8171973999f7ca65899a7bcbd6787a4a2182b30012ffdd966a5231bea382f9"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:7b8171973999f7ca65899a7bcbd6787a4a2182b30012ffdd966a5231bea382f9"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\boxing-night-matchup.claude-sonnet-5-5-high\\frames",
+        "frames": 57,
+        "crops": 12,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:7b8171973999f7ca65899a7bcbd6787a4a2182b30012ffdd966a5231bea382f9"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 15,
+        "buttons": [
+          "redWins",
+          "blueWins",
+          "lock",
+          "clear"
+        ],
+        "missing": [
+          "select"
+        ]
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:7b8171973999f7ca65899a7bcbd6787a4a2182b30012ffdd966a5231bea382f9",
+        "benchValidated": "sha256:7b8171973999f7ca65899a7bcbd6787a4a2182b30012ffdd966a5231bea382f9",
+        "reviewed": "sha256:7b8171973999f7ca65899a7bcbd6787a4a2182b30012ffdd966a5231bea382f9",
+        "problems": []
+      },
+      "functional": false,
+      "look": {
+        "reviewed": 25,
+        "opened": 24,
+        "unopened": [
+          "off.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "film-fest-nominee-reveal.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "film-fest-nominee-reveal",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "f7e7e640-900c-43db-9387-78cec6442ef1",
+      "costCents": 0,
+      "notionalUsd": 0.7664192999999999,
+      "wallSeconds": 234,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type nominee-reveal --design nm01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:34289ca752739db77adb55df016e198cd92e949e785e3be7e2c588becedbc87e"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:34289ca752739db77adb55df016e198cd92e949e785e3be7e2c588becedbc87e"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:67820888e23914568adc25bc82a290e3849be47ecb886caff9f0541ad2a5ee9f"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:b9ace42dbe013a091137d97ca698308dbe2645705c9998264a27b1c2e01caf2e"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:59928ea268ef9d87ab0e9b01cbdee2f0a86f0e0619664566e5a81b499d75dff4"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --background video --event reveal --at 3s --data f0=Outstanding Achievement in Cinematography and Visual Storytelling for a Student Short Film --data f2=Anna-Kaisa Virtanen-Lindqvist and Oluwaseun Adebayo-Marchetti | The Last Ferry Home Before the Winter Closes In and Other Stories We Told Ourselves\nMaximilian Bartholomew Östergård-Nakamura | A Hundred Small Rooms Where Nobody Ever Said Goodbye Properly\nSofia Reyes | Paper Lanterns Over the Harbour at the End of the Longest Summer We Ever Had\nWojciech Kowalczyk-Papadopoulos | Static --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:59928ea268ef9d87ab0e9b01cbdee2f0a86f0e0619664566e5a81b499d75dff4"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:59928ea268ef9d87ab0e9b01cbdee2f0a86f0e0619664566e5a81b499d75dff4"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\film-fest-nominee-reveal.claude-sonnet-5-5-high\\frames",
+        "frames": 43,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:59928ea268ef9d87ab0e9b01cbdee2f0a86f0e0619664566e5a81b499d75dff4"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 4,
+        "buttons": [
+          "suspense",
+          "reveal"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:59928ea268ef9d87ab0e9b01cbdee2f0a86f0e0619664566e5a81b499d75dff4",
+        "benchValidated": "sha256:59928ea268ef9d87ab0e9b01cbdee2f0a86f0e0619664566e5a81b499d75dff4",
+        "reviewed": "sha256:59928ea268ef9d87ab0e9b01cbdee2f0a86f0e0619664566e5a81b499d75dff4",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 17,
+        "opened": 17,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "charity-stream-alerts.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "charity-stream-alerts",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "d82e17d2-08fe-475f-b1bb-8816c7493227",
+      "costCents": 0,
+      "notionalUsd": 1.8721780999999995,
+      "wallSeconds": 691,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg --version",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type event-notification --design sn01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:7d633e87dee53af8a3c32824bebea8ae059612be009e765e58457f3ce6c7f8c5"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs validator",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:886d6956fbecedffd5519e11e1dc27c048a30ae3dc93c8eb1ccf3f9d63e844a0"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f2=€25 --data f3=Für den guten Zweck, viel Erfolg! --out ../shots/t1.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Maximilian-Ägidius Überschwänglich-Müllerschön von Grünewald --data f2=€1.250,00 --data f3=Für den guten Zweck! Weiter so, ihr Lieben – wir drücken euch die Daumen für die restlichen Stunden und hoffen auf viele Diamanten. --data f4=images/white-icon.png --out ../shots/t1.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Ümit Öztürk-Ängström --data f2=€5 --data f3=Hallo! --data f4=images/white-full.png --out ../shots/t2.png --background video",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Maximilian-Ägidius Überschwänglich-Müllerschön von Grünewald --data f2=€1.250,00 --data f3=Für den guten Zweck! Weiter so, ihr Lieben – wir drücken euch die Daumen. --data f4=images/white-full.png --out ../shots/t1.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Ünlüdağlıoğlu_Äöüß_Bergmann_der_Dritte_aus_Hinterpfüntzenhausen_2007_official --data f2=€20 --data f3= --out ../shots/t3.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Ünlüdağlıoğlu_Äöüß_Bergmann_der_Dritte_aus_Hinterpfüntzenhausen_2007_official --data f2=€20 --data f3= --out ../shots/t3.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:5bf75025c07617441e5a943667509885009575f81fa99fd7bec3aa956d44da6a"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Ünlüdağlıoğlu_Äöüß_Bergmann_der_Dritte_aus_Hinterpfüntzenhausen_2007_official --data f2=€20 --data f3= --out ../shots/t3.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs validator",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:121b73e229dcf8e861cb0eca27d985ce7981c6f1ef7d3bc3d63c9e2d2a2ba360"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Ünlüdağlıoğlu_Äöüß_Bergmann_der_Dritte_aus_Hinterpfüntzenhausen_2007_official --data f2=€20 --data f3=Viel Spaß und Glück beim Bauen, ihr Lieben – wir drücken die Daumen für die restlichen Stunden! --data f4=images/white-icon.png --out ../shots/t3.png --background video",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event skip --event replay --at 1.8 --background video --out ../shots/t4.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:cd3f4a1939c5425345f2bb1c4f961b7782ddf04071bc7e36ab781a63c53f201e"
+        },
+        {
+          "command": "noacg screenshot . --state onair --event skip --event replay --at 1.8 --background video --out ../shots/t4.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:1771b4c8775a1c2fcbdf112b3a77f404da70e72b7f6e969e077369214c5a9636"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f1=Ünlüdağlıoğlu_Äöüß_Bergmann_der_Dritte_aus_Hinterpfüntzenhausen_2007_official --data f2=€20 --data f3=Viel Spaß und Glück beim Bauen, ihr Lieben – wir drücken die Daumen für die restlichen Stunden! --data f4=images/white-icon.png --out ../shots/t3.png --background video",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:396e79bc3d841f6211d8cf47333bd08da684a4187bff73a2dd37688847bb2372"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:396e79bc3d841f6211d8cf47333bd08da684a4187bff73a2dd37688847bb2372"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:3fbde35aa80630e56e6c4f9d763a6a1b432d8f0f8096bb62a7003a8597c32885"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:aee6dad66b2ae8c8ceb18f80d5b3cba53851018374d8b890f5529b4ddb855e61"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:aee6dad66b2ae8c8ceb18f80d5b3cba53851018374d8b890f5529b4ddb855e61"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f3=Keep up the great work! Keep up the great work! --out ../shots/t5.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state stress --out ../shots/t6.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:5201edcf7aa9252cacdb14b03dee578b5e5c3f50b3278ed5977d1eb220d89ba0"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:5201edcf7aa9252cacdb14b03dee578b5e5c3f50b3278ed5977d1eb220d89ba0"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:5201edcf7aa9252cacdb14b03dee578b5e5c3f50b3278ed5977d1eb220d89ba0"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\charity-stream-alerts.claude-sonnet-5-5-high\\frames",
+        "frames": 67,
+        "crops": 5,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:5201edcf7aa9252cacdb14b03dee578b5e5c3f50b3278ed5977d1eb220d89ba0"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 1
+      },
+      "operator": {
+        "inputs": 5,
+        "buttons": [
+          "hold",
+          "resume",
+          "replay",
+          "skip"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:5201edcf7aa9252cacdb14b03dee578b5e5c3f50b3278ed5977d1eb220d89ba0",
+        "benchValidated": "sha256:5201edcf7aa9252cacdb14b03dee578b5e5c3f50b3278ed5977d1eb220d89ba0",
+        "reviewed": "sha256:5201edcf7aa9252cacdb14b03dee578b5e5c3f50b3278ed5977d1eb220d89ba0",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 25,
+        "opened": 18,
+        "unopened": [
+          "off.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "event-hold-strip.jpg",
+          "event-replay-strip.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "volleyball-set-board.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "volleyball-set-board",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "b39c2ad0-0800-4e11-b590-c478a6d63470",
+      "costCents": 0,
+      "notionalUsd": 2.2598942000000006,
+      "wallSeconds": 850,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type duel-score --design sb26 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --fields Team A:text,Sets A:number,Points A:number,Team B:text,Sets B:number,Points B:number,Final word:text --out ./graphic",
+          "code": 2,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:5c61dca3d2eaaa6354f1b60d6a2485f01b88079d5017103856711a76fe30520e"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Uniwersytecki Klub Sportowy Politechnika Łódzka Żółć --data f3=Międzyszkolny Ludowy Klub Siatkówki Świętokrzyskie Ząbki --data f1=2 --data f2=24 --data f4=1 --data f5=23 --event pointA --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:01fcc956ddfceeeffe5141e68d97faf1844e19c87e51dacc687eb5f8392bc949"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Uniwersytecki Klub Sportowy Politechnika Łódzka Żółć --data f3=Międzyszkolny Ludowy Klub Siatkówki Świętokrzyskie Ząbki --data f1=2 --data f2=24 --data f4=1 --data f5=23 --event pointA --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:4bf88a7ae0d21505346586b08907f8dfe619ed963bf0c48c0ec7d4890e9fe87e"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Uniwersytecki Klub Sportowy Politechnika Łódzka Żółć --data f3=Międzyszkolny Ludowy Klub Siatkówki Świętokrzyskie Ząbki --data f1=2 --data f2=24 --data f4=1 --data f5=23 --event pointA --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:2668f6b1e466103862c1796b02e369925c332788647a5f9e8c86ffb7d6a250d5"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs control",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:b8c47e03b37fcf4183163697957451db00da9250aed7214003ce8560070cb694"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs validator",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:2192ce4bab449570d46ec561e20b13e677c4628bdc5e680ba0d24f6c7508e51f"
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event serveB --event pointA --event undoA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --event pointB --event undoB --event undoA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointB --event final --event newMatch --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f2=21 --data f5=18 --event pointA --event endSetA --data f2=0 --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f2=5 --data f5=3 --event pointA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f2=5 --data f5=7 --event pointB --event pointA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:7201c743b0eaaabf27651c696f85046bd02762220f8df58797684bd45da5b12e"
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --event pointB --event undoB --event undoA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:d7c91a98c8dfb12c9be902506ed0ab5fcacbaa3971ee6d1bed1c27d3dc2ded14"
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointB --event pointB --event undoB --event undoA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --event pointA --event pointA --event pointB --event endSetA --event pointB --out ../shots/t.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:d7c91a98c8dfb12c9be902506ed0ab5fcacbaa3971ee6d1bed1c27d3dc2ded14"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:d7c91a98c8dfb12c9be902506ed0ab5fcacbaa3971ee6d1bed1c27d3dc2ded14"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --event pointA --event pointA --event pointB --event endSetA --out shots/t2.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f1=3 --data f4=1 --data f2=25 --data f5=21 --data f3=Międzyszkolny Ludowy Klub Siatkówki Ząbki --event final --background video --out shots/final.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f1=3 --data f4=1 --data f2=25 --data f5=21 --event final --background video --out shots/final.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\volleyball-set-board.claude-sonnet-5-5-high\\frames",
+        "frames": 87,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 1
+      },
+      "operator": {
+        "inputs": 6,
+        "buttons": [
+          "pointA",
+          "pointB",
+          "undoA",
+          "undoB",
+          "endSetA",
+          "endSetB",
+          "serveA",
+          "serveB",
+          "final",
+          "newMatch"
+        ],
+        "missing": [
+          "undoPoint"
+        ]
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866",
+        "benchValidated": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866",
+        "reviewed": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866",
+        "problems": []
+      },
+      "functional": false,
+      "look": {
+        "reviewed": 35,
+        "opened": 2,
+        "unopened": [
+          "off.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "long-side-1-video.jpg",
+          "long-side-1-light.jpg",
+          "long-side-2-video.jpg",
+          "long-side-2-light.jpg",
+          "take-strip.jpg",
+          "event-pointa-strip.jpg",
+          "event-pointa-10000ms.jpg",
+          "event-pointb-strip.jpg",
+          "event-pointb-10000ms.jpg",
+          "event-undoa-strip.jpg",
+          "event-undoa-10000ms.jpg",
+          "event-undob-strip.jpg",
+          "event-undob-10000ms.jpg",
+          "event-endseta-strip.jpg",
+          "event-endseta-10000ms.jpg",
+          "event-endsetb-strip.jpg",
+          "event-endsetb-10000ms.jpg",
+          "event-servea-strip.jpg",
+          "event-servea-10000ms.jpg",
+          "event-serveb-strip.jpg",
+          "event-serveb-10000ms.jpg",
+          "event-final-strip.jpg",
+          "event-newmatch-strip.jpg",
+          "event-newmatch-10000ms.jpg",
+          "update-strip.jpg",
+          "update-01500ms.jpg",
+          "out-strip.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "hockey-club-match-board.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "hockey-club-match-board",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "not-ready",
+      "reason": "the session ended without DELIVERED",
+      "sessionId": "d321c067-6e74-48ac-95b3-bd97bddd8f62",
+      "costCents": 0,
+      "notionalUsd": 1.5731654,
+      "wallSeconds": 473,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg --version",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type match-board --design neutral --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 1,
+          "digest": "sha256:42ac5b3e1a63559d1ec0ae410376327df9fb04e1983d2b1bb39e27874154f34d"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 1,
+          "digest": "sha256:a8f49d8933020d8095baa182d2edb560a25f871cde4440219aa840ae0203357c"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:b7c3d5c72c45063b3806fa9e447b6c45e5b62f3defcb7a48e2d6c134be5b0295"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --background video --data f0=Hokejový klub Sokol Ostrava‑Poruba Žďár nad Sázavou --data f2=TJ Slavoj Říčany – Ústí nad Labem Žižkovští --data f1=3 --data f3=12 --data f9=images/t_a.svg --data f10=images/t_b.svg --data f4=2. třetina --data f6=1 | 2 | 0\n2 | 1 | 1\n3 | – | – --out ./shots/real.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:b7c3d5c72c45063b3806fa9e447b6c45e5b62f3defcb7a48e2d6c134be5b0295"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:b7c3d5c72c45063b3806fa9e447b6c45e5b62f3defcb7a48e2d6c134be5b0295"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:178364ca804adf1b6eba3c6f1ae2ad08c8257fa333d85c5752a7dcbbac37ad1b"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:178364ca804adf1b6eba3c6f1ae2ad08c8257fa333d85c5752a7dcbbac37ad1b"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:178364ca804adf1b6eba3c6f1ae2ad08c8257fa333d85c5752a7dcbbac37ad1b"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\hockey-club-match-board.claude-sonnet-5-5-high\\frames",
+        "frames": 93,
+        "crops": 6,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:178364ca804adf1b6eba3c6f1ae2ad08c8257fa333d85c5752a7dcbbac37ad1b"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 11,
+        "buttons": [
+          "clockStart",
+          "clockStop",
+          "clockReset",
+          "interval",
+          "resumePlay",
+          "final",
+          "goalA",
+          "goalB"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:178364ca804adf1b6eba3c6f1ae2ad08c8257fa333d85c5752a7dcbbac37ad1b",
+        "benchValidated": "sha256:178364ca804adf1b6eba3c6f1ae2ad08c8257fa333d85c5752a7dcbbac37ad1b",
+        "reviewed": "sha256:178364ca804adf1b6eba3c6f1ae2ad08c8257fa333d85c5752a7dcbbac37ad1b",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 37,
+        "opened": 37,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "ski-sprint-timing-tower.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "ski-sprint-timing-tower",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "29e6276f-8e5f-4384-a653-b21fe1c8e6ce",
+      "costCents": 0,
+      "notionalUsd": 0.8997830999999998,
+      "wallSeconds": 342,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type timing-tower --design tt01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:77123239a02f908c4fe4f74dc28a088f2b5d446b0b75dd3def21ec7bdc083ff1"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:482e73482f48fafc222251b92b48203e2ba23f4ec3d8747237ea6b68920aead7"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:f52c9ee874f1c05a631937c6ca91254540717e85224b9e14751e819690b954b4"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:f52c9ee874f1c05a631937c6ca91254540717e85224b9e14751e819690b954b4"
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:c78e23107da6877e4e75f6d1b72b41349f0da47c2f3f4983ac17c9f1fae7c79e"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:c78e23107da6877e4e75f6d1b72b41349f0da47c2f3f4983ac17c9f1fae7c79e"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --event focus --at 1s --data f3=3 --background video --out ./shots/f3.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --event focus --at 1s --background video --out ./shots/f1.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+        },
+        {
+          "command": "noacg screenshot ./graphic --event focus --at 1s --data f3=5 --background video --out ./shots/f5.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\ski-sprint-timing-tower.claude-sonnet-5-5-high\\frames",
+        "frames": 62,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 4,
+        "buttons": [
+          "focus",
+          "clear",
+          "final",
+          "provisional"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788",
+        "benchValidated": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788",
+        "reviewed": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 23,
+        "opened": 23,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "school-scoreboard.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "school-scoreboard",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "a0e44a46-4e56-48f6-b395-4f414ffc806a",
+      "costCents": 0,
+      "notionalUsd": 0.9865594,
+      "wallSeconds": 255,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg --version",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type scoreboard --design neutral --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:78cd549fb71838518142f526ccc76e48946bda478b88e2562f7b040ad92125f4"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:39b465789d51290863833ff66a64d5656166bc5f3c500f3fd571ee849ede0adb"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:39b465789d51290863833ff66a64d5656166bc5f3c500f3fd571ee849ede0adb"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:345610fc8a16c99c92cda197ae6835c6de91bad12e2337451051ada693b605ad"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:345610fc8a16c99c92cda197ae6835c6de91bad12e2337451051ada693b605ad"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:345610fc8a16c99c92cda197ae6835c6de91bad12e2337451051ada693b605ad"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\school-scoreboard.claude-sonnet-5-5-high\\frames",
+        "frames": 57,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:345610fc8a16c99c92cda197ae6835c6de91bad12e2337451051ada693b605ad"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 4,
+        "buttons": [
+          "goalA",
+          "goalB",
+          "clearFlag",
+          "final"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:345610fc8a16c99c92cda197ae6835c6de91bad12e2337451051ada693b605ad",
+        "benchValidated": "sha256:345610fc8a16c99c92cda197ae6835c6de91bad12e2337451051ada693b605ad",
+        "reviewed": "sha256:345610fc8a16c99c92cda197ae6835c6de91bad12e2337451051ada693b605ad",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 25,
+        "opened": 4,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "long-side-1-video.jpg",
+          "long-side-1-light.jpg",
+          "long-side-2-video.jpg",
+          "long-side-2-light.jpg",
+          "take-strip.jpg",
+          "event-goala-strip.jpg",
+          "event-goala-10000ms.jpg",
+          "event-goalb-10000ms.jpg",
+          "event-clearflag-10000ms.jpg",
+          "event-final-10000ms.jpg",
+          "update-strip.jpg",
+          "update-01500ms.jpg",
+          "out-strip.jpg",
+          "event-clearflag-after-goala-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 4
+      }
+    },
+    {
+      "id": "live-vote.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "live-vote",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "4b8ad6da-08e9-4673-96f0-85e02f8b85eb",
+      "costCents": 0,
+      "notionalUsd": 1.0171658,
+      "wallSeconds": 294,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type poll --design neutral --out ./graphic",
+          "code": 2,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type poll --design ig02 --out ./try-ig02",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type poll --design ig11 --out ./try-ig11",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type poll --design ig12 --out ./try-ig12",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type poll --design ig13 --out ./try-ig13",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./try-ig02 --screenshots ./shots-ig02",
+          "code": 0,
+          "digest": "sha256:5699e5e2d9988e746bb77411c1961b7fa6e645b97b4dfbfb9e4c02f75024a008"
+        },
+        {
+          "command": "noacg validate ./try-ig11 --screenshots ./shots-ig11",
+          "code": 0,
+          "digest": "sha256:07e347c9928eb3d768ed6a85ec7623ed6abbc10248e9a0c156479196faf8dd05"
+        },
+        {
+          "command": "noacg validate ./try-ig12 --screenshots ./shots-ig12",
+          "code": 0,
+          "digest": "sha256:ead4b8c300b4683038c569ffa872501305f58ce70584e4106d91fb2c35294342"
+        },
+        {
+          "command": "noacg validate ./try-ig13 --screenshots ./shots-ig13",
+          "code": 0,
+          "digest": "sha256:d44ee8e37755de3f9b6aadecb142745cf8f603e979a4559203921e7c27ea1105"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:cabcf5a1d1a93d74d2caede96bdf4d2919b64b9cc23caeac91f4ad8d35c6791a"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:643c175c069a7edd862c2bfac009e9980bcf60cf63ce9391f11b4a5c7fb18784"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --background video --data f1=Which city should host the final next season? --data f0=Lisbon | 28\nBerlin | 31.5\nAmsterdam | 12\nVienna | 22\nCopenhagen | 6.5 --out ../shots/five.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:643c175c069a7edd862c2bfac009e9980bcf60cf63ce9391f11b4a5c7fb18784"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:2ab3affc742e14bfdb3b733db293cde02d7924750cec4f33b62cef0c521b9699"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:2ab3affc742e14bfdb3b733db293cde02d7924750cec4f33b62cef0c521b9699"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:52a77807b8663bc3b9a28ffe5474a7957b9f9ff4796722dedb7cc79a0a250bd1"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:52a77807b8663bc3b9a28ffe5474a7957b9f9ff4796722dedb7cc79a0a250bd1"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:52a77807b8663bc3b9a28ffe5474a7957b9f9ff4796722dedb7cc79a0a250bd1"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\live-vote.claude-sonnet-5-5-high\\frames",
+        "frames": 23,
+        "crops": 1,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:52a77807b8663bc3b9a28ffe5474a7957b9f9ff4796722dedb7cc79a0a250bd1"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 1
+      },
+      "operator": {
+        "inputs": 3,
+        "buttons": [],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:52a77807b8663bc3b9a28ffe5474a7957b9f9ff4796722dedb7cc79a0a250bd1",
+        "benchValidated": "sha256:52a77807b8663bc3b9a28ffe5474a7957b9f9ff4796722dedb7cc79a0a250bd1",
+        "reviewed": "sha256:52a77807b8663bc3b9a28ffe5474a7957b9f9ff4796722dedb7cc79a0a250bd1",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 11,
+        "opened": 11,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "school-quiz-secret-pick.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "school-quiz-secret-pick",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "4dc8d089-1b8e-4617-82eb-00e417da2be5",
+      "costCents": 0,
+      "notionalUsd": 1.3365718000000004,
+      "wallSeconds": 619,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type quiz-board --design qz01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:cdab0b221a69effcb26d578778c3c83d0ddecd5646abe3d57a74b0861f1fb972"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:cdab0b221a69effcb26d578778c3c83d0ddecd5646abe3d57a74b0861f1fb972"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:2c9b9242197fcdc597ab947e746682f879d524a35035375737eb59428462597b"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:91ec4295ea4bcf878af38ad8e70a942428172ad5fc500e528919602f8dcccd85"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --at 4s --data f0=Which scientist won Nobel Prizes in both Physics and Chemistry, discovered the elements polonium and radium, and later led mobile X-ray units in the First World War? --data f1=Marie Curie, who worked in Paris with her husband Pierre and later directed the Radium Institute in Paris and Warsaw --data f2=Short one --out shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:1920e463bf24fb4705178445698bf2ee81413191f0dd478ed796d824ad311dfa"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state stress --at 4s --out shots/stress4.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:cd21943d57c541192bf98a4ca2d95ab77361693be471185208ec4131ccd8b7d8"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --at 4s --data f0=Which scientist won Nobel Prizes in both Physics and Chemistry, discovered the elements polonium and radium, and later led mobile X-ray units in the First World War? Which scientist won Nobel Prizes in both Physics and Chemistry, discovered the elements polonium and radium, and later led mobile X-ray units in the First World War? --data f1=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --data f2=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --data f3=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --data f4=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --out shots/x2.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:cd21943d57c541192bf98a4ca2d95ab77361693be471185208ec4131ccd8b7d8"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=C --event select --event lock --event revealChoice --at 3s --out shots/pickreveal.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=A --event select --event lock --event revealChoice --event judge --at 3s --out shots/wrong.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f7=34 | 52 | 9 | 5 --event judge --event audience --at 3s --out shots/aud.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=C --event lock --event revealChoice --at 3s --out shots/secret-pick.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=A --event lock --event revealChoice --event judge --at 3s --out shots/secret-wrong.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f6=B --event select --at 3s --out shots/sel.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:bc3e1e935bc26e388f64e647ef04909a3944577e75e0da1ddf9dbf3ce7dda9b5"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:bc3e1e935bc26e388f64e647ef04909a3944577e75e0da1ddf9dbf3ce7dda9b5"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f7=34 | 52 | 9 | 5 --event judge --event audience --at 3s --out shots/aud.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 1,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\school-quiz-secret-pick.claude-sonnet-5-5-high\\frames",
+        "frames": 68,
+        "crops": 5,
+        "findings": [
+          "event-select: Select answer shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing.",
+          "event-revealchoice: Reveal choice shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing.",
+          "event-audience: Audience result shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing."
+        ],
+        "failures": [],
+        "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 8,
+        "buttons": [
+          "select",
+          "lock",
+          "revealChoice",
+          "judge",
+          "audience"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c",
+        "benchValidated": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c",
+        "reviewed": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 29,
+        "opened": 0,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "long-side-1-video.jpg",
+          "long-side-1-light.jpg",
+          "long-side-2-video.jpg",
+          "long-side-2-light.jpg",
+          "take-strip.jpg",
+          "event-select-strip.jpg",
+          "event-select-10000ms.jpg",
+          "event-lock-strip.jpg",
+          "event-lock-10000ms.jpg",
+          "event-revealchoice-strip.jpg",
+          "event-revealchoice-10000ms.jpg",
+          "event-judge-strip.jpg",
+          "event-judge-10000ms.jpg",
+          "event-audience-strip.jpg",
+          "event-audience-10000ms.jpg",
+          "next-2-strip.jpg",
+          "next-2-01500ms.jpg",
+          "update-strip.jpg",
+          "update-01500ms.jpg",
+          "out-strip.jpg",
+          "event-revealchoice-after-lock-strip.jpg",
+          "event-revealchoice-after-lock-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "news-lower-third.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "news-lower-third",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "d9a148f1-d2f2-40c1-8c70-48c3adaad10d",
+      "costCents": 0,
+      "notionalUsd": 0.37829799999999997,
+      "wallSeconds": 73,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type lower-third --design neutral --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:18a38cc16f41eb2aecbd35f5993c54f9402dbe283618a823a3a142b1ee213d98"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:18a38cc16f41eb2aecbd35f5993c54f9402dbe283618a823a3a142b1ee213d98"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:18a38cc16f41eb2aecbd35f5993c54f9402dbe283618a823a3a142b1ee213d98"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\news-lower-third.claude-sonnet-5-5-high\\frames",
+        "frames": 23,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:18a38cc16f41eb2aecbd35f5993c54f9402dbe283618a823a3a142b1ee213d98"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 2,
+        "buttons": [],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:18a38cc16f41eb2aecbd35f5993c54f9402dbe283618a823a3a142b1ee213d98",
+        "benchValidated": "sha256:18a38cc16f41eb2aecbd35f5993c54f9402dbe283618a823a3a142b1ee213d98",
+        "reviewed": "sha256:18a38cc16f41eb2aecbd35f5993c54f9402dbe283618a823a3a142b1ee213d98",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 11,
+        "opened": 11,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "market-reporter-lower-third.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "market-reporter-lower-third",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "38ec2de9-a006-4344-9116-4a59a7e7dac6",
+      "costCents": 0,
+      "notionalUsd": 0.5920507,
+      "wallSeconds": 149,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg --version",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --fields Name:text,Role:text --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:71c024590dbbeb75dc619deb613ff2dc6482e4da45d7e70c02f2e7c002daa016"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:8020a53ba5d5df6bef08c72a83f92df07391466f5fa6b222a71ac4504010c299"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots --background video",
+          "code": 0,
+          "digest": "sha256:ebf771f47cd800ebadb25353787f479f0b3b2f79bd3b1b8ba1bdfaea9e66439c"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:ebf771f47cd800ebadb25353787f479f0b3b2f79bd3b1b8ba1bdfaea9e66439c"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:ebf771f47cd800ebadb25353787f479f0b3b2f79bd3b1b8ba1bdfaea9e66439c"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\market-reporter-lower-third.claude-sonnet-5-5-high\\frames",
+        "frames": 26,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:ebf771f47cd800ebadb25353787f479f0b3b2f79bd3b1b8ba1bdfaea9e66439c"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 2,
+        "buttons": [],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:ebf771f47cd800ebadb25353787f479f0b3b2f79bd3b1b8ba1bdfaea9e66439c",
+        "benchValidated": "sha256:ebf771f47cd800ebadb25353787f479f0b3b2f79bd3b1b8ba1bdfaea9e66439c",
+        "reviewed": "sha256:ebf771f47cd800ebadb25353787f479f0b3b2f79bd3b1b8ba1bdfaea9e66439c",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 11,
+        "opened": 11,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "lecture-countdown.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "lecture-countdown",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "cbcdbab3-ca4c-48e6-b829-1fa57d811c3a",
+      "costCents": 0,
+      "notionalUsd": 0.8717092,
+      "wallSeconds": 255,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 2,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type countdown --design neutral --out ./graphic",
+          "code": 2,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type countdown --design gt01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:31462d1ea204848e6951add7228bcb46c570ef338b9f848229ef73c404707207"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 1,
+          "digest": "sha256:e01bf73eb524772b5efa00e078a19e6a9cdd0c2ca3f4ebfab46eddb873392065"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:faa10c48d31ee328c13844b251bb3ecd93910c6e91cd9d6ebbc59e7612bc0a6d"
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:d285b726fb5e44fb4635a47f23e853cdb2cc94c87bec0e7f35292bb3b1e29b25"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:d285b726fb5e44fb4635a47f23e853cdb2cc94c87bec0e7f35292bb3b1e29b25"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\lecture-countdown.claude-sonnet-5-5-high\\frames",
+        "frames": 41,
+        "crops": 1,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 2,
+        "buttons": [
+          "pause",
+          "resume"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06",
+        "benchValidated": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06",
+        "reviewed": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 17,
+        "opened": 17,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "debate-clock.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "debate-clock",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "4f1748d9-b666-43c0-beb6-e754001a0847",
+      "costCents": 0,
+      "notionalUsd": 0.5723020000000001,
+      "wallSeconds": 147,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg whoami",
+          "code": 1,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type speaking-timer --design dc01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:7acee18c4d09aa3d280c157b0c39def030a4081c01ccff9e40d3d9c0fbc526ec"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:f8b84c2a41361282c4417bc4177390bd5f0c50f34b116e26cf2e0b0a764274a8"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:f8b84c2a41361282c4417bc4177390bd5f0c50f34b116e26cf2e0b0a764274a8"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:f8b84c2a41361282c4417bc4177390bd5f0c50f34b116e26cf2e0b0a764274a8"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\debate-clock.claude-sonnet-5-5-high\\frames",
+        "frames": 51,
+        "crops": 9,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:f8b84c2a41361282c4417bc4177390bd5f0c50f34b116e26cf2e0b0a764274a8"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 10,
+        "buttons": [
+          "switch",
+          "penalty",
+          "reset"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:f8b84c2a41361282c4417bc4177390bd5f0c50f34b116e26cf2e0b0a764274a8",
+        "benchValidated": "sha256:f8b84c2a41361282c4417bc4177390bd5f0c50f34b116e26cf2e0b0a764274a8",
+        "reviewed": "sha256:f8b84c2a41361282c4417bc4177390bd5f0c50f34b116e26cf2e0b0a764274a8",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 23,
+        "opened": 23,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "pub-darts-duel.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "pub-darts-duel",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "7444dc40-9e5f-44d7-ab35-89d7ebfed505",
+      "costCents": 0,
+      "notionalUsd": 1.5134135,
+      "wallSeconds": 394,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type duel-score --design sb26 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:db46f6661af3df9723f4bf1a84cf0b33a43935d2fb518639846c742d8fe0fec2"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Siobhán Ní Chonaill --data f1=2 --data f2=Gethin Pritchard-Llewellyn --data f3=3 --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Declan Murphy --data f1=4 --data f2=Rhys ap Gruffydd-Jones --data f3=1 --event final --background video --out ../shots/final.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Siobhán Ní Chonaill --data f1=2 --data f2=Gethin Pritchard-Llewellyn --data f3=3 --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Declan Murphy --data f1=4 --data f2=Rhys ap Gruffydd-Jones --data f3=1 --event final --background video --out ../shots/final.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Siobhán Ní Chonaill --data f1=2 --data f2=Gethin Pritchard-Llewellyn --data f3=3 --event final --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Siobhán Ní Chonaill --data f1=2 --data f2=Gethin Pritchard-Llewellyn --data f3=3 --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:4b2780b4a29fe9bb8650bd4ade737db5394805333a79170ede21e65de72ff3ac"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:4b2780b4a29fe9bb8650bd4ade737db5394805333a79170ede21e65de72ff3ac"
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:04cf96261e0b4fe910461a711a16ea45ed0720f1c21d01c41dab78bc50e00227"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:04cf96261e0b4fe910461a711a16ea45ed0720f1c21d01c41dab78bc50e00227"
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:79c7c21a114129f0d84943e48f348461a2035e569fd06223e32ead1e9aab6434"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:79c7c21a114129f0d84943e48f348461a2035e569fd06223e32ead1e9aab6434"
+        },
+        {
+          "command": "noacg validate graphic",
+          "code": 0,
+          "digest": "sha256:b4a048d1312e86559fa4fb15257cc161131707cd2eea622871e22b7a39bfdc62"
+        },
+        {
+          "command": "noacg screenshot graphic --state onair --data f0=Siobhán Ní Chonaill --data f2=Gethin Pritchard-Llewellyn --background video --out shots/c.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot graphic --state onair --data f0=Declan Murphy --data f2=Rhys ap Gruffydd-Jones --data f1=3 --data f3=1 --background video --out shots/d.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:b4a048d1312e86559fa4fb15257cc161131707cd2eea622871e22b7a39bfdc62"
+        },
+        {
+          "command": "noacg docs contract",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs contract",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs contract",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs contract",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs control",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs validator",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot graphic --state onair --data f0=Declan Murphy --data f2=Rhys ap Gruffydd-Jones --data f1=3 --data f3=1 --event final --background video --out shots/f.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:b4a048d1312e86559fa4fb15257cc161131707cd2eea622871e22b7a39bfdc62"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\pub-darts-duel.claude-sonnet-5-5-high\\frames",
+        "frames": 63,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:b4a048d1312e86559fa4fb15257cc161131707cd2eea622871e22b7a39bfdc62"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 4,
+        "buttons": [
+          "pointA",
+          "pointB",
+          "undoA",
+          "undoB",
+          "final",
+          "newGame"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:b4a048d1312e86559fa4fb15257cc161131707cd2eea622871e22b7a39bfdc62",
+        "benchValidated": "sha256:b4a048d1312e86559fa4fb15257cc161131707cd2eea622871e22b7a39bfdc62",
+        "reviewed": "sha256:b4a048d1312e86559fa4fb15257cc161131707cd2eea622871e22b7a39bfdc62",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 27,
+        "opened": 27,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "youth-summit-event-bug.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "youth-summit-event-bug",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "e4523b14-7e7f-4bff-86ec-50ddc10bded5",
+      "costCents": 0,
+      "notionalUsd": 1.0539183,
+      "wallSeconds": 254,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg --version",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg docs contract",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type event-bug --design neutral --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:605454d3dfe2206f10c21997e3bf7c5b3b4ea06d79abb8b07213f86f3fbed648"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:0c34df3430e8157b3dab5e0febd14a741bd4b801e5641c4b85caaa0b239286b6"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:82271fea08d94c66d14d0529211304eb853a30722b8a81d25b66955b37fe1ff9"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f1=2 --data f2=Gymnastiksalen Älvdalen Åre Östra --background video --out ./shots/sv.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:82271fea08d94c66d14d0529211304eb853a30722b8a81d25b66955b37fe1ff9"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:667a2d02ca76800680a4e631ee9b4492dbe6e242da64ae55e05886e661e214f3"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:667a2d02ca76800680a4e631ee9b4492dbe6e242da64ae55e05886e661e214f3"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\youth-summit-event-bug.claude-sonnet-5-5-high\\frames",
+        "frames": 23,
+        "crops": 2,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 3,
+        "buttons": [],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68",
+        "benchValidated": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68",
+        "reviewed": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 11,
+        "opened": 11,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "basketball-club-scorebug.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "basketball-club-scorebug",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "e9509073-c673-4383-8e30-6725f632986c",
+      "costCents": 0,
+      "notionalUsd": 1.2986242000000001,
+      "wallSeconds": 406,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg --version",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type scorebug --design neutral --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 1,
+          "digest": "sha256:ba41a3e9cf4125ec6ea2d8da902be384bfcca571273fda26c0d9bb208eb62211"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:1047442198030628240e567bb894d347fe996b65b487cd01ca40ff7b4e21efef"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Saint-Étienne-du-Rouvray --data f2=Mont-Saint-Aignan Métropole --data f1=87 --data f3=102 --data f4=Q4 --data f5=3:07 --background video --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Évreux-Gravigny --data f2=Les Andelys --background video --event interval --out ../shots/int.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:8d8aa09e34f1264ed7ab77e9e4bf11a236c0a5e9180a9187937ab77b92c43236"
+        },
+        {
+          "command": "noacg screenshot . --state onair --data f0=Saint-Étienne-du-Rouvray --data f2=Mont-Saint-Aignan Métropole --data f1=87 --data f3=102 --background video --event interval --out ../shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:8d8aa09e34f1264ed7ab77e9e4bf11a236c0a5e9180a9187937ab77b92c43236"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:8d8aa09e34f1264ed7ab77e9e4bf11a236c0a5e9180a9187937ab77b92c43236"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 1,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\basketball-club-scorebug.claude-sonnet-5-5-high\\frames",
+        "frames": 99,
+        "crops": 4,
+        "findings": [
+          "event-clockstop: clockStop did not move the machine (still main=enter, clock=armed, play=inPlay, score=idle, result=live). If it should have, the machine does not answer clockStop from there. It did not move it after any other event either.",
+          "event-clockreset: clockReset did not move the machine (still main=enter, clock=armed, play=inPlay, score=idle, result=live). If it should have, the machine does not answer clockReset from there. It did not move it after any other event either.",
+          "event-resumeplay: resumePlay did not move the machine (still main=enter, clock=armed, play=inPlay, score=idle, result=live). If it should have, the machine does not answer resumePlay from there. It did not move it after any other event either."
+        ],
+        "failures": [],
+        "digest": "sha256:8d8aa09e34f1264ed7ab77e9e4bf11a236c0a5e9180a9187937ab77b92c43236"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 8,
+        "buttons": [
+          "a1",
+          "a2",
+          "a3",
+          "b1",
+          "b2",
+          "b3",
+          "clockStart",
+          "clockStop",
+          "clockReset",
+          "interval",
+          "resumePlay",
+          "final"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:8d8aa09e34f1264ed7ab77e9e4bf11a236c0a5e9180a9187937ab77b92c43236",
+        "benchValidated": "sha256:8d8aa09e34f1264ed7ab77e9e4bf11a236c0a5e9180a9187937ab77b92c43236",
+        "reviewed": "sha256:8d8aa09e34f1264ed7ab77e9e4bf11a236c0a5e9180a9187937ab77b92c43236",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 39,
+        "opened": 39,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "campus-news-ticker.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "campus-news-ticker",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "b671afac-b7df-44d6-b984-b27aa0fd1d06",
+      "costCents": 0,
+      "notionalUsd": 0.7549314000000001,
+      "wallSeconds": 267,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type ticker --design tk07 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:03849fb6170f4d77eecbaaa28c294bf8c4804871bff0c8e96c09044604e51cb7"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:ffd6b96693c6297ebefd86922511aa999f50af6ef8af0babbcc7fe6824d74703"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:52235104c3f4b08c8edc8a70af0a69d77aa71fdd0f40a4863c5e89de097e9bce"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 1,
+          "digest": "sha256:b2f87473b778d4f96d5944fe4f83d9d789865cee7a45b68f83089bd2cc2fea03"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 1,
+          "digest": "sha256:13ff0b7efb44f1603455a75c89810a1c31837c2827617439d761788330a7eae1"
+        },
+        {
+          "command": "noacg scaffold --type ticker --design tk07 --out ../fresh",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./graphic --state onair --data f0=Roadworks on Yliopistonkatu, Hämeenkatu, Kauppakorkeakoulunkatu and Pitkänsillanranta delay buses to the Humanistinen tiedekunta campus until Friday evening, and the Opiskelijakunnanedustajistovaalien tulokset julkistetaan perjantaina --background video --out ./shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\campus-news-ticker.claude-sonnet-5-5-high\\frames",
+        "frames": 47,
+        "crops": 1,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 2,
+        "buttons": [
+          "pause",
+          "resume",
+          "skip"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2",
+        "benchValidated": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2",
+        "reviewed": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 19,
+        "opened": 19,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "brass-band-sponsor-strip.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "brass-band-sponsor-strip",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "2161545f-ca0b-4e20-99bb-07a3e3bd988c",
+      "costCents": 0,
+      "notionalUsd": 0.7089663,
+      "wallSeconds": 246,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type sponsor-strip --design neutral --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:d163d46b284368373dc3b6094721500381ef6f1fb284eaf525ae2c61e2fdbb62"
+        },
+        {
+          "command": "noacg validate ./graphic --json",
+          "code": 0,
+          "digest": "sha256:d163d46b284368373dc3b6094721500381ef6f1fb284eaf525ae2c61e2fdbb62"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:5ebd48d844ec654cb74bebac76a5cf47f7e678ad4b3f9ddb19e2ab92594feef6"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:a566968d84b60e5c514ac1f2cdc26859393bdd092915af258aca5ecea457751e"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:9217e7d607793d67d4969c1decb2521e77b10154f19ce5c0755f5914a3b19d4b"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:5de96f88e03594e8434e27908652825a57fcd05e55f669bf17e5106fa09c2552"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:8a1de28fe862e11456e32e911e672bd3030b15822be3cda8eeec30bd4738e1c6"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:87903512cb28208325c7c64994aad7adf4662577b75089ebc37f94702a2f448e"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:1ab49c630a5e2f8d52dcb8690ee5dd2f996c093ecac902026819a8c1b0c3d636"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:d9cd8d7fd45402c605ea5a36b466474a58a62f9f8547863382a5b10f0d400eca"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:692e77d52cdd7df5844d3fd87d0ecb1da287cf00e74ad8caf9307111a76f3940"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:6e2c7cc11fb68facbfdc9268be69b9e27833f317788d439bb6ac47ea86a163dd"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:a1f810c945df794c82a87774598f718f6da27657f77fd243f3df725c17c24e4d"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:a1f810c945df794c82a87774598f718f6da27657f77fd243f3df725c17c24e4d"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:a1f810c945df794c82a87774598f718f6da27657f77fd243f3df725c17c24e4d"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\brass-band-sponsor-strip.claude-sonnet-5-5-high\\frames",
+        "frames": 26,
+        "crops": 4,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:a1f810c945df794c82a87774598f718f6da27657f77fd243f3df725c17c24e4d"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 1
+      },
+      "operator": {
+        "inputs": 4,
+        "buttons": [],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:a1f810c945df794c82a87774598f718f6da27657f77fd243f3df725c17c24e4d",
+        "benchValidated": "sha256:a1f810c945df794c82a87774598f718f6da27657f77fd243f3df725c17c24e4d",
+        "reviewed": "sha256:a1f810c945df794c82a87774598f718f6da27657f77fd243f3df725c17c24e4d",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 11,
+        "opened": 11,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "futsal-cup-winner-card.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "futsal-cup-winner-card",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "60e74be5-c829-469e-8309-25ac0d1121a4",
+      "costCents": 0,
+      "notionalUsd": 1.2278007999999998,
+      "wallSeconds": 385,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg --version",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type winner-card --design wn01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:413d88af779f94982b0ea5594cf64956843d911104593e84e707da4498d8cfed"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:fae0bbd97551c75b1544e1153a56401e5c1d5accf7bbabc50a2c51bfb7b27f8c"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:3e88eb01b818298d7daa7f2f199d03761fec9a56e0c9d6079f25da1bb2b36a8a"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./g --state onair --out ./a.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg screenshot ./g --event celebrate --at 1.6 --background video --out ./c.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:c0f4dc57d6458e54e5bbeddc841e016f229c1b9b0e03cfd3dc5e5014f84efc52"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:c0f4dc57d6458e54e5bbeddc841e016f229c1b9b0e03cfd3dc5e5014f84efc52"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:76df523833aaeb164820406b5120696251a4f81bcaeabe71a4a1860d9a44cb0a"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:76df523833aaeb164820406b5120696251a4f81bcaeabe71a4a1860d9a44cb0a"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:76df523833aaeb164820406b5120696251a4f81bcaeabe71a4a1860d9a44cb0a"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:62e5fb97e841ea11d1e9bae82c355549b3868c7779856e65485ebc690e232881"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:62e5fb97e841ea11d1e9bae82c355549b3868c7779856e65485ebc690e232881"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:62e5fb97e841ea11d1e9bae82c355549b3868c7779856e65485ebc690e232881"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\futsal-cup-winner-card.claude-sonnet-5-5-high\\frames",
+        "frames": 46,
+        "crops": 6,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:62e5fb97e841ea11d1e9bae82c355549b3868c7779856e65485ebc690e232881"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 6,
+        "buttons": [
+          "celebrate",
+          "settle"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:62e5fb97e841ea11d1e9bae82c355549b3868c7779856e65485ebc690e232881",
+        "benchValidated": "sha256:62e5fb97e841ea11d1e9bae82c355549b3868c7779856e65485ebc690e232881",
+        "reviewed": "sha256:62e5fb97e841ea11d1e9bae82c355549b3868c7779856e65485ebc690e232881",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 19,
+        "opened": 19,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "choir-final-audience-vote.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "choir-final-audience-vote",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "db4e792e-71fc-401c-9f73-b2e15617f2e7",
+      "costCents": 0,
+      "notionalUsd": 0.805715,
+      "wallSeconds": 248,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type live-poll --design pl01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:3a70cf468331981e0e1ebce81c9b7a4a116906556aea0df949643a72af60089f"
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:9616295af08ccf2f4d674fe91f5f45bcd9af5872b25c56975dd557a353010b35"
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:4e59a7fea8d33d9a62a0a061558bc6a8f4881a0eae12ed5ada064309ae993e8c"
+        },
+        {
+          "command": "noacg inspect .",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage . --out ../outputs/coverage",
+          "code": 0,
+          "digest": "sha256:4e59a7fea8d33d9a62a0a061558bc6a8f4881a0eae12ed5ada064309ae993e8c"
+        },
+        {
+          "command": "noacg validate .",
+          "code": 0,
+          "digest": "sha256:2bab2d174928641ef6fcdecd9b7c3b0a8873da4581c1510c397888feff4f175b"
+        },
+        {
+          "command": "noacg coverage . --out ../outputs/coverage",
+          "code": 0,
+          "digest": "sha256:2bab2d174928641ef6fcdecd9b7c3b0a8873da4581c1510c397888feff4f175b"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:2bab2d174928641ef6fcdecd9b7c3b0a8873da4581c1510c397888feff4f175b"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\choir-final-audience-vote.claude-sonnet-5-5-high\\frames",
+        "frames": 52,
+        "crops": 3,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:2bab2d174928641ef6fcdecd9b7c3b0a8873da4581c1510c397888feff4f175b"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 4,
+        "buttons": [
+          "close",
+          "result",
+          "call"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:2bab2d174928641ef6fcdecd9b7c3b0a8873da4581c1510c397888feff4f175b",
+        "benchValidated": "sha256:2bab2d174928641ef6fcdecd9b7c3b0a8873da4581c1510c397888feff4f175b",
+        "reviewed": "sha256:2bab2d174928641ef6fcdecd9b7c3b0a8873da4581c1510c397888feff4f175b",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 21,
+        "opened": 15,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-light.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "christmas-mass-holding.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "christmas-mass-holding",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "5e1d5ca2-136a-4188-bfc1-92fa7b90d870",
+      "costCents": 0,
+      "notionalUsd": 0.9865102,
+      "wallSeconds": 295,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type holding-screen --design ss01 --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:8b7b44ac65792b86a1e1da9df4a883ec8098b81d390c69235353383ba7b4c2d8"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:51350df040424e7402788be01f710756be822ac704feba826478ca7861b49650"
+        },
+        {
+          "command": "noacg validate ./graphic --screenshots ./shots",
+          "code": 0,
+          "digest": "sha256:0e0cf7527b75efb6d55b129e1c5aa28f50511fdedcb564a905057b89f272f0e0"
+        },
+        {
+          "command": "noacg inspect ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:0e0cf7527b75efb6d55b129e1c5aa28f50511fdedcb564a905057b89f272f0e0"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:5d902c58e5a8c8f4b27d6d6a35a9e9072b2e36778fc1c38d405a37fcab24dbb5"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:5d902c58e5a8c8f4b27d6d6a35a9e9072b2e36778fc1c38d405a37fcab24dbb5"
+        },
+        {
+          "command": "noacg validate ./graphic",
+          "code": 0,
+          "digest": "sha256:9b1372c61abc13209f240f03f1a089f93ed353d3731b8959534c1756921d2ced"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:9b1372c61abc13209f240f03f1a089f93ed353d3731b8959534c1756921d2ced"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:9b1372c61abc13209f240f03f1a089f93ed353d3731b8959534c1756921d2ced"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\christmas-mass-holding.claude-sonnet-5-5-high\\frames",
+        "frames": 41,
+        "crops": 4,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:9b1372c61abc13209f240f03f1a089f93ed353d3731b8959534c1756921d2ced"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 5,
+        "buttons": [
+          "pause",
+          "resume"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:9b1372c61abc13209f240f03f1a089f93ed353d3731b8959534c1756921d2ced",
+        "benchValidated": "sha256:9b1372c61abc13209f240f03f1a089f93ed353d3731b8959534c1756921d2ced",
+        "reviewed": "sha256:9b1372c61abc13209f240f03f1a089f93ed353d3731b8959534c1756921d2ced",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 17,
+        "opened": 17,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    },
+    {
+      "id": "cross-country-race-clock.claude-sonnet-5-5-high",
+      "costUnread": false,
+      "brief": "cross-country-race-clock",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "outcome": "delivered",
+      "reason": null,
+      "sessionId": "72861211-dc1a-4bb6-a071-708bfd839846",
+      "costCents": 0,
+      "notionalUsd": 0.8603735,
+      "wallSeconds": 249,
+      "cleanup": null,
+      "progress": null,
+      "trace": [
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg types",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg doctor",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --type scorebug --design neutral --out C:/Users/ahonemi/AppData/Local/Temp/sb",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg scaffold --fields Kisan nimi:text,Aika:text --out ./graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate . --screenshots ../shots",
+          "code": 0,
+          "digest": "sha256:0638d8c08abe5f9ece87d4a59e712b255474c155a7bca4c7f341e983c78ae3e9"
+        },
+        {
+          "command": "noacg screenshot --help",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg validate graphic",
+          "code": 0,
+          "digest": "sha256:7f776e58419d5485773b64dbfe3240a10c59d4a71ecb998c2680f1d24fdb909f"
+        },
+        {
+          "command": "noacg screenshot graphic --state onair --data f0=Naiset 35-vuotiaat ja yli, 4 x 3 km kunto- ja ikäryhmäviesti, Pohjois-Savon Hiihtoseurojen Syysmetsäviesti 2026 --event clockStart --at 3 --background video --out shots/long.png",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg inspect graphic",
+          "code": 0,
+          "digest": null
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 1,
+          "digest": "sha256:7f776e58419d5485773b64dbfe3240a10c59d4a71ecb998c2680f1d24fdb909f"
+        },
+        {
+          "command": "noacg validate graphic",
+          "code": 0,
+          "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+        },
+        {
+          "command": "noacg coverage ./graphic --out ./outputs/coverage",
+          "code": 0,
+          "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+        },
+        {
+          "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+          "code": 0,
+          "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+        }
+      ],
+      "shape": {
+        "ok": true
+      },
+      "capture": {
+        "exit": 0,
+        "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\cross-country-race-clock.claude-sonnet-5-5-high\\frames",
+        "frames": 53,
+        "crops": 1,
+        "findings": [],
+        "failures": [],
+        "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+      },
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": 0
+      },
+      "operator": {
+        "inputs": 1,
+        "buttons": [
+          "clockStart",
+          "clockStop",
+          "clockReset"
+        ],
+        "missing": []
+      },
+      "digest": {
+        "ok": true,
+        "delivered": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc",
+        "benchValidated": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc",
+        "reviewed": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc",
+        "problems": []
+      },
+      "functional": true,
+      "look": {
+        "reviewed": 21,
+        "opened": 21,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      }
+    }
+  ],
+  "gallery": {
+    "review": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\review.html",
+    "key": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\key.json",
+    "notes": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\notes.md",
+    "ids": [
+      "b2bc49",
+      "771ba3",
+      "c34ffd",
+      "6a9c6f",
+      "11e9fe",
+      "d1ca0a",
+      "675145",
+      "ff8995",
+      "cbfdf8",
+      "07ec04",
+      "34105d",
+      "d89da8",
+      "8c84ee",
+      "c6db97",
+      "4fec86",
+      "59863a",
+      "de69bd",
+      "561120",
+      "aac394",
+      "3a2d58",
+      "50de73",
+      "0cc8ec",
+      "4e7301"
+    ]
+  }
+}

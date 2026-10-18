@@ -327,3 +327,82 @@ room for one more round after this one at most.
   C:/claude/noacg-bench-archive/harness-ladder-L2/round-3`, the eight in `RUNG_ORDER` and then the
   15 tuning briefs, judged three times a graphic with `--phase L2 --delivered-only`, counted with
   `--tally <dir>` (D6 as amended) and `--tally <dir> --order tuning`.
+
+### Round 3 result, and the decision
+
+Sessions 06:54Z to 08:13Z, two at a time; readings 06:57Z to 08:18Z. Evidence:
+`benchmarks/harness/ladder/L2/round-3/` (23 cells, `judgements.jsonl`, `readings.json`, both
+tallies); `--tally benchmarks/harness/ladder/L2/round-3` and `--tally ... --order tuning`
+reproduce them.
+
+| the eight | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| round 1 (the base) | 7 | 4 | $16.32 | $2.04 | $4.08 | 600.5 s | 5 of 8 | 3 |
+| round 2 (reverted) | 8 | 5 | $10.09 | $1.26 | $2.02 | 463 s | 4 of 8 | 3 |
+| round 3 | 7 | **4** | $11.59 | **$1.45** | **$2.90** | 511 s | 4 of 8 | 3 |
+
+| 15 tuning briefs | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| round 1 (the base) | 15 | 8 | $20.93 | $1.40 | $2.62 | 261 s | 11 of 15 | 7 |
+| round 2 (reverted) | 15 | 5 | $14.71 | $0.98 | $2.94 | 267 s | 10 of 15 | 10 |
+| round 3 | 15 | **7** | $13.63 | **$0.91** | **$1.95** | 255 s | 13 of 15 | 8 |
+
+- **No session carried a verdict.** Every agent wrote its verdicts once, at the end (most with a
+  short script over `review.json`), never between a coverage and the next, so coverage never had a
+  closed verdict to keep. The second change did not act; round 3 measured round 2's strips a
+  second time. The two strips runs differ by 1 usable on the eight and 2 on the tuning briefs:
+  that is the noise of one measurement of 8 or 15 graphics at this rung.
+- On the eight: the alerts, the nominee reveal, the timing tower and the volleyball board usable
+  (its per-team `undoA` and `undoB` read as the brief's Undo, `readings.json`); the matchup
+  (text over text, a logo on its own tile), the scorebug (empty or broken after Next map), the
+  quiz (its Select shows nothing under the stress values) not; the hockey board stopped `NOT
+  READY`. On the tuning briefs, the school scoreboard, the basketball scorebug and the
+  cross-country clock usable; the debate clock and the choir vote not.
+- Against the hypothesis: **refuted** (the eight's look line went from 5 to 4, not up by 2), the
+  cause being that the carry never triggered. **Decision: round 3 is kept**, by its own
+  pre-registered lines: usable did not fall by 2 or more on either set against round 1 (4 to 4,
+  8 to 7), and the cost moved (per session down 29% on the eight and 35% on the tuning briefs;
+  per usable from $4.08 to $2.90 and from $2.62 to $1.95). The carry stays: it does nothing
+  unless a verdict is closed before coverage runs again, and then only keeps verdicts on
+  identical pictures.
+- Spend: $0 credit; 23 sessions $25.22 notional; 66 readings $92.07 notional (one of the hockey
+  board's sessions ended `NOT READY`, so it had none).
+
+## Round 4: the same picture, seen once; logos without tiles
+
+**Hypothesis**, committed and pushed before the round's first session, on round 3's base (kept).
+Two changes, each for its own failure; this window has room for this round and no other.
+
+- **Which failures.**
+  1. *The look line* (every reviewed frame opened in 4 of 8 sessions in rounds 2 and 3). The
+     traces show agents open every frame, fix something, cover again and open only what the fix
+     should change, then set every verdict at once. Round 3's volleyball board read 39 frames,
+     covered again, read 2 and handed in 2 of 35 "opened"; most of the 33 were the very pictures
+     it had read. The count credits a read only after the last coverage, so it cannot tell a
+     picture seen before from one never seen.
+  2. *Logos on tiles* (the eight's most common design failure): the matchup (rounds 2 and 3), the
+     hockey board and the collegiate scorebug (round 2) each put every logo or crest on a box of
+     its own, the boxes in different colours; the judge calls it tiles stuck onto the graphic.
+     The brass band sponsor strip on the tuning briefs fails the same way in every round.
+- **Which changes.**
+  1. `noacg coverage` marks each frame it drew byte for byte as the coverage before it in the
+     same folder did, with `sameSince`, how many runs in a row have drawn that picture (closed
+     verdicts are still carried as in round 3). The bench counts a frame as opened when the
+     session read it after the coverage run `sameSince` runs back: it was that same picture then.
+     A frame drawn anew still needs a read after the last run. No earlier round's count changes
+     (their records have no `sameSince`).
+  2. `SKILL.md`'s logo line: logos that differ (white, dark, full colour) share one treatment the
+     design already has, the same in every slot (the graphic's own surface, or a soft glow or
+     outline it draws); never a box of its own around each logo, never boxes of different
+     colours.
+- **What should move.** On the eight: every frame opened in at least 6 sessions (from 4); usable
+  at least 5 (the matchup, or the hockey board, or the scorebug no longer failed for tiles); cost
+  per session about round 3's. On the 15 tuning briefs: every frame opened in at least 13; usable
+  not below round 3's 7, give or take one; the sponsor strip's logos without tiles.
+- **Refuted** if the eight's look line rises by fewer than 2, or no graphic on either set fails
+  for logo tiles less than before (the judge still naming tiles on the matchup, the hockey board,
+  the scorebug and the sponsor strip). **Reverted** (D7) if usable falls by 2 or more on either
+  set against round 3, or if nothing moves.
+- **How it runs**: as round 3, with `--stage round-4 --out
+  C:/claude/noacg-bench-archive/harness-ladder-L2/round-4`, two lanes, or three when about 3 GB
+  is free at the start.

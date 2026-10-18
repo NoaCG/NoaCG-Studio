@@ -1,0 +1,229 @@
+{
+  "costUnread": false,
+  "brief": "school-quiz-secret-pick",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "4dc8d089-1b8e-4617-82eb-00e417da2be5",
+  "costCents": 0,
+  "notionalUsd": 1.3365718000000004,
+  "wallSeconds": 619,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:cdab0b221a69effcb26d578778c3c83d0ddecd5646abe3d57a74b0861f1fb972"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:cdab0b221a69effcb26d578778c3c83d0ddecd5646abe3d57a74b0861f1fb972"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:2c9b9242197fcdc597ab947e746682f879d524a35035375737eb59428462597b"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:91ec4295ea4bcf878af38ad8e70a942428172ad5fc500e528919602f8dcccd85"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --at 4s --data f0=Which scientist won Nobel Prizes in both Physics and Chemistry, discovered the elements polonium and radium, and later led mobile X-ray units in the First World War? --data f1=Marie Curie, who worked in Paris with her husband Pierre and later directed the Radium Institute in Paris and Warsaw --data f2=Short one --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:1920e463bf24fb4705178445698bf2ee81413191f0dd478ed796d824ad311dfa"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state stress --at 4s --out shots/stress4.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:cd21943d57c541192bf98a4ca2d95ab77361693be471185208ec4131ccd8b7d8"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --at 4s --data f0=Which scientist won Nobel Prizes in both Physics and Chemistry, discovered the elements polonium and radium, and later led mobile X-ray units in the First World War? Which scientist won Nobel Prizes in both Physics and Chemistry, discovered the elements polonium and radium, and later led mobile X-ray units in the First World War? --data f1=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --data f2=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --data f3=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --data f4=Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford Dorothy Hodgkin, who mapped the structure of penicillin, vitamin B12 and insulin using X-ray crystallography in Oxford --out shots/x2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:cd21943d57c541192bf98a4ca2d95ab77361693be471185208ec4131ccd8b7d8"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --event select --event lock --event revealChoice --at 3s --out shots/pickreveal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=A --event select --event lock --event revealChoice --event judge --at 3s --out shots/wrong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f7=34 | 52 | 9 | 5 --event judge --event audience --at 3s --out shots/aud.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --event lock --event revealChoice --at 3s --out shots/secret-pick.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=A --event lock --event revealChoice --event judge --at 3s --out shots/secret-wrong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=B --event select --at 3s --out shots/sel.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:bc3e1e935bc26e388f64e647ef04909a3944577e75e0da1ddf9dbf3ce7dda9b5"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:bc3e1e935bc26e388f64e647ef04909a3944577e75e0da1ddf9dbf3ce7dda9b5"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f7=34 | 52 | 9 | 5 --event judge --event audience --at 3s --out shots/aud.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\school-quiz-secret-pick.claude-sonnet-5-5-high\\frames",
+    "frames": 68,
+    "crops": 5,
+    "findings": [
+      "event-select: Select answer shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing.",
+      "event-revealchoice: Reveal choice shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing.",
+      "event-audience: Audience result shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing."
+    ],
+    "failures": [],
+    "digest": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "revealChoice",
+      "judge",
+      "audience"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c",
+    "benchValidated": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c",
+    "reviewed": "sha256:3422f85691dd49a67e960bcf45baff47c5714bbdced53c1e24a83d8f0dc02c3c",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 29,
+    "opened": 0,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "long-side-1-video.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg",
+      "take-strip.jpg",
+      "event-select-strip.jpg",
+      "event-select-10000ms.jpg",
+      "event-lock-strip.jpg",
+      "event-lock-10000ms.jpg",
+      "event-revealchoice-strip.jpg",
+      "event-revealchoice-10000ms.jpg",
+      "event-judge-strip.jpg",
+      "event-judge-10000ms.jpg",
+      "event-audience-strip.jpg",
+      "event-audience-10000ms.jpg",
+      "next-2-strip.jpg",
+      "next-2-01500ms.jpg",
+      "update-strip.jpg",
+      "update-01500ms.jpg",
+      "out-strip.jpg",
+      "event-revealchoice-after-lock-strip.jpg",
+      "event-revealchoice-after-lock-10000ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}
