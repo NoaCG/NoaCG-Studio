@@ -254,6 +254,9 @@ jobs:
       # recovered from the report.
       - name: Signed-in lifecycle task
         run: npm run test:e2e:live -- e2e/configured/leave-probe.spec.ts --retries=0 --workers=1
+      - name: Eighth checker, the reservation across two devices
+        if: always() && hashFiles('e2e/configured/leave-eighth-device.spec.ts') != ''
+        run: sha256sum e2e/configured/leave-eighth-device.spec.ts && npm run test:e2e:live -- e2e/configured/leave-eighth-device.spec.ts --retries=0 --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
