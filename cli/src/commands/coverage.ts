@@ -10,11 +10,11 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient } from '../bridgeClient.js';
 import { cliVersion } from '../config.js';
-import { coveragePlan, frameFile, LATER_MS, STRIP_MS, type CoverageRender, type Ground } from '../coverage.js';
+import { coveragePlan, frameFile, LATER_MS, settlesOwnState, STRIP_MS, stripFile, type CoverageRender, type Ground } from '../coverage.js';
 import { sourceDigest } from '../digest.js';
 import { REVIEW_FILE, reviewFor } from '../review.js';
-import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { BUSY_PLATE, changedShare, LIGHT_PLATE, mimeTypeOf, safe, shoot, shootSequence, VIDEO_PLATE, type FrameOp, type SequenceShot } from '../screenshot.js';
+import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { BUSY_PLATE, changedShare, composeStrip, LIGHT_PLATE, mimeTypeOf, momentLabel, safe, shoot, shootSequence, VIDEO_PLATE, type FrameOp, type SequenceShot } from '../screenshot.js';
 import { markFramesDir, readPackageInput } from '../workspace.js';
 
 const PLATES: Record<Ground, string> = { video: VIDEO_PLATE, light: LIGHT_PLATE, busy: BUSY_PLATE };
@@ -50,6 +50,9 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
   const outDir = flagString(args, 'out');
   if (!outDir) throw new UsageError('coverage needs --out <dir> for its frames.');
   const stress = await readStress(flagString(args, 'stress'));
+  // --strips: each timeline (the Take, an event, a step, the update, Out) as ONE picture of its
+  // moments instead of a frame per moment, so the look costs a reader far fewer pictures.
+  const strips = flagBool(args, 'strips', false);
   const dir = path.resolve(outDir);
   if ((await fs.stat(path.resolve(input)).catch(() => null))?.isDirectory()) await markFramesDir(dir, input);
   await fs.mkdir(dir, { recursive: true });
@@ -72,7 +75,7 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     const size = { width: template.resolution.width, height: template.resolution.height };
     const offHtml = await bridge.compose(template, 'off');
 
-    const frames: Array<{ file: string; render: string; values: string; ground: Ground; state: string; atMs: number; ops: string[]; machine: SequenceShot['machine'] }> = [];
+    const frames: Array<{ file: string; render: string; values: string; ground: Ground; state: string; atMs: number; moments?: number[]; ops: string[]; machine: SequenceShot['machine'] }> = [];
     const crops: Array<{ file: string; key: string; values: string; ground: Ground }> = [];
     const findings: string[] = [];
     const failures: string[] = [];
@@ -84,7 +87,17 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     frames.push({ file: offFile, render: 'off', values: 'none', ground: 'video', state: 'off, before the Take', atMs: 0, ops: [], machine: null });
 
     const keep = async (r: CoverageRender, shot: SequenceShot) => {
-      for (const f of shot.strip) {
+      const asStrip = strips && shot.strip.length > 1;
+      if (asStrip) {
+        const moments = shot.strip.map((f) => f.atMs);
+        const file = stripFile(r, 'jpg');
+        await fs.writeFile(path.join(dir, file), await composeStrip(shot.strip, size));
+        frames.push({ file, render: r.name, values: r.values, ground: r.ground, state: `${r.state}, as a strip: ${moments.map(momentLabel).join(', ')}, left to right and down`, atMs: moments[moments.length - 1], moments, ops: shot.ran, machine: shot.machine });
+      }
+      // A strip's thirds show the motion, not the small print. The state an action, a step or the
+      // update settles in is shown by no other frame, so its last moment stays a frame of its own;
+      // the Take settles in the sample frame and Out in nothing.
+      for (const f of asStrip ? (settlesOwnState(r) ? shot.strip.slice(-1) : []) : shot.strip) {
         const file = frameFile(r, f.atMs, extOf(f.image));
         await fs.writeFile(path.join(dir, file), f.image);
         frames.push({ file, render: r.name, values: r.values, ground: r.ground, state: r.state, atMs: f.atMs, ops: shot.ran, machine: shot.machine });

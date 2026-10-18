@@ -26,7 +26,7 @@ import { promisify } from 'node:util';
 import { test } from 'node:test';
 
 import { canonicalJson, sourceDigest } from '../dist/digest.js';
-import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, sidesOf, STRIP_MS } from '../dist/coverage.js';
+import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, settlesOwnState, sidesOf, STRIP_MS } from '../dist/coverage.js';
 import { zipPathFor } from '../dist/commands/record.js';
 import { REVIEW_FORMAT, reviewFor, reviewProblems, reviewSummary, verdictState } from '../dist/review.js';
 
@@ -137,6 +137,8 @@ test('the plan covers every value set on both grounds, every event, step, update
   assert.deepEqual(plan.renders.find((r) => r.name === 'long-video').crops, ['f0', 'f2', 'f4'], 'every text and image field is cropped once');
   assert.equal(frameFile(take, 20, 'jpg'), 'take-00020ms.jpg');
   assert.equal(frameFile(plan.renders[0], 1500, 'jpg'), 'sample-video.jpg');
+  const ownState = plan.renders.slice(15).filter(settlesOwnState).map((r) => r.name);
+  assert.deepEqual(ownState, ['event-goalhome', 'event-final', 'next-2', 'next-3', 'update'], '--strips keeps these settled states as full frames: the Take settles in the sample frame, Out in nothing');
 });
 
 test('the brief logo goes into the first image field it gave no picture of, or is said not drawn', () => {

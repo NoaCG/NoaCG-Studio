@@ -48,11 +48,13 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   screenshot <dir|zip> [--state off|onair|stress] [--data k=v]... [--event <op>]... [--at <time>]
              [--background transparent|checker|video|<colour>|<image>] --out <png>
                                  One frame; --event runs operator presses after the Take.
-  coverage <dir|zip> --out <dir> [--stress <brief.json>]
+  coverage <dir|zip> --out <dir> [--stress <brief.json>] [--strips]
                                  Every frame to look at before handing in: each value set on dark
                                  and light grounds, the Take, every event, step, update and Out as
                                  timed strips, and field crops. Writes coverage.json beside them,
-                                 and review.json: one verdict to set per frame.
+                                 and review.json: one verdict to set per frame. --strips draws each
+                                 timed strip as one picture of its moments, not a frame per moment,
+                                 and keeps the state an action, step or update settles in as a frame.
   record <dir|zip> --out <record.json> [--review <review.json>] [--name N] [--folder F]
                                  Validate, then write the library record save would send, and the
                                  package zip beside it, without saving anything. --review refuses
