@@ -3,7 +3,7 @@ import { getTemplateParts } from '../../model/structure';
 import { readOrganization, writeOrganization } from '../../model/editorOrganization';
 import { locateAnimData, losslessAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
 import { applySound, type SoundOperation } from '../../blocks/soundEdit';
-import { layerPress, setKeyframe, setLayerActivation } from '../../blocks/animEdit';
+import { addStep, layerPress, setKeyframe, setLayerActivation } from '../../blocks/animEdit';
 import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
 import { editArtworkText, editArtworkStyle, editArtworkMetadata, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
@@ -106,11 +106,16 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       if ('error' in result) throw new Error(result.error);
       next = result.template; targets.add(result.selector);
     } else if (operation.kind === 'graphic.activation') {
-      const data = losslessAnimData(next.js);
+      let data = losslessAnimData(next.js);
       const document = new DOMParser().parseFromString(next.html, 'text/html');
       const node = document.querySelector(operation.selector);
-      if (!data || !node?.matches('[data-gfx][id^="gfx-"]') || !Number.isInteger(operation.press) || operation.press < -1 || operation.press >= data.steps.length - 2) {
-        throw new Error('Choose an inserted graphic and an existing appearance step. Its source is preserved.');
+      if (!data || !node?.matches('[data-gfx][id^="gfx-"]') || !Number.isInteger(operation.press) || operation.press < -1 || operation.press > data.steps.length - 2) {
+        throw new Error('Choose an inserted graphic and an appearance step. Its source is preserved.');
+      }
+      if (operation.press === data.steps.length - 2) {
+        const extended = addStep(data);
+        if (!extended) throw new Error('This appearance step cannot be added safely. Its source is preserved.');
+        data = extended;
       }
       const from = layerPress(data, operation.selector);
       if (from !== operation.press) {

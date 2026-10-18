@@ -151,6 +151,26 @@ test('insert as a NEW NEXT STEP — a named step reveals the graphic, retargetab
   const replay = await mountWorkingDocument(page);
   await replay.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
   await expect(replay.locator(gfxSel)).toHaveCSS('opacity', '1');
+  // The emptied press went away, but Play must still be retargetable to a new named step.
+  await expect(appears.locator('option', { hasText: 'New step' })).toHaveCount(1);
+  await appears.selectOption({ label: 'New step' });
+  await expect(appears).toHaveValue('0');
+  const recreated = await state(page);
+  expect(recreated.anim!.steps.length).toBe(before.anim!.steps.length + 1);
+  expect(recreated.anim!.steps[1].reveals).toContain(gfxSel);
+  for (const selector of Object.keys(after.anim!.steps[1].layers)) {
+    if (selector !== gfxSel) expect(recreated.anim!.steps[1].layers[selector]).toEqual(retargeted.anim!.steps[0].layers[selector]);
+  }
+  const nextAgain = await mountWorkingDocument(page);
+  await nextAgain.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect(nextAgain.locator(gfxSel)).toHaveCSS('opacity', '0');
+  await nextAgain.locator('body').evaluate(() => (window as unknown as { next: () => void }).next());
+  await expect(nextAgain.locator(gfxSel)).toHaveCSS('opacity', '1');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(retargeted.template);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(recreated.template);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect.poll(async () => (await state(page)).template).toEqual(after.template);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();

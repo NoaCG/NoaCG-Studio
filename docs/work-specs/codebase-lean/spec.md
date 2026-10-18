@@ -1260,3 +1260,19 @@ Before deleting support for the old dock-layout format, ask that separate stored
 Do not ask about retiring AI experiments during the active harness work; they are outside this
 phase. The first seven-file source PR needs no further technical discovery from the owner.
 Approval of that PR's scope and an execution window remain distinct from this research update.
+
+### Live-feature review repair: appearance step creation (2026-10-18)
+
+PR #1492 review found the Inspector could move an inserted graphic to Play but could not
+create a new appearance step once the emptied step disappeared. Verified before repair:
+j-4626 failed because New step was absent (expected one option, found zero). Auto-merge was
+withdrawn first. The control now offers New step, and the operation accepts the next press
+index and uses the existing machine-aware addStep mutator before transferring child motion.
+No parallel timeline format or direct store write was introduced.
+
+The same kept insertion case now proves named step to Play to new named step, exact child
+tracks, real Play hidden/Next visible, full Undo/Redo source equality and undo back before
+insertion. j-4627 ran the complete control and template-insert files: 13 passed, zero skips,
+40.7 seconds. ESLint, TypeScript and changed gates passed (five Node files, 27 tests).
+Review and simplify were inline; one confirmed Codex finding fixed. No full local build or
+suite was repeated. The existing reference-editor qualification gap still applies.

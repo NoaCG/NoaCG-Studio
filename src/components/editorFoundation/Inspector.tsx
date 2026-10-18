@@ -93,6 +93,7 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
           <select aria-label="Appears" value={layerPress(view.data, part.selector)} onChange={event => execute({ kind: 'graphic.activation', selector: part.selector, press: Number(event.target.value) })}>
             <option value={-1}>With Play</option>
             {view.data.steps.slice(1, -1).map((step, index) => <option key={index} value={index}>{step.name}</option>)}
+            <option value={view.data.steps.length - 2}>New step</option>
           </select>
         </label>}
         {selection.length === 1 && <><ArtworkAppearance seek={seek} key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
