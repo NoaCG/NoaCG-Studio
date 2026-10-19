@@ -299,22 +299,18 @@ data and moves nothing until it is published again.
 - **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
   on an operator surface. A feed that could clear the frame would be a second operator with
   no face.
-- **Not a read API — yet.** Today it answers about the request it just handled, nothing else.
-  A read verb is approved for Phase 2 (an integrator reconciling after a restart should ask
-  what NoaCG believes rather than push a whole snapshot blindly); until then, the production's
-  state belongs to the operator surfaces.
+- **A read of the data only.** `GET /api/data/state` answers the production's current tree and
+  bindings, so an integrator reconciling after a restart can ask what NoaCG believes rather than
+  push a whole snapshot blindly. Nothing else is readable here: what is on air and the rundown
+  belong to the operator surfaces.
 - **Not a renderer channel.** There is no path from here to the output page except the same
   log every operator writes; the renderer stays dumb on purpose.
 
 ## For the production owner
 
-The key is on the production's `control_shows` row (`data_key`), minted at publish. Until the
-production page surfaces it in the UI, read it with an owner session (the row is RLS-guarded;
-only you and the server can see it) - e.g. the Supabase dashboard's SQL editor:
-
-```sql
-select title, data_key from control_shows;
-```
+The key is on the production's `control_shows` row (`data_key`), minted at publish. Read it on
+the production's **Data** tab (`▾ Data key`, then Reveal or Copy); an owner session can also read
+the column directly, since the row is RLS-guarded and only you and the server can see it.
 
 Hand it to the integrator out of band. Rotate by unpublishing and re-publishing (viewer and
 operator URLs survive that by design), or by updating the column; clear it to `NULL` to turn

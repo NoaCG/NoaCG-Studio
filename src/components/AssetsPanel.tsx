@@ -31,6 +31,7 @@ import type { OrganizationOperation } from '../blocks/editorOrganization';
 import InlineOrganizationName from './editorFoundation/InlineOrganizationName';
 
 export interface AssetPanelActions {
+  insertTemplate?: () => void;
   bins?: {
     directories: string[];
     revision: () => { source: number; assets: number };
@@ -514,9 +515,9 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
           <button className="primary" onClick={() => fileInput.current?.click()} data-testid="assets-import">
             {actions ? 'Import files…' : '+ Import assets…'}
           </button>
-          {!actions && <button
-            onClick={openInsertDialog}
-            title="Insert a graphic from the template catalog into this project — it joins the canvas, timeline, and states without replacing anything"
+          {(!actions || actions.insertTemplate) && <button
+            onClick={actions?.insertTemplate ?? openInsertDialog}
+            title="Insert a graphic from the template catalog into this project, keeping its current artwork"
             data-testid="assets-insert-template"
           >
             ✚ Template graphic…

@@ -1,13 +1,11 @@
 # plan-run - run a long plan phase by phase
 
-`/plan-run <plan> until <time>` (Codex: `$plan-run`). Each phase is built by one fresh session and
-checked by another, the next only after the check passed. Use `.agent-workflows/cloud-delegate.md` for cloud routing and executing-worker resources.
+`/plan-run <plan> until <time>` (Codex: `$plan-run`). Fresh builders and independent checkers alternate; the next phase waits for PASS. Use `.agent-workflows/cloud-delegate.md` for cloud routing and executing-worker resources.
 
 **Runnable plans** (a name here and nothing else):
 
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
-- `guided-mod`, `production-page`, `ci-plan`, `svg-import-engine`, `wizard-shell`, `wizard-ai`, `noacg-harness`,
-  `vmix`, `codebase-health`: `docs/work-specs/<spec>/spec.md`, where `<spec>` is `guided-mod`, `production-page-refactor`, `ci-plan-reliability`,
+- `guided-mod`, `production-page`, `ci-plan`, `svg-import-engine`, `wizard-shell`, `wizard-ai`, `noacg-harness`, `vmix`, `codebase-health`: `docs/work-specs/<spec>/spec.md`, where `<spec>` is `guided-mod`, `production-page-refactor`, `ci-plan-reliability`,
   `svg-import-engine`, `wizard-structure`, `wizard-ai`, `noacg-harness`, `bridge-vmix-adapter`, `codebase-health`; phases, acceptance and notes are in it.
 - `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; `agent-delivery`, `codex-graphic-preview`, `harness-ladder`: `docs/work-specs/<plan>/spec.md`; phases, acceptance and notes are in each. The preview's phase 1 is local.
 
@@ -24,8 +22,18 @@ checked by another, the next only after the check passed. Use `.agent-workflows/
 
 ## 1. Start
 
-- **Open the run** with the owner's window, in Helsinki time with its offset (unstated: ask, along
-  with what the plan's checks need on this machine, such as a signed-in `claude -p`):
+- **Qualify execution before work** on the coordinator and each fresh worker, in its own worktree.
+  Inspect effective terminal, subprocess, network and approval policies; use supported workspace session permissions.
+  Run `node scripts/plan-run-preflight.mjs --context coordinator --until <iso>`
+  in two separate shell calls, then repeat with `--context worker` in a fresh delegated context.
+  One pass or a persistent terminal is insufficient. On resume use `--wave <wave file>` instead
+  of `--until`; reconcile native tasks, PRs and `next` before launch. Record non-secret receipts and policy
+  in the existing wave file, separating sandbox from approved-network evidence. Requalify after policy/context changes.
+  Tool approval waits before execution are pending, not process timeouts or failed tests. If permission is unavailable,
+  checkpoint with one concrete configuration request and stop that context; never loop on individual approvals.
+  Infrastructure/capacity failures before tests run consume no product repair: checkers record `fail blocked:`,
+  builders stop/checkpoint. Preserve owner repair limits and the ledger's blocked-check limit; reuse execution-profile/queue.
+- **Open the run** with the owner's window, in Helsinki time with its offset (unstated: ask, along with machine prerequisites such as signed-in `claude -p`):
   `node scripts/wave-plan-store.mjs --open <date> plan-<plan> --until <iso>`; `<date>` is the run's
   first day, the same `--until` resumes after a restart, a new one is a new window the owner named.
 - **First open only**: read the plan on `origin/main` (`git fetch origin main`) and copy the phases
@@ -33,15 +41,15 @@ checked by another, the next only after the check passed. Use `.agent-workflows/
 - **Arm the wake-up** (Claude desktop, each start): create or re-enable the task printed by `node
   scripts/run-wake.mjs arm <wave file> --resume "plan-run <plan> until <iso>"`; it restarts this
   session if its process stops. `run-wake.mjs awake <wave file>` holds the machine awake to the end.
+  Codex: arm a supported thread heartbeat before launching. An acknowledgement is only a fallback check-in;
+  durable recovery needs an actual supported coding-context/access wake. Without proof, stay through exact-SHA post-land checks.
 
 ## 2. The loop
 
-`node scripts/plan-run.mjs next <wave file>` names the one next step; record it before launching,
-`node scripts/plan-run.mjs record <wave file> <phase> <event> <detail>`, with branch and worktree.
+`node scripts/plan-run.mjs next <wave file>` names the next step; before launch use `node scripts/plan-run.mjs record <wave file> <phase> <event> <detail>` with branch/worktree.
 The ledger refuses a step out of order or launched twice: then launch nothing and run `next` again.
 
-- **launch build** (or **repair**): a builder with the brief below. Record `landed #<n> <merge sha>`
-  once its pull request merged with every check green (`gh pr checks <n>`); a red check, required or
+- **launch build** (or **repair**): use the brief below. Record `landed #<n> <merge sha>` only after merge and every check green (`gh pr checks <n>`); a red check, required or
   not, or a red-on-main alarm on that sha (`npm run jobs`), goes back to that session (`resume`).
 - **launch check**: a checker with the brief below, once the phase is on `main`. Record `pass
   <findings>`, `fail product: <findings>` (next: a repair) or `fail blocked: <what was missing>`
@@ -57,33 +65,25 @@ The ledger refuses a step out of order or launched twice: then launch nothing an
   sessions to commit, push and stop, leave queued pull requests to GitHub, record `paused <what
   remains, pending jobs>` and report; never extend the window yourself.
 - **done** or **time-limit**: after the last notes pull request, confirm `main` is green (`npm run
-  jobs`), run the retro (`orchestrator.md` step 6), write `## Report` in the wave file (15 plain
-  lines: **Needs you** first or "nothing", each phase's pull requests and verdict, where it stopped
-  or paused and what remains, what was not checked, the retro); send it with a phone notification.
+  jobs`), run the retro (`orchestrator.md` step 6), write `## Report` (15 plain lines) in the wave file:
+  **Needs you** first or "nothing", phase PRs/verdicts, stopping point, remaining/unchecked work and retro; send a phone notification.
 
-Sessions get their own worktrees on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on a
-second check). Claude Code: `run_in_background` `wave-row` agents (they wake you), background
-`jobs.mjs wait` per landing and `sleep 1800`, the step 1 wake-up; in the cloud, harness worktrees
-(`orchestrator.md` step 3); use queue-merge.md's single repair owner and proven cloud wake,
-including a scheduled mergeability check for conflicts with no webhook. Codex:
-`spawn_agent` without context, `wait_agent` with a timeout, the 30-minute heartbeat; ask him here.
+Sessions own `<tool>/plan-<plan>-p<phase>-<build|check|repair>` worktrees (`-2` on a second check).
+Claude Code: background `wave-row` agents, `jobs.mjs wait` per landing, `sleep 1800` and step 1's wake.
+Cloud uses harness worktrees (`orchestrator.md` step 3) and queue-merge.md's single repair owner/proven wake,
+including no-webhook conflict checks. Codex: context-free `spawn_agent`, bounded `wait_agent`, 30-minute heartbeat; ask him here.
 **The builder brief**: the row brief from `orchestrator.md` step 3, after these lines:
 ```
-PHASE    <n> of <plan document>: <phase name>. Build it against its acceptance criteria and nothing
-         else; read the plan's phase notes and the decisions it records first.
-NOTES    Same pull request, under the plan's `## Phase notes`: FINDINGS below as the last check's
-         findings, then what the next phase must allow for, decisions, traps.
+PHASE    <n> of <plan document>: <phase name>. Read phase notes/decisions; build only its acceptance criteria.
+NOTES    Same PR, under `## Phase notes`: last check's FINDINGS, next-phase constraints, decisions, traps.
 FINDINGS <the carry: line from next, or "none">
 ```
 **The checker brief**:
 ```
-CHECK   Phase <n> of <plan document>: <phase name>. You did not build it. On current origin/main, do
-        the phase's task the way a user would (and in the reference products the plan names), check
-        each acceptance criterion and the user outcome the plan states; change no product code. PASS
-        only when all of it holds on evidence you produced; anything to fix first (a try-out the
-        plan asks for included) is FAIL product; a prerequisite you could not get (a sign-in, a
-        tool, a flaky runner) is FAIL blocked, named. End with that line, then at most five lines of
-        findings, blockers first.
-NOTES   <land notes: Also add your findings under the plan's `## Phase notes` in a docs-only pull
-        request, /check and /queue-merge it. | otherwise: Open no pull request.>
+CHECK   Phase <n> of <plan document>: <phase name>. You did not build it. On current origin/main,
+        do the user's task, including named reference products/try-outs; check every criterion and
+        stated outcome. Change no product code. PASS needs your own evidence for all of it;
+        anything to fix first is FAIL product; unavailable sign-in/tool/runner is FAIL blocked, named.
+        End with that verdict, then at most five lines of findings, blockers first.
+NOTES   <land notes: Add findings under the plan's `## Phase notes` in a docs-only PR, /check and /queue-merge it. | otherwise: Open no pull request.>
 ```

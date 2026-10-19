@@ -11,7 +11,7 @@ this decision does not specify or authorize a new playout orchestration implemen
 Preserve `src/components/timeline/MachineGraph.tsx`, `src/blocks/machineEdit.ts`,
 `src/blocks/animMachine.ts`, `src/blocks/timelineLens.ts`, `e2e/machine-graph.spec.ts`,
 [state-machine schema](../STATE_MACHINE_SCHEMA.md), [behavior-authoring findings](../BEHAVIOUR_AUTHORING_RESEARCH.md)
-and [earlier failure account](editor-consolidation-2026-09-17/WYSIWYG_PLAN.md).
+and [earlier failure account](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md).
 No source or tests are deleted during planning. Retain stable state IDs, version migrations,
 branch scrubbing, legal operator-event checks, finite settling of infinite loops, serialization
 and exact undo. Existing behavior-bearing graphics must keep rendering, saving and playing.

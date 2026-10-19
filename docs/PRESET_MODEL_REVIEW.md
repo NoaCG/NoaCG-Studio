@@ -2,9 +2,9 @@
 
 > **PARKED 2026-08-08 as a ROADMAP - superseded by `src/blocks/AGENTS.md` for the shipped
 > animation model.** It is NOT superseded as a RECORD: the numbered gaps are cited by name in
-> live code (`src/blocks/filterTrack.ts`, `src/blocks/animEdit.ts`, `src/model/structure.ts`,
-> `src/components/timeline/Inspector.tsx`, `src/components/timeline/StepTimeline.tsx`) as the rationale for what
-> was built. Read the gap numbers as history, not as a queue of work.
+> current model code (`src/blocks/filterTrack.ts`, `src/blocks/animEdit.ts`,
+> `src/model/structure.ts`) and the former editor (`Inspector.tsx`, `StepTimeline.tsx`) as the
+> rationale for what was built. Read the gap numbers as history, not as a queue of work.
 
 This answers three questions about the Timeline v2 animation model
 (`src/blocks/animData.ts` + `animEval.ts` + `animEdit.ts` + `presetApply.ts`, runtime in
@@ -16,7 +16,7 @@ This answers three questions about the Timeline v2 animation model
    timeline and Inspector?
 
 It is a living design note. The presets themselves apply cleanly as of the clean-swap rework
-(see `docs/TIMELINE_V2_PLAN.md` ratification point 7, amended); the gaps below are about the
+(see `src/blocks/presetApply.ts` clean-swap contract); the gaps below are about the
 _expressive range_ of the underlying keyframe model, not about preset application.
 
 ## The model in one paragraph
@@ -65,7 +65,7 @@ parse-degrades-gracefully contract. None require a graph editor or expressions.
   existence span ends where it is hidden; the timeline layer-block's right edge drags to set it,
   and the runtime hides the layer at the step boundary (setLayerHide + the block right edge +
   hideStep; a template with a pre-hides interpreter is re-emitted on first use).
-- **`calls?: { time, call }[]` on a step** (gap 10) — **DONE** (`docs/TIMELINE_V2_PLAN.md` §3b).
+- **`calls?: { time, call }[]` on a step** (gap 10): **DONE**, see `STATE_MACHINE_SCHEMA.md`, Animation steps and runtime hooks.
   The interpreter `tl.call`s `window[name]` at the local time, name-resolved (no eval).
   `resizeStep`/`duplicateStep`/`deleteStep` carry them; `parseTimeline` learns `tl.call` as a
   zero-duration entry; `presetApply` carries calls through `'all'` scope only. This unblocked

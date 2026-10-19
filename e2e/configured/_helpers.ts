@@ -1,6 +1,6 @@
 import { expect, type Page, type Request } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { finishIntoEditor, finishIntoNewEditor, startNewProject } from '../_create';
+import { finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 
 // Shared setup for the configured-mode (authenticated) community specs. Credentials come from env so
@@ -74,7 +74,7 @@ export async function dismissWizard(page: Page): Promise<void> {
 
 /** Sign in with email + password via Home's topbar dialog (Era 5.6, no wall; fresh Playwright
  *  contexts have no persisted session). Leaves the wizard OPEN afterwards, the same state a
- *  fresh load presents, so createGraphic can run directly. There is no Advanced mode to switch on
+ *  fresh load presents, so createGraphicInEditor can run directly. There is no Advanced mode to switch on
  *  any more (owner, 2026-09-24): the sign-in lives on Home, which every boot reaches. */
 export async function signIn(page: Page): Promise<void> {
   await signInAs(page, E2E_EMAIL, E2E_PASSWORD);
@@ -135,22 +135,9 @@ export async function deleteAccountByEmail(admin: SupabaseClient, email: string)
   if (error) throw new Error(`could not delete ${email}: ${error.message}`);
 }
 
-/** Create a project through the wizard (which opens on load) and land in the OLD editor through
- *  Finish's code-editor door. That door is gone, so `finishIntoEditor` skips the calling test
- *  (https://github.com/NoaCG/NoaCG-Studio/issues/800) until the callers are rewritten. */
-export async function createGraphic(page: Page, category: string, variant: string): Promise<void> {
-  await expect(page.locator('.wz-modal')).toBeVisible();
-  await page.locator('[data-entry="template"]').click();
-  await chooseType(page, category);
-  await pickDesign(page, variant);
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
-  await page.waitForTimeout(650);
-}
-
 /** Create a graphic through the wizard (which opens on load) and land in the NEW editor through
  *  Finish's "Edit this graphic" - the working document then holds it, and the editor's header
- *  carries the save controls. The road `createGraphic` above took into the old editor. */
+ *  carries the save controls. */
 export async function createGraphicInEditor(page: Page, category: string, variant: string): Promise<void> {
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();

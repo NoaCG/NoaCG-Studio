@@ -1,5 +1,5 @@
-// Timeline v2 Phase 5 — presets as keyframe generators (docs/TIMELINE_V2_PLAN.md,
-// decision 8). A preset's keyframe form is DERIVED from its legacy emitter through the
+// Animation presets: presets as keyframe generators (docs/STATE_MACHINE_SCHEMA.md,
+// Animation steps and runtime hooks). A preset's keyframe form is DERIVED from its legacy emitter through the
 // parity-proven importer: emit the preset's region for a scratch copy of this template,
 // convert it, and lift out the entrance/exit tracks. One choreography source, zero taste
 // drift, and the result is ordinary editable keyframes.

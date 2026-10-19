@@ -12,6 +12,7 @@ import ImageControls from './ImageControls';
 import PathControls from './PathControls';
 import type { RenderedPart } from './protocol';
 import { editTarget } from './animationAuthoring';
+import { layerPress } from '../../blocks/animEdit';
 interface Props {
   reveal: { key: string; id: string } | null;
   seek: (time: number, cue?: number) => void;
@@ -88,6 +89,13 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
           {selection.map(selector => <li key={selector}>{view.parts.find(p => p.selector === selector)?.label ?? selector} · {editTarget(template, selector, time, cue)}</li>)}
         </ul>}</>}
       {part ? <>
+        {selection.length === 1 && node?.matches('[data-gfx][id^="gfx-"]') && view.data && <label className="ef-appearance-field">Appears
+          <select aria-label="Appears" value={layerPress(view.data, part.selector)} onChange={event => execute({ kind: 'graphic.activation', selector: part.selector, press: Number(event.target.value) })}>
+            <option value={-1}>With Play</option>
+            {view.data.steps.slice(1, -1).map((step, index) => <option key={index} value={index}>{step.name}</option>)}
+            <option value={view.data.steps.length - 2}>New step</option>
+          </select>
+        </label>}
         {selection.length === 1 && <><ArtworkAppearance seek={seek} key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
           <ImageControls key={'image:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} openAssets={openAssets} />
           <PathControls key={'path:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} editPoints={editPoints} />

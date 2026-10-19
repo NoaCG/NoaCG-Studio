@@ -1,7 +1,7 @@
 # Dynamic (measured) motion — scope for migrating tickers & credits
 
-This is the design scope for the one gap that keeps **tickers** and **end credits** on the legacy
-patchers (and therefore blocks Phase 8 of `docs/TIMELINE_V2_PLAN.md`). It is the follow-up the
+This records the design scope for the gap that kept **tickers** and **end credits** on the legacy
+patchers before their completed data-block migration. It was the follow-up the
 loop/yoyo work named: loop/yoyo unblocked starting-soon, but explicitly **not** tickers/credits,
 because their motion is computed from live DOM measurement, which the static keyframe model
 deliberately cannot express (`docs/PRESET_MODEL_REVIEW.md` gap 6, and gap 3's spirit).
@@ -221,7 +221,7 @@ lands), and a `tl.add()` needs an EXPLICIT position whenever a phase has more th
 zero-advance on the importer's clock but a real child on GSAP's, so a bare `'-=N'` after one resolves
 differently in the two.
 
-The quiz then flipped on §3b calls (`docs/TIMELINE_V2_PLAN.md` §3c), and INFO CARDS last of all —
+The quiz then flipped on §3b calls (`docs/STATE_MACHINE_SCHEMA.md`, Animation steps and runtime hooks), and INFO CARDS last of all,
 so **every category now creates as a data block and the migration is complete**.
 
 **Phase 8 then shipped (2026-07-15), and §8.1 held exactly as ratified**: the strip's *editing*

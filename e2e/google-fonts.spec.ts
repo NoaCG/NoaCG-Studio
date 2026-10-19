@@ -5,7 +5,7 @@
 // covers: src/components/wizard/import/**
 
 import { test, expect } from '@playwright/test';
-import { switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor } from './_create';
 
 // The Google Fonts source in the typeface picker (src/model/googleFonts.ts). An imported
 // design was drawn in a real typeface and NoaCG bundles seventeen, so "close enough" was the
@@ -79,9 +79,8 @@ test('a Google typeface is searched by name and embedded in the graphic', async 
   // Picked: it becomes the design typeface, so every field that inherits renders in it.
   await expect(page.getByTestId('field-font')).toContainText('Montserrat');
 
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 30_000 });
+  // The import walk ends in the new editor through the Finish step's door.
+  await finishIntoNewEditor(page);
 
   const built = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

@@ -1,13 +1,14 @@
 // covers: src/blocks/**, src/templates/**
 
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic } from './_create';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 
 // The old step timeline (src/components/timeline/StepTimeline.tsx, the dock behind the retired
 // code editor) was deleted on 2026-10-17 with the twenty-four cases that drove it; the new editor
 // has its own timeline, pinned by e2e/editor-*.spec.ts. What is left here is the one case whose
-// subject is the RUNTIME, not the dock: it still boots through the retired helper and skips until
-// it is rewritten onto a composed preview (issue #800).
+// subject is the RUNTIME, not the dock, read on the working graphic mounted the way playout
+// composes it.
 
 /** Parse the live template's animation data in the page (null when not a data block). */
 async function animData(page: Page) {
@@ -19,17 +20,19 @@ async function animData(page: Page) {
 }
 
 test('v2: scoreboards create as data blocks — the score pop keeps working around the region', async ({ page }) => {
-  await createProject(page, { category: 'Scoreboards', name: 'Match Strip' });
-  // The step timeline outright; scoreboards never step (Enter + Out only).
-  await expect(page.getByTestId('timeline-v2')).toBeVisible();
-  await expect(page.getByTestId('timeline-v2-convert')).toHaveCount(0);
+  await bootstrapGraphic(page, { category: 'Scoreboards', name: 'Match Strip' });
+  // Scoreboards never step (Enter + Out only).
   const data = await animData(page);
   expect(data!.steps).toHaveLength(2);
   // The scoreboard-owned runtime OUTSIDE the region survived the conversion verbatim.
-  // Drive the REAL SPX contract (the editor's simulator owns the builders directly and
-  // never sets onAir): play(), then update() with a changed score — the pop scales the
-  // mask up briefly, exactly as before the flip.
-  const frame = page.frameLocator('iframe.preview-frame');
+  // Drive the REAL SPX contract on the mounted document: play(), then update() with a changed
+  // score — the pop scales the mask up briefly, exactly as before the flip.
+  const frame = await mountWorkingDocument(page);
+  const sample = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().sampleData as Record<string, string>;
+  });
+  await updateWorkingDocument(frame, sample);
   await frame.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
   await expect
     .poll(async () => frame.locator('.scoreboard').evaluate((el) => getComputedStyle(el).opacity))

@@ -90,8 +90,8 @@ templateStore.ts (zustand) holds the template plus editor UI state.
 - **aiThread / setAiThread** - the Create-with-AI CONVERSATION the project was created from
   (model/aiThread.ts; null = not carried). Exact same rails as aiSpec - the autosave slot
   (SavedProject.aiThread) and every Save (GraphicDoc.aiThread), cleared by a whole-project swap,
-  reset from the record by openGraphicDoc. Additive optional; NO version bump. Shown read-only
-  by components/AIPromptPanel.tsx.
+  reset from the record by openGraphicDoc. Additive optional; NO version bump. The former
+  read-only panel is gone; preserve the stored conversation and its save/open rails.
 - **legibility / setLegibility** - the project's `ProjectLegibility` settings
   (model/designRules.ts; null = the defaults). EXACT same rails as aiSpec: the autosave slot
   and every Save (GraphicDoc.legibility), cleared by a whole-project swap, set by the wizard's
@@ -140,7 +140,7 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   `controlCommand` nonce and are no-ops on templates without the machine runtime; the preview
   snaps with `{ timers: false }` so a parked design view never auto-advances.
 - **selectedParts / selectedPart** - the SHARED SELECTION (multi since the interaction
-  model, docs/TIMELINE_INTERACTION_MODEL.md): an ordered list of TemplatePart selectors the
+  model, docs/EDITOR_REBUILD_PLAN.md): an ordered list of TemplatePart selectors the
   canvas, the timeline, and the Inspector all highlight; selectedPart is the PRIMARY
   (first) and every setter keeps the two in sync. setSelectedPart replaces, setSelectedParts
   replaces wholesale (the lasso), toggleSelectedPart is shift-click. UI state only - no

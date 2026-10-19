@@ -12,11 +12,12 @@ test('MCP registers the actual thread app resource and keeps request tool app-on
     await server.connect(a);
     await client.connect(b);
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 2);
+    assert.equal(tools.length, 3);
     const open = tools.find(({ name }) => name === 'noacg_preview');
     assert.equal(open._meta.ui.resourceUri, UI_URI);
     assert.deepEqual(open._meta['openai/ui'].entrypoints, [{ type: 'thread' }]);
     assert.deepEqual(tools.find(({ name }) => name === 'noacg_preview_request')._meta.ui.visibility, ['app']);
+    assert.deepEqual(tools.find(({ name }) => name === 'noacg_preview_rehearse')._meta.ui.visibility, ['app']);
     const resource = await client.readResource({ uri: UI_URI });
     assert.equal(resource.contents[0].mimeType, 'text/html;profile=mcp-app');
     assert.deepEqual(resource.contents[0]._meta['openai/ui'], { availableDisplayModes: ['inline', 'fullscreen'], preferredDisplayMode: 'fullscreen' });

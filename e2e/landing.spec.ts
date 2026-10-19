@@ -20,7 +20,7 @@
 // covers: {whats-new.html,roadmap.html,docs/whats-new/**,docs/GOALS.md,scripts/whats-new.mjs,scripts/roadmap.mjs}
 
 import { test, expect } from '@playwright/test';
-import { createProject } from './_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 
 // The public landing page lives at "/" (static, no React); the editor lives at "/app"
 // (dev/preview: the app-clean-url Vite plugin; production: Vercel cleanUrls). Old share
@@ -56,20 +56,20 @@ test('the editor lives at /app (clean URL, dev parity with production)', async (
   await expect(page.locator('.wz-modal')).toBeVisible();
 });
 
-test('the landing CTA opens the wizard even for a visitor with work in progress', async ({ page }) => {
-  // A returning visitor: an autosaved project exists, so a bare /app would go straight to the
-  // editor. The CTA route must still open the wizard — that is the whole point of the change.
-  await createProject(page, 'Hairline');
-  await expect(page.locator('.wz-modal')).toHaveCount(0);
-
-  await page.goto('/app#/new');
-  await expect(page.locator('.wz-modal')).toBeVisible();
-
-  // And their work is still there to go back to: closing the wizard returns to the project
-  // rather than discarding it.
-  await page.locator('.gallery-close').click();
-  await expect(page.locator('.wz-modal')).toHaveCount(0);
-  await expect(page.locator('iframe.preview-frame')).toBeVisible();
+test('the landing CTA opens the wizard without discarding work in progress', async ({ page }) => {
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
+  const source = () => page.evaluate(async () =>
+    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const before = await source();
+  await page.goto('/');
+  await page.getByRole('link', { name: /Start creating/i }).first().click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('.wz-header .gallery-close').click();
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await openWorkingGraphicInEditor(page);
+  expect(await source()).toEqual(before);
 });
 
 test('the landing reads create first, then play or export', async ({ page }) => {

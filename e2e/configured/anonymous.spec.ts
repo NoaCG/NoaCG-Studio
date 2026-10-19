@@ -23,7 +23,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, mintAccount, SERVICE_ROLE_KEY, signInOnHome, SUPABASE_URL } from './_helpers';
-import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { chooseNoacgAgent } from '../_ai-step';
 import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from '../../src/components/auth/accountCopy';
@@ -118,23 +118,10 @@ test.describe('anonymous visitor (open editor)', () => {
   });
 
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
-    // An old-EDITOR subject (the AI panel). That editor is closed, so
-    // enableAdvancedMode skips this test until it is rewritten
-    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
-    await enableAdvancedMode(page);
-    await page.goto('/app');
-    await dismissWizard(page); // reach the topbar + panels underneath
-
-    // Topbar offers Sign in (and no signed-in account status).
-    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+    await page.goto('/app#/home');
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
     await expect(page.locator('.auth-status')).toHaveCount(0);
-
-    // WHAT THE ACCOUNT IS FOR, said at the moment we ask (owner, 2026-09-04: "I don't have a
-    // really good reason for people to be logged in"). The reason is ONE sentence
-    // (src/components/auth/accountCopy.ts), derived from what a signed-in visitor actually gets,
-    // and it is asserted as words as well as as the constant: an emptied constant would still
-    // equal itself. From the topbar there is no door, so the sentence is the whole answer and the
-    // no-wall line sits under it.
     expect(ACCOUNT_IS_FOR).toMatch(/free account/);
     expect(ACCOUNT_IS_FOR).toMatch(/any computer/);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -143,18 +130,18 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
     await card.locator('.gallery-close').click();
     await expect(card).toHaveCount(0);
-
-    // AI is an account feature in hosted mode: the panel shows the sign-in prompt, not controls,
-    // and the prompt carries the same sentence under its own reason.
-    await page.getByRole('button', { name: 'AI', exact: true }).click();
-    await expect(page.getByTestId('signin-prompt')).toBeVisible();
-    await expect(page.getByTestId('signin-prompt').getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
-
-    // Esc closes the dialog — signing in is always optional.
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByTestId('home-new-project').click();
+    await page.locator('[data-entry="ai"]').click();
+    await chooseNoacgAgent(page);
+    const prompt = page.getByTestId('signin-prompt');
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
+    await prompt.getByTestId('signin-prompt-signin').click();
     await expect(card).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(card).toHaveCount(0);
+    // Escape also rewinds the wizard, so the no-account creation route is still available.
+    await expect(page.locator('[data-entry="template"]')).toBeVisible();
   });
 
   test('an expiry notification leaves anonymous creation usable and sign-in stays explicit', async ({ page }) => {
@@ -179,46 +166,6 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card.getByTestId('auth-reason')).toContainText(ACCOUNT_IS_FOR);
     await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
     await expect(card.locator('.auth-submit')).toHaveText('Sign in');
-  });
-
-  test('the topbar says which account state it is in, not only what it offers', async ({ page }) => {
-    // Owner, 2026-09-04: "there's no difference between being logged in or not". Signed out, the
-    // topbar used to carry a small Sign in button and nothing else - SyncStatus renders NOTHING
-    // for a configured build with no session, so the bar said nothing at all about state. The
-    // word is what a reader can act on: a student who believes they are signed in loses a
-    // session of work to a sync that never ran.
-    // The EDITOR's bar, which is the heavy one - it carries the panel toggles, Reset and the
-    // beta door that Home does not. Measuring the light Home bar would prove nothing about the
-    // width claim below. That editor is closed, so enableAdvancedMode skips this test until it
-    // is rewritten (https://github.com/NoaCG/NoaCG-Studio/issues/800).
-    await enableAdvancedMode(page);
-    await page.setViewportSize({ width: 1366, height: 768 });
-    await page.goto('/app');
-    await dismissWizard(page);
-    await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
-    // The offer is unchanged and still recognisable - four specs and _helpers.ts find the
-    // signed-out topbar by this exact accessible name.
-    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
-
-    // AND THE WORD IS NOT FREE. app-shell.css records that the SIGNED-IN bar was 24px over at
-    // 1366 before its 1400px step hid the resolution line, so auth.css hides the account NAME
-    // at that same step. Signed out the bar carries neither the sync chip nor the avatar, and
-    // this is the state the complaint was about, so the word survives to 1240 instead -
-    // measured on 2026-09-04 at each of these widths, not assumed. The signed-in half is
-    // e2e/configured/signed-in-ux.spec.ts, which reads its word at 1520. The two halves do NOT
-    // share a step: the signed-in bar also carries the sync chip and the avatar, and measuring
-    // it on 2026-09-05 put the name's step at 1480, not the 1400 it was first given.
-    for (const width of [1366, 1280, 1250]) {
-      await page.setViewportSize({ width, height: 768 });
-      await expect(page.getByTestId('auth-state')).toBeVisible();
-      const bar = await page.locator('.topbar').evaluate((el) => {
-        const kids = [...el.children].map((c) => c.getBoundingClientRect()).filter((r) => r.width > 0);
-        const bands = new Set(kids.map((r) => Math.round((r.top + r.bottom) / 12)));
-        return { rows: bands.size, overflowPx: Math.round(Math.max(...kids.map((r) => r.right)) - el.getBoundingClientRect().right) };
-      });
-      expect(bar.rows, `signed-out topbar rows at ${width}px`).toBe(1);
-      expect(bar.overflowPx, `signed-out topbar overflow at ${width}px`).toBeLessThanOrEqual(0);
-    }
   });
 
   test('signed out, the save dialog says the graphic stays on this computer', async ({ page }) => {

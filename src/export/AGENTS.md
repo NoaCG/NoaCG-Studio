@@ -10,10 +10,10 @@ export-time reflow, stretching, or cropping.
 
 - **registry.ts** - 6 targets, each with its own successMessage + ExportContext (the Data
   panel's sampleData rides along so serverless targets can bake it, and the graphic's saved
-  control-panel `entries`, which the CALLER resolves - ExportPanel reads them out of the library
-  by the working project's `saved.graphicId`, fresh at export time, and they are simply absent
-  for a project that was never saved. Only the two targets that bundle an operator page - SPX
-  and the HTML overlay - consume them).
+  control-panel `entries`, which the CALLER resolves - ExportSurface reads them out of the library
+  by the supplied `graphicId`, fresh at export time, and they are simply absent
+  for a project that was never saved. The three targets that bundle an operator page - SPX,
+  the HTML overlay and CasparCG - consume them).
 - **selfContained.ts** - single-file composer: inline CSS/GSAP/JS/assets/FONTS + extra body
   scripts. ASYNC, because the fonts are fetched to be embedded. Each extra script (a
   `TargetScript`: CasparCG's data shim, H2R's toggle, the overlay's relay receiver and autoplay)

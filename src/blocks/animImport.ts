@@ -1,5 +1,5 @@
-// Timeline v2 — the one-time importer for legacy marked regions (docs/TIMELINE_V2_PLAN.md
-// §3, migration tier b). It converts a parse-by-construction region (emitted GSAP
+// Animation data: the one-time importer for legacy marked regions (docs/STATE_MACHINE_SCHEMA.md
+// Animation steps and runtime hooks). It converts a parse-by-construction region (emitted GSAP
 // choreography + steps arrays) into the declarative AnimData model. Used two ways:
 // read-only rendering of legacy templates on the new timeline, and the explicit,
 // undoable convert-on-first-motion-edit. Templates the old parser cannot read stay

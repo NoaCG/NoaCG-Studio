@@ -1,5 +1,5 @@
 // covers: src/export/**, src/control/**
-// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 // focus
 

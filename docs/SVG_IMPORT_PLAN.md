@@ -600,7 +600,7 @@ presentation attributes; a value that already carries a unit is untouched.
   Acceptance: a student takes a layered SVG to air, unchanged pixels, in one session.
 - **P2:** outlined-text fallback (delete group + overlay field), `<image>` binding, per-layer
   animation stagger, number/clock ftypes, org boilerplate story (an SVG imported once, saved as
-  a shared base others restyle - couples with `docs/WYSIWYG_PLAN.md`).
+  a shared base others restyle - couples with `docs/EDITOR_REBUILD_PLAN.md`).
   **Status 2026-08-21 - shipped:** `<image>` binding (filelist fields, empty restores the
   drawing); a numeric-looking sample proposes `ftype: number`; the OUTLINED-TEXT fallback -
   `assets/svgImport.ts` inventories every `<g>` of two-plus glyph shapes (path/polygon only)

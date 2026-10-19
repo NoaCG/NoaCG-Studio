@@ -1334,7 +1334,7 @@ test('every spec header in the repository passes the refusals', () => {
 // THE SAFE DIRECTION, pinned: a source file no spec covers still escalates to the full suite
 // (the shared-change set, the planner's default escalation), and says which file did it.
 test('a source file no spec covers escalates to the full suite, exactly as before headers', () => {
-  for (const file of ['src/components/spaceKey.ts', 'src/brand-new-area/thing.ts']) {
+  for (const file of ['src/components/useIsMobile.ts', 'src/brand-new-area/thing.ts']) {
     const plan = planFor([file]);
     assert.equal(plan.mode, 'full', `${file} is covered by no header and must escalate`);
     assert.deepEqual(plan.unmapped, [file]);
@@ -1347,6 +1347,13 @@ test('a source file no spec covers escalates to the full suite, exactly as befor
   // A path a CENTRAL rule knows plans nothing, rather than escalating.
   assert.equal(planFor(['cli/src/index.ts']).mode, 'none');
   assert.deepEqual(planFor(['cli/src/index.ts']).unmapped, []);
+});
+
+test('shortcut guard changes select the current focused-button workflow', () => {
+  const plan = planFor(['src/components/spaceKey.ts']);
+  assert.equal(plan.mode, 'subset');
+  assert.ok(plan.specs.includes('editor-usability.spec.ts'));
+  assert.deepEqual(plan.unmapped, []);
 });
 
 // THE POINT OF THE CHANGE, pinned: a new spec with a covers header is planned for a change to the
