@@ -1,0 +1,21 @@
+{
+  "run": 39306382882,
+  "job": 118244444344,
+  "source": "5050d9522889f2feed5e5e6327b44a81e7813dff",
+  "base": "8687863db85845c11839c76adab8c23a2266d5b7",
+  "artifact": 12213662206,
+  "artifactSha256": "5b3834fad790b70b5dccaaca77292955726bbce48a96e01ede3dadaa6c7c4c5c",
+  "stats": {
+    "startTime": "2026-10-19T18:56:25.135Z",
+    "duration": 18192.721,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "testCommand": "timeout 5m npm run test:e2e:live -- e2e/configured/deep-link-boot.spec.ts --grep 'a production link opens once signed in from it' --retries=0 --trace on --reporter=list,json",
+  "matchingFailure": false,
+  "repair": false,
+  "classificationChanged": false,
+  "productSourceChanged": false
+}

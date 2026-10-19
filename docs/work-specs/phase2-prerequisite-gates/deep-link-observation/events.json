@@ -1,0 +1,306 @@
+[
+  {
+    "kind": "navigation",
+    "at": 1792436197687,
+    "hash": "#/production/9ba74133-5e71-43e1-8d25-54391d05999a"
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436200164,
+    "hash": "#/production/9ba74133-5e71-43e1-8d25-54391d05999a"
+  },
+  {
+    "kind": "response",
+    "at": 1792436200616,
+    "method": "POST",
+    "path": "/auth/v1/token",
+    "status": 200
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436200642,
+    "hash": "#/production/9ba74133-5e71-43e1-8d25-54391d05999a"
+  },
+  {
+    "kind": "response",
+    "at": 1792436201354,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201354,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201354,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201354,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201356,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201361,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201395,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201417,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201433,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201433,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201435,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201440,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201441,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201442,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436201463,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202284,
+    "method": "GET",
+    "path": "/rest/v1/teams",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202284,
+    "method": "GET",
+    "path": "/rest/v1/team_members",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202284,
+    "method": "GET",
+    "path": "/rest/v1/team_productions",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202340,
+    "method": "GET",
+    "path": "/auth/v1/user",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436202578,
+    "hash": "#/production/9ba74133-5e71-43e1-8d25-54391d05999a",
+    "sync": {
+      "phase": "pending",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": "Not saved to cloud. Changes on this device are awaiting confirmation.",
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": null,
+      "missing": false,
+      "signIn": false,
+      "productionName": "Production link E2E 1792436187567"
+    }
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436202584,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de"
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436202584,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de"
+  },
+  {
+    "kind": "state",
+    "at": 1792436202590,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "syncing",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": null,
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "response",
+    "at": 1792436202608,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202608,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202611,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202611,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202611,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202611,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436202617,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436202619,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "synced",
+      "hasLast": true,
+      "detail": null,
+      "verifiedAt": "2026-10-19T18:56:42.619Z"
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "state",
+    "at": 1792436202654,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "synced",
+      "hasLast": true,
+      "detail": null,
+      "verifiedAt": "2026-10-19T18:56:42.619Z"
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": null,
+      "missing": true,
+      "signIn": false,
+      "productionName": null
+    }
+  }
+]
