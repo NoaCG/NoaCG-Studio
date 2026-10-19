@@ -55,7 +55,9 @@ test.describe('account essentials', () => {
     // Sign out from the same section closes Settings and drops the session.
     await page.getByTestId('account-sign-out').click();
     await expect(page.getByTestId('settings')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 15_000 });
+    // Home and the paused account notice can both offer Sign in during library release.
+    // The assertion is about Home; the two-second release fault is recorded in the repair receipt.
+    await expect(page.getByTestId('home-page').getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 15_000 });
     // A deliberate sign-out is NOT an expired session — no prompt with the expiry reason.
     await expect(page.locator('.auth-card')).toHaveCount(0);
   });
