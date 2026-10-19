@@ -1,5 +1,9 @@
 # Durable planned runs and waves
 
+For continuing projects, the owner's 2026-10-19 decisions in
+[continuing preparation](../continuing-plan-preparation/spec.md) supersede the
+24-hour project ceiling below. Ordinary waves and historical receipts stay unchanged.
+
 Authority: owner's 2026-10-16 research, design and minimal implementation request in this session.
 
 ## Why

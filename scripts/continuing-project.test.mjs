@@ -1,0 +1,226 @@
+// gate: build
+// guards: scripts/project-authorization.mjs, scripts/project-control.mjs, scripts/plan-run.mjs, scripts/wave-plan-store.mjs, scripts/run-supervisor.mjs, scripts/run-recovery.mjs, scripts/plan-run-preflight.mjs, scripts/run-wake.mjs
+// measures: none - deterministic control protocol, no provider qualification
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { openWave } from './wave-plan-store.mjs';
+import { nextStep, recordStep, readSteps } from './plan-run.mjs';
+import { openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
+import { digest, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { preflight } from './plan-run-preflight.mjs';
+import { holdable, wakeVerdict, writeWake } from './run-wake.mjs';
+
+const NOW = Date.parse('2026-10-19T12:00:00Z');
+const iso = (time) => new Date(time).toISOString();
+const HOUR = 3_600_000;
+const authorization = () => ({ source: 'owner fixture only', scope: 'two generic fixture phases',
+  permissionPolicy: 'controlled adapters only', startedAt: iso(NOW), deadline: iso(NOW + 72 * HOUR) });
+const project = () => ({ version: 1, id: 'fixture-project', ownership: 'local-single-owner',
+  authorization: authorization(), status: 'paused', phases: [
+    { id: 'prepare', title: 'Prepare generic input', dependsOn: [], acceptance: ['input accepted'], environment: 'qualified-cloud' },
+    { id: 'accept', title: 'Check generic output', dependsOn: ['prepare'], acceptance: ['output accepted'], environment: 'specified-device' },
+  ] });
+function fixture(t) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'continuing-project-'));
+  const p = project();
+  const opened = openWave({ date: '2026-10-19', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
+  assert.equal(opened.refusal, undefined);
+  const dbPath = path.join(dir, 'control.sqlite'), db = openStore(dbPath);
+  const packet = { objective: 'Generic fixture', acceptance: ['both phases PASS'], nextAction: 'Reconcile', phase: 1,
+    tasks: [], decisions: [], constraints: [], files: [], workspace: {}, commits: [], verification: [], blockers: [], evidence: [] };
+  const manifest = { version: 1, id: p.id, kind: 'plan', wave: opened.file, authorization: p.authorization,
+    packet, adapter: { command: process.execPath, args: [], cwd: dir } };
+  registerRun(db, manifest, NOW);
+  t.after(() => { db.close(); rmSync(dir, { recursive: true, force: true }); });
+  const text = () => readFileSync(opened.file, 'utf8');
+  const current = () => readProject(text(), NOW);
+  const start = (at = NOW, owner = 'coordinator-1') => {
+    updateRun(db, p.id, 'start-block', { owner, deadline: iso(at + HOUR), evidence: 'same local host, worker and actions reconciled' }, at);
+    return current().block;
+  };
+  const record = (phase, event, receipt = {}, at = NOW, authority = current().block) => recordRun(db, p.id, phase, event,
+    typeof receipt === 'string' ? receipt : JSON.stringify(receipt), { now: at, authority });
+  return { dir, dbPath, db, p, manifest, file: opened.file, text, current, start, record };
+}
+const networkPass = (command) => ({ status: 0, stdout: command === 'git' ? `${'a'.repeat(40)}\trefs/heads/main\n` : command === 'gh' ? '12\n' : 'workspace-child-ok' });
+function finishPhase(f, phase, at = NOW) {
+  f.record(phase, 'build', { actor: `builder-${phase}` }, at);
+  f.record(phase, 'landed', 'fixture merge and all required exact-merge checks', at);
+  f.record(phase, 'check', { actor: `checker-${phase}` }, at);
+  const criterion = f.p.phases[phase - 1];
+  f.record(phase, 'pass', { actor: `checker-${phase}`, findings: 'carry forward', evidence: criterion.acceptance.map((c) => ({ criterion: c, evidence: 'controlled fixture receipt', environment: criterion.environment })) }, at);
+}
+
+test('explicit 72-hour authorization passes store, supervisor and preflight; ordinary waves keep 24 hours', (t) => {
+  const f = fixture(t);
+  assert.equal(nextStep(f.text(), NOW).action, 'paused');
+  f.start();
+  assert.equal(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).ok, true);
+  assert.match(openWave({ date: '2026-10-19', kind: 'day', until: f.p.authorization.deadline, dir: f.dir, now: NOW }).refusal, /24 hours/);
+  for (const patch of [{ source: '' }, { scope: '' }, { deadline: 'forever' }, { deadline: iso(NOW) }, { startedAt: '2026-02-30T12:00:00Z' }]) {
+    assert.throws(() => validateAuthorization({ ...authorization(), ...patch }, { now: NOW }));
+  }
+  assert.throws(() => validateAuthorization(authorization(), { now: NOW + 72 * HOUR }), /expired/);
+});
+
+test('a multi-day rehearsal pauses between phases, restarts without renewal and preserves findings', (t) => {
+  const f = fixture(t);
+  f.start(); finishPhase(f, 1);
+  const before = readSteps(f.text());
+  updateRun(f.db, f.p.id, 'pause', 'end first short block', NOW + 30 * 60_000);
+  assert.equal(nextStep(f.text(), NOW).action, 'paused');
+  assert.throws(() => f.record(2, 'build', { actor: 'builder-2' }), /paused/);
+  const reopened = openWave({ date: '2026-10-19', kind: 'plan-fixture', until: f.p.authorization.deadline, dir: f.dir, now: NOW + 25 * HOUR });
+  assert.equal(reopened.file, f.file);
+  const other = openStore(f.dbPath);
+  try {
+    assert.equal(registerRun(other, f.manifest, NOW + 25 * HOUR).manifest.id, f.p.id);
+    assert.throws(() => registerRun(other, { ...f.manifest, authorization: { ...f.p.authorization, deadline: iso(NOW + 80 * HOUR) } }, NOW + 25 * HOUR));
+  } finally { other.close(); }
+  f.start(NOW + 25 * HOUR);
+  assert.match(nextStep(f.text(), NOW + 25 * HOUR).carry, /carry forward/);
+  assert.deepEqual(readSteps(f.text()), before);
+  finishPhase(f, 2, NOW + 25 * HOUR);
+  updateRun(f.db, f.p.id, 'finish', '', NOW + 25 * HOUR);
+  assert.equal(f.current().status, 'finished');
+  assert.equal(f.current().authorization.deadline, authorization().deadline);
+});
+
+test('pause in flight requires matching checkpoint acknowledgement; repair history survives', async (t) => {
+  const f = fixture(t); f.start();
+  f.record(1, 'build', { actor: 'builder' }); f.record(1, 'landed'); f.record(1, 'check', { actor: 'checker' });
+  f.record(1, 'fail', 'product: retain these findings');
+  f.record(1, 'repair', { actor: 'repairer' });
+  updateRun(f.db, f.p.id, 'pause', 'checkpoint in-flight worker', NOW);
+  assert.throws(() => f.start(), /acknowledge checkpoint/);
+  let deliveries = 0;
+  const invoke = async (_adapter, request) => {
+    if (request.operation === 'deliver') deliveries += 1;
+    return { state: 'checkpointed', phase: 1, step: 'repair', blockId: request.workBlock.id, evidence: 'controlled worker checkpoint' };
+  };
+  assert.equal((await tickRun(f.db, f.p.id, { now: () => NOW, invoke })).verdict, 'paused');
+  f.start(NOW + HOUR);
+  assert.equal(nextStep(f.text(), NOW + HOUR).action, 'wait');
+  f.record(1, 'landed', '', NOW + HOUR);
+  f.record(1, 'check', { actor: 'new-checker' }, NOW + HOUR);
+  f.record(1, 'fail', 'product: second failure retained', NOW + HOUR);
+  assert.equal(nextStep(f.text(), NOW + HOUR).action, 'stop');
+  assert.equal(readSteps(f.text()).filter((s) => s.event === 'repair').length, 1);
+  assert.equal(deliveries, 0);
+});
+
+test('stale owners, duplicate phases, omitted acceptance and builder-as-checker fail closed', (t) => {
+  const f = fixture(t), old = f.start();
+  assert.throws(() => f.start(NOW, 'competitor'), /already owns/);
+  assert.match(recordStep(f.file, 1, 'build', '{}', NOW).refusal, /run-supervisor/);
+  assert.throws(() => f.record(1, 'build', { actor: 'builder' }, NOW, { ...old, epoch: old.epoch - 1 }), /Stale/);
+  f.record(1, 'build', { actor: 'builder' });
+  assert.throws(() => f.record(1, 'build', { actor: 'competitor' }), /already launched/);
+  f.record(1, 'landed');
+  assert.throws(() => f.record(1, 'check', { actor: 'builder' }), /independent/);
+  f.record(1, 'check', { actor: 'checker' });
+  assert.throws(() => f.record(1, 'pass', { actor: 'checker', evidence: [] }), /every criterion/);
+  assert.throws(() => updateRun(f.db, f.p.id, 'finish', '', NOW), /every required phase/);
+});
+
+test('block end, cancellation, expiry and unsupported remote continuation stop launches and wakes', async (t) => {
+  const f = fixture(t); f.start();
+  assert.equal(nextStep(f.text(), NOW + HOUR).action, 'paused');
+  assert.ok(holdable(f.text(), NOW + HOUR).why);
+  const armed = writeWake(f.text(), { host: 'fixture', session: 'fixture', resume: '/never-run' });
+  assert.equal(wakeVerdict({ text: armed, now: NOW + HOUR, inventory() { assert.fail('paused wake must not inspect or resume'); } }).verdict, 'over');
+  assert.equal(preflight({ context: 'worker', wave: f.file, continuation: 'remote-handoff', now: NOW, run() { assert.fail('unqualified mode'); } }).ok, false);
+  assert.equal((await tickRun(f.db, f.p.id, { now: () => NOW, invoke() { assert.fail('no native substitution'); } })).verdict, 'unknown');
+  assert.throws(() => f.record(1, 'build', { actor: 'builder' }, NOW + 72 * HOUR), /expired/);
+  updateRun(f.db, f.p.id, 'cancel', 'owner cancellation fixture', NOW);
+  assert.equal(nextStep(f.text(), NOW).action, 'cancelled');
+  assert.throws(() => f.start(), /Terminal/);
+  assert.equal(preflight({ context: 'coordinator', wave: f.file, now: NOW, run() { assert.fail('cancelled'); } }).ok, false);
+});
+
+test('uncertain accepted action is retained across restart and prohibits replay or block renewal', (t) => {
+  const f = fixture(t); f.start();
+  const row = f.db.prepare('SELECT doc FROM runs WHERE id=?').get(f.p.id), doc = JSON.parse(row.doc);
+  doc.pending = { id: `${f.p.id}:1`, attempts: 1, retryAt: NOW, receipt: null, requestSha256: digest('accepted but ack lost') };
+  f.db.prepare('UPDATE runs SET doc=? WHERE id=?').run(JSON.stringify(doc), f.p.id);
+  updateRun(f.db, f.p.id, 'pause', 'reconcile original action', NOW);
+  assert.throws(() => f.start(NOW + HOUR), /Uncertain external action/);
+  assert.deepEqual(JSON.parse(f.db.prepare('SELECT doc FROM runs WHERE id=?').get(f.p.id).doc).pending, doc.pending);
+});
+
+test('another database cannot acquire the same project, and missing or changed metadata fails closed', (t) => {
+  const f = fixture(t), other = openStore(path.join(f.dir, 'competitor.sqlite'));
+  try { assert.throws(() => registerRun(other, f.manifest, NOW), /another authoritative local store/); }
+  finally { other.close(); }
+  const authority = f.start();
+  const original = f.text();
+  for (const changed of [original.replace(/^Project: .+\n/m, ''), original.replace('Prepare generic input', 'Wrong phase')]) {
+    writeFileSync(f.file, changed);
+    assert.throws(() => f.record(1, 'build', { actor: 'builder' }, NOW, authority), /metadata missing|phase set/);
+  }
+  writeFileSync(f.file, original);
+});
+
+test('acknowledgement lost after phase acceptance never duplicates the controlled worker', (t) => {
+  const f = fixture(t); f.start();
+  const accepted = new Map();
+  const controlledDispatch = () => {
+    f.record(1, 'build', { actor: 'builder', actionId: 'stable-fixture-action' });
+    accepted.set('stable-fixture-action', 'controlled-worker');
+    throw Error('acknowledgement lost after acceptance');
+  };
+  assert.throws(controlledDispatch, /acknowledgement lost/);
+  const restarted = openStore(f.dbPath);
+  try {
+    assert.equal(registerRun(restarted, f.manifest, NOW).manifest.id, f.p.id);
+    assert.equal(nextStep(f.text(), NOW).action, 'wait');
+    assert.throws(controlledDispatch, /already launched/);
+    assert.equal(accepted.size, 1);
+    assert.equal(readSteps(f.text()).filter((s) => s.event === 'build').length, 1);
+  } finally { restarted.close(); }
+});
+
+test('mismatching checkpoint acknowledgement cannot resume; cancellation checkpoints the original worker', async (t) => {
+  const f = fixture(t); f.start(); f.record(1, 'build', { actor: 'builder' });
+  updateRun(f.db, f.p.id, 'pause', 'pause fixture', NOW);
+  const bad = await tickRun(f.db, f.p.id, { now: () => NOW, invoke: async () => ({ state: 'checkpointed', phase: 1, step: 'build', blockId: 'wrong-block', evidence: 'wrong target' }) });
+  assert.equal(bad.verdict, 'unknown');
+  assert.throws(() => f.start(), /acknowledge checkpoint/);
+  updateRun(f.db, f.p.id, 'cancel', 'owner cancels fixture', NOW);
+  const operations = [];
+  const cancelled = await tickRun(f.db, f.p.id, { now: () => NOW, invoke: async (_, request) => {
+    operations.push(request.operation);
+    return { state: 'checkpointed', phase: 1, step: 'build', blockId: request.workBlock.id, evidence: 'original worker stopped' };
+  } });
+  assert.equal(cancelled.verdict, 'cancelled');
+  assert.deepEqual(operations, ['checkpoint']);
+  assert.throws(() => f.start(), /Terminal/);
+});
+
+test('competing processes admit exactly one phase through the existing SQLite authority', async (t) => {
+  const f = fixture(t), authority = f.start();
+  const request = path.join(f.dir, 'authority.json'); writeFileSync(request, JSON.stringify(authority));
+  const cli = async (actor) => {
+    const child = spawn(process.execPath, ['scripts/run-supervisor.mjs', 'record', f.dbPath, f.p.id, '1', 'build', JSON.stringify({ actor }), '--authority', request], { cwd: path.resolve(import.meta.dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    let output = ''; child.stdout.on('data', (s) => { output += s; }); child.stderr.on('data', (s) => { output += s; });
+    return { code: (await once(child, 'close'))[0], output };
+  };
+  // CLI uses real time, so this fixture's one-hour block is set relative to the real clock.
+  const p = f.current(); p.authorization.startedAt = iso(Date.now() - 1000); p.authorization.deadline = iso(Date.now() + 72 * HOUR);
+  p.block.startedAt = iso(Date.now() - 1000); p.block.deadline = iso(Date.now() + HOUR);
+  let text = f.text().replace(/^Window starts: .+$/m, `Window starts: ${p.authorization.startedAt}`).replace(/^Window ends: .+$/m, `Window ends: ${p.authorization.deadline}`);
+  writeFileSync(f.file, writeProject(text, p));
+  const row = JSON.parse(f.db.prepare('SELECT doc FROM runs WHERE id=?').get(f.p.id).doc);
+  row.manifest.authorization = p.authorization;
+  const { immutableProject } = await import('./project-authorization.mjs');
+  row.projectAuthorization = immutableProject(p); row.projectState = digest(p);
+  f.db.prepare('UPDATE runs SET doc=? WHERE id=?').run(JSON.stringify(row), f.p.id);
+  const results = await Promise.all([cli('caller-a'), cli('caller-b')]);
+  assert.deepEqual(results.map((r) => r.code).sort(), [0, 1], JSON.stringify(results));
+  assert.equal(readSteps(f.text()).filter((s) => s.event === 'build').length, 1);
+});

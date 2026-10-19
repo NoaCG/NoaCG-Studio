@@ -12,78 +12,70 @@
 ## Boundaries
 
 - **A wave runs alone; plan runs of different plans may run side by side** (never two on one file).
-- **24 hours is the ceiling** of one authorised window; opening refuses a longer one.
-- **Only phases written in the plan.** Refuse a plan whose phases lack acceptance; never invent one.
+- **Finite owner-authorized project deadline**: no 24-hour project ceiling. Ordinary day/night waves keep theirs.
+- **Only phases written in the plan.** Preserve phase set, order, dependencies, acceptance and required environments; refuse missing acceptance.
 - **Only the merge queue writes `main`.** Sessions land themselves with `/queue-merge`.
-- **The coordinator stays thin**: it reads the plan's phase list and short results, never code, and
-  keeps its state in the wave file. Real work runs in fresh `wave-row` sessions (Opus, high effort);
-  workflow fan-out (`ultracode`) only when the owner's prompt for the run says so.
-- **Never touch another session's worktree**, and `docs/private/` stays private.
+- The wave file is the continuing project/phase ledger; use the existing supervisor for ownership and recovery, never a second ledger.
+- **Never touch another session's worktree**, and `docs/private/` stays private. Keep this coordinator thin; fresh builders and independent checkers do real work.
 
-## 1. Start
+## 1. Prepare, qualify and open
 
-- **Qualify execution before work** on the coordinator and each fresh worker, in its own worktree.
-  Inspect effective terminal, subprocess, network and approval policies; use supported workspace session permissions.
-  Run `node scripts/plan-run-preflight.mjs --context coordinator --until <iso>`
-  in two separate shell calls, then repeat with `--context worker` in a fresh delegated context.
-  One pass or a persistent terminal is insufficient. On resume use `--wave <wave file>` instead
-  of `--until`; reconcile native tasks, PRs and `next` before launch. Record non-secret receipts and policy
-  in the existing wave file, separating sandbox from approved-network evidence. Requalify after policy/context changes.
-  Tool approval waits before execution are pending, not process timeouts or failed tests. If permission is unavailable,
-  checkpoint with one concrete configuration request and stop that context; never loop on individual approvals.
-  Infrastructure/capacity failures before tests run consume no product repair: checkers record `fail blocked:`,
-  builders stop/checkpoint. Preserve owner repair limits and the ledger's blocked-check limit; reuse execution-profile/queue.
-- **Open the run** with the owner's window, in Helsinki time with its offset (unstated: ask, along with machine prerequisites such as signed-in `claude -p`):
-  `node scripts/wave-plan-store.mjs --open <date> plan-<plan> --until <iso>`; `<date>` is the run's
-  first day, the same `--until` resumes after a restart, a new one is a new window the owner named.
-- **First open only**: read the plan on `origin/main` (`git fetch origin main`) and copy the phases
-  still to build, numbered, under `## Phases` in the wave file, each with where its acceptance is.
-- **Arm the wake-up** (Claude desktop, each start): create or re-enable the task printed by `node
-  scripts/run-wake.mjs arm <wave file> --resume "plan-run <plan> until <iso>"`; it restarts this
-  session if its process stops. `run-wake.mjs awake <wave file>` holds the machine awake to the end.
-  Codex: arm a supported thread heartbeat before launching. An acknowledgement is only a fallback check-in;
-  durable recovery needs an actual supported coding-context/access wake. Without proof, stay through exact-SHA post-land checks.
+- Get explicit current owner authorization: stable project ID, source, scope, permission policy, start and finite deadline. Earlier sessions grant no renewal.
+  Prepare a project JSON as described in `docs/work-specs/continuing-plan-preparation/runbook.md`, copying the owner's exact phases and acceptance.
+- Qualify the coordinator and each fresh worker in their own worktrees before substantive work. Inspect effective terminal/subprocess/network/approval policy.
+  Run `node scripts/plan-run-preflight.mjs --context coordinator --until <short qualification end>` in two separate shell calls;
+  repeat with `--context worker` in a fresh delegated context. On a project resume use `--wave <file>` after its authorized block opens.
+  Use supported shell network permission. Record non-secret receipts in the existing ledger, separating sandboxed, approved-network and escalated evidence.
+  One pass is not reusable permission. Tool approval waits are pending, not executed failures. Requalify after policy/context changes.
+  An unavailable owner prerequisite produces one concrete configuration request; checkpoint and stop dependent work without approval loops or provider substitution.
+  Pre-test infrastructure/capacity failures consume no product repairs: checker says `fail blocked:`, builder checkpoints; existing blocked-check limits remain.
+- Open only when execution is actually authorized: `node scripts/wave-plan-store.mjs --open <first-date> plan-<plan> --until <original-deadline> --project <json>`.
+  The continuing file starts paused. Register its immutable manifest with `run-supervisor.mjs register <db> <manifest.json>`.
+  `run-supervisor.mjs start-block <db> <id> <block.json>` opens one bounded block with owner, deadline and reconciliation evidence.
+  Keep the same ID, file, deadline, scope and phase ledger on every restart. Legacy short-window records retain their compatibility path; migration needs explicit review.
+- Prefer qualified cloud implementation and software verification via `.agent-workflows/cloud-delegate.md`. Route device/OS/performance/human acceptance to the plan's required environment.
+  Same-VM qualification is not a native cloud-child receipt. Current preflight exposes native launch, wake/bootstrap and remote-fencing gaps.
+- Arm only qualified, authorized block-specific wakes. `node scripts/run-wake.mjs awake <file>` holds locally only through the active block.
+  A scheduling acknowledgement or heartbeat is a check-in, not durable continuation. No new scheduler is introduced.
 
-## 2. The loop
+## 2. Continuing loop and ownership
 
-`node scripts/plan-run.mjs next <wave file>` names the next step; before launch use `node scripts/plan-run.mjs record <wave file> <phase> <event> <detail>` with branch/worktree.
-The ledger refuses a step out of order or launched twice: then launch nothing and run `next` again.
+`node scripts/plan-run.mjs next <wave file>` names the next step. For projects the only supported phase admission is
+`node scripts/run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <current-block.json>`.
+The supervisor's local transaction and ledger admission lock serialize claims; direct project `plan-run record` is refused.
+Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the intent before any external launch; reconcile uncertain acceptance before replay.
 
-- **launch build** (or **repair**): use the brief below. Record `landed #<n> <merge sha>` only after merge and every check green (`gh pr checks <n>`); a red check, required or
-  not, or a red-on-main alarm on that sha (`npm run jobs`), goes back to that session (`resume`).
-- **launch check**: a checker with the brief below, once the phase is on `main`. Record `pass
-  <findings>`, `fail product: <findings>` (next: a repair) or `fail blocked: <what was missing>`
-  (remove the obstacle, or `stop` and ask; next: the check again, once).
-- **wait**: the step is running. After a restart reconcile first (`gh pr list --head <branch>`,
-  `npm run jobs`): merged is recorded `landed`, queued is waited for, otherwise a fresh session
-  starts in the recorded worktree with the same brief, and `resume` is recorded. No second branch.
-- **retro**: write `## Midpoint retro` (`orchestrator.md` step 6, five lines) and run `next` again.
-- **stop**: a second failed check, or a reserved decision (`verify.md` step 5): record `stop <why>`,
-  ask him at once (recommendation, phone notification), go no further, record `answered <answer>`.
-- **closing** (the last 45 minutes, or "I need to close the laptop"): launch only a step that lands
-  before the end (the median step so far plus ten minutes); otherwise, and at the end, tell running
-  sessions to commit, push and stop, leave queued pull requests to GitHub, record `paused <what
-  remains, pending jobs>` and report; never extend the window yourself.
-- **done** or **time-limit**: after the last notes pull request, confirm `main` is green (`npm run
-  jobs`), run the retro (`orchestrator.md` step 6), write `## Report` (15 plain lines) in the wave file:
-  **Needs you** first or "nothing", phase PRs/verdicts, stopping point, remaining/unchecked work and retro; send a phone notification.
+- **launch build/repair**: use the brief below in the phase's owned worktree. Record `landed` only after actual merge and all exact-merge checks pass.
+  Preserve carry findings, failure history and existing per-command/test bounds. A recorded intent alone proves no worker was launched.
+- **launch check**: fresh independent checker on current `origin/main`. PASS requires evidence for every authorized criterion in its specified environment.
+  `fail product:` gets the existing one repair; `fail blocked:` gets the existing one repeated check. A second failure stops for the owner; limits never reset on restart.
+- **wait**: reconcile the original native worker, PR, jobs and exact tested revision first. Record observed `landed`, or wait for its queue; never start another branch/phase.
+  Unknown status or lost acknowledgement is unresolved, never absence. The local supervisor does not establish remote exclusion.
+- **retro**: write the requested `## Midpoint retro` (orchestrator step 6, five lines), then ask `next` again.
+- **stop/stopped**: record the reserved decision and ask the owner as verify.md requires. Record `answered` only from the answer; cancellation cannot be answered away.
+- **pause/block**: `run-supervisor.mjs pause <db> <id> <reason>` or `wait <db> <id> <wait.json>` stops launches immediately, between phases or in flight.
+  The in-flight worker must checkpoint and acknowledge its exact phase, step and block. Use `tick` for the bounded checkpoint request; no replacement is launched.
+  Resolve prerequisites explicitly, preserve pending intents, then open another bounded block with reconciliation evidence under the unchanged authorization.
+- **block end/local coordinator closure**: checkpoint, stop launches and block-specific wakes/keep-awake. This is resumable pause, not completion or cancellation.
+  Continuing remotely requires qualified cloud-owner acceptance and acceptance-side stale-owner fencing. Without it, stop; current automatic native replacement is refused.
+- **cancel/expired**: owner cancellation or original deadline ends launch authority. Preserve unfinished work, findings, pending evidence and queued PR ownership.
+- **done**: `finish` is permitted only after every phase/acceptance PASS. Write the final report/retro, exact-merge results and remaining limitations; stop wakes.
 
-Sessions own `<tool>/plan-<plan>-p<phase>-<build|check|repair>` worktrees (`-2` on a second check).
-Claude Code: background `wave-row` agents, `jobs.mjs wait` per landing, `sleep 1800` and step 1's wake.
-Cloud uses harness worktrees (`orchestrator.md` step 3) and queue-merge.md's single repair owner/proven wake,
-including no-webhook conflict checks. Codex: context-free `spawn_agent`, bounded `wait_agent`, 30-minute heartbeat; ask him here.
-**The builder brief**: the row brief from `orchestrator.md` step 3, after these lines:
+Use `<tool>/plan-<plan>-p<phase>-<build|check|repair>` worktrees. Native routing, bounded waits and one acknowledged PR repair owner follow cloud-delegate and queue-merge.
+A restored local SQLite/file lock cannot fence another machine. Git checkpoint CAS protects publication only; restored project execution stays refused until native fencing is qualified.
+Before relevant manual Actions dispatches follow verification lookup's observation procedure in verify.md; measurement behavior and failure/retry restrictions stay unchanged.
+
+**Builder brief** (after orchestrator step 3's row brief):
+```text
+PHASE    <n> of <plan>: <name>. Read its decisions; build only its authorized acceptance.
+NOTES    Same PR, under ## Phase notes: previous findings, constraints, decisions and traps.
+FINDINGS <carry from next, or none>. Checkpoint on pause/block/deadline; never broaden scope.
 ```
-PHASE    <n> of <plan document>: <phase name>. Read phase notes/decisions; build only its acceptance criteria.
-NOTES    Same PR, under `## Phase notes`: last check's FINDINGS, next-phase constraints, decisions, traps.
-FINDINGS <the carry: line from next, or "none">
-```
-**The checker brief**:
-```
-CHECK   Phase <n> of <plan document>: <phase name>. You did not build it. On current origin/main,
-        do the user's task, including named reference products/try-outs; check every criterion and
-        stated outcome. Change no product code. PASS needs your own evidence for all of it;
-        anything to fix first is FAIL product; unavailable sign-in/tool/runner is FAIL blocked, named.
-        End with that verdict, then at most five lines of findings, blockers first.
-NOTES   <land notes: Add findings under the plan's `## Phase notes` in a docs-only PR, /check and /queue-merge it. | otherwise: Open no pull request.>
+**Checker brief**:
+```text
+CHECK   Phase <n> of <plan>. You did not build it. On current origin/main do the user's task
+        and check EVERY criterion/outcome in its required environment. Change no product code.
+        PASS needs your own evidence for all criteria. Otherwise FAIL product or FAIL blocked,
+        named. Preserve findings and exact tested revisions; do not weaken tests or retry limits.
+NOTES   <land the required plan notes through /check and /queue-merge | open no PR>.
 ```

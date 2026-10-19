@@ -59,6 +59,7 @@ import { nextStep } from './plan-run.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
 import { advanceLocalMain } from './worktree-cleanup-lib.mjs';
 import { REPORT_HEADING, SESSION_BLOCK, sessionsIn, WINDOW_END, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
+import { projectBoundary, readProject } from './project-authorization.mjs';
 
 export const WAKE_TASK_ID = 'noacg-run-wake';
 export const WAKE_CRON = '*/30 * * * *';
@@ -238,9 +239,9 @@ export function wakeTask(repo) {
       '   - alive, unknown or waiting: end here and do nothing more.',
       `   - idle: pause this task with update_scheduled_task (taskId ${WAKE_TASK_ID}, enabled false).`,
       '   - resume: send the printed message to the printed session_id with mcp__ccd_session_mgmt__send_message;',
-      '     that restarts the run\'s own coordinator session. Only if the send fails, invoke the printed',
-      '     command with the Skill tool (its name without the slash, the rest as arguments), follow it and',
-      '     end without step 3.',
+      '     that restarts the run\'s own coordinator session. A failed or uncertain send requires exact',
+      '     reconciliation of that same session/action; checkpoint and report the blocker. Never invoke',
+      '     a replacement coordinator or retry an uncertain send from an empty local inventory.',
       `3. Clean up: list_task_runs (taskId ${WAKE_TASK_ID}, limit 50), then in one parallel batch archive_session every`,
       '   other run not yet archived (finished firings), then archive_session "self". Write no report.',
     ].join('\n'),
@@ -261,7 +262,13 @@ export function holderScript(until) {
 
 /** Is the window in this text still to be held? The holder asks every minute. */
 export function holdable(text, now = Date.now()) {
-  const until = WINDOW_END.exec(text)?.[2];
+  let project;
+  try { project = readProject(text, now); }
+  catch (error) { return { why: error.message }; }
+  const until = project?.block?.deadline ?? WINDOW_END.exec(text)?.[2];
+  const boundary = project && projectBoundary(project, now);
+  if (boundary) return { until, why: boundary.why };
+  if (nextStep(text, now).action === 'paused') return { until, why: 'run paused; explicit resume required' };
   if (!until || Number.isNaN(Date.parse(until)) || Date.parse(until) <= now) return { until, why: 'it has ended or is unreadable' };
   if (REPORT_HEADING.test(text)) return { until, why: 'the run wrote its report' };
   return { until };

@@ -10,10 +10,10 @@ import { executionProfile } from './execution-profile.mjs';
 import { diagnosis, preflight as networkPreflight, PROBE_TIMEOUT_MS } from './cloud-network-preflight.mjs';
 import { nextStep } from './plan-run.mjs';
 import { WINDOW_END } from './wave-plan-store.mjs';
+import { DAY_MS, projectBoundary, readProject } from './project-authorization.mjs';
 
 export { PROBE_TIMEOUT_MS };
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const DAY_MS = 24 * 60 * 60_000;
 const ISO_OFFSET = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/;
 const runCommand = (command, args, options) => spawnSync(command, args, { ...options, windowsHide: true });
 const PERMISSION = ['EPERM', 'EACCES'];
@@ -43,13 +43,16 @@ function workspaceDiagnosis(result) {
 }
 
 /** No persistent state: the existing wave file remains the receipt/launch ledger. */
-export function preflight({ context, until, wave, cwd = ROOT, now,
+export function preflight({ context, until, wave, continuation = 'active-owner', cwd = ROOT, now,
   run = runCommand, env = process.env } = {}) {
   const started = now ?? Date.now();
   const profile = executionProfile({ env });
   const validContext = ['coordinator', 'worker'].includes(context);
   const receipt = { at: new Date(started).toISOString(), context: validContext ? context : null, site: profile.kind,
-    scope: 'this invocation only', ok: false, checks: [] };
+    scope: 'this invocation only', ok: false, checks: [], qualificationGaps: [
+      'native Codex child launch/environment mapping', 'observed native wake/bootstrap after host loss',
+      'acceptance-side stale-owner fencing and remote handoff',
+    ] };
   const block = (detail) => {
     receipt.checks.push({ name: 'Run window', ok: false, category: 'infrastructure', detail });
     return receipt;
@@ -57,6 +60,7 @@ export function preflight({ context, until, wave, cwd = ROOT, now,
   if (!validContext || Boolean(until) === Boolean(wave)) {
     return block('supply coordinator or worker and exactly one of --until or --wave');
   }
+  if (continuation !== 'active-owner') return block('native recovery/remote handoff unqualified: require supported acceptance-side fencing and owner read-back; checkpoint and stop');
   let text;
   if (wave) {
     try { text = readFileSync(wave, 'utf8'); }
@@ -65,13 +69,17 @@ export function preflight({ context, until, wave, cwd = ROOT, now,
   }
   const end = ISO_OFFSET.test(until ?? '') ? Date.parse(until) : NaN;
   const start = text ? Date.parse(/^Window starts: (\S+)/m.exec(text)?.[1] ?? '') : started;
+  let project;
+  try { project = text && readProject(text, started); }
+  catch (error) { return block(error.message); }
   if (!Number.isFinite(end) || !Number.isFinite(start)) {
-    return block('invalid window: require an explicit offset and at most 24 hours');
+    return block('invalid window: require an explicit finite deadline with offset');
   }
   if (started >= end) return block('window expired: checkpoint; only the owner can authorize a new window');
-  if (end <= start || end - start > DAY_MS || start > started) {
+  if (end <= start || (!project && end - start > DAY_MS) || start > started) {
     return block('invalid window: require a started window of at most 24 hours');
   }
+  if (project && projectBoundary(project, started)) return block(`project refuses work: ${projectBoundary(project, started).action}`);
   if (text && !['launch', 'wait', 'retro'].includes(nextStep(text, started).action)) {
     return block('ledger refuses work: reconcile its next step before launching');
   }
@@ -102,7 +110,7 @@ export function main(argv = process.argv.slice(2), { print = console.log, ...opt
   const args = {};
   for (let i = 0; i < argv.length; i += 2) {
     const key = argv[i]?.slice(2);
-    if (!['context', 'until', 'wave'].includes(key) || argv[i] !== `--${key}` || !argv[i + 1]
+    if (!['context', 'until', 'wave', 'continuation'].includes(key) || argv[i] !== `--${key}` || !argv[i + 1]
       || Object.hasOwn(args, key)) {
       print('Usage: node scripts/plan-run-preflight.mjs --context coordinator|worker --until <ISO with offset> | --wave <existing file>');
       return 2;

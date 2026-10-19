@@ -1,6 +1,7 @@
 // Native adapters can use these guards before dispatch; this module calls no provider.
 // A validated receipt is evidence, not a distributed lock or permission implementation.
 import { createHash } from 'node:crypto';
+import { validateAuthorization } from './project-authorization.mjs';
 
 const nonempty = (value) => typeof value === 'string' && value.trim().length > 0;
 const timestamp = (value) => typeof value === 'string' ? Date.parse(value) : NaN;
@@ -57,13 +58,21 @@ export function reconcileNative(intent, observation) {
 }
 
 /** Admission for the next one-shot wake, not an implementation of a scheduler. */
-export function rearmNative({ authorization, target, previous, next, terminal = false, wait = null }, now = Date.now()) {
+export function rearmNative({ authorization, target, previous, next, kind = 'wave', terminal = false, wait = null, block = null, paused = false }, now = Date.now()) {
   const start = timestamp(authorization?.startedAt), end = timestamp(authorization?.deadline);
   if (!nonempty(authorization?.source) || !nonempty(authorization?.scope) || !nonempty(authorization?.permissionPolicy)
-      || !Number.isFinite(start) || !Number.isFinite(end) || start > now || end <= start || end - start > 86_400_000) {
-    return unknown('explicit original authorization of at most 24 hours required');
+      || !Number.isFinite(start) || !Number.isFinite(end) || start > now || end <= start) {
+    return unknown('explicit original finite authorization required');
   }
+  try { validateAuthorization(authorization, { now, kind, open: false }); }
+  catch { return unknown('invalid original authorization or overlong wave'); }
   if (terminal || now >= end) return { state: 'stop' };
+  if (kind === 'plan' && (!block || !Number.isFinite(timestamp(block.startedAt))
+      || timestamp(block.startedAt) < start || timestamp(block.startedAt) > now
+      || !Number.isFinite(timestamp(block.deadline)) || timestamp(block.deadline) > end
+      || timestamp(block.deadline) <= timestamp(block.startedAt)
+      || timestamp(block.deadline) - timestamp(block.startedAt) > 86_400_000)) return unknown('plan wake requires its original bounded work block');
+  if (paused || (block && (now >= timestamp(block.deadline) || timestamp(next?.dueAt) >= timestamp(block.deadline)))) return { state: 'stop' };
   if (wait) return { state: 'waiting', reason: 'resolve the explicit wait before re-arming' };
   if (!target || ['provider', 'sessionId', 'environmentId', 'policySha256'].some((key) => !nonempty(target[key]))) return unknown('native target required');
   if (authorization.policySha256 !== target.policySha256) return unknown('effective policy differs from original authorization');

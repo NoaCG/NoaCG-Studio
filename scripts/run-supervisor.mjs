@@ -2,14 +2,16 @@
 // Opt-in, single-host recovery control. No model client and no scheduler are installed here.
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { nextStep, recordStep } from './plan-run.mjs';
+import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
 import { deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
+import { digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { changeProject, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
 const LEASE_MS = 60_000;
@@ -75,8 +77,7 @@ export function registerRun(db, manifest, now = Date.now()) {
   const auth = manifest.authorization;
   if (!auth || !required(auth.source) || !required(auth.scope) || !required(auth.permissionPolicy)
       || !iso(auth.startedAt) || !iso(auth.deadline)) throw new Error('Explicit authorization and permission policy required');
-  const start = Date.parse(auth.startedAt), end = Date.parse(auth.deadline);
-  if (start > now || end <= now || end <= start || end - start > MAX_WINDOW_MS) throw new Error('Authorized window must be open and at most 24 hours');
+  const { start, end } = validateAuthorization(auth, { now, kind: manifest.kind });
   validatePacket(manifest.packet);
   if (!path.isAbsolute(manifest.wave) || !path.isAbsolute(manifest.adapter?.command ?? '')
       || !path.isAbsolute(manifest.adapter?.cwd ?? '') || !Array.isArray(manifest.adapter.args)
@@ -87,15 +88,31 @@ export function registerRun(db, manifest, now = Date.now()) {
     ...manifest.adapter, command: realpathSync(manifest.adapter.command), cwd: realpathSync(manifest.adapter.cwd),
   } };
   const text = readFileSync(normalized.wave, 'utf8');
+  const project = readProject(text, now);
+  if (end - start > MAX_WINDOW_MS && !project) throw Error('Multi-day plans require explicit continuing project metadata');
+  if (project && (manifest.kind !== 'plan' || project.id !== manifest.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Manifest differs from original project authorization');
   if (windowStart(text) !== start || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== end) throw new Error('Wave window differs from authorization');
   if (REPORT_HEADING.test(text)) throw new Error('Wave already reported');
   return transaction(db, () => {
+    if (project) {
+      const store = canonical(db.prepare('PRAGMA database_list').all().find((row) => row.name === 'main').file);
+      const locked = withLedgerLock(normalized.wave, () => {
+        const current = readProject(readFileSync(normalized.wave, 'utf8'), now);
+        if (current.authorityStore && current.authorityStore !== store) throw Error('Project already bound to another authoritative local store');
+        if (readFileSync(normalized.wave, 'utf8') !== text) throw Error('Project changed during registration; reconcile');
+        project.authorityStore = store;
+        writeFileSync(normalized.wave, writeProject(text, project));
+        return {};
+      });
+      if (locked.refusal) throw Error(locked.refusal);
+    }
     const old = db.prepare('SELECT doc FROM runs WHERE id=?').get(normalized.id);
     if (old) {
       if (JSON.stringify(JSON.parse(old.doc).manifest) !== JSON.stringify(normalized)) throw new Error('Run already registered; authorization and adapter are immutable');
       return JSON.parse(old.doc);
     }
     const doc = { manifest: normalized, status: 'active', packet: normalized.packet, wait: null, pending: null, sequence: 0 };
+    if (project) { doc.projectAuthorization = immutableProject(project); doc.projectState = digest(project); }
     db.prepare('INSERT INTO runs(id,wave,doc) VALUES(?,?,?)').run(normalized.id, normalized.wave, JSON.stringify(doc));
     publishRun(db, normalized.id);
     return doc;
@@ -103,10 +120,13 @@ export function registerRun(db, manifest, now = Date.now()) {
 }
 
 /** Explicit operator/coordinator updates fence any in-flight tick; they never renew authorization. */
-export function updateRun(db, id, operation, value) {
+export function updateRun(db, id, operation, value, now = Date.now()) {
   return transaction(db, () => {
     const { doc } = rowFor(db, id);
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
+    const text = readFileSync(doc.manifest.wave, 'utf8');
+    const project = checkedProject(doc, text, now);
+    if (project && doc.restoration && operation === 'start-block') throw Error('Replacement-host launch authority is unqualified; do not rebind the local store');
     if (operation === 'wait') doc.wait = validateWait(value);
     else if (operation === 'clear-wait') {
       if (!required(value)) throw new Error('Clearing a wait needs evidence or the owner answer');
@@ -117,11 +137,41 @@ export function updateRun(db, id, operation, value) {
         throw new Error('Checkpoint cannot change the authorized objective or acceptance');
       }
       doc.packet = value;
-    } else if (['finish', 'cancel'].includes(operation)) doc.status = operation === 'finish' ? 'finished' : 'cancelled';
+    } else if (project && ['start-block', 'pause', 'finish', 'cancel'].includes(operation)) { /* handled under the ledger lock below */ }
+    else if (['finish', 'cancel'].includes(operation)) doc.status = operation === 'finish' ? 'finished' : 'cancelled';
     else throw new Error('Unknown update');
+    if (project) {
+      const locked = withLedgerLock(doc.manifest.wave, () => {
+        if (readFileSync(doc.manifest.wave, 'utf8') !== text) throw Error('Ledger changed; reconcile before updating project');
+        const changed = changeProject(doc, project, text, operation, value, now);
+        writeFileSync(doc.manifest.wave, changed);
+        return {};
+      });
+      if (locked.refusal) throw Error(locked.refusal);
+    }
     db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(doc), id);
     publishRun(db, id);
     return doc;
+  });
+}
+
+/** One supported phase admission path; SQLite plus the ledger lock serialize local callers. */
+export function recordRun(db, id, phase, event, detail = '', { now = Date.now(), authority } = {}) {
+  return transaction(db, () => {
+    const row = rowFor(db, id), { doc } = row;
+    if (doc.status !== 'active') throw Error('Terminal run cannot record another phase');
+    const text = readFileSync(doc.manifest.wave, 'utf8');
+    const project = checkedProject(doc, text, now);
+    if (project) {
+      if (doc.restoration) throw Error('Replacement-host launch authority is unqualified');
+      checkBlock(project, authority, now);
+      if (doc.wait || doc.pending || row.owner) throw Error('Reconcile blocked prerequisite, active lease or uncertain action before phase admission');
+    }
+    const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
+    if (result.refusal) throw Error(result.refusal);
+    db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
+    publishRun(db, id);
+    return result;
   });
 }
 
@@ -191,6 +241,8 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     const packet = operation === 'deliver' ? deliveryPacket() : null;
     return invoke(manifest.adapter, {
       operation, runId: id, authorization: manifest.authorization, wave: manifest.wave,
+      ...(doc.projectState ? { workBlock: readProject(readFileSync(manifest.wave, 'utf8'), now()).block,
+        checkpointReason: nextStep(readFileSync(manifest.wave, 'utf8'), now()).why } : {}),
       actionId: doc.pending?.id ?? null, fence: claim.epoch, leaseUntil: claim.until,
       ...(doc.pending?.requestSha256 ? { requestSha256: doc.pending.requestSha256 } : {}),
       ...(operation === 'restore' ? { restoration: doc.restoration, recovery: doc.packet.recovery } : {}),
@@ -198,9 +250,36 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     });
   };
   try {
-    if (doc.status !== 'active') return result(doc.status);
+    if (doc.status !== 'active') {
+      if (doc.status === 'cancelled' && doc.projectState) {
+        const text = readFileSync(manifest.wave, 'utf8');
+        checkedProject(doc, text, now());
+        if (hasInFlight(text) && !doc.pauseReceipt) {
+          const receipt = await ask('checkpoint');
+          if (!checkpointReceipt(doc, receipt, text)) return result('cancelled', 'Launches stopped; in-flight checkpoint remains unacknowledged');
+          save(db, claim, now());
+        }
+      }
+      return result(doc.status);
+    }
     const text = readFileSync(manifest.wave, 'utf8');
-    if (REPORT_HEADING.test(text)) { doc.status = 'finished'; save(db, claim, now()); return result('finished', 'wave report'); }
+    const project = checkedProject(doc, text, now());
+    if (project && doc.restoration) return result('unknown', 'Replacement-host continuation requires qualified native stale-owner fencing; local store is insufficient');
+    if (project && projectBoundary(project, now())) {
+      const boundary = projectBoundary(project, now());
+      if (hasInFlight(text) && !doc.pauseReceipt) {
+        const receipt = await ask('checkpoint');
+        if (!checkpointReceipt(doc, receipt, text)) return result('unknown', 'Checkpoint acknowledgement required; launch authority remains stopped');
+        save(db, claim, now());
+      }
+      return result(boundary.action, boundary.why);
+    }
+    // Local phase admission is supported; native coordinator replacement is not yet fenced
+    // where the provider accepts work. Do not turn a local lease into a remote guarantee.
+    if (project) return result('unknown', 'Active single owner records phases locally; automatic native continuation requires qualified acceptance-side fencing');
+    if (REPORT_HEADING.test(text)) {
+      doc.status = 'finished'; save(db, claim, now()); return result('finished', 'wave report');
+    }
     if (now() >= Date.parse(manifest.authorization.deadline)) { doc.status = 'expired'; save(db, claim, now()); return result('expired'); }
     if (now() < Date.parse(manifest.authorization.startedAt)) return result('waiting', 'original authorization has not started');
     if (windowStart(text) !== Date.parse(manifest.authorization.startedAt)
@@ -303,8 +382,8 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
 
 export async function main(args = process.argv.slice(2), options = {}) {
   const [command, file, id, value] = args;
-  if (!file || !['register', 'restore', 'resume', 'record', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'finish', 'cancel'].includes(command)) {
-    process.stderr.write('Usage: run-supervisor.mjs register <db> <manifest.json> | restore|resume <db> <config.json> | record <db> <id> <phase> <event> [detail] | tick|status <db> [id] | wait|checkpoint <db> <id> <json> | clear-wait <db> <id> <evidence> | finish|cancel <db> <id>\n'); return 2;
+  if (!file || !['register', 'restore', 'resume', 'record', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'pause', 'finish', 'cancel'].includes(command)) {
+    process.stderr.write('Usage: run-supervisor.mjs register <db> <manifest.json> | restore|resume <db> <config.json> | record <db> <id> <phase> <event> [detail] [--authority <block.json>] | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
   }
   let db;
   try {
@@ -320,20 +399,16 @@ export async function main(args = process.argv.slice(2), options = {}) {
       if (doc.manifest.recovery?.repositoryFullName !== config.repositoryFullName) throw new Error('Resume repository differs');
       output = await tickRun(db, config.id);
     }
-    else if (command === 'record') output = transaction(db, () => {
-      const { doc } = rowFor(db, id);
-      if (doc.status !== 'active') throw new Error('Terminal run cannot record another phase');
-      const result = recordStep(doc.manifest.wave, Number(value), args[4], args.slice(5).join(' '));
-      if (result.refusal) throw new Error(result.refusal);
-      db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
-      publishRun(db, id);
-      return result;
-    });
+    else if (command === 'record') {
+      const at = args.indexOf('--authority');
+      const authority = at < 0 ? undefined : JSON.parse(readFileSync(args[at + 1], 'utf8'));
+      output = recordRun(db, id, Number(value), args[4], args.slice(5, at < 0 ? undefined : at).join(' '), { authority });
+    }
     else if (command === 'tick' || command === 'status') {
       const ids = id ? [id] : db.prepare('SELECT id FROM runs ORDER BY id').all().map((row) => row.id);
       output = [];
       for (const key of ids) output.push(command === 'tick' ? await tickRun(db, key) : rowFor(db, key));
-    } else output = updateRun(db, id, command, ['wait', 'checkpoint'].includes(command) ? JSON.parse(readFileSync(value, 'utf8')) : value);
+    } else output = updateRun(db, id, command, ['wait', 'checkpoint', 'start-block'].includes(command) ? JSON.parse(readFileSync(value, 'utf8')) : value);
     process.stdout.write(`${JSON.stringify(output)}\n`); return 0;
   } catch (error) { process.stderr.write(`run-supervisor: ${error.message}\n`); return 1; }
   finally { db?.close(); }

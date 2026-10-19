@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // THE WAVE-PLAN STORE - where a wave's plan lives so that it outlives the session that wrote it.
+// Continuing projects opt into --project <json>: one immutable finite authorization and ledger
+// across bounded blocks. The 24-hour/new-window behavior described below is the legacy path.
 //
 //   node scripts/wave-plan-store.mjs --path 2026-09-09 night   # the path to write, dir created
 //   node scripts/wave-plan-store.mjs --dir                     # just the directory
@@ -55,6 +57,7 @@ import { fileURLToPath } from 'node:url';
 import { jobsDir } from './jobs-store.mjs';
 import { nextStep } from './plan-run.mjs';
 import { samePath } from './worktree-cleanup-lib.mjs';
+import { immutableProject, projectBoundary, readProject, validateProject, writeProject } from './project-authorization.mjs';
 
 /** The store's folder name inside the job store, beside `logs/` and `relay/`. */
 export const WAVE_PLANS_DIR = 'wave-plans';
@@ -143,7 +146,13 @@ export function openWaves(dir = jobsDir(), now = Date.now(), except = '') {
   return wavePlanFiles(dir)
     .filter((name) => name !== except)
     .map((name) => path.join(folder, name))
-    .filter((file) => now - statSync(file).mtimeMs < OPEN_WAVE_MS)
+    .filter((file) => {
+      try {
+        const project = readProject(readFileSync(file, 'utf8'), now);
+        if (project && !projectBoundary(project, now)) return true;
+      } catch { return true; } // Corrupt ownership is not permission to overlap.
+      return now - statSync(file).mtimeMs < OPEN_WAVE_MS;
+    })
     .filter((file) => !REPORT_HEADING.test(readFileSync(file, 'utf8')));
 }
 
@@ -178,7 +187,7 @@ export const WINDOW_END = /^(Window ends: )(\S+)/m;
  * Returns `{ file, window: 'opened' | 'resumed' | 'new' }`, with `previousEnd` for a new window, or
  * `{ refusal }`.
  */
-export function openWave({ date, kind, until, session, dir = jobsDir(), now = Date.now() }) {
+export function openWave({ date, kind, until, session, project, dir = jobsDir(), now = Date.now() }) {
   const name = wavePlanName(date, kind);
   const end = Date.parse(until ?? '');
   if (!/(?:[+-]\d{2}:\d{2}|Z)$/.test(String(until ?? '')) || Number.isNaN(end)) {
@@ -187,10 +196,22 @@ export function openWave({ date, kind, until, session, dir = jobsDir(), now = Da
   if (end <= now) return { refusal: `the window end ${until} has already passed` };
   const file = path.join(ensureWavePlansDir(dir), name);
   const text = existsSync(file) ? readFileSync(file, 'utf8') : null;
+  let existing;
+  try {
+    existing = text === null ? null : readProject(text, now);
+    if (project) {
+      validateProject(project, now);
+      if (!PLAN_RUN_KIND.test(kind) || Date.parse(project.authorization.deadline) !== end) throw Error('Project authorization must match this plan deadline');
+      if (existing && immutableProject(existing) !== immutableProject({ ...project, authorityStore: existing.authorityStore })) throw Error('Original project identity, scope, deadline and phases are immutable');
+      if (text !== null && !existing) throw Error('Legacy run requires explicit reviewed migration; do not replace its ledger');
+    }
+    if (existing && Date.parse(existing.authorization.deadline) !== end) throw Error('Restart cannot extend the original project deadline');
+    if (existing && ['cancelled', 'finished'].includes(existing.status)) throw Error(`Project is ${existing.status}`);
+  } catch (error) { return { refusal: error.message }; }
   const recorded = { start: WINDOW_START.exec(text ?? '')?.[2], end: WINDOW_END.exec(text ?? '')?.[2] };
   const window = text === null ? 'opened' : recorded.end && Date.parse(recorded.end) !== end ? 'new' : 'resumed';
   const start = window === 'resumed' && !Number.isNaN(Date.parse(recorded.start ?? '')) ? Date.parse(recorded.start) : now;
-  if (end - start > MAX_WINDOW_MS) {
+  if (!project && !existing && end - start > MAX_WINDOW_MS) {
     const from = window === 'resumed' ? `its start (${new Date(start).toISOString()})` : `now (${new Date(now).toISOString()})`;
     return { refusal: `a wave runs at most 24 hours from ${from}, and ${until} is later than that` };
   }
@@ -213,7 +234,17 @@ export function openWave({ date, kind, until, session, dir = jobsDir(), now = Da
     };
   }
   if (window === 'opened') {
-    writeFileSync(file, `${waveTitle(date, kind)}\n\nWindow starts: ${new Date(now).toISOString()}\nWindow ends: ${until}\n`, 'utf8');
+    let initial = `${waveTitle(date, kind)}\n\nWindow starts: ${project?.authorization.startedAt ?? new Date(now).toISOString()}\nWindow ends: ${until}\n`;
+    if (project) {
+      const metadata = { ...project, status: 'paused', block: null, reason: 'Open a bounded work block through run-supervisor before work' };
+      initial += `\n## Phases\n${project.phases.map((phase, i) => `${i + 1}. ${phase.title}`).join('\n')}\n\n## Log\n`;
+      initial = writeProject(initial, metadata);
+    }
+    try { writeFileSync(file, initial, { encoding: 'utf8', flag: 'wx' }); }
+    catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      return { refusal: 'Run file created concurrently; reconcile the existing identity instead of replacing it' };
+    }
   } else if (window === 'new') {
     writeFileSync(file, text
       .replace(WINDOW_START, `$1${new Date(now).toISOString()}`)
@@ -267,7 +298,7 @@ export function sessionsIn(text) {
 const USAGE = `Usage: node scripts/wave-plan-store.mjs --path <YYYY-MM-DD> <day|night|plan-<plan>>
        node scripts/wave-plan-store.mjs --dir
        node scripts/wave-plan-store.mjs --list
-       node scripts/wave-plan-store.mjs --open <YYYY-MM-DD> <day|night|plan-<plan>> --until <iso time with offset>`;
+       node scripts/wave-plan-store.mjs --open <YYYY-MM-DD> <day|night|plan-<plan>> --until <iso time with offset> [--project <owner-authorized.json>]`;
 
 export function main(argv = process.argv.slice(2)) {
   const folder = wavePlansDir();
@@ -290,7 +321,9 @@ export function main(argv = process.argv.slice(2)) {
     const now = Date.now();
     let opened;
     try {
-      opened = openWave({ date: argv[1], kind: argv[2], until, session: process.env.CLAUDE_CODE_SESSION_ID || undefined, now });
+      const projectAt = argv.indexOf('--project');
+      const project = projectAt < 0 ? undefined : JSON.parse(readFileSync(argv[projectAt + 1], 'utf8'));
+      opened = openWave({ date: argv[1], kind: argv[2], until, project, session: process.env.CLAUDE_CODE_SESSION_ID || undefined, now });
     } catch (error) {
       process.stderr.write(`wave-plan-store: ${error.message}\n\n${USAGE}\n`);
       return 2;

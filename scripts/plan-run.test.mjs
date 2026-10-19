@@ -189,11 +189,12 @@ test("the window's last 45 minutes say closing, and paused is accepted on a runn
   assert.match(refuseStep(text, 2, 'paused', 'nothing yet'), /has not passed/);
   assert.equal(refuseStep(text, 1, 'paused', 'the builder pushed; the pull request is queued'), null);
   record(file, 1, 'paused', 'the builder pushed; the pull request is queued', 418);
-  // Paused changes nothing: the step is still waited for, past the end as well.
-  assert.deepEqual(next(file, 420), { action: 'wait', phase: 1, step: 'build', launched: 'branch claude/p1' });
+  // A pause is a launch boundary, even with a worker in flight or after block end.
+  assert.equal(next(file, 420).action, 'paused');
   assert.equal(readFileSync(file, 'utf8').match(/phase 1 build/g).length, 1);
   record(file, 1, 'landed', '#1', 430);
-  assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'paused'), /nothing in phase 1 is running to be paused \(built\)/);
+  assert.equal(next(file, 430).action, 'paused');
+  record(file, 1, 'resume', 'owner permitted same deadline; worker and PR reconciled', 430);
   assert.equal(next(file, 430).action, 'time-limit');
 });
 
@@ -266,6 +267,8 @@ test('the command line refuses a wrong step with a reason and records a right on
   const errors = [];
   const write = process.stderr.write;
   const out = process.stdout.write;
+  const clock = Date.now;
+  Date.now = () => NOW;
   process.stderr.write = (chunk) => errors.push(String(chunk));
   process.stdout.write = () => true;
   try {
@@ -277,6 +280,7 @@ test('the command line refuses a wrong step with a reason and records a right on
   } finally {
     process.stderr.write = write;
     process.stdout.write = out;
+    Date.now = clock;
   }
   assert.match(errors[0], /phase 1 has not passed/);
   assert.match(errors[1], /already launched/);

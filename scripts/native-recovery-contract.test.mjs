@@ -110,6 +110,18 @@ test('terminal/expired windows stop, waits suppress re-arm and restart grants no
   assert.equal(rearmNative(record, now).state, 'unknown');
 });
 
+test('explicit multi-day plan authorization retains its deadline and short block wake boundary', () => {
+  const record = wake(); record.kind = 'plan';
+  record.authorization.deadline = '2026-10-20T11:00:00Z';
+  record.next.deadline = record.authorization.deadline;
+  record.block = { startedAt: '2026-10-17T09:00:00Z', deadline: '2026-10-17T10:45:00Z' };
+  assert.equal(rearmNative(record, now).state, 'eligible');
+  assert.equal(rearmNative({ ...record, paused: true }, now).state, 'stop');
+  assert.equal(rearmNative({ ...record, next: { ...record.next, dueAt: record.block.deadline } }, now).state, 'stop');
+  assert.equal(rearmNative({ ...record, next: { ...record.next, deadline: '2026-10-21T11:00:00Z' } }, now).state, 'unknown');
+  assert.equal(rearmNative({ ...record, kind: 'wave' }, now).state, 'unknown');
+});
+
 test('a dead wake chain is visible without automatically granting a second owner', () => {
   const health = { dueAt: '2026-10-17T09:35:00Z', deadline: wake().authorization.deadline };
   assert.equal(wakeHealth(health, now).state, 'unknown');
