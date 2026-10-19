@@ -1,5 +1,7 @@
 # 19 October decisions and proposed additions to the run
 
+**Integration update, 19 October:** the owner has now authorized incorporation into the actual specs. See the [integration record](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md) and parent run plan. The proposal/status wording below records the earlier research stage; no implementation has started.
+
 This records the owner's morning feedback and a narrower recommendation for the planned 20 October 2026 start. It supersedes the **scope recommendation** in documents 07–08 and the unanswered questions in the morning review. Their technical findings remain useful. Existing agreed specs, work.json authority and product source are unchanged. This document does not start or schedule execution.
 
 ## What the owner has decided

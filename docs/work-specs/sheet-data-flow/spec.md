@@ -12,10 +12,16 @@ Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both*
 and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
 planning update does not start `/plan-run production-page`; the owner explicitly said not to.
 
+Owner refinement, 2026-10-19: whole-graphic connection with one reviewed mapping, downloadable
+starter data for custom native graphics, and optional per-field repair are now included. The
+data-sources spec owns the exact matching, identity and format rules. This is a planning update;
+the final whole-plan review and separate start instruction remain pending.
+
 ## What the reconciliation changed here
 
 The shared changes are listed once in the data-sources spec. For this document: the journey
-starts at the cue field with "Fill from… Paste rows" and "Connect… Google Sheet", lists first
+starts in the existing cue editor with "Fill from… Paste rows" and one graphic-level
+"Connect data…" action, lists and custom scalar templates supported
 (D2 superseded); one reader per source by a lease, the browser leading while a page is open and a
 server tick covering published sources with every page closed (D1 and D3's closed-page promise,
 agreed revision, 2026-10-18); a connected list is read-only on the default surface, D4 staying for values.
@@ -43,8 +49,9 @@ field moves the shared value, but its test (`e2e/production-data.spec.ts` 749) i
 
 ## Goal
 
-An operator starts at a graphic's field, pastes rows or a Sheet tab's ordinary share link, sees
-what will appear and saves. Lists follow on air; selected guest or message rows become cues.
+An operator selects a graphic, pastes rows or a Sheet tab's ordinary share link, sees
+what will appear and saves a reviewed whole-graphic mapping once. Individual field connectors
+handle exceptions. Lists follow on air; selected guest or message rows become cues.
 Nothing requires paths, code or guessing field names. A published connection keeps following
 when operator pages close, at the server tick's cadence.
 
@@ -74,18 +81,28 @@ cells pasted from any spreadsheet or lines from a document, converts them throug
 adapter, shows the result on the graphic with malformed rows flagged, and saves into the cue. No
 account, no source record.
 
-**Connecting.** On the same field, "Connect… Google Sheet": "Copy starter rows" (the field's
-current content with the adapter's header, where it has one) and "Download CSV"; a link box; the
-tab from the link's `gid`, confirmed when absent; the parsed lines on the real graphic; "Used by
-N cues"; Save. A failed read gives a concrete fix; a missing tab is never replaced by another.
+**Connecting.** One "Connect data…" action in the graphic's existing control-panel header:
+choose Google Sheet or reuse a source; download its data template or copy adapter starter rows;
+paste a link; select the tab from its `gid`, confirmed when absent. Propose all compatible
+field mappings within that source, preferring supplied keys and otherwise unique name matches.
+Show matches needing attention, samples, the real graphic and "Used by N cues"; confirm once.
+No field is connected merely because data arrived. Per-field connectors appear when editing
+connections, with no large repeated buttons in ordinary operation. Done hides controls, not
+source health, and does not Pause. A failed read gives a concrete fix; a missing tab is never replaced by another.
 Reuse on a second graphic is explicit ("Use existing content"); feeding the inbox from the same
 tab is the same source with `inbox` on. Equal titles elsewhere never connect.
 
 **Lists** go through the field's adapter (data-sources "Formats"); the preview shows the exact
 lines, and nothing is guessed from a global join.
 
-**Values.** Name and Value rows into named values, for a scoreboard from a Sheet. Supported, not
-promoted; scores use NoaCG's controls or the data API.
+**Values and downloadable templates.** Existing Name/Value rows remain supported. A custom
+native graphic also gets a generated `Field ID,Label,Value` CSV from declared scalar fields and
+current/default values, with no catalogue match. The data-sources spec's whole-graphic rules
+govern keys, version compatibility, text-preserving import and diagnostics. A filled template
+connects in one confirmation; label edits and row order do not change field identity. A missing
+mapped row holds its last good value and reports an error; an explicit empty Value clears it.
+List fields retain adapter-specific starter rows. This download can be imported into Sheets or
+Excel; it does not create a Google document or add an Excel/local-file reader.
 
 **Selected rows.** Guest tables load one chosen row into a cue (today's "Load data row"). Message
 tables use the rows adapter with Name, Message and optional Source and Reference, and the audience
@@ -101,8 +118,9 @@ spec's selection, identity and staging rules. Refresh changes candidates, never 
 Either reader diffs against its last good snapshot and writes only what changed, through the
 production data path: the local tree when unpublished; the operator door the ± press already
 uses when published from the browser; `control_data_apply` from the tick. A failed read writes
-nothing. A valid read with no rows writes `""`, which clears the field with an ordinary update
-row and shows "empty" on the sources line.
+nothing. A valid list read with no rows writes `""`, which clears the field with an ordinary update
+row and shows "empty" on the sources line. For keyed scalar templates a missing mapped row is
+an error; only an explicit empty Value clears that scalar.
 
 **Status and Pause on the Playout tab.** One line per source distinguishes last checked from
 last changed: "Sheet: News - checked 3 s ago", "paused", "empty", or "can't read it (not shared)
@@ -137,6 +155,10 @@ one Advanced disclosure and keep working.
 
 **The old graphic-level Sheet panel** is no longer offered for new graphics (C6); its place says
 that Sheets connect on the production. A graphic that already carries the block keeps running it.
+Before connecting that legacy graphic through the new flow, require an explicit migration choice
+and verify only one writer controls the affected fields. Do not remove old code silently or
+claim production Pause controls an embedded poller. C6 targets the current
+`src/components/editorFoundation/LiveDataControls.tsx`, not the removed `ControlPanel.tsx`.
 
 ## Historical owner decisions (answered 2026-10-16)
 
@@ -159,22 +181,26 @@ that Sheets connect on the production. A graphic that already carries the block 
 Not a run of its own. In the data-sources schedule: Q measures the export; C1 builds paste rows,
 starter rows, local connections, the browser reader and the local timed run; C2 the published
 lease, tick, Pause and cost; C3 the message Sheet; C6 retires the graphic-level panel for new
-graphics; C7 rehearses and runs the trial. The readers and their rules live in `src/control/` and
+graphics; C7 technically rehearses and prepares the trial; parent phase 14 runs the full trial
+and final acceptance after all refactors. The readers and their rules live in `src/control/` and
 are Node-tested; page changes wire them.
 
 ## Acceptance criteria
 
 ### AC-1: A shared Sheet connects from its ordinary link
-A production accepts a share link ("Anyone with the link can view") on a list or value field and
+A production accepts a share link ("Anyone with the link can view") through the graphic-level action and
 previews the selected tab on the graphic within 10 seconds, with no "Publish to web", sign-in,
 OAuth or code. Lists lead; values and selected rows stay available. Layer: Node link and CSV
 tests; a journey in `e2e/production-data.spec.ts` against a stub sheet; one real-Sheet receipt
 from C1.
 
 ### AC-2: Previewed connections only affect the selected destination
-The preview shows the chosen graphic's fields and "Used by N cues"; saving persists that mapping;
+The preview shows the chosen graphic's fields, matched/unmatched counts, samples and "Used by N cues";
+one confirmation persists the reviewed mapping, without one operation per field;
 equal titles elsewhere and new graphics never connect by themselves; reuse is explicit; the cue
-editor names the source. Layer: Node contracts; the connection journey.
+editor names the source. Existing bindings need explicit review before replacement, ambiguous
+matches require repair, cancellation writes no mapping, and prepared-message destinations refuse
+live binding through both bulk and individual doors. Layer: Node contracts; the connection journey.
 
 ### AC-3: A cell edit reaches the output without a Take
 With a connected graphic on air and a page open, a cell edit changes the output within 10
@@ -192,14 +218,15 @@ Layer: configured scenario with the tick driven directly; the closed-browser rea
 ### AC-5: One active reader per source
 A second tab reads nothing; a source with a live lease is skipped by the tick; an expired lease
 is read once; a value changed once is written once; a late read after Disconnect writes nothing.
-Layer: Node lease tests with a fake clock; configured handover scenario.
+An unchanged source cell after reader handover does not erase a shared manual override; a
+changed cell does. Layer: Node lease tests with a fake clock; configured handover scenario.
 
 ### AC-6: Failure, emptiness and staleness are visible and safe
 An unshared, deleted or unreachable sheet shows the line with a plain fix and the time it
 started; values on air stay. After three missed reads of the active reader (15 seconds in the
 browser, about three minutes under the server tick) the line and fields show stale; the mark
-clears on the next good read; reading resumes by itself. A valid empty tab clears the field and
-says "empty". Layer: Node reader-state tests; journey; the `""` conformance case.
+clears on the next good read; reading resumes by itself. A valid empty list tab clears its field
+and says "empty"; a missing keyed scalar row holds its value and reports an error. Layer: Node reader-state tests; journey; the `""` conformance case.
 
 ### AC-7: The operator wins with one shared value
 ±, a Goal action and a typed value change the shared value; every connected graphic follows;
@@ -220,7 +247,8 @@ Advanced and still work. Layer: journey; owner look.
 ### AC-10: One way to connect a Sheet
 New graphics are not offered the graphic-level panel; existing graphics with the block still
 update; `/docs` describes the production-level flow. Layer: journey; Node test on an existing
-block's template output (C6).
+block's template output (C6). An explicit migration avoids competing old/new writers; production
+Pause never claims to pause an unmigrated embedded reader. Cover the migrated and retained paths.
 
 ### AC-11: Tables stay fresh and selected rows stay put
 A Sheet table refreshes its candidate rows at the reader's cadence; loading a guest row or
@@ -230,9 +258,10 @@ two-cue refresh journey (C3).
 
 ### AC-12: A newcomer does it unaided
 A newcomer pastes rows onto a ticker, then connects a Sheet list and puts a changed line on air,
-without documentation; the message-Sheet task of audience AC-7 runs in the same trial. Pass:
+without documentation; also download a custom graphic's template, fill it and connect all its
+fields once, then repair one unmatched field. The message-Sheet task of audience AC-7 runs in the same trial. Pass:
 four of five complete unaided and answer the comprehension questions; medians reported, no time
-target. Layer: C7's trial (`evidence/trial.md`).
+target. Layer: final trial at parent phase 14 (`evidence/trial.md`), with its setup prepared in C7.
 
 ## Historical six-phase breakdown (not executable)
 

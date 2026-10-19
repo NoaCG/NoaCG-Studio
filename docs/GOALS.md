@@ -160,9 +160,9 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   A three-member walk on a local backend proves a team's production playing with its creator
   signed out; saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
-  - **The playout dashboard comes first, with its data and message flows** (owner, 2026-10-16;
-    the order below decided 2026-10-18): one `/plan-run production-page`:
-    paste and safe staging; refactor 1, 2+7 and 13a; lists, Sheets, messages, feeds and API.
+  - **The playout dashboard comes first, with data and messages** (owner, 2026-10-19): all 22 steps
+    plus Q in one `/plan-run production-page`; order and start gates: `work-specs/production-page-refactor/spec.md`.
+    Whole-graphic connections and starter data; final CasparCG/Bridge and OBS/browser acceptance. Execution not started.
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs; more than that is optional.
   - **Shared productions,** proved by verification before anything is rebuilt: members join the

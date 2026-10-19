@@ -1,5 +1,7 @@
 # Whole-graphic connections and downloadable data templates
 
+**Integration update, 19 October:** the owner has now authorized incorporation into the actual specs. See the [integration record](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md) and parent run plan. The proposal/status wording below records the earlier research stage; no implementation has started.
+
 Owner clarification, 19 October 2026. Planning refinement only: no product implementation or changes to the executable run plan. This refines P2 in [the proposed additions](09-owner-feedback-and-run-additions.md). Existing mockups illustrate interaction logic, not replacement styling for the production page.
 
 ## What already exists

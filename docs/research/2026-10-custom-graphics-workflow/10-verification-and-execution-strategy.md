@@ -1,5 +1,7 @@
 # Complete run: cloud execution and avoiding duplicate verification
 
+**Integration update, 19 October:** the owner has now authorized incorporation into the actual specs. See the [integration record](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md) and parent run plan. The proposal/status wording below records the earlier research stage; no implementation has started.
+
 19 October 2026. Planning and read-only investigation; no CI policy, runner code, required check, agreed spec or product feature changed. No cloud task or production-page run was launched.
 
 ## Updated owner direction

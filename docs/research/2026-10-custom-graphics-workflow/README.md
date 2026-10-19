@@ -1,12 +1,14 @@
 # NoaCG custom graphics: from collected data to air
 
-Research only, prepared 18 October 2026 for the morning review. The revised brief and the owner's election-source clarification are covered. No product implementation, existing work-spec change, hosted write or plan execution.
+Research prepared 18 October 2026, followed by owner refinements on 19 October. No product implementation or plan execution. The 19 October integration now updates the actual work specs with the owner's authorization; the earlier research-only status is historical.
 
-**Latest: [whole-graphic connections and downloadable data templates](11-whole-graphic-connections.md).** Connect a graphic as a unit, automatically propose mappings, and use per-field controls for exceptions. This refinement distinguishes existing bulk matching from the additional starter-template work and links the future Excel/local-file issue.
+**Latest: [integration into the actual plan](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md).** The parent plan, data, Sheet and message specs now include all 22 steps, P1–P6, whole-graphic connections and downloadable starter data. The final human trial follows all refactors. Pixotope findings and the final whole-plan review remain pending; execution is paused.
+
+[Whole-graphic connections and downloadable data templates](11-whole-graphic-connections.md) records the rationale and future Excel/local-file issue.
 
 The [complete-run cloud and verification strategy](10-verification-and-execution-strategy.md) covers all 22 current steps in one coordinated project, with flexible work blocks. It maps cloud versus local work, explains safe avoidance of duplicate verification, and includes current CI timing evidence. The proposed runner/CI changes have not been implemented.
 
-[19 October owner feedback and six proposed run additions](09-owner-feedback-and-run-additions.md) keeps import redesign, the agent-authored election package and the full OGraf system separate, while requiring CasparCG/Bridge and browser output first. It also explains the API collection boundary and recommends one shared Bridge provisionally. Existing agreed specs remain unchanged; their two-window wording still needs reconciliation with the latest full-run direction.
+[19 October owner feedback and six proposed run additions](09-owner-feedback-and-run-additions.md) keeps import redesign, the agent-authored election package and the full OGraf system separate, while requiring CasparCG/Bridge and browser output first. It also explains the API collection boundary and recommends one shared Bridge provisionally. The actual specs now incorporate the accepted additions and supersede the earlier two-window wording.
 
 The earlier [morning verdict](morning-review.md) and [full assessment](08-whole-plan-assessment.md) review the agreed run against main `4569b9622`, including live candidate selection, the legacy Sheet path, export limits and a larger completion rehearsal. Read their scope proposals alongside the newer owner feedback. The earlier experiment and mockups retain their historical evidence baseline.
 
