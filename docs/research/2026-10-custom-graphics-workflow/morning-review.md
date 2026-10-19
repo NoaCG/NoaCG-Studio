@@ -2,6 +2,8 @@
 
 Prepared for 19 October 2026. Research and recommendations only; no product implementation or plan execution.
 
+**Follow-up:** the owner has now answered these questions. [19 October feedback and proposed run additions](09-owner-feedback-and-run-additions.md) records the answers and narrows the scope recommendation below. Keep the election package and broader authoring work separate from the current run.
+
 **My assessment: the core approach is sound, but completing the agreed production-page run would not yet give us a complete workflow for every graphic and every playout route.** It would give us a much stronger NoaCG-controlled production workflow. A few focused additions are needed for custom graphics, and foreign-package playout remains a separate milestone.
 
 I reviewed the actual run order, the supplied second opinion, the broader authoring/output plans, and current source. The [full assessment](08-whole-plan-assessment.md) separates existing capabilities, promised work, proposed additions and remaining proof.

@@ -29,3 +29,12 @@ Inspected current main `4569b9622923e1ecc9c790c071ee27e263580324` after rebasing
 - All branch changes remain under `docs/research/`. No product source, agreed work-spec, authority, hosted configuration or running production was changed. The product plan run was not started.
 
 The updated review ZIP includes both new documents. Archive integrity and exact agreement with the research folder are checked during packaging. Human feedback and real-device/provider acceptance remain future work, as requested by the owner.
+
+## Owner-feedback follow-up, 19 October 2026
+
+Added `09-owner-feedback-and-run-additions.md`, recording the owner's decisions separately from six proposed plan amendments. Updated the index and marked the morning questions as answered. Existing specs and their authority remain unchanged.
+
+- Inspected the current worktree's Bridge command, CasparCG setup, vMix adapter, outward OGraf adapter, Data API and full-stack OGraf plan at base `4569b9622923e1ecc9c790c071ee27e263580324`. This is source evidence, not a new claim of device or OGraf conformance testing.
+- All eight pinned references in the new document exist, with cited lines in range; all local Markdown targets resolve.
+- `git diff --cached --check` and the same five applicable repository gates passed. The staged changes are research documents only.
+- Repackaged the review ZIP and checked its integrity and byte-for-byte agreement with the research folder. No product build or new browser/device test was appropriate for this discussion record.

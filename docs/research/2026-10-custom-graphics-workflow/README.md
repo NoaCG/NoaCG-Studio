@@ -2,7 +2,9 @@
 
 Research only, prepared 18 October 2026 for the morning review. The revised brief and the owner's election-source clarification are covered. No product implementation, existing work-spec change, hosted write or plan execution.
 
-**For the morning: [read the whole-plan verdict](morning-review.md).** The [full assessment](08-whole-plan-assessment.md) reviews the agreed run against current main `4569b9622`, including live candidate selection, the legacy Sheet path, export limits and the minimum completion rehearsal. The earlier experiment and mockups retain their historical evidence baseline.
+**Latest: [19 October owner feedback and six proposed run additions](09-owner-feedback-and-run-additions.md).** This narrows the recommendation: preserve import, qualify CasparCG/Bridge and browser output first, and deliver the agent-authored election package and full OGraf system in separate milestones. It also explains the API collection boundary and recommends one shared Bridge provisionally. Existing agreed specs remain unchanged.
+
+The earlier [morning verdict](morning-review.md) and [full assessment](08-whole-plan-assessment.md) review the agreed run against main `4569b9622`, including live candidate selection, the legacy Sheet path, export limits and a larger completion rehearsal. Read their scope proposals alongside the newer owner feedback. The earlier experiment and mockups retain their historical evidence baseline.
 
 For the concrete use case, open the [Finnish election walkthrough](election/README.md). It explains who collects each input, the sample files, exact API body/bindings, four graphic types, February rehearsal and 18 April 2027 operation. [The source investigation](election/source-investigation.md) distinguishes verified Yle/Ministry provenance from the unverified delivery interface. The local proof uses one fixed live candidate; the new assessment explains the additional work needed for selecting different candidates on one reusable live card.
 
@@ -24,6 +26,7 @@ For the concrete use case, open the [Finnish election walkthrough](election/READ
 6. [Validation and acceptance criteria](06-validation-and-acceptance-criteria.md): seven usability tasks and setup/action/observable results with honest evidence status.
 7. [Proposed plan amendments](07-proposed-plan-amendments.md): exact relevant decisions/ACs/phases, dependencies and compatibility; existing specs untouched.
 8. [Whole-plan assessment](08-whole-plan-assessment.md): completion boundary, source-backed gaps, output-route matrix, supplemental amendments and a complete custom-show rehearsal; [short morning review](morning-review.md).
+9. [Owner feedback and run additions](09-owner-feedback-and-run-additions.md): latest scope, P1–P6, separate election acceptance, Bridge recommendation, OGraf roadmap and preparation for the planned 20 October start.
 
 ## Focused screen index
 
