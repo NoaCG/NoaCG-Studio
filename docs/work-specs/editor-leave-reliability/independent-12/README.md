@@ -191,15 +191,13 @@ Do not change assertions, quiet-window/time budgets or classification to obtain
 a pass. If diagnosis identifies a product defect, propose the precise product
 paths for another reservation decision before implementation.
 
-### Nightly alarm remains a failed performance gate
+### Nightly budget restored on pinned source; rolling alarm remains open
 
-#1498 remains open. Latest nightly 39201147576 on `bb82c4dfc` has all 14 E2E
+#1498 remains open. Original scheduled nightly 39201147576 on `bb82c4dfc` has all 14 E2E
 shards green and traces 231/231 files to completion, but combined job 117898781644
 fails: **mean per-test time 6.09 s exceeds the unchanged 5.50 s ceiling**.
-The trace/capacity repairs do not supply a new passing nightly budget verdict.
-Proposed owner scope: inspect the nightly report's slowest files and existing
-`scripts/e2e-budget.mjs` / `.github/workflows/nightly.yml` evidence path, then
-request targeted performance work from the identified owner. No ceiling increase,
+That failed source predates the landed trace-runtime change. The fresh pinned
+verification below independently checks the current profile. No ceiling increase,
 classification change, alarm closure or retry of the original nightly occurs here.
 
 Because that nightly predates the landed runtime repair, a new-source
@@ -210,8 +208,25 @@ branch contains none of the disposable carried additions. The prescribed
 `verification-dispatch.mjs -- workflow run nightly.yml --ref <branch>` first
 reported advisory `UNRESOLVED` (dispatch input/default identity), then dispatched
 once: run 39323236011, attempt 1. No old run is retried and no workflow, limit,
-selection or source is edited. Pending is not a performance verdict. A branch
+selection or source is edited. A branch
 dispatch does not close main's rolling alarm.
+
+**Terminal result: FAILURE**, source `4e067b656`, attempt 1. The complete report
+has **2,184 passed, 1 failed, 1 existing platform skip; zero flaky/retries**.
+Every actual result has retry index 0. All 32 editor-group and 14 editor-key
+cases pass. Artifact 12221474022 independently hashes to
+`67dad5600a068c73e8360addd36ffa65ae1e62793a53acf22fc674cd6ed7d7e2`.
+[Complete-count/per-case facts](fresh-nightly-facts.json).
+
+The **time-budget step passes: mean 3.88 s against the unchanged 5.50 s ceiling**.
+Catalog calibration passes 61 cases, and all five catalog quality gates pass.
+Combined report job 118308513931 succeeds; Nightly verdict 118308791367 fails
+because of the E2E setup failure below. The traced map reports **231/232 fresh
+completed specs**, retaining the previous editor-arrangement entry; no complete
+fresh trace-map coverage is claimed for that file. The original 6.09-second
+failure stays failed and #1498 stays open; no further performance source repair
+or budget change is proposed from this passing current-profile measurement.
+[Terminal job evidence](nightly-terminal.json).
 
 ### Fresh pinned-source editor-arrangement gate failure
 
@@ -224,6 +239,12 @@ The animated-resize assertions have not executed. Editor-arrangement is in
 `released` on this exact source, not hidden in quarantine.
 
 The whole failed job log was read. [Signature](nightly-arrangement-failure.json).
+Artifact 12221976050 independently hashes to
+`4e41255e6ec22b2e96078f5fbd4599f962dc0637f078c6512fa98064f380c13d`.
+Its screenshot and trace were opened/read. The editor remains mounted with the
+Hairline fixture and Preparing preview. The trace records initial goto, then
+the failing applyTemplate evaluate, which rejects after about 37 ms. That
+observation does not establish why its execution context stopped answering.
 The helper awaits an `applyTemplate` mutation as its last page-side act and
 returns immediately. The scoped `e2e/async-whose-last-act-starts-work` contract
 requires answering from a later task after work that starts a render. That is
@@ -300,5 +321,15 @@ coordinator chat `01a152c8-9a1f-7452-a356-5539c360b642` to retrieve.
 | 6. Desktop/laptop/125%, cumulative preservation and outputs | Desktop/laptop, nested ownership and the separately identified larger-display actual-125 execution pass; all nine SPX/CasparCG/OGraf outputs execute without errors. All three viewport captures were inspected: authored text/artwork, handles, timeline and inspector remain; Fit artwork is small and Properties requires scrolling at 125%. The first native-window setup failure remains failed. No physical-host, native-picker or owner-comfort acceptance follows from these browser checks. |
 
 These functional observations do not clear the release-evidence failure or
-substitute workflow colors for gate evidence. The final independent Phase 2
+the fresh editor-arrangement failure, or substitute workflow colors for gate evidence.
+The final independent Phase 2
 verdict is **BLOCKED**, with source reservations preserved.
+
+Receipt review and simplification ran inline: source/merge identities, per-case
+results, retained red assertions, environment differences and every stated limit
+were checked against their evidence. No product repair was made. The reached
+documentation gates pass (contract freshness/citations, docs index, client-secret
+scan and copy), and git whitespace checks pass. These checks validate the receipt,
+not Phase 2 acceptance. The receipt is committed/pushed on its own documentation
+branch; no PR, auto-merge, merge-queue submission or acceptance stamp is created.
+All owned runtime checks are terminal; no monitor or unattended repair is claimed.

@@ -1,0 +1,24 @@
+{
+  "source": "4e067b65674a9bf0a7632430b5dd0772c03a0331",
+  "run": 39323236011,
+  "reportJob": 118308513931,
+  "verdictJob": 118308791367,
+  "conclusion": "failure",
+  "reportLines": [
+    "2026-10-19T21:08:15.3486020Z e2e-traced: 231 of 232 spec(s) traced to completion from 15 shard trace(s), 1207 source file(s); 1 kept their previous entry (editor-arrangement.spec.ts), 0 have none (none).",
+    "2026-10-19T21:08:18.0088527Z   mean per test    3.88 s   (ceiling 5.50 s)",
+    "2026-10-19T21:08:18.0256838Z Within budget."
+  ],
+  "catalog": {
+    "job": 118302381039,
+    "casesPassed": 61,
+    "qualityJob": 118302381451,
+    "allFivePassed": true
+  },
+  "failureArtifact": {
+    "id": 12221976050,
+    "sha256": "4e41255e6ec22b2e96078f5fbd4599f962dc0637f078c6512fa98064f380c13d"
+  },
+  "screenshot": "editor remains mounted with Hairline fixture and Preparing preview; resize case has not begun",
+  "traceObservation": "initial goto followed by applyTemplate evaluate; evaluate rejects after approximately 37 ms. Trace alone does not establish the failure's cause."
+}

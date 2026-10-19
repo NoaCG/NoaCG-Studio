@@ -1,0 +1,658 @@
+{
+  "source": "4e067b65674a9bf0a7632430b5dd0772c03a0331",
+  "run": 39323236011,
+  "artifact": 12221474022,
+  "artifactSha256": "67dad5600a068c73e8360addd36ffa65ae1e62793a53acf22fc674cd6ed7d7e2",
+  "stats": {
+    "startTime": "2026-10-19T20:55:22.064Z",
+    "duration": 740237.0830078125,
+    "expected": 2184,
+    "skipped": 1,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "resultCounts": {
+    "('passed', 0)": 2184,
+    "('skipped', 0)": 1,
+    "('failed', 0)": 1
+  },
+  "notPassed": [
+    {
+      "file": "catalog-baseline.spec.ts",
+      "title": "every catalog variant renders identically",
+      "status": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "retry": 0,
+          "duration": 99,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-arrangement.spec.ts",
+      "title": "animated resize preserves its earlier scale key and refuses shared-axis conflicts",
+      "status": "unexpected",
+      "results": [
+        {
+          "status": "failed",
+          "retry": 0,
+          "duration": 1230,
+          "error": {
+            "message": "Error: page.evaluate: Execution context was destroyed, most likely because of a navigation.",
+            "stack": "Error: page.evaluate: Execution context was destroyed, most likely because of a navigation.\n    at open (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-arrangement.spec.ts:15:14)\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-arrangement.spec.ts:278:3",
+            "location": {
+              "file": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-arrangement.spec.ts",
+              "column": 14,
+              "line": 15
+            },
+            "snippet": "\u001b[0m \u001b[90m 13 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/app?editor=foundation#/editor-foundation'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByTestId(\u001b[32m'editor-foundation'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 15 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mevaluate(\u001b[36masync\u001b[39m t \u001b[33m=>\u001b[39m (\u001b[36mawait\u001b[39m \u001b[36mimport\u001b[39m(\u001b[32m'/src/store/templateStore.ts'\u001b[39m))\u001b[33m.\u001b[39museTemplateStore\u001b[33m.\u001b[39mgetState()\u001b[33m.\u001b[39mapplyTemplate(t\u001b[33m,\u001b[39m { resetSampleData\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m,\u001b[39m \u001b[33mJSON\u001b[39m\u001b[33m.\u001b[39mparse(readFileSync(\u001b[32m`docs/research/editor-r1-foundation/fixture-${fixture}.json`\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'utf8'\u001b[39m)) \u001b[36mas\u001b[39m \u001b[33mSpxTemplate\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 16 |\u001b[39m   \u001b[36mawait\u001b[39m ready(page)\u001b[33m;\u001b[39m\n \u001b[90m 17 |\u001b[39m }\n \u001b[90m 18 |\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m create(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m) {\u001b[0m"
+          }
+        }
+      ]
+    }
+  ],
+  "editorGroups": [
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "baseline probe: imported hierarchy and missing group controls",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1465,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "group and ungroup preserve child pose, identities, fields and one undo",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2592,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "a selected group moves every member by composition pixels and cancels as one gesture",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2119,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "group editing exposes parent bar, local ruler and breadcrumb without hiding canvas",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1884,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "noncontiguous selection refuses with source and history unchanged",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1550,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "group transform and centered pivot preserve child offsets and ungrouped appearance",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2765,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "independent child and group motion survive ungroup and repeated cue seeks",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3522,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "nested group navigation and transformed-parent nudge preserve fine world geometry",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2656,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "SVG members under a rotated scaled parent group and ungroup without jumps",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3292,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "group parent bar moves child keys atomically and local time follows its visibility start",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2192,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "stale group requests and unsupported batches leave source, selection and history unchanged",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1993,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "structural selectors refuse grouping and mixed parents have no partial source write",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1658,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "text mask, field bindings and asset bytes survive transformed grouping and undo",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2528,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "group arrow gestures cancel on focus, source and assets; local ruler owns its arrows",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 5189,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "mixed parents and parent/member selection refuse the complete operation batch",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1825,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "template search, UI-created shapes and Pen, group and member motion, save/reopen and executed exports at desktop and laptop sizes",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 12938,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "SVG group rotation and scale motion ungroup exactly at different poses",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3760,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "group canvas transform is one undo and Escape or navigation cancels its draft",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2926,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "painted pseudo-element selectors refuse without wrapping new artwork",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1558,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "ungroup refuses a group-owned outline without losing source or selection",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1740,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "SVG group pivot is centered and remains static during child and group motion",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4191,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "local parent trim keeps child motion and navigation cancels timeline drafts",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2723,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "grouping existing SVG member motion refuses exactly beside its control",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1823,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "SVG parent movement retains only owned static pivots and anchor refuses unknown data",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2239,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "new wrapper inheritance refuses without changing member paint",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1775,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "new wrapper dynamic selector refuses without changing source",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1409,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "member blending refuses transformed HTML ungroup without losing source",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1827,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "Project placement respects local group scope and remains available in Composition",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2576,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "source wrapper rules refuse group marker",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2038,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "source wrapper rules refuse carrier marker",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2106,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "source wrapper rules refuse frame attributes",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1740,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-groups.spec.ts",
+      "title": "serialized group frame refuses zero after rounding",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1362,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "editorKeys": [
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "Quiz source-controlled animation is preserved and explains the base editing path",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4553,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "text and box second keys, cancel, history and reopen 1920",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 14081,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "text and box second keys, cancel, history and reopen 1366",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 12818,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "text and box second keys, cancel, history and reopen 1093",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 12774,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "nonzero first key, diamond last removal, interpolated disable and exact undo",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 5012,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "nested SVG armed parent-coordinate drag and explicit base offset preserve motion",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3602,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "bar movement carries disjoint spans and keys, cancel and refusal are atomic",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4217,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "numeric animation controls are available on a created layer",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1811,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "armed scale handles key both axes in one transaction and stale numeric drafts refuse",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4011,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "mixed multi-selection keys only armed channels and commits one undo",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3870,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "explicit visibility preserves keyed opacity at a hold and resolves cue-side ownership",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3269,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "stored frames, source preservation, inheritance and atomic refusal",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2247,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "known legacy interpreter upgrades for spans while customized source refuses",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2221,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "editor-keys.spec.ts",
+      "title": "visibility intervals and numeric poses match executable SPX, CasparCG and OGraf packages",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4368,
+          "error": null
+        }
+      ]
+    }
+  ]
+}
