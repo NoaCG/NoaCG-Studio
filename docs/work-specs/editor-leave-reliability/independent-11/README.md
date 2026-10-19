@@ -78,6 +78,16 @@ supports the engineering repair; normal main classification is still pending lan
 The separate owner's unchanged local gates subsequently passed in the supported persistent
 execution context; the prior interrupted attempts remain disclosed, not retroactively passed.
 
+Final account head is `92ce1b2e6d9f45bba95c5517a19664429db288b2`. Independently queried
+`actions/runs/39283658898/attempts/1`: completed success on that exact head. The required
+`Reviewed` and `CI gate` checks are both formally completed success. Independent GraphQL
+inspection confirms actual queue entry `MQE_lQDOSzVhWs8AAAABJXjCac4AA_nszgNZyZY`, position 2,
+with that exact head and `merged:false` / no merge SHA at this checkpoint. The owner remains
+active through landing and exact-SHA terminal results. Earlier draft CI `39280886245` on
+`876f87fe` failed its missing-stamp Reviewed wait; that superseded failure is preserved.
+Superseded proof `39279813869` was cancelled during backend setup before account tests.
+Neither is counted as a passing run or a product assertion failure.
+
 ## Activity, reservations and current checks
 
 ### Additional current-main failure discovered by this audit
