@@ -1,0 +1,474 @@
+{
+  "source": "86e795dc9f66183633d7c99a73bea8c27e4e32f6",
+  "verdict": "BLOCKED_BEFORE_ACCEPTANCE",
+  "jobs": [
+    {
+      "jobId": 118059664098,
+      "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39252546204/job/118059664098",
+      "read": "Whole decoded job log via GitHub connector; selected lines retained",
+      "lineCount": 1716,
+      "excerpts": [
+        {
+          "line": 101,
+          "text": "2026-10-19T12:30:15.3668207Z ##[group]Fetching the repository"
+        },
+        {
+          "line": 102,
+          "text": "2026-10-19T12:30:15.3677329Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=50 origin +b11adf155430c0f6888f524e16fa5ae599c28408:refs/remotes/origin/main"
+        },
+        {
+          "line": 103,
+          "text": "2026-10-19T12:30:18.8870284Z From https://github.com/NoaCG/NoaCG-Studio"
+        },
+        {
+          "line": 104,
+          "text": "2026-10-19T12:30:18.8886164Z  * [new ref]         b11adf155430c0f6888f524e16fa5ae599c28408 -> origin/main"
+        },
+        {
+          "line": 105,
+          "text": "2026-10-19T12:30:18.8896713Z ##[endgroup]"
+        },
+        {
+          "line": 106,
+          "text": "2026-10-19T12:30:18.8897656Z ##[group]Determining the checkout info"
+        },
+        {
+          "line": 107,
+          "text": "2026-10-19T12:30:18.8898201Z ##[endgroup]"
+        },
+        {
+          "line": 108,
+          "text": "2026-10-19T12:30:18.8898579Z [command]/usr/bin/git sparse-checkout disable"
+        },
+        {
+          "line": 109,
+          "text": "2026-10-19T12:30:18.8948078Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig"
+        },
+        {
+          "line": 110,
+          "text": "2026-10-19T12:30:18.8987135Z ##[group]Checking out the ref"
+        },
+        {
+          "line": 111,
+          "text": "2026-10-19T12:30:18.8991499Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main"
+        },
+        {
+          "line": 112,
+          "text": "2026-10-19T12:30:19.5708629Z Switched to a new branch 'main'"
+        },
+        {
+          "line": 113,
+          "text": "2026-10-19T12:30:19.5713405Z branch 'main' set up to track 'origin/main'."
+        },
+        {
+          "line": 114,
+          "text": "2026-10-19T12:30:19.5756047Z ##[endgroup]"
+        },
+        {
+          "line": 115,
+          "text": "2026-10-19T12:30:19.5807909Z [command]/usr/bin/git log -1 --format=%H"
+        },
+        {
+          "line": 116,
+          "text": "2026-10-19T12:30:19.5836013Z b11adf155430c0f6888f524e16fa5ae599c28408"
+        },
+        {
+          "line": 117,
+          "text": "2026-10-19T12:30:19.6156457Z ##[group]Run actions/setup-node@v5"
+        },
+        {
+          "line": 118,
+          "text": "2026-10-19T12:30:19.6156813Z with:"
+        },
+        {
+          "line": 119,
+          "text": "2026-10-19T12:30:19.6157280Z   node-version: 24"
+        },
+        {
+          "line": 120,
+          "text": "2026-10-19T12:30:19.6157502Z   cache: npm"
+        },
+        {
+          "line": 1275,
+          "text": "2026-10-19T12:32:49.3451000Z "
+        },
+        {
+          "line": 1276,
+          "text": "2026-10-19T12:32:56.0907129Z   ✘    1 [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out (5.9s)"
+        },
+        {
+          "line": 1277,
+          "text": "2026-10-19T12:33:06.7043207Z   ✓    2 [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out (retry #1) (9.7s)"
+        },
+        {
+          "line": 1278,
+          "text": "2026-10-19T12:33:08.5897952Z   ✓    3 [configured] › e2e/configured/account.spec.ts:63:3 › account essentials › the sign-in dialog offers the forgot-password path (1.9s)"
+        },
+        {
+          "line": 1279,
+          "text": "2026-10-19T12:33:18.7530562Z   ✓    4 [configured] › e2e/configured/account.spec.ts:84:3 › account essentials › a lost session offers explicit recovery; local work survives and sync resumes (10.1s)"
+        },
+        {
+          "line": 1280,
+          "text": "2026-10-19T12:33:42.3276299Z   ✓    5 [configured] › e2e/configured/agent-access.spec.ts:144:3 › agent access (configured) › consent -> loopback code -> redeem -> save 201 -> deep link -> revoke -> 401 (23.5s)"
+        },
+        {
+          "line": 1281,
+          "text": "2026-10-19T12:34:45.8330373Z   ✓    6 [configured] › e2e/configured/agent-access.spec.ts:538:3 › agent access (configured) › the CLI delivers a set once, however its save is interrupted, repeated or doubled (1.1m)"
+        },
+        {
+          "line": 1282,
+          "text": "2026-10-19T12:36:11.1379419Z   ✓    7 [configured] › e2e/configured/agent-access.spec.ts:757:3 › agent access (configured) › the published entry path: npx from a clean home, a new account, early consent, a three-graphic production opened (1.4m)"
+        },
+        {
+          "line": 1283,
+          "text": "2026-10-19T12:36:20.0515622Z   ✓    8 [configured] › e2e/configured/all-out-from-heads.spec.ts:22:1 › All out clears a graphic the server says is on that this page holds no cue for (8.9s)"
+        },
+        {
+          "line": 1563,
+          "text": "2026-10-19T13:01:10.3493584Z "
+        },
+        {
+          "line": 1564,
+          "text": "2026-10-19T13:01:10.3495327Z   1) [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out "
+        },
+        {
+          "line": 1565,
+          "text": "2026-10-19T13:01:10.3496278Z "
+        },
+        {
+          "line": 1566,
+          "text": "2026-10-19T13:01:10.3496526Z     Error: expect(locator).toBeVisible() failed"
+        },
+        {
+          "line": 1567,
+          "text": "2026-10-19T13:01:10.3497128Z "
+        },
+        {
+          "line": 1568,
+          "text": "2026-10-19T13:01:10.3497474Z     Locator: getByRole('button', { name: 'Sign in', exact: true })"
+        },
+        {
+          "line": 1569,
+          "text": "2026-10-19T13:01:10.3498039Z     Expected: visible"
+        },
+        {
+          "line": 1570,
+          "text": "2026-10-19T13:01:10.3498828Z     Error: strict mode violation: getByRole('button', { name: 'Sign in', exact: true }) resolved to 2 elements:"
+        },
+        {
+          "line": 1571,
+          "text": "2026-10-19T13:01:10.3501260Z         1) <button class=\"auth-signin\" title=\"A free account keeps your work with you on any computer, adds AI, and puts a production online so you can run it from your phone.\">Sign in</button> aka getByTestId('home-page').getByRole('button', { name: 'Sign in' })"
+        },
+        {
+          "line": 1572,
+          "text": "2026-10-19T13:01:10.3503407Z         2) <button>Sign in</button> aka getByTestId('account-save-notice').getByRole('button', { name: 'Sign in' })"
+        },
+        {
+          "line": 1573,
+          "text": "2026-10-19T13:01:10.3504157Z "
+        },
+        {
+          "line": 1574,
+          "text": "2026-10-19T13:01:10.3504307Z     Call log:"
+        },
+        {
+          "line": 1585,
+          "text": "2026-10-19T13:01:10.3513195Z       61 |   });"
+        },
+        {
+          "line": 1586,
+          "text": "2026-10-19T13:01:10.3513695Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/account.spec.ts:58:78"
+        },
+        {
+          "line": 1587,
+          "text": "2026-10-19T13:01:10.3514126Z "
+        },
+        {
+          "line": 1588,
+          "text": "2026-10-19T13:01:10.3515047Z     Error Context: test-results/account-account-essentials-f9322--change-round-trip-sign-out-configured/error-context.md"
+        },
+        {
+          "line": 1589,
+          "text": "2026-10-19T13:01:10.3516504Z "
+        },
+        {
+          "line": 1590,
+          "text": "2026-10-19T13:01:10.3516704Z   1 flaky"
+        },
+        {
+          "line": 1591,
+          "text": "2026-10-19T13:01:10.3518296Z     [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out "
+        },
+        {
+          "line": 1592,
+          "text": "2026-10-19T13:01:10.3519672Z   3 skipped"
+        },
+        {
+          "line": 1593,
+          "text": "2026-10-19T13:01:10.3520174Z   107 passed (28.4m)"
+        },
+        {
+          "line": 1594,
+          "text": "2026-10-19T13:01:10.3822845Z ##[group]Run node scripts/configured-verdict.mjs configured-report.json --expect e2e/configured/expected-run.json --label \"Configured suite (local stack)\" --quarantine \"$QUARANTINE\" --changed \"$CHANGED\""
+        },
+        {
+          "line": 1595,
+          "text": "2026-10-19T13:01:10.3824446Z \u001b[36;1mnode scripts/configured-verdict.mjs configured-report.json --expect e2e/configured/expected-run.json --label \"Configured suite (local stack)\" --quarantine \"$QUARANTINE\" --changed \"$CHANGED\"\u001b[0m"
+        },
+        {
+          "line": 1596,
+          "text": "2026-10-19T13:01:10.3950588Z shell: /usr/bin/bash -e {0}"
+        },
+        {
+          "line": 1597,
+          "text": "2026-10-19T13:01:10.3950937Z env:"
+        },
+        {
+          "line": 1610,
+          "text": "2026-10-19T13:01:10.3959186Z ##[endgroup]"
+        },
+        {
+          "line": 1611,
+          "text": "2026-10-19T13:01:12.0949830Z Ran 108 tests (107 passed, 0 failed, 1 flaky), 3 skipped."
+        },
+        {
+          "line": 1612,
+          "text": "2026-10-19T13:01:12.0976390Z ##[warning]e2e/configured/account.spec.ts failed and then passed on its retry on this commit - a flake, not a regression. It is being quarantined (e2e/quarantine.json)."
+        },
+        {
+          "line": 1613,
+          "text": "2026-10-19T13:01:12.0986035Z Quarantined: e2e/configured/deep-link-boot.spec.ts passed."
+        },
+        {
+          "line": 1614,
+          "text": "2026-10-19T13:01:12.0986684Z Quarantined: e2e/configured/late-send-abandoned.spec.ts passed."
+        },
+        {
+          "line": 1615,
+          "text": "2026-10-19T13:01:12.0987686Z failure set (f3c84d09985f):"
+        },
+        {
+          "line": 1616,
+          "text": "2026-10-19T13:01:12.0988594Z   bridge-real-server.spec.ts::one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else"
+        },
+        {
+          "line": 1661,
+          "text": "2026-10-19T13:01:13.2545107Z \u001b[36;1mif [ -n \"$EXISTING\" ]; then\u001b[0m"
+        },
+        {
+          "line": 1662,
+          "text": "2026-10-19T13:01:13.2546085Z \u001b[36;1m  gh issue close \"$EXISTING\" --comment \"Configured suite green again at b11adf155430c0f6888f524e16fa5ae599c28408 (108 ran, 3 skipped, 0 failed, 1 flaky (1 of them quarantined)): https://github.com/NoaCG/NoaCG-Studio/actions/runs/39252546204\"\u001b[0m"
+        },
+        {
+          "line": 1663,
+          "text": "2026-10-19T13:01:13.2547350Z \u001b[36;1mfi\u001b[0m"
+        },
+        {
+          "line": 1664,
+          "text": "2026-10-19T13:01:13.2611594Z shell: /usr/bin/bash -e {0}"
+        },
+        {
+          "line": 1665,
+          "text": "2026-10-19T13:01:13.2611880Z env:"
+        },
+        {
+          "line": 1666,
+          "text": "2026-10-19T13:01:13.2612115Z   E2E_EMAIL: e2e@noacg.local"
+        }
+      ]
+    },
+    {
+      "jobId": 118071084143,
+      "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39255931088/job/118071084143",
+      "read": "Whole decoded job log via GitHub connector; selected lines retained",
+      "lineCount": 1691,
+      "excerpts": [
+        {
+          "line": 101,
+          "text": "2026-10-19T12:56:09.0822740Z ##[group]Fetching the repository"
+        },
+        {
+          "line": 102,
+          "text": "2026-10-19T12:56:09.0829360Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=50 origin +9294d250d67b6e274c7da7fac580bbb9f3391f73:refs/remotes/origin/main"
+        },
+        {
+          "line": 103,
+          "text": "2026-10-19T12:56:12.7937018Z From https://github.com/NoaCG/NoaCG-Studio"
+        },
+        {
+          "line": 104,
+          "text": "2026-10-19T12:56:12.7937908Z  * [new ref]         9294d250d67b6e274c7da7fac580bbb9f3391f73 -> origin/main"
+        },
+        {
+          "line": 105,
+          "text": "2026-10-19T12:56:12.7941775Z ##[endgroup]"
+        },
+        {
+          "line": 106,
+          "text": "2026-10-19T12:56:12.7942142Z ##[group]Determining the checkout info"
+        },
+        {
+          "line": 107,
+          "text": "2026-10-19T12:56:12.7942959Z ##[endgroup]"
+        },
+        {
+          "line": 108,
+          "text": "2026-10-19T12:56:12.7949051Z [command]/usr/bin/git sparse-checkout disable"
+        },
+        {
+          "line": 109,
+          "text": "2026-10-19T12:56:12.8000006Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig"
+        },
+        {
+          "line": 110,
+          "text": "2026-10-19T12:56:12.8036245Z ##[group]Checking out the ref"
+        },
+        {
+          "line": 111,
+          "text": "2026-10-19T12:56:12.8041737Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main"
+        },
+        {
+          "line": 112,
+          "text": "2026-10-19T12:56:13.3159271Z Switched to a new branch 'main'"
+        },
+        {
+          "line": 113,
+          "text": "2026-10-19T12:56:13.3162702Z branch 'main' set up to track 'origin/main'."
+        },
+        {
+          "line": 114,
+          "text": "2026-10-19T12:56:13.3200826Z ##[endgroup]"
+        },
+        {
+          "line": 115,
+          "text": "2026-10-19T12:56:13.3241269Z [command]/usr/bin/git log -1 --format=%H"
+        },
+        {
+          "line": 116,
+          "text": "2026-10-19T12:56:13.3265992Z 9294d250d67b6e274c7da7fac580bbb9f3391f73"
+        },
+        {
+          "line": 117,
+          "text": "2026-10-19T12:56:13.3464938Z ##[group]Run actions/setup-node@v5"
+        },
+        {
+          "line": 118,
+          "text": "2026-10-19T12:56:13.3465143Z with:"
+        },
+        {
+          "line": 119,
+          "text": "2026-10-19T12:56:13.3465262Z   node-version: 24"
+        },
+        {
+          "line": 120,
+          "text": "2026-10-19T12:56:13.3465380Z   cache: npm"
+        },
+        {
+          "line": 1282,
+          "text": "2026-10-19T12:58:43.1927245Z "
+        },
+        {
+          "line": 1283,
+          "text": "2026-10-19T12:58:50.2761854Z   ✓    1 [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out (5.0s)"
+        },
+        {
+          "line": 1284,
+          "text": "2026-10-19T12:58:51.4678946Z   ✓    2 [configured] › e2e/configured/account.spec.ts:63:3 › account essentials › the sign-in dialog offers the forgot-password path (1.2s)"
+        },
+        {
+          "line": 1285,
+          "text": "2026-10-19T12:58:58.9018888Z   ✓    3 [configured] › e2e/configured/account.spec.ts:84:3 › account essentials › a lost session offers explicit recovery; local work survives and sync resumes (7.4s)"
+        },
+        {
+          "line": 1286,
+          "text": "2026-10-19T12:59:18.9962909Z   ✓    4 [configured] › e2e/configured/agent-access.spec.ts:144:3 › agent access (configured) › consent -> loopback code -> redeem -> save 201 -> deep link -> revoke -> 401 (20.1s)"
+        },
+        {
+          "line": 1287,
+          "text": "2026-10-19T13:00:04.3323080Z   ✓    5 [configured] › e2e/configured/agent-access.spec.ts:538:3 › agent access (configured) › the CLI delivers a set once, however its save is interrupted, repeated or doubled (45.3s)"
+        },
+        {
+          "line": 1288,
+          "text": "2026-10-19T13:01:15.2496664Z   ✓    6 [configured] › e2e/configured/agent-access.spec.ts:757:3 › agent access (configured) › the published entry path: npx from a clean home, a new account, early consent, a three-graphic production opened (1.2m)"
+        },
+        {
+          "line": 1289,
+          "text": "2026-10-19T13:01:21.6210799Z   ✓    7 [configured] › e2e/configured/all-out-from-heads.spec.ts:22:1 › All out clears a graphic the server says is on that this page holds no cue for (6.4s)"
+        },
+        {
+          "line": 1568,
+          "text": "2026-10-19T13:23:07.2369943Z   3 skipped"
+        },
+        {
+          "line": 1569,
+          "text": "2026-10-19T13:23:07.2370246Z   108 passed (24.4m)"
+        },
+        {
+          "line": 1570,
+          "text": "2026-10-19T13:23:07.2697964Z ##[group]Run node scripts/configured-verdict.mjs configured-report.json --expect e2e/configured/expected-run.json --label \"Configured suite (local stack)\" --quarantine \"$QUARANTINE\" --changed \"$CHANGED\""
+        },
+        {
+          "line": 1571,
+          "text": "2026-10-19T13:23:07.2698799Z \u001b[36;1mnode scripts/configured-verdict.mjs configured-report.json --expect e2e/configured/expected-run.json --label \"Configured suite (local stack)\" --quarantine \"$QUARANTINE\" --changed \"$CHANGED\"\u001b[0m"
+        },
+        {
+          "line": 1572,
+          "text": "2026-10-19T13:23:07.2788398Z shell: /usr/bin/bash -e {0}"
+        },
+        {
+          "line": 1573,
+          "text": "2026-10-19T13:23:07.2788584Z env:"
+        },
+        {
+          "line": 1586,
+          "text": "2026-10-19T13:23:07.2792584Z ##[endgroup]"
+        },
+        {
+          "line": 1587,
+          "text": "2026-10-19T13:23:08.1381935Z Ran 108 tests (108 passed, 0 failed, 0 flaky), 3 skipped."
+        },
+        {
+          "line": 1588,
+          "text": "2026-10-19T13:23:08.1382508Z Quarantined: e2e/configured/deep-link-boot.spec.ts passed."
+        },
+        {
+          "line": 1589,
+          "text": "2026-10-19T13:23:08.1382881Z Quarantined: e2e/configured/late-send-abandoned.spec.ts passed."
+        },
+        {
+          "line": 1590,
+          "text": "2026-10-19T13:23:08.1383931Z failure set (f3c84d09985f):"
+        },
+        {
+          "line": 1591,
+          "text": "2026-10-19T13:23:08.1384512Z   bridge-real-server.spec.ts::one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else"
+        },
+        {
+          "line": 1636,
+          "text": "2026-10-19T13:23:09.5975667Z \u001b[36;1mif [ -n \"$EXISTING\" ]; then\u001b[0m"
+        },
+        {
+          "line": 1637,
+          "text": "2026-10-19T13:23:09.5976176Z \u001b[36;1m  gh issue close \"$EXISTING\" --comment \"Configured suite green again at 9294d250d67b6e274c7da7fac580bbb9f3391f73 (108 ran, 3 skipped, 0 failed, 0 flaky): https://github.com/NoaCG/NoaCG-Studio/actions/runs/39255931088\"\u001b[0m"
+        },
+        {
+          "line": 1638,
+          "text": "2026-10-19T13:23:09.5976677Z \u001b[36;1mfi\u001b[0m"
+        },
+        {
+          "line": 1639,
+          "text": "2026-10-19T13:23:09.6030754Z shell: /usr/bin/bash -e {0}"
+        },
+        {
+          "line": 1640,
+          "text": "2026-10-19T13:23:09.6030912Z env:"
+        },
+        {
+          "line": 1641,
+          "text": "2026-10-19T13:23:09.6031042Z   E2E_EMAIL: e2e@noacg.local"
+        }
+      ]
+    }
+  ]
+}
