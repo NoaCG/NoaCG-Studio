@@ -1,0 +1,137 @@
+--- a/src/backend/syncController.ts
++++ b/src/backend/syncController.ts
+@@ -118,12 +118,15 @@
+  * second ago, and the re-check after the "sync" missed it and redirected to Home. It arrived
+  * about five seconds later, with the URL long since rewritten.
+  */
+-let waiting: Array<() => void> = [];
++/** Whether the particular pass awaited by a caller actually completed its cloud read. */
++export interface SyncPassReceipt { readonly completed: boolean }
++const unavailable: SyncPassReceipt = { completed: false };
++let waiting: Array<(receipt: SyncPassReceipt) => void> = [];
+ 
+ /** Answer every waiter. Called when a pass finishes and when no pass can run at all — a waiter
+  *  that hangs is worse than one told "nothing came", because its caller waits forever. */
+-function answer(list: Array<() => void>): void {
+-  for (const resolve of list) resolve();
++function answer(list: Array<(receipt: SyncPassReceipt) => void>, receipt: SyncPassReceipt): void {
++  for (const resolve of list) resolve(receipt);
+ }
+ 
+ /**
+@@ -133,7 +136,7 @@
+  * every caller already assumed it was making. See `waiting` above for what that costs when it
+  * is not true.
+  */
+-export async function syncNow(): Promise<void> {
++export async function syncNow(): Promise<SyncPassReceipt> {
+   if (!(await canSync())) {
+     if (libraryInUse()) setAccountAuthoringEnabled(false);
+     setState({ phase: 'offline', firstPass: !!libraryInUse() && !checkedThisPage, detail: libraryInUse() ? 'Account session unavailable. Editing is paused; pending work is preserved. Sign in again.' : 'Local workspace. Work here is not saved to an account.' });
+@@ -149,17 +152,17 @@
+     // `canSync()` inside the new call, and a third caller arriving inside that await sees both
+     // flags down. Closing it needs the pass chain to be one object rather than two booleans,
+     // which is a change to make when something needs it. A caller that acts on a release must
+-    // therefore check that a pass really did run - `backend/graphicWhenSynced.ts` reads the
+-    // phase for exactly this reason, and anything new here should do the same.
++    // therefore use this call's completion receipt rather than the global phase,
++    // which a queued follow-up may already have replaced.
+     if (!running && !queued) {
+-      answer(waiting);
++      answer(waiting, unavailable);
+       waiting = [];
+     }
+-    return;
++    return unavailable;
+   }
+   if (running) {
+     queued = true; // coalesce: one more pass after the current finishes
+-    return new Promise<void>((resolve) => {
++    return new Promise<SyncPassReceipt>((resolve) => {
+       waiting.push(resolve);
+     });
+   }
+@@ -172,6 +175,7 @@
+   // who asks during THIS pass goes into the fresh list and waits for the next.
+   const answered = waiting;
+   waiting = [];
++  let receipt = unavailable;
+   const firstPass = !checkedThisPage || !libraryHasArrived();
+   // Nothing unconfirmed: the chip stays Synced while this pass looks (D14, reproduced on focus);
+   // what it finds, a pull or a failure, says itself.
+@@ -190,7 +194,7 @@
+       remote,
+       firstPass ? (plan) => setState({ phase: 'syncing', firstPass: true, incoming: countIncoming(plan.toLocal) }) : undefined,
+     );
+-    if (epoch !== sessionEpoch) return;
++    if (epoch !== sessionEpoch) return unavailable;
+     // Coordinated tombstone purge: drop deletes older than the grace period from BOTH sides (same
+     // cutoff), so a purged tombstone can't be re-pulled. 90 days is generous; a device offline
+     // longer than that could resurrect a delete — an acceptable edge for a beta. Best-effort.
+@@ -204,7 +208,9 @@
+     } catch {
+       // Never fail a sync on cleanup.
+     }
+-    if (epoch !== sessionEpoch) return;
++    if (epoch !== sessionEpoch) return unavailable;
++    // Completed reads answer this caller even when a newer revision queues another pass.
++    receipt = { completed: true };
+     if (result.failures.length > 0) {
+       // The pass completed and the bookmark advanced, but some records could not be applied —
+       // surface them (SyncStatus shows the detail in its panel). They retry next pass.
+@@ -234,7 +240,7 @@
+     if (epoch === sessionEpoch) setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e), firstPass });
+   } finally {
+     running = false;
+-    answer(answered);
++    answer(answered, receipt);
+     if (queued) {
+       queued = false;
+       // Through syncNow, not the body directly: the session can have ended while this pass ran,
+@@ -242,6 +248,7 @@
+       void syncNow();
+     }
+   }
++  return receipt;
+ }
+ 
+ // ONE PASS PER CHANGE, NOT ONE PER OPEN TAB. Every tab of the browser hears every library write:
+--- a/src/backend/graphicWhenSynced.ts
++++ b/src/backend/graphicWhenSynced.ts
+@@ -23,7 +23,7 @@
+ 
+ import { isBackendConfigured } from './config';
+ import { getAccessToken } from './auth';
+-import { getSyncState, syncNow } from './syncController';
++import { syncNow } from './syncController';
+ import { graphicById, type GraphicDoc } from '../model/library';
+ import { loadShows, type Show } from '../model/shows';
+ 
+@@ -109,8 +109,8 @@
+     // syncNow resolves when a pass that could SEE this record has completed - see the `waiting`
+     // list in syncController.ts, which is the half of this fix that lives over there.
+     void syncNow()
+-      .catch(() => undefined)
+-      .then(() => {
++      .catch(() => ({ completed: false }))
++      .then((receipt) => {
+         const doc = find();
+         if (doc) {
+           settle(doc);
+@@ -123,13 +123,9 @@
+         // already looking at. So the listener and the timeout above carry those, and only a
+         // completed pass may say no.
+         //
+-        // COMPLETED IS NOT THE SAME AS 'synced'. A pass that read the whole cloud listing and
+-        // then failed to APPLY some unrelated record reports 'error' with its result attached
+-        // (syncController.ts), and that pass answered this question perfectly well - insisting
+-        // on 'synced' left a deleted id waiting out the whole backstop below. A pass that threw
+-        // reports 'error' with no result, and that one is the real "we do not know".
+-        const sync = getSyncState();
+-        if (sync.phase === 'synced' || (sync.phase === 'error' && sync.last)) settle(null);
++        // This awaited pass's receipt stays valid when later work starts another pass.
++        // A thrown/skipped pass still cannot report that the record is absent.
++        if (receipt.completed) settle(null);
+       });
+   });
+ }

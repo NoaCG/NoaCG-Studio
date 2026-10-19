@@ -1,0 +1,15 @@
+{
+  "run": 39307804274,
+  "job": 118249308071,
+  "source": "b5d0b18054791589e02126ed794600a3d43bd3aa",
+  "artifact": 12215340278,
+  "sha256": "b70c55ec605b5cfcc05bd0db9d36c113e2b11a6d360107dbf47fa36c656ee7a7",
+  "result": "one failed, zero retry/flaky/skipped",
+  "failedAssertion": "original production-missing toBeVisible at 115:60, shifted to 140:60 by diagnostics",
+  "timeoutMs": 60000,
+  "mutations": 2,
+  "syncedAtEpochMs": 1792436769582,
+  "missingAtEpochMs": 1792436829444,
+  "productSourceChanged": false,
+  "proposedPatchApplied": false
+}

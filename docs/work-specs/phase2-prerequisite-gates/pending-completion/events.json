@@ -1,0 +1,652 @@
+[
+  {
+    "kind": "navigation",
+    "at": 1792436766463,
+    "hash": "#/production/35667fc0-d397-4d17-9025-6e573c1b2805"
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436767990,
+    "hash": "#/production/35667fc0-d397-4d17-9025-6e573c1b2805"
+  },
+  {
+    "kind": "response",
+    "at": 1792436768350,
+    "method": "POST",
+    "path": "/auth/v1/token",
+    "status": 200
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436768368,
+    "hash": "#/production/35667fc0-d397-4d17-9025-6e573c1b2805"
+  },
+  {
+    "kind": "response",
+    "at": 1792436768737,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768737,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768737,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768737,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768737,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768737,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768787,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768805,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768827,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768829,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768829,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768829,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768829,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768829,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436768836,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769304,
+    "method": "GET",
+    "path": "/rest/v1/team_productions",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769304,
+    "method": "GET",
+    "path": "/rest/v1/team_members",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769304,
+    "method": "GET",
+    "path": "/rest/v1/teams",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769304,
+    "method": "GET",
+    "path": "/auth/v1/user",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436769339,
+    "hash": "#/production/35667fc0-d397-4d17-9025-6e573c1b2805",
+    "sync": {
+      "phase": "pending",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": "Not saved to cloud. Changes on this device are awaiting confirmation.",
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": null,
+      "missing": false,
+      "signIn": false,
+      "productionName": "Production link E2E 1792436760081"
+    }
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436769417,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de"
+  },
+  {
+    "kind": "navigation",
+    "at": 1792436769417,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de"
+  },
+  {
+    "kind": "state",
+    "at": 1792436769421,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "syncing",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": null,
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "response",
+    "at": 1792436769437,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436769438,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "pending",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": "Not saved to cloud. Changes on this device are awaiting confirmation.",
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "response",
+    "at": 1792436769445,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769445,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769448,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769448,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769452,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769458,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436769458,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "pending",
+      "hasLast": true,
+      "detail": "The current revision has not been confirmed in the cloud.",
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "state",
+    "at": 1792436769458,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "syncing",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": null,
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "response",
+    "at": 1792436769467,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769467,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436769468,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "pending",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": "Not saved to cloud. Changes on this device are awaiting confirmation.",
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "response",
+    "at": 1792436769482,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769482,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769482,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769486,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769517,
+    "method": "GET",
+    "path": "/auth/v1/user",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769524,
+    "method": "POST",
+    "path": "/rest/v1/documents",
+    "status": 201
+  },
+  {
+    "kind": "response",
+    "at": 1792436769529,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436769529,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "pending",
+      "hasLast": true,
+      "detail": "The current revision has not been confirmed in the cloud.",
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "state",
+    "at": 1792436769529,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "syncing",
+      "firstPass": false,
+      "hasLast": false,
+      "detail": null,
+      "verifiedAt": null
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "response",
+    "at": 1792436769538,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769538,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769541,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769542,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769542,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769542,
+    "method": "GET",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769572,
+    "method": "GET",
+    "path": "/auth/v1/user",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436769578,
+    "method": "POST",
+    "path": "/rest/v1/documents",
+    "status": 201
+  },
+  {
+    "kind": "response",
+    "at": 1792436769582,
+    "method": "DELETE",
+    "path": "/rest/v1/documents",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436769582,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "synced",
+      "hasLast": true,
+      "detail": null,
+      "verifiedAt": "2026-10-19T19:06:09.582Z"
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": "Looking for this production in your account\u2026",
+      "missing": false,
+      "signIn": false,
+      "productionName": null
+    }
+  },
+  {
+    "kind": "response",
+    "at": 1792436784242,
+    "method": "GET",
+    "path": "/rest/v1/team_productions",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436784242,
+    "method": "GET",
+    "path": "/rest/v1/team_members",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436784243,
+    "method": "GET",
+    "path": "/rest/v1/teams",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436799242,
+    "method": "GET",
+    "path": "/rest/v1/team_members",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436799242,
+    "method": "GET",
+    "path": "/rest/v1/team_productions",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436799242,
+    "method": "GET",
+    "path": "/rest/v1/teams",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436814241,
+    "method": "GET",
+    "path": "/rest/v1/team_members",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436814242,
+    "method": "GET",
+    "path": "/rest/v1/team_productions",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436814242,
+    "method": "GET",
+    "path": "/rest/v1/teams",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436829242,
+    "method": "GET",
+    "path": "/rest/v1/teams",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436829242,
+    "method": "GET",
+    "path": "/rest/v1/team_productions",
+    "status": 200
+  },
+  {
+    "kind": "response",
+    "at": 1792436829245,
+    "method": "GET",
+    "path": "/rest/v1/team_members",
+    "status": 200
+  },
+  {
+    "kind": "state",
+    "at": 1792436829444,
+    "hash": "#/production/00000000-0000-4000-8000-0000000000de",
+    "sync": {
+      "phase": "synced",
+      "hasLast": true,
+      "detail": null,
+      "verifiedAt": "2026-10-19T19:06:09.582Z"
+    },
+    "teams": {
+      "status": "ready",
+      "loaded": true,
+      "loadError": null
+    },
+    "dom": {
+      "loading": null,
+      "missing": true,
+      "signIn": false,
+      "productionName": null
+    }
+  }
+]
