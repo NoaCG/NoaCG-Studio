@@ -75,6 +75,15 @@ at `e2e/editor-keys.spec.ts:161:1` failed in `ready` (`:23:49`), called at `:177
 file into quarantine; it supplies no defect repair. No root cause or product-versus-harness
 diagnosis is claimed from these logs alone. A passing retry does not clear the failed assertion.
 
+The original `test-results-7` artifact `12189853796` was downloaded with the GitHub artifact
+connector, then `download_file`, and its screenshot was opened. ZIP SHA256:
+`dc76f062589d11a16f1d4a451424986dd21d05c96199fe62558accdf6ba69b60`.
+Both screenshot and error-context show the actual alert: **“Wait for the preview to reach
+this playhead and revision before editing.”** The retained trace shows a ruler click, the
+existing `data-pending=false` / zero-stage-error checks, then measurement and drag; the
+post-drag zero-stage-error check fails. This narrows the observed failure to a readiness
+refusal; it is not proof of root cause, a product fix or permission to weaken the check.
+
 This is a second unresolved gate issue; the account-only repair authorization does not
 resolve it. The owner was asked whether to authorize a separate investigation/coverage-preserving
 gate repair or keep acceptance blocked. The account owner was explicitly told not to broaden
