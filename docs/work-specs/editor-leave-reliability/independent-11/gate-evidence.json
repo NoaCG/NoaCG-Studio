@@ -817,6 +817,138 @@
           "text": "2026-10-19T13:43:20.9337083Z   14 passed (1.0m)"
         }
       ]
+    },
+    {
+      "jobId": 118152031755,
+      "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39279909249/job/118152031755",
+      "read": "Whole decoded job log independently read; run attempts/1 independently confirms completed success on exact probe61e79019570697a95cad9e0085059f1a6b6386b4",
+      "lineCount": 1464,
+      "excerpts": [
+        {
+          "line": 1328,
+          "text": "2026-10-19T15:44:07.3768114Z     Expected: visible"
+        },
+        {
+          "line": 1329,
+          "text": "2026-10-19T15:44:07.3768425Z     Error: strict mode violation: getByRole('button', { name: 'Sign in', exact: true }) resolved to 2 elements:"
+        },
+        {
+          "line": 1330,
+          "text": "2026-10-19T15:44:07.3770485Z         1) <button class=\"auth-signin\" title=\"A free account keeps your work with you on any computer, adds AI, and puts a production online so you can run it from your phone.\">Sign in</button> aka getByTestId('home-page').getByRole('button', { name: 'Sign in' })"
+        },
+        {
+          "line": 1331,
+          "text": "2026-10-19T15:44:07.3771292Z         2) <button>Sign in</button> aka getByTestId('account-save-notice').getByRole('button', { name: 'Sign in' })"
+        },
+        {
+          "line": 1332,
+          "text": "2026-10-19T15:44:07.3771656Z "
+        },
+        {
+          "line": 1344,
+          "text": "2026-10-19T15:44:07.3774972Z       61 |   });"
+        },
+        {
+          "line": 1345,
+          "text": "2026-10-19T15:44:07.3775239Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/account.spec.ts:58:78"
+        },
+        {
+          "line": 1346,
+          "text": "2026-10-19T15:44:07.3775436Z "
+        },
+        {
+          "line": 1347,
+          "text": "2026-10-19T15:44:07.3775783Z     Error Context: account-proof/original-held-results/account-account-essentials-f9322--change-round-trip-sign-out-configured/error-context.md"
+        },
+        {
+          "line": 1348,
+          "text": "2026-10-19T15:44:07.3776120Z "
+        },
+        {
+          "line": 1350,
+          "text": "2026-10-19T15:44:07.3776605Z     [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out "
+        },
+        {
+          "line": 1351,
+          "text": "2026-10-19T15:44:07.4042058Z original-held STATS {\"startTime\":\"2026-10-19T15:44:01.202Z\",\"duration\":6172.068,\"expected\":0,\"skipped\":0,\"unexpected\":1,\"flaky\":0}"
+        },
+        {
+          "line": 1352,
+          "text": "2026-10-19T15:44:07.4680361Z "
+        },
+        {
+          "line": 1353,
+          "text": "2026-10-19T15:44:07.4681011Z > noacg-studio@0.1.0 test:e2e:live"
+        },
+        {
+          "line": 1354,
+          "text": "2026-10-19T15:44:07.4682212Z > playwright test --config=playwright.live.config.ts account.spec.ts --workers=1 --retries=0 --reporter=list,json,./scripts/e2e-run-integrity.mjs --output=account-proof/scoped-held-results --grep Settings shows the account"
+        },
+        {
+          "line": 1358,
+          "text": "2026-10-19T15:44:08.5898657Z "
+        },
+        {
+          "line": 1359,
+          "text": "2026-10-19T15:44:12.6009050Z BOTH_BUTTONS {\"all\":2,\"home\":1,\"notice\":1}"
+        },
+        {
+          "line": 1360,
+          "text": "2026-10-19T15:44:12.6178967Z   ✓  1 [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out (3.6s)"
+        },
+        {
+          "line": 1361,
+          "text": "2026-10-19T15:44:12.6980597Z "
+        },
+        {
+          "line": 1362,
+          "text": "2026-10-19T15:44:12.6992850Z   1 passed (4.8s)"
+        },
+        {
+          "line": 1363,
+          "text": "2026-10-19T15:44:12.7212655Z scoped-held STATS {\"startTime\":\"2026-10-19T15:44:07.877Z\",\"duration\":4820.134,\"expected\":1,\"skipped\":0,\"unexpected\":0,\"flaky\":0}"
+        },
+        {
+          "line": 1364,
+          "text": "2026-10-19T15:44:12.7798758Z "
+        },
+        {
+          "line": 1365,
+          "text": "2026-10-19T15:44:12.7799374Z > noacg-studio@0.1.0 test:e2e:live"
+        },
+        {
+          "line": 1366,
+          "text": "2026-10-19T15:44:12.7800224Z > playwright test --config=playwright.live.config.ts account.spec.ts --workers=1 --retries=0 --reporter=list,json,./scripts/e2e-run-integrity.mjs --output=account-proof/scoped-normal-results"
+        },
+        {
+          "line": 1374,
+          "text": "2026-10-19T15:44:27.0031981Z "
+        },
+        {
+          "line": 1375,
+          "text": "2026-10-19T15:44:27.0043299Z   3 passed (13.9s)"
+        },
+        {
+          "line": 1376,
+          "text": "2026-10-19T15:44:27.0258853Z scoped-normal STATS {\"startTime\":\"2026-10-19T15:44:13.151Z\",\"duration\":13851.277,\"expected\":3,\"skipped\":0,\"unexpected\":0,\"flaky\":0}"
+        },
+        {
+          "line": 1377,
+          "text": "2026-10-19T15:44:27.0259612Z PRODUCT_SOURCE_RESTORED true"
+        },
+        {
+          "line": 1378,
+          "text": "2026-10-19T15:44:27.0347526Z ##[group]Run actions/upload-artifact@v4"
+        },
+        {
+          "line": 1379,
+          "text": "2026-10-19T15:44:27.0347721Z with:"
+        },
+        {
+          "line": 1380,
+          "text": "2026-10-19T15:44:27.0347855Z   name: account-signin-proof"
+        }
+      ]
     }
   ],
   "additionalGateIssue": {

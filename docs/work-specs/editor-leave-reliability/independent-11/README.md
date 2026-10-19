@@ -66,6 +66,18 @@ receipt is added. The existing no-auth-modal assertion remains. This is not a la
 verified gate restoration. Its fault proof `39279909249` was queued with no executed steps;
 local backend setup and Node piped-input gates were incomplete and are disclosed by that owner.
 
+Subsequent account evidence: independently read the whole proof job `118152031755` and queried
+`actions/runs/39279909249/attempts/1`. It is **completed success**, exact probe
+`61e79019570697a95cad9e0085059f1a6b6386b4`, attempt 1. The unchanged original assertion under
+the two-second release delay fails at exact `:58:78` with two matches (one unexpected failure,
+zero flaky/skipped). Under the identical delay the scoped assertion passes 1/1; explicit
+diagnostics record `{all:2, home:1, notice:1}`. After restoring the fault, all three normal
+account cases pass with zero failed/flaky/skipped, `--workers=1 --retries=0`.
+`PRODUCT_SOURCE_RESTORED true` is logged. Excerpts are retained in the evidence JSON. This
+supports the engineering repair; normal main classification is still pending landing.
+The separate owner's unchanged local gates subsequently passed in the supported persistent
+execution context; the prior interrupted attempts remain disclosed, not retroactively passed.
+
 ## Activity, reservations and current checks
 
 ### Additional current-main failure discovered by this audit
