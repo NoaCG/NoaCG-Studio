@@ -16,14 +16,31 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const DAY_MS = 24 * 60 * 60_000;
 const ISO_OFFSET = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/;
 const runCommand = (command, args, options) => spawnSync(command, args, { ...options, windowsHide: true });
+const PERMISSION = ['EPERM', 'EACCES'];
+const CAPACITY = ['ENOSPC', 'ENOMEM', 'EAGAIN', 'EMFILE', 'ENFILE'];
 const CHILD = `
 const fs = require('node:fs'), file = process.argv[1];
 try {
   fs.writeFileSync(file, 'workspace-child-ok', { flag: 'wx' });
   if (fs.readFileSync(file, 'utf8') !== 'workspace-child-ok') process.exitCode = 1;
-} catch { process.exitCode = 1; }
+} catch (error) {
+  process.stderr.write(${JSON.stringify(PERMISSION)}.includes(error.code) ? 'workspace-permission'
+    : ${JSON.stringify(CAPACITY)}.includes(error.code) ? 'workspace-capacity' : 'workspace-io');
+  process.exitCode = 1;
+}
 if (!process.exitCode) process.stdout.write('workspace-child-ok');
 `;
+
+function workspaceDiagnosis(result) {
+  const marker = String(result.stderr ?? '').trim();
+  if (PERMISSION.includes(result.error?.code) || marker === 'workspace-permission') {
+    return 'permission: subprocess or workspace access denied; inspect the tool execution policy and worktree access';
+  }
+  if (CAPACITY.includes(result.error?.code) || marker === 'workspace-capacity') {
+    return 'capacity: subprocess or workspace resources unavailable; checkpoint without a product repair';
+  }
+  return diagnosis(result);
+}
 
 /** No persistent state: the existing wave file remains the receipt/launch ledger. */
 export function preflight({ context, until, wave, cwd = ROOT, now,
@@ -72,8 +89,9 @@ export function preflight({ context, until, wave, cwd = ROOT, now,
     catch (error) { child = { error }; }
   }
   const ok = !child.error && child.status === 0 && String(child.stdout ?? '').trim() === 'workspace-child-ok';
-  receipt.checks.push({ name: 'Workspace child', ok, category: 'infrastructure',
-    detail: ok ? 'subprocess and disposable workspace IO passed' : diagnosis(child) });
+  const detail = ok ? 'subprocess and disposable workspace IO passed' : workspaceDiagnosis(child);
+  receipt.checks.push({ name: 'Workspace child', ok,
+    category: detail.startsWith('capacity:') ? 'capacity' : 'infrastructure', detail });
   receipt.checks.push(...networkPreflight({ cwd, run, env }).map((check) => ({ ...check, category: 'infrastructure' })));
   if ((now ?? Date.now()) >= end) return block('window expired during probes: checkpoint without launching');
   receipt.ok = receipt.checks.every((check) => check.ok);

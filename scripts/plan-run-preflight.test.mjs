@@ -56,6 +56,21 @@ test('network failures remain independent and never expose responses or exceptio
   assert.ok(!JSON.stringify(result).includes(secret));
 });
 
+test('local permission and capacity failures name the local blocker without requesting network access', () => {
+  for (const failure of [{ error: { code: 'EPERM' } }, { error: { code: 'EACCES' } },
+    { status: 1, stderr: 'workspace-permission' }]) {
+    const result = preflight({ ...options, run: (command) => command === process.execPath ? failure : pass(command) });
+    assert.match(result.checks[0].detail, /^permission:.*(?:subprocess|workspace)/);
+    assert.doesNotMatch(result.checks[0].detail, /network/);
+  }
+  for (const failure of [{ error: { code: 'ENOMEM' } }, { status: 1, stderr: 'workspace-capacity' }]) {
+    const result = preflight({ ...options, run: (command) => command === process.execPath ? failure : pass(command) });
+    assert.equal(result.checks[0].category, 'capacity');
+    assert.match(result.checks[0].detail, /^capacity:/);
+    assert.equal(result.ok, false);
+  }
+});
+
 test('invalid, expired and overlong windows refuse before launching any command', () => {
   for (const until of [undefined, 'garbled', '2026-10-19T07:00:00Z', '2026-10-21T07:00:00Z']) {
     const result = preflight({ ...options, until, run() { assert.fail('must not execute'); } });
