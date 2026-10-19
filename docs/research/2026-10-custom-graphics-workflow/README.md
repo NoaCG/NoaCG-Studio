@@ -2,7 +2,9 @@
 
 Research prepared 18 October 2026, followed by owner refinements on 19 October. No product implementation or plan execution. The 19 October integration now updates the actual work specs with the owner's authorization; the earlier research-only status is historical.
 
-**Latest: [integration into the actual plan](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md).** The parent plan, data, Sheet and message specs now include all 22 steps, P1–P6, whole-graphic connections and downloadable starter data. The final human trial follows all refactors. Pixotope findings and the final whole-plan review remain pending; execution is paused.
+**Latest: [Pixotope roadmap proposal](12-pixotope-roadmap-proposal.md).** Repository-checked findings, adopt/adapt/defer/avoid recommendations within existing work packages, and a bounded Discovery investigation. Proposed changes await review; the current 22-step plan is not expanded by this document.
+
+[Integration into the actual plan](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md) records the earlier accepted refinements: all 22 steps, P1–P6, whole-graphic connections and downloadable starter data. The final human trial follows all refactors. Pixotope reconciliation and the final whole-plan review remain pending; execution has not started.
 
 [Whole-graphic connections and downloadable data templates](11-whole-graphic-connections.md) records the rationale and future Excel/local-file issue.
 
@@ -35,6 +37,7 @@ For the concrete use case, open the [Finnish election walkthrough](election/READ
 9. [Owner feedback and run additions](09-owner-feedback-and-run-additions.md): latest scope, P1–P6, separate election acceptance, Bridge recommendation, OGraf roadmap and preparation for the planned 20 October start.
 10. [Verification and execution strategy](10-verification-and-execution-strategy.md): all phases, cloud/local assignment, actual CI measurements, duplicate-dispatch prevention and the proposed multi-day run boundary.
 11. [Whole-graphic connections](11-whole-graphic-connections.md): bulk matching as the primary interaction, downloadable starter data, bracket identity, and the future source-provider issue.
+12. [Pixotope roadmap proposal](12-pixotope-roadmap-proposal.md): current evidence, roadmap mapping, priorities, acceptance and Discovery test plan; proposal only.
 
 ## Focused screen index
 
