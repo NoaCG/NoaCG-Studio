@@ -1,5 +1,9 @@
 # Plan run: fewer landings, a binary check, and windows that survive the day
 
+Current project authorization/pause semantics supersede this historical window design:
+see [continuing preparation](../continuing-plan-preparation/spec.md) and its runbook.
+The original below remains historical evidence; ordinary waves keep their limits.
+
 Authority: owner, 2026-10-11, after the guided-mod run (`/plan-run guided-mod`, wave file
 `2026-10-11-plan-guided-mod`): improve the skill from that run's evidence, in proportion to it.
 

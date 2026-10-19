@@ -87,12 +87,12 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
-    // A plan run is unattended for up to a day, phase after phase. Its order and no-repeat promises
+    // A plan run has finite owner authorization, phase after phase. Its order and no-repeat promises
     // live in the ledger script; these lines are the boundaries the script cannot hold.
     'plan-run',
     [
       'A wave runs alone; plan runs of different plans may run side by side',
-      '24 hours is the ceiling',
+      'Finite owner-authorized project deadline',
       'Only phases written in the plan.',
       'Only the merge queue writes `main`.',
       'node scripts/wave-plan-store.mjs --open',

@@ -9,6 +9,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { main, openStore, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { readProject, writeProject } from './project-authorization.mjs';
 
 // Defense in depth: every child git process is restricted to the temporary file remote.
 process.env.GIT_ALLOW_PROTOCOL = 'file';
@@ -58,7 +59,7 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
   };
   const open = (name) => { const db = openStore(path.join(root, name), { recoveryGit: transport }); dbs.push(db); return db; };
   const db = open('control.sqlite');
-  prepareSource({ source, remote, root });
+  prepareSource({ source, remote, root, manifest, wave, now });
   registerRun(db, manifest, now);
   const bootstrap = () => {
     const repo = path.join(root, `bootstrap-${dbs.length}`);
@@ -80,6 +81,21 @@ function receipt(doc, now) {
     native: { ...r.native, revision: r.revision, observedAt: new Date(now).toISOString(), evidence: 'native inspection', state: 'idle', pendingTurn: false },
     github: r.repairOwners.map((o) => ({ ...o, repositoryFullName: doc.manifest.recovery.repositoryFullName, ownerSessionId: o.sessionId, state: 'open', observedAt: new Date(now).toISOString(), evidence: 'PR and owner comment reads' })) };
 }
+
+test('multi-day project restoration preserves authorization but refuses unqualified replacement-host launches', async (t) => {
+  const f = fixture(t, ['-e', ''], ({ manifest, wave, now }) => {
+    manifest.authorization.deadline = new Date(now + 72 * 3_600_000).toISOString();
+    const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
+      status: 'paused', reason: 'restore fixture only', phases: [{ id: 'restore', title: 'Restore and check', dependsOn: [], acceptance: ['restore verified'], environment: 'controlled-fixture' }] };
+    writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline}`), project));
+  });
+  const restored = f.restore(f.now + 25 * 3_600_000);
+  const doc = docFor(restored.db), project = readProject(readFileSync(restored.config.wave, 'utf8'));
+  assert.equal(doc.manifest.authorization.deadline, f.manifest.authorization.deadline);
+  assert.equal(project.id, f.manifest.id);
+  assert.equal(project.authorization.deadline, f.manifest.authorization.deadline);
+  assert.equal((await tickRun(restored.db, f.manifest.id, { now: () => f.now + 25 * 3_600_000, invoke() { assert.fail('unqualified remote replacement'); } })).verdict, 'unknown');
+});
 
 test('whole source/store/ledger loss restores pinned code, hashes, waits and unresolved exact request without replay', async (t) => {
   const f = fixture(t), operations = [];

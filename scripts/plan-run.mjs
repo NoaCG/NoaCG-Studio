@@ -22,14 +22,16 @@
 // detail is the checker's findings: `next` carries them to the next build or repair, and tells the
 // last phase's check, or a check after a fail, to land the notes. `resume` notes that an interrupted
 // step's session was started again in its own worktree and `paused` that a running step was
-// checkpointed at the window's end; neither counts as a launch or changes the state. `stop` may also
+// checkpointed at the block's end. Pause stops admission until an explicit reconciled resume;
+// neither counts as another phase launch. `stop` may also
 // end any step that met a decision the owner reserves, and `answered` (his answer) lets the stopped
 // step go on, with one more repair or check if it stopped on failed checks. Once the middle phase of
 // a plan of four or more has passed, `next` asks once for the `## Midpoint retro` before it goes on.
 
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { projectBoundary, readProject } from './project-authorization.mjs';
 
 export const EVENTS = Object.freeze(['build', 'landed', 'check', 'pass', 'fail', 'repair', 'resume', 'paused', 'stop', 'answered']);
 
@@ -130,11 +132,21 @@ function windowEnd(text) {
  * In the window's last 45 minutes a launch, wait or retro also carries `closingMinutes`, the whole minutes left.
  */
 export function nextStep(text, now = Date.now()) {
+  let project;
+  try {
+    project = readProject(text, now);
+    const boundary = project && projectBoundary(project, now);
+    if (boundary) return boundary;
+  } catch (error) { return { action: 'blocked', why: error.message }; }
+  const control = readSteps(text).filter((step) => ['paused', 'resume'].includes(step.event)).at(-1);
+  if (control?.event === 'paused') return { action: 'paused', phase: control.phase, why: control.detail || 'explicit resume and reconciliation required' };
   const next = stepFor(text, now);
-  const left = windowEnd(text) - now;
+  const left = (project?.block ? Date.parse(project.block.deadline) : windowEnd(text)) - now;
   const closing = ['launch', 'wait', 'retro'].includes(next.action) && left > 0 && left <= CLOSING_MS;
   return closing ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
 }
+
+export function phasePosition(text, now = Date.now()) { return stepFor(text, now); }
 
 function stepFor(text, now) {
   const phases = readPhases(text);
@@ -185,7 +197,10 @@ export function refuseStep(text, phase, event, detail = '') {
   }
   const { state, expect } = phaseState(steps.filter((step) => step.phase === phase));
   if (event === 'resume' || event === 'paused') {
-    return ['building', 'repairing', 'checking'].includes(state) ? null : `nothing in phase ${phase} is running to be ${event === 'resume' ? 'resumed' : 'paused'} (${state})`;
+    const paused = steps.filter((step) => ['paused', 'resume'].includes(step.event)).at(-1)?.event === 'paused';
+    return (event === 'paused' && state !== 'passed') || (event === 'resume' && paused && detail.trim())
+      || (event === 'resume' && ['building', 'repairing', 'checking'].includes(state)) ? null
+      : `nothing in phase ${phase} is running to be ${event === 'resume' ? 'resumed' : 'paused'} (${state})`;
   }
   if (event === 'stop') return state === 'passed' || state === 'stopped' ? `phase ${phase} is ${state}` : null;
   if (expect.includes(event)) return null;
@@ -196,10 +211,50 @@ export function refuseStep(text, phase, event, detail = '') {
 }
 
 /** Append the step to the wave file, or return why not. */
-export function recordStep(file, phase, event, detail = '', now = Date.now()) {
+export function withLedgerLock(file, operation) {
+  const lock = `${realpathSync(file)}.admission`;
+  try { mkdirSync(lock); }
+  catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    return { refusal: 'Ledger admission is busy or interrupted; reconcile its owner-pid before retrying' };
+  }
+  try {
+    writeFileSync(path.join(lock, 'owner-pid'), String(process.pid));
+    return operation();
+  } finally { rmSync(lock, { recursive: true }); }
+}
+
+export function recordStep(file, phase, event, detail = '', now = Date.now(), { supervised = false } = {}) {
+  return withLedgerLock(file, () => recordLocked(file, phase, event, detail, now, supervised));
+}
+
+function recordLocked(file, phase, event, detail, now, supervised) {
   const text = readFileSync(file, 'utf8');
+  if (/[\r\n]/.test(detail)) return { refusal: 'A recorded event must be one line' };
+  let project;
+  try { project = readProject(text, now); } catch (error) { return { refusal: error.message }; }
+  if (project && !supervised) return { refusal: 'Project phase admission requires run-supervisor record and its current block authority' };
+  if (project && ['paused', 'resume'].includes(event)) return { refusal: 'Use supervisor pause/start-block for project control' };
   const refusal = refuseStep(text, phase, event, detail);
   if (refusal) return { refusal };
+  if (['build', 'check', 'repair'].includes(event)) {
+    const next = nextStep(text, now);
+    if (next.action !== 'launch' || next.phase !== phase || next.step !== event) return { refusal: `Ledger refuses launch: ${next.action}` };
+  }
+  if (project && ['build', 'repair', 'check', 'pass'].includes(event)) {
+    let receipt;
+    try { receipt = JSON.parse(detail); } catch { return { refusal: 'Project launch/verdict requires a JSON actor/evidence receipt' }; }
+    if (typeof receipt.actor !== 'string' || !receipt.actor.trim()) return { refusal: 'Independent actor identity required' };
+    const steps = readSteps(text).filter((step) => step.phase === phase);
+    if (event === 'check' && steps.filter((step) => ['build', 'repair'].includes(step.event)).some((step) => JSON.parse(step.detail).actor === receipt.actor)) return { refusal: 'Checker must be independent of every builder/repairer' };
+    if (event === 'pass') {
+      const checker = JSON.parse(steps.findLast((step) => step.event === 'check').detail).actor;
+      const acceptance = project.phases[phase - 1];
+      if (checker !== receipt.actor || !Array.isArray(receipt.evidence) || receipt.evidence.length !== acceptance.acceptance.length
+          || acceptance.acceptance.some((criterion) => !receipt.evidence.some((e) => e.criterion === criterion
+            && typeof e.evidence === 'string' && e.evidence.trim() && e.environment === acceptance.environment))) return { refusal: 'PASS needs the independent checker evidence for every criterion in its required environment' };
+    }
+  }
   const line = `- ${new Date(now).toISOString()} phase ${phase} ${event}${detail ? ` ${detail}` : ''}`;
   appendFileSync(file, `${text.endsWith('\n') ? '' : '\n'}${line}\n`, 'utf8');
   return { line };

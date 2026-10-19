@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
+import { digest, immutableProject, readProject, validateAuthorization } from './project-authorization.mjs';
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const required = (s) => typeof s === 'string' && s.trim().length > 0;
@@ -67,9 +68,15 @@ function validateState(doc, ledger) {
       || !['source', 'scope', 'permissionPolicy'].every((key) => required(auth[key]))
       || !Number.isFinite(Date.parse(auth.startedAt)) || !Number.isFinite(Date.parse(auth.deadline))
       || Date.parse(auth.deadline) <= Date.parse(auth.startedAt)
-      || Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000
+      || (m.kind !== 'plan' && Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000)
       || !doc.packet || doc.packet.objective !== m.packet.objective
       || JSON.stringify(doc.packet.acceptance) !== JSON.stringify(m.packet.acceptance)) throw new Error('Invalid durable run state');
+  validateAuthorization(auth, { now: Date.parse(auth.startedAt), kind: m.kind, open: false });
+  const project = readProject(ledger, Date.parse(auth.startedAt));
+  if (!project && (doc.projectState || doc.projectAuthorization)) throw Error('Recovery project metadata missing');
+  if (project && (immutableProject(project) !== doc.projectAuthorization || digest(project) !== doc.projectState
+      || project.id !== m.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Restored project authorization or state differs');
+  if (!project && Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000) throw Error('Multi-day recovery requires explicit continuing project metadata');
   if (/^Window starts: (\S+)/m.exec(ledger)?.[1] !== auth.startedAt
       || /^Window ends: (\S+)/m.exec(ledger)?.[1] !== auth.deadline) throw new Error('Recovery ledger authorization differs');
   if (doc.pending && (doc.pending.id !== `${m.id}:${doc.sequence}` || !Number.isSafeInteger(doc.pending.attempts)

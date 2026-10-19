@@ -118,3 +118,9 @@ Without that proof, the active owner stays through merge and exact-SHA post-land
 results; report restart, reclaimed-container reconstruction or missing wake support
 as open. Stop wakes at terminal state/window expiry. Never claim archived revival or
 indefinite monitoring without separate evidence; never extend the authorized window.
+
+Continuing plan projects use the immutable project deadline and bounded work blocks in
+`plan-run.md`. Native replacement/remote handoff needs acceptance-side stale-owner fencing;
+the current local SQLite authority and Git checkpoint CAS do not provide it. Restored project
+execution stays refused. Checkpoint and stop when closing the active owner without qualified
+cloud acceptance. A project pause/block end stops local keep-awake and block-specific wakes.

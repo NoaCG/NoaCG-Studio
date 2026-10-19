@@ -1,5 +1,9 @@
 # Plan-run execution preflight
 
+The 2026-10-19 [continuing preparation](../continuing-plan-preparation/spec.md)
+supersedes AC-3's project ceiling with immutable finite project authorization and
+bounded work blocks. Legacy qualification-only windows and ordinary waves retain 24 hours.
+
 Authority: the owner's 2026-10-18 request in chat `01a1508d-2b53-7151-9018-f59c2a23317d`,
 renewed 2026-10-19 in this chat to finish and land today. The current window ends at
 2026-10-19T23:59:00+03:00. It does not resume any product plan or PR #1487.
