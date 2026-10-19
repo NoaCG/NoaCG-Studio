@@ -2,6 +2,7 @@
 // covers: src/blocks/{baseEdits,designLayout,artworkEdits,artworkLayers,svgIdentity,editorAnimation,editorOut,animData,animEdit}.ts
 // covers: src/model/structure.ts, src/templates/shared/animRuntime.ts
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
+// covers: src/components/spaceKey.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
@@ -136,6 +137,22 @@ for (const name of ['Hairline', 'House Quiz']) for (const width of [1920, 1366, 
     expect(errors).toEqual([]);
   });
 }
+
+test('Space on a focused Project button activates it without playing the graphic', async ({ page }) => {
+  await open(page, 'Hairline');
+  await page.getByRole('button', { name: 'Go to beginning', exact: true }).click();
+  const parked = await clock(page);
+  const project = page.getByRole('button', { name: /^Project [▾▸]$/ });
+  await expect(project).toHaveAttribute('aria-expanded', 'false');
+  await project.focus();
+  await expect(project).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(project).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('complementary', { name: 'Project', exact: true })).toBeVisible();
+  await frames(page);
+  expect(await clock(page)).toBe(parked);
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
+});
 
 test('B11 losing pointer capture cancels Space panning without playback', async ({ page }) => {
   await open(page, 'Hairline');
