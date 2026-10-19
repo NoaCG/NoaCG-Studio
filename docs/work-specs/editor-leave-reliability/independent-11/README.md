@@ -113,6 +113,21 @@ coordinate their disjoint quarantine entries and the single local browser queue.
 source stays reserved; a product-source fix needs a concrete additional owner decision. This
 checker builds neither repair. Acceptance remains stopped pending both resolutions.
 
+Editor-keys outcome: the separate owner pushed a **docs-only blocked investigation** at
+[`c0d59d79aabd673a62dfd67e44e0ce61dddcbc72`](https://github.com/NoaCG/NoaCG-Studio/blob/c0d59d79aabd673a62dfd67e44e0ce61dddcbc72/docs/work-specs/editor-keys-gate/README.md).
+Its own worktree is `/workspace/NoaCG-Studio-editor-keys-gate`, branch
+`codex/repair-editor-keys-gate`; window `16:09:36–18:09:36 UTC` (`19:09:36–21:09:36 Kyiv`).
+Unchanged target j-0001 passed 1/1. Three disposable scheduling probes j-0002/3/4 also passed
+because they did not demonstrably hold the intended latest pose. They are unsuccessful
+reproduction attempts, not repair evidence. After the third probe the owner stopped under
+verify.md's attempt rule and restored the test byte-for-byte. All 14 cases remain unchanged;
+spec SHA256 `4c946a7ddd997e00a9fde680813ad7441d5b4d826f1795835f7aae2fecd45929`.
+No repair, quarantine edit, PR or landing was submitted. Exact hooks, jobs, timings and limits
+are in that receipt's `fault-probes.md` and `facts.json`. A new session question asks for
+explicit authorization of one observational target run, cap five minutes and zero retries,
+recording real reply envelopes/receipt time/cue/revision at pointerdown. No further editor-keys
+execution is authorized by elapsed time or by its passing retry.
+
 ### Activity and checks snapshot
 
 `worktree-activity.mjs` reports no other work in flight. Because its implementation suppresses
@@ -216,8 +231,10 @@ Initial fetch without shell network permission failed at the proxy; fetch and pr
 passed with the prescribed additional network permission. `gh api .../actions/jobs/118059664098/logs`
 failed at the redirected log host with Forbidden; the connector independently supplied both
 whole logs. That transport failure is not a product verdict. No credentials, proxy or network
-policy were changed. No broad suite, build, browser job, dispatch, rerun or fault injection
-was launched. The runtime skill's readiness observation was current but reported policy and
+policy were changed. This independent checker launched no broad suite, build, browser job,
+dispatch, rerun or fault injection while the gates are unresolved. The separate owners'
+targeted verification is identified above and in their receipts. The runtime skill's readiness
+observation was current but reported policy and
 runtime-variable states unknown; actual Git and Actions read preflight both passed.
 
 Executing worker: four CPUs, 16 GiB machine totals, two-worker selector; ancestor cgroup limits
