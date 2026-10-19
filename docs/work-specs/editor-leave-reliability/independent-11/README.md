@@ -60,6 +60,28 @@ the repair. The decision authorizes repair; it does not accept Phase 2 or bypass
 
 ## Activity, reservations and current checks
 
+### Additional current-main failure discovered by this audit
+
+Main advanced beyond the supplied `901116aab`. #1513's only stated disposition is to quarantine
+`editor-keys.spec.ts` after a fail-then-pass. Independently read whole logs for original
+run `39259495974`, jobs `118087214783` and `118092999541`; excerpts are retained alongside the
+account evidence. The original run's conclusion is **failure**, source
+`901116aab4a9f19843631940cf4596b2595c9f1e`, attempt 1.
+
+The case `nested SVG armed parent-coordinate drag and explicit base offset preserve motion`
+at `e2e/editor-keys.spec.ts:161:1` failed in `ready` (`:23:49`), called at `:177:162`:
+`.ef-stage-error` expected count 0, received 1 after 7000ms. The original shard reports
+**124 passed, 1 failed**. The same-source retry reports **14 passed**. #1513 reclassified the
+file into quarantine; it supplies no defect repair. No root cause or product-versus-harness
+diagnosis is claimed from these logs alone. A passing retry does not clear the failed assertion.
+
+This is a second unresolved gate issue; the account-only repair authorization does not
+resolve it. The owner was asked whether to authorize a separate investigation/coverage-preserving
+gate repair or keep acceptance blocked. The account owner was explicitly told not to broaden
+scope. Acceptance remains stopped pending that decision and resolution, even if account lands.
+
+### Activity and checks snapshot
+
 `worktree-activity.mjs` reports no other work in flight. Because its implementation suppresses
 ahead-of-main comparisons without local `main`, this was supplemented with `origin/main`
 diffs and branch enumeration. Before receipt edits, the only branches were `work` and this

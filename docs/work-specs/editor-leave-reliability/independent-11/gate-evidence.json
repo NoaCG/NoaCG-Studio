@@ -469,6 +469,363 @@
           "text": "2026-10-19T13:23:09.6031042Z   E2E_EMAIL: e2e@noacg.local"
         }
       ]
+    },
+    {
+      "jobId": 118087214783,
+      "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39259495974/job/118087214783",
+      "read": "Whole decoded job log via GitHub connector; selected lines retained",
+      "lineCount": 541,
+      "excerpts": [
+        {
+          "line": 283,
+          "text": "2026-10-19T13:31:57.4703366Z [24/125] [chromium] › e2e/editor-keys.spec.ts:142:1 › nonzero first key, diamond last removal, interpolated disable and exact undo"
+        },
+        {
+          "line": 284,
+          "text": "2026-10-19T13:32:02.4308878Z [25/125] [chromium] › e2e/editor-keys.spec.ts:161:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion"
+        },
+        {
+          "line": 285,
+          "text": "2026-10-19T13:32:12.5926088Z ##[error]  1) [chromium] › e2e/editor-keys.spec.ts:161:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion "
+        },
+        {
+          "line": 286,
+          "text": "    Error: expect(locator).toHaveCount(expected) failed"
+        },
+        {
+          "line": 287,
+          "text": ""
+        },
+        {
+          "line": 288,
+          "text": "    Locator:  locator('.ef-stage-error')"
+        },
+        {
+          "line": 289,
+          "text": "    Expected: 0"
+        },
+        {
+          "line": 290,
+          "text": "    Received: 1"
+        },
+        {
+          "line": 291,
+          "text": "    Timeout:  7000ms"
+        },
+        {
+          "line": 292,
+          "text": ""
+        },
+        {
+          "line": 293,
+          "text": "    Call log:"
+        },
+        {
+          "line": 294,
+          "text": "      - Expect \"toHaveCount\" with timeout 7000ms"
+        },
+        {
+          "line": 295,
+          "text": "      - waiting for locator('.ef-stage-error')"
+        },
+        {
+          "line": 296,
+          "text": "        18 × locator resolved to 1 element"
+        },
+        {
+          "line": 297,
+          "text": "           - unexpected value \"1\""
+        },
+        {
+          "line": 298,
+          "text": ""
+        },
+        {
+          "line": 299,
+          "text": ""
+        },
+        {
+          "line": 300,
+          "text": "      21 | async function ready(page: Page) {"
+        },
+        {
+          "line": 301,
+          "text": "      22 |   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');"
+        },
+        {
+          "line": 302,
+          "text": "    > 23 |   await expect(page.locator('.ef-stage-error')).toHaveCount(0);"
+        },
+        {
+          "line": 303,
+          "text": "         |                                                 ^"
+        },
+        {
+          "line": 304,
+          "text": "      24 | }"
+        },
+        {
+          "line": 305,
+          "text": "      25 | async function preview(page: Page) { return (await (await page.locator('iframe[title=\"Foundation graphic preview\"]').elementHandle())!.contentFrame())!; }"
+        },
+        {
+          "line": 306,
+          "text": "      26 | async function seek(page: Page, time: number) {"
+        },
+        {
+          "line": 307,
+          "text": "        at ready (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-keys.spec.ts:23:49)"
+        },
+        {
+          "line": 308,
+          "text": "        at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-keys.spec.ts:177:162"
+        },
+        {
+          "line": 309,
+          "text": "2026-10-19T13:32:12.5935105Z   1) [chromium] › e2e/editor-keys.spec.ts:161:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion "
+        },
+        {
+          "line": 310,
+          "text": "2026-10-19T13:32:12.5935901Z "
+        },
+        {
+          "line": 311,
+          "text": "2026-10-19T13:32:12.5936227Z     Error: expect(locator).toHaveCount(expected) failed"
+        },
+        {
+          "line": 312,
+          "text": "2026-10-19T13:32:12.5936621Z "
+        },
+        {
+          "line": 313,
+          "text": "2026-10-19T13:32:12.5936852Z     Locator:  locator('.ef-stage-error')"
+        },
+        {
+          "line": 314,
+          "text": "2026-10-19T13:32:12.5937335Z     Expected: 0"
+        },
+        {
+          "line": 315,
+          "text": "2026-10-19T13:32:12.5937681Z     Received: 1"
+        },
+        {
+          "line": 316,
+          "text": "2026-10-19T13:32:12.5938029Z     Timeout:  7000ms"
+        },
+        {
+          "line": 317,
+          "text": "2026-10-19T13:32:12.5938245Z "
+        },
+        {
+          "line": 318,
+          "text": "2026-10-19T13:32:12.5938388Z     Call log:"
+        },
+        {
+          "line": 319,
+          "text": "2026-10-19T13:32:12.5939114Z       - Expect \"toHaveCount\" with timeout 7000ms"
+        },
+        {
+          "line": 320,
+          "text": "2026-10-19T13:32:12.5939778Z       - waiting for locator('.ef-stage-error')"
+        },
+        {
+          "line": 321,
+          "text": "2026-10-19T13:32:12.5940497Z         18 × locator resolved to 1 element"
+        },
+        {
+          "line": 322,
+          "text": "2026-10-19T13:32:12.5941026Z            - unexpected value \"1\""
+        },
+        {
+          "line": 323,
+          "text": "2026-10-19T13:32:12.5941307Z "
+        },
+        {
+          "line": 324,
+          "text": "2026-10-19T13:32:12.5941316Z "
+        },
+        {
+          "line": 325,
+          "text": "2026-10-19T13:32:12.5941542Z       21 | async function ready(page: Page) {"
+        },
+        {
+          "line": 326,
+          "text": "2026-10-19T13:32:12.5942434Z       22 |   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');"
+        },
+        {
+          "line": 327,
+          "text": "2026-10-19T13:32:12.5943466Z     > 23 |   await expect(page.locator('.ef-stage-error')).toHaveCount(0);"
+        },
+        {
+          "line": 328,
+          "text": "2026-10-19T13:32:12.5944179Z          |                                                 ^"
+        },
+        {
+          "line": 329,
+          "text": "2026-10-19T13:32:12.5944922Z       24 | }"
+        },
+        {
+          "line": 330,
+          "text": "2026-10-19T13:32:12.5946096Z       25 | async function preview(page: Page) { return (await (await page.locator('iframe[title=\"Foundation graphic preview\"]').elementHandle())!.contentFrame())!; }"
+        },
+        {
+          "line": 331,
+          "text": "2026-10-19T13:32:12.5947348Z       26 | async function seek(page: Page, time: number) {"
+        },
+        {
+          "line": 332,
+          "text": "2026-10-19T13:32:12.5948207Z         at ready (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-keys.spec.ts:23:49)"
+        },
+        {
+          "line": 333,
+          "text": "2026-10-19T13:32:12.5949474Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-keys.spec.ts:177:162"
+        },
+        {
+          "line": 459,
+          "text": "2026-10-19T13:41:23.6305054Z ##[warning][chromium] › e2e/save-transaction.spec.ts took 5.2m"
+        },
+        {
+          "line": 460,
+          "text": "2026-10-19T13:41:23.6307519Z ##[warning][chromium] › e2e/ograf-parity.spec.ts took 58.1s"
+        },
+        {
+          "line": 461,
+          "text": "2026-10-19T13:41:23.6311469Z ##[notice]  1 failed"
+        },
+        {
+          "line": 462,
+          "text": "    [chromium] › e2e/editor-keys.spec.ts:161:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion "
+        },
+        {
+          "line": 463,
+          "text": "  124 passed (10.9m)"
+        },
+        {
+          "line": 464,
+          "text": "2026-10-19T13:41:23.6313894Z   Slow test file: [chromium] › e2e/save-transaction.spec.ts (5.2m)"
+        },
+        {
+          "line": 465,
+          "text": "2026-10-19T13:41:23.6314943Z   Slow test file: [chromium] › e2e/ograf-parity.spec.ts (58.1s)"
+        },
+        {
+          "line": 466,
+          "text": "2026-10-19T13:41:23.6316175Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel"
+        },
+        {
+          "line": 467,
+          "text": "2026-10-19T13:41:23.6317117Z   1 failed"
+        },
+        {
+          "line": 468,
+          "text": "2026-10-19T13:41:23.6318476Z     [chromium] › e2e/editor-keys.spec.ts:161:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion "
+        },
+        {
+          "line": 469,
+          "text": "2026-10-19T13:41:23.6319836Z   124 passed (10.9m)"
+        }
+      ]
+    },
+    {
+      "jobId": 118092999541,
+      "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39259495974/job/118092999541",
+      "read": "Whole decoded job log via GitHub connector; selected lines retained",
+      "lineCount": 565,
+      "excerpts": [
+        {
+          "line": 480,
+          "text": "2026-10-19T13:42:22.7908977Z Running 14 tests using 1 worker"
+        },
+        {
+          "line": 481,
+          "text": "2026-10-19T13:42:22.7924312Z "
+        },
+        {
+          "line": 482,
+          "text": "2026-10-19T13:42:23.0921838Z [1/14] [chromium] › e2e/editor-keys.spec.ts:11:1 › Quiz source-controlled animation is preserved and explains the base editing path"
+        },
+        {
+          "line": 483,
+          "text": "2026-10-19T13:42:27.3290118Z [2/14] [chromium] › e2e/editor-keys.spec.ts:74:41 › text and box second keys, cancel, history and reopen 1920"
+        },
+        {
+          "line": 484,
+          "text": "2026-10-19T13:42:37.0287932Z [3/14] [chromium] › e2e/editor-keys.spec.ts:74:41 › text and box second keys, cancel, history and reopen 1366"
+        },
+        {
+          "line": 485,
+          "text": "2026-10-19T13:42:46.7564438Z [4/14] [chromium] › e2e/editor-keys.spec.ts:74:41 › text and box second keys, cancel, history and reopen 1093"
+        },
+        {
+          "line": 486,
+          "text": "2026-10-19T13:42:56.1688058Z [5/14] [chromium] › e2e/editor-keys.spec.ts:142:1 › nonzero first key, diamond last removal, interpolated disable and exact undo"
+        },
+        {
+          "line": 487,
+          "text": "2026-10-19T13:42:59.8734189Z [6/14] [chromium] › e2e/editor-keys.spec.ts:161:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion"
+        },
+        {
+          "line": 488,
+          "text": "2026-10-19T13:43:02.4387509Z [7/14] [chromium] › e2e/editor-keys.spec.ts:188:1 › bar movement carries disjoint spans and keys, cancel and refusal are atomic"
+        },
+        {
+          "line": 489,
+          "text": "2026-10-19T13:43:05.4872729Z [8/14] [chromium] › e2e/editor-keys.spec.ts:208:1 › numeric animation controls are available on a created layer"
+        },
+        {
+          "line": 490,
+          "text": "2026-10-19T13:43:06.6114388Z [9/14] [chromium] › e2e/editor-keys.spec.ts:222:1 › armed scale handles key both axes in one transaction and stale numeric drafts refuse"
+        },
+        {
+          "line": 491,
+          "text": "2026-10-19T13:43:09.5417407Z [10/14] [chromium] › e2e/editor-keys.spec.ts:239:1 › mixed multi-selection keys only armed channels and commits one undo"
+        },
+        {
+          "line": 492,
+          "text": "2026-10-19T13:43:12.3425793Z [11/14] [chromium] › e2e/editor-keys.spec.ts:254:1 › explicit visibility preserves keyed opacity at a hold and resolves cue-side ownership"
+        },
+        {
+          "line": 493,
+          "text": "2026-10-19T13:43:14.5208412Z [12/14] [chromium] › e2e/editor-keys.spec.ts:278:1 › stored frames, source preservation, inheritance and atomic refusal"
+        },
+        {
+          "line": 494,
+          "text": "2026-10-19T13:43:16.0360536Z [13/14] [chromium] › e2e/editor-keys.spec.ts:319:1 › known legacy interpreter upgrades for spans while customized source refuses"
+        },
+        {
+          "line": 495,
+          "text": "2026-10-19T13:43:17.5445367Z [14/14] [chromium] › e2e/editor-keys.spec.ts:342:1 › visibility intervals and numeric poses match executable SPX, CasparCG and OGraf packages"
+        },
+        {
+          "line": 496,
+          "text": "2026-10-19T13:43:20.9327537Z ##[warning][chromium] › e2e/editor-keys.spec.ts took 57.5s"
+        },
+        {
+          "line": 497,
+          "text": "2026-10-19T13:43:20.9334592Z ##[notice]  14 passed (1.0m)"
+        },
+        {
+          "line": 498,
+          "text": "2026-10-19T13:43:20.9335872Z   Slow test file: [chromium] › e2e/editor-keys.spec.ts (57.5s)"
+        },
+        {
+          "line": 499,
+          "text": "2026-10-19T13:43:20.9336342Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel"
+        },
+        {
+          "line": 500,
+          "text": "2026-10-19T13:43:20.9337083Z   14 passed (1.0m)"
+        }
+      ]
     }
-  ]
+  ],
+  "additionalGateIssue": {
+    "pr": 1513,
+    "merge": "86e795dc9f66183633d7c99a73bea8c27e4e32f6",
+    "run": 39259495974,
+    "runConclusion": "failure",
+    "head": "901116aab4a9f19843631940cf4596b2595c9f1e",
+    "classification": "quarantined",
+    "ownerDecision": "requested, pending"
+  }
 }
