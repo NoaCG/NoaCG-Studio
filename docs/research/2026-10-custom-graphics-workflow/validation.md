@@ -38,3 +38,12 @@ Added `09-owner-feedback-and-run-additions.md`, recording the owner's decisions 
 - All eight pinned references in the new document exist, with cited lines in range; all local Markdown targets resolve.
 - `git diff --cached --check` and the same five applicable repository gates passed. The staged changes are research documents only.
 - Repackaged the review ZIP and checked its integrity and byte-for-byte agreement with the research folder. No product build or new browser/device test was appropriate for this discussion record.
+
+## Execution and verification strategy, 19 October 2026
+
+Added `10-verification-and-execution-strategy.md` and two bounded, sanitized GitHub Actions metadata samples. The samples contain run/job identifiers, outcomes and timings; no credentials or raw authenticated test logs. The research branch was rebased onto main `c9f1769c2147acf12f37e7a19192f9c4ce036fea`. Relevant inspected CI, planner, worker-verification and wave-window source files are unchanged from `4569b9622`.
+
+- Managed runtime status reported current running configuration and enforced HTTP policy. `cloud-network-preflight.mjs` passed Git origin/main and Actions API reads. This does not qualify new worker launch, dispatch writes, overnight wake/recovery, Docker stack operation or studio access; none was attempted.
+- Examined 15 CI runs, 15 configured runs, and four job summaries. The main/configured pair at `c9f1769c2147` showed approximately 22.8/28.2 minutes overall; the configured suite's execution step took 25.47 minutes. Measurements remain a bounded sample with their source run links.
+- All ten pinned source references in document 10 resolve with valid line positions; all local Markdown targets and all research JSON validate. `git diff --cached --check` and the five applicable repository gates passed. All branch changes remain in research documents/artifacts.
+- Rebuilt and integrity-checked the review archive against the folder. No CI/runner/product code, accepted authority, required gate or execution schedule was changed. The proposed dispatch reuse and multi-day runner behavior remain to be implemented and verified separately.

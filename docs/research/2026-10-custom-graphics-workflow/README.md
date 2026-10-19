@@ -2,7 +2,9 @@
 
 Research only, prepared 18 October 2026 for the morning review. The revised brief and the owner's election-source clarification are covered. No product implementation, existing work-spec change, hosted write or plan execution.
 
-**Latest: [19 October owner feedback and six proposed run additions](09-owner-feedback-and-run-additions.md).** This narrows the recommendation: preserve import, qualify CasparCG/Bridge and browser output first, and deliver the agent-authored election package and full OGraf system in separate milestones. It also explains the API collection boundary and recommends one shared Bridge provisionally. Existing agreed specs remain unchanged.
+**Latest: [complete-run cloud and verification strategy](10-verification-and-execution-strategy.md).** The owner wants all 22 current steps in one coordinated project, with flexible work blocks. This follow-up maps cloud versus local work, explains safe avoidance of duplicate verification, and includes current CI timing evidence. The proposed runner/CI changes have not been implemented.
+
+[19 October owner feedback and six proposed run additions](09-owner-feedback-and-run-additions.md) keeps import redesign, the agent-authored election package and the full OGraf system separate, while requiring CasparCG/Bridge and browser output first. It also explains the API collection boundary and recommends one shared Bridge provisionally. Existing agreed specs remain unchanged; their two-window wording still needs reconciliation with the latest full-run direction.
 
 The earlier [morning verdict](morning-review.md) and [full assessment](08-whole-plan-assessment.md) review the agreed run against main `4569b9622`, including live candidate selection, the legacy Sheet path, export limits and a larger completion rehearsal. Read their scope proposals alongside the newer owner feedback. The earlier experiment and mockups retain their historical evidence baseline.
 
@@ -27,6 +29,7 @@ For the concrete use case, open the [Finnish election walkthrough](election/READ
 7. [Proposed plan amendments](07-proposed-plan-amendments.md): exact relevant decisions/ACs/phases, dependencies and compatibility; existing specs untouched.
 8. [Whole-plan assessment](08-whole-plan-assessment.md): completion boundary, source-backed gaps, output-route matrix, supplemental amendments and a complete custom-show rehearsal; [short morning review](morning-review.md).
 9. [Owner feedback and run additions](09-owner-feedback-and-run-additions.md): latest scope, P1–P6, separate election acceptance, Bridge recommendation, OGraf roadmap and preparation for the planned 20 October start.
+10. [Verification and execution strategy](10-verification-and-execution-strategy.md): all phases, cloud/local assignment, actual CI measurements, duplicate-dispatch prevention and the proposed multi-day run boundary.
 
 ## Focused screen index
 
