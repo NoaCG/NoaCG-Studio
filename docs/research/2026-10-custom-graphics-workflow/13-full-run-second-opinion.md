@@ -1,6 +1,8 @@
 # Full-run second-opinion prompt: NoaCG playout, data, OGraf and hardware control
 
 Copy this entire document to the reviewing agent. Review candidate prepared 19 October 2026.
+Revised after [checking Argon’s feedback](14-argon-review-reconciliation.md) against main
+`70714e8f5`. The 22 baseline steps are unchanged; extension ordering and acceptance are refined.
 
 ---
 
@@ -46,6 +48,9 @@ Do not assume "preserve 22 steps" means "only 22 steps are allowed".
 Supplied competitor research used NoaCG baseline
 `86e795dc9f66183633d7c99a73bea8c27e4e32f6`. Planning integration was committed on the research
 branch as `1c176d427`; distinguish that planning revision from the inspected source baseline.
+A subsequent check used main `70714e8f5`: the reviewed planning amendments were not yet
+landed there. Read the complete planning branch, not only main or one amendment commit.
+Reconcile the latest continuing-project runner before preparing executable child specs.
 With repository access, reconcile current main and record any material differences before
 claiming a gap. Without access, identify conclusions that rely on this supplied summary.
 
@@ -187,7 +192,9 @@ and confirmed output versus preview/pending.
 
 Recommendation: retain the 22 steps as a stable baseline, then deliver the most important
 competitive extensions in the same coordinated programme. H0 starts early for Friday, with
-coordinated file ownership; E1–E8 follow baseline close-out sequentially by default. Step 22
+coordinated file ownership. After baseline close-out, the proposed order is
+**E4 → E5 → E7 → E6 (native controls) → E1 → E2 → E3 → E8**. Keep the stable package IDs;
+this brings the election use case forward without removing typed/foreign OGraf work. Step 22
 remains a valid baseline acceptance checkpoint, not a claim that the expanded programme is done.
 E8 is the expanded programme's final acceptance. This proposes 31 named work packages plus Q,
 not 31 equally sized tasks; split a package if its risk/ready condition needs smaller phases.
@@ -201,11 +208,18 @@ E1–E8 as clearly scheduled follow-up. Explain the lost production capability o
 | E1. Typed OGraf contract | Existing full-stack A/E, pinned EBU revision, native compatibility design. | Define and test types through storage, binding, dispatch and renderer boundary; numbers/booleans/enums, objects/arrays, required/default values and full action argument schemas retained. Explicit unsupported features and native-string compatibility/migration; no blanket wire rewrite. |
 | E2. Typed generated controls and step/action targets | E1; current generated panel and full-stack E/F. | Render/validate typed field and argument forms; correct URI/hidden semantics; dynamic steps, backward/relative movement, Goto and supported animation options. Precise unsupported snap/action notes; preview/program targets explicit; actual payload and rendered-result evidence. |
 | E3. Foreign OGraf in normal library/rundown | E1/E2 plus existing isolation/asset host. | Import/save/reload unfamiliar packages, create cues, prepare/Take/Update/steps/actions/Out, resolve assets and recover on normal production outputs. Layer replacement and unknown legality explicit. Native export also works in an independent controller without NoaCG metadata; report lost conveniences. |
-| E4. Trusted external connector foundation | Existing production API/source ownership plus E1 representation decisions; select one actual provider before implementation. | Endpoint/authentication hosted in a trusted service or optional local adapter; one authenticated scalar/collection sample; secrets excluded from templates/show exports. Defined polling/push support, errors, retries, dedupe/order/rate limits and Pause semantics; unsupported webhooks explicit. |
+| E4. Trusted external connector foundation | Existing production API/source ownership; agree the native keyed-selection and future typed boundary before implementation, without waiting for foreign OGraf hosting. Select one actual provider. | Endpoint/authentication hosted in a trusted service or optional local adapter; one authenticated scalar/collection sample; secrets excluded from templates/show exports. Defined polling/push support, errors, retries, dedupe/order/rate limits and Pause semantics; unsupported webhooks explicit. |
 | E5. Sample-based bounded API mapping | E4, existing Connect entry, source identity and final target adapters. | Readable sample → scalar/collection/stable ID → bounded select/filter/sort/limit/format/fallback → validated rendered preview → explicit Connect. Test malformed/empty/missing values, reordered records, stale/out-of-order input and source failure. No general scripting language or data-triggered Take. |
-| E6. Declared graphic controls through Companion | Existing relay, baseline verb extraction, E1/E2 capability/type contracts. | Discover and invoke declared graphic actions with stable capability/target IDs and typed arguments, same legality and dispatcher as UI; score +1/-1, quiz reveal and a graphic clock work with feedback. Old module compatibility, duplicate/stale refusal and no wrong-target action proved. No arbitrary JS/macro execution or data-key impersonation. |
-| E7. Installable election package and keyed candidate selection | Baseline data/output; E5 for selected API route; E6 where hardware controls are used. Agent-authored package, not SVG-import redesign. | Party board, candidate card, count bug and ticker install with starter files/assets; operator selects a stable candidate ID; all fields/updates follow that candidate coherently through reorder/correction/reconnect. Rehearse counts, downward correction, duplicate/old snapshots, feed loss, manual hold and restart on actual CasparCG. Simulation and qualified live-feed operation get separate verdicts. |
+| E6. Declared graphic controls through Companion | Existing relay, baseline verb extraction and native declared-capability contracts. Native score/quiz/clock actions need not await E1/E2; foreign typed actions follow that work. | Discover and invoke declared graphic actions with stable capability/target IDs and typed arguments, same legality and dispatcher as UI; score +1/-1, quiz reveal and a graphic clock work with feedback. Old module compatibility, duplicate/stale refusal and no wrong-target action proved. No arbitrary JS/macro execution or data-key impersonation. |
+| E7. Installable election package and keyed candidate selection | Baseline data/output and agreed keyed-selection contract; E4/E5 for the selected mapped provider route. Fixtures/package authoring can start with the existing prepared sender. H0 covers existing transport buttons; new custom buttons are qualified in E6/E8. Agent-authored package, not SVG-import redesign. | Party board, candidate card, count bug and ticker install with starter files/assets; operator selects a stable candidate ID; all fields/updates follow that candidate coherently through reorder/correction/reconnect. Rehearse counts, downward correction, duplicate/old snapshots, feed loss, manual hold and restart on actual CasparCG. Simulation and qualified live-feed operation get separate verdicts. |
 | E8. Expanded production and interoperability acceptance | All included packages; final candidate and real setup. | Reconcile earlier evidence against material changes; run affected end-to-end/human/hardware walks. No final pass with missing mandatory route, fake output confirmation, unqualified required feed or unsafe ownership. Record tested operating envelope, unsupported capabilities, operator runbook and rollback/recovery. |
+
+Do not make a generic API mapper a prerequisite for a synthetic election demonstration: the
+existing C5 prepared sender can supply replay data. E4/E5 add reusable acquisition/mapping;
+real-provider qualification still needs actual access and a measured operating envelope.
+E6 remains hardware control, not an authoring/AI/SVG workstream. Its final foreign-action
+coverage is checked after E1–E3 in E8. Additional election graphics are optional proposals,
+not an automatic replacement of the four named graphics above.
 
 Before any extension runs, it needs an authoritative child spec: scope/non-goals, current-source
 reconciliation, dependencies, owning files/contracts, observable acceptance, environment,
@@ -245,6 +259,10 @@ Issue https://github.com/NoaCG/NoaCG-Studio/issues/809 was open on October 19 fo
 publication; the expected public module repository returned 404. Do not assume catalogue install.
 A developer package is the existing documented rehearsal route (Companion 4.3+ compatibility
 claimed by module docs; older actual receipt used Companion 5.0.6). Verify the installed version.
+H0 must inspect the built developer package and loader, not infer a defect from source manifest
+version placeholders. The inspected module uses base 2.0.4; the packaging tool injects module
+and API versions. Do not adopt the review’s proposed 1.11.0 value. Correct obsolete lease setup
+instructions and reconcile Trigger cue documentation with the stable row-target contract.
 No vendor outreach is authorized. Current module actions do not expose arbitrary graphic events
 or value adjustment: E6 is a real extension, not an instructions-only task.
 
@@ -261,6 +279,18 @@ position, showing mixed-person fields, or breaking graphic-shared versus cue-own
 Require an explicit selection/state contract before E7; do not casually change Fill/Connect to
 solve it. Counts, percentages and status should come from one validated coherent revision.
 Newer downward corrections are valid. Old revisions/duplicates must not replay stale results.
+
+Preview selection must never retarget the person already on air. Rehearse A → B → A while
+reads are in flight, duplicate/missing candidate keys, reordered rankings and partial records.
+Last-good content belongs to a source/entity/schema: if B has never had a valid record, do not
+show A’s retained values under B’s identity. Define missing/deleted-person behavior and distinguish
+provider age from failed transport. A legitimately empty collection remains distinct from malformed
+input. Agree the new selector/override contract explicitly; preserve existing Sheet and API Pause
+rules rather than replacing them with a universal cue-local or permanent override.
+
+Use realistic recorded workload and a bounded endurance rehearsal, measuring dispatch latency,
+end-to-end rendered latency, memory and reconnect behavior separately. Set acceptance targets
+from the production need and existing contracts; a new blanket 100 ms target is not approved.
 
 The researched official provenance is Finland's Ministry of Justice, with Yle receiving official
 results; Yle's exact feed and the 2027 media delivery contract are unverified. Use an adapter/replay

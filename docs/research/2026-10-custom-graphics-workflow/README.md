@@ -1,12 +1,17 @@
 # NoaCG custom graphics: from collected data to air
 
+**Latest review:** [Argon feedback reconciliation](14-argon-review-reconciliation.md) accepts the
+election-first sequencing and strengthens candidate-selection tests, while correcting factual
+errors against main `70714e8f5`. The [original feedback](argon-review-2026-10-19.txt) is preserved.
+Only the review candidate is revised; no new extension is authorized or implemented.
+
 **Full-run review prompt:** [22-step baseline, Companion qualification and proposed competitive extensions](13-full-run-second-opinion.md).
 Self-contained second-opinion handoff with ready conditions, evidence limits and a recommended
 expanded programme. Extensions are review candidates, not changes to the agreed executable specs.
 
 Research prepared 18 October 2026, followed by owner refinements on 19 October. No product implementation or plan execution. The 19 October integration now updates the actual work specs with the owner's authorization; the earlier research-only status is historical.
 
-**Latest: [competitor findings integrated into the authoritative plan](../../work-specs/production-page-refactor/evidence/research-integration-2026-10-19.md).** The supplied 19 October research sharpens current data/status acceptance and later OGraf/API/layout scopes. The 22-step order plus Q is preserved; Friday is a progress checkpoint, not a deadline. No implementation or run has started.
+**Prior integration: [competitor findings integrated into the authoritative plan](../../work-specs/production-page-refactor/evidence/research-integration-2026-10-19.md).** The supplied 19 October research sharpens current data/status acceptance and later OGraf/API/layout scopes. The 22-step order plus Q is preserved; Friday is a progress checkpoint, not a deadline. No implementation or run has started.
 
 The earlier [Pixotope roadmap proposal](12-pixotope-roadmap-proposal.md) remains background, including a bounded Discovery investigation. The integration receipt identifies adopted refinements and later proposals; optional investigations are not automatically authorized.
 
