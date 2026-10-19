@@ -826,6 +826,6 @@
     "runConclusion": "failure",
     "head": "901116aab4a9f19843631940cf4596b2595c9f1e",
     "classification": "quarantined",
-    "ownerDecision": "requested, pending"
+    "ownerDecision": "User explicitly authorized separate investigation and gate repair; assigned to /root/editor_keys_gate_repair. Resolution pending."
   }
 }

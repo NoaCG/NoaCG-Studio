@@ -93,9 +93,13 @@ post-drag zero-stage-error check fails. This narrows the observed failure to a r
 refusal; it is not proof of root cause, a product fix or permission to weaken the check.
 
 This is a second unresolved gate issue; the account-only repair authorization does not
-resolve it. The owner was asked whether to authorize a separate investigation/coverage-preserving
-gate repair or keep acceptance blocked. The account owner was explicitly told not to broaden
-scope. Acceptance remains stopped pending that decision and resolution, even if account lands.
+resolve it. The owner separately answered **“Authorize separate investigation and gate repair”**
+in this chat. Agent `/root/editor_keys_gate_repair` was assigned the investigation, matching
+fault proof, coverage-preserving gate repair and normal classification restoration in its own
+worktree/window. The account owner was explicitly told not to broaden scope. Both owners must
+coordinate their disjoint quarantine entries and the single local browser queue. Shared product
+source stays reserved; a product-source fix needs a concrete additional owner decision. This
+checker builds neither repair. Acceptance remains stopped pending both resolutions.
 
 ### Activity and checks snapshot
 
