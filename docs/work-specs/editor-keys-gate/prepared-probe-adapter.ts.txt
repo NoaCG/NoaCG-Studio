@@ -1,0 +1,68 @@
+import { expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+type Probe = {
+  installed: boolean; connected: boolean; armed: boolean; problems: string[]; events: unknown[];
+  zeroHeldBeforeController: boolean; zeroHeldAfterMicrotask: boolean; zeroReplayConsumed: boolean;
+  oneHeldBeforeController: boolean; oneHeldAfterMicrotask: boolean; latestReleased: boolean;
+  snapshot?: () => unknown; stop(): void;
+};
+export async function installKeysProbe(page: Page) {
+  const init = readFileSync('docs/work-specs/editor-keys-gate/prepared-probe-init.js.txt', 'utf8');
+  await page.addInitScript({ content: '(' + init + ')()' });
+}
+export async function connectKeysProbe(page: Page) {
+  await page.evaluate(async () => {
+    const { foundationDiagnostics } = await import('/src/components/editorFoundation/Canvas.tsx');
+    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const state = (window as unknown as { __keysProbe?: Probe }).__keysProbe;
+    if (!state?.installed) throw new Error('PROBE_INEFFECTIVE: pre-app hook not installed');
+    state.snapshot = () => {
+      const session = activeEditorSession(), version = session.version(), view = session.port.view();
+      const controller = foundationDiagnostics();
+      const raw = controller as unknown as { expected?: unknown; acknowledgement?: { requestId: number; generation: number;
+        documentId: string; revision: unknown; parts?: { selector: string; appearance?: { time?: number; cue?: number; revision?: unknown } }[] } };
+      const ack = raw?.acknowledgement, part = ack?.parts?.find(part => part.selector === '#nested');
+      return { version, view: { time: view.time, cue: view.cue ?? null, selectedParts: view.selectedParts },
+        receipt: controller?.receipt(version, view), expected: raw?.expected,
+        consumedRequest: ack?.requestId, consumedGeneration: ack?.generation,
+        consumed: ack ? { documentId: ack.documentId, requestId: ack.requestId, generation: ack.generation, revision: ack.revision,
+          selectedPart: part ? { selector: part.selector, time: part.appearance?.time ?? null, cue: part.appearance?.cue ?? null,
+            revision: part.appearance?.revision ?? null } : null } : null };
+    };
+    state.connected = true;
+  });
+}
+export async function probeStatus(page: Page) {
+  return page.evaluate(() => {
+    const s = (window as unknown as { __keysProbe?: Probe }).__keysProbe;
+    if (!s) return null;
+    return { installed: s.installed, connected: s.connected, armed: s.armed, problems: [...s.problems],
+      zeroHeldBeforeController: s.zeroHeldBeforeController, zeroHeldAfterMicrotask: s.zeroHeldAfterMicrotask,
+      zeroReplayConsumed: s.zeroReplayConsumed, oneHeldBeforeController: s.oneHeldBeforeController,
+      oneHeldAfterMicrotask: s.oneHeldAfterMicrotask, latestReleased: s.latestReleased };
+  });
+}
+export async function assertHeldZero(page: Page) {
+  expect(await probeStatus(page), 'PROBE_INEFFECTIVE: hook/diagnostics/aria-label arming unavailable')
+    .toMatchObject({ installed: true, connected: true, armed: true, problems: [] });
+  await expect.poll(() => probeStatus(page), { message: 'PROBE_INEFFECTIVE: no actual zero reply held before controller' })
+    .toMatchObject({ zeroHeldBeforeController: true, zeroHeldAfterMicrotask: true, problems: [] });
+}
+export async function assertHeldOne(page: Page) {
+  await expect.poll(() => probeStatus(page), { message: 'PROBE_INEFFECTIVE: no actual one reply held before controller' })
+    .toMatchObject({ zeroReplayConsumed: true, oneHeldBeforeController: true,
+      oneHeldAfterMicrotask: true, latestReleased: false, problems: [] });
+}
+export async function finishKeysProbe(page: Page) {
+  return page.evaluate(() => {
+    const state = (window as unknown as { __keysProbe?: Probe }).__keysProbe;
+    const facts = state ? JSON.parse(JSON.stringify({ installed: state.installed, connected: state.connected,
+      armed: state.armed, problems: state.problems, events: state.events,
+      zeroHeldBeforeController: state.zeroHeldBeforeController, zeroHeldAfterMicrotask: state.zeroHeldAfterMicrotask,
+      zeroReplayConsumed: state.zeroReplayConsumed, oneHeldBeforeController: state.oneHeldBeforeController,
+      oneHeldAfterMicrotask: state.oneHeldAfterMicrotask, latestReleased: state.latestReleased })) : null;
+    state?.stop();
+    return { facts, stageError: document.querySelector('.ef-stage-error')?.textContent ?? null };
+  });
+}
