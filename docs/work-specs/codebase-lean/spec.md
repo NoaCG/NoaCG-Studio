@@ -1459,9 +1459,13 @@ exercise recoverable shrink without changing the assertions or runtime.
 Final complete-file queue j-0006 passed all 31 cases, zero skips, in 1.7 minutes with two
 workers and the standard integrity reporter. TypeScript, ESLint, changed E2E protection and
 all five selected gates passed. The capacity estimate remains WARN at 98.1%, with no table
-minute increase or new exception. Review and simplify ran inline over the four-file diff
-against main 6e63f9a1581f95177692725bab60d36801b1c203; no additional finding or source
-change was needed. The earlier reporter-only j-0005 attempt was cancelled and is not used
+minute increase or new exception. Review and simplify ran inline against main
+6e63f9a1581f95177692725bab60d36801b1c203. PR #1500's first CI passed both browser shards,
+but Build exposed a planner fixture assuming spaceKey.ts was still uncovered. Repair 1
+retained every escalation assertion using the uncovered useIsMobile.ts and added an explicit
+selection check for the newly covered shortcut. All 93 planner tests passed; the final
+five-file diff includes this fixture correction and no production source change.
+The earlier reporter-only j-0005 attempt was cancelled and is not used
 as verification; j-0006 ran the normal reporter configuration. No whole local suite or app
 production build was run for this test/evidence change. No test was removed or skipped and
 no gate, assertion, resource limit, maintenance allowance or budget exception was loosened.
