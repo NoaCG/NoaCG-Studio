@@ -7,7 +7,6 @@ Read `.agent-workflows/orchestrator.md` (relative to the repo root) now and foll
 it is the canonical procedure, shared with the Claude Code command of the same name. Text after
 `$orchestrator` is the owner's prompt and time window.
 
-Rows are native subagents. A subagent shares your directory, so give each row its own
-`git worktree add` worktree and make that absolute path every command's working directory. For
-an unattended wave, arm a thread heartbeat as the fallback wake before the first launch; never
-promise a wake-up you did not arm.
+Use the canonical cloud-delegate procedure for available native session/worktree tools,
+completion events and qualified wake/fallback selection. Native subagents share a machine;
+each row needs its own worktree and absolute command working directory.
