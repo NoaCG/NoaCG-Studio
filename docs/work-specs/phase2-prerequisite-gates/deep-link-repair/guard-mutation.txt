@@ -1,0 +1,90 @@
+TAP version 13
+# Subtest: a skipped pass and a thrown cloud read cannot report completion
+ok 1 - a skipped pass and a thrown cloud read cannot report completion
+  ---
+  duration_ms: 121.026146
+  type: 'test'
+  ...
+# Subtest: a completed read with an unrelated apply failure still answers its caller
+ok 2 - a completed read with an unrelated apply failure still answers its caller
+  ---
+  duration_ms: 26.947412
+  type: 'test'
+  ...
+# Subtest: a pass superseded by an account change cannot report completion
+ok 3 - a pass superseded by an account change cannot report completion
+  ---
+  duration_ms: 28.162201
+  type: 'test'
+  ...
+# Subtest: coalesced callers receive the next pass receipt even when newer work starts another pass
+ok 4 - coalesced callers receive the next pass receipt even when newer work starts another pass
+  ---
+  duration_ms: 35.478746
+  type: 'test'
+  ...
+# Subtest: coalesced callers released without a runnable next pass receive no completion
+ok 5 - coalesced callers released without a runnable next pass receive no completion
+  ---
+  duration_ms: 13.520766
+  type: 'test'
+  ...
+# Subtest: an absent record uses the completed receipt while the global phase is already syncing
+ok 6 - an absent record uses the completed receipt while the global phase is already syncing
+  ---
+  duration_ms: 9.389987
+  type: 'test'
+  ...
+# Subtest: a skipped pass keeps listening instead of declaring absence
+not ok 7 - a skipped pass keeps listening instead of declaring absence
+  ---
+  duration_ms: 5.469254
+  type: 'test'
+  location: '/workspace/deep-link-fix/scripts/sync-pass-receipt.test.mjs:117:46'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/deep-link-fix/scripts/sync-pass-receipt.test.mjs:123:24)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: a thrown pass keeps listening instead of declaring absence
+not ok 8 - a thrown pass keeps listening instead of declaring absence
+  ---
+  duration_ms: 5.405499
+  type: 'test'
+  location: '/workspace/deep-link-fix/scripts/sync-pass-receipt.test.mjs:117:46'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/deep-link-fix/scripts/sync-pass-receipt.test.mjs:123:24)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 6
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 476.622824
