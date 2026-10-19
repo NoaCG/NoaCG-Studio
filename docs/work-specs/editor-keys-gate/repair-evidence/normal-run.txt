@@ -1,0 +1,39 @@
+=== j-0003 npm run test:e2e -- e2e/editor-keys.spec.ts --retries=0
+=== cwd /workspace/phase2-gates-prepared
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-keys.spec.ts --retries=0
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15066 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:2024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:2037) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 2 workers
+
+(node:2152) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2153) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › e2e/editor-keys.spec.ts:11:1 › Quiz source-controlled animation is preserved and explains the base editing path (6.0s)
+  ✓   2 [chromium] › e2e/editor-keys.spec.ts:85:41 › text and box second keys, cancel, history and reopen 1920 (13.5s)
+  ✓   3 [chromium] › e2e/editor-keys.spec.ts:85:41 › text and box second keys, cancel, history and reopen 1366 (12.0s)
+  ✓   5 [chromium] › e2e/editor-keys.spec.ts:153:1 › nonzero first key, diamond last removal, interpolated disable and exact undo (3.9s)
+  ✓   4 [chromium] › e2e/editor-keys.spec.ts:85:41 › text and box second keys, cancel, history and reopen 1093 (10.4s)
+  ✓   6 [chromium] › e2e/editor-keys.spec.ts:172:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion (3.5s)
+  ✓   8 [chromium] › e2e/editor-keys.spec.ts:219:1 › numeric animation controls are available on a created layer (1.2s)
+  ✓   7 [chromium] › e2e/editor-keys.spec.ts:199:1 › bar movement carries disjoint spans and keys, cancel and refusal are atomic (3.7s)
+  ✓   9 [chromium] › e2e/editor-keys.spec.ts:233:1 › armed scale handles key both axes in one transaction and stale numeric drafts refuse (2.9s)
+  ✓  10 [chromium] › e2e/editor-keys.spec.ts:250:1 › mixed multi-selection keys only armed channels and commits one undo (3.0s)
+  ✓  11 [chromium] › e2e/editor-keys.spec.ts:265:1 › explicit visibility preserves keyed opacity at a hold and resolves cue-side ownership (2.6s)
+  ✓  12 [chromium] › e2e/editor-keys.spec.ts:289:1 › stored frames, source preservation, inheritance and atomic refusal (1.7s)
+  ✓  13 [chromium] › e2e/editor-keys.spec.ts:330:1 › known legacy interpreter upgrades for spans while customized source refuses (2.3s)
+  ✓  14 [chromium] › e2e/editor-keys.spec.ts:353:1 › visibility intervals and numeric poses match executable SPX, CasparCG and OGraf packages (4.0s)
+
+  14 passed (40.4s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
