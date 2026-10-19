@@ -18,8 +18,9 @@ planning update does not start `/plan-run production-page`; the owner explicitly
 Owner refinement, 2026-10-19: incorporate the accepted custom-data refinements into this actual
 plan. Whole-graphic connections and downloadable starter data are included in C1/C5, alongside
 the earlier P1–P6 additions. The parent now includes all 22 steps in one project. This authorizes
-planning edits only. The owner's forthcoming Pixotope 26.3 OGraf Controller research and final
-whole-plan second opinion remain preparation inputs; no run is opened by this update.
+planning edits only. The supplied 19 October Pixotope and broader competitor research now
+sharpens source/output feedback and acceptance below; the final whole-plan second opinion
+remains pending. No run is opened by this update.
 
 ## What the reconciliation changed
 
@@ -119,7 +120,9 @@ scalar values retain Sheet D4 and the existing API write semantics. The Data vie
 lists and tables, their sources and the graphics using them, with Pause; paths, seed, Raw JSON
 and per-field binding rows sit behind one Advanced disclosure and keep working. The Messages view
 (today's Audience view) holds candidates and message sources. The Playout tab shows one line per
-source with status and Pause. Setup always lists "Messages…" and "Data…"; the switcher keeps
+source with status and a working Pause where supported. Unsupported Pause explains the actual
+fallback (for API intake, stop the sender); it never presents an ineffective button.
+Setup always lists "Messages…" and "Data…"; the switcher keeps
 today's rule (views in use, and the view you stand on).
 
 **Where content arrives and how a graphic uses it stay independent.** A Sheet tab can feed a
@@ -163,6 +166,35 @@ audience spec follows from these and from "a prepared cue is plain values".
   keeps running.
 - Today's view switcher rule and own-tab views (`PLAYOUT_DASHBOARD.md` §2).
 - Sheet D4 (the operator wins with one shared value) as agreed.
+
+## Operator feedback and behavior boundaries
+
+Keep the current panel and compact text/icons alongside color. Selection, preview, staged values,
+readiness, pending command and last confirmed output answer different questions; no single green
+indicator stands for all of them. A staged cue edit waits for its declared Update/Take path;
+Connect follows source updates under the source's policy. Show the intended target of actions.
+Label a local simulation separately from actual target output; an accepted HTTP/command-log
+write is not proof of rendered pixels. On connection loss, a retained image/status is visibly
+last-confirmed/stale, or unknown where no confirmation exists. This uses existing observations;
+it does not add a new renderer acknowledgement protocol or promise unavailable telemetry.
+
+Organizational folders, All together batches, exclusive replacement groups and output
+layers/channels stay distinct. Inspect batch children and report failures, uncertain results and
+known layer collisions; do not collapse partial success to a green group. State the applicable
+replacement policy. Composite preview is explicitly unavailable when unsupported; implementing
+new composite rendering is not part of this refinement. Unknown vendor groups are not native
+folders. No routine confirmation is added to Take, Out or score presses; existing destructive
+action safeguards and legality checks remain.
+
+Native machine groups and declared capabilities own behavior. A question/reveal region and an
+independent clock do not need every combined state enumerated. Data may animate a changed number
+inside the current state, but cannot implicitly Take, advance, reveal, clear or reset it. Profiles
+label and arrange declared actions; they never implement their behavior. Clock state/time origin
+uses the existing route; a new high-rate transport requires measured need, not a competitor claim.
+
+C6 owns any bounded status/target presentation changes needed here, separately reviewed as product
+behavior. Refactor phases only preserve them. C7 and parent phase 14 collect actual-output and
+human evidence; unsupported foreign capabilities remain in the OGraf roadmap.
 
 ## Whole-graphic matching and starter data
 
@@ -399,7 +431,11 @@ journey.
 ### AC-9: Sources and content are discoverable
 Setup always offers "Messages…" and "Data…"; the Data view lists the production's values, lists
 and tables with their sources and the graphics using them; Playout shows active sources with
-status and Pause; native content is labeled as local content with no freshness warning. The
+status and functional Pause or its explicit fallback; native content is labeled as local content
+with no freshness warning. Source details show the active reader, effective cadence, last checked
+and last changed. For Sheets, browser reads are about every five seconds and server reads about
+once a minute when all pages close; other providers show their own effective cadence. The Sheet
+server mode is continuity at slower cadence, not equivalent latency. The
 default surface's vocabulary is sheet AC-9's. Layer: journey in `e2e/production-views.spec.ts`
 and `e2e/production-data.spec.ts`; owner look in the pull request.
 
@@ -414,9 +450,15 @@ cross-source journey.
 For every source kind: a failed or malformed read holds the last good value; a valid empty list
 or explicit empty scalar clears its managed field; a missing keyed scalar row holds its last good
 value and reports an error; legacy missing paths and empty arrays keep their behaviour; a late read
-cannot write after disconnect or handover. Pause stops a source's writes and Resume uses the last
-applied snapshot. The Sheet reader's lease, override and staleness rules are sheet AC-5, AC-6 and
-AC-7. Layer: Node reader-state tests with a fake clock per source kind; the sheet spec's layers
+cannot write after disconnect or handover, including an old owner's response arriving after the
+new owner's newer write. A successful unchanged read is not stale merely because values did not
+change. Last checked proves a transport read, not the age of an upstream event; provider timestamps
+or sequences can support a separate later source-age capability, not a requirement for every Sheet.
+Sheet manual scalar changes last until that source cell changes; Pause holds them and Resume
+writes only cells changed while paused. Lists stay read-only while connected. API Pause uses
+C5's suppress-and-diff/held-update policy or stop-sender fallback, not the Sheet policy. The
+Sheet reader's lease, override and staleness rules are sheet AC-5, AC-6 and AC-7.
+Layer: Node reader-state tests with a fake clock per source kind; the sheet spec's layers
 for the Sheet case.
 
 ### AC-12: Connections stay correct when names collide or change
@@ -451,7 +493,9 @@ a custom graphic's starter data, connecting it as a unit and repairing one unmat
 Pass: four of five participants
 complete each task unaided and answer the comprehension questions ("What happens when you press
 Take?", "If someone edits the Sheet now, what changes on air?", "If someone adds a row, what
-happens to the cue you prepared?") correctly; medians are reported without a time target. Layer:
+happens to the cue you prepared?", "Where did this value come from?", "Which target will this
+button affect?", "What is confirmed on air, and what is only preview or pending?") correctly;
+medians are reported without a time target. Layer:
 one full trial at parent phase 14 on the completed build, prepared during C7; the paste tasks
 also run early in Q on C0's build. Earlier pilots do not replace final acceptance after changes.
 
@@ -471,6 +515,11 @@ source. Include the custom-graphic whole-Sheet and API examples of AC-7/13, manu
 reader handover, unchanged/changed cells, delayed responses and Pause/Resume. Record app revision,
 Bridge/CasparCG versions, channels/layers, fonts/assets, Take/Update/Continue/Out where supported,
 stacked graphics and restart/reconnect; observe the actual consumer if used in production.
+Exercise a quiz reveal while its independent clock continues; a bound value update neither
+resets the clock nor advances the quiz. Exercise All together with a failed child and conflicting
+layers; child outcomes and replacement policy remain inspectable. Distinguish selection, staged
+edits, pending commands and confirmed output; disconnect leaves no apparently fresh live image.
+Record simulation versus target capture, and unknown status where confirmation is unavailable.
 Expanded vMix/SPX qualification is later; existing regressions remain required. The unaided tasks of
 AC-14 are prepared in C7 and run at final close-out. Each route is recorded separately; Twitch's existing behaviour is checked for
 regression; a blocked YouTube route is recorded as unverified, never as a pass. Layer: C7's
@@ -559,11 +608,19 @@ per-graphic map for `/update`, or the documented fallback; `DATA_API.md` and `/d
 `src/components/home/CueEditor.tsx`, `api/data/[...path].ts`, one migration (`data_paused`,
 `dispatched`, held updates), `docs/DATA_API.md`, a documented sample sender under `scripts/`, tests.
 
-**C6. Compatibility and docs** (sheet AC-10). New graphics are no longer offered the
+**C6. Compatibility, truthful operation and docs** (sheet AC-10; AC-9/16). New graphics are no longer offered the
 graphic-level Sheet panel; existing blocks keep running; exports unchanged; `/docs` and
 `docs/PRODUCTION_DATA_PLAN.md` carry the supersession. Connecting a legacy graphic via the new
 flow requires an explicit migration choice so two pollers cannot silently write the same field.
-Production Pause must not claim to stop an embedded poller. Files: `src/components/editorFoundation/LiveDataControls.tsx`
+Production Pause must not claim to stop an embedded poller. Reuse existing command/status and
+folder-child results for the operator-feedback contract above; add only missing presentation of
+target, pending/confirmed/unknown state, stale monitor and partial group results. Record which
+observations the output route supplies. Product changes and their focused regression checks are
+separate from refactor extractions; no new confirmation protocol or composite renderer is implied.
+Files: `src/components/home/CueEditor.tsx`, `src/components/home/PlayoutMonitors.tsx`,
+`src/components/home/CueRundown.tsx`, `src/components/home/FolderEditor.tsx`,
+`src/components/home/ProductionPage.tsx` (presentation wiring only),
+`src/components/editorFoundation/LiveDataControls.tsx`
 (reconcile its current location before editing; the former `ControlPanel.tsx` has been removed),
 docs, tests.
 
@@ -608,15 +665,15 @@ their named checks, not a second suite to rerun on unchanged inputs:
 | C1 | Scalar template generation and Sheet round trip; scoped bulk suggestions; duplicate/missing IDs, ambiguous labels and incompatible types; row reorder and label edit; existing binding review, cancel and prepared-message refusal; header action/Done behavior; real custom scalar/fixed-slot fixture receipt (AC-3/13) |
 | C2 | Shared scalar override survives unchanged-cell handover and Pause/Resume; changed cell wins; delayed/missing data cannot replace a newer value; published bulk mapping persists without republish (AC-3/11, sheet AC-5/7) |
 | C5 | Prepared collector/sender, unfamiliar fields, confirmed bulk mapping, receipt and correction; failed acquisition sends nothing; explicit API freeze policy; no lifecycle events (AC-7) |
-| C6 | Both retained legacy poller and explicit migration; no competing writers or misleading production Pause (sheet AC-10) |
-| C7 | Actual CasparCG/Bridge and OBS/browser receipts with versions/revision; custom Sheet/API examples; complete final-trial script and fixtures. Full human trial remains assigned to parent phase 14 |
+| C6 | Both retained legacy poller and explicit migration; no competing writers or misleading Pause. Extend existing production-control, monitor and folder journeys for staged/live distinction, target labels, pending/confirmed/unknown status, stale image after disconnect and child failure/collision visibility (AC-9/16); reuse existing Node status/folder contracts, adding a case only where behavior changes |
+| C7 | Actual CasparCG/Bridge and OBS/browser receipts with versions/revision; custom Sheet/API examples; independent quiz/clock and group-failure scenarios; complete final-trial script and fixtures. Full human trial remains assigned to parent phase 14 |
 | Parent 14 | Final AC-14/16, sheet AC-12 and audience AC-7 human trial; reconcile all content/output evidence against the completed build and rerun affected walks under parent §6 |
 
 ## Readiness
 
 The owner agreed the reconciled plan and all four synthesis §7 decisions on 2026-10-18, then
-authorized incorporating the 19 October refinements. The parent's pending Pixotope/whole-plan
-review reconciliation applies to this updated version too.
+authorized incorporating the 19 October refinements and completed competitor findings. The
+parent's pending final whole-plan review applies to this updated version too.
 Before a run: the parent's run preflight and a separate owner start instruction. C0 needs no
 refactor phase before it. This update does not start the run.
 
@@ -625,5 +682,44 @@ measurement inside D3 or the plan stopped and asked; this spec and the audience 
 digests current and `work-spec.mjs status` clean.
 
 Before C2: the tick's cost estimate from Q reviewed; the hosting plan's cron confirmed.
+
+## Future external-API connection slice (proposal)
+
+This P1 proposal is separate from C0–C7's agreed no-JSON-mapping scope. C5 remains the existing
+bearer-authenticated API, a prepared collector/sender and saved bindings, not a generic scraper.
+Collection happens in a provider adapter or external automation; the NoaCG API receives data.
+Private Sheets/OAuth, local Excel/files (#1507), licensed sports feeds and high-rate ingestion
+each need their own access/capability decision. RSS/Atom stays in C4.
+
+**Proposed journey:** choose a provider preset or generic JSON endpoint → configure endpoint and
+authentication in a trusted service/adapter → inspect a real sample with readable labels/values
+→ select a scalar/collection and stable record ID where selection matters → apply bounded column
+selection, row filtering, sorting, limits, number/date formatting or explicit fallback → validate
+the destination, preview and explicitly Connect. Use the same graphic-level entry and optional
+field repair; raw path syntax is not the beginner default.
+
+Transforms belong upstream of the target adapter. Native string-valued templates and future
+typed foreign OGraf controls need distinct final representations; do not universalize SPX string
+conversion or change today's wire here. Reuse the production data store, source identity and
+binding write path. An optional local adapter can reach private APIs/databases; alternatively,
+external automation posts to the existing API. Browsers/graphics do not each connect to databases.
+Provider secrets stay in the trusted service, never downloadable templates or ordinary show
+exports. Signed webhooks, retries, ordering/deduplication, rate limits, source-age detection and
+credential failure need an explicit connector policy; HTTP support alone proves none of these.
+
+**Dependencies and specification gate:** agree the first real provider/use case, trusted execution
+and secret ownership, supported operations, stable-ID/selection contract and connector policy.
+Reconcile typed representation with OGraf package E and richer collections with EDITOR_PLAN;
+do not add a second scene/data model. These decisions authorize a later specification, not
+implementation through the current run.
+
+**Ready condition for that later slice:** a fixture-backed authenticated endpoint supplies one
+scalar and one keyed collection; sample/transform/validation/rendered preview match actual target
+values; row reorder retains selection; incompatible data is diagnosed before binding; timeout,
+malformed, duplicate and out-of-order input follow the declared policy; valid empty versus failure
+has distinct outcomes; export contains no provider secret; unauthorized reads fail; Pause/Resume
+is proven or unavailable explicitly; data never triggers a production transition. Include one
+actual provider receipt and report untested adapters as unsupported. Future phases must own
+these checks before this proposal becomes runnable.
 
 ## Phase notes

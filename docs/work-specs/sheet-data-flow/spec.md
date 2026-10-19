@@ -213,6 +213,9 @@ fake clock; the configured scenario.
 ### AC-4: Published, the output keeps following with no page open
 With every operator page closed, an edited cell reaches the published output at the tick's
 cadence, measured and recorded, and a reloaded page shows the row's true status and Pause.
+Source details identify the active browser reader (about five seconds) or server reader (about
+one minute). Closed-controller operation is continuity at slower cadence, not the open-page
+ten-second promise. Handover updates this display without inventing a successful read.
 Layer: configured scenario with the tick driven directly; the closed-browser real-Sheet run (C2).
 
 ### AC-5: One active reader per source
@@ -220,12 +223,17 @@ A second tab reads nothing; a source with a live lease is skipped by the tick; a
 is read once; a value changed once is written once; a late read after Disconnect writes nothing.
 An unchanged source cell after reader handover does not erase a shared manual override; a
 changed cell does. Layer: Node lease tests with a fake clock; configured handover scenario.
+Hold an old owner's request, transfer the lease, apply a newer value from the new owner, then
+release the old response: it writes nothing and cannot replace the new owner's status/snapshot.
 
 ### AC-6: Failure, emptiness and staleness are visible and safe
 An unshared, deleted or unreachable sheet shows the line with a plain fix and the time it
 started; values on air stay. After three missed reads of the active reader (15 seconds in the
 browser, about three minutes under the server tick) the line and fields show stale; the mark
-clears on the next good read; reading resumes by itself. A valid empty list tab clears its field
+clears on the next good read, including an unchanged valid response; reading resumes by itself.
+Last checked and last changed are separate: unchanged content alone never makes a source stale.
+A successful fetch does not prove the age of upstream events; provider event timestamps/sequences
+are a separate later capability, not required for these Sheet reads. A valid empty list tab clears its field
 and says "empty"; a missing keyed scalar row holds its value and reports an error. Layer: Node reader-state tests; journey; the `""` conformance case.
 
 ### AC-7: The operator wins with one shared value

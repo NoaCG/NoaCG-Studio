@@ -18,16 +18,52 @@ planning update does not start `/plan-run production-page`; the owner explicitly
 Owner refinement, 2026-10-19: incorporate the accepted P1–P6 and whole-graphic data-connection
 refinements into the actual plan; keep all refactor phases, use qualified cloud execution where
 equivalent, and local hardware/performance/human acceptance where required. Target start:
-20 October; stable candidate before the owner's Friday 23 October testing, with repair time.
-These are planning targets, not an invented execution deadline or authorization to start.
-The Pixotope 26.3 OGraf Controller findings and final whole-plan second opinion remain pending
-preparation inputs. The current UI stays the design baseline; research mockups show logic only.
+20 October. The owner's latest instruction makes Friday 23 October a progress/testing checkpoint,
+not a completion deadline: unfinished work stays open and no phase or acceptance gate is dropped
+to fit that date. Pixotope and the broader 19 October competitor findings are incorporated below;
+the final whole-plan second opinion remains pending. This is planning authorization only.
+The current UI stays the design baseline; research mockups show logic only.
 
-Scope excludes SVG/custom-action import redesign, the full election package and per-cue live
+The current 22-step execution sequence excludes SVG/custom-action import redesign, the full election package and per-cue live
 candidate selection, foreign OGraf ingestion, a NoaCG OGraf server/native output system, Bridge
 packaging changes and the future Excel/local-file providers in issue #1507. Existing behavior
 and regression checks for these surfaces are preserved. The data-sources spec owns the concrete
 bulk Sheet/API mapping, downloadable starter data, legacy migration and rehearsal additions.
+
+## Research integration, 2026-10-19
+
+The owner supplied completed research against `86e795dc9f66183633d7c99a73bea8c27e4e32f6`.
+**Code** is source inspection, **Plan** is an unshipped commitment, **Documented** is vendor
+technical documentation, **Claim** is marketing, and **Recommendation** is judgment. No commercial
+system was installed or exercised in that research; there is no measured usability/performance
+ranking. [Integration receipt and sources](evidence/research-integration-2026-10-19.md).
+
+| Finding | Existing support / commitment | Necessary refinement and owner | Priority | Acceptance evidence to collect |
+| --- | --- | --- | --- | --- |
+| Contextual, sample-first data setup | Code: shared tree/bindings; Plan: C0–C7 Fill/Connect, bulk mapping, starter CSV | Preserve the whole-graphic entry and field exceptions; reuse sources, preview sample/rendered result and affected cues; diagnose malformed columns rather than emptying them (C1/C5) | P0 | Data AC-4/7/13: paste schedule; custom Sheet/API round trip; repair/cancel without unintended bindings |
+| Freshness and recovery must be truthful | Plan: last-good hold, last checked/changed, leases, Sheet D4 and API Pause fallback | Show active reader/cadence; unchanged successful reads are healthy; reject late old-owner results (C1/C2). Provider event-age support is a later capability | P0 | Sheet AC-4/5/6/7: closed-controller cadence, old-owner delayed result, two-graphic override through Pause/Resume; data AC-11 malformed versus valid empty |
+| Selection, staging and confirmed output differ | Code: command log, output status and folder operations; Plan: C7 actual-output rehearsal | C6 explicitly owns bounded status/target presentation changes; label simulation and unconfirmed/stale output, inspect child failures/collisions; no new acknowledgement protocol or routine Take dialog | P0 | Data AC-16/C6 cases: staged edit versus live update, failed group child, conflicting layers and connection loss; actual CasparCG/Bridge and OBS receipts |
+| Independent behavior must stay independent | Code: native machine groups, legal events and origin-based clocks; Plan: editor named steps/segments | Reuse these in rehearsal; keep data writes separate from lifecycle actions. No node editor, macro composer or second state owner | P0 preservation | Data AC-7/16: quiz reveal with independent running clock; source update changes values without reset/Take/advance |
+| Foreign OGraf types and controls have real gaps | Code: scalar adapter and isolated host; Plan: full-stack packages A/E/F | Extend existing E/F completion contracts for typed fields/actions, schema semantics and step controls, then normal rundown hosting | P1 later milestone | Full-stack §8.1: unfamiliar package typed round trip and actual rendered actions; native export in an independent controller |
+| A generic API mapper is a separate capability | Code: bearer-authenticated production-data API; Plan: C5 prepared sender | Separate later proposal in data-sources; sample selection and bounded transforms upstream of target adapter, trusted credentials and connector policy | P1 proposal | Future slice's sample/validation/error/credential checks; no arbitrary JSON mapper or wire migration in C5 |
+| Generated controls precede bespoke layouts | Code: ARRANGE/profile, More and pinning; COMBINE removed | Use existing profile; later responsive presets need stable references and reversible generated fallback; sports/quiz prototypes must prove need | P2 proposal | Control-panel road §3: narrow-panel tasks, missing-reference report, saved layout retained, shared state unchanged |
+| Competitive claims must match evidence | Older documents claimed only Singular generates controls | Correct Erizos/Pixotope comparison; keep documented capabilities distinct from MXMZ claims and untested interoperability | Documentation | Traceable source links and evidence labels; no superiority or qualification claim from screenshots |
+
+**Execution boundary.** The October 18 ordering and all 22 steps plus Q remain unchanged.
+Refactor phases preserve behavior; C0–C6 are the declared product-change phases. The C6 status
+refinement is specified in the data-sources plan, not hidden inside an extraction. C7 rehearses;
+parent phase 14 closes out the completed build and human trial. New evidence joins the existing
+matrix; it does not create redundant verification runs on unchanged material inputs (§6).
+
+**Complete roadmap, staged authorization.** There is no arbitrary phase or duration cap. The
+existing [OGraf full-stack packages A–J](../../OGRAF_FULL_STACK_PLAN.md#8-work-packages-and-dependency-order)
+remain part of the long-term direction, including server and eventual native output. The
+[future API connection slice](../data-sources/spec.md#future-external-api-connection-slice-proposal)
+and [responsive layout gate](../../CONTROL_PANEL_ROAD.md#3-capability-vs-workflow---the-production-control-profile)
+are explicit later proposals with dependencies and ready conditions, not silently approved
+execution steps. Provider-specific sports feeds/high-rate ingestion need access and measured
+requirements; private Sheets/OAuth has its own access decision. Review these scopes before
+adding runnable phases. The election package and import/editor work keep their separate owners.
 
 ## Verdict
 
@@ -729,7 +765,7 @@ One `/plan-run production-page`, sequential; the wave file names each step in §
 | 7 | C3 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat |
 | 8 | C4 | data-sources | Feeds |
 | 9 | C5 | data-sources | Whole-graphic API connection, prepared collector/sender example, receipt and explicit Pause/fallback |
-| 10 | C6 | data-sources | Journeys, compatibility, docs |
+| 10 | C6 | data-sources | Compatibility, truthful source/target/output and group status, docs (declared product changes) |
 | 11 | C7 | data-sources | Technical rehearsal, Twitch and actual outputs; prepare the full human trial for phase 14 |
 | 12 | 3 | this spec | ProductionShell and CueActions, props-only |
 | 13 | 4 | this spec | Production publish/slot/link hook |
@@ -773,8 +809,8 @@ answers do not reproduce; the hosted page's fitness for the core (not in scope).
 The 18 October planning review gate was satisfied: the two independent reviews were reconciled
 (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`), and on 2026-10-18 the owner agreed
 the resulting plan, including the run order above and all four synthesis §7 decisions.
-The owner has now authorized incorporating the 19 October refinements, with Pixotope research
-and another whole-plan review still to be reconciled before the final start decision. Do not treat
+The owner has now authorized incorporating the 19 October refinements and supplied competitor
+research; another whole-plan review remains before the final start decision. Do not treat
 the earlier reviews as reviewing this expanded version. No execution is authorized by this edit.
 
 Before the run's first step (the start instruction; C0 in the reconciled order, then phase 1):

@@ -42,9 +42,11 @@ re-checked against a live system before it does.
   the control app from control nodes, then instantiates it per show ("for every show, you need an
   app instance ... without affecting the original composition"). MXMZ's Operator is a separate
   product with hand-built panels per vertical. **Nobody makes "customize the panel" mean "edit the
-  graphic" - and nobody except Singular generates the default panel at all.** The bespoke-panel
-  cost (MXMZ per-sport builds, DashBoard needing an ogScript author) is exactly what our generated
-  default avoids.
+  graphic".** Correction, 2026-10-19: Singular is not alone in generating controls;
+  [Erizos](https://docs.erizos.tv/userguide/UIBuilder/UserInterface/) and
+  [Pixotope 26.3](https://help.pixotope.com/phc/26.3/using-the-form-builder) document automatic
+  type-matched controls/forms too. MXMZ's public material establishes task-focused positioning,
+  not the absence of a generator. A generated default alone is no proven competitive lead.
 - **Production operation is a rundown of data rows over templates.** Trio pages, XPression take
   items, MXMZ playlists, Flowics playlists - all the same shape as our cues. Preview/program with
   an explicit take is universal; so is a Next/Continue verb; MXMZ adds auto-advance timers and a
@@ -71,7 +73,7 @@ re-checked against a live system before it does.
 shared server-held state (the INSERT is the send, clients follow the log - the MSE pattern in
 event-sourced form); cues are pages; preview/program with Take is the dashboard's 90% case; the
 production data tree + bindings (shipped, `docs/PRODUCTION_DATA_PLAN.md`) is DataLinq's shape; and
-the generated panel is the thing the big systems make you build by hand. The gaps this document
+the generated panel shares a documented pattern with other professional systems. The gaps this document
 decides about are the capability/workflow split (§3), the production story said out loud (§4), and
 validation aimed at safety rather than coverage (§7).
 
@@ -101,40 +103,41 @@ graphic edit; rejected. **A panel layout editor as a second scene model** - reje
 grounds the product refuses hidden scene models. **Category-keyed panels** - banned by the
 client-agnostic rule and the control layer's own contract.
 
-## 3. Capability vs workflow - the production control profile (direction, not schedule)
+## 3. Capability vs workflow - the production control profile
 
-The brief asks whether NoaCG should eventually separate what a graphic CAN do from how a
-particular production wants to OPERATE it. The professional evidence (§1) says yes; the owner's
-football principle says why: *the operator should understand football, not the graphics software* -
-fewer, more meaningful controls, not every declared capability at equal weight.
+**Current baseline, 2026-10-19:** `src/control/controlModel.ts` and `src/model/profile.ts`
+already support generated controls and ARRANGE: order, sections, operator labels, pinning and
+hiding behind More. The older "not built" wording is superseded. COMBINE was removed by owner
+decision on October 2 and persisted combine lists are ignored; folders supply All together.
+This research does not restore a general macro composer.
 
-**Recommendation: a PRODUCTION CONTROL PROFILE - additive presentation state on the Show,
-referencing capabilities the graphics already declare. Not built now; the shape is reserved.**
+The owner's football principle remains: the operator should understand football, not the
+software's internal machinery. Use the existing presentation profile first. Labels such as
+"Lock answers", "Reveal correct answer" and "Start clock" reference declared capabilities;
+a profile must not implement their behavior, invent events, override legality or own a separate
+score/clock. The complete generated panel remains reachable, including hidden controls through
+More. Production taste must not churn shared graphic definitions or create a second scene model.
+Profiles remain additive, production-scoped presentation data on the Show, referencing declared
+control IDs; a layout change does not change the shared template's behavior contract.
 
-- **What it may do:** arrange, hide, rename, emphasize and group controls; pin the handful a show
-  actually uses; combine declared verbs into one press (a combined control is an ordered batch of
-  already-declared events/verbs/data patches - the shape Take already is: update + play + cue as
-  one atomic `control_send_many` batch, and the shape a Goal already is: event + adjust on one
-  press). Deterministic composition of existing capabilities, nothing else.
-- **What it may never do:** invent an event, carry logic or conditions, override structural
-  legality (a hidden button's event is still guarded by the machine; a renamed one still greys by
-  the same table), or define behaviour. A profile is DELETABLE at any moment: removing it must
-  always leave the complete generated panel, which stays the recovery surface and the default.
-- **Where it lives:** on the `Show`, additive-optional, keyed by pool-graphic name then control
-  id - exactly the precedent `Show.bindings` set (production-scoped taste over graphic-owned
-  contract, pinned onto `control_shows` at publish, older builds read past it). Not on the
-  template: a library graphic is shared by many productions, and one show's taste must not churn
-  a shared document or ride into exports.
-- **Why not now:** the generated panel plus `machine.controls` sections already cover today's
-  shows, and the first real demand signal should shape the profile's vocabulary (the same
-  third-case rule that deferred the behaviour registry). The decision made HERE is only that the
-  profile is the sanctioned road - so no future session solves "this panel is too busy for our
-  operator" by per-graphic panel code or by forking a template per production.
+**Later responsive layouts/presets: P2 proposal, not current-run implementation.** Start with a
+sports surface and a quiz surface over existing declared controls/shared values. Measure task
+completion, errors and operator understanding on narrow and wide panels. First prove whether
+ARRANGE is insufficient; only then consider a layout extension. No free positioning, panel
+scripting or macros are authorized by competitor screenshots.
 
-Alternatives, each a line: **bake workflow into each graphic's `machine.controls`** - wrong owner;
-production taste would churn library documents shared across productions. **A panel markup
-editor** - §2's rejected alternatives, unchanged. **Do nothing, ever** - fails the football
-principle the moment a real sports show puts twelve declared controls in front of one operator.
+A later preset references stable capability IDs, validates missing/incompatible references on
+reuse and restricts widgets to compatible value/action types. It must adapt to a narrow panel
+without requiring the operator to discover a root-container rule. Switching to the generated
+form must retain the saved arrangement so switching back is reversible; deletion is a separate
+deliberate operation. One state and command path serves every view.
+
+**Specification/ready gate:** record the sports/quiz tasks that arrangement cannot meet, agree
+the bounded layout scope and reconcile richer collections with EDITOR_PLAN/GDD work. Completion
+requires narrow-panel task evidence, missing-reference/type-mismatch diagnostics, preserved
+saved layouts after fallback/reload, access to every generated control and identical state/command
+results across views. A visual prototype alone is not behavior or interoperability qualification.
+No second panel framework is selected here.
 
 ## 4. Beyond one graphic - the production operator story
 

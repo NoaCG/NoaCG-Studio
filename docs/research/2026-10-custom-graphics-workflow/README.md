@@ -2,9 +2,11 @@
 
 Research prepared 18 October 2026, followed by owner refinements on 19 October. No product implementation or plan execution. The 19 October integration now updates the actual work specs with the owner's authorization; the earlier research-only status is historical.
 
-**Latest: [Pixotope roadmap proposal](12-pixotope-roadmap-proposal.md).** Repository-checked findings, adopt/adapt/defer/avoid recommendations within existing work packages, and a bounded Discovery investigation. Proposed changes await review; the current 22-step plan is not expanded by this document.
+**Latest: [competitor findings integrated into the authoritative plan](../../work-specs/production-page-refactor/evidence/research-integration-2026-10-19.md).** The supplied 19 October research sharpens current data/status acceptance and later OGraf/API/layout scopes. The 22-step order plus Q is preserved; Friday is a progress checkpoint, not a deadline. No implementation or run has started.
 
-[Integration into the actual plan](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md) records the earlier accepted refinements: all 22 steps, P1–P6, whole-graphic connections and downloadable starter data. The final human trial follows all refactors. Pixotope reconciliation and the final whole-plan review remain pending; execution has not started.
+The earlier [Pixotope roadmap proposal](12-pixotope-roadmap-proposal.md) remains background, including a bounded Discovery investigation. The integration receipt identifies adopted refinements and later proposals; optional investigations are not automatically authorized.
+
+[Integration into the actual plan](../../work-specs/production-page-refactor/evidence/plan-refinement-2026-10-19.md) records the earlier accepted refinements: all 22 steps, P1–P6, whole-graphic connections and downloadable starter data. The final human trial follows all refactors. Competitor findings are now incorporated; the final whole-plan review remains pending and execution has not started.
 
 [Whole-graphic connections and downloadable data templates](11-whole-graphic-connections.md) records the rationale and future Excel/local-file issue.
 
