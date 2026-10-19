@@ -1,0 +1,16 @@
+PASS real button text ◷ arms by exact aria-label
+PASS textContent equal to name does not arm with wrong aria-label
+PASS unarmed run has no successful held-zero preflight state
+PASS unavailable diagnostics prevent arming
+PASS wrong iframe is not held
+PASS wrong document is not held
+PASS wrong generation is not held
+PASS wrong revision is not held
+PASS wrong request is not held
+PASS wrong selection is not held
+PASS prior acknowledgement in wrong generation is not held
+PASS listener registered after consumer is rejected as ineffective
+PASS early actual hold, microtask witness, original-payload replay and one hold
+PASS replay refuses a held envelope that became stale
+PASS zero safety release reports ineffective and stays below controller watchdog
+PASS 15 pure stub checks; browser/runtime behavior not established
