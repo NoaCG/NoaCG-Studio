@@ -111,7 +111,12 @@ export default defineConfig({
     //
     // Screenshots stay on: they cost almost nothing (one capture, only when a test fails) and
     // they are usually enough to tell "the app broke" from "the selector moved".
-    trace: isCi ? 'retain-on-failure' : 'off',
+    // DOM snapshots replay the entire editor/preview tree at every action, even when a test
+    // passes and its trace is discarded. Keep the action/source/console trace and filmstrip,
+    // plus the failure screenshot below, without paying for interactive DOM replay. Tests,
+    // assertions, waits, isolation and retry policy are unchanged. Bounded measurements:
+    // docs/work-specs/e2e-trace-overhead/spec.md.
+    trace: { mode: isCi ? 'retain-on-failure' : 'off', snapshots: false },
     screenshot: 'only-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
