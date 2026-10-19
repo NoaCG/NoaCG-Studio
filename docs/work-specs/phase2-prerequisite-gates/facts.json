@@ -1,0 +1,50 @@
+{
+  "source": "bf86052134d20a055246b7683433b2cae536fcb9",
+  "branch": "fix/phase2-prerequisite-gates",
+  "worktree": "/workspace/phase2-gates",
+  "startUtc": "2026-10-19T17:36:22Z",
+  "implementationEndUtc": "2026-10-19T19:36:22Z",
+  "keysProbe": {
+    "queue": "j-0001",
+    "command": "npm run test:e2e -- e2e/editor-keys.spec.ts --grep 'nested SVG armed' --retries=0",
+    "capMinutes": 5,
+    "passed": 1,
+    "failed": 0,
+    "retry": 0,
+    "testSeconds": 3.0,
+    "wallSeconds": 8.2,
+    "events": [],
+    "stageError": null,
+    "verdict": "ineffective; arming listener used textContent but the control uses aria-label; no further probe authorized",
+    "temporaryHelperSha256": "2dc31c33a495afe5588f6bfc3c5f16c2c11ce79bcba539ac8f4d9e1c1bd643ca",
+    "temporarySpecPatchSha256": "eb2a74358d5e65f1398870f0ac4d2f8cb37401dfff34dc50978d512239f90450"
+  },
+  "configured": {
+    "run": 39287816358,
+    "job": 118180087518,
+    "source": "929d1f1f1137297e8763745f5217b48ee0370e6c",
+    "artifactId": 12204499974,
+    "sha256": "4d6406a7178f0940e9a2a057b49300957cb66fabba033f6c996b6a02f005e6ee",
+    "expected": 107,
+    "flaky": 1,
+    "skipped": 3,
+    "unexpected": 0,
+    "failedLocation": "e2e/configured/deep-link-boot.spec.ts:115:60",
+    "failedDurationMs": 68253,
+    "passingRetryDurationMs": 12979,
+    "failureSnapshot": "Opening production\u2026 / Looking for this production in your account\u2026",
+    "failureAttachments": [
+      "error-context.md"
+    ],
+    "retryAttachments": [
+      "trace.zip"
+    ],
+    "matchingFault": "not run",
+    "repair": "none; insufficient evidence for a coverage-preserving test-only repair"
+  },
+  "unchangedFiles": {
+    "e2e/editor-keys.spec.ts": "4c946a7ddd997e00a9fde680813ad7441d5b4d826f1795835f7aae2fecd45929",
+    "e2e/configured/deep-link-boot.spec.ts": "6714722a8c2afe2d6e7b56b01bde131ba4d9d8bec6322b0f8df5002221f7d329",
+    "e2e/quarantine.json": "3af363e64df1d1d706369f1de2c4ff6a41bc5b1024b33e4318d06e6a1e6f5751"
+  }
+}
