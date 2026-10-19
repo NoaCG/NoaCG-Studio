@@ -153,6 +153,20 @@ test('cloud absence protection and all existing dispatch paths preserve original
   assert.match(jobs, /return dispatchRecovery\(\{ dispatchCi, command \}\)/);
 });
 
+test('documented gh short ref flags resolve before or after the workflow without changing dispatch arguments', () => {
+  for (const args of [
+    ['workflow', 'run', 'ci.yml', '-r', 'feature', '-f', 'require_review=true'],
+    ['workflow', 'run', '-r', 'feature', 'ci.yml', '-f', 'require_review=true'],
+    ['workflow', 'run', 'ci.yml', '-r=feature', '-f', 'require_review=true'],
+  ]) {
+    let observed, dispatched = 0;
+    assert.equal(main(['--', ...args], { observe(input) { observed = input; }, gh(actual) { dispatched += 1; assert.deepEqual(actual, args); return { status: 0 }; } }), 0);
+    assert.equal(observed.workflow, 'ci.yml'); assert.equal(observed.ref, 'feature');
+    assert.equal(observed.inputsResolved, true); assert.equal(observed.inputs.require_review, 'true');
+    assert.equal(dispatched, 1);
+  }
+});
+
 test('failed manual/recovery acknowledgement has no automatic dispatch retry and logging is advisory', () => {
   let calls = 0;
   assert.equal(dispatchRecovery({ dispatchCi: 'feature', command: 'original' }, { observe() { throw Error('lookup failure'); }, gh() { calls += 1; return { status: 1 }; }, print() {} }), false);

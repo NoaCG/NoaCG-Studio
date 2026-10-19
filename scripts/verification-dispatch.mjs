@@ -171,7 +171,7 @@ export function main(argv = process.argv.slice(2), { gh, observe = observeVerifi
     catch { request = { resolutionGap: true }; } // A failed observation is not a new dispatch gate.
   }
   const inputs = {};
-  let inputsResolved = true;
+  let inputsResolved = true, workflow;
   const argument = (...names) => {
     for (const name of names) {
       const joined = args.find((value) => value.startsWith(`${name}=`));
@@ -180,20 +180,21 @@ export function main(argv = process.argv.slice(2), { gh, observe = observeVerifi
       if (at >= 0) return args[at + 1];
     }
   };
-  for (let i = 3; i < args.length; i += 1) {
+  for (let i = 2; i < args.length; i += 1) {
     if (['-f', '--raw-field', '-F', '--field'].includes(args[i])) {
       const typed = ['-F', '--field'].includes(args[i]);
       const field = args[++i] ?? '', split = field.indexOf('=');
       if (split > 0) inputs[field.slice(0, split)] = field.slice(split + 1);
       else inputsResolved = false;
       if (typed && field.slice(split + 1).startsWith('@')) inputsResolved = false;
-    } else if (['--ref', '--repo', '-R'].includes(args[i])) i += 1;
-    else if (!args[i].startsWith('--ref=') && !args[i].startsWith('--repo=')) {
+    } else if (['--ref', '-r', '--repo', '-R'].includes(args[i])) i += 1;
+    else if (!args[i].startsWith('-') && !workflow) workflow = args[i];
+    else if (!args[i].startsWith('--ref=') && !args[i].startsWith('-r=') && !args[i].startsWith('--repo=')) {
       inputsResolved = false; // JSON stdin, shorthand/unknown fields need explicit resolution.
     }
   }
-  const ref = argument('--ref'), repository = argument('--repo', '-R');
-  try { observe({ workflow: args[2], ref, repository, inputs, inputsResolved, request, print }); } catch { /* Existing command still runs exactly once. */ }
+  const ref = argument('--ref', '-r'), repository = argument('--repo', '-R');
+  try { observe({ workflow, ref, repository, inputs, inputsResolved, request, print }); } catch { /* Existing command still runs exactly once. */ }
   const result = gh ? gh(args) : spawnSync('gh', args, { encoding: 'utf8', windowsHide: true, stdio: ['inherit', 'pipe', 'pipe'] });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);

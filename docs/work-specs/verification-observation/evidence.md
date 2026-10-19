@@ -5,21 +5,23 @@ with concurrent landings including A (#1508). The PR and /check stamp pin the
 exact reviewed tip. Changes are tooling/tests/docs only; workflow YAML and
 product tests/configuration are absent from this diff.
 
-`/check` review: inline, six findings fixed: supplied requirements were not bound
+`/check` review: inline, seven findings fixed: supplied requirements were not bound
 to the actual dispatch ref/inputs; old-attempt evidence could survive uncertain
 attempt identity; injected readers did not honor bounded/binary reads; a missing
 requirement file could gate dispatch; manual stdin needed forwarding unchanged;
-and changing freshness could otherwise hide a prior uncertain intent. Simplify:
+changing freshness could otherwise hide a prior uncertain intent; and gh's `-r`
+ref spelling needed resolving alongside `--ref`, including flags before the
+workflow position. Simplify:
 inline, reuse the existing job store and runner, extract the original recovery
 body without changing its dispatch/return behavior, keep the live observer and
 offline enforcement model separate. Verify: inline.
 
 - `npm run gates -- run --changed origin/main`: PASS, six selected test files,
-  54 tests, zero skipped/cancelled. Shared instructions and selected cheap checks
+  55 tests, zero skipped/cancelled. Shared instructions and selected cheap checks
   passed. `git diff --check`: PASS.
 - Targeted ESLint over the eight changed/new script/test files: PASS with zero
   warnings. No local production build is warranted by this tooling/docs change.
-- Fifteen new lookup/dispatch fixture tests cover exact/mismatching repository,
+- Sixteen new lookup/dispatch fixture tests cover exact/mismatching repository,
   actual head/merge revision, workflow/configuration/defaults/inputs, actual test
   IDs, environment, purpose, freshness, pending/completed attempts, missing or
   stale artifacts, failed/incomplete/skipped work, untrusted local admissions,
