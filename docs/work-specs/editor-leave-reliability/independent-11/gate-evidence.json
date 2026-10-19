@@ -951,6 +951,115 @@
       ]
     }
   ],
+  "latestAuditedMain": "8687863db85845c11839c76adab8c23a2266d5b7",
+  "exactMergeConfigured": {
+    "jobId": 118180087518,
+    "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39287816358/job/118180087518",
+    "read": "Whole decoded job log independently read; attempts/1 completed success exact929d1f1f. Not clean:deep-link failed then retry passed.",
+    "lineCount": 1724,
+    "excerpts": [
+      {
+        "line": 1287,
+        "text": "2026-10-19T16:46:05.0604845Z   ✓    1 [configured] › e2e/configured/account.spec.ts:28:3 › account essentials › Settings shows the account: email, password change round-trip, sign out (7.2s)"
+      },
+      {
+        "line": 1288,
+        "text": "2026-10-19T16:46:06.8693703Z   ✓    2 [configured] › e2e/configured/account.spec.ts:65:3 › account essentials › the sign-in dialog offers the forgot-password path (1.8s)"
+      },
+      {
+        "line": 1289,
+        "text": "2026-10-19T16:46:16.2725178Z   ✓    3 [configured] › e2e/configured/account.spec.ts:86:3 › account essentials › a lost session offers explicit recovery; local work survives and sync resumes (9.4s)"
+      },
+      {
+        "line": 1362,
+        "text": "2026-10-19T16:54:18.8445527Z   ✓   46 [configured] › e2e/configured/deep-link-boot.spec.ts:51:3 › deep-link boot › a signed-out deep link keeps its address @production (4.6s)"
+      },
+      {
+        "line": 1363,
+        "text": "2026-10-19T16:54:20.3905895Z   ✓   47 [configured] › e2e/configured/deep-link-boot.spec.ts:70:3 › deep-link boot › a signed-out production link asks for a sign-in rather than calling it gone @production (1.5s)"
+      },
+      {
+        "line": 1364,
+        "text": "2026-10-19T16:55:28.7793895Z   ✘   48 [configured] › e2e/configured/deep-link-boot.spec.ts:80:3 › deep-link boot › a production link opens once signed in from it, and an absent one names only the account (1.1m)"
+      },
+      {
+        "line": 1365,
+        "text": "2026-10-19T16:55:42.6218984Z   ✓   49 [configured] › e2e/configured/deep-link-boot.spec.ts:80:3 › deep-link boot › a production link opens once signed in from it, and an absent one names only the account (retry #1) (13.0s)"
+      },
+      {
+        "line": 1366,
+        "text": "2026-10-19T16:56:03.8066283Z   ✓   50 [configured] › e2e/configured/deep-link-boot.spec.ts:132:3 › deep-link boot › a graphic saved elsewhere opens on its link, however slow the pull (21.2s)"
+      },
+      {
+        "line": 1367,
+        "text": "2026-10-19T16:56:13.4828397Z   ✓   51 [configured] › e2e/configured/deep-link-boot.spec.ts:195:3 › deep-link boot › a sync asked for during a pass waits for one that can see the new data (9.7s)"
+      },
+      {
+        "line": 1575,
+        "text": "2026-10-19T17:14:29.8702833Z   1) [configured] › e2e/configured/deep-link-boot.spec.ts:80:3 › deep-link boot › a production link opens once signed in from it, and an absent one names only the account "
+      },
+      {
+        "line": 1579,
+        "text": "2026-10-19T17:14:29.8705942Z     Locator: getByTestId('production-missing')"
+      },
+      {
+        "line": 1586,
+        "text": "2026-10-19T17:14:29.8709146Z       - waiting for getByTestId('production-missing')"
+      },
+      {
+        "line": 1591,
+        "text": "2026-10-19T17:14:29.8712662Z     > 115 |       await expect(page.getByTestId('production-missing')).toBeVisible({ timeout: 60_000 });"
+      },
+      {
+        "line": 1594,
+        "text": "2026-10-19T17:14:29.8715995Z       117 |       await expect(page.getByTestId('production-missing-account')).toHaveText(`You are signed in as ${E2E_EMAIL}.`);"
+      },
+      {
+        "line": 1596,
+        "text": "2026-10-19T17:14:29.8717998Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/deep-link-boot.spec.ts:115:60"
+      },
+      {
+        "line": 1598,
+        "text": "2026-10-19T17:14:29.8719665Z     Error Context: test-results/deep-link-boot-deep-link-b-c5f1e--one-names-only-the-account-configured/error-context.md"
+      },
+      {
+        "line": 1600,
+        "text": "2026-10-19T17:14:29.8721099Z   1 flaky"
+      },
+      {
+        "line": 1601,
+        "text": "2026-10-19T17:14:29.8722773Z     [configured] › e2e/configured/deep-link-boot.spec.ts:80:3 › deep-link boot › a production link opens once signed in from it, and an absent one names only the account "
+      },
+      {
+        "line": 1602,
+        "text": "2026-10-19T17:14:29.8724112Z   3 skipped"
+      },
+      {
+        "line": 1603,
+        "text": "2026-10-19T17:14:29.8724509Z   107 passed (28.6m)"
+      },
+      {
+        "line": 1621,
+        "text": "2026-10-19T17:14:30.7699156Z Ran 108 tests (107 passed, 0 failed, 1 flaky), 3 skipped."
+      },
+      {
+        "line": 1622,
+        "text": "2026-10-19T17:14:30.7702963Z Quarantined: e2e/configured/deep-link-boot.spec.ts failed."
+      },
+      {
+        "line": 1670,
+        "text": "2026-10-19T17:14:32.2698170Z \u001b[36;1m  gh issue close \"$EXISTING\" --comment \"Configured suite green again at 929d1f1f1137297e8763745f5217b48ee0370e6c (108 ran, 3 skipped, 0 failed, 1 flaky (1 of them quarantined)): https://github.com/NoaCG/NoaCG-Studio/actions/runs/39287816358\"\u001b[0m"
+      }
+    ]
+  },
+  "externalIneffectiveProbe": {
+    "receipt": "36c2522b0bf749f1ae4312cc933b1cd8710aed27",
+    "branch": "fix/phase2-prerequisite-gates",
+    "result": "one passed;events empty;stageError null;no held reply",
+    "instrumentationError": "textContent compared with accessible name;actual text ◷, aria-label Enable Position X animation",
+    "repairProved": false,
+    "furtherExecutionAuthorized": false
+  },
   "additionalGateIssue": {
     "pr": 1513,
     "merge": "86e795dc9f66183633d7c99a73bea8c27e4e32f6",

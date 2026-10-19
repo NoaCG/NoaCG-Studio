@@ -1,8 +1,9 @@
 # Independent Phase 2 gate check — 2026-10-19
 
 **BLOCKED before acceptance execution.** This checker built neither the phase nor its
-repairs. A separate owner has now landed the account locator fix and normal classification;
-its exact-merge checks are pending. The editor-keys failure/quarantine remains unresolved.
+repairs. A separate owner landed the account locator fix and normal classification;
+all three account cases passed without retry on the exact merge. That configured run had
+a separate deep-link failure followed by a passing retry. Editor-keys remains unresolved.
 The owner's explicit instruction requires stopping at unresolved gates. No new product failure is claimed
 from a fresh runtime challenge, and no acceptance pass is claimed.
 
@@ -26,6 +27,11 @@ Subsequent fresh main audit after the separately authorized account repair:
 initial `86e795dc9` are #1514's two workflow/runbook documentation paths and #1515's account
 spec, quarantine entry and account receipt. No `src/` file changed. No acceptance runtime
 execution has begun on either source.
+
+Fresh handoff audit at `2026-10-19T18:11Z` (`21:11 Kyiv`) fetched main
+`8687863db85845c11839c76adab8c23a2266d5b7` (merge #1518). Since `929d1f1f`, #1516/#1517 changed late-send quarantine
+classification and #1518 changed coordination instructions. Product source and the two
+unresolved target specs are unchanged. Acceptance runtime remains stopped.
 
 ## Blocking evidence and owner decision
 
@@ -101,6 +107,23 @@ metadata: exact reviewed tip `92ce1b2e...`, state MERGED and that merge SHA agre
 quarantine JSON places account in `released` and removes it from `specs`; editor-keys remains
 in `specs`, citing its original failed run. The account owner is following exact-merge CI,
 configured, post-land and other terminal results. Pending checks are not yet passing evidence.
+
+Terminal continuation: the owner completed landing ownership and published
+[comment 6271344398](https://github.com/NoaCG/NoaCG-Studio/pull/1515#issuecomment-6271344398).
+Independently queried configured `39287816358/attempts/1`: completed success on exact merge
+`929d1f1f`. Independently read its whole 1,724-line job `118180087518`: all three normal
+account cases pass, without retry. However, deep-link case `:80` fails at `:115:60` awaiting
+`production-missing` for 60,000 ms, then passes retry 1. Totals are **107 passed, 1 flaky,
+3 existing skips**; the guard explicitly says deep-link failed in quarantine. This is not
+a clean cumulative verdict and does not clear acceptance. No rerun or repair was built here.
+The owner's exact-merge main CI `39287816751` reports 2,171 passed / one existing skip /
+zero flaky across 15 shards, with retry job skipped; this is owner-reported evidence, not
+an independent whole-log audit of those shards by this checker.
+
+The later separate session's pinned artifact audit at `36c2522b` reports that only the passing
+deep-link retry has a trace; the failed attempt has error-context showing Opening production /
+Looking for this production in your account. Its auth/sync/fallback explanations are static
+candidates, not established cause. That session changed no product, maintained test or gate.
 
 ## Activity, reservations and current checks
 
@@ -179,6 +202,36 @@ Independently compared that commit with current main: `src/` and `e2e/` are byte
 A session question requests a new explicit disposition for exactly one pre-app-listener
 matching-window fault probe, same target/cap/zero retries, followed by another stop. It is
 not authorized by the completed observational round; no answer is inferred from elapsed time.
+
+The user subsequently opened a separate cloud owner with the provided two-hour handoff. Its
+[complete investigation receipt](https://github.com/NoaCG/NoaCG-Studio/blob/36c2522b0bf749f1ae4312cc933b1cd8710aed27/docs/work-specs/phase2-prerequisite-gates/README.md)
+and exact unsuccessful helper were independently read. That owner consumed the single
+pre-app probe: one target passed, events `[]`, no stage error. Its click arming compared
+`textContent` with the accessible name. Source inspection confirms the actual text is `◷`
+and the name is an `aria-label` (`AnimationProperties.tsx:44`). No reply was held, so this
+is an ineffective probe, not evidence that the race is absent. Maintained source/tests/gates
+match fetched main. No repair or landing exists; that owner's overall repair stamp is FAIL.
+
+Static-only preparation of a corrected diagnostic is now assigned to the separate editor-keys
+owner. It must check the actual arming attribute and fail closed if it never arms/holds a reply.
+No browser execution, injected fault or product/test repair is authorized by this preparation;
+no prior implementation window is inherited. Acceptance and shared reservations remain blocked.
+
+Prepared proposal, separately built by that owner and independently reviewed here:
+[`71d3bc422d6c17be78102118e6d9dd5d29b9a12c`](https://github.com/NoaCG/NoaCG-Studio/blob/71d3bc422d6c17be78102118e6d9dd5d29b9a12c/docs/work-specs/editor-keys-gate/corrected-probe-preparation.md).
+This checker independently ran the documented pure VM/fake-DOM checker: 15 pass. The recipe
+also passes `git apply --check`; it is not materialized in maintained test paths. Review caught
+and corrected a misleading microtask/turn label and an overstated stub-test oracle; raw consumed
+part appearance is now recorded for a real pointerdown mismatch. The exact code is documentation
+only, with zero browser runs. No runtime ordering, fault effectiveness or repair is established.
+The proposal branch is based on earlier main; its late-send released count is 11 versus current
+main's 12. That is inherited branch drift, not a classification edit. A future authorized owner
+must reconcile current main and recheck the pinned assumptions before running it.
+
+Independently read #1517's inline review: it reports that late-send was released using older
+cycle statuses rather than 20 fresh runs after run `39287029913`. The main diff confirms only
+classification changes. This is another unresolved gate disposition; neither the release nor
+the review supplies repair proof. No automation/classification fix was built by this checker.
 
 ### Activity and checks snapshot
 
