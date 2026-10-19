@@ -118,12 +118,15 @@ let checkedThisPage = false;
  * second ago, and the re-check after the "sync" missed it and redirected to Home. It arrived
  * about five seconds later, with the URL long since rewritten.
  */
-let waiting: Array<() => void> = [];
+/** Whether the particular pass awaited by a caller actually completed its cloud read. */
+export interface SyncPassReceipt { readonly completed: boolean }
+const unavailable: SyncPassReceipt = { completed: false };
+let waiting: Array<(receipt: SyncPassReceipt) => void> = [];
 
 /** Answer every waiter. Called when a pass finishes and when no pass can run at all — a waiter
  *  that hangs is worse than one told "nothing came", because its caller waits forever. */
-function answer(list: Array<() => void>): void {
-  for (const resolve of list) resolve();
+function answer(list: Array<(receipt: SyncPassReceipt) => void>, receipt: SyncPassReceipt): void {
+  for (const resolve of list) resolve(receipt);
 }
 
 /**
@@ -133,7 +136,7 @@ function answer(list: Array<() => void>): void {
  * every caller already assumed it was making. See `waiting` above for what that costs when it
  * is not true.
  */
-export async function syncNow(): Promise<void> {
+export async function syncNow(): Promise<SyncPassReceipt> {
   if (!(await canSync())) {
     if (libraryInUse()) setAccountAuthoringEnabled(false);
     setState({ phase: 'offline', firstPass: !!libraryInUse() && !checkedThisPage, detail: libraryInUse() ? 'Account session unavailable. Editing is paused; pending work is preserved. Sign in again.' : 'Local workspace. Work here is not saved to an account.' });
@@ -149,17 +152,17 @@ export async function syncNow(): Promise<void> {
     // `canSync()` inside the new call, and a third caller arriving inside that await sees both
     // flags down. Closing it needs the pass chain to be one object rather than two booleans,
     // which is a change to make when something needs it. A caller that acts on a release must
-    // therefore check that a pass really did run - `backend/graphicWhenSynced.ts` reads the
-    // phase for exactly this reason, and anything new here should do the same.
+    // therefore use this call's completion receipt rather than the global phase,
+    // which a queued follow-up may already have replaced.
     if (!running && !queued) {
-      answer(waiting);
+      answer(waiting, unavailable);
       waiting = [];
     }
-    return;
+    return unavailable;
   }
   if (running) {
     queued = true; // coalesce: one more pass after the current finishes
-    return new Promise<void>((resolve) => {
+    return new Promise<SyncPassReceipt>((resolve) => {
       waiting.push(resolve);
     });
   }
@@ -172,6 +175,7 @@ export async function syncNow(): Promise<void> {
   // who asks during THIS pass goes into the fresh list and waits for the next.
   const answered = waiting;
   waiting = [];
+  let receipt = unavailable;
   const firstPass = !checkedThisPage || !libraryHasArrived();
   // Nothing unconfirmed: the chip stays Synced while this pass looks (D14, reproduced on focus);
   // what it finds, a pull or a failure, says itself.
@@ -190,7 +194,7 @@ export async function syncNow(): Promise<void> {
       remote,
       firstPass ? (plan) => setState({ phase: 'syncing', firstPass: true, incoming: countIncoming(plan.toLocal) }) : undefined,
     );
-    if (epoch !== sessionEpoch) return;
+    if (epoch !== sessionEpoch) return unavailable;
     // Coordinated tombstone purge: drop deletes older than the grace period from BOTH sides (same
     // cutoff), so a purged tombstone can't be re-pulled. 90 days is generous; a device offline
     // longer than that could resurrect a delete — an acceptable edge for a beta. Best-effort.
@@ -204,7 +208,9 @@ export async function syncNow(): Promise<void> {
     } catch {
       // Never fail a sync on cleanup.
     }
-    if (epoch !== sessionEpoch) return;
+    if (epoch !== sessionEpoch) return unavailable;
+    // Completed reads answer this caller even when a newer revision queues another pass.
+    receipt = { completed: true };
     if (result.failures.length > 0) {
       // The pass completed and the bookmark advanced, but some records could not be applied —
       // surface them (SyncStatus shows the detail in its panel). They retry next pass.
@@ -234,7 +240,7 @@ export async function syncNow(): Promise<void> {
     if (epoch === sessionEpoch) setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e), firstPass });
   } finally {
     running = false;
-    answer(answered);
+    answer(answered, receipt);
     if (queued) {
       queued = false;
       // Through syncNow, not the body directly: the session can have ended while this pass ran,
@@ -242,6 +248,7 @@ export async function syncNow(): Promise<void> {
       void syncNow();
     }
   }
+  return receipt;
 }
 
 // ONE PASS PER CHANGE, NOT ONE PER OPEN TAB. Every tab of the browser hears every library write:

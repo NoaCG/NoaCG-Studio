@@ -23,7 +23,7 @@
 
 import { isBackendConfigured } from './config';
 import { getAccessToken } from './auth';
-import { getSyncState, syncNow } from './syncController';
+import { syncNow } from './syncController';
 import { graphicById, type GraphicDoc } from '../model/library';
 import { loadShows, type Show } from '../model/shows';
 
@@ -109,8 +109,8 @@ function cloudAnswer<T>(find: () => T | null, timeoutMs: number): Promise<T | nu
     // syncNow resolves when a pass that could SEE this record has completed - see the `waiting`
     // list in syncController.ts, which is the half of this fix that lives over there.
     void syncNow()
-      .catch(() => undefined)
-      .then(() => {
+      .catch(() => ({ completed: false }))
+      .then((receipt) => {
         const doc = find();
         if (doc) {
           settle(doc);
@@ -123,13 +123,9 @@ function cloudAnswer<T>(find: () => T | null, timeoutMs: number): Promise<T | nu
         // already looking at. So the listener and the timeout above carry those, and only a
         // completed pass may say no.
         //
-        // COMPLETED IS NOT THE SAME AS 'synced'. A pass that read the whole cloud listing and
-        // then failed to APPLY some unrelated record reports 'error' with its result attached
-        // (syncController.ts), and that pass answered this question perfectly well - insisting
-        // on 'synced' left a deleted id waiting out the whole backstop below. A pass that threw
-        // reports 'error' with no result, and that one is the real "we do not know".
-        const sync = getSyncState();
-        if (sync.phase === 'synced' || (sync.phase === 'error' && sync.last)) settle(null);
+        // This awaited pass's receipt stays valid when later work starts another pass.
+        // A thrown/skipped pass still cannot report that the record is absent.
+        if (receipt.completed) settle(null);
       });
   });
 }
