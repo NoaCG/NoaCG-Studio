@@ -91,13 +91,36 @@ fallback without registry/proxy/policy changes. Docker's vfs layers exhausted th
 and nine newly created images were removed; no containers had started. Disk recovered
 to 29 GiB free. The temporary product-source fault was restored byte-for-byte.
 
-Two unchanged reached-gate attempts were interrupted at contract freshness's
-`git check-ignore --stdin`. Minimal Node `execFileSync` with piped input also hung for
-native `/usr/bin/git` and `/bin/cat`; bounded probes timed out (10/5 seconds). A shell
-pipe to the same git command succeeds. This is an unresolved local worker subprocess
-limitation, not a passing gate or product failure. No gate or Node implementation was
-changed. ESLint and TypeScript completed. CI evidence is still required before a
-passing `/check` and queue submission.
+Two unchanged reached-gate attempts in the default execution context were interrupted at
+contract freshness's `git check-ignore --stdin`. Minimal Node `execFileSync` with piped
+input also hung for native `/usr/bin/git` and `/bin/cat`; bounded probes timed out
+(10/5 seconds). A shell pipe succeeds. The third unchanged gate invocation used the
+already documented granted persistent shell (`tty: true` and supported additional
+network permission), and **passed** without source, gate, runtime or limit changes:
+`npm run gates -- run --changed origin/main`. It checked contract freshness (866),
+citations (4536), docs index (150), client-secret scan (3911), copy (902) and all
+27 configured-verdict tests. The earlier interrupted attempts remain incomplete,
+not retroactive passes. ESLint and TypeScript passed on the final repair source.
+
+A bounded native-backend fallback also stopped before tests. Its exact existing recipe
+was read from cloud trial `9d0b174f313110131e4054c256dee1affe9fe91e` and revoke-first
+grants trial `b0e97b5ed7855faa059328f70e263f69d48ae0d8`, both documented by
+`docs/research/2026-10-12-supabase-native-stack.md`. CLI **2.120.0** was installed
+outside maintained dependencies with a task-local npm cache. In the disposable probe
+worktree, fixed ports were removed temporarily, migrations/seed held back with a
+restoration trap, and `SUPABASE_HOME` isolated under the workspace cache. The unchanged
+recipe `supabase start --runtime native --eager --exclude studio,functions` had a
+600-second bound and failed earlier while preparing the database artifact: direct DNS
+`getaddrinfo ETIMEOUT` for the official GitHub slim-services archive and its S3 fallback.
+Inherited HTTP(S) proxy settings and `NODE_USE_ENV_PROXY=1` were present; no network
+policy, proxy, native binary or maintained config was changed. No native services,
+schema, accounts or browser tests started. Migrations, seed and config were restored
+byte-for-byte; the probe worktree is clean and 28 GiB remains free. This backend pin
+would differ from CI's 2.111.0 and was never intended to replace CI gate evidence.
+
+As of 16:00 UTC, the isolated Actions account proof remains queued with no assigned
+runner and zero steps. Its results are still required before a passing `/check`, normal
+main-gate restoration and queue submission; the draft PR is not stamped or queued.
 
 ## Boundaries and ownership
 
