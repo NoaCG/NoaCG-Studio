@@ -20,6 +20,9 @@
 
 ## 1. Prepare, qualify and open
 
+- Default timezone-free owner dates/times (including today/tomorrow and `until 18:00`) to Finnish time, `Europe/Helsinki`, unless the owner supplies another timezone/offset.
+  Resolve its calendar date and daylight-saving offset independently of the machine/client timezone; report the resolved local date, time, zone and offset before launch.
+  Pass explicit-offset ISO timestamps to authorization, block and wake tools; preserve recorded instants on resume. Ask only when the intended date/time is unclear or repeated/nonexistent at a daylight-saving transition.
 - Get explicit current owner authorization: stable project ID, source, scope, permission policy, start and finite deadline. Earlier sessions grant no renewal.
   Prepare a project JSON as described in `docs/work-specs/continuing-plan-preparation/runbook.md`, copying the owner's exact phases and acceptance.
 - Qualify the coordinator and each fresh worker in their own worktrees before substantive work. Inspect effective terminal/subprocess/network/approval policy.
