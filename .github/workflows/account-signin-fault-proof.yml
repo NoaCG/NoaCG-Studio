@@ -1,0 +1,307 @@
+name: account-signin-fault-proof
+on:
+  push:
+    branches: [codex/probe-account-signin-gate]
+permissions:
+  contents: read
+jobs:
+  proof:
+    name: Targeted account locator fault proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # The local stack's identity. Not secrets: the account lives only inside this runner and is
+      # destroyed with it, so the values are literals rather than repository secrets. Six chars is
+      # GoTrue's default minimum and account.spec.ts round-trips a password change.
+      E2E_EMAIL: e2e@noacg.local
+      E2E_PASSWORD: noacg-e2e-local-pw
+      # The SECOND account of the two-person team walk in e2e/configured/teams.spec.ts: a teammate
+      # who joins a team the first account made. Same reasoning as the pair above - minted in the
+      # step below, destroyed with the stack - and the walk skips without it, which the no-skips
+      # guard at the end of this job would then report.
+      E2E_TEAMMATE_EMAIL: e2e-teammate@noacg.local
+      E2E_TEAMMATE_PASSWORD: noacg-e2e-local-pw
+      # JOB level, not step level, deliberately: `supabase status` and `supabase stop` load
+      # config.toml too, and config.toml's [auth.external.google] reads these through env().
+      # Measured 2026-08-25: the unmodified config loads cleanly with them UNSET, so this is
+      # belt-and-braces for GoTrue rather than a fix for the CLI. Setting
+      # SUPABASE_AUTH_EXTERNAL_GOOGLE_ENABLED=false was tried and does NOT suppress the provider —
+      # that boolean override is a no-op on 2.111.0. No spec uses Google sign-in.
+      SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
+      SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
+    steps:
+      # History enough to diff a landing from its `before` (the verdict's edited-spec refusal); a
+      # landing is a few commits, and an unreachable base only switches that refusal off, loudly.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 50
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # The cached tree, not a bare `npm ci`. This job paid 7.7 minutes for the install on
+      # 2026-09-04 (run 33841739638) against 4.2 minutes of actual suite - the variance the
+      # composite action's own header measures across the E2E shards, landing on this workflow
+      # because it was written before the action existed.
+      - uses: ./.github/actions/node-modules
+
+      - uses: ./.github/actions/playwright-chromium
+
+      # PINNED, not `latest`. Two opposing risks make the version a real decision: an OLD CLI does
+      # not understand config.toml's [auth.hook.before_user_created] and refuses the file outright,
+      # while a NEWER one is migrating `supabase status` away from ANON_KEY / SERVICE_ROLE_KEY
+      # towards the publishable/secret names this job reads. `latest` also makes the job
+      # irreproducible: the same commit can go red on a CLI release nobody here made. 2.111.0 is
+      # the version the project is developed against.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      # THE FOUNDATION, AND THE STEP MOST LIKELY TO FAIL FIRST.
+      #
+      # These 50 migrations were written against HOSTED Supabase and have never been applied to
+      # the CLI's local Postgres image (supabase/README.md says so in its own words). Three known
+      # hazards, all of which surface here rather than subtly later: `create extension pg_cron`
+      # in 0037/0039 needs shared_preload_libraries; 0003 and 0008 both
+      # `alter publication supabase_realtime add table` guarded only on whether the TABLE is
+      # already published, never on whether the PUBLICATION exists, and NO migration creates it;
+      # and config.toml pins `major_version = 15` against whatever the CLI ships.
+      #
+      # `supabase start` bootstraps a fresh volume by applying supabase/migrations then seed.sql.
+      # Only studio and edge-runtime are excluded - the two provably unused (no spec opens Studio,
+      # and there is no supabase/functions directory to serve). Realtime and storage MUST stay:
+      # src/control/hostedControl.ts subscribes to postgres_changes, and migration 0001 creates
+      # the storage buckets. Nothing else is trimmed before the first run is measured.
+      - name: Start the local Supabase stack
+        run: |
+          set -euo pipefail
+          supabase start -x studio,edge-runtime
+          echo "--- containers actually running ---"
+          docker ps --format '{{.Names}}\t{{.Image}}'
+
+      # Read the stack's identity MACHINE-READABLY. `-o env` is a trap: the CLI formats it with
+      # godotenv (`%s="%s"`), and $GITHUB_ENV takes everything after `=` literally — so the quotes
+      # would become part of the value, the URL would be unparseable, and a non-empty guard would
+      # happily pass on a two-character `""`. `-o json` + jq avoids all of it, and exports exactly
+      # the four values wanted rather than everything the CLI knows.
+      #
+      # VITE_* reach the browser bundle (Vite inlines prefixed vars from the environment, verified
+      # 2026-08-24); the unprefixed pair is what api/ handlers read from process.env, which is how
+      # agent-access gets its server half back. vite.config.ts only fills MISSING keys from .env,
+      # so these always win.
+      - name: Export the local stack's URL and keys
+        run: |
+          set -euo pipefail
+          status="$(supabase status -o json)"
+          api_url="$(printf '%s' "$status" | jq -r '.API_URL // empty')"
+          anon="$(printf '%s' "$status" | jq -r '.ANON_KEY // empty')"
+          service="$(printf '%s' "$status" | jq -r '.SERVICE_ROLE_KEY // empty')"
+          db_url="$(printf '%s' "$status" | jq -r '.DB_URL // empty')"
+          for pair in "API_URL=$api_url" "ANON_KEY=$anon" "SERVICE_ROLE_KEY=$service" "DB_URL=$db_url"; do
+            name="${pair%%=*}"
+            value="${pair#*=}"
+            if [ -z "$value" ] || [ "$value" = '""' ]; then
+              echo "::error title=Local stack produced no ${name}::\`supabase status -o json\` returned nothing usable for ${name}. The CLI may have renamed its output keys - read the raw output below and update this step rather than loosening the guard."
+              printf '%s\n' "$status"
+              exit 1
+            fi
+          done
+          # Mask BEFORE writing, never after: masking a value already in the log is the wrong order
+          # even when nothing printed it in between.
+          echo "::add-mask::$service"
+          {
+            echo "VITE_SUPABASE_URL=$api_url"
+            echo "VITE_SUPABASE_ANON_KEY=$anon"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$service"
+            echo "SUPABASE_DB_URL=$db_url"
+          } >> "$GITHUB_ENV"
+          echo "Local stack at ${api_url}."
+
+      # THE SCHEMA MUST BE THE REPOSITORY'S SCHEMA, and the realtime publication must hold the
+      # tables the playout specs subscribe to. Both are asserted rather than assumed, because both
+      # fail SILENTLY in a way that reads as a product regression: a half-applied schema (0003
+      # aborting takes everything after it with it) or a missing publication would surface only as
+      # "the output renderer never moved", 30 seconds at a time, in four specs.
+      #
+      # psql is reached through the database CONTAINER rather than the runner, so the client
+      # matches the server and no undeclared ubuntu-latest package is relied on. The container is
+      # discovered rather than named: `supabase_db_<project_id>` is a CLI convention this repo
+      # does not own.
+      - name: Assert the schema, its grants, and the realtime publication
+        run: |
+          set -euo pipefail
+          db_container="$(docker ps --filter 'name=supabase_db' --format '{{.Names}}' | head -1)"
+          if [ -z "$db_container" ]; then
+            echo "::error title=No database container::Could not find the local Postgres container."
+            docker ps --format '{{.Names}}'
+            exit 1
+          fi
+          psql() { docker exec -i "$db_container" psql -U postgres -d postgres -tAc "$1"; }
+
+          # Count with the CLI's own migration-filename regex, not a glob: a stray helpers.sql
+          # would otherwise fail this check with entirely the wrong diagnosis.
+          expected="$(find supabase/migrations -maxdepth 1 -type f | grep -cE '/[0-9]+_.*\.sql$')"
+          applied="$(psql 'select count(*) from supabase_migrations.schema_migrations')"
+          echo "migrations: ${applied} applied, ${expected} in the repository."
+          if [ "$applied" != "$expected" ]; then
+            echo "::error title=Schema mismatch::${applied} migrations applied but ${expected} are in supabase/migrations. A fresh volume should apply them all; a partial apply means one aborted and everything after it is missing."
+            exit 1
+          fi
+
+          # BOTH tables, not just control_events: 0003 publishes chat_submissions five migrations
+          # earlier, so if the publication were missing, 0003 aborts and 0008 never runs at all.
+          # The app follows the command log on the private `log-<show id>` topic since 0066 rather
+          # than through postgres_changes, but control_events stays published: graphics exported
+          # before 2026-08-05 still join it, and a missing publication is still the first sign of
+          # a half-applied schema.
+          for table in chat_submissions control_events; do
+            in_pub="$(psql "select count(*) from pg_publication_tables where pubname='supabase_realtime' and tablename='${table}'")"
+            if [ "$in_pub" != "1" ]; then
+              echo "::error title=${table} is not published::pg_publication_tables has no supabase_realtime entry for ${table}. Show chat subscribes through postgres_changes, and a missing publication means the schema only half applied."
+              exit 1
+            fi
+          done
+          echo "supabase_realtime publishes chat_submissions and control_events."
+
+          # THE GRANTS, which this job compensated for by hand until 0051 put them in the schema.
+          # Postgres grants a new table to nobody but its owner; hosted Supabase's bootstrap hides
+          # that by granting every new table in `public` to the client roles, and a local stack does
+          # not. Missing here, the symptom is 17 specs timing out on "Sync error" - so assert it
+          # once, loudly, rather than reading it back out of twenty ambiguous UI failures.
+          # `authenticated control_events` because the owner's 7-day prune on publish is a DELETE,
+          # and a DELETE under RLS needs the SELECT that 0066 narrowed to the owner and team.
+          for pair in 'authenticated documents' 'authenticated control_shows' 'authenticated control_events'; do
+            set -- $pair
+            if [ "$(psql "select has_table_privilege('$1', 'public.$2', 'select')")" != "t" ]; then
+              echo "::error title=${1} cannot read ${2}::The schema applied but ${1} holds no SELECT on public.${2}, so every request through PostgREST returns 42501. supabase/migrations/0051_client_table_grants.sql grants this; check whether a newer migration added a table without granting it."
+              exit 1
+            fi
+          done
+          echo "authenticated holds the table grants 0051 declares."
+
+          # AND THE STACK MUST NOT HAND THEM OUT ITSELF. The checks above only mean something on a
+          # database without hosted Supabase's default privileges. The CLI's Postgres 15 image
+          # gained them in 2.119.0, on Docker and on the native runtime alike (measured 2026-10-12,
+          # docs/research/2026-10-12-supabase-native-stack.md): there, a table no migration grants
+          # is readable and writable by anon anyway, and a missing grant passes here. So a CLI
+          # bump that brings them back fails here instead of quietly retiring this guard.
+          bootstrap="$(psql "select count(*) from pg_default_acl d, aclexplode(d.defaclacl) a where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 'public'::regnamespace and d.defaclobjtype = 'r' and a.grantee in ('anon'::regrole, 'authenticated'::regrole) and a.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')")"
+          if [ "$bootstrap" != "0" ]; then
+            echo "::error title=The local stack grants new tables to the client roles::pg_default_acl gives anon or authenticated read or write on every new table in public, as hosted Supabase does, so a migration that forgets its grants would pass this job. Revoke those default privileges before the migrations apply (supabase/AGENTS.md, 'Grants are the migration's job') rather than deleting this check."
+            exit 1
+          fi
+          echo "No default privileges hand public tables to anon or authenticated."
+
+      # The one thing a fresh database genuinely lacks: the account. 21 of the 33 tests sign in,
+      # and without this every one of them fails at the sign-in assertion — twenty ambiguous UI
+      # timeouts for a single missing row.
+      #
+      # Created through the admin API, then PROVED by authenticating. "The row exists" is weaker
+      # than "these exact credentials work", and the password grant converts the whole class of
+      # failure into one unambiguous step. A 422 (the user already exists) is tolerated so a
+      # dispatch against a persisted stack is not a hard error.
+      - name: Create the test account and prove it can sign in
+        run: |
+          set -euo pipefail
+          create="$(curl -s -o /tmp/create.json -w '%{http_code}' \
+            -X POST "${VITE_SUPABASE_URL}/auth/v1/admin/users" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${E2E_EMAIL}\",\"password\":\"${E2E_PASSWORD}\",\"email_confirm\":true}")"
+          case "$create" in
+            2*) echo "Account created." ;;
+            422) echo "Account already existed - continuing." ;;
+            *)  echo "::error title=Could not create the test account::admin/users answered ${create}."
+                cat /tmp/create.json; exit 1 ;;
+          esac
+
+          # THE ASSERTION THAT MATTERS. Everything downstream depends on this exact pair working.
+          token="$(curl -s -X POST "${VITE_SUPABASE_URL}/auth/v1/token?grant_type=password" \
+            -H "apikey: ${VITE_SUPABASE_ANON_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${E2E_EMAIL}\",\"password\":\"${E2E_PASSWORD}\"}" | jq -r '.access_token // empty')"
+          if [ -z "$token" ]; then
+            echo "::error title=The test account cannot sign in::The password grant returned no access_token, so all 20 signed-in specs would fail at the sign-in step. This is an environment fault, not a regression."
+            exit 1
+          fi
+          echo "Test account authenticates."
+
+          # The teammate, the same two proofs: created (or already there), and able to sign in.
+          create="$(curl -s -o /tmp/create-mate.json -w '%{http_code}' \
+            -X POST "${VITE_SUPABASE_URL}/auth/v1/admin/users" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${E2E_TEAMMATE_EMAIL}\",\"password\":\"${E2E_TEAMMATE_PASSWORD}\",\"email_confirm\":true}")"
+          case "$create" in
+            2*|422) ;;
+            *)  echo "::error title=Could not create the teammate account::admin/users answered ${create}."
+                cat /tmp/create-mate.json; exit 1 ;;
+          esac
+          mate="$(curl -s -X POST "${VITE_SUPABASE_URL}/auth/v1/token?grant_type=password" \
+            -H "apikey: ${VITE_SUPABASE_ANON_KEY}" -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${E2E_TEAMMATE_EMAIL}\",\"password\":\"${E2E_TEAMMATE_PASSWORD}\"}" | jq -r '.access_token // empty')"
+          if [ -z "$mate" ]; then
+            echo "::error title=The teammate account cannot sign in::The password grant returned no access_token for ${E2E_TEAMMATE_EMAIL}, so the two-person team walk would fail at its second sign-in. Environment fault, not a regression."
+            exit 1
+          fi
+          echo "Teammate account authenticates."
+
+      - name: Prove original failure, scoped assertion, and all account cases
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+          const spec = 'e2e/configured/account.spec.ts';
+          const source = 'src/backend/accountLibrary.ts';
+          const original = readFileSync(spec, 'utf8');
+          const originalSource = readFileSync(source, 'utf8');
+          const old = "    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 15_000 });";
+          const fixed = "    await expect(page.getByTestId('home-page').getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 15_000 });";
+          if (!original.includes(old) || original.split(old).length !== 2) throw Error('Original assertion does not match the pinned source');
+          const scoped = original.replace(old, fixed);
+          const held = originalSource.replace('  setLibraryAccount(null);', '  await new Promise((resolve) => setTimeout(resolve, 2000)); // temporary fault injection\n  setLibraryAccount(null);');
+          if (held === originalSource) throw Error('Fault injection target absent');
+          mkdirSync('account-proof', { recursive: true });
+          const allTests = (suites) => suites.flatMap(s => [...(s.specs ?? []).flatMap(p => p.tests), ...allTests(s.suites ?? [])]);
+          function run(label, firstOnly) {
+            const args = ['run', 'test:e2e:live', '--', 'account.spec.ts', '--workers=1', '--retries=0', '--reporter=list,json,./scripts/e2e-run-integrity.mjs', '--output=account-proof/' + label + '-results'];
+            if (firstOnly) args.push('--grep', 'Settings shows the account');
+            const result = spawnSync('npm', args, { stdio: 'inherit', env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: 'account-proof/' + label + '.json' } });
+            const report = JSON.parse(readFileSync('account-proof/' + label + '.json', 'utf8'));
+            console.log(label + ' STATS ' + JSON.stringify(report.stats));
+            return { status: result.status, report, tests: allTests(report.suites) };
+          }
+          try {
+            writeFileSync(source, held);
+            const bad = run('original-held', true);
+            const errors = bad.tests.flatMap(t => t.results.flatMap(r => r.errors ?? [])).map(e => e.message ?? '').join('\n');
+            if (bad.status === 0 || bad.report.stats.unexpected !== 1 || bad.report.stats.skipped !== 0 || !errors.includes('strict mode violation') || !errors.includes('account-save-notice') || !errors.includes('home-page') || !errors.includes('account.spec.ts:58:78')) throw Error('Fault did not reproduce the original exact failure signature');
+            const diagnostic = "    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toHaveCount(2);\n    await expect(page.getByTestId('account-save-notice').getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();\n    console.log('BOTH_BUTTONS ' + JSON.stringify({ all: await page.getByRole('button', { name: 'Sign in', exact: true }).count(), home: await page.getByTestId('home-page').getByRole('button', { name: 'Sign in', exact: true }).count(), notice: await page.getByTestId('account-save-notice').getByRole('button', { name: 'Sign in', exact: true }).count() }));\n";
+            writeFileSync(spec, scoped.replace(fixed, diagnostic + fixed));
+            const good = run('scoped-held', true);
+            if (good.status !== 0 || good.report.stats.expected !== 1 || good.report.stats.unexpected !== 0 || good.report.stats.flaky !== 0 || good.report.stats.skipped !== 0) throw Error('Scoped assertion did not pass under the same fault');
+            writeFileSync(source, originalSource);
+            writeFileSync(spec, scoped);
+            const normal = run('scoped-normal', false);
+            if (normal.status !== 0 || normal.report.stats.expected !== 3 || normal.report.stats.unexpected !== 0 || normal.report.stats.flaky !== 0 || normal.report.stats.skipped !== 0) throw Error('Normal account coverage failed');
+            copyFileSync(spec, 'account-proof/scoped-account.spec.ts');
+            console.log('PRODUCT_SOURCE_RESTORED ' + (readFileSync(source, 'utf8') === originalSource));
+          } finally {
+            writeFileSync(source, originalSource);
+            writeFileSync(spec, original);
+          }
+          JS
+      - name: Upload exact targeted proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: account-signin-proof
+          path: account-proof/
+          retention-days: 14
+      - name: Stop isolated stack
+        if: always()
+        run: supabase stop --no-backup
