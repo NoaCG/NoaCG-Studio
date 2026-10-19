@@ -45,8 +45,8 @@ original line numbers and job links are in [gate-evidence.json](gate-evidence.js
 - #1510 merged at **2026-10-19 16:11:14 Kyiv (13:11:14 UTC)**, after the implementation
   deadline **16:03:27 Kyiv (13:03:27 UTC)**, as
   `ec79ae58c5b6c10bbd57e68b7cc42cabd38536d5`. Its stated purpose is to quarantine account
-  after that fail-then-pass. Current source still has the same global locator at line 58
-  and account remains in `quarantine.json.specs`, citing run `39252546204`.
+  after that fail-then-pass. Initial source still had the same global locator at line 58
+  and account remained in `quarantine.json.specs`, citing run `39252546204`.
 - The corrected [#1487 receipt](https://github.com/NoaCG/NoaCG-Studio/pull/1487#issuecomment-6253366662),
   [standalone prompt](https://github.com/NoaCG/NoaCG-Studio/pull/1487#issuecomment-6268291985)
   and latest [#1466 owner record](https://github.com/NoaCG/NoaCG-Studio/issues/1466#issuecomment-6267607886)
@@ -65,7 +65,7 @@ restoration and terminal landing ownership. Its implementation window is `2026-1
 This checker remains stopped pending that engineering result and builds none of
 the repair. The decision authorizes repair; it does not accept Phase 2 or bypass its gate.
 
-Reviewable engineering checkpoint: [draft #1515](https://github.com/NoaCG/NoaCG-Studio/pull/1515),
+Earlier engineering checkpoint: [then-draft #1515](https://github.com/NoaCG/NoaCG-Studio/pull/1515),
 head `876f87fe4caf73320441d5d3c9bec7cc12a428ca`. Independently inspected its three-file diff:
 the existing Sign in visibility assertion is scoped to Home with the same timeout; the
 account entry alone moves from quarantine `specs` to `released`; a pending-verification
@@ -149,8 +149,36 @@ spec SHA256 `4c946a7ddd997e00a9fde680813ad7441d5b4d826f1795835f7aae2fecd45929`.
 No repair, quarantine edit, PR or landing was submitted. Exact hooks, jobs, timings and limits
 are in that receipt's `fault-probes.md` and `facts.json`. A new session question asks for
 explicit authorization of one observational target run, cap five minutes and zero retries,
-recording real reply envelopes/receipt time/cue/revision at pointerdown. No further editor-keys
-execution is authorized by elapsed time or by its passing retry.
+recording real reply envelopes/receipt time/cue/revision at pointerdown.
+
+The owner answered **“Authorize one observational run”**. The same separate agent resumed
+for exactly that target, through the existing queue with a five-minute cap and zero retries,
+with no injected delay/mutation, product-file change or gate reclassification. Its original
+`18:09:36 UTC` implementation deadline remains. This decision authorizes the observation;
+it does not establish a cause, authorize another fault probe or clear acceptance.
+
+Observation j-0005 ran `2026-10-19T16:52:25.838Z–16:52:37.563Z`, source
+`c3904ed4623bdeceac432153869e12ef0c9c5b96` (owner branch reconciled with main `929d1f1f`).
+The same command above passed **1/1, zero failed/flaky/skipped/retries**, 4.3-second test,
+10.6-second Playwright wall. The original refusal did not occur. Independently read all 23
+event records and the exact temporary hook. At pointerdown, the session is source/assets
+`5/1`, time `1`, cue `null`, selection `#nested`; receipt is ready, generation `4`, request
+`11`, same revision/time/cue. DOM request `11` and pose time `1` agree; its literal cue stamp
+is `arriving`, which is retained without interpreting it as the receipt's null cue.
+
+At observed reply 11, that same receipt is already ready while the DOM still shows request
+10/time 0. The raw label `reply-before-handler` therefore does **not** establish listener
+ordering before controller processing. This limits all three earlier interception probes;
+it does not prove the original failure's cause. Temporary patch SHA256
+`d967b50438b914913416252a487ff97903b01058e9670740a9ebf29ef6e0723c` was independently checked.
+The restored maintained spec matches the SHA256 above. No repair or gate release results
+from this passing diagnostic. Further runtime work remains stopped pending an owner decision.
+The completed observation and raw events are published at
+[`9ecdb199fe9a67552f93de7f3dba74e484d1b96b`](https://github.com/NoaCG/NoaCG-Studio/blob/9ecdb199fe9a67552f93de7f3dba74e484d1b96b/docs/work-specs/editor-keys-gate/README.md).
+Independently compared that commit with current main: `src/` and `e2e/` are byte-equal.
+A session question requests a new explicit disposition for exactly one pre-app-listener
+matching-window fault probe, same target/cap/zero retries, followed by another stop. It is
+not authorized by the completed observational round; no answer is inferred from elapsed time.
 
 ### Activity and checks snapshot
 
@@ -165,8 +193,8 @@ none supplies a resolving account repair. Remote owner reservations remain bindi
 At the audited main SHA, Actions reports terminal success for CI `39264214574`,
 configured `39264214651`, CodeQL/Push-on-main `39264214761`, Post-landing `39264214656`
 and Quarantine `39264214585`. Five deployment-verification invocations were skipped.
-These are workflow conclusions; no whole-log clean-test verdict for these latest runs is
-claimed. Current account classification prevents treating them as clearing this blocker.
+These are workflow conclusions; no whole-log clean-test verdict for these initial runs is
+claimed. Their then-current account quarantine prevents treating them as clearing that blocker.
 
 The original capacity CI `39250656173` was independently queried: completed **failure**,
 attempt 1 on `742a5a655f78b4276acc02cd38a19ea6e19c9119`. #1506 is closed, unmerged.
@@ -178,7 +206,7 @@ passes. These remain engineering evidence; the original failed run remains faile
 Store, router, saved-data, preferences, CSS and shared editor/save files remain reserved under
 this acceptance task. #800's older narrow Step 6 release does not override this prompt's stop.
 No Step 6, Phase 3 or disjoint product implementation was started. The only delegated work
-is the separate owner-authorized account gate repair described above.
+is the two separate owner-authorized gate investigations described above.
 
 ## Required sources and historical qualifications
 
@@ -260,6 +288,13 @@ dispatch, rerun or fault injection while the gates are unresolved. The separate 
 targeted verification is identified above and in their receipts. The runtime skill's readiness
 observation was current but reported policy and
 runtime-variable states unknown; actual Git and Actions read preflight both passed.
+
+Receipt-only validation: `git diff --check` and JSON parsing passed. `npm run gates -- run
+--changed origin/main` first stalled in `git check-ignore --stdin` in the restricted,
+non-interactive shell; its owned process tree was terminated, leaving that attempt failed
+(freshness interrupted; subsequent child-process Git calls reported `EPERM`). The identical
+command in the supported persistent shell with granted network context passed all five cheap
+documentation gates. No gate or source was altered to obtain that result, and no build was needed.
 
 Executing worker: four CPUs, 16 GiB machine totals, two-worker selector; ancestor cgroup limits
 unreadable, so these are not observed container limits. Any later authorized browser work must

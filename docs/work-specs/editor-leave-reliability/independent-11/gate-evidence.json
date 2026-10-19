@@ -958,6 +958,39 @@
     "runConclusion": "failure",
     "head": "901116aab4a9f19843631940cf4596b2595c9f1e",
     "classification": "quarantined",
-    "ownerDecision": "User explicitly authorized separate investigation and gate repair; assigned to /root/editor_keys_gate_repair. Resolution pending."
+    "ownerDecision": "Separate investigation/gate repair authorized; after three unsuccessful fault probes, owner explicitly authorized ONE observational targeted run, queue cap 5 minutes, zero retries, no product-file change or gate reclassification. That run j-0005 passed but did not reproduce the failure; maintained spec restored unchanged. Gate unresolved; further runtime work stopped.",
+    "observation": {
+      "source": "c3904ed4623bdeceac432153869e12ef0c9c5b96",
+      "main": "929d1f1f1137297e8763745f5217b48ee0370e6c",
+      "job": "j-0005",
+      "passed": 1,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "retries": 0,
+      "matchingFailureReproduced": false,
+      "repairProved": false,
+      "quarantineChanged": false,
+      "pointerdown": {
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "time": 1,
+        "cue": null,
+        "selectedParts": [
+          "#nested"
+        ],
+        "receiptState": "ready",
+        "generation": 4,
+        "requestId": 11,
+        "domRequest": "11",
+        "domPoseTime": "1",
+        "domPoseCueLiteral": "arriving"
+      },
+      "listenerLimitation": "Raw reply-before-handler label is not evidence of ordering before controller processing: actual reply11 is already READY in receipt while DOM still shows request10/time0.",
+      "temporaryPatchSha256": "d967b50438b914913416252a487ff97903b01058e9670740a9ebf29ef6e0723c",
+      "restoredSpecSha256": "4c946a7ddd997e00a9fde680813ad7441d5b4d826f1795835f7aae2fecd45929"
+    }
   }
 }
