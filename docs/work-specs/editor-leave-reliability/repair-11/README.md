@@ -160,3 +160,54 @@ TypeScript, the focused real-time cases and full carried evidence are recorded a
 The repair PR records its exact reviewed head, final stamp, repair owner, queue admission and
 landing results. A fresh independent Phase 2 check after landing remains the next step;
 Phase 3 and any additional product repair are not started by this receipt.
+
+
+## 2026-10-19 bounded continuation
+
+The owner renewed the implementation window for two hours from this session's start;
+implementation ends at 13:03:27 UTC (16:03:27 Kyiv). The previous owner was confirmed idle,
+with its pause explicitly ending monitoring and leaving no wake armed. The current active
+session is sole repair/landing owner through merge and terminal post-landing results, including
+beyond that implementation window if CI is still running. No durable wake is claimed.
+
+The branch was reconstructed from origin's reviewed `07c652ed27f2a165a75449a709a700ec94171d69`
+and reconciled with main `c9f1769c2147acf12f37e7a19192f9c4ce036fea`. The saved-copy refusal
+and its three regression cases remain byte-identical to that original repair; implementation
+was not restarted. Main's landed #800 cleanup and released skips are retained. The older
+85-pass/eight-skip maintained result above is historical evidence, not the current skip baseline.
+No retired helper or released skip is restored.
+
+The old table still refused the added spec: 210.3 estimated minutes against a 203.2 hard line.
+The scheduled six-run refresh (#1503) measured 231.3 minutes under the older trace profile.
+The separately authorized runtime change [#1504](https://github.com/NoaCG/NoaCG-Studio/pull/1504)
+landed as `76cae1a7b63c240a27877df8febaee400ed818cb`: CI trace recording omits DOM snapshots
+and their network bodies while keeping action/source/console history, filmstrip and failure
+screenshots. Every test, assertion, timeout, retry and gate remains intact. A bounded paired
+comparison passed 8/8 in each configuration with 16.1% less test time and 20.2% less wall time.
+
+Three complete successful full Actions runs qualify that runtime profile, using identical
+product/test/config/package bytes. The separately reviewed measured weights in
+[#1505](https://github.com/NoaCG/NoaCG-Studio/pull/1505) use the existing recorder and 80th
+percentile per file (the slowest of three observations). They measure all 231 current files at
+157.651 minutes. Conservative overhead shrinks the fixed envelope to 210.294 minutes, with a
+199.779-minute hard line. This unchanged repair's additional spec is estimated at the ordinary
+0.371-minute median: 158.022 minutes, 75.14%, OK without an exception. No suite limit, selection,
+classification or assertion changes. The [capacity receipt](../../e2e-trace-overhead/spec.md)
+records provenance and the diagnostic tradeoff. Final reconciliation includes the landed weights.
+
+Necessary repair checks on this executing worker reused the prescribed queue and resource
+selector (four CPUs, 16 GiB machine memory, two browser workers; cgroup ancestors unreadable).
+Queue j-0001 ran `e2e/save-copy-arrival.spec.ts --retries=0`, cap five minutes: **3 passed in
+1.7 minutes**. The unedited, edited and chained timeout screenshots were opened: the editor
+stays visible with Save failed; the newer rectangle stays selected in the edited case. Direct
+changed-file ESLint and TypeScript passed, as did the changed gates. Product and test bytes
+remain the same after the capacity-only main changes, so those results are reused. The carried
+49-case matrix, references, cumulative/native-125% tasks and explicitly red probe scopes above
+retain their recorded results and limits. Full suites and production builds run only in Actions.
+
+The final /check reviews the four-path repair diff inline, simplifies inline and verifies the
+reconciled tip; its exact stamp and CI/queue/merge-SHA results are recorded on #1487. A fresh
+independent Phase 2 checker who built none of the repairs is still required. Issue #1466 stays
+open for that acceptance work. Phase 3 and Step 6 are not started; store, router, saved-data/
+preferences and CSS remain reserved until acceptance releases them. Any independent failure
+stops further product work for an owner decision.
