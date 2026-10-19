@@ -19,8 +19,8 @@ cause. The proposed change uses `release`/`serializeStore` from
 `scripts/e2e-quarantine.mjs`; the entry moves from `specs` to `released`, preserving its
 entry count. Other quarantine entries, classifications, cases, skips, retry settings,
 expected-run floor and suite budgets stay as found. The unrelated editor-keys
-quarantine introduced by #1513 is outside this repair and remains an acceptance-side
-owner decision.
+quarantine introduced by #1513 is outside this repair and now has a separately
+authorized investigation/repair owner; this receipt does not judge that investigation.
 
 ## Historical evidence remains unchanged
 
@@ -38,7 +38,8 @@ owner decision.
 
 ## Verification recipe and current state
 
-At this checkpoint the proof and landing are **pending**, not passing evidence.
+**PASS for the scoped account proof.** Main-gate restoration and exact-SHA landing
+checks remain separate requirements; this is not Phase 2 acceptance.
 
 Disposable proof branch: `codex/probe-account-signin-gate`, exact commit
 `61e79019570697a95cad9e0085059f1a6b6386b4`. Its only changed file is
@@ -47,8 +48,11 @@ entry. The workflow copies the existing configured-suite job's isolated backend
 setup, CLI 2.111.0 pin, repository migration count, grants/publication assertions and
 throwaway-account authentication. It adds no production credentials.
 
-Run `39279909249`, job `118152031755`, is queued with no steps as of the checkpoint.
-It runs each of these once with `--workers=1 --retries=0` and the integrity reporter:
+Run `39279909249`, job `118152031755`, is **completed/success**; its terminal result
+was confirmed through the attempt-level API at 16:09:12 UTC. The whole 111,388-character
+job log and downloaded artifact `12199528432` were read. Artifact SHA-256:
+`ffefb7551688c3cfe76eac3b1eb2a38661960a8ec89366cc68b0dbbc1c92e7e1`.
+It ran each of these once with `--workers=1 --retries=0` and the integrity reporter:
 
 1. The untouched original account test under a temporary two-second delay in
    `releaseLibrary`, immediately before `setLibraryAccount(null)`. Require precisely
@@ -59,8 +63,33 @@ It runs each of these once with `--workers=1 --retries=0` and the integrity repo
 3. Restore product source, remove temporary diagnostics and run all three original
    account cases with the scoped assertion. Require 3 passed, 0 failed/flaky/skipped.
 
-The workflow restores product and test files in `finally` and uploads the reports and
-failure artifacts. The proof's initial queued run `39279813869` was superseded before
+| Source/condition | Direct result | Duration |
+| --- | --- | --- |
+| Original assertion, two-second release hold | **1 failed as required**, strict mode, both real buttons, exact `58:78`; 0 flaky/skipped, retry 0 | 6172.068 ms |
+| Scoped assertion, same hold | **1 passed**, `BOTH_BUTTONS {"all":2,"home":1,"notice":1}`; 0 failed/flaky/skipped, retry 0 | 4820.134 ms |
+| Scoped assertion, unmodified product source | **3 passed**, all original titles; 0 failed/flaky/skipped, every retry 0 | 13851.277 ms |
+
+The failing original assertion is retained as red reproduction evidence, not relabelled a
+passing test. The original case's later no-auth-modal assertion also runs in the scoped
+held pass. The final three-case run covers password change/restore/sign-out, forgot
+password and lost-session recovery with local work and sync preservation. The runner
+asserted 92/92 applied repository migrations, grants/publication and no hosted default
+grants, and authenticated the throwaway accounts before testing.
+
+Exact command shape (separate output/report path for each row):
+
+```sh
+npm run test:e2e:live -- account.spec.ts --workers=1 --retries=0 \
+  --reporter=list,json,./scripts/e2e-run-integrity.mjs \
+  --output=account-proof/<row>-results
+# The first two rows add: --grep 'Settings shows the account'
+```
+
+The artifact's final scoped spec equals this PR's maintained test except the explanatory
+comments. It contains no temporary diagnostics; the local exact comparison confirms all
+three original titles and 24 original assertions. The runner logged
+`PRODUCT_SOURCE_RESTORED true`; product and test files are restored in `finally`.
+The proof's initial queued run `39279813869` was superseded before
 any steps after its logger was corrected to read both Playwright `message` and `stack`.
 Cancellation was requested; force-cancel answered HTTP 409 because it was not running.
 It has no test verdict.
@@ -118,9 +147,10 @@ schema, accounts or browser tests started. Migrations, seed and config were rest
 byte-for-byte; the probe worktree is clean and 28 GiB remains free. This backend pin
 would differ from CI's 2.111.0 and was never intended to replace CI gate evidence.
 
-As of 16:00 UTC, the isolated Actions account proof remains queued with no assigned
-runner and zero steps. Its results are still required before a passing `/check`, normal
-main-gate restoration and queue submission; the draft PR is not stamped or queued.
+The earlier queued run snapshots did not establish a test verdict. The successful
+terminal proof and its report counts above supersede that pending status, while retaining
+the original expected failure. Full PR/merge-group CI and normally classified configured
+checks after landing remain required; no broad local suite or production build ran.
 
 ## Boundaries and ownership
 
