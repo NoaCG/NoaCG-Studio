@@ -74,7 +74,7 @@
 # other and each verdict is about exactly one commit. That is the property the whole design is
 # for, and a shared group would have thrown it away on any busy day.
 
-name: configured-suite (disposable single deep-link observation)
+name: configured-suite (disposable pending-completion fault)
 
 on:
   # EVERY LANDING. `main` only - a WIP branch pushing ten times an hour would file nothing (the
@@ -360,7 +360,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: deep-link-state-observation
+          name: deep-link-pending-completion
           retention-days: 14
           path: |
             configured-report.json
