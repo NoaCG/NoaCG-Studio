@@ -89,10 +89,12 @@ The artifact's final scoped spec equals this PR's maintained test except the exp
 comments. It contains no temporary diagnostics; the local exact comparison confirms all
 three original titles and 24 original assertions. The runner logged
 `PRODUCT_SOURCE_RESTORED true`; product and test files are restored in `finally`.
-The proof's initial queued run `39279813869` was superseded before
-any steps after its logger was corrected to read both Playwright `message` and `stack`.
-Cancellation was requested; force-cancel answered HTTP 409 because it was not running.
-It has no test verdict.
+The initial run `39279813869` was superseded after its logger was corrected to read
+both Playwright `message` and `stack`. The API initially reported queued when cancellation
+was requested; force-cancel answered HTTP 409. Its final job record shows setup ran and
+cancellation completed during backend startup at 15:43:53 UTC. Account proof/test steps
+were never executed. It is **cancelled**, has no test verdict, and supplies no passing
+evidence. Those skipped workflow steps do not change any maintained test skip.
 
 Local commands and limits:
 
