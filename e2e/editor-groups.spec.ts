@@ -341,10 +341,22 @@ test('SVG group rotation and scale motion ungroup exactly at different poses',as
 
 test('group canvas transform is one undo and Escape or navigation cancels its draft',async({page})=>{
   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2)),before=await source(page);
+  const settled = async () => {
+    await expect.poll(() => evaluateInPage(page, async () => {
+      const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
+      const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+      return controller?.receipt(session.version(), session.port.view()).state;
+    })).toBe('ready');
+  };
+  await settled();
+  const initial = await rects(page, ids);
   const handle=page.locator('.ef-selection [data-handle="2"]');
   const begin=async()=>{const r=(await handle.boundingBox())!;await page.mouse.move(r.x+r.width/2,r.y+r.height/2);await page.mouse.down();await page.mouse.move(r.x+r.width/2+35,r.y+r.height/2+17,{steps:5});};
   await begin();expect(await source(page)).toEqual(before);await page.keyboard.press('Escape');await page.mouse.up();await ready(page);expect(await source(page)).toEqual(before);
+  // Cancellation queues a pose without setting data-pending; await its correlated paint.
+  await settled();expect(await rects(page,ids)).toEqual(initial);
   await begin();await page.mouse.up();await ready(page);expect((await source(page)).css).not.toBe(before.css);await undo(page);expect(await source(page)).toEqual(before);
+  await settled();expect(await rects(page,ids)).toEqual(initial);
   await select(page,[id]);await begin();await page.getByRole('button',{name:'Enter group',exact:true}).evaluate(el=>(el as HTMLButtonElement).click());await page.mouse.up();await ready(page);
   expect(await source(page)).toEqual(before);await expect(page.getByTestId('foundation-parent-bar')).toBeVisible();
   await expect(page.getByRole('button',{name:'rectangle tool',exact:true})).toBeDisabled();await expect(page.getByTestId('foundation-canvas')).toBeVisible();
