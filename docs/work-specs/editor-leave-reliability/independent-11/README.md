@@ -52,8 +52,10 @@ requests an explicit owner decision on a separate repair owner/window, a coverag
 locator repair and restoration of normal gate classification. This checker builds no repair.
 The owner answered **“Authorize separate repair and restore gate”** in this chat. A separate
 repair agent, `/root/account_gate_repair`, was assigned the narrow repair, classification
-restoration and terminal landing ownership. Its implementation is bounded to two hours from
-its start. This checker remains stopped pending that engineering result and builds none of
+restoration and terminal landing ownership. Its implementation window is `2026-10-19
+15:30:27–17:30:27 UTC` (`18:30:27–20:30:27 Kyiv`). Its branch is
+`codex/repair-account-signin-gate`, worktree `/workspace/NoaCG-Studio-account-gate`.
+This checker remains stopped pending that engineering result and builds none of
 the repair. The decision authorizes repair; it does not accept Phase 2 or bypass its gate.
 
 ## Activity, reservations and current checks
