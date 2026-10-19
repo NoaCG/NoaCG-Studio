@@ -1,0 +1,36 @@
+{
+  "leave-fifth-b1-bounded-fif-9a742-sks-about-the-saved-graphic-chromium/b1-name-autosave-refused-at-home.json": {
+    "refusedAfterHomeMs": 169,
+    "refusedStack": "at /src/model/durableStore.ts:344:16 < at new Promise (<anonymous>) < at idbWrite (/src/model/durableStore.ts:332:9) < at queueWrite (/src/model/durableStore.ts:583:18) < at Object.setItem (/src/model/durableStore.ts:544:3) < at saveProject (/src/model/project.ts:135:11) < at flushPendingProject (/src/store/templateStore.ts:423:2) < at captureDurableWrites (/src/model/durableStore.ts:165:12) < at settleTrailingAutosave (/src/store/saveActions.ts:106:22)",
+    "slotPuts": [
+      {
+        "action": "pass",
+        "stack": "at /src/model/durableStore.ts:344:16 < at new Promise (<anonymous>) < at idbWrite (/src/model/durableStore.ts:332:9) < at queueWrite (/src/model/durableStore.ts"
+      },
+      {
+        "action": "pass",
+        "stack": "at /src/model/durableStore.ts:344:16 < at new Promise (<anonymous>) < at idbWrite (/src/model/durableStore.ts:332:9) < at queueWrite (/src/model/durableStore.ts"
+      },
+      {
+        "action": "refuse",
+        "stack": "at /src/model/durableStore.ts:344:16 < at new Promise (<anonymous>) < at idbWrite (/src/model/durableStore.ts:332:9) < at queueWrite (/src/model/durableStore.ts"
+      }
+    ],
+    "alert": 0,
+    "alertText": null,
+    "link": {
+      "graphicId": "c30b324b-48a8-4b42-a6e0-36cfd2b0b04a",
+      "dirty": false,
+      "formatIssues": [],
+      "status": "idle"
+    },
+    "records": 1,
+    "newAsked": 0,
+    "slot": {
+      "graphicId": "c30b324b-48a8-4b42-a6e0-36cfd2b0b04a",
+      "dirty": false,
+      "name": "Fifth B1"
+    },
+    "newAskedAfterReload": 0
+  }
+}

@@ -1,0 +1,631 @@
+{
+  "stats": {
+    "startTime": "2026-10-19T20:43:48.127Z",
+    "duration": 199992.63999999998,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "file": "leave-eighth-device.spec.ts",
+      "title": "eighth X-device: device B boots device A's never-saved draft from the synced slot; A first-saves it; B, which has not synced since, first-saves its draft",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 37433,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "leave-ninth-device.spec.ts",
+      "title": "ninth S-concurrent (leaves at once): one saved graphic edited and saved on two devices; device B's Save loses the sync conflict",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 36538,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "leave-ninth-device.spec.ts",
+      "title": "ninth S-concurrent (stays in the editor): one saved graphic edited and saved on two devices; device B's Save loses the sync conflict",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 32466,
+          "error": null
+        }
+      ]
+    },
+    {
+      "file": "leave-ninth-device.spec.ts",
+      "title": "ninth R-departure: B pulls A's reservation as data, reloads, signs out and in, edits and first-saves; then an older build's marked slot naming A's record arrives",
+      "status": "unexpected",
+      "results": [
+        {
+          "status": "failed",
+          "retry": 0,
+          "duration": 60277,
+          "error": {
+            "message": "Error: C on the older build's marked slot: Home asks, Save asks for a name\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 2\u001b[39m\n\u001b[31m+ Received  + 2\u001b[39m\n\n\u001b[2m  Object {\u001b[22m\n\u001b[32m-   \"asked\": 1,\u001b[39m\n\u001b[32m-   \"named\": 1,\u001b[39m\n\u001b[31m+   \"asked\": 0,\u001b[39m\n\u001b[31m+   \"named\": 0,\u001b[39m\n\u001b[2m  }\u001b[22m",
+            "stack": "Error: C on the older build's marked slot: Home asks, Save asks for a name\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 2\u001b[39m\n\u001b[31m+ Received  + 2\u001b[39m\n\n\u001b[2m  Object {\u001b[22m\n\u001b[32m-   \"asked\": 1,\u001b[39m\n\u001b[32m-   \"named\": 1,\u001b[39m\n\u001b[31m+   \"asked\": 0,\u001b[39m\n\u001b[31m+   \"named\": 0,\u001b[39m\n\u001b[2m  }\u001b[22m\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/leave-ninth-device.spec.ts:281:98",
+            "location": {
+              "file": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/leave-ninth-device.spec.ts",
+              "column": 98,
+              "line": 281
+            },
+            "snippet": "\u001b[0m \u001b[90m 279 |\u001b[39m     \u001b[33mObject\u001b[39m\u001b[33m.\u001b[39massign(facts\u001b[33m,\u001b[39m { cloudFinal\u001b[33m:\u001b[39m final\u001b[33m.\u001b[39mmap(g \u001b[33m=>\u001b[39m ({ id\u001b[33m:\u001b[39m g\u001b[33m.\u001b[39mid\u001b[33m,\u001b[39m name\u001b[33m:\u001b[39m g\u001b[33m.\u001b[39mbody\u001b[33m.\u001b[39mname }))\u001b[33m,\u001b[39m alphaFinalUnchanged\u001b[33m:\u001b[39m \u001b[33m!\u001b[39m\u001b[33m!\u001b[39malphaFinal \u001b[33m&&\u001b[39m same(alphaFinal\u001b[33m.\u001b[39mbody\u001b[33m.\u001b[39mtemplate\u001b[33m,\u001b[39m alphaCloud\u001b[33m.\u001b[39mtemplate) })\u001b[33m;\u001b[39m\n \u001b[90m 280 |\u001b[39m     writeFileSync(test\u001b[33m.\u001b[39minfo()\u001b[33m.\u001b[39moutputPath(\u001b[32m'r-departure.json'\u001b[39m)\u001b[33m,\u001b[39m \u001b[33mJSON\u001b[39m\u001b[33m.\u001b[39mstringify(facts\u001b[33m,\u001b[39m \u001b[36mnull\u001b[39m\u001b[33m,\u001b[39m \u001b[35m2\u001b[39m))\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 281 |\u001b[39m     expect(facts\u001b[33m.\u001b[39mcLeave\u001b[33m,\u001b[39m \u001b[32m'C on the older build\\'s marked slot: Home asks, Save asks for a name'\u001b[39m)\u001b[33m.\u001b[39mtoEqual({ asked\u001b[33m:\u001b[39m \u001b[35m1\u001b[39m\u001b[33m,\u001b[39m named\u001b[33m:\u001b[39m \u001b[35m1\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                                                                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 282 |\u001b[39m     expect(facts\u001b[33m.\u001b[39mcMinted\u001b[33m,\u001b[39m \u001b[32m'C minted Alpha\\'s id'\u001b[39m)\u001b[33m.\u001b[39mnot\u001b[33m.\u001b[39mtoBe(alpha\u001b[33m.\u001b[39mid)\u001b[33m;\u001b[39m\n \u001b[90m 283 |\u001b[39m     \u001b[36mfor\u001b[39m (\u001b[36mconst\u001b[39m label \u001b[36mof\u001b[39m [\u001b[32m'bBoot1'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'bBoot2'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'bAfterSignIn'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'bOnOlderSlot'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'cBoot'\u001b[39m]) expect((facts[label] \u001b[36mas\u001b[39m { link\u001b[33m:\u001b[39m { graphicId\u001b[33m:\u001b[39m string \u001b[33m|\u001b[39m \u001b[36mnull\u001b[39m } })\u001b[33m.\u001b[39mlink\u001b[33m.\u001b[39mgraphicId\u001b[33m,\u001b[39m \u001b[32m`${label}: B is linked to a record`\u001b[39m)\u001b[33m.\u001b[39mtoBeNull()\u001b[33m;\u001b[39m\n \u001b[90m 284 |\u001b[39m     expect(facts\u001b[33m.\u001b[39mbOwnListAfterPull \u001b[33m?\u001b[39m\u001b[33m?\u001b[39m \u001b[32m''\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'B recorded A\\'s reservation as its own'\u001b[39m)\u001b[33m.\u001b[39mnot\u001b[33m.\u001b[39mtoContain(reserved)\u001b[33m;\u001b[39m\u001b[0m"
+          }
+        }
+      ]
+    },
+    {
+      "file": "leave-probe.spec.ts",
+      "title": "signed-in local account keeps save, cloud and discard revisions distinct",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 28615,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "facts": {
+    ".noacg/independent-devices/leave-eighth-device-eighth-d92b5-since-first-saves-its-draft-configured/x-device-facts.json": {
+      "reserved": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+      "bBootedADraft": true,
+      "bLinkAtBoot": {
+        "graphicId": null,
+        "dirty": true,
+        "status": "idle"
+      },
+      "aLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "alphaId": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+      "alphaIsReserved": true,
+      "bLibraryHasAlpha": false,
+      "bSourceLayers": 10,
+      "bLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "bMintedId": "31879fb6-824c-4129-8780-0671b5f75776",
+      "bMintedAlphaId": false,
+      "cloud": [
+        {
+          "id": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+          "name": "Eighth X Alpha"
+        },
+        {
+          "id": "31879fb6-824c-4129-8780-0671b5f75776",
+          "name": "Eighth X Beta"
+        }
+      ],
+      "alphaCloudUnchanged": true,
+      "alphaCloudHoldsB": false,
+      "bRecord": {
+        "id": "31879fb6-824c-4129-8780-0671b5f75776",
+        "name": "Eighth X Beta"
+      },
+      "bLinkAfter": {
+        "graphicId": "31879fb6-824c-4129-8780-0671b5f75776",
+        "dirty": false,
+        "formatIssues": [],
+        "status": "idle"
+      },
+      "aLibrary": [
+        {
+          "id": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+          "name": "Eighth X Alpha"
+        },
+        {
+          "id": "31879fb6-824c-4129-8780-0671b5f75776",
+          "name": "Eighth X Beta"
+        }
+      ],
+      "bLinkReopened": {
+        "graphicId": "31879fb6-824c-4129-8780-0671b5f75776",
+        "dirty": false,
+        "status": "idle"
+      },
+      "bSecondSaveNamed": 0,
+      "cloudFinal": [
+        {
+          "id": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+          "name": "Eighth X Alpha"
+        },
+        {
+          "id": "31879fb6-824c-4129-8780-0671b5f75776",
+          "name": "Eighth X Beta"
+        }
+      ],
+      "alphaFinalUnchanged": true,
+      "alphaFinalHoldsBSecondSave": false
+    },
+    ".noacg/independent-devices/leave-eighth-device-eighth-d92b5-since-first-saves-its-draft-configured/x-device.json": {
+      "reserved": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+      "bBootedADraft": true,
+      "bLinkAtBoot": {
+        "graphicId": null,
+        "dirty": true,
+        "status": "idle"
+      },
+      "aLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "alphaId": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+      "alphaIsReserved": true,
+      "bLibraryHasAlpha": false,
+      "bSourceLayers": 10,
+      "bLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "bMintedId": "31879fb6-824c-4129-8780-0671b5f75776",
+      "bMintedAlphaId": false,
+      "cloud": [
+        {
+          "id": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+          "name": "Eighth X Alpha"
+        },
+        {
+          "id": "31879fb6-824c-4129-8780-0671b5f75776",
+          "name": "Eighth X Beta"
+        }
+      ],
+      "alphaCloudUnchanged": true,
+      "alphaCloudHoldsB": false,
+      "bRecord": {
+        "id": "31879fb6-824c-4129-8780-0671b5f75776",
+        "name": "Eighth X Beta"
+      },
+      "bLinkAfter": {
+        "graphicId": "31879fb6-824c-4129-8780-0671b5f75776",
+        "dirty": false,
+        "formatIssues": [],
+        "status": "idle"
+      },
+      "aLibrary": [
+        {
+          "id": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+          "name": "Eighth X Alpha"
+        },
+        {
+          "id": "31879fb6-824c-4129-8780-0671b5f75776",
+          "name": "Eighth X Beta"
+        }
+      ],
+      "bLinkReopened": {
+        "graphicId": "31879fb6-824c-4129-8780-0671b5f75776",
+        "dirty": false,
+        "status": "idle"
+      },
+      "bSecondSaveNamed": 0,
+      "cloudFinal": [
+        {
+          "id": "39af9b67-5854-4134-b3fe-f6c3cdbccc80",
+          "name": "Eighth X Alpha"
+        },
+        {
+          "id": "31879fb6-824c-4129-8780-0671b5f75776",
+          "name": "Eighth X Beta"
+        }
+      ],
+      "alphaFinalUnchanged": true,
+      "alphaFinalHoldsBSecondSave": false
+    },
+    ".noacg/independent-devices/leave-ninth-device-ninth-R-7b5f6-t-naming-A-s-record-arrives-configured/r-departure-facts.json": {
+      "cloudSlotCarriesAReservation": true,
+      "bOwnListAfterPull": null,
+      "bBoot1": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "bBoot2": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "bAfterSignIn": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "bOwnListAfterSignIn": null,
+      "bReservationAfterEdit": "a5ae4a38-9f6f-4494-a980-d95d9b30645d",
+      "aLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "alphaIsReserved": true,
+      "bLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "betaId": "a5ae4a38-9f6f-4494-a980-d95d9b30645d",
+      "bPulledOlder": {
+        "reservedGraphicId": "44d41a5c-de6b-452a-9dca-0574707c65d5",
+        "mintingReserved": null
+      },
+      "bOnOlderSlot": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "44d41a5c-de6b-452a-9dca-0574707c65d5"
+      },
+      "bOlderLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "cPulled": {
+        "reservedGraphicId": "d7165d5b-56be-4d2d-b3cd-80674331501d",
+        "isAlpha": true,
+        "mintingReserved": null
+      },
+      "cBoot": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "cLeave": {
+        "asked": 0,
+        "named": 0
+      },
+      "cMinted": null,
+      "cloudFinal": [
+        {
+          "id": "d7165d5b-56be-4d2d-b3cd-80674331501d",
+          "name": "Ninth R Alpha"
+        },
+        {
+          "id": "a5ae4a38-9f6f-4494-a980-d95d9b30645d",
+          "name": "Ninth R Beta"
+        },
+        {
+          "id": "44d41a5c-de6b-452a-9dca-0574707c65d5",
+          "name": "Ninth R Beta 2"
+        }
+      ],
+      "alphaFinalUnchanged": true
+    },
+    ".noacg/independent-devices/leave-ninth-device-ninth-R-7b5f6-t-naming-A-s-record-arrives-configured/r-departure.json": {
+      "cloudSlotCarriesAReservation": true,
+      "bOwnListAfterPull": null,
+      "bBoot1": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "bBoot2": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "bAfterSignIn": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "bOwnListAfterSignIn": null,
+      "bReservationAfterEdit": "a5ae4a38-9f6f-4494-a980-d95d9b30645d",
+      "aLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "alphaIsReserved": true,
+      "bLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "betaId": "a5ae4a38-9f6f-4494-a980-d95d9b30645d",
+      "bPulledOlder": {
+        "reservedGraphicId": "44d41a5c-de6b-452a-9dca-0574707c65d5",
+        "mintingReserved": null
+      },
+      "bOnOlderSlot": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "44d41a5c-de6b-452a-9dca-0574707c65d5"
+      },
+      "bOlderLeave": {
+        "asked": 1,
+        "named": 1
+      },
+      "cPulled": {
+        "reservedGraphicId": "d7165d5b-56be-4d2d-b3cd-80674331501d",
+        "isAlpha": true,
+        "mintingReserved": null
+      },
+      "cBoot": {
+        "link": {
+          "graphicId": null,
+          "dirty": true,
+          "status": "idle"
+        },
+        "slotReservation": "d7165d5b-56be-4d2d-b3cd-80674331501d"
+      },
+      "cLeave": {
+        "asked": 0,
+        "named": 0
+      },
+      "cMinted": null,
+      "cloudFinal": [
+        {
+          "id": "d7165d5b-56be-4d2d-b3cd-80674331501d",
+          "name": "Ninth R Alpha"
+        },
+        {
+          "id": "a5ae4a38-9f6f-4494-a980-d95d9b30645d",
+          "name": "Ninth R Beta"
+        },
+        {
+          "id": "44d41a5c-de6b-452a-9dca-0574707c65d5",
+          "name": "Ninth R Beta 2"
+        }
+      ],
+      "alphaFinalUnchanged": true
+    },
+    ".noacg/independent-devices/leave-ninth-device-ninth-S-213d0-ave-loses-the-sync-conflict-configured/s-concurrent-facts.json": {
+      "order": "leaves at once",
+      "aFirst": {
+        "asked": 1,
+        "named": 1
+      },
+      "bLinkOpened": {
+        "graphicId": "d77009c4-a411-417b-a83e-40b427e89cfe",
+        "dirty": false,
+        "status": "idle"
+      },
+      "aSaveNamed": 0,
+      "bSaveNamed": 0,
+      "bStatusAtSave": "Saved",
+      "bLeaveAsked": 0,
+      "bLinkAfterPass": {
+        "graphicId": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+        "dirty": false,
+        "formatIssues": [],
+        "status": "idle"
+      },
+      "bLibrary": [
+        {
+          "id": "d77009c4-a411-417b-a83e-40b427e89cfe",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "bNew": {
+        "asked": 0,
+        "text": null
+      },
+      "bNewAfterReload": {
+        "asked": 0,
+        "text": null
+      },
+      "cloudFinal": [
+        {
+          "id": "d77009c4-a411-417b-a83e-40b427e89cfe",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "gammaHoldsA": true,
+      "bRecord": {
+        "id": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+        "name": "Ninth S Gamma (conflicted copy)"
+      }
+    },
+    ".noacg/independent-devices/leave-ninth-device-ninth-S-213d0-ave-loses-the-sync-conflict-configured/s-concurrent.json": {
+      "order": "leaves at once",
+      "aFirst": {
+        "asked": 1,
+        "named": 1
+      },
+      "bLinkOpened": {
+        "graphicId": "d77009c4-a411-417b-a83e-40b427e89cfe",
+        "dirty": false,
+        "status": "idle"
+      },
+      "aSaveNamed": 0,
+      "bSaveNamed": 0,
+      "bStatusAtSave": "Saved",
+      "bLeaveAsked": 0,
+      "bLinkAfterPass": {
+        "graphicId": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+        "dirty": false,
+        "formatIssues": [],
+        "status": "idle"
+      },
+      "bLibrary": [
+        {
+          "id": "d77009c4-a411-417b-a83e-40b427e89cfe",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "bNew": {
+        "asked": 0,
+        "text": null
+      },
+      "bNewAfterReload": {
+        "asked": 0,
+        "text": null
+      },
+      "cloudFinal": [
+        {
+          "id": "d77009c4-a411-417b-a83e-40b427e89cfe",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "gammaHoldsA": true,
+      "bRecord": {
+        "id": "fe4d09ec-bd16-4ecc-bd82-a611f028f135",
+        "name": "Ninth S Gamma (conflicted copy)"
+      }
+    },
+    ".noacg/independent-devices/leave-ninth-device-ninth-S-745ec-ave-loses-the-sync-conflict-configured/s-concurrent-facts.json": {
+      "order": "stays in the editor",
+      "aFirst": {
+        "asked": 1,
+        "named": 1
+      },
+      "bLinkOpened": {
+        "graphicId": "9cd81e7a-88f2-430b-8add-cef88bff34bf",
+        "dirty": false,
+        "status": "idle"
+      },
+      "aSaveNamed": 0,
+      "bSaveNamed": 0,
+      "bStatusAtSave": "Saved",
+      "bLinkAfterPass": {
+        "graphicId": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+        "dirty": false,
+        "formatIssues": [],
+        "status": "idle"
+      },
+      "bLibrary": [
+        {
+          "id": "9cd81e7a-88f2-430b-8add-cef88bff34bf",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "bStatusAfterPass": "Saved",
+      "bLeaveAsked": 0,
+      "bLeaveText": null,
+      "cloudFinal": [
+        {
+          "id": "9cd81e7a-88f2-430b-8add-cef88bff34bf",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "gammaHoldsA": true,
+      "bRecord": {
+        "id": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+        "name": "Ninth S Gamma (conflicted copy)"
+      }
+    },
+    ".noacg/independent-devices/leave-ninth-device-ninth-S-745ec-ave-loses-the-sync-conflict-configured/s-concurrent.json": {
+      "order": "stays in the editor",
+      "aFirst": {
+        "asked": 1,
+        "named": 1
+      },
+      "bLinkOpened": {
+        "graphicId": "9cd81e7a-88f2-430b-8add-cef88bff34bf",
+        "dirty": false,
+        "status": "idle"
+      },
+      "aSaveNamed": 0,
+      "bSaveNamed": 0,
+      "bStatusAtSave": "Saved",
+      "bLinkAfterPass": {
+        "graphicId": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+        "dirty": false,
+        "formatIssues": [],
+        "status": "idle"
+      },
+      "bLibrary": [
+        {
+          "id": "9cd81e7a-88f2-430b-8add-cef88bff34bf",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "bStatusAfterPass": "Saved",
+      "bLeaveAsked": 0,
+      "bLeaveText": null,
+      "cloudFinal": [
+        {
+          "id": "9cd81e7a-88f2-430b-8add-cef88bff34bf",
+          "name": "Ninth S Gamma"
+        },
+        {
+          "id": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+          "name": "Ninth S Gamma (conflicted copy)"
+        }
+      ],
+      "gammaHoldsA": true,
+      "bRecord": {
+        "id": "98cccad3-3768-4d6c-9c16-a5494b5d2adb",
+        "name": "Ninth S Gamma (conflicted copy)"
+      }
+    },
+    ".noacg/independent-devices/leave-probe-signed-in-loca-55f75--discard-revisions-distinct-configured/account-lifecycle.json": {
+      "backend": "disposable local Supabase",
+      "signedIn": true,
+      "saveConfirmed": true,
+      "cloudMatchesSave": true,
+      "discardKeptCloudRecord": true,
+      "reloadKeptSavedSource": true,
+      "cancelledNamingKeptDraft": true,
+      "neverSavedDiscardAddedNoCloudRecord": true
+    }
+  },
+  "artifactSha256": "f502010b64a98ee93a70422a58db26708ad84ec8888a96780193805c3af711bf"
+}

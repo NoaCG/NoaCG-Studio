@@ -1,0 +1,237 @@
+{
+  "nested-copy.json": {
+    "a": "#rectangle-1",
+    "b": "#rectangle-2",
+    "c": "#rectangle-3",
+    "inner": "#group-1",
+    "outer": "#group-2",
+    "copy": "#group-2-copy-1",
+    "shiftConstraint": true,
+    "renameOwnsKeys": true,
+    "oneUndo": true,
+    "exactEscape": true,
+    "stableRedo": true
+  },
+  "desktop.json": {
+    "label": "desktop",
+    "shape": "#rectangle-1",
+    "duplicate": "#rectangle-1-copy-1",
+    "fields": [
+      "f0",
+      "f1"
+    ],
+    "assets": [
+      "fonts/inter.woff2",
+      "images/festival-mark.svg"
+    ],
+    "bounds": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "outerWidth": 1920,
+      "outerHeight": 1080,
+      "devicePixelRatio": 1,
+      "visualScale": 1,
+      "html": {
+        "client": 1920,
+        "scroll": 1920
+      },
+      "controls": {
+        ".ef-shell": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        ".ef-viewport": {
+          "x": 0,
+          "y": 161,
+          "width": 1640,
+          "height": 534.203125
+        },
+        ".ef-timeline": {
+          "x": 0,
+          "y": 721.203125,
+          "width": 1920,
+          "height": 334.796875
+        },
+        ".ef-inspector": {
+          "x": 1640,
+          "y": 84,
+          "width": 280,
+          "height": 637.203125
+        }
+      }
+    },
+    "outputs": [
+      {
+        "target": "SPX export",
+        "errors": [],
+        "download": "independent_interaction_check_desktop_spx.zip"
+      },
+      {
+        "target": "CasparCG export",
+        "errors": [],
+        "download": "independent_interaction_check_desktop_casparcg.zip"
+      },
+      {
+        "target": "OGraf (EBU) export",
+        "errors": [],
+        "download": "independent_interaction_check_desktop_ograf.zip"
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  "laptop.json": {
+    "label": "laptop",
+    "shape": "#rectangle-1",
+    "duplicate": "#rectangle-1-copy-1",
+    "fields": [
+      "f0",
+      "f1"
+    ],
+    "assets": [
+      "fonts/inter.woff2",
+      "images/festival-mark.svg"
+    ],
+    "bounds": {
+      "innerWidth": 1366,
+      "innerHeight": 768,
+      "outerWidth": 1366,
+      "outerHeight": 768,
+      "devicePixelRatio": 1,
+      "visualScale": 1,
+      "html": {
+        "client": 1366,
+        "scroll": 1366
+      },
+      "controls": {
+        ".ef-shell": {
+          "x": 0,
+          "y": 0,
+          "width": 1366,
+          "height": 768
+        },
+        ".ef-viewport": {
+          "x": 0,
+          "y": 161,
+          "width": 1086,
+          "height": 317
+        },
+        ".ef-timeline": {
+          "x": 0,
+          "y": 504,
+          "width": 1366,
+          "height": 240
+        },
+        ".ef-inspector": {
+          "x": 1086,
+          "y": 84,
+          "width": 280,
+          "height": 420
+        }
+      }
+    },
+    "outputs": [
+      {
+        "target": "SPX export",
+        "errors": [],
+        "download": "independent_interaction_check_laptop_spx.zip"
+      },
+      {
+        "target": "CasparCG export",
+        "errors": [],
+        "download": "independent_interaction_check_laptop_casparcg.zip"
+      },
+      {
+        "target": "OGraf (EBU) export",
+        "errors": [],
+        "download": "independent_interaction_check_laptop_ograf.zip"
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  "actual-125.json": {
+    "label": "actual-125",
+    "shape": "#rectangle-1",
+    "duplicate": "#rectangle-1-copy-1",
+    "fields": [
+      "f0",
+      "f1"
+    ],
+    "assets": [
+      "fonts/inter.woff2",
+      "images/festival-mark.svg"
+    ],
+    "bounds": {
+      "innerWidth": 1093,
+      "innerHeight": 545,
+      "outerWidth": 1366,
+      "outerHeight": 768,
+      "devicePixelRatio": 1.25,
+      "visualScale": 1,
+      "html": {
+        "client": 1093,
+        "scroll": 1093
+      },
+      "controls": {
+        ".ef-shell": {
+          "x": 0,
+          "y": 0,
+          "width": 1092.800048828125,
+          "height": 544.7999877929688
+        },
+        ".ef-viewport": {
+          "x": 0,
+          "y": 144.8000030517578,
+          "width": 812.7999877929688,
+          "height": 196
+        },
+        ".ef-timeline": {
+          "x": 0,
+          "y": 340.8000183105469,
+          "width": 1092.800048828125,
+          "height": 180
+        },
+        ".ef-inspector": {
+          "x": 812.7999877929688,
+          "y": 72,
+          "width": 280,
+          "height": 268.8000183105469
+        }
+      }
+    },
+    "outputs": [
+      {
+        "target": "SPX export",
+        "errors": [],
+        "download": "independent_interaction_check_actual_125_spx.zip"
+      },
+      {
+        "target": "CasparCG export",
+        "errors": [],
+        "download": "independent_interaction_check_actual_125_casparcg.zip"
+      },
+      {
+        "target": "OGraf (EBU) export",
+        "errors": [],
+        "download": "independent_interaction_check_actual_125_ograf.zip"
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  "zoom.json": {
+    "zoom": 1.25,
+    "finalZoom": 1.25,
+    "metrics": {
+      "innerWidth": 1093,
+      "innerHeight": 545,
+      "outerWidth": 1366,
+      "outerHeight": 768,
+      "devicePixelRatio": 1.25,
+      "visualScale": 1
+    }
+  }
+}

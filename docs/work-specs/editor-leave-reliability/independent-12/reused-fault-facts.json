@@ -1,0 +1,135 @@
+{
+  "matching-failure": {
+    "installed": true,
+    "connected": true,
+    "armed": true,
+    "problems": [],
+    "zeroHeldBeforeController": true,
+    "zeroHeldAfterMicrotask": true,
+    "zeroReplayConsumed": true,
+    "oneHeldBeforeController": true,
+    "oneHeldAfterMicrotask": true,
+    "latestReleased": true,
+    "stageError": "Wait for the preview to reach this playhead and revision before editing.",
+    "atPointerdown": {
+      "at": 1792435297651.4,
+      "dom": {
+        "data-pending": "false",
+        "data-request": "11",
+        "data-generation": "4",
+        "data-pose-time": "0",
+        "data-pose-cue": "arriving"
+      },
+      "view": {
+        "time": 1,
+        "cue": null,
+        "selectedParts": [
+          "#nested"
+        ]
+      },
+      "receipt": {
+        "state": "pending"
+      },
+      "expected": {
+        "type": "noacg-editor-foundation-v1",
+        "documentId": "draft:c81422e3-d1c4-4357-9da9-0210c6d15c32",
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "generation": 4,
+        "requestId": 12
+      },
+      "consumed": {
+        "documentId": "draft:c81422e3-d1c4-4357-9da9-0210c6d15c32",
+        "requestId": 11,
+        "generation": 4,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "selectedPart": {
+          "selector": "#nested",
+          "time": 0,
+          "cue": null,
+          "revision": {
+            "source": 5,
+            "assets": 1
+          }
+        }
+      }
+    }
+  },
+  "repaired-fault": {
+    "installed": true,
+    "connected": true,
+    "armed": true,
+    "problems": [],
+    "zeroHeldBeforeController": true,
+    "zeroHeldAfterMicrotask": true,
+    "zeroReplayConsumed": true,
+    "oneHeldBeforeController": true,
+    "oneHeldAfterMicrotask": true,
+    "latestReleased": true,
+    "stageError": null,
+    "atPointerdown": {
+      "at": 1792435383283.1,
+      "dom": {
+        "data-pending": "false",
+        "data-request": "12",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "view": {
+        "time": 1,
+        "cue": null,
+        "selectedParts": [
+          "#nested"
+        ]
+      },
+      "receipt": {
+        "state": "ready",
+        "documentId": "draft:0e92a2a1-cd10-48a4-9102-b4602614936f",
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "generation": 4,
+        "requestId": 12,
+        "renderedAt": 1792435381380.5999,
+        "time": 1,
+        "cue": null,
+        "drawingSpace": null
+      },
+      "expected": {
+        "type": "noacg-editor-foundation-v1",
+        "documentId": "draft:0e92a2a1-cd10-48a4-9102-b4602614936f",
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "generation": 4,
+        "requestId": 12
+      },
+      "consumed": {
+        "documentId": "draft:0e92a2a1-cd10-48a4-9102-b4602614936f",
+        "requestId": 12,
+        "generation": 4,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "selectedPart": {
+          "selector": "#nested",
+          "time": 1,
+          "cue": null,
+          "revision": {
+            "source": 5,
+            "assets": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "leave-reference-fourth-Eye-5afe0-mplate-is-gone-after-reload-chromium/eyevinn-refused.json": {
+    "pin": "616841bd949e3a21137579451123f66c292543f0",
+    "refusedEvents": 1,
+    "visibleMessage": 0,
+    "successToast": 1,
+    "consoleErrors": 1,
+    "listedBeforeReload": 2,
+    "afterReload": [
+      "kept"
+    ]
+  },
+  "leave-reference-Studio-can-9b0b6-New-and-reopen-saved-source-chromium/studio-lifecycle.json": {
+    "cancelKept": true,
+    "newDiscarded": true,
+    "savedFileUnchanged": true,
+    "reopened": true,
+    "pin": "3142fc7d",
+    "runtime": "v0.17",
+    "nativePicker": "download/input fallback"
+  },
+  "leave-reference-fourth-Stu-cd134-ved-file-and-New-still-asks-chromium/studio-held-save.json": {
+    "pin": "3142fc7d",
+    "runtime": "v0.17",
+    "savedFileHasRequested": true,
+    "savedFileLacksNewer": true,
+    "newAsked": "Start a new project? Unsaved changes in the current project will be lost.",
+    "newerKeptAfterCancel": true,
+    "dirtyTracking": "none: New always asks"
+  },
+  "leave-reference-Eyevinn-sw-6bda3--confirms-explicit-deletion-chromium/eyevinn-lifecycle.json": {
+    "pin": "616841bd949e3a21137579451123f66c292543f0",
+    "switchAutoSaved": true,
+    "cancelDeletion": true,
+    "explicitDeletion": true,
+    "otherTemplatePreserved": true
+  },
+  "leave-reference-fifth-Stud-d2d44-e-saved-file-holds-the-edit-chromium/studio-autosave-refused.json": {
+    "pin": "3142fc7d",
+    "runtime": "v0.17",
+    "savedFileHasEdit": true,
+    "visibleMessage": 0,
+    "consoleErrors": 0,
+    "newAsked": "Start a new project? Unsaved changes in the current project will be lost.",
+    "autosaveAfterReloadHasEdit": false
+  },
+  "leave-reference-fifth-Eyev-0c405-ce-and-cannot-be-made-twice-chromium/eyevinn-pointer-refused.json": {
+    "pin": "616841bd949e3a21137579451123f66c292543f0",
+    "writeOrder": [
+      "ograf-templates",
+      "ograf-current-template"
+    ],
+    "refusedEvents": 1,
+    "storedRecords": [
+      "kept",
+      "linkcheck"
+    ],
+    "storedPointer": "kept",
+    "listedAfterReload": [
+      "kept",
+      "linkcheck"
+    ],
+    "activeAfterReload": "kept",
+    "secondCreate": "Error creating template: Template with id \"linkcheck\" already exists",
+    "listedAfterSecondCreate": [
+      "kept",
+      "linkcheck"
+    ]
+  }
+}

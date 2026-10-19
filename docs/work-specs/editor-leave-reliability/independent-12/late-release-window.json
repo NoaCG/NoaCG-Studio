@@ -1,0 +1,18 @@
+{
+  "entryMergedAt": "2026-10-19T17:15:55Z",
+  "releaseCreatedAt": "2026-10-19T17:18:33Z",
+  "releaseMergedAt": "2026-10-19T17:29:27Z",
+  "totalCount": 1,
+  "runs": [
+    {
+      "id": 39292623613,
+      "head_sha": "30934c50fc0f548cbb60a3acffc2062021d9e4cb",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T17:15:56Z",
+      "updated_at": "2026-10-19T17:18:43Z",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39292623613"
+    }
+  ]
+}

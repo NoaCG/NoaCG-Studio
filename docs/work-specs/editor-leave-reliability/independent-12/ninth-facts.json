@@ -1,0 +1,197 @@
+{
+  "leave-ninth-checker-ninth--7552b--second-tab-of-this-browser-chromium/v-superseded-refused-by-localStorage.json": {
+    "shape": "refused by localStorage",
+    "conflicts": 1,
+    "linkHere": {
+      "graphicId": "2b234c26-2d76-4808-b1da-56e209b371eb",
+      "dirty": false,
+      "formatIssues": [],
+      "status": "idle"
+    },
+    "otherLink": {
+      "graphicId": "2b234c26-2d76-4808-b1da-56e209b371eb",
+      "dirty": false,
+      "status": "idle"
+    },
+    "otherSaveNamed": 0,
+    "alphaUnchanged": true,
+    "libraryFinal": [
+      {
+        "id": "aa03e432-816e-4e75-a6cc-a3553206afdd",
+        "name": "Alpha"
+      },
+      {
+        "id": "2b234c26-2d76-4808-b1da-56e209b371eb",
+        "name": "Beta (conflicted copy)"
+      }
+    ]
+  },
+  "leave-ninth-checker-ninth--15de1-o-the-other-device-s-record-chromium/c-overlap.json": {
+    "mirrorHasBeta": true,
+    "betaIsReserved": true,
+    "conflicts": 1,
+    "failures": [],
+    "acted": [
+      "hold L"
+    ],
+    "status": "Saved",
+    "linkAfterSave": {
+      "graphicId": "cf44cf8a-900b-4728-bd6f-8ded2d0d757f",
+      "dirty": false,
+      "formatIssues": [],
+      "status": "idle"
+    },
+    "slot": {
+      "graphicId": "cf44cf8a-900b-4728-bd6f-8ded2d0d757f",
+      "dirty": false
+    },
+    "library": [
+      {
+        "id": "ba612fe5-64c7-4d70-bd1f-fb841201402b",
+        "name": "Alpha"
+      },
+      {
+        "id": "cf44cf8a-900b-4728-bd6f-8ded2d0d757f",
+        "name": "Beta (conflicted copy)"
+      }
+    ],
+    "linkAfterReload": {
+      "graphicId": "cf44cf8a-900b-4728-bd6f-8ded2d0d757f",
+      "dirty": false,
+      "status": "idle"
+    },
+    "saveNamed": 0,
+    "alphaUnchanged": true,
+    "libraryFinal": [
+      {
+        "id": "ba612fe5-64c7-4d70-bd1f-fb841201402b",
+        "name": "Alpha"
+      },
+      {
+        "id": "cf44cf8a-900b-4728-bd6f-8ded2d0d757f",
+        "name": "Beta (conflicted copy)"
+      }
+    ]
+  },
+  "leave-ninth-checker-ninth--be96d--second-tab-of-this-browser-chromium/v-superseded-newer-version.json": {
+    "shape": "newer version",
+    "conflicts": 1,
+    "linkHere": {
+      "graphicId": "5d3de5be-50fe-4195-93cf-535bb0eb993f",
+      "dirty": false,
+      "formatIssues": [],
+      "status": "idle"
+    },
+    "otherLink": {
+      "graphicId": "5d3de5be-50fe-4195-93cf-535bb0eb993f",
+      "dirty": false,
+      "status": "idle"
+    },
+    "otherSaveNamed": 0,
+    "alphaUnchanged": true,
+    "libraryFinal": [
+      {
+        "id": "37e0fe10-821c-45ec-b282-c2030cbf2a15",
+        "name": "Alpha"
+      },
+      {
+        "id": "5d3de5be-50fe-4195-93cf-535bb0eb993f",
+        "name": "Beta (conflicted copy)"
+      }
+    ]
+  },
+  "leave-ninth-checker-ninth--85eed--tabs-reload-and-save-again-chromium/c-pull.json": {
+    "conflicts": 1,
+    "failures": [],
+    "linkAfterPass": {
+      "graphicId": "1be58529-c70b-4475-ac79-b614b4217705",
+      "dirty": false,
+      "formatIssues": [],
+      "status": "idle"
+    },
+    "slotAfterPass": {
+      "graphicId": "a67ec0ff-b6f7-4a0b-bf4a-0d3311a30b48",
+      "dirty": false,
+      "holdsOtherDevice": true,
+      "reservedIsOwnBefore": true
+    },
+    "library": [
+      {
+        "id": "a67ec0ff-b6f7-4a0b-bf4a-0d3311a30b48",
+        "name": "Alpha"
+      },
+      {
+        "id": "1be58529-c70b-4475-ac79-b614b4217705",
+        "name": "Beta (conflicted copy)"
+      }
+    ],
+    "otherLinkAfterPass": {
+      "graphicId": "1be58529-c70b-4475-ac79-b614b4217705",
+      "dirty": false,
+      "status": "idle"
+    },
+    "linkAfterReload": {
+      "graphicId": "a67ec0ff-b6f7-4a0b-bf4a-0d3311a30b48",
+      "dirty": false,
+      "status": "idle"
+    },
+    "editorHoldsOtherDevice": true,
+    "editorHoldsMine": false,
+    "otherLinkAfterReload": {
+      "graphicId": "a67ec0ff-b6f7-4a0b-bf4a-0d3311a30b48",
+      "dirty": false,
+      "status": "idle"
+    },
+    "saveNamed": 0,
+    "libraryFinal": [
+      {
+        "id": "a67ec0ff-b6f7-4a0b-bf4a-0d3311a30b48",
+        "name": "Alpha"
+      },
+      {
+        "id": "1be58529-c70b-4475-ac79-b614b4217705",
+        "name": "Beta (conflicted copy)"
+      }
+    ],
+    "alphaUnchanged": false,
+    "alphaHoldsMine": false,
+    "copyHoldsMine": true
+  },
+  "leave-ninth-checker-ninth--fa40c-rrupt-one-reload-save-again-chromium/v-reservations-corrupt.json": {
+    "shape": "corrupt",
+    "listBeforeReload": "{\"version\":1,\"ids\":[",
+    "linkAfterReload": {
+      "graphicId": null,
+      "dirty": true,
+      "status": "idle"
+    },
+    "named": 1,
+    "records": 2,
+    "mintedHoldsRequested": true
+  },
+  "leave-ninth-checker-ninth--a7ca4-ssing-one-reload-save-again-chromium/v-reservations-missing.json": {
+    "shape": "missing",
+    "listBeforeReload": null,
+    "linkAfterReload": {
+      "graphicId": null,
+      "dirty": true,
+      "status": "idle"
+    },
+    "named": 1,
+    "records": 2,
+    "mintedHoldsRequested": true
+  },
+  "leave-ninth-checker-ninth--58e0a-rsion-one-reload-save-again-chromium/v-reservations-newer-version.json": {
+    "shape": "newer version",
+    "listBeforeReload": "{\"version\":2,\"ids\":[\"kept-by-a-newer-build\"]}",
+    "linkAfterReload": {
+      "graphicId": null,
+      "dirty": true,
+      "status": "idle"
+    },
+    "named": 1,
+    "records": 2,
+    "mintedHoldsRequested": true,
+    "newerListKept": "{\"version\":2,\"ids\":[\"kept-by-a-newer-build\"]}"
+  }
+}

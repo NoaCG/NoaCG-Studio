@@ -1,0 +1,53 @@
+{
+  "nightly": {
+    "run": 39201147576,
+    "job": 117898781644,
+    "observations": [
+      "2026-10-19T05:05:07.9144035Z e2e-traced: 231 of 231 spec(s) traced to completion from 14 shard trace(s), 1207 source file(s); 0 kept their previous entry (none), 0 have none (none).",
+      "2026-10-19T05:05:10.1823957Z E2E time budget",
+      "2026-10-19T05:05:10.2119325Z ##[error]Mean per-test time is 6.09 s, over the 5.50 s ceiling. Tests got SLOWER - this does not fire merely because the suite grew. Start with the slowest files above.",
+      "2026-10-19T05:05:12.8945364Z   SUMMARY: e2e-traced: 231 of 231 spec(s) traced to completion from 14 shard trace(s), 1207 source file(s); 0 kept their previous entry (none), 0 have none (none)."
+    ]
+  },
+  "lateSend": {
+    "run": 39287029913,
+    "job": 118176652285,
+    "signature": [
+      "2026-10-19T17:05:08.0002540Z   1) [configured] › e2e/configured/late-send-abandoned.spec.ts:28:1 › a held Take is abandoned inside the window and never reaches air, even behind a later Out ",
+      "2026-10-19T17:05:08.0003181Z ",
+      "2026-10-19T17:05:08.0003481Z     Error: the operator page has read the log and is not reading it now",
+      "2026-10-19T17:05:08.0003749Z ",
+      "2026-10-19T17:05:08.0003960Z     the operator page has read the log and is not reading it now",
+      "2026-10-19T17:05:08.0004220Z ",
+      "2026-10-19T17:05:08.0004406Z     expect(received).toBe(expected) // Object.is equality",
+      "2026-10-19T17:05:08.0004648Z ",
+      "2026-10-19T17:05:08.0004740Z     Expected: true",
+      "2026-10-19T17:05:08.0004969Z     Received: false",
+      "2026-10-19T17:05:08.0005119Z ",
+      "2026-10-19T17:05:08.0005204Z     Call Log:",
+      "2026-10-19T17:05:08.0005519Z     - Timeout 30000ms exceeded while waiting on the predicate",
+      "2026-10-19T17:05:08.0005764Z ",
+      "2026-10-19T17:05:08.0005861Z        at _helpers.ts:237",
+      "2026-10-19T17:05:08.0006005Z ",
+      "2026-10-19T17:05:08.0006120Z       235 |         timeout: 30_000,",
+      "2026-10-19T17:05:08.0006299Z       236 |       })",
+      "2026-10-19T17:05:08.0006451Z     > 237 |       .toBe(true);",
+      "2026-10-19T17:05:08.0006666Z           |        ^",
+      "2026-10-19T17:05:08.0006863Z       238 | }",
+      "2026-10-19T17:05:08.0007054Z       239 |",
+      "2026-10-19T17:05:08.0007247Z       240 | /**",
+      "2026-10-19T17:05:08.0008068Z         at followerLevel (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts:237:8)",
+      "2026-10-19T17:05:08.0008787Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/late-send-abandoned.spec.ts:96:9",
+      "2026-10-19T17:05:08.0009527Z ",
+      "2026-10-19T17:05:08.0009922Z     Error Context: test-results/late-send-abandoned-a-held-778f2-air-even-behind-a-later-Out-configured/error-context.md",
+      "2026-10-19T17:05:08.0010413Z ",
+      "2026-10-19T17:05:08.0010503Z   1 flaky",
+      "2026-10-19T17:05:08.0011319Z     [configured] › e2e/configured/late-send-abandoned.spec.ts:28:1 › a held Take is abandoned inside the window and never reaches air, even behind a later Out "
+    ]
+  },
+  "history": {
+    "originalCI": 39250656173,
+    "conclusion": "failure",
+    "closedUnmergedQuarantine": 1506
+  }
+}

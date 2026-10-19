@@ -1,0 +1,511 @@
+[
+  {
+    "pr": 1515,
+    "stats": {
+      "startTime": "2026-10-19T16:45:54.147Z",
+      "duration": 1715715.406,
+      "expected": 107,
+      "skipped": 3,
+      "unexpected": 0,
+      "flaky": 1
+    },
+    "sha256": "4d6406a7178f0940e9a2a057b49300957cb66fabba033f6c996b6a02f005e6ee",
+    "account": [
+      {
+        "file": "account.spec.ts",
+        "title": "Settings shows the account: email, password change round-trip, sign out",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 7167
+          }
+        ]
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "the sign-in dialog offers the forgot-password path",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 1793
+          }
+        ]
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "a lost session offers explicit recovery; local work survives and sync resumes",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 9389
+          }
+        ]
+      }
+    ],
+    "deepLink": [
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out deep link keeps its address @production",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 4596
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out production link asks for a sign-in rather than calling it gone @production",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 1530
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a production link opens once signed in from it, and an absent one names only the account",
+        "status": "flaky",
+        "results": [
+          {
+            "status": "failed",
+            "retry": 0,
+            "duration": 68253
+          },
+          {
+            "status": "passed",
+            "retry": 1,
+            "duration": 12979
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a graphic saved elsewhere opens on its link, however slow the pull",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 21170
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a sync asked for during a pass waits for one that can see the new data",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 9662
+          }
+        ]
+      }
+    ],
+    "lateSend": [
+      {
+        "file": "late-send-abandoned.spec.ts",
+        "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 27249
+          }
+        ]
+      }
+    ],
+    "skips": [
+      {
+        "file": "bridge-real-server.spec.ts",
+        "title": "the Bridge airs the production, the dashboard reveals and scores it in CasparCG, and the server's own library is cued beside it",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 0
+          }
+        ]
+      },
+      {
+        "file": "bridge-real-server.spec.ts",
+        "title": "one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 0
+          }
+        ]
+      },
+      {
+        "file": "connector-grants.spec.ts",
+        "title": "a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 6
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pr": 1519,
+    "stats": {
+      "startTime": "2026-10-19T19:02:52.689Z",
+      "duration": 1437221.065,
+      "expected": 108,
+      "skipped": 3,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "sha256": "134e18b97ab40a38b4a828c3511e9698499b05f6f3d6a16b9c5f8eb12089cce2",
+    "account": [
+      {
+        "file": "account.spec.ts",
+        "title": "Settings shows the account: email, password change round-trip, sign out",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 4389
+          }
+        ]
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "the sign-in dialog offers the forgot-password path",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 1223
+          }
+        ]
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "a lost session offers explicit recovery; local work survives and sync resumes",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 7786
+          }
+        ]
+      }
+    ],
+    "deepLink": [
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out deep link keeps its address @production",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 3948
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out production link asks for a sign-in rather than calling it gone @production",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 939
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a production link opens once signed in from it, and an absent one names only the account",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 6387
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a graphic saved elsewhere opens on its link, however slow the pull",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 18376
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a sync asked for during a pass waits for one that can see the new data",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 8332
+          }
+        ]
+      }
+    ],
+    "lateSend": [
+      {
+        "file": "late-send-abandoned.spec.ts",
+        "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 24984
+          }
+        ]
+      }
+    ],
+    "skips": [
+      {
+        "file": "bridge-real-server.spec.ts",
+        "title": "the Bridge airs the production, the dashboard reveals and scores it in CasparCG, and the server's own library is cued beside it",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 0
+          }
+        ]
+      },
+      {
+        "file": "bridge-real-server.spec.ts",
+        "title": "one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 0
+          }
+        ]
+      },
+      {
+        "file": "connector-grants.spec.ts",
+        "title": "a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pr": 1520,
+    "stats": {
+      "startTime": "2026-10-19T19:39:35.928Z",
+      "duration": 1537396.0590000001,
+      "expected": 109,
+      "skipped": 3,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "sha256": "4d3932400477021855347fd449434e244f91465b146f6d38a60be87a8ef00d6c",
+    "account": [
+      {
+        "file": "account.spec.ts",
+        "title": "Settings shows the account: email, password change round-trip, sign out",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 5226
+          }
+        ]
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "the sign-in dialog offers the forgot-password path",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 1217
+          }
+        ]
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "a lost session offers explicit recovery; local work survives and sync resumes",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 7979
+          }
+        ]
+      }
+    ],
+    "deepLink": [
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out deep link keeps its address @production",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 4006
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out production link asks for a sign-in rather than calling it gone @production",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 1492
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a production link opens once signed in from it, and an absent one names only the account",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 7255
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a graphic saved elsewhere opens on its link, however slow the pull",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 19820
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a sync asked for during a pass waits for one that can see the new data",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 9287
+          }
+        ]
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "an absent production is answered by its completed pass while unrelated writes remain pending",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 4825
+          }
+        ]
+      }
+    ],
+    "lateSend": [
+      {
+        "file": "late-send-abandoned.spec.ts",
+        "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 26310
+          }
+        ]
+      }
+    ],
+    "skips": [
+      {
+        "file": "bridge-real-server.spec.ts",
+        "title": "the Bridge airs the production, the dashboard reveals and scores it in CasparCG, and the server's own library is cued beside it",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 0
+          }
+        ]
+      },
+      {
+        "file": "bridge-real-server.spec.ts",
+        "title": "one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 0
+          }
+        ]
+      },
+      {
+        "file": "connector-grants.spec.ts",
+        "title": "a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path",
+        "status": "skipped",
+        "results": [
+          {
+            "status": "skipped",
+            "retry": 0,
+            "duration": 5
+          }
+        ]
+      }
+    ]
+  }
+]

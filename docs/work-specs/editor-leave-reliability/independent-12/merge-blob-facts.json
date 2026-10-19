@@ -1,0 +1,206 @@
+[
+  {
+    "pr": 1515,
+    "reviewed": "92ce1b2e6d9f45bba95c5517a19664429db288b2",
+    "merge": "929d1f1f1137297e8763745f5217b48ee0370e6c",
+    "base": "86e795dc9f66183633d7c99a73bea8c27e4e32f6",
+    "files": [
+      {
+        "path": "docs/work-specs/account-signin-gate/README.md",
+        "headBlob": "ea12c9d889c8d5fe46d74bb98851eaf27e38c3c6",
+        "mergeBlob": "ea12c9d889c8d5fe46d74bb98851eaf27e38c3c6",
+        "matches": true
+      },
+      {
+        "path": "e2e/configured/account.spec.ts",
+        "headBlob": "407a649f45f60355cec7d98f288c8bbc0dd4f7f2",
+        "mergeBlob": "407a649f45f60355cec7d98f288c8bbc0dd4f7f2",
+        "matches": true
+      },
+      {
+        "path": "e2e/quarantine.json",
+        "headBlob": "84bf343a4aed96e417b64ebbf3af4f674ffe322f",
+        "mergeBlob": "84bf343a4aed96e417b64ebbf3af4f674ffe322f",
+        "matches": true
+      }
+    ]
+  },
+  {
+    "pr": 1519,
+    "reviewed": "6c756399fe4e0c4e4aea6d01cc45946378b9d95d",
+    "merge": "70714e8f594479aa064486c75bb58bb7cc47695c",
+    "base": "8687863db85845c11839c76adab8c23a2266d5b7",
+    "files": [
+      {
+        "path": "docs/work-specs/editor-keys-gate/corrected-probe-preparation.md",
+        "headBlob": "048bd490c4bc6b55704742c4c6bdcc04bd3b78cd",
+        "mergeBlob": "048bd490c4bc6b55704742c4c6bdcc04bd3b78cd",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/prepared-probe-adapter.ts.txt",
+        "headBlob": "a1f65564999e211e2b16afaca58e3bb6ef67034e",
+        "mergeBlob": "a1f65564999e211e2b16afaca58e3bb6ef67034e",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/prepared-probe-facts.json",
+        "headBlob": "dc0c19f9f1be10a8be50d720a9e845557b92cd81",
+        "mergeBlob": "dc0c19f9f1be10a8be50d720a9e845557b92cd81",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/prepared-probe-init.js.txt",
+        "headBlob": "55c975218caa12ed99a758559f370e503c06b380",
+        "mergeBlob": "55c975218caa12ed99a758559f370e503c06b380",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/prepared-probe-spec.diff.txt",
+        "headBlob": "42a40fe50a948cd63bdaa0b7b13acd6be071a721",
+        "mergeBlob": "42a40fe50a948cd63bdaa0b7b13acd6be071a721",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/prepared-probe-static-check.mjs.txt",
+        "headBlob": "5eaad6442fe2c457db220e361198bbdf5e242dc5",
+        "mergeBlob": "5eaad6442fe2c457db220e361198bbdf5e242dc5",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/prepared-probe-static-output.txt",
+        "headBlob": "1efc44dddd0b6ae9d95a243db96518d2c470f47a",
+        "mergeBlob": "1efc44dddd0b6ae9d95a243db96518d2c470f47a",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/repair-evidence/baseline-diagnostic.diff.txt",
+        "headBlob": "e68aa84b1b22f8ae7c15ecd69ee75d5b5fe11098",
+        "mergeBlob": "e68aa84b1b22f8ae7c15ecd69ee75d5b5fe11098",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/repair-evidence/matching-failure.json",
+        "headBlob": "a43d06858224e977a3e29e7caa4ddd845e5a6e4a",
+        "mergeBlob": "a43d06858224e977a3e29e7caa4ddd845e5a6e4a",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/repair-evidence/normal-run.txt",
+        "headBlob": "a8b540ca39da7a9f2d244f0eafd4a6bac23e8a83",
+        "mergeBlob": "a8b540ca39da7a9f2d244f0eafd4a6bac23e8a83",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/repair-evidence/repaired-diagnostic.diff.txt",
+        "headBlob": "d8a2b8a84273d75aff782d5f6832e770659aab1d",
+        "mergeBlob": "d8a2b8a84273d75aff782d5f6832e770659aab1d",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/repair-evidence/repaired-fault.json",
+        "headBlob": "ad9ef5ccdabfd737dda7c84d90bcd49048129d9b",
+        "mergeBlob": "ad9ef5ccdabfd737dda7c84d90bcd49048129d9b",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/editor-keys-gate/repair-receipt.md",
+        "headBlob": "e184aa8da2867b34e2a17fd6bddac1bce2fb0052",
+        "mergeBlob": "e184aa8da2867b34e2a17fd6bddac1bce2fb0052",
+        "matches": true
+      },
+      {
+        "path": "e2e/editor-keys.spec.ts",
+        "headBlob": "40b8271adcd789859a6977e3a7e0d1321a22a6bb",
+        "mergeBlob": "40b8271adcd789859a6977e3a7e0d1321a22a6bb",
+        "matches": true
+      },
+      {
+        "path": "e2e/quarantine.json",
+        "headBlob": "b001465e0550af31841cabdedbf219f8c2df7cd9",
+        "mergeBlob": "b001465e0550af31841cabdedbf219f8c2df7cd9",
+        "matches": true
+      }
+    ]
+  },
+  {
+    "pr": 1520,
+    "reviewed": "bf74ed3e87eae46e0037b4aa0969f6441b3c85f7",
+    "merge": "ba5e72e37f3dd1771e40e87ce229cad3ff907402",
+    "base": "70714e8f594479aa064486c75bb58bb7cc47695c",
+    "files": [
+      {
+        "path": "docs/work-specs/phase2-prerequisite-gates/deep-link-repair/README.md",
+        "headBlob": "6e11b4f381d78d952a4d046d5c3436715671d873",
+        "mergeBlob": "6e11b4f381d78d952a4d046d5c3436715671d873",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/phase2-prerequisite-gates/deep-link-repair/guard-mutation.txt",
+        "headBlob": "5888c5b36e5215b51a9e6cfa7aa947acd5770913",
+        "mergeBlob": "5888c5b36e5215b51a9e6cfa7aa947acd5770913",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/phase2-prerequisite-gates/deep-link-repair/local-sync-proof.txt",
+        "headBlob": "ecb925f2d24b9fa8f2549552e811126608d9ec39",
+        "mergeBlob": "ecb925f2d24b9fa8f2549552e811126608d9ec39",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/phase2-prerequisite-gates/deep-link-repair/normal-facts.json",
+        "headBlob": "6389bc8c541b2d2f21af6a899d2c1206159eda17",
+        "mergeBlob": "6389bc8c541b2d2f21af6a899d2c1206159eda17",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/phase2-prerequisite-gates/deep-link-repair/repaired-fault-events.json",
+        "headBlob": "4f49946914491423435c4007eee04899126d59ed",
+        "mergeBlob": "4f49946914491423435c4007eee04899126d59ed",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/phase2-prerequisite-gates/deep-link-repair/repaired-fault-facts.json",
+        "headBlob": "8f5210f332bb40ad204486867cc2b3350e9f9a64",
+        "mergeBlob": "8f5210f332bb40ad204486867cc2b3350e9f9a64",
+        "matches": true
+      },
+      {
+        "path": "docs/work-specs/phase2-prerequisite-gates/deep-link-repair/unit-proof.txt",
+        "headBlob": "44364bd8738aedca45cd2357ccf91a64322dd61f",
+        "mergeBlob": "44364bd8738aedca45cd2357ccf91a64322dd61f",
+        "matches": true
+      },
+      {
+        "path": "e2e/configured/deep-link-boot.spec.ts",
+        "headBlob": "86ce348c4e81baf215445766c8380f3a250e353b",
+        "mergeBlob": "86ce348c4e81baf215445766c8380f3a250e353b",
+        "matches": true
+      },
+      {
+        "path": "e2e/quarantine.json",
+        "headBlob": "38b1488fb3ebf6b12664f7e2b563d002a8c95c10",
+        "mergeBlob": "38b1488fb3ebf6b12664f7e2b563d002a8c95c10",
+        "matches": true
+      },
+      {
+        "path": "scripts/sync-pass-receipt.test.mjs",
+        "headBlob": "55ec3d98dbba58b277cfe3115b95923e8bc139e4",
+        "mergeBlob": "55ec3d98dbba58b277cfe3115b95923e8bc139e4",
+        "matches": true
+      },
+      {
+        "path": "src/backend/graphicWhenSynced.ts",
+        "headBlob": "480e17cfcaf96cd5d9226e44db34b06761482bd7",
+        "mergeBlob": "480e17cfcaf96cd5d9226e44db34b06761482bd7",
+        "matches": true
+      },
+      {
+        "path": "src/backend/syncController.ts",
+        "headBlob": "afa8a45f69c64c00cd13afc95c0299a66102404f",
+        "mergeBlob": "afa8a45f69c64c00cd13afc95c0299a66102404f",
+        "matches": true
+      }
+    ]
+  }
+]

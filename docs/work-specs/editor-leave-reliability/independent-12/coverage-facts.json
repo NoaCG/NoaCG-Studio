@@ -1,0 +1,12 @@
+{
+  "e2e/editor-keys.spec.ts": {
+    "originalDeclarations": 12,
+    "currentDeclarations": 12,
+    "originalByteIdentical": true
+  },
+  "e2e/configured/deep-link-boot.spec.ts": {
+    "originalDeclarations": 5,
+    "currentDeclarations": 6,
+    "originalByteIdentical": true
+  }
+}
