@@ -54,3 +54,46 @@ The temporary wrapper, reports and trace ZIPs are ignored local evidence, not su
 Review and simplification run inline under /check; there is no separate review tool exposed.
 Targeted gates and the existing duration/capacity/planner checks verify configuration and
 selection invariants. The full suite and production build remain exclusively in Actions.
+
+## Complete optimized recording (2026-10-19)
+
+PR #1504 landed through the merge queue as `76cae1a7b63c240a27877df8febaee400ed818cb`.
+This follow-up records actual optimized runtimes; it does not change the trace policy again.
+The three complete successful full CI runs below each carry all fifteen full offline shards.
+The recorder refuses missing, failed or subset shards. The read-only probe also verifies
+`src/`, `e2e/`, the Playwright config and package files against reviewed source
+`299ee5fd9afe6a53695b245234cbef83882dc2d6`; the merge has identical bytes for those paths.
+
+| Full run | Tested source | Result |
+| --- | --- | --- |
+| [39243785986](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39243785986) | `299ee5fd9` | All 15 full shards and CI passed |
+| [39245690239](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39245690239) | `299ee5fd9` | All 15 full shards and CI passed |
+| [39246625438](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39246625438) | `76cae1a7b` | Exact landing's 15 full shards and CI passed |
+
+[Read-only recording 39248673346](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39248673346)
+uses the existing `e2e-durations.mjs --record` and `slowRunnerMinutes` functions. Each file is
+recorded at the existing 80th percentile across all three runs (the slowest observation for
+three samples), not at the first run's faster 146.723-minute total. No failed observation was
+re-run or omitted. The unqueued disposable branch `codex/probe-e2e-runtime-measure` has no PR;
+its workflow only reads/merges reports and prints the table. It never executes a product test
+or writes main. The table is copied from that output, not estimated by hand.
+
+All 231 current files are measured, totaling **157.651 minutes**. The per-job overhead uses the
+largest measured p90 and test factor, never below the previous table: **0.5 minutes**, **1.02**.
+Thus the fixed thirteen-runner envelope shrinks from 213.921 to **210.294 minutes**, rather than
+increasing. The 20-minute shard cap, three-minute margin, 85% warning and 95% hard line remain
+unchanged. The hard line is now **199.779 minutes**. No runner or concurrency setting changes.
+
+The prospective unchanged editor repair adds its new unmeasured regression at the ordinary
+median, **0.371 minutes**: **158.022 minutes**, **75.14%** of the envelope, status **OK** without
+an exception. New test runtime is still measured by its own CI. There is no test deletion,
+rename, skip, relocation, reclassification, assertion change or maintenance entry here.
+The eight stale duration entries disappear because those files were already retired by the
+landed #800 cleanup; no test file changes in this follow-up. Proposal #1503 measured the older
+trace profile and is not the source of these weights.
+
+The controlled comparison above proves a runtime reduction from the trace option. These full
+measurements establish the current suite's cost across runners; the difference from #1503's
+older six-run aggregate is not attributed entirely to that one option. Recovered minutes stay
+as headroom. This is a capacity receipt, not Phase 2 acceptance: #1466 remains open, the fresh
+independent checker remains necessary, and Step 6/Phase 3 are not started.
