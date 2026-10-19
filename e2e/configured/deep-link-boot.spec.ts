@@ -1,5 +1,5 @@
 // A graphic or production link opened cold asks the cloud through this one lookup.
-// covers: src/backend/graphicWhenSynced.ts
+// covers: src/backend/graphicWhenSynced.ts, src/backend/syncController.ts
 
 import { test, expect } from '@playwright/test';
 import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
@@ -219,5 +219,52 @@ test.describe('deep-link boot', () => {
       return ms;
     });
     expect(waited).toBeGreaterThan(1_000);
+  });
+
+  test('an absent production is answered by its completed pass while unrelated writes remain pending', async ({ page }) => {
+    test.skip(!haveCreds, 'needs E2E_EMAIL/E2E_PASSWORD');
+    test.setTimeout(180_000);
+    await signIn(page);
+    await dismissWizard(page);
+    await settleSync(page);
+    const name = `Pending-completion E2E ${Date.now()}`;
+    const writes: Array<{ after: string }> = [];
+    // The same two real writes that reproduced the original 60-second failure. Each is made
+    // AFTER its pass began listing shows, so completing that pass leaves a newer revision owed.
+    // Responses remain genuine; neither the lookup nor the cloud reply is replaced.
+    await page.route(/\/rest\/v1\/documents(?:\?|$)/, async route => {
+      const url = new URL(route.request().url());
+      if (route.request().method() === 'GET' && page.url().endsWith(`#/production/${ABSENT_ID}`) &&
+          url.searchParams.get('kind') === 'eq.show' &&
+          url.searchParams.get('select')?.includes('body->updatedAt') && writes.length < 2) {
+        const fact = await page.evaluate(async ({ name, index }) => {
+          const { createShowNamedChecked } = await import('/src/model/shows.ts');
+          const { getSyncState } = await import('/src/backend/syncController.ts');
+          const { error } = createShowNamedChecked(`${name} ${index}`);
+          if (error) throw new Error(error);
+          await new Promise(resolve => setTimeout(resolve));
+          return { after: getSyncState().phase };
+        }, { name, index: writes.length });
+        writes.push(fact);
+      }
+      await route.continue();
+    });
+    try {
+      await page.goto(`/app#/production/${ABSENT_ID}`);
+      // This budget excludes the unchanged 60-second fallback: a completed read must answer.
+      await expect(page.getByTestId('production-missing')).toBeVisible({ timeout: 10_000 });
+      await expect.poll(() => writes.length).toBe(2);
+      expect(writes).toEqual([{ after: 'pending' }, { after: 'pending' }]);
+      await expect(page.getByTestId('production-missing-account')).toHaveText(`You are signed in as ${E2E_EMAIL}.`);
+      await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await page.evaluate(async name => {
+        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
+        const { syncNow } = await import('/src/backend/syncController.ts');
+        for (const show of loadShows()) if (show.name.startsWith(name)) deleteShow(show.id);
+        await syncNow();
+      }, name).catch(() => undefined);
+    }
   });
 });
