@@ -278,7 +278,7 @@ jobs:
           try {
             writeFileSync(source, held);
             const bad = run('original-held', true);
-            const errors = bad.tests.flatMap(t => t.results.flatMap(r => r.errors ?? [])).map(e => e.message ?? '').join('\n');
+            const errors = bad.tests.flatMap(t => t.results.flatMap(r => r.errors ?? [])).map(e => [e.message, e.stack].filter(Boolean).join('\n')).join('\n');
             if (bad.status === 0 || bad.report.stats.unexpected !== 1 || bad.report.stats.skipped !== 0 || !errors.includes('strict mode violation') || !errors.includes('account-save-notice') || !errors.includes('home-page') || !errors.includes('account.spec.ts:58:78')) throw Error('Fault did not reproduce the original exact failure signature');
             const diagnostic = "    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toHaveCount(2);\n    await expect(page.getByTestId('account-save-notice').getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();\n    console.log('BOTH_BUTTONS ' + JSON.stringify({ all: await page.getByRole('button', { name: 'Sign in', exact: true }).count(), home: await page.getByTestId('home-page').getByRole('button', { name: 'Sign in', exact: true }).count(), notice: await page.getByTestId('account-save-notice').getByRole('button', { name: 'Sign in', exact: true }).count() }));\n";
             writeFileSync(spec, scoped.replace(fixed, diagnostic + fixed));
