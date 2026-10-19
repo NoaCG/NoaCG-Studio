@@ -20,6 +20,15 @@ Select resources on the executing worker with `node scripts/execution-profile.mj
 the coordinator's profile. GitHub Actions retains authoritative full PR/merge-group checks.
 Local checks and all existing local guards remain targeted; whole suites are refused off Actions.
 
+Before supported manual Actions dispatches, inspect existing job/run evidence with
+`node scripts/verification-dispatch.mjs -- workflow run <workflow> --ref <ref> ...`.
+The active GitHub Teams CI/E2E experiment uses observation only: report would
+WAIT/REUSE/RUN or UNRESOLVED, then preserve the existing dispatch behavior, order,
+failure handling and retry restrictions. Missing identity/reports never pass;
+observation does not prevent duplicates. See
+`docs/work-specs/verification-observation/runbook.md` for exact identity, supported
+paths, evidence gaps and the separate owner-confirmed activation procedure.
+
 A cloud worker uses what its machine has and runs browser and e2e checks itself (owner,
 2026-10-17, replacing the resource defaults of issue #1301 comment 6223002051). Only the laptop
 watches RAM and keeps its memory ladder and floors. The session start prints the cloud

@@ -125,7 +125,8 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    stay draft with no `land` label, auto-merge or queue entry.
 3. If status writes work, post `noacg/reviewed` on that SHA from the actual passing check and add
    `land`. Otherwise dispatch `.github/workflows/cloud-queue-merge.yml` **on main** with `branch`,
-   `sha` and the actual review verdict. With gh: `gh workflow run cloud-queue-merge.yml --ref main
+   `sha` and the actual review verdict. Observe existing verification first (verify.md);
+   use `node scripts/verification-dispatch.mjs -- workflow run cloud-queue-merge.yml --ref main
    -f branch=<branch> -f sha=<sha> -f review="<verdict>"`. Observe the dispatched run and its jobs;
    a dispatch acknowledgement is not a verdict. Main's helper refuses a moved tip and recovers
    the PR's own stale `Reviewed`; a denied read or timeout requires the repair owner's action.

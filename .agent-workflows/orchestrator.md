@@ -33,7 +33,8 @@ can see becomes a row.
 - **Open the wave**: `node scripts/wave-plan-store.mjs --open <date> <day|night> --until <iso>`.
   It refuses a second open wave and a window over 24 hours, and prints the wave file: the prompt,
   the work list, one line per launch and result, and the report go there. After a restart, open
-  the same date and kind again. Arm the wake-up as in `plan-run.md` step 1 (`--resume orchestrator`).
+  the same date and kind again. Select native coordination and a qualified bounded wake/fallback
+  through cloud-delegate; reuse existing session IDs rather than launching again after reconnect.
 - **Read once**: the prompt; `docs/GOALS.md` headings and the `## Outcomes` rank line; the last
   retro (`## Report` in the last wave file, `node scripts/wave-plan-store.mjs --list`); the machine
   (step 3). Read code only to settle a planning question; each row does its own research.
@@ -80,11 +81,10 @@ stay modest; when they finish, add rows. Under the `Schedule:` line's launch flo
 own worktrees on `<tool>/<letter>-<name>`, letters A, B, C never repeating in a wave; log each
 launch in the wave file: letter, branch, goal, time.
 
-- **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row` (`wave-row-deciding`
-  for one expensive judgement with the evidence in hand, `wave-row-mechanical` for a written
-  recipe). Each finished row wakes you.
-- **Codex:** `git worktree add -b <branch> <path> origin/main`, then `spawn_agent` with the prompt
-  and that absolute path as the row's only working directory; `wait_agent` with a timeout.
+- Use cloud-delegate's available native launch/worktree tools and completion events; record
+  each row's native ID in the wave file. Verify its source, branch and absolute working directory.
+- **Claude Code:** preserve agent `wave-row` (`wave-row-deciding` for one expensive judgement
+  with evidence in hand, `wave-row-mechanical` for a written recipe), including in a Workflow.
 
 The prompt, about fifteen lines:
 
@@ -129,15 +129,15 @@ Act when a row finishes or the timer fires, and at no other time:
   or cut a row short to fit one more: one finished, well-verified row beats two hurried ones.
 - Read `npm run jobs -- failed` (cloud: each row PR's GitHub checks and mergeability directly):
   each failed landing with its CI log. Acknowledge repair ownership before the worker ends.
-  That row, or one that ended without a PR, is sent the failure (Claude Code: SendMessage to the
-  row; Codex: `send_message`) and resumes in its own worktree. After two failed repairs, report it.
+  Send the failure to that row, or one that ended without a PR; steer/resume its original native
+  ID through cloud-delegate and confirm it resumed in its own worktree. After two failed repairs, report it.
   Another session's failed PR is that session's to repair; if no live session holds it, give it a row.
 - A row past twice the median with no result is reported, never killed; launch beside it only if
   the machine has room.
 
-Use queue-merge.md's proven cloud wake for late CI and base conflicts; jobs are not a cloud ledger. A timer covers a
-row that never reports: a background `sleep 1800` in Claude Code, re-armed while rows run; a
-30-minute heartbeat in Codex. End each turn with one line on what runs, never a promise to wait.
+Use queue-merge.md's proven cloud wake for late CI and base conflicts; jobs are not a cloud ledger.
+Native completions drive progress; cloud-delegate's single bounded wake/fallback covers a row
+that never reports. End each turn with one line on what runs, never a promise to wait.
 ## 5. End
 
 Stop launching when the next row would not land inside the window. When no row is running, wait

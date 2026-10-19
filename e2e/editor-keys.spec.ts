@@ -33,6 +33,17 @@ async function seek(page: Page, time: number) {
   await page.mouse.click(box.x + time / extent * box.width, box.y + 20);
   if (Math.abs(before - time) > .00001) await expect.poll(() => page.getByTestId('foundation-canvas').getAttribute('data-request')).not.toBe(request);
   await ready(page);
+  // A preceding pose can change data-request without acknowledging this seek.
+  // Await the correlated receipt and its rendered pose before editing at the new time.
+  await expect.poll(() => page.evaluate(async time => {
+    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
+    const view = session.port.view(), canvas = document.querySelector('[data-testid="foundation-canvas"]');
+    const poseTime = canvas?.getAttribute('data-pose-time');
+    return controller?.receipt(session.version(), view).state === 'ready' && Math.abs(view.time - time) < .00001 &&
+      poseTime !== null && poseTime !== undefined && Math.abs(Number(poseTime) - time) < .00001 &&
+      canvas?.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
+  }, time)).toBe(true);
 }
 async function setup(page: Page, spans: boolean | 'entrance' = false) {
   await page.goto('/app?editor=foundation#/editor-foundation');
