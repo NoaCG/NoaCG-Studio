@@ -2,6 +2,7 @@
 // covers: src/backend/graphicWhenSynced.ts
 
 import { test, expect } from '@playwright/test';
+import { beginDeepLinkObservation } from './_deepLinkObservation';
 import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
 
 // THE DEEP LINK, AT BOOT (docs/AGENT_SAVE.md). `noacg save` prints
@@ -78,6 +79,7 @@ test.describe('deep-link boot', () => {
   });
 
   test('a production link opens once signed in from it, and an absent one names only the account', async ({ browser, page }) => {
+    const observation = beginDeepLinkObservation(page);
     test.skip(!haveCreds, 'needs E2E_EMAIL/E2E_PASSWORD');
     test.setTimeout(180_000);
     const name = `Production link E2E ${Date.now()}`;
@@ -111,11 +113,13 @@ test.describe('deep-link boot', () => {
 
       // Signed in, and the id is in no account this reader has: not found, saying which account
       // is signed in and nothing about any production.
+      await observation.observeCurrentDocument();
       await page.goto(`/app#/production/${ABSENT_ID}`);
       await expect(page.getByTestId('production-missing')).toBeVisible({ timeout: 60_000 });
       await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
       await expect(page.getByTestId('production-missing-account')).toHaveText(`You are signed in as ${E2E_EMAIL}.`);
     } finally {
+      console.log('DEEP_LINK_STATE_OBSERVATION ' + JSON.stringify(await observation.finish()));
       await other
         .evaluate(async (n) => {
           const { deleteShow, loadShows } = await import('/src/model/shows.ts');
