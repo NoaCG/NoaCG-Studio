@@ -193,6 +193,7 @@ export function main(argv = process.argv.slice(2), { gh, observe = observeVerifi
       inputsResolved = false; // JSON stdin, shorthand/unknown fields need explicit resolution.
     }
   }
+  if (!workflow) inputsResolved = false; // An interactive workflow choice has no resolved identity.
   const ref = argument('--ref', '-r'), repository = argument('--repo', '-R');
   try { observe({ workflow, ref, repository, inputs, inputsResolved, request, print }); } catch { /* Existing command still runs exactly once. */ }
   const result = gh ? gh(args) : spawnSync('gh', args, { encoding: 'utf8', windowsHide: true, stdio: ['inherit', 'pipe', 'pipe'] });

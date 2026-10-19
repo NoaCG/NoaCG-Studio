@@ -165,6 +165,10 @@ test('documented gh short ref flags resolve before or after the workflow without
     assert.equal(observed.inputsResolved, true); assert.equal(observed.inputs.require_review, 'true');
     assert.equal(dispatched, 1);
   }
+  const args = ['workflow', 'run', '-r', 'feature'];
+  let observed;
+  assert.equal(main(['--', ...args], { observe(input) { observed = input; }, gh(actual) { assert.deepEqual(actual, args); return { status: 0 }; } }), 0);
+  assert.equal(observed.workflow, undefined); assert.equal(observed.inputsResolved, false);
 });
 
 test('failed manual/recovery acknowledgement has no automatic dispatch retry and logging is advisory', () => {
