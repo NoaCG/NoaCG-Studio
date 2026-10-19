@@ -2,6 +2,7 @@
 // covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 // covers: src/components/wizard/import/**
 // covers: src/components/{fields/**,HostedControlPage.tsx}
+// covers: src/components/home/GraphicControlPage.tsx, src/templates/shared/textFit.ts
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // assets/eraseRegion.ts is the deterministic flat-fill erase behind the Import Graphic Prepare
@@ -12,6 +13,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { lowerThirdPng } from './_png';
 import { addToProductionFromFinish, finishIntoNewEditor, openExportWindow } from './_create';
 import { editorPreview, mountWorkingDocument } from './_frame';
+import { settleDurableWrites } from './_durable';
 
 // The Import Graphic workflow, end to end (docs/IMPORT_MVP.md): a flat PNG design becomes
 // a working SPX template with editable text fields and per-layer animation.
@@ -211,6 +213,54 @@ test('import graphic: a new field is born with a slot, so a long value cannot ru
   expect(state.marked).toBe(true);
   expect(state.runtime).toBe(true);
   expect(state.hook).toBe(true);
+});
+
+test('import graphic: live long-to-short values restore the text size in the same control preview', async ({ page }) => {
+  await createImported(page);
+  await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
+  const width = page.getByRole('spinbutton', { name: 'Width', exact: true });
+  await width.fill('420');
+  await width.press('Enter');
+  await expect.poll(() => editorPreview(page).locator('#fw0').evaluate(el => getComputedStyle(el).maxWidth)).toBe('420px');
+
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Live text fit');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+  const row = page.locator('.lib-row', { hasText: 'Live text fit' });
+  await row.getByTestId('row-menu').click();
+  await row.getByTestId('open-control').click();
+  await expect(page.getByTestId('graphic-control-page')).toBeVisible();
+  await page.getByTestId('add-entry').click();
+  const name = page.getByTestId('entry-field-f0');
+  const frame = page.frameLocator('iframe[title="Graphic preview"]');
+  const line = frame.locator('#f0');
+  await name.fill('Ada Lovelace');
+  await page.getByTestId('control-play').click();
+  await expect(line).toHaveText('Ada Lovelace');
+  await line.evaluate(async () => { await document.fonts.ready; });
+  const drawnSize = await line.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  expect(drawnSize).toBeGreaterThan(0);
+  // Holding the actual Document proves an update, rather than a reload that clears fitted styles.
+  const previewDocument = await frame.locator('body').evaluateHandle(el => el.ownerDocument);
+
+  await name.fill('Alexandra Fitzgerald');
+  await page.getByTestId('control-update').click();
+  await expect(line).toHaveText('Alexandra Fitzgerald');
+  await expect.poll(() => line.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeLessThan(drawnSize);
+  const fitted = await line.evaluate(el => ({ width: el.getBoundingClientRect().width, size: parseFloat(getComputedStyle(el).fontSize) }));
+  expect(fitted.size).toBeGreaterThanOrEqual(drawnSize * .55 - .01);
+  expect(fitted.width).toBeLessThanOrEqual(421);
+
+  await name.fill('Ada Lovelace');
+  await page.getByTestId('control-update').click();
+  await expect(line).toHaveText('Ada Lovelace');
+  await expect.poll(() => line.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeCloseTo(drawnSize, 1);
+  expect(await previewDocument.evaluate(original => original === original.defaultView?.document)).toBe(true);
+  await previewDocument.dispose();
 });
 
 test('import graphic: the exported SPX package validates', async ({ page }) => {

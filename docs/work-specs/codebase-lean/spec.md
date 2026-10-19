@@ -1431,3 +1431,43 @@ coverage mappings, duplicate-data assertions and stale references; simplify reta
 original live promises and current shared helpers. All three check legs are inline. The
 helper/documentation phase is now ready for its exact-tip stamp and queue-merge. No local
 full suite or production build was run; authoritative full checks remain in Actions.
+
+
+### Independent coverage follow-up for #800 (2026-10-19)
+
+The read-only audit after #1496 found two C replacements that protected only part of the
+original live behavior. The owner requested finishing them before moving on, so #800 is
+reopened for this narrow follow-up. The existing cleanup remains landed. The two rows now
+record resolved G destinations, giving 268 G, 92 C and 116 R across the same 476 rows.
+
+The imported placed-text journey saves through the current editor, opens the saved graphic
+from Home, and sends short, long and short values through its control-page entry and Play/Update.
+It checks shrink, slot containment, the 55% floor and recovery to the original font size while
+holding the same preview Document. Authoring changes or Undo cannot stand in for a live update.
+The editor usability journey explicitly focuses Project and presses real Space: the button
+opens its panel while the playback clock stays parked and no Pause control appears. Its
+focused-input predecessor exercised a different guard and did not prove button activation.
+
+Both new tests passed in queue j-0003 (9.7 seconds, two workers). Temporary response mutations
+in j-0004 changed only the served modules, leaving every assertion intact: removing the
+placed-text font-size reset failed recovery with 41.5468px retained instead of 55px, and
+forcing activatableFocus false swallowed Project's native activation. Both tests failed at
+the relevant assertions. The interception hooks were removed after the probe; no production
+source changed. The first text fixture exceeded the existing 55% floor and was shortened to
+exercise recoverable shrink without changing the assertions or runtime.
+
+Final complete-file queue j-0006 passed all 31 cases, zero skips, in 1.7 minutes with two
+workers and the standard integrity reporter. TypeScript, ESLint, changed E2E protection and
+all five selected gates passed. The capacity estimate remains WARN at 98.1%, with no table
+minute increase or new exception. Review and simplify ran inline against main
+6e63f9a1581f95177692725bab60d36801b1c203. PR #1500's first CI passed both browser shards,
+but Build exposed a planner fixture assuming spaceKey.ts was still uncovered. Repair 1
+retained every escalation assertion using the uncovered useIsMobile.ts and added an explicit
+selection check for the newly covered shortcut. All 93 planner tests passed; the final
+five-file diff includes this fixture correction and no production source change.
+The earlier reporter-only j-0005 attempt was cancelled and is not used
+as verification; j-0006 ran the normal reporter configuration. No whole local suite or app
+production build was run for this test/evidence change. No test was removed or skipped and
+no gate, assertion, resource limit, maintenance allowance or budget exception was loosened.
+The additional insertion operator-field journey is tracked separately in #1499; it is not
+claimed here. Step 6's narrow release and editor Phase 2 repair/acceptance remain separate.
