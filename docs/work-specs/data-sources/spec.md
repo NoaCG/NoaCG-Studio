@@ -20,7 +20,9 @@ plan. Whole-graphic connections and downloadable starter data are included in C1
 the earlier P1–P6 additions. The parent now includes all 22 steps in one project. This authorizes
 planning edits only. The supplied 19 October Pixotope and broader competitor research now
 sharpens source/output feedback and acceptance below; the final whole-plan second opinion
-remains pending. No run is opened by this update.
+has been reconciled. The owner subsequently selected E4/E5/E7 as separate later child phases
+of the same production-page programme; see [the extension contract](../production-page-refactor/extensions.md).
+C0–C7 and Q below retain their scope and order. No run is opened by this update.
 
 ## What the reconciliation changed
 
@@ -81,7 +83,10 @@ system, sees the rendered result, and saves. A live connection follows changing 
 message or table row becomes a cue the operator Takes. The source alone never decides which
 behaviour applies, and nothing a viewer sends airs by itself.
 
-## Non-goals
+## Non-goals of C0–C7
+
+These are tranche boundaries, not a prohibition on the separately selected E4/E5/E7 and
+E1–E3 phases later in the same programme. Their executable child specs own those additions.
 
 - Data operating the show: no source takes, advances, clears or removes a graphic.
 - Writing back to a Sheet or a feed; a formula or general mapping language.
@@ -89,13 +94,14 @@ behaviour applies, and nothing a viewer sends airs by itself.
 - Private Sheets through Google sign-in or new platform OAuth without a reviewed access design.
 - Automatic airing of a message or vote; a new renderer, command log or API wire format.
 - A new general data store, a shared content workspace, a docked message tray, grid editors or
-  a scoreboard preset in this run.
+  a scoreboard preset in C0–C7.
 - Server-side YouTube intake, new persistent Twitch support, JSON address mapping, repairing
   name-keyed bindings on a graphic rename.
 - SVG import or custom-action authoring redesign, a general relational mapper, the installable
   election package and per-cue live candidate selection. Preserve existing SVG text, quiz,
-  scoreboard and operator-control behavior. Foreign OGraf ingestion, a NoaCG OGraf server,
-  native SDI/NDI outputs and Bridge packaging changes are later work.
+  scoreboard and operator-control behavior. Election selection/package and foreign OGraf are
+  now owned by E7 and E1–E3 after the baseline. A NoaCG OGraf server, native SDI/NDI outputs
+  and Bridge packaging changes remain outside this programme.
 - Excel Online and local TXT/CSV/JSON/XLSX source readers: tracked in
   [#1507](https://github.com/NoaCG/NoaCG-Studio/issues/1507). CSV starter downloads are in scope;
   live local-file reading is not. RSS/Atom remains C4.
@@ -673,53 +679,33 @@ their named checks, not a second suite to rerun on unchanged inputs:
 
 The owner agreed the reconciled plan and all four synthesis §7 decisions on 2026-10-18, then
 authorized incorporating the 19 October refinements and completed competitor findings. The
-parent's pending final whole-plan review applies to this updated version too.
+Argon review has been reconciled and the selected extensions now have separate executable
+child specs under the parent. No extension changes the C0–C7 acceptance below.
 Before a run: the parent's run preflight and a separate owner start instruction. C0 needs no
 refactor phase before it. This update does not start the run.
 
 Before C1: refactor phases 1, 2+7 and 13a checked PASS on `main`; Q recorded with the Sheet
 measurement inside D3 or the plan stopped and asked; this spec and the audience spec agreed;
-digests current and `work-spec.mjs status` clean.
+digests current and `work-spec.mjs status` structurally valid (open runtime criteria are expected).
 
 Before C2: the tick's cost estimate from Q reviewed; the hosting plan's cron confirmed.
 
-## Future external-API connection slice (proposal)
+## External-API connection slice: selected extension, outside C0–C7
 
-This P1 proposal is separate from C0–C7's agreed no-JSON-mapping scope. C5 remains the existing
-bearer-authenticated API, a prepared collector/sender and saved bindings, not a generic scraper.
-Collection happens in a provider adapter or external automation; the NoaCG API receives data.
-Private Sheets/OAuth, local Excel/files (#1507), licensed sports feeds and high-rate ingestion
-each need their own access/capability decision. RSS/Atom stays in C4.
+The former later proposal is now selected by the owner for the same programme after baseline
+close-out. [E4](../playout-external-connectors/spec.md) owns trusted JSON acquisition, credential
+references, bounded reads, fencing and Pause. [E5](../playout-api-mapping/spec.md) owns sample-first
+bounded mapping in Connect data. [E7](../playout-election-package/spec.md) owns stable cue-specific
+candidate selection and the installable election package. Their exact order is in the parent's
+[extension contract](../production-page-refactor/extensions.md). C5 remains the existing API
+and prepared sender, not a generic scraper; the baseline no-JSON-mapping boundary is preserved.
 
-**Proposed journey:** choose a provider preset or generic JSON endpoint → configure endpoint and
-authentication in a trusted service/adapter → inspect a real sample with readable labels/values
-→ select a scalar/collection and stable record ID where selection matters → apply bounded column
-selection, row filtering, sorting, limits, number/date formatting or explicit fallback → validate
-the destination, preview and explicitly Connect. Use the same graphic-level entry and optional
-field repair; raw path syntax is not the beginner default.
-
-Transforms belong upstream of the target adapter. Native string-valued templates and future
-typed foreign OGraf controls need distinct final representations; do not universalize SPX string
-conversion or change today's wire here. Reuse the production data store, source identity and
-binding write path. An optional local adapter can reach private APIs/databases; alternatively,
-external automation posts to the existing API. Browsers/graphics do not each connect to databases.
-Provider secrets stay in the trusted service, never downloadable templates or ordinary show
-exports. Signed webhooks, retries, ordering/deduplication, rate limits, source-age detection and
-credential failure need an explicit connector policy; HTTP support alone proves none of these.
-
-**Dependencies and specification gate:** agree the first real provider/use case, trusted execution
-and secret ownership, supported operations, stable-ID/selection contract and connector policy.
-Reconcile typed representation with OGraf package E and richer collections with EDITOR_PLAN;
-do not add a second scene/data model. These decisions authorize a later specification, not
-implementation through the current run.
-
-**Ready condition for that later slice:** a fixture-backed authenticated endpoint supplies one
-scalar and one keyed collection; sample/transform/validation/rendered preview match actual target
-values; row reorder retains selection; incompatible data is diagnosed before binding; timeout,
-malformed, duplicate and out-of-order input follow the declared policy; valid empty versus failure
-has distinct outcomes; export contains no provider secret; unauthorized reads fail; Pause/Resume
-is proven or unavailable explicitly; data never triggers a production transition. Include one
-actual provider receipt and report untested adapters as unsupported. Future phases must own
-these checks before this proposal becomes runnable.
+Those children supersede the earlier proposal's unresolved provider/transform/identity questions:
+the first required source is a controlled authenticated JSON election replay provider, using the
+existing production-data route; source JSON stays typed before the destination adapter. No secret
+travels in a downloaded template or ordinary show export. Actual official-feed access remains a
+separate qualification, never inferred from the replay provider. Private Sheets/OAuth, local
+Excel/files (#1507), licensed sports providers and high-rate transport still need their own scope
+and access decision. RSS/Atom remains C4. No implementation or run starts from this specification.
 
 ## Phase notes

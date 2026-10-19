@@ -1,6 +1,10 @@
 # Full-run second-opinion prompt: NoaCG playout, data, OGraf and hardware control
 
-Copy this entire document to the reviewing agent. Review candidate prepared 19 October 2026.
+Historical review candidate prepared 19 October 2026. Following the owner’s approval to specify
+the selected extensions, the authoritative executable plan is now
+[the parent](../../work-specs/production-page-refactor/spec.md) plus
+[the exact sequence and child specs](../../work-specs/production-page-refactor/extensions.md).
+Use those for further review; “candidate/not selected” wording below records the earlier proposal.
 Revised after [checking Argon’s feedback](14-argon-review-reconciliation.md) against main
 `70714e8f5`. The 22 baseline steps are unchanged; extension ordering and acceptance are refined.
 

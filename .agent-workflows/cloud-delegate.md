@@ -16,6 +16,8 @@ enable optional modes or broaden access just to obtain a newer orchestration pat
 
 - **Claude Code:** prefer available native background sessions, Agent completion events
   and session inventory/attach/logs/resume (`claude agents`, `claude --bg` where supported).
+  `claude --bg` and attaching through `claude agents` require a trusted folder.
+  If refused, use the Agent tool with `run_in_background`; resume by agent ID with `SendMessage` and check the reply.
   Use Workflow for bounded parallel work only when it preserves each row/phase admission,
   owned worktree, resource limits, worker identity and retrievable results. Otherwise use
   the named Agent/session route with `run_in_background` when exposed, or its supported

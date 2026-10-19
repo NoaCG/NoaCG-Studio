@@ -161,8 +161,8 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   signed out; saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
   - **The playout dashboard comes first, with data and messages** (owner, 2026-10-19): all 22 steps
-    plus Q in one `/plan-run production-page`; order and start gates: `work-specs/production-page-refactor/spec.md`.
-    Whole-graphic connections and starter data; final CasparCG/Bridge and OBS/browser acceptance. Execution not started.
+    plus Q and selected H0/E1–E8 in one `/plan-run production-page`; exact order: `work-specs/production-page-refactor/extensions.md`.
+    Data/API, election, Companion and typed OGraf; final CasparCG/Bridge and OBS/browser acceptance. Execution not started.
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs; more than that is optional.
   - **Shared productions,** proved by verification before anything is rebuilt: members join the

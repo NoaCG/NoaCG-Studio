@@ -1,13 +1,19 @@
 # NoaCG custom graphics: from collected data to air
 
+**Current adopted plan:** [exact 40-phase sequence and nine executable child specs](../../work-specs/production-page-refactor/extensions.md),
+with all 22 baseline steps and Q retained. Owner selected the extensions on 19 October; main
+was reconciled at `4e067b656`. [Planning receipt](../../work-specs/production-page-refactor/evidence/extension-reconciliation-2026-10-19.md).
+No implementation or run has started. The review proposals below are historical.
+
 **Latest review:** [Argon feedback reconciliation](14-argon-review-reconciliation.md) accepts the
 election-first sequencing and strengthens candidate-selection tests, while correcting factual
 errors against main `70714e8f5`. The [original feedback](argon-review-2026-10-19.txt) is preserved.
-Only the review candidate is revised; no new extension is authorized or implemented.
+That review revised only a candidate; the later owner instruction now adopts the selected
+extensions as executable planning scope, linked above. Implementation remains unstarted.
 
 **Full-run review prompt:** [22-step baseline, Companion qualification and proposed competitive extensions](13-full-run-second-opinion.md).
 Self-contained second-opinion handoff with ready conditions, evidence limits and a recommended
-expanded programme. Extensions are review candidates, not changes to the agreed executable specs.
+expanded programme, superseded for execution by the adopted child specs linked above.
 
 Research prepared 18 October 2026, followed by owner refinements on 19 October. No product implementation or plan execution. The 19 October integration now updates the actual work specs with the owner's authorization; the earlier research-only status is historical.
 

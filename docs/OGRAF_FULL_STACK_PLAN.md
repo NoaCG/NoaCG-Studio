@@ -303,6 +303,17 @@ must agree on the shared contract before branching. E is a focused extension of 
 control model. F/G/H remain the existing ladder, not a newly authorized competing programme.
 No outreach, release or production deployment is part of these research changes.
 
+### Production-page execution mapping, 2026-10-19
+
+The owner has now selected the relevant A/E/F work for the expanded production-page programme:
+[E1 typed contract](work-specs/playout-ograf-contract/spec.md),
+[E2 controls/steps](work-specs/playout-ograf-controls/spec.md), and
+[E3 normal rundown](work-specs/playout-ograf-rundown/spec.md), followed by
+[E8 final acceptance](work-specs/playout-expanded-acceptance/spec.md).
+These child specs implement the milestones below once execution is separately started; do not
+launch duplicate A/E/F workers. C0–C7 scope is unchanged. G/H/J, the full Server API/outward
+adapter/native output engine, remain outside this selected run. Runtime acceptance remains open.
+
 ### 8.1 Typed controls and foreign-package acceptance refinement, 2026-10-19
 
 The owner-supplied competitor research inspected baseline
