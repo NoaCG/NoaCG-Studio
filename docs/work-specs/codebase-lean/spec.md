@@ -1456,8 +1456,14 @@ the relevant assertions. The interception hooks were removed after the probe; no
 source changed. The first text fixture exceeded the existing 55% floor and was shortened to
 exercise recoverable shrink without changing the assertions or runtime.
 
-Final complete-file verification and targeted gates are pending. No whole local suite or app
-production build is needed for this test/evidence change. No test was removed or skipped and
+Final complete-file queue j-0006 passed all 31 cases, zero skips, in 1.7 minutes with two
+workers and the standard integrity reporter. TypeScript, ESLint, changed E2E protection and
+all five selected gates passed. The capacity estimate remains WARN at 98.1%, with no table
+minute increase or new exception. Review and simplify ran inline over the four-file diff
+against main 6e63f9a1581f95177692725bab60d36801b1c203; no additional finding or source
+change was needed. The earlier reporter-only j-0005 attempt was cancelled and is not used
+as verification; j-0006 ran the normal reporter configuration. No whole local suite or app
+production build was run for this test/evidence change. No test was removed or skipped and
 no gate, assertion, resource limit, maintenance allowance or budget exception was loosened.
 The additional insertion operator-field journey is tracked separately in #1499; it is not
 claimed here. Step 6's narrow release and editor Phase 2 repair/acceptance remain separate.
