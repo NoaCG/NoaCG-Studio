@@ -1,223 +1,72 @@
-# THE E2E DURATIONS TABLE, RE-RECORDED ON A SCHEDULE - and PROPOSED, never pushed.
-#
-# `scripts/e2e-durations.json` is the measured per-spec table CI divides the E2E suite with
-# (`packShards`) plus the per-job overhead it judges a shard against its 20-minute cap with. It is
-# recorded from a real CI run's shard reports, because that is the hardware it describes, and until
-# now that recording was a command somebody had to remember: `npm run record:e2e-durations`.
-#
-# Nobody remembered. The table sat 15 days stale in August (131 specs against a suite that had
-# grown to 147) and 12 days stale in September, both times while `check:e2e-durations` reported it
-# correctly every week inside `check:freshness` - which is a weekly REPORT, and a report nobody
-# acts on for a fortnight is indistinguishable from no report (docs/CI_STABILITY.md §4).
-#
-# WHAT STALENESS COSTS NOW. Until 2026-09-04 the table only decided how many runners a plan asked
-# for, and `shardsFor` caps at nine, so a full run asked for nine either way. Since `packShards`
-# began bin-packing spec files by measured duration, the table decides shard BALANCE - and an
-# unbalanced shard set is what killed four of thirty `main` runs at the cap on 2026-09-03/04. The
-# nine bins were packed to within 0.03 minutes of each other when the table was recorded; measured
-# over the 25 newest green full runs on 2026-09-16 the shard means spread 2.20 minutes, about 1.2
-# minutes on every full run. The overhead term drifts with it, so a stale table also gives the
-# wrong answer to "does this plan FIT the cap", which is a verdict rather than a delay.
-#
-# IT OPENS A PULL REQUEST AND NEVER PUSHES. This table sets the budget every E2E plan is judged
-# against; a job that both measures the budget and commits the measurement is a gate editing its
-# own budget with nobody watching. So this branch is a proposal: no `noacg/reviewed` stamp, no
-# `land` label, no auto-merge. A person reads the diff and takes it through the queue like any
-# other branch. The rule was written down when the mechanism was first asked for, on 2026-09-04:
-# `git show a2cf9f88^:docs/backlog/the-durations-table-is-refreshed-by-hand.md`.
-#
-# AND IT ONLY ASKS WHEN THE ANSWER MOVED. Every number here jitters weekly, so `--refresh` records,
-# compares against the table on `main` and throws the recording away unless it clears a threshold
-# tied to a real cost (`REFRESH_THRESHOLDS`, scripts/e2e-durations.mjs): a spec file nobody has
-# measured, 10% on the suite total, a minute on a shard's budget, or 1.5 table-minutes off the
-# slowest shard. The last two clear a NOISE FLOOR that was measured rather than guessed: two green
-# full runs an hour apart, recorded over the same 151 spec files, disagreed by 4.0% on the total
-# and 0.6 table-minutes on the slowest shard with nothing about the suite changed. A pull request
-# that arrives every Monday regardless is the weekly report again.
-#
-# Secret-free, like weekly-audit.yml (docs/STACK_FRESHNESS.md): the workflow's own token reads the
-# run, downloads its blob reports and opens the pull request, and nothing here spends money.
-
+# Disposable read-only measurement probe; never queue this branch.
 name: e2e-durations-refresh
-
 on:
-  schedule:
-    # Mondays, half an hour before weekly-audit.yml, so both land in the same Monday reading. Never
-    # more often: blob artifacts live 7 days, which is also how fast the table can go unmeasurably
-    # stale, and a proposal that arrives twice a week is one a person starts closing unread.
-    - cron: '30 5 * * 1'
-  workflow_dispatch: {}
-
-# `contents: write` is for the bot branch below and for nothing else. Direct pushes to `main` are
-# refused by the ruleset (scripts/landing-ruleset.mjs) whatever this token holds, which is what
-# makes "it opens a pull request" a fact about the branch rather than a promise in a comment.
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'Comma-separated successful full CI run IDs to measure.'
+        required: true
+        type: string
 permissions:
-  contents: write
-  pull-requests: write
-  # Read: the run it records from, and that run's blob reports. Write: the `gh workflow run ci.yml`
-  # that gives the pull request its `CI gate` when the bot App is not set up, which a read-only token
-  # is refused (HTTP 403).
-  actions: write
-  issues: write # the rolling alarm at the bottom
-
-# One at a time: two refreshes racing would force-push the same branch from two recordings.
+  contents: read
+  actions: read
 concurrency:
-  group: e2e-durations-refresh
+  group: runtime-measure-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
-  refresh:
+  measure:
     runs-on: ubuntu-latest
-    # `npm ci` and then downloading nine blob artifacts to merge are the whole cost; both took a
-    # few minutes each when this was run by hand on 2026-09-16. The cap is deliberately loose -
-    # a job killed at its own limit reports no verdict at all (docs/VERIFICATION.md), and this
-    # one has nothing to gain from a tight deadline.
     timeout-minutes: 20
     steps:
-      # THE BOT'S OWN TOKEN. It opens the table proposal below.
-      # A GitHub App installation token makes the bot's push and pull request start their own CI,
-      # which GITHUB_TOKEN never does, and GitHub holds none of those runs for approval. Without the
-      # App configured (repository variable NOACG_BOT_CLIENT_ID, secret NOACG_BOT_PRIVATE_KEY) this
-      # step is skipped and the job falls back to the workflow token, as before.
-      - name: Bot token
-        id: bot
-        if: ${{ vars.NOACG_BOT_CLIENT_ID != '' }}
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.NOACG_BOT_CLIENT_ID }}
-          private-key: ${{ secrets.NOACG_BOT_PRIVATE_KEY }}
-          permission-contents: write
-          permission-pull-requests: write
-
       - uses: actions/checkout@v5
         with:
-          # The push below uses this credential.
-          token: ${{ steps.bot.outputs.token || github.token }}
-
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
-
-      # `merge-reports` is Playwright's own, so the dev dependencies have to be here. No browsers:
-      # nothing is executed, the shard reports are only read.
-      - name: Install dependencies
-        run: npm ci
-
-      # Records from the newest green FULL ci.yml run on `main` and refuses a half-run
-      # (`fullRunRefusal`). Leaves `scripts/e2e-durations.json` either refreshed or byte-for-byte
-      # as it was, and says which on `material`.
-      - name: Re-record the durations table
-        id: refresh
+      - uses: ./.github/actions/node-modules
+      - name: Read optimized full reports without running tests
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: node scripts/e2e-durations.mjs --refresh --body "$RUNNER_TEMP/pr-body.md"
-
-      # The same sequence `queueStoreChange` runs in JS for the quarantine's bot branches
-      # (scripts/e2e-quarantine.mjs), minus every step that turns a proposal into a landing - the
-      # stamp, the label and the auto-merge. It is in shell here because the recording has to happen
-      # BEFORE the branch exists: it is the expensive part, and it is what decides whether there is
-      # anything to propose at all.
-      #
-      # The branch is cut from `origin/main` rather than from whatever ref dispatched this, so a
-      # test dispatch from a feature branch still proposes the table change ALONE. The table is
-      # carried across the switch by hand because a checkout cannot take a dirty file to a ref that
-      # holds a different version of it.
-      - name: Open or update the pull request
-        if: ${{ steps.refresh.outputs.material == 'true' }}
-        env:
-          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
-          BOT_APP: ${{ steps.bot.outputs.token != '' }}
-          GH_REPO: ${{ github.repository }}
-          # Also `REFRESH_BRANCH` in scripts/e2e-durations.mjs, which writes it into the pull
-          # request body; a test asserts the two strings agree.
-          BRANCH: bot/e2e-durations
-          RUN_ID: ${{ steps.refresh.outputs.run }}
-          SUMMARY: ${{ steps.refresh.outputs.summary }}
+          RUN_IDS: ${{ inputs.runs }}
         run: |
-          set -euo pipefail
-          cp scripts/e2e-durations.json "$RUNNER_TEMP/e2e-durations.json"
-          git fetch --no-tags origin main
-          git checkout --force -B "$BRANCH" FETCH_HEAD
-          BASE="$(git rev-parse HEAD)"
-          cp "$RUNNER_TEMP/e2e-durations.json" scripts/e2e-durations.json
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/e2e-durations.json
-          # Materiality was judged against the ref this job checked out, which on a test dispatch is
-          # not `main`. If the recording turns out to match `main` byte for byte anyway, there is
-          # nothing to propose - and `git commit` on an empty index would fail the job and raise an
-          # alarm about a refresh that worked perfectly.
-          if git diff --cached --quiet; then
-            echo 'The recording matches the table on main already - nothing to propose.' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          git commit -m "Re-record the E2E shard durations from run $RUN_ID" -m "$SUMMARY" \
-            -m "Recorded by .github/workflows/e2e-durations-refresh.yml; the pull request body has the full comparison."
-          # Force, because the branch is fully regenerated every time and belongs to this job
-          # alone. Unlike scripts/queue-pr.mjs, a CLOSED pull request here does not mute the next
-          # one: last week's numbers being refused says nothing about this week's measurement.
-          git push --force origin "HEAD:refs/heads/$BRANCH"
-          EXISTING="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')"
-          if [ -n "$EXISTING" ]; then
-            # The body is rewritten too: a week-old body over this week's diff describes numbers
-            # that are no longer the ones in it.
-            gh pr edit "$EXISTING" --title "Re-record the E2E shard durations from run $RUN_ID" --body-file "$RUNNER_TEMP/pr-body.md"
-            # SAY THAT THE TIP MOVED. `noacg/reviewed` is a status on one sha, so a force-push over
-            # a pull request somebody already stamped leaves auto-merge waiting on a check that can
-            # never arrive, with nothing on the page explaining why. The comment is the explanation;
-            # the stamp is re-posted by whoever reviews the new numbers.
-            gh pr comment "$EXISTING" --body "Re-recorded from run $RUN_ID, so this branch's tip has moved. Any \`noacg/reviewed\` stamp on the previous commit no longer applies to it - review the new numbers and stamp again."
-            echo "Updated $GITHUB_SERVER_URL/$GH_REPO/pull/$EXISTING" >> "$GITHUB_STEP_SUMMARY"
-          else
-            URL="$(gh pr create --base main --head "$BRANCH" --title "Re-record the E2E shard durations from run $RUN_ID" --body-file "$RUNNER_TEMP/pr-body.md")"
-            echo "Opened $URL" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          # A branch pushed with the workflow's token starts NO run of its own (GitHub's rule for
-          # GITHUB_TOKEN), so the pull request would sit with no `CI gate` at all. `workflow_dispatch`
-          # IS allowed from the token - the same door scripts/queue-pr.mjs uses - and `diff_base`
-          # keeps it from escalating to the whole suite for a file no spec can observe. The
-          # `Reviewed` half is deliberately NOT asked for: that stamp is the person's, and this
-          # pull request is waiting for one.
-          # With the App token the pull request has started its own run already.
-          if [ "$BOT_APP" != "true" ]; then gh workflow run ci.yml --ref "$BRANCH" -f "diff_base=$BASE"; fi
-
-      - name: Say so when nothing moved
-        if: ${{ steps.refresh.outputs.material != 'true' }}
-        run: echo 'The table on main still describes this suite - nothing proposed. The step log has the numbers.' >> "$GITHUB_STEP_SUMMARY"
-
-      # Fail-loud, and branch-guarded like every rolling alarm here (docs/CI_STABILITY.md class 6):
-      # an alarm is a statement about `main`, so a dispatch from a branch may neither raise nor
-      # withdraw one. A refresh that has been failing for a month is the same silence this workflow
-      # was built to end, so it cannot be allowed to fail quietly.
-      - name: File / update the failure issue
-        if: ${{ failure() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TITLE="E2E durations refresh is red"
-          RUN="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          BODY=$(printf '%s\n%s\n\n%s' \
-            "The measured E2E shard durations were not re-recorded. Likely: no green FULL ci.yml run on main within the last 20, blob artifacts already expired (7 days), or Actions is not allowed to open pull requests here." \
-            "scripts/e2e-durations.mjs says what a refresh needs; \`npm run record:e2e-durations\` does the same thing by hand." \
-            "Run: $RUN")
-          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
-          if [ -n "$EXISTING" ]; then
-            gh issue comment "$EXISTING" --body "Still red. $BODY"
-          else
-            gh issue create --title "$TITLE" --body "$BODY"
-          fi
-
-      # …and self-closing, like every rolling issue here: a green run means the table is being
-      # measured again, so the alarm must not stay latched.
-      - name: Close the failure issue
-        if: ${{ success() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TITLE="E2E durations refresh is red"
-          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
-          if [ -n "$EXISTING" ]; then
-            gh issue close "$EXISTING" --comment "The durations refresh ran again: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          fi
+          node --input-type=module <<'JS'
+          import { execFileSync } from 'node:child_process';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { readTable, fullRunRefusal, slowRunnerMinutes } from './scripts/e2e-durations.mjs';
+          import { assess } from './scripts/e2e-capacity.mjs';
+          import { specFilesOnDisk } from './scripts/e2e-durations.mjs';
+          const optimized = '299ee5fd9afe6a53695b245234cbef83882dc2d6';
+          const baseline = readTable();
+          const measurements = [];
+          const ids = process.env.RUN_IDS.split(',').map(s => s.trim());
+          if (!ids.length || !ids.every(id => /^\d+$/.test(id))) throw Error('Expected numeric run IDs');
+          for (const id of ids) {
+            const meta = JSON.parse(execFileSync('gh', ['run', 'view', id, '--json', 'headSha,event,status,conclusion,jobs'], { encoding: 'utf8' }));
+            const refusal = fullRunRefusal(meta.jobs);
+            if (refusal || meta.status !== 'completed' || meta.conclusion !== 'success') throw Error(`Run ${id} is not a successful complete full CI: ${refusal ?? meta.conclusion}`);
+            execFileSync('git', ['fetch', '--no-tags', 'origin', meta.headSha], { stdio: 'inherit' });
+            execFileSync('git', ['diff', '--exit-code', optimized, meta.headSha, '--', 'src', 'e2e', 'playwright.config.ts', 'package.json', 'package-lock.json'], { stdio: 'inherit' });
+            execFileSync('node', ['scripts/e2e-durations.mjs', '--record', id], { stdio: 'inherit' });
+            measurements.push({ id, sha: meta.headSha, event: meta.event, table: JSON.parse(readFileSync('scripts/e2e-durations.json', 'utf8')) });
+          }
+          const latest = measurements.at(-1).table;
+          const minutes = slowRunnerMinutes(measurements.map(m => m.table.minutes));
+          // Never enlarge the current envelope through a lower overhead reading.
+          const overhead = { ...latest.overhead,
+            jobMinutes: Math.max(baseline.overhead.jobMinutes, ...measurements.map(m => m.table.overhead.jobMinutes)),
+            testFactor: Math.max(baseline.overhead.testFactor, ...measurements.map(m => m.table.overhead.testFactor)),
+          };
+          const table = { source: {
+            run: measurements.at(-1).id, runs: ids, workflow: 'ci.yml', branch: 'codex/reduce-ci-trace-overhead',
+            sha: optimized, mode: 'full', recordedAt: new Date().toISOString().slice(0, 10), percentile: 0.8,
+            observations: measurements.map(({id, sha, event}) => ({run: id, sha, event})),
+            why: 'Complete full CI on identical optimized product/test/configuration bytes, recorded by the existing recorder. Overhead cannot enlarge the previous envelope.'
+          }, minutes, overhead };
+          const result = assess({ table, suite: [...specFilesOnDisk(), 'save-copy-arrival.spec.ts'], changed: ['save-copy-arrival.spec.ts'], exceptions: [] });
+          console.log('OPTIMIZED_CAPACITY', JSON.stringify(result));
+          console.log('RUNTIME_TABLE_BEGIN');
+          console.log(JSON.stringify(table, null, 2));
+          console.log('RUNTIME_TABLE_END');
+          JS
