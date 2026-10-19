@@ -1,0 +1,65 @@
+{
+  "initialSource": "86e795dc9f66183633d7c99a73bea8c27e4e32f6",
+  "originalFailingSource": "901116aab4a9f19843631940cf4596b2595c9f1e",
+  "originalRun": 39259495974,
+  "originalAttempt": 1,
+  "originalJob": 118087214783,
+  "artifactId": 12189853796,
+  "artifactSha256": "dc76f062589d11a16f1d4a451424986dd21d05c96199fe62558accdf6ba69b60",
+  "maintainedSpecSha256": "4c946a7ddd997e00a9fde680813ad7441d5b4d826f1795835f7aae2fecd45929",
+  "maintainedSpecByteEqual": true,
+  "maintainedCases": 14,
+  "jobs": [
+    {
+      "id": "j-0001",
+      "command": "npm run test:e2e -- e2e/editor-keys.spec.ts --grep 'nested SVG armed' --retries=0",
+      "branch": "codex/repair-editor-keys-gate",
+      "capMinutes": 5,
+      "retryCount": 0,
+      "enqueuedAt": 1792426300999,
+      "startedAt": 1792426301144,
+      "finishedAt": 1792426311206,
+      "state": "done",
+      "exitCode": 0
+    },
+    {
+      "id": "j-0002",
+      "command": "npm run test:e2e -- e2e/editor-keys.spec.ts --grep 'nested SVG armed' --retries=0",
+      "branch": "codex/repair-editor-keys-gate",
+      "capMinutes": 5,
+      "retryCount": 0,
+      "enqueuedAt": 1792426343986,
+      "startedAt": 1792426346246,
+      "finishedAt": 1792426354721,
+      "state": "done",
+      "exitCode": 0
+    },
+    {
+      "id": "j-0003",
+      "command": "npm run test:e2e -- e2e/editor-keys.spec.ts --grep 'nested SVG armed' --retries=0",
+      "branch": "codex/repair-editor-keys-gate",
+      "capMinutes": 5,
+      "retryCount": 0,
+      "enqueuedAt": 1792426380689,
+      "startedAt": 1792426381333,
+      "finishedAt": 1792426389604,
+      "state": "done",
+      "exitCode": 0
+    },
+    {
+      "id": "j-0004",
+      "command": "npm run test:e2e -- e2e/editor-keys.spec.ts --grep 'nested SVG armed' --retries=0",
+      "branch": "codex/repair-editor-keys-gate",
+      "capMinutes": 5,
+      "retryCount": 0,
+      "enqueuedAt": 1792426423078,
+      "startedAt": 1792426426448,
+      "finishedAt": 1792426435389,
+      "state": "done",
+      "exitCode": 0
+    }
+  ],
+  "matchingFailureReproduced": false,
+  "repairProved": false,
+  "quarantineChanged": false
+}
