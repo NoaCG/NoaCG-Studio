@@ -1,0 +1,87 @@
+{
+  "source": "a56fe245b095bfde3ebb9ef16f7189239fedc2ca",
+  "run": 39309903933,
+  "job": 118256488565,
+  "artifact": 12216070054,
+  "sha256": "839abceec32895511e5d610df23de213eba06a3561c2a6fd8c956ba0c8b31cbf",
+  "stats": {
+    "startTime": "2026-10-19T19:20:53.697Z",
+    "duration": 60316.234,
+    "expected": 6,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "a signed-out deep link keeps its address @production",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 5855
+        }
+      ]
+    },
+    {
+      "title": "a signed-out production link asks for a sign-in rather than calling it gone @production",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 2471
+        }
+      ]
+    },
+    {
+      "title": "a production link opens once signed in from it, and an absent one names only the account",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 9626
+        }
+      ]
+    },
+    {
+      "title": "a graphic saved elsewhere opens on its link, however slow the pull",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 23303
+        }
+      ]
+    },
+    {
+      "title": "a sync asked for during a pass waits for one that can see the new data",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 9767
+        }
+      ]
+    },
+    {
+      "title": "an absent production is answered by its completed pass while unrelated writes remain pending",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "durationMs": 6817
+        }
+      ]
+    }
+  ],
+  "originalCasesUnchanged": 5,
+  "additiveRegressions": 1,
+  "disposableInstrumentation": false,
+  "tracePageErrors": 0
+}

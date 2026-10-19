@@ -42,7 +42,7 @@ proof. The original failed run and its passing retry remain recorded as a failur
   check passed. Reached gates passed (3 factory files, 42 cases, including the 8 receipt cases).
   These static checks are not browser repair proof.
 
-## Browser proof ledger (pending)
+## Browser proof ledger
 
 - Baseline fault: source `b5d0b18054791589e02126ed794600a3d43bd3aa`, run
   [39307804274](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39307804274), job 118249308071:
@@ -54,12 +54,23 @@ proof. The original failed run and its passing retry remain recorded as a failur
   [39309819955](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39309819955). Diagnostic spec,
   passive helper and isolated-stack workflow byte-identical to baseline b5d0b180; only the two
   authorized product files differ from the baseline product source. One dispatch, cap5, retries0.
-  Result not yet claimed.
+  **PASS**: one original case in 18.5 seconds, retry0, no flakes/skips. Both real fixture writes
+  changed syncing→pending; a completed pending result appeared at1792437904812. The UI answered
+  missing at1792437904836, 82ms after absent navigation, while a later pass remained pending.
+  Artifact12214904669 SHA256
+  `e42c68b2cccaebd89f22a7e77289e37e2b92d642de35a0632b85ac6dc974bf94`.
+  See [facts](repaired-fault-facts.json) and [raw state/network events](repaired-fault-events.json).
 - Maintained normal file: source `a56fe245b095bfde3ebb9ef16f7189239fedc2ca`, run
   [39309903933](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39309903933). All five original
   cases plus one additive regression, no disposable observer or injection. Canonical isolated
-  Supabase setup, selected file only, cap5, retries0. Result not yet claimed.
+  Supabase setup, selected file only, cap5, retries0. **PASS**: all6 in60.3 seconds; zero failed,
+  flaky or skipped, every case retry0. Artifact12216070054 SHA256
+  `839abceec32895511e5d610df23de213eba06a3561c2a6fd8c956ba0c8b31cbf`.
+  Report and six trace archives read; zero page-error events. The regression final frame shows
+  Production not found with the signed-in account. See [per-case facts](normal-facts.json).
 
-No deep-link classification restoration until both complete proofs are read. No disposable
+Both artifact hashes were independently checked after download. Only after reading both complete
+proofs, normal classification was restored for deep-link; unrelated quarantine/release entries
+are unchanged. No count of static/documentation checks is used as repair proof. No disposable
 instrumentation or workflow modifications are part of the repair branch. No #1466 closure,
 Step6, Phase3, acceptance claim, or unrelated reservation release.
