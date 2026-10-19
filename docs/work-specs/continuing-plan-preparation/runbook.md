@@ -3,6 +3,11 @@
 This is preparation guidance. No example below authorizes or starts a real plan.
 Keep the owner's original deadline, scope, phase set and acceptance throughout.
 
+Timezone-free owner dates and times use `Europe/Helsinki`, including today/tomorrow.
+Resolve the date's daylight-saving offset and report it; pass explicit-offset ISO
+timestamps to the tools. An explicit owner timezone/offset takes precedence, and
+resuming never changes an already recorded instant. See the canonical plan-run procedure.
+
 ## Project and work blocks
 
 Prepare the following JSON from the current owner's authorization and actual plan.
@@ -17,8 +22,8 @@ IDs, dates, phases and environments below are placeholders, not reusable authori
     "source": "current owner authorization reference",
     "scope": "exact accepted scope",
     "permissionPolicy": "actual effective policy and its evidence",
-    "startedAt": "2030-01-01T09:00:00Z",
-    "deadline": "2030-01-04T18:00:00Z"
+    "startedAt": "2030-01-01T09:00:00+02:00",
+    "deadline": "2030-01-04T18:00:00+02:00"
   },
   "status": "paused",
   "phases": [
