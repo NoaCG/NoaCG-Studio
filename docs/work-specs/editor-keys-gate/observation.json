@@ -1,0 +1,1365 @@
+{
+  "source": "c3904ed4623bdeceac432153869e12ef0c9c5b96",
+  "main": "929d1f1f1137297e8763745f5217b48ee0370e6c",
+  "temporaryPatchSha256": "d967b50438b914913416252a487ff97903b01058e9670740a9ebf29ef6e0723c",
+  "productSourceByteEqualTo": "86e795dc9f66183633d7c99a73bea8c27e4e32f6",
+  "job": {
+    "id": "j-0005",
+    "command": "npm run test:e2e -- e2e/editor-keys.spec.ts --grep 'nested SVG armed' --retries=0",
+    "branch": "codex/repair-editor-keys-gate",
+    "capMinutes": 5,
+    "retryCount": 0,
+    "enqueuedAt": 1792428745719,
+    "startedAt": 1792428745838,
+    "finishedAt": 1792428757563,
+    "state": "done",
+    "exitCode": 0,
+    "startedUtc": "2026-10-19T16:52:25.838000+00:00",
+    "finishedUtc": "2026-10-19T16:52:37.563000+00:00"
+  },
+  "playwright": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0,
+    "retries": 0,
+    "testSeconds": 4.3,
+    "wallSeconds": 10.6
+  },
+  "labelCorrection": "reply-before-handler is the literal label only; several receipts already contain the same observed reply, so it is not proven to run before the controller listener.",
+  "events": [
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428755435.5999,
+      "sourceMatchesFrame": false,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 3,
+        "requestId": 5,
+        "revision": {
+          "source": 3,
+          "assets": 1
+        },
+        "renderedAt": 1792428755407.7,
+        "parts": [
+          {
+            "selector": ".lower-third",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 3,
+              "assets": 1
+            },
+            "exiting": false
+          },
+          {
+            "selector": ".lower-third-accent",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 3,
+              "assets": 1
+            },
+            "exiting": false
+          },
+          {
+            "selector": ".lower-third-box",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 3,
+              "assets": 1
+            },
+            "exiting": false
+          },
+          {
+            "selector": "#f0",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 3,
+              "assets": 1
+            },
+            "exiting": false
+          },
+          {
+            "selector": "#f1",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 3,
+              "assets": 1
+            },
+            "exiting": false
+          },
+          {
+            "selector": "#f2",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 3,
+              "assets": 1
+            },
+            "exiting": false
+          },
+          {
+            "selector": "#rectangle-1",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 3,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "true",
+        "data-request": "0",
+        "data-generation": "0",
+        "data-pose-time": "1.34",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 4,
+          "assets": 1
+        },
+        "view": {
+          "time": 1.34,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428755478.8,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "ready",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 6,
+        "revision": {
+          "source": 4,
+          "assets": 1
+        },
+        "renderedAt": 1792428755478.3,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 4,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "true",
+        "data-request": "0",
+        "data-generation": "0",
+        "data-pose-time": "1.34",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 4,
+          "assets": 1
+        },
+        "view": {
+          "time": 1.34,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428755528.0999,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 7,
+        "revision": {
+          "source": 4,
+          "assets": 1
+        },
+        "renderedAt": 1792428755527.8,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1.34,
+            "cue": null,
+            "revision": {
+              "source": 4,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "6",
+        "data-generation": "4",
+        "data-pose-time": "1.34",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 4,
+          "assets": 1
+        },
+        "view": {
+          "time": 1.34,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "ready",
+          "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+          "revision": {
+            "source": 4,
+            "assets": 1
+          },
+          "generation": 4,
+          "requestId": 7,
+          "renderedAt": 1792428755527.8,
+          "time": 1.34,
+          "cue": null,
+          "drawingSpace": null
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428755611.5,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 8,
+        "revision": {
+          "source": 4,
+          "assets": 1
+        },
+        "renderedAt": 1792428755611.2,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 0,
+            "cue": null,
+            "revision": {
+              "source": 4,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "7",
+        "data-generation": "4",
+        "data-pose-time": "1.34",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 4,
+          "assets": 1
+        },
+        "view": {
+          "time": 0,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "ready",
+          "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+          "revision": {
+            "source": 4,
+            "assets": 1
+          },
+          "generation": 4,
+          "requestId": 8,
+          "renderedAt": 1792428755611.2,
+          "time": 0,
+          "cue": null,
+          "drawingSpace": null
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428755863.5999,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "ready",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 9,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428755862.6,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 0,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "true",
+        "data-request": "0",
+        "data-generation": "0",
+        "data-pose-time": "0",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 0,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428755913.2,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 10,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428755911.6,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 0,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "9",
+        "data-generation": "4",
+        "data-pose-time": "0",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 0,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "ready",
+          "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+          "revision": {
+            "source": 5,
+            "assets": 1
+          },
+          "generation": 4,
+          "requestId": 10,
+          "renderedAt": 1792428755911.6,
+          "time": 0,
+          "cue": null,
+          "drawingSpace": null
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428755995.5,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 11,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428755994.4001,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "10",
+        "data-generation": "4",
+        "data-pose-time": "0",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "ready",
+          "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+          "revision": {
+            "source": 5,
+            "assets": 1
+          },
+          "generation": 4,
+          "requestId": 11,
+          "renderedAt": 1792428755994.4001,
+          "time": 1,
+          "cue": null,
+          "drawingSpace": null
+        }
+      }
+    },
+    {
+      "kind": "pointerdown",
+      "at": 1792428756130.5999,
+      "target": "DIV",
+      "x": 376.81988525390625,
+      "y": 305.83514404296875,
+      "dom": {
+        "data-pending": "false",
+        "data-request": "11",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "ready",
+          "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+          "revision": {
+            "source": 5,
+            "assets": 1
+          },
+          "generation": 4,
+          "requestId": 11,
+          "renderedAt": 1792428755994.4001,
+          "time": 1,
+          "cue": null,
+          "drawingSpace": null
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756164.5,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 12,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756163.2,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "11",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756203.0999,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 13,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756200.7,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "12",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756248.5999,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 14,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756246.2,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "13",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756281.2,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 15,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756277.6,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "14",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756330.8,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 16,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756329.3,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "15",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756363.9,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 17,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756357.9001,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "16",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756397.3,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 18,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756396.2,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "17",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756414.5999,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 19,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756412.9001,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "18",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756432.2,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 20,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756428.6,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "19",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "pointerup",
+      "at": 1792428756453.8,
+      "target": "DIV",
+      "x": 385.2934265136719,
+      "y": 306.34375,
+      "dom": {
+        "data-pending": "false",
+        "data-request": "20",
+        "data-generation": "4",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 5,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756534.2,
+      "sourceMatchesFrame": false,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 4,
+        "requestId": 21,
+        "revision": {
+          "source": 5,
+          "assets": 1
+        },
+        "renderedAt": 1792428756511.4001,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 5,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "true",
+        "data-request": "0",
+        "data-generation": "0",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 6,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756587.9,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "ready",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 5,
+        "requestId": 22,
+        "revision": {
+          "source": 6,
+          "assets": 1
+        },
+        "renderedAt": 1792428756578.9001,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 6,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "true",
+        "data-request": "0",
+        "data-generation": "0",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 6,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756647.0999,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 5,
+        "requestId": 23,
+        "revision": {
+          "source": 6,
+          "assets": 1
+        },
+        "renderedAt": 1792428756646.6,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 6,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "22",
+        "data-generation": "5",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 6,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "ready",
+          "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+          "revision": {
+            "source": 6,
+            "assets": 1
+          },
+          "generation": 5,
+          "requestId": 23,
+          "renderedAt": 1792428756646.6,
+          "time": 1,
+          "cue": null,
+          "drawingSpace": null
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428756962.3,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "ready",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 6,
+        "requestId": 24,
+        "revision": {
+          "source": 7,
+          "assets": 1
+        },
+        "renderedAt": 1792428756961.7,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 7,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "true",
+        "data-request": "0",
+        "data-generation": "0",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 7,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "kind": "reply-before-handler",
+      "at": 1792428757011.5,
+      "sourceMatchesFrame": true,
+      "reply": {
+        "type": "noacg-editor-foundation-v1",
+        "kind": "pose",
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "generation": 6,
+        "requestId": 25,
+        "revision": {
+          "source": 7,
+          "assets": 1
+        },
+        "renderedAt": 1792428757011,
+        "parts": [
+          {
+            "selector": "#nested",
+            "time": 1,
+            "cue": null,
+            "revision": {
+              "source": 7,
+              "assets": 1
+            },
+            "exiting": false
+          }
+        ],
+        "message": null
+      },
+      "dom": {
+        "data-pending": "false",
+        "data-request": "24",
+        "data-generation": "6",
+        "data-pose-time": "1",
+        "data-pose-cue": "arriving"
+      },
+      "session": {
+        "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+        "version": {
+          "source": 7,
+          "assets": 1
+        },
+        "view": {
+          "time": 1,
+          "cue": null,
+          "selectedParts": [
+            "#nested"
+          ]
+        },
+        "receipt": {
+          "state": "ready",
+          "documentId": "draft:93e60d28-7eab-428d-b79c-b19c55ea4e29",
+          "revision": {
+            "source": 7,
+            "assets": 1
+          },
+          "generation": 6,
+          "requestId": 25,
+          "renderedAt": 1792428757011,
+          "time": 1,
+          "cue": null,
+          "drawingSpace": null
+        }
+      }
+    }
+  ]
+}
