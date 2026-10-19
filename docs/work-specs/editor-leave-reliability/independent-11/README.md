@@ -1,8 +1,9 @@
 # Independent Phase 2 gate check — 2026-10-19
 
 **BLOCKED before acceptance execution.** This checker built neither the phase nor its
-repairs. The account locator defect and its quarantine classification remain unresolved.
-The owner's explicit instruction requires stopping here. No new product failure is claimed
+repairs. A separate owner has now landed the account locator fix and normal classification;
+its exact-merge checks are pending. The editor-keys failure/quarantine remains unresolved.
+The owner's explicit instruction requires stopping at unresolved gates. No new product failure is claimed
 from a fresh runtime challenge, and no acceptance pass is claimed.
 
 ## Source and isolation
@@ -15,10 +16,16 @@ reference, carried probe or queue configuration was changed by this checker.
 
 Repair #1487 merged as `b11adf155430c0f6888f524e16fa5ae599c28408`.
 Readiness #1509 merged as `9294d250d67b6e274c7da7fac580bbb9f3391f73`.
-Both are ancestors of the inspected source. Since the latter, current main contains
+Both are ancestors of the initial inspected source. At the initial `86e795dc9` snapshot, main contains
 #1510 account quarantine, #1512 late-send release, #1511 verification observation and
 #1513 editor-keys quarantine. There is no diff in `src/`, `account.spec.ts`,
 `save-copy-arrival.spec.ts` or `save-transaction.spec.ts` across that range.
+
+Subsequent fresh main audit after the separately authorized account repair:
+`929d1f1f1137297e8763745f5217b48ee0370e6c`, merge #1515. Its only intervening changes from
+initial `86e795dc9` are #1514's two workflow/runbook documentation paths and #1515's account
+spec, quarantine entry and account receipt. No `src/` file changed. No acceptance runtime
+execution has begun on either source.
 
 ## Blocking evidence and owner decision
 
@@ -87,6 +94,13 @@ active through landing and exact-SHA terminal results. Earlier draft CI `3928088
 `876f87fe` failed its missing-stamp Reviewed wait; that superseded failure is preserved.
 Superseded proof `39279813869` was cancelled during backend setup before account tests.
 Neither is counted as a passing run or a product assertion failure.
+
+The account repair **actually merged** at `2026-10-19T16:43:21Z` (`19:43:21 Kyiv`) as
+`929d1f1f1137297e8763745f5217b48ee0370e6c`. Independently fetched `origin/main` and read PR
+metadata: exact reviewed tip `92ce1b2e...`, state MERGED and that merge SHA agree. The landed
+quarantine JSON places account in `released` and removes it from `specs`; editor-keys remains
+in `specs`, citing its original failed run. The account owner is following exact-merge CI,
+configured, post-land and other terminal results. Pending checks are not yet passing evidence.
 
 ## Activity, reservations and current checks
 
