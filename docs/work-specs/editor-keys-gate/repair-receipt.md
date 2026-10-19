@@ -50,7 +50,7 @@ npm run test:e2e -- e2e/editor-keys.spec.ts --grep 'nested SVG armed' --retries=
 Cap 5; one worker for the single case. **Expected matching failure**, not green.
 [Raw facts](repair-evidence/matching-failure.json),
 [exact disposable diff](repair-evidence/baseline-diagnostic.diff.txt) and
-[inspected screenshot](repair-evidence/matching-failure.png) are retained.
+[inspected screenshot retained at the initial immutable head](https://github.com/NoaCG/NoaCG-Studio/blob/165cff4738c73d6bc8888ea1fb0c32d2177f0c6f/docs/work-specs/editor-keys-gate/repair-evidence/matching-failure.png) are retained.
 
 All required facts are present together:
 
@@ -150,9 +150,10 @@ Changed-file ESLint and `npx tsc --noEmit -p tsconfig.json` passed. The latter c
 src (not e2e semantic types), and is not described as e2e type-check coverage.
 All five reached gates passed: contract freshness866, citations4538, docs
 index150, client-secrets3924 and copy902. Git diff whitespace check passes.
-Inline review covered the exact 16-path scope from review-request.mjs, base
-8687863db85845c11839c76adab8c23a2266d5b7, including the intentionally added failure
-screenshot. It checked correlated request/pose readiness, unchanged original test
+Inline review covered the initial 16-path scope from review-request.mjs, base
+8687863db85845c11839c76adab8c23a2266d5b7, including the failure screenshot. CI then identified that committing this picture
+violated the tree-shape rule; it was removed from the current tree and linked at
+the immutable initial head instead. The final reviewed scope has 15 paths. It checked correlated request/pose readiness, unchanged original test
 bodies, all matching-fault requirements, identical hook/adapter timing, disposal,
 classification isolation and historical failure preservation. No confirmed finding
 remains. No separate review tool is exposed. Simplification ran inline; no useful
@@ -162,3 +163,20 @@ The exact reviewed head, queue and terminal exact-merge results are recorded on
 the repair PR by this owning session before ending.
 No local full suite/build or reference-editor equivalence claim is needed for
 this test-only readiness repair; the NoaCG correlated-pose contract is the oracle.
+
+
+### First CI packaging correction
+
+Initial exact-head PR CI39305465434 failed Build job118241246529 at
+check:tree-shape: pictures under docs are forbidden. The whole completed Build
+job log was read through the GitHub connector while the rest of the workflow was
+still running; gh run --log-failed could not yet read an active workflow. This
+was the sole Build failure. The current tree no longer tracks the picture; it
+remains inspectable at original reviewed165cff4738c73d6bc8888ea1fb0c32d2177f0c6f,
+SHA256 recorded below. No gate exception or picture allowlist was added. The
+readiness helper, classification and all tests remain byte-identical to that head,
+so matching-fault and14-case verification results are reused. Review found/fixed
+this one receipt-packaging issue; simplification remains inline with no further
+change. Repair attempt2 addresses this CI packaging failure, not another baseline
+probe or a manufactured retry.
+Screenshot SHA256: `587a9d1d412cf82e66253c4473044ea7bdd76b77c5b98822a77f7cdca4801f57`.
