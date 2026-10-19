@@ -58,6 +58,14 @@ restoration and terminal landing ownership. Its implementation window is `2026-1
 This checker remains stopped pending that engineering result and builds none of
 the repair. The decision authorizes repair; it does not accept Phase 2 or bypass its gate.
 
+Reviewable engineering checkpoint: [draft #1515](https://github.com/NoaCG/NoaCG-Studio/pull/1515),
+head `876f87fe4caf73320441d5d3c9bec7cc12a428ca`. Independently inspected its three-file diff:
+the existing Sign in visibility assertion is scoped to Home with the same timeout; the
+account entry alone moves from quarantine `specs` to `released`; a pending-verification
+receipt is added. The existing no-auth-modal assertion remains. This is not a landed or
+verified gate restoration. Its fault proof `39279909249` was queued with no executed steps;
+local backend setup and Node piped-input gates were incomplete and are disclosed by that owner.
+
 ## Activity, reservations and current checks
 
 ### Additional current-main failure discovered by this audit
