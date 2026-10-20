@@ -819,8 +819,8 @@ spec agreed; digests current and `work-spec.mjs status` structurally valid (open
 criteria are expected). Q's records gate the phases its table names.
 
 The hosting plan's cron is settled: the account is on Vercel Pro, which runs one-minute cron
-schedules, and `CRON_SECRET` is already set in Production (owner, 2026-10-20); C2's checker
-confirms the first scheduled call in the logs.
+schedules, and `CRON_SECRET` is already set in Production (owner, 2026-10-20). Confirming the
+first scheduled call in the production logs is the coordinator's C2 follow-up, never C2's gate.
 
 ## External-API connection slice: selected extension, outside C0–C7
 

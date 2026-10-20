@@ -59,7 +59,7 @@ the plan, but the risks behind them were.
 | R1 | C2 gates on the local stack (tick driven with the Bearer secret, closed-browser run against it); production log, switch and cost steps are coordinator follow-ups with their own access row | data-sources C2, parent §9.2 |
 | R2 | C1b gates only on its local halves (data AC-3, sheet AC-5 browser lease, sheet AC-7); published persistence, the tick's lease and closed-page Pause are C2's | extensions row 7, data-sources C1b |
 | R3 | Configured specs use stubs; provider runs are cloud-worker receipts | data-sources Verification |
-| R4 | The evidence-only commit covers every programme evidence folder; phase notes move to `evidence/phase-notes.md` so no phase changes a spec digest | parent §6, "Phases" |
+| R4 | The evidence-only commit covers every programme evidence folder (`':!docs/work-specs/*/evidence/**'`); phase notes move to `evidence/phase-notes.md` so no phase changes a spec digest | parent §6, "Phases" |
 | R5 | H0.1 refreshes the stale hardware-panel record and measures hosted latency against staging | H0 phase table |
 | R6 | Migrations follow the live-safe rules; a HELD live-path migration is waited out and post-landing re-run | extensions |
 | R7 | Chromium 71: outputs are protected by Vite's `es2017` target, not source syntax | extensions, E1, E7 |

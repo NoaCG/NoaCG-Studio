@@ -467,7 +467,7 @@ configured run URL with its tested sha, the assessor's verdict with the reviewed
 - **Evidence-only commit.** A commit touching only the programme's `evidence/` directories is allowed
   once after the last material commit; it does not invalidate evidence; `/check` then runs on
   that tip, and its verify step cites the evidence after confirming the tested sha differs only
-  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/*/evidence'`
+  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/*/evidence/**'`
   is empty). `/queue-merge` requires the stamp on the final tip; a review or simplify change
   during `/check` is a material commit and restarts the matrix.
 - **Mappings.** New Node tests carry `// guards: <module>`; specs whose `// covers:` named a
