@@ -682,18 +682,20 @@ the first rehearsal.
   midpoint retro after row 23 is the procedure's ordinary retro step.
 - **Check-in after a lost container.** No watchdog session is built (a routine-started session
   has no `send_message` or `list_events`). A cloud coordinator's block wake (`plan-run.md` §1,
-  `cloud-delegate.md`) is one `send_later` check-in named `plan-run check-in <project id>`,
-  whose message names the project ID, the store's `<db>` path, the state root, the owner label
-  and the `/proc/sys/kernel/random/boot_id` it was armed on. Every coordinator turn that ends in
-  a wait leaves exactly one pending, about 60 minutes ahead: it moves the pending one
-  (`update_trigger`), arms one if `list_triggers` shows none, and deletes any other. While the
-  project waits for the owner (a `stop`, a pause, the final owner block) or has ended, it keeps
-  none. When one fires: if the `<db>` file is gone, the coordinator runs
-  `node scripts/run-supervisor.mjs continue <state-root> production-page <owner>`; otherwise it
-  asks `node scripts/run-supervisor.mjs next <db> <id>`. `superseded` ends the check-ins; any
-  other error (the network not up yet) is asked again a few minutes later; an answer is carried
-  on from, restarting the background wait when the boot ID changed (a new machine keeps the disk
-  but nothing in memory) or the wait has ended. A laptop coordinator keeps none. Receipt
+  `cloud-delegate.md`) is one `send_later` check-in named `plan-run check-in <project id>`, its
+  message naming the project ID, the store's `<db>` path and the owner label. Every coordinator
+  turn that ends in a wait leaves exactly one pending for its own session, about 60 minutes ahead
+  and never past the deadline: of the check-ins `list_triggers` shows with that name and this
+  session as target, it moves one (`update_trigger`), arms one if there is none, and deletes the
+  rest. Other sessions' check-ins are left alone; each ends on its session's `superseded`. While
+  the project waits for the owner (a `stop`, the owner's pause, the final owner block) or has
+  ended, the coordinator keeps none. When one fires, it asks
+  `node scripts/run-supervisor.mjs next <db> <id>` and carries on from the answer as usual (a
+  block end opens the next block), restarting its background wait unless that process runs on
+  this machine: a new machine keeps the disk but no process. `superseded` ends the check-ins; an
+  error is asked twice more a few minutes apart, then sent to the owner once. If the `<db>` file
+  is gone, it tells the owner and keeps none, since `continue` could take the run back from a
+  session the owner moved it to. Receipt
   `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner decision
   R23. It cannot help after an account usage limit or a stopped or ended session: then the same
   `/plan-run` line continues the run (§10 step 6), and the laptop helper (§9.1 step 4) reports a
@@ -718,7 +720,8 @@ the first rehearsal.
   - **Keys:** `node scripts/plan-run-keys.mjs` exits 0. It makes one harmless authenticated read
     per key and prints only pass or fail, never a value: Supabase lists the account's projects,
     YouTube reads one public video's ID (one quota unit), and the service account signs in
-    read-only and confirms it can read and edit each of the six Sheets in `NOACG_TEST_SHEET_IDS`.
+    read-only, reads each of the six distinct Sheets in `NOACG_TEST_SHEET_IDS` and confirms
+    through the Drive API that it may edit each.
   - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`) and
     a whole failed-job log (the GitHub connector's job-log read); and, from a recent real landing
     by a cloud session, never a probe that could queue unfinished work: a `cloud-queue-merge.yml`
@@ -726,8 +729,8 @@ the first rehearsal.
     commented on (#1545 to #1549 did all of these on 2026-10-20). gh's GraphQL commands (`gh pr
     view`, `gh pr merge`) are refused in cloud sessions, so the cloud path in `/queue-merge` is
     used, never `gh pr`.
-  - **Remote tools:** `create_session`, `get_session`, `send_message`, `list_events` and
-    `send_later` are present.
+  - **Remote tools:** `create_session`, `get_session`, `send_message`, `list_events`,
+    `send_later`, `list_triggers`, `update_trigger` and `delete_trigger` are present.
   - **Quarantine bot:** it has opened a quarantine pull request on main's behalf within the last
     week (its pull request is the receipt), so a flake on main reaches quarantine unattended.
   - **No other active plan project:** each branch `git ls-remote origin
@@ -875,15 +878,14 @@ the final owner block, which waits for him.
    never replaces invoking `/plan-run`, supplying the deadline, passing the preflight, or the
    merge safeguards.
 6. **Stop and continue anywhere (13).** To stop, tell the coordinator to pause the run: it records
-   the pause and deletes its check-in (closing the session alone leaves the check-in, which
-   carries the run on). A lost container needs nothing from the owner: the check-in carries on
-   within about an hour (§9). To continue after a pause or an account usage limit, or to move
-   between cloud and laptop, open a new Claude Code session as in step 3 (the cloud, environment NoaCG, from
-   the desktop app or claude.ai/code, never a routine, which lacks the follow-up and transcript
-   tools), and type the same line with the original deadline. The laptop (the NoaCG-Studio
-   folder) is the fallback when the cloud is unavailable; it needs the same keys in its
-   environment, and without `SUPABASE_ACCESS_TOKEN` the C2 follow-ups wait for a cloud
-   coordinator:
+   the pause and deletes its check-in. Stopping or closing the session does not delete the
+   check-in. A lost container needs nothing from the owner: the check-in carries on within about an
+   hour (§9). To continue after a pause or an account usage limit, or to move between cloud and
+   laptop, open a new Claude Code session as in step 3 (the cloud, environment NoaCG, from the
+   desktop app or claude.ai/code, never a routine, which lacks the follow-up and transcript tools),
+   and type the same line with the original deadline. The laptop (the NoaCG-Studio folder) is the
+   fallback when the cloud is unavailable; it needs the same keys in its environment, and without
+   `SUPABASE_ACCESS_TOKEN` the C2 follow-ups wait for a cloud coordinator:
 
    ```
    /plan-run production-page until <the original deadline>

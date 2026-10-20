@@ -27,7 +27,7 @@ function fake({ readOnly = [], unshared = [], signIn = 200, down = false } = {})
     const { hostname, pathname, searchParams } = new URL(url);
     const bearer = init.headers?.Authorization;
     if (hostname === 'api.supabase.com') return reply(bearer === `Bearer ${ENV.SUPABASE_ACCESS_TOKEN}` ? 200 : 401);
-    if (pathname.startsWith('/youtube/')) return reply(searchParams.get('key') === ENV.YOUTUBE_API_KEY ? 200 : 400);
+    if (pathname.startsWith('/youtube/')) return reply(!searchParams.has('key') && init.headers?.['x-goog-api-key'] === ENV.YOUTUBE_API_KEY ? 200 : 400);
     if (hostname === 'oauth2.example') {
       const assertion = init.body.get('assertion');
       return assertion?.split('.').length === 3 ? reply(signIn, { access_token: 'ya29.access' }) : reply(400);
@@ -52,7 +52,7 @@ test('every key passes its own authenticated read, and no value is printed', asy
   assert.deepEqual(lines, [
     'SUPABASE_ACCESS_TOKEN: pass (200)',
     'YOUTUBE_API_KEY: pass (200)',
-    `NOACG_TEST_SHEET_IDS: pass (${SHEETS} IDs)`,
+    `NOACG_TEST_SHEET_IDS: pass (${SHEETS} distinct IDs)`,
     `GOOGLE_SERVICE_ACCOUNT_JSON: pass (read ${SHEETS}/${SHEETS}, editable ${SHEETS}/${SHEETS})`,
   ]);
   for (const secret of secrets) assert.ok(!lines.join('\n').includes(secret), secret);
@@ -73,12 +73,16 @@ test('the service account must read and may edit every Sheet, not only the first
   assert.equal(unshared.lines[3], `GOOGLE_SERVICE_ACCOUNT_JSON: fail (read ${SHEETS - 1}/${SHEETS}, editable ${SHEETS - 1}/${SHEETS})`);
   const refused = await run(ENV, fake({ signIn: 401 }).fetchImpl);
   assert.equal(refused.lines[3], 'GOOGLE_SERVICE_ACCOUNT_JSON: fail (sign-in 401)');
+  const empty = await run(ENV, async () => reply(200, null));
+  assert.equal(empty.lines[3], 'GOOGLE_SERVICE_ACCOUNT_JSON: fail (sign-in 200)');
 });
 
-test('the Sheet list must name six', async () => {
+test('the Sheet list must name six distinct Sheets', async () => {
   const { code, lines } = await run({ ...ENV, NOACG_TEST_SHEET_IDS: SHEET_IDS.slice(1).join(',') }, fake().fetchImpl);
   assert.equal(code, 1);
-  assert.equal(lines[2], `NOACG_TEST_SHEET_IDS: fail (${SHEETS - 1} IDs)`);
+  assert.equal(lines[2], `NOACG_TEST_SHEET_IDS: fail (${SHEETS - 1} distinct IDs)`);
+  const repeated = await run({ ...ENV, NOACG_TEST_SHEET_IDS: [...SHEET_IDS.slice(1), SHEET_IDS[1]].join(',') }, fake().fetchImpl);
+  assert.equal(repeated.lines[2], `NOACG_TEST_SHEET_IDS: fail (${SHEETS - 1} distinct IDs)`);
 });
 
 test('unset keys fail without a request', async () => {
@@ -88,7 +92,7 @@ test('unset keys fail without a request', async () => {
   assert.deepEqual(lines, [
     'SUPABASE_ACCESS_TOKEN: fail (unset)',
     'YOUTUBE_API_KEY: fail (unset)',
-    'NOACG_TEST_SHEET_IDS: fail (0 IDs)',
+    'NOACG_TEST_SHEET_IDS: fail (0 distinct IDs)',
     'GOOGLE_SERVICE_ACCOUNT_JSON: fail (unset)',
   ]);
   assert.deepEqual(calls, []);

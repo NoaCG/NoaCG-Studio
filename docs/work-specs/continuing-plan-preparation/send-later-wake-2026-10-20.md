@@ -53,17 +53,15 @@ the same new machine (`d90cfd62`, up 1155 s at 19:43:09), did:
 | 19:43 | `list_triggers` shows it by name with this session as its target; `update_trigger` moves it to 20:55 | ok |
 | 19:43 | `delete_trigger` removes it | ok |
 
-It then pushed this receipt's branch, opened its pull request and queued it through the cloud
-path in `/queue-merge`; the merge that put this file on `main` is the push and queue receipt.
+Push, check and queue access from the same session are recorded on the pull request that adds
+this file, with the machine's boot ID at each step.
 
 ## What this means for the coordinator
 
 A coordinator that always has one `send_later` check-in pending, about 60 minutes ahead, is woken
-in a new container after a lost one, within about an hour. Production-page spec §9 says what it
-does: it moves the check-in forward each turn, keeps none while the project waits for the owner,
-and when one fires asks `next` of its own store, stopping the check-ins on `superseded` and
-running `node scripts/run-supervisor.mjs continue` only when its store is gone. This does not
-cover an account usage limit or a session that was stopped or ended: those still need the
-owner's `/plan-run` line. The coordinator still runs in a session the owner started: a
-routine-started one has `send_later` but no `send_message` or `list_events`
-(`cloud-checkpoint-branch-2026-10-20.md`).
+in a new container after a lost one, within about an hour, with its disk and so its store intact.
+So it does not need `continue`: it asks `next` of its own store and restarts its background wait.
+Production-page spec §9 gives the whole rule. This does not cover an account usage limit or a
+session that was stopped or ended: those still need the owner's `/plan-run` line. The coordinator
+still runs in a session the owner started: a routine-started one has `send_later` but no
+`send_message` or `list_events` (`cloud-checkpoint-branch-2026-10-20.md`).

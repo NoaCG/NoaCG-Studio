@@ -7,8 +7,8 @@
 //   node scripts/plan-run-keys.mjs
 //
 // SUPABASE_ACCESS_TOKEN lists the account's projects. YOUTUBE_API_KEY reads one public video's
-// id (one quota unit). NOACG_TEST_SHEET_IDS names six Sheets; GOOGLE_SERVICE_ACCOUNT_JSON signs
-// in with read-only scopes and, for each of them, reads its id and whether it may edit it.
+// id (one quota unit). NOACG_TEST_SHEET_IDS names six distinct Sheets; GOOGLE_SERVICE_ACCOUNT_JSON
+// signs in with read-only scopes and, for each, reads it and asks the Drive API whether it may edit it.
 import { createSign } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,11 +17,11 @@ export const SHEETS = 6;
 const VIDEO = 'jNQXAC9IVRw'; // public since 2005
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly';
 const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
-const json = async (response) => { try { return await response.json(); } catch { return {}; } };
+const json = async (response) => { try { const body = await response.json(); return body && typeof body === 'object' ? body : {}; } catch { return {}; } };
 
 /** One { key, pass, note } per key. A note is an HTTP status or a count, never a value. */
 export async function checkKeys(env = process.env, fetchImpl = fetch) {
-  // A thrown error can carry the URL, and YouTube's key is in it, so only "network" is kept.
+  // Keys travel in headers, never in a URL, and a thrown error is reduced to "network" all the same.
   const call = async (url, init) => { try { return await fetchImpl(url, init); } catch { return { status: 'network' }; } };
   const results = [];
   const add = (key, pass, note) => results.push({ key, pass, note: String(note) });
@@ -33,10 +33,10 @@ export async function checkKeys(env = process.env, fetchImpl = fetch) {
 
   await read('SUPABASE_ACCESS_TOKEN', 'https://api.supabase.com/v1/projects',
     { headers: { Authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}` } });
-  await read('YOUTUBE_API_KEY',
-    `https://www.googleapis.com/youtube/v3/videos?part=id&id=${VIDEO}&key=${encodeURIComponent(env.YOUTUBE_API_KEY ?? '')}`);
-  const ids = (env.NOACG_TEST_SHEET_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean);
-  add('NOACG_TEST_SHEET_IDS', ids.length === SHEETS, `${ids.length} IDs`);
+  await read('YOUTUBE_API_KEY', `https://www.googleapis.com/youtube/v3/videos?part=id&id=${VIDEO}`,
+    { headers: { 'x-goog-api-key': env.YOUTUBE_API_KEY } });
+  const ids = [...new Set((env.NOACG_TEST_SHEET_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean))];
+  add('NOACG_TEST_SHEET_IDS', ids.length === SHEETS, `${ids.length} distinct IDs`);
   add('GOOGLE_SERVICE_ACCOUNT_JSON', ...await serviceAccount(env.GOOGLE_SERVICE_ACCOUNT_JSON, ids, call));
   return results;
 }
@@ -59,12 +59,12 @@ async function serviceAccount(text, ids, call) {
   const token = signIn.status === 200 ? (await json(signIn)).access_token : null;
   if (!token) return [false, `sign-in ${signIn.status}`];
   const headers = { Authorization: `Bearer ${token}` };
-  let readable = 0, editable = 0;
-  for (const id of ids.map(encodeURIComponent)) {
-    if ((await call(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=spreadsheetId`, { headers })).status === 200) readable += 1;
+  const sheets = await Promise.all(ids.map(encodeURIComponent).map(async (id) => {
+    const sheet = await call(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=spreadsheetId`, { headers });
     const file = await call(`https://www.googleapis.com/drive/v3/files/${id}?fields=capabilities(canEdit)&supportsAllDrives=true`, { headers });
-    if (file.status === 200 && (await json(file)).capabilities?.canEdit === true) editable += 1;
-  }
+    return { readable: sheet.status === 200, editable: file.status === 200 && (await json(file)).capabilities?.canEdit === true };
+  }));
+  const readable = sheets.filter((sheet) => sheet.readable).length, editable = sheets.filter((sheet) => sheet.editable).length;
   return [readable === ids.length && editable === ids.length, `read ${readable}/${ids.length}, editable ${editable}/${ids.length}`];
 }
 
