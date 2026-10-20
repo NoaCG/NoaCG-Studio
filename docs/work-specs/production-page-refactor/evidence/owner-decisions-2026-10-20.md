@@ -106,8 +106,8 @@ after its container is gone, and for a check-in if it does
 
 | # | Fix | Where |
 | --- | --- | --- |
-| R23 | It does, with the disk intact and nothing in memory. The coordinator keeps one `send_later` check-in about 60 minutes ahead; when one fires it asks `next` of its own store, stops checking in on `superseded` or an ended project, and otherwise re-arms and restarts its wait, running `continue` only when its store is gone. A lost container now needs nothing from the owner; R11's typed line stays for a usage limit or a stopped or ended session | parent §9, §9.2, §10 step 6 |
-| R24 | The preflight checks each key by one harmless authenticated read that prints only pass or fail (promised on #1550); all four passed on 2026-10-20 | parent §9, §9.2 |
+| R23 | It does, with the disk intact and nothing in memory. A cloud coordinator always has one `send_later` check-in pending about 60 minutes ahead, moved forward each turn and found by its name; it keeps none while the project waits for the owner, and pausing the run deletes it. When one fires it asks `next` of its own store: `superseded` ends the check-ins, an answer is carried on from, restarting the background wait on a new machine, and only a missing store runs `continue`. A lost container now needs nothing from the owner; R11's typed line stays for a usage limit or a stopped or ended session | parent §9, §9.1, §9.2, §10 step 6 |
+| R24 | The preflight checks the keys with `scripts/plan-run-keys.mjs`: one harmless authenticated read per key, printing only pass or fail; the service account must read and be able to edit all six Sheets, not only the first (asked on #1550) | parent §9, §9.2 |
 
 ## Runner check
 

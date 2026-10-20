@@ -681,19 +681,23 @@ the first rehearsal.
   `run-supervisor.mjs record` takes the row number (1-47) of the `extensions.md` table; the
   midpoint retro after row 23 is the procedure's ordinary retro step.
 - **Check-in after a lost container.** No watchdog session is built (a routine-started session
-  has no `send_message` or `list_events`). Instead the coordinator keeps one `send_later`
-  check-in pending about 60 minutes ahead, armed when it opens or takes over the project, its
-  message naming the `/proc/sys/kernel/random/boot_id` it was armed on. When one fires, the
-  coordinator asks `node scripts/run-supervisor.mjs next <db> <id>` of its own store.
-  `superseded`, or a project that has ended, ends the check-ins. Otherwise it arms the next one
-  and carries on from the answer, restarting its background wait when the boot ID changed (a new
-  machine: nothing from memory survives) or the wait has ended. When its store is gone, it runs
-  `node scripts/run-supervisor.mjs continue <state-root> production-page <owner>` instead. A
-  check-in wakes an owner-started session in a new container after the old one is gone, with the
-  disk intact (receipt `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`;
-  owner decision R23). It cannot help after an account usage limit or a stopped or ended session:
-  then the same `/plan-run` line continues the run (§10 step 6), and the laptop helper (§9.1
-  step 4) reports a stale heartbeat, as does a missing morning summary.
+  has no `send_message` or `list_events`). A cloud coordinator's block wake (`plan-run.md` §1,
+  `cloud-delegate.md`) is one `send_later` check-in named `plan-run check-in <project id>`,
+  whose message names the project ID, the store's `<db>` path, the state root, the owner label
+  and the `/proc/sys/kernel/random/boot_id` it was armed on. Every coordinator turn that ends in
+  a wait leaves exactly one pending, about 60 minutes ahead: it moves the pending one
+  (`update_trigger`), arms one if `list_triggers` shows none, and deletes any other. While the
+  project waits for the owner (a `stop`, a pause, the final owner block) or has ended, it keeps
+  none. When one fires: if the `<db>` file is gone, the coordinator runs
+  `node scripts/run-supervisor.mjs continue <state-root> production-page <owner>`; otherwise it
+  asks `node scripts/run-supervisor.mjs next <db> <id>`. `superseded` ends the check-ins; any
+  other error (the network not up yet) is asked again a few minutes later; an answer is carried
+  on from, restarting the background wait when the boot ID changed (a new machine keeps the disk
+  but nothing in memory) or the wait has ended. A laptop coordinator keeps none. Receipt
+  `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner decision
+  R23. It cannot help after an account usage limit or a stopped or ended session: then the same
+  `/plan-run` line continues the run (§10 step 6), and the laptop helper (§9.1 step 4) reports a
+  stale heartbeat, as does a missing morning summary.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
   `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
   problems (open runtime acceptance is expected) and the plan listed under "Runnable plans" in
@@ -711,13 +715,10 @@ the first rehearsal.
   supplied the finite project deadline in Helsinki time with its offset and the actual permission
   policy. From a fresh cloud session, each checked by its own receipt, never assumed from a
   document:
-  - **Keys:** one harmless authenticated read per key, printing only pass or fail, never a
-    value: `SUPABASE_ACCESS_TOKEN` lists the account's projects (`GET
-    https://api.supabase.com/v1/projects`); `YOUTUBE_API_KEY` reads one public video's ID (the
-    YouTube Data API's `videos?part=id`, one quota unit); `GOOGLE_SERVICE_ACCOUNT_JSON` signs in
-    with the `spreadsheets.readonly` scope and reads the first test Sheet's `spreadsheetId`;
-    `NOACG_TEST_SHEET_IDS` splits into six IDs. All four passed from this cloud environment on
-    2026-10-20.
+  - **Keys:** `node scripts/plan-run-keys.mjs` exits 0. It makes one harmless authenticated read
+    per key and prints only pass or fail, never a value: Supabase lists the account's projects,
+    YouTube reads one public video's ID (one quota unit), and the service account signs in
+    read-only and confirms it can read and edit each of the six Sheets in `NOACG_TEST_SHEET_IDS`.
   - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`) and
     a whole failed-job log (the GitHub connector's job-log read); and, from a recent real landing
     by a cloud session, never a probe that could queue unfinished work: a `cloud-queue-merge.yml`
@@ -788,7 +789,7 @@ pauses, continues or changes the run. The repository is the shared channel:
    same issue. If a direct message from the helper to the cloud
    coordinator works, the helper also sends one as a nudge, never as the only record.
 4. Between passes it waits about 20 minutes inside a background job, never idle. If the
-   coordinator's heartbeat comment is more than 90 minutes old, it tells the owner the coordinator
+   coordinator's heartbeat comment is more than 120 minutes old, it tells the owner the coordinator
    may have stopped (§10 step 6).
 
 Isolation, never the owner's own setup or deck: CasparCG from a scratch config with AMCP outside
@@ -820,7 +821,7 @@ the final owner block, which waits for him.
 | Recovery checkpoints on a branch a cloud session can push (`claude/noacg-recovery/<id>`) | `main` | agents, separate PR | run opening | landed (#1545; receipt `continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`) | - |
 | Third runner PR (counts never go down, a resumed diagnosis qualifies, queued and merge-queue runs and session events in the progress check) | `main` | agents, separate PR | run opening | landed (#1549, #1551) | - |
 | Check-in after a lost container (§9) | the coordinator's owner-started cloud session | coordinator | run opening | live-tested (receipt `continuing-plan-preparation/send-later-wake-2026-10-20.md`); no watchdog session: a routine-started session has no `send_message` or `list_events` | after a usage limit or a stopped or ended session, the same `/plan-run` line continues the run; the laptop helper reports a stale heartbeat, and a missing morning summary shows the same |
-| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch) and a readable month-to-date Vercel usage figure (the Vercel connector or the owner's dashboard); without that figure the switch stays off; Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); its preflight read passed on 2026-10-20 | the tick stays off; the follow-ups join the owner list with exact steps |
+| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch) and a readable month-to-date Vercel usage figure (the Vercel connector or the owner's dashboard); without that figure the switch stays off; Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); the preflight reads with it (`plan-run-keys.mjs`) | the tick stays off; the follow-ups join the owner list with exact steps |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Claude cloud environment, the local env file, Vercel | owner | Q Sheet records (gate C1b), C1c, C2 | ready: the service account signs in | Q times reads on the public CSV export and records edit latency as unmeasured; C1b states the measured read figure; the timed edit run joins the owner list |
 | `NOACG_TEST_SHEET_IDS`: six owner-owned Sheets, comma-separated | same | owner | same | ready: the service account reads and writes each; each public CSV export works | as above |
 | `YOUTUBE_API_KEY` | same | owner | Q `youtube` (gates C3), C7 live smoke | ready: works | C3 builds and checks against recorded responses; the live receipt joins the owner list |
@@ -873,10 +874,11 @@ the final owner block, which waits for him.
 5. Permission mode is a harness setting, not an execution step. Switching a session to auto mode
    never replaces invoking `/plan-run`, supplying the deadline, passing the preflight, or the
    merge safeguards.
-6. **Stop and continue anywhere (13).** To stop, stop or close the coordinator's session. A lost
-   container needs nothing from the owner: the coordinator's check-in carries on within about an
-   hour (§9). To continue after a stop or an account usage limit, or to move between cloud and
-   laptop, open a new Claude Code session as in step 3 (the cloud, environment NoaCG, from
+6. **Stop and continue anywhere (13).** To stop, tell the coordinator to pause the run: it records
+   the pause and deletes its check-in (closing the session alone leaves the check-in, which
+   carries the run on). A lost container needs nothing from the owner: the check-in carries on
+   within about an hour (§9). To continue after a pause or an account usage limit, or to move
+   between cloud and laptop, open a new Claude Code session as in step 3 (the cloud, environment NoaCG, from
    the desktop app or claude.ai/code, never a routine, which lacks the follow-up and transcript
    tools), and type the same line with the original deadline. The laptop (the NoaCG-Studio
    folder) is the fallback when the cloud is unavailable; it needs the same keys in its

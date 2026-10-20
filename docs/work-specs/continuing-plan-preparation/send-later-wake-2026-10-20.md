@@ -38,14 +38,32 @@ its own background jobs, wrote two marker files and recorded the machine's ident
   also been replaced once before 17:21 (up since about 15:33).
 - **The wake lands about a minute late.** Fire time 19:23:00; the turn started 19:23:54.
 
+## From the woken session
+
+`cloud-delegate.md` asks, before unattended recovery is claimed, for repository, whole-log, push,
+check and queue access and bounded re-arming, observed after a real wake. The same session, on
+the same new machine (`d90cfd62`, up 1155 s at 19:43:09), did:
+
+| UTC | Operation | Result |
+| --- | --- | --- |
+| 19:26:07 | `git fetch origin --prune` | ok |
+| 19:43:09 | `git ls-remote origin 'refs/heads/claude/noacg-recovery/*'`; `gh api repos/NoaCG/NoaCG-Studio` | ok |
+| 19:43 | the GitHub connector's job-log read, job `118775224168` | ok |
+| 19:43:18 | `send_later` armed, `trig_01DjCQQE6hNxL3sBpYxn3992`, named `plan-run check-in test`, 60 minutes ahead | ok |
+| 19:43 | `list_triggers` shows it by name with this session as its target; `update_trigger` moves it to 20:55 | ok |
+| 19:43 | `delete_trigger` removes it | ok |
+
+It then pushed this receipt's branch, opened its pull request and queued it through the cloud
+path in `/queue-merge`; the merge that put this file on `main` is the push and queue receipt.
+
 ## What this means for the coordinator
 
-A coordinator that keeps one `send_later` check-in pending, about 60 minutes ahead, is woken in a
-new container after a lost one, at most about an hour later. Production-page spec §9 says what
-the woken turn does: it asks `next` of its own store, stops checking in when another coordinator
-took over or the project ended, and otherwise restarts its wait, running
-`node scripts/run-supervisor.mjs continue` only when its store is gone. This does not cover an
-account usage limit or a session that was stopped or ended: those still need the owner's
-`/plan-run` line. The coordinator still runs in a session the owner started: a routine-started
-one has `send_later` but no `send_message` or `list_events`
+A coordinator that always has one `send_later` check-in pending, about 60 minutes ahead, is woken
+in a new container after a lost one, within about an hour. Production-page spec §9 says what it
+does: it moves the check-in forward each turn, keeps none while the project waits for the owner,
+and when one fires asks `next` of its own store, stopping the check-ins on `superseded` and
+running `node scripts/run-supervisor.mjs continue` only when its store is gone. This does not
+cover an account usage limit or a session that was stopped or ended: those still need the
+owner's `/plan-run` line. The coordinator still runs in a session the owner started: a
+routine-started one has `send_later` but no `send_message` or `list_events`
 (`cloud-checkpoint-branch-2026-10-20.md`).
