@@ -5,6 +5,7 @@ import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSyn
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
 import { digest, immutableProject, readProject, validateAuthorization } from './project-authorization.mjs';
+import { PLAN_RUN_KIND } from './wave-plan-store.mjs';
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const required = (s) => typeof s === 'string' && s.trim().length > 0;
@@ -17,6 +18,7 @@ export function deliveredReceipt(result) {
 }
 /** The remote checkpoint moved past this store: a newer coordinator owns the run. */
 export const SUPERSEDED = 'superseded: another coordinator continued this project; stop';
+const superseded = () => Object.assign(new Error(SUPERSEDED), { code: 'SUPERSEDED' });
 const revision = (s) => /^[a-f0-9]{40}$/.test(s ?? '');
 const runId = (s) => /^[a-zA-Z0-9_-]+$/.test(s ?? '');
 const COMMIT_IDENTITY = {
@@ -38,6 +40,7 @@ const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
   return `refs/heads/noacg-recovery/${id}`;
 };
+const remoteHead = (git, config, ref) => git(config.repository, ['ls-remote', config.remote, ref]).split(/\s+/)[0];
 const safePath = (s) => required(s) && !s.startsWith('-') && !s.includes('\\') && !path.posix.isAbsolute(s)
   && s.split('/').every((part) => part && part !== '.' && part !== '..');
 
@@ -155,7 +158,7 @@ export function publishRun(db, id) {
   if (Buffer.byteLength(payload) > 256 * 1024) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
   const ref = refFor(id);
   if (old && git(config.repository, ['show', `${old}:checkpoint.json`]) === payload) {
-    if (git(config.repository, ['ls-remote', config.remote, ref]).split(/\s+/)[0] !== old) throw new Error(SUPERSEDED);
+    if (remoteHead(git, config, ref) !== old) throw superseded();
     return old;
   }
   const blob = git(config.repository, ['hash-object', '-w', '--stdin'], payload);
@@ -166,8 +169,8 @@ export function publishRun(db, id) {
     git(config.repository, ['push', `--force-with-lease=${ref}:${old}`, config.remote, `${commit}:${ref}`]);
   } catch {
     // A transport failure may follow acceptance. Reconcile this exact commit, never force.
-    const accepted = git(config.repository, ['ls-remote', config.remote, ref]).split(/\s+/)[0];
-    if (accepted !== commit) throw new Error(accepted === old ? 'Recovery publication unresolved; retry before acting' : SUPERSEDED);
+    const accepted = remoteHead(git, config, ref);
+    if (accepted !== commit) throw accepted === old ? new Error('Recovery publication unresolved; retry before acting') : superseded();
   }
   db.prepare('INSERT INTO recovery_heads VALUES(?,?) ON CONFLICT(id) DO UPDATE SET sha=excluded.sha').run(id, commit);
   return commit;
@@ -175,19 +178,18 @@ export function publishRun(db, id) {
 
 /** Read-only check before acting: a store whose last publication is no longer the remote
  * checkpoint has been superseded by a newer coordinator. Nothing is written or pushed. */
-export function assertCurrent(db, id) {
-  const git = transports.get(db) ?? recoveryGit;
-  const config = JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id).doc).manifest.recovery;
+export function assertCurrent(db, id, doc) {
+  const config = doc.manifest.recovery;
   if (!config) return;
   const head = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha;
-  if (git(config.repository, ['ls-remote', config.remote, refFor(id)]).split(/\s+/)[0] !== head) throw new Error(SUPERSEDED);
+  if (remoteHead(transports.get(db) ?? recoveryGit, config, refFor(id)) !== head) throw superseded();
 }
 
 /** The id of the plan's one unexpired active project among the shared recovery refs, or null. */
 export function activeProject(db, config, plan, now = Date.now()) {
   const git = transports.get(db) ?? recoveryGit;
   settings(config, git);
-  if (!/^[a-z0-9-]+$/.test(plan ?? '')) throw new Error('Plan name must be lowercase letters, digits and dashes');
+  if (!PLAN_RUN_KIND.test(`plan-${plan}`)) throw new Error(`"${plan}" is not a plan name (lowercase words joined by single dashes)`);
   // Project ids are plan-<plan>-<first date>; the date keeps plan "a" from matching plan "a-b".
   const own = new RegExp(`^refs/heads/noacg-recovery/(plan-${plan}-\\d{4}-\\d\\d-\\d\\d)$`);
   const refs = git(config.repository, ['ls-remote', config.remote, `refs/heads/noacg-recovery/plan-${plan}-*`])
@@ -247,7 +249,9 @@ export function restoreRun(db, config, now = Date.now()) {
   doc.manifest = { ...doc.manifest, wave: config.wave, adapter: config.adapter,
     recovery: { repository: config.repository, remote: config.remote, repositoryFullName: config.repositoryFullName } };
   doc.packet.workspace = { ...doc.packet.workspace, worktree: config.worktree };
-  doc.restoration = { checkpoint, generation: randomUUID(), reconciled: false };
+  // The block this store takes over: its first start-block may replace it while it is active.
+  const supersedes = readProject(ledger, now)?.block?.id;
+  doc.restoration = { checkpoint, generation: randomUUID(), reconciled: false, ...(supersedes ? { supersedes } : {}) };
   if (doc.status === 'active' && now >= Date.parse(doc.manifest.authorization.deadline)) doc.status = 'expired';
   db.exec('BEGIN IMMEDIATE');
   try {

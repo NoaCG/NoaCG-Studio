@@ -1,4 +1,5 @@
-// Controls for the existing supervisor transaction and wave ledger. No remote authority.
+// Controls for the existing supervisor transaction and wave ledger. Cross-session ownership is
+// the recovery ref's compare-and-swap (run-recovery.mjs); nothing here calls a remote.
 import { randomUUID } from 'node:crypto';
 import { readSteps, phasePosition } from './plan-run.mjs';
 import { digest, immutableProject, instant, projectBoundary, readProject, validateProject, writeProject } from './project-authorization.mjs';
@@ -26,13 +27,12 @@ export function changeProject(doc, project, text, operation, value, now) {
     // A store restored from the shared checkpoint takes over the block it continued from; the
     // older coordinator's next publication is then rejected as superseded. In-flight work stays
     // in the ledger, so the new coordinator waits on it rather than relaunching it.
-    const continuing = doc.restoration && doc.restoration.blockId !== project.block?.id;
+    const continuing = Boolean(project.block) && project.block.id === doc.restoration?.supersedes;
     if (project.status === 'active' && !projectBoundary(project, now) && !continuing) throw Error('Another block already owns launch authority');
     if (doc.pending) throw Error('Uncertain external action must be reconciled before resume');
     if (doc.wait) throw Error('Resolve the blocked prerequisite before resume');
     project.block = { id: randomUUID(), owner: value.owner, epoch: (project.block?.epoch ?? 0) + 1,
       startedAt: new Date(now).toISOString(), deadline: value.deadline };
-    if (doc.restoration) doc.restoration.blockId = project.block.id;
     project.status = 'active'; project.reason = value.evidence;
     doc.status = 'active'; delete doc.pauseReceipt;
   } else if (['pause', 'wait'].includes(operation)) {

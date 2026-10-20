@@ -9,7 +9,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { activeProject, assertCurrent, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, SUPERSEDED } from './run-recovery.mjs';
+import { activeProject, assertCurrent, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { changeProject, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
@@ -125,7 +126,7 @@ export function updateRun(db, id, operation, value, now = Date.now()) {
   return transaction(db, () => {
     const { doc } = rowFor(db, id);
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
-    assertCurrent(db, id); // A superseded coordinator changes nothing, not even its own ledger.
+    assertCurrent(db, id, doc); // A superseded coordinator changes nothing, not even its own ledger.
     const text = readFileSync(doc.manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now);
     if (operation === 'wait') doc.wait = validateWait(value);
@@ -162,7 +163,7 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
     const row = rowFor(db, id), { doc } = row;
     if (doc.status !== 'active') throw Error('Terminal run cannot record another phase');
     // A superseded coordinator is refused here, before it writes the ledger or launches anything.
-    assertCurrent(db, id);
+    assertCurrent(db, id, doc);
     const text = readFileSync(doc.manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now);
     if (project) {
@@ -264,7 +265,7 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
       }
       return result(doc.status);
     }
-    if (doc.projectState) assertCurrent(db, id); // Stops a superseded coordinator.
+    assertCurrent(db, id, doc); // Stops a superseded coordinator.
     const text = readFileSync(manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now());
     if (project && projectBoundary(project, now())) {
@@ -375,7 +376,7 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     if (delivered?.state === 'not-delivered') return result('waiting', 'confirmed non-delivery; bounded backoff');
     return result('unknown', 'delivery outcome is unknown');
   } catch (error) {
-    return result(error.message === SUPERSEDED ? 'superseded' : 'unknown', error.message);
+    return result(error.code === 'SUPERSEDED' ? 'superseded' : 'unknown', error.message);
   } finally {
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0 WHERE id=? AND owner=? AND epoch=?').run(id, claim.token, claim.epoch);
   }
@@ -419,7 +420,7 @@ export function continueProject(root, { plan, owner, ...recovery }, { now = Date
 function localRecovery() {
   const repository = recoveryGit(process.cwd(), ['rev-parse', '--show-toplevel']);
   const url = recoveryGit(repository, ['remote', 'get-url', 'origin']);
-  return { repository: path.resolve(repository), remote: 'origin', repositoryFullName: /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/i.exec(url)?.[1] };
+  return { repository: path.resolve(repository), remote: 'origin', repositoryFullName: repoFromRemote(url) };
 }
 
 export async function main(args = process.argv.slice(2), options = {}) {
@@ -437,8 +438,9 @@ export async function main(args = process.argv.slice(2), options = {}) {
     let output;
     if (command === 'register') output = registerRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'next') {
-      assertCurrent(db, id);
-      output = nextStep(readFileSync(rowFor(db, id).doc.manifest.wave, 'utf8'));
+      const { doc } = rowFor(db, id);
+      assertCurrent(db, id, doc);
+      output = nextStep(readFileSync(doc.manifest.wave, 'utf8'));
     }
     else if (command === 'restore') output = restoreRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'resume') {
