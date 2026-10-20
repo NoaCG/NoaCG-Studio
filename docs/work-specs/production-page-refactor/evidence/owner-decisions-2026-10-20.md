@@ -106,8 +106,8 @@ after its container is gone, and for a check-in if it does
 
 | # | Fix | Where |
 | --- | --- | --- |
-| R23 | It does, with the disk intact and no process left running. A cloud coordinator always has one `send_later` check-in pending for its own session, about 60 minutes ahead and never past the deadline, moved forward each turn; it keeps none while the project waits for the owner, and pausing the run deletes it. When one fires it asks `next` of its own store and carries on, restarting its background wait on a new machine and opening the next block at a block end; `superseded` ends the check-ins, and an error is an infrastructure wait. Stopping the session is not enough to stop the run: the owner asks for a pause, or has any session delete the check-in. It does not run `continue`: the store survives, and when it is gone the owner is told, so a check-in never takes the run back from a session the owner moved it to. A lost container now needs nothing from the owner; R11's typed line stays for a usage limit or a stopped or ended session | parent §9, §9.1, §9.2, §10 step 6 |
-| R24 | The preflight checks the keys with `scripts/plan-run-keys.mjs`: one harmless authenticated read per key, printing only pass or fail; the service account must read and be able to edit all six distinct Sheets, not only the first (asked on #1550) | parent §9, §9.2 |
+| R23 | It does, with the disk intact and no process left running. A cloud coordinator keeps one `send_later` check-in pending for its own session and carries on from its own store when it fires, never by `continue`, so a lost container needs nothing from the owner and a check-in never takes the run back from a session the owner moved it to; pausing the run deletes it | parent §9, §9.1, §9.2, §10 step 6 |
+| R24 | The preflight checks the keys with `scripts/production-page-keys.mjs`: one harmless authenticated read per key, printing only pass or fail; the service account must read and be able to edit all six distinct Sheets, not only the first (asked on #1550) | parent §9, §9.2 |
 
 ## Runner check
 

@@ -687,19 +687,18 @@ the first rehearsal.
   coordinator turn that ends in a wait leaves exactly one pending for its own session, about 60
   minutes ahead and never past the deadline: of the check-ins `list_triggers` shows with that name
   and this session as target, it moves one and refreshes its message (`update_trigger`), arms one
-  if there is none, and deletes the rest. Other sessions' check-ins are left alone; each ends on
-  its session's `superseded`. While the project waits for the owner (a `stop`, the owner's pause,
-  the final owner block) or has ended, the coordinator keeps none. When one fires: if the `<db>`
-  file is gone, the coordinator tells the owner and keeps none, since `continue` could take the run
-  back from a session the owner moved it to. Otherwise it asks `node scripts/run-supervisor.mjs
-  next <db> <id>` and carries on from the answer as usual, restarting its background wait unless
-  that process runs on this machine (a new machine keeps the disk but no process). A block end
-  (`paused`, "work block ended") opens the next block. `superseded` ends the check-ins. Any other
-  error is an infrastructure wait (§8): the restarted wait retries it and the check-in stays.
-  Receipt `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner
-  decision R23. It is no help after an account usage limit and is not relied on once the session is
-  closed: then the same `/plan-run` line continues the run (§10 step 6), and the laptop helper
-  (§9.1 step 4) reports a stale heartbeat, as does a missing morning summary.
+  if there is none, and deletes the rest. Other sessions' check-ins are left alone. While the
+  project waits for the owner (a `stop`, the owner's pause, the final owner block) or has ended,
+  the coordinator keeps none. When one fires: if the `<db>` file is gone, the coordinator tells the
+  owner and keeps none, since `continue` could take the run back from a session the owner moved it
+  to. Otherwise it asks `node scripts/run-supervisor.mjs next <db> <id>` and carries on from the
+  answer as usual, restarting its background wait unless that process runs on this machine (a new
+  machine keeps the disk but no process). A block end (`paused`, "work block ended") opens the next
+  block. `superseded` ends the check-ins. Any other error is an infrastructure wait (§8): the
+  restarted wait retries it and the check-in stays. Receipt
+  `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner decision R23.
+  It is no help after an account usage limit and is not relied on once the session is closed: then
+  §10 step 6 applies.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
   `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
   problems (open runtime acceptance is expected) and the plan listed under "Runnable plans" in
@@ -717,11 +716,8 @@ the first rehearsal.
   supplied the finite project deadline in Helsinki time with its offset and the actual permission
   policy. From a fresh cloud session, each checked by its own receipt, never assumed from a
   document:
-  - **Keys:** `node scripts/plan-run-keys.mjs` exits 0. It makes one harmless authenticated read
-    per key and prints only pass or fail, never a value: Supabase lists the account's projects,
-    YouTube reads one public video's ID (one quota unit), and the service account signs in
-    read-only, reads each of the six distinct Sheets in `NOACG_TEST_SHEET_IDS` and confirms
-    through the Drive API that it may edit each.
+  - **Keys:** `node scripts/production-page-keys.mjs` exits 0: one harmless authenticated read per
+    key, printing only pass or fail, never a value (its header lists the reads).
   - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`) and
     a whole failed-job log (the GitHub connector's job-log read); and, from a recent real landing
     by a cloud session, never a probe that could queue unfinished work: a `cloud-queue-merge.yml`
@@ -823,8 +819,8 @@ the final owner block, which waits for him.
 | Second runner PR (handoff, progress since launch, consistent publication, diagnosis step, check from the merge) | `main` | agents, separate PR | run opening | landed (#1543) | - |
 | Recovery checkpoints on a branch a cloud session can push (`claude/noacg-recovery/<id>`) | `main` | agents, separate PR | run opening | landed (#1545; receipt `continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`) | - |
 | Third runner PR (counts never go down, a resumed diagnosis qualifies, queued and merge-queue runs and session events in the progress check) | `main` | agents, separate PR | run opening | landed (#1549, #1551) | - |
-| Check-in after a lost container (§9) | the coordinator's owner-started cloud session | coordinator | run opening | live-tested (receipt `continuing-plan-preparation/send-later-wake-2026-10-20.md`); no watchdog session: a routine-started session has no `send_message` or `list_events` | after a usage limit or a stopped or ended session, the same `/plan-run` line continues the run; the laptop helper reports a stale heartbeat, and a missing morning summary shows the same |
-| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch) and a readable month-to-date Vercel usage figure (the Vercel connector or the owner's dashboard); without that figure the switch stays off; Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); the preflight reads with it (`plan-run-keys.mjs`) | the tick stays off; the follow-ups join the owner list with exact steps |
+| Check-in after a lost container (§9) | the coordinator's owner-started cloud session | coordinator | run opening | live-tested (receipt `continuing-plan-preparation/send-later-wake-2026-10-20.md`) | §10 step 6 |
+| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch) and a readable month-to-date Vercel usage figure (the Vercel connector or the owner's dashboard); without that figure the switch stays off; Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); the preflight reads with it (`production-page-keys.mjs`) | the tick stays off; the follow-ups join the owner list with exact steps |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Claude cloud environment, the local env file, Vercel | owner | Q Sheet records (gate C1b), C1c, C2 | ready: the service account signs in | Q times reads on the public CSV export and records edit latency as unmeasured; C1b states the measured read figure; the timed edit run joins the owner list |
 | `NOACG_TEST_SHEET_IDS`: six owner-owned Sheets, comma-separated | same | owner | same | ready: the service account reads and writes each; each public CSV export works | as above |
 | `YOUTUBE_API_KEY` | same | owner | Q `youtube` (gates C3), C7 live smoke | ready: works | C3 builds and checks against recorded responses; the live receipt joins the owner list |

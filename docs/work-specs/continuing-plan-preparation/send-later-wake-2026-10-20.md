@@ -58,10 +58,6 @@ this file, with the machine's boot ID at each step.
 
 ## What this means for the coordinator
 
-A coordinator that keeps one `send_later` check-in pending while it works, about 60 minutes ahead,
-is woken in a new container after a lost one, within about an hour, with its disk and so its store
-intact. So it does not need `continue`: it asks `next` of its own store and restarts its background
-wait. Production-page spec §9 gives the whole rule. This does not cover an account usage limit, and
-a closed session is not relied on: those need the owner's `/plan-run` line. The coordinator still
-runs in a session the owner started: a routine-started one has `send_later` but no `send_message`
-or `list_events` (`cloud-checkpoint-branch-2026-10-20.md`).
+A coordinator woken this way finds a new container within about an hour of a loss, its disk and so
+its store intact, and none of its processes. Production-page spec §9 gives the check-in rule built
+on this.
