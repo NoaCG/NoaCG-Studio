@@ -53,8 +53,8 @@ one read.
 ## Judgement
 
 The export meets D3. An edit is in the public CSV within about one second, so with the browser
-reader's 5-second interval an edit reaches the graphic within about 5 s plus one read (about 6.1 s
-at the slowest measured read), inside the ten-second promise. C1b may keep the ten-second wording
+reader's 5-second interval an edit reaches the graphic within one interval plus one read (about 5.9 s
+with the slowest read in `sheet-endurance.md`, 855 ms), inside the ten-second promise. C1b may keep the ten-second wording
 and does not need the "Publish to the web" fallback for freshness.
 
 Limits: the edits came through the Sheets API, not a person typing in the Sheets editor, which
