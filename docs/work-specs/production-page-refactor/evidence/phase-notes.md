@@ -5,6 +5,55 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 1 repair, P1R: the two findings of C0's check
+
+- **Previous verified `main` sha:** `cc3500f2d93359dc8add228d50c2353ec5d46f30`. Previous merge
+  sha: `6ecd82133e65ebf7d0672c9b9724c7cc0a504aaa` (C0, #1556), which the check failed.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Reverting the baseline brings back the
+  post-land advisor failure, so revert it only together with 0095.
+- **F1, post-land advisors (run 39506808457).** What was wrong: 0095 applied cleanly, and
+  `scripts/supabase-advisors.mjs` then reported `anon_` and
+  `authenticated_security_definer_function_executable` on
+  `audience_operator_add(p_slug text, p_items jsonb)`, which no baseline entry covered. Checked
+  against 0095 before accepting: it resolves the slug through `audience_owner_for_control`
+  (capability and audience kill switch, 0035), refuses a non-list and more than 100 items, only
+  inserts into that production's `audience_submissions` (clamped by `audience_guard`), and writes
+  no command log or production value. That is the same control-slug door as `audience_list` and
+  `audience_update`, which the hosted control page calls signed out, so the grant stays. The fix:
+  the judgement in `ACCEPTED_CLASSES` (both classes), the baseline re-recorded with
+  `--update-baseline` (174: the 2 new entries in, 4 gone unused-index entries out), and the
+  count paragraph in `docs/STACK_FRESHNESS.md`. A live re-run after recording reported no change.
+- **F2, `production-audience.spec.ts:542` red in Actions (run 39506957594).** What was wrong: the
+  trace shows the Playout tab's bind 4 ms after the Messages tab's prepare landed. Every model
+  write rewrites the whole record from that tab's mirror, and the Playout tab had not yet adopted
+  the prepare, so `applyFieldBinding` passed on its old copy and wrote it back: a binding and no
+  prepared cue in the database. The adoption read, opened before that write, then put the older
+  record into the Playout tab's mirror, which is why `record(page)` read `{}` at :578 while the
+  Data tab read the binding. The fix: `rebasedDurableSet` (model/durableStore.ts) puts this tab's
+  answer in the mirror and re-runs the mutation on the record IndexedDB holds, in one readwrite
+  transaction; `patchShowChecked`'s rebased mode (model/shows.ts) uses it for `setFieldBinding`,
+  `setFieldBindings`, a prepare (`addShowCue` / `updateShowCueChecked` with `stagedFrom`, which
+  now also refuse a bound body or name field there) and `setShowMessageTarget` (the prepare's
+  first write, which from a stale Messages tab erased the binding). `adoptWrite` no longer
+  overwrites a write this tab queued while its read was out. Other writes keep the ordinary path:
+  the general whole-record hazard stays as `durableStore.ts` describes it.
+- **Review findings on #1558.** A team production keeps the ordinary save, and a refused
+  team save is merged per field, so one member's prepared cue and another's binding on its field
+  both survived: `mergeTeamShow` now drops such a binding and reports "the field bindings" as
+  lost (two tests in `scripts/team-show-merge.test.mjs`, red before, green after). In the
+  localStorage fallback a rebased write that hits the quota is now reported like any refused
+  write instead of throwing out of the mutator. `src/model/teamShowMerge.ts` is the other file
+  outside the row's list.
+- **Reproduction.** Two tests in `production-audience.spec.ts` give one tab a durable-writes
+  channel that hears nothing and read back from a fresh tab: a stale tab binding a prepared
+  field, and a stale Messages tab preparing onto a bound field. Both failed before the fix (the
+  first with the binding stored, the CI signature) and pass after; removing the prepare-side
+  refusal fails the second again. :542 is unchanged.
+- **Files outside the row's list:** `src/model/durableStore.ts` (the transaction the fix needs),
+  `scripts/supabase-advisors.mjs` (where the advisor judgement lives) and
+  `docs/STACK_FRESHNESS.md` (the baseline's count history).
+
 ## Row 1, C0: paste and safe staging (data-sources C0; fixes #1313)
 
 - **Previous verified `main` sha:** `cc3500f2d93359dc8add228d50c2353ec5d46f30` (first phase; the

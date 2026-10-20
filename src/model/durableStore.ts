@@ -646,32 +646,127 @@ function queueWrite(key: string, value: string | null, previous: string | null):
     // accepted database value; never latch that earlier optimistic edit as the rollback.
     let accepted = previous;
     try { accepted = await idbReadKey(target, storedKey); } catch { /* the previous value is the remaining fallback */ }
-    if (namespace === account && latestWrite.get(key) === seq) {
-      if (accepted === null) mirror.delete(key);
-      else mirror.set(key, accepted);
-      // The surfaces that just rendered the accepted value have to re-read the real one.
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('spx-data-changed'));
-      }
-    }
-    const message = isQuotaError(e)
-      ? 'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.'
-      : 'Your work could not be saved to browser storage.';
-    if (namespace === account) reportError(key, message, seq);
+    const message = isQuotaError(e) ? FULL_MESSAGE : FAILED_MESSAGE;
+    rollBack(key, seq, account, accepted, message);
     return message;
   });
-  const receipt: DurableWriteReceipt = { sequence: seq, key, value, account, settled };
+  trackWrite({ sequence: seq, key, value, account, settled });
+}
+
+const FULL_MESSAGE = 'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.';
+const FAILED_MESSAGE = 'Your work could not be saved to browser storage.';
+const UNREADABLE_MESSAGE = 'The stored production could not be read safely.';
+
+/** Put the last accepted database value back in the mirror after a refused write, unless a newer
+ *  write owns the mirror now, and report the refusal. */
+function rollBack(key: string, seq: number, account: string | null, accepted: string | null, message: string): void {
+  if (namespace === account && latestWrite.get(key) === seq) {
+    if (accepted === null) mirror.delete(key);
+    else mirror.set(key, accepted);
+    // The surfaces that just rendered the refused value have to re-read the real one.
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+  }
+  if (namespace === account) reportError(key, message, seq);
+}
+
+/** A put handed to the database: its receipt, its place in `pending`, and the announcement. */
+function trackWrite(receipt: DurableWriteReceipt): void {
   unsettled.add(receipt);
-  void settled.then(() => unsettled.delete(receipt));
+  void receipt.settled.then(() => unsettled.delete(receipt));
   recordReceipt(receipt);
-  const write = settled.then(() => {});
+  const write = receipt.settled.then(() => {});
   pending.add(write);
   void write.finally(() => {
     pending.delete(write);
     // Tell the other tabs. AFTER the put has settled, so a tab that re-reads on this message
     // cannot read the value the write was replacing.
-    if (latestWrite.get(key) === seq) announceWrite(key);
+    if (latestWrite.get(receipt.key) === receipt.sequence) announceWrite(receipt.key);
   });
+}
+
+/**
+ * A write whose RULE depends on what other tabs wrote: `value` is this tab's answer, put in the
+ * mirror at once as `setItem` does, and `rebase` computes the stored answer again from what the
+ * database holds when the transaction runs - in that one transaction, so nothing lands between
+ * the read and the put. A tab whose mirror is behind another tab's write therefore cannot put its
+ * old copy back or pass a check its old copy would pass. A `{ refused }` stores nothing, rolls the
+ * mirror back to the database, and is reported like a failed write (`commitDurableWrites` claims
+ * it). Opened synchronously, so it stays in order with this tab's other writes to the key.
+ */
+export function rebasedDurableSet(
+  key: DurableKey,
+  value: string,
+  rebase: (current: string | null) => { value: string } | { refused: string },
+): void {
+  assertAccountAuthoring();
+  conditionalWrites.get(key)?.();
+  if (!hydrated || !usingIndexedDb) {
+    // localStorage is shared and synchronous, so the stored value is already the fresh one.
+    const stored = lsGet(physical(key));
+    let next: { value: string } | { refused: string };
+    try { next = rebase(stored); }
+    catch { next = { refused: UNREADABLE_MESSAGE }; }
+    if ('refused' in next) {
+      recordReceipt({ sequence: ++writeSeq, key, value: stored, account: namespace, settled: Promise.resolve(next.refused) });
+      reportError(key, next.refused, writeSeq);
+      return;
+    }
+    try { lsSet(physical(key), next.value); }
+    catch (e) {
+      const message = isQuotaError(e) ? FULL_MESSAGE : FAILED_MESSAGE;
+      recordReceipt({ sequence: ++writeSeq, key, value: stored, account: namespace, settled: Promise.resolve(message) });
+      reportError(key, message, writeSeq);
+      return;
+    }
+    recordReceipt({ sequence: ++writeSeq, key, value: next.value, account: namespace, settled: Promise.resolve(null) });
+    return;
+  }
+  const target = db!;
+  const previous = mirror.get(key) ?? null;
+  mirror.set(key, value);
+  writeSeq += 1;
+  const seq = writeSeq;
+  const account = namespace, storedKey = accountKey(key, account);
+  latestWrite.set(key, seq);
+  const settled = new Promise<string | null>((resolve) => {
+    let refusal: string | null = null, stored: string | null = null, accepted = previous, done = false;
+    const current = (): boolean => namespace === account && latestWrite.get(key) === seq;
+    const fail = (message: string) => {
+      if (done) return;
+      done = true;
+      rollBack(key, seq, account, accepted, message);
+      resolve(message);
+    };
+    let tx: IDBTransaction;
+    try { tx = target.transaction(STORE, 'readwrite'); }
+    catch { fail(FAILED_MESSAGE); return; }
+    const store = tx.objectStore(STORE), request = store.get(storedKey);
+    request.onsuccess = () => {
+      accepted = typeof request.result === 'string' ? request.result : null;
+      try {
+        // Nothing landed since this tab's copy, so this tab's answer is the stored answer.
+        const next = accepted === previous ? { value } : rebase(accepted);
+        if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
+        stored = next.value;
+        store.put(stored, storedKey);
+      } catch {
+        refusal = UNREADABLE_MESSAGE;
+        try { tx.abort(); } catch { /* already aborting */ }
+      }
+    };
+    tx.oncomplete = () => {
+      done = true;
+      if (current() && stored !== null) {
+        mirror.set(key, stored);
+        if (stored !== value && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+      }
+      resolve(null);
+    };
+    const failed = () => fail(refusal ?? (isQuotaError(tx.error) ? FULL_MESSAGE : FAILED_MESSAGE));
+    tx.onerror = failed;
+    tx.onabort = failed;
+  });
+  trackWrite({ sequence: seq, key, value, account, settled });
 }
 
 export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
@@ -717,7 +812,7 @@ export async function conditionalDurableWrite(
         store.put(value, accountKey(key, account));
       } catch (error) {
         writeError = error;
-        refusal = isQuotaError(error) ? null : 'The stored production could not be read safely.';
+        refusal = isQuotaError(error) ? null : UNREADABLE_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
       }
     };
@@ -758,7 +853,8 @@ export async function conditionalDurableWrite(
 // writes in the milliseconds between the message and the re-read landing can still overwrite.
 // Removing that last window means writing through the DATABASE rather than the mirror, which
 // every synchronous model reader in the app is built against - a much larger change, and a
-// separate one. This is the ordinary case, which is a person editing in one tab at a time.
+// separate one. This is the ordinary case, which is a person editing in one tab at a time. The
+// few writes whose RULE reads the rest of the record take that path already: `rebasedDurableSet`.
 //
 // `spx-data-changed` is dispatched after the re-read, because a refreshed mirror nobody re-reads
 // leaves every mounted surface showing the value it already had.
@@ -787,8 +883,12 @@ function announceWrite(key: string): void {
 async function adoptWrite(key: string, syncedElsewhere: boolean): Promise<void> {
   const target = db;
   if (!target || !durableKeySet.has(key)) return;
+  const queued = latestWrite.get(key);
   try {
     const value = await idbReadKey(target, physical(key));
+    // A write this tab queued while the read was out is newer than what the read saw: its put
+    // lands after the read, so the mirror keeps it rather than going back to the older value.
+    if (latestWrite.get(key) !== queued) return;
     if (value === null) mirror.delete(key);
     else mirror.set(key, value);
     if (typeof window !== 'undefined') {

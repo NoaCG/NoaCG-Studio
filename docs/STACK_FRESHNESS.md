@@ -365,6 +365,13 @@ invoker and the service role's alone. So it is deny-all like `connector_grants`:
 `/api/me` writes and reads it. One index from each of 0093 and 0092 reads as unused, a class that never
 fails, and 8 unused-index entries had gone, so the file was re-recorded with
 `--update-baseline` rather than by hand.
+It holds **174** as of 2026-10-20: the 2 new entries are migration 0095's
+(`0095_audience_operator_add.sql`, messages the operator adds), which post-land run 39506808457
+reported once the landing of #1556 had applied it. `audience_operator_add`, for `anon` and
+`authenticated`, is the same control-slug door as `audience_list` and `audience_update`: it resolves
+the slug through `audience_owner_for_control` (capability and audience kill switch), inserts at most
+100 candidates a call into that production's `audience_submissions`, and writes no command log and
+no production value. 4 unused-index entries had gone. Re-recorded with `--update-baseline`.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused

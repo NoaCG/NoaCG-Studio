@@ -11,7 +11,7 @@ import type { ProjectBrand } from './brand';
 import type { JsonObject, ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
-import { canAuthorAccount, conditionalDurableWrite, durable, type ConditionalWriteResult } from './durableStore';
+import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { poolPlacement } from './poolIdentity.ts';
@@ -417,14 +417,18 @@ function saveAll(list: Show[]): string | null {
   }
 }
 
+/** The read shape every stored list takes: the format stamp, and a stable sync timestamp. */
+function readShape(list: Show[]): Show[] {
+  return list.map((s) => ({ ...s, version: 2 as const, updatedAt: s.updatedAt || BACKFILL_TS }));
+}
+
 /** All PERSONAL shows INCLUDING tombstones — for the sync engine, which must never see a team
  *  production (TEAMS_PLAN §2: team rows live outside the LWW mirror). Back-fills a stable sync
  *  timestamp and normalizes the format stamp on read (pure read-shape: no updatedAt bump, so a
  *  record never looks freshly edited just because a newer build read it). */
 export function loadAllShows(): Show[] {
   try {
-    const list = JSON.parse(durable.getItem(SHOWS_KEY) ?? '[]') as Show[];
-    return list.map((s) => ({ ...s, version: 2 as const, updatedAt: s.updatedAt || BACKFILL_TS }));
+    return readShape(JSON.parse(durable.getItem(SHOWS_KEY) ?? '[]') as Show[]);
   } catch {
     return [];
   }
@@ -716,21 +720,47 @@ export function refreshGraphicCopies(
   });
 }
 
-/** `patchShow`, answering too whether the write was refused on the spot (a full store): what a
- *  folder write that tells the operator anything reports, with `commitDurableWrites` after it. */
-function patchShowChecked(showId: string, mutate: (show: Show, at: string) => boolean): { shows: Show[]; error: string | null } {
+/** `patchShow`, answering too whether the write was refused on the spot (a full store, or a
+ *  refusal string from `mutate`): what a folder write that tells the operator anything reports,
+ *  with `commitDurableWrites` after it.
+ *
+ *  REBASED, for a write whose RULE reads the rest of the record: a binding on a field prepared
+ *  messages use, and a message prepared onto a bound field (`preparedMessageField`). The mutation
+ *  runs on this tab's copy, as every write does, and again on the record the database holds when
+ *  the write lands (`rebasedDurableSet`), so a tab that has not yet heard of another tab's prepare
+ *  or binding neither passes the rule on its old copy nor writes that copy back. `mutate` must then
+ *  give the same answer for the same record (no fresh ids inside it). A team production is not in
+ *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
+function patchShowChecked(
+  showId: string,
+  mutate: (show: Show, at: string) => boolean | string,
+  rebased = false,
+): { shows: Show[]; error: string | null } {
   const all = readEditable();
-  if (!canAuthorAccount()) return { shows: all.filter(s => !s.deleted), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
+  const visible = () => all.filter((s) => !s.deleted);
+  if (!canAuthorAccount()) return { shows: visible(), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
-  let error: string | null = null;
-  if (show) {
-    const at = nowIso();
-    if (mutate(show, at)) {
-      show.updatedAt = at;
-      error = saveAll(all);
-    }
-  }
-  return { shows: all.filter((s) => !s.deleted), error };
+  if (!show) return { shows: visible(), error: null };
+  const at = nowIso();
+  const result = mutate(show, at);
+  if (typeof result === 'string') return { shows: visible(), error: result };
+  if (!result) return { shows: visible(), error: null };
+  show.updatedAt = at;
+  if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
+  const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
+  rebasedDurableSet(SHOWS_KEY, JSON.stringify(personal), (current) => {
+    const raw = JSON.parse(current ?? '[]') as Show[];
+    if (!Array.isArray(raw)) return { refused: 'The stored productions could not be read safely.' };
+    const list = readShape(raw);
+    const fresh = list.find((s) => s.id === showId && !s.deleted);
+    if (!fresh) return { refused: 'This production was removed in another tab.' };
+    const again = mutate(fresh, at);
+    if (typeof again === 'string') return { refused: again };
+    if (again) fresh.updatedAt = at;
+    return { value: JSON.stringify(list) };
+  });
+  notifyDataChanged();
+  return { shows: visible(), error: null };
 }
 
 /** A cue's starting values: the template's own field defaults (what update() falls back to). */
@@ -764,12 +794,17 @@ export function addShowCue(
   after?: string,
 ): { shows: Show[]; cueId: string | null; error: string | null } {
   let cueId: string | null = null;
+  const id = uuid();
+  // A prepared message checks the binding rule against the stored record too (rebased).
   const { shows, error } = patchShowChecked(showId, (show) => {
     const source = show.graphics.find((g) => g.id === sourceId);
     const item = source ? null : (show.playoutItems?.find((i) => i.id === sourceId) ?? null);
-    if (!source && !item) return false;
+    // A prepare whose graphic went in another tab is refused, so nothing is marked used.
+    if (!source && !item) return seed?.stagedFrom ? 'This graphic was removed.' : false;
+    const refused = source && boundMessageField(show, source, seed?.stagedFrom);
+    if (refused) return refused;
     const cue: ShowCue = {
-      id: uuid(),
+      id,
       sourceId,
       ...(item ? { source: 'playout' as const } : {}),
       label: seed?.label?.trim() || (source ? source.name : item!.name),
@@ -786,7 +821,7 @@ export function addShowCue(
     show.cues = after === undefined ? appendCue(show.cues ?? [], cue) : insertAfter(show.cues ?? [], after, cue);
     cueId = cue.id;
     return true;
-  });
+  }, Boolean(seed?.stagedFrom));
   return { shows, cueId, error };
 }
 
@@ -1046,14 +1081,17 @@ export function updateShowCueChecked(
 ): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
-    if (!cue) return false;
+    if (!cue) return patch.stagedFrom ? 'This cue was removed.' : false;
+    const source = show.graphics.find((g) => g.id === cue.sourceId);
+    const refused = source && boundMessageField(show, source, patch.stagedFrom);
+    if (refused) return refused;
     if (patch.label !== undefined) cue.label = patch.label;
     if (patch.values) cue.values = { ...cue.values, ...patch.values };
     if (patch.stagedFrom) cue.stagedFrom = { ...patch.stagedFrom, fields: [...patch.stagedFrom.fields] };
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
-  });
+  }, Boolean(patch.stagedFrom));
 }
 
 /** Set or clear a cue's shortcut (model/cueShortcuts.ts). A key another cue holds is refused,
@@ -1617,6 +1655,16 @@ export function preparedMessageField(show: Pick<Show, 'graphics' | 'cues'>, grap
   return (show.cues ?? []).some((c) => ids.has(c.sourceId) && c.stagedFrom?.fields.includes(fieldId) === true);
 }
 
+/** Why a message may not be prepared into the fields its receipt names on `graphic`: one of them
+ *  follows live data, which could change the prepared text on air. Null when none is bound or
+ *  nothing is being prepared. The other half of
+ *  `preparedMessageField`, checked where the cue is written (control/messageStaging.ts asks first). */
+function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGraphic, 'name'>, receipt: MessageReceipt | undefined): string | null {
+  const bound = show.bindings?.[graphic.name] ?? {};
+  if (!receipt?.fields.some((f) => bound[f])) return null;
+  return `“${graphic.name}” follows live data on its message or name, so a prepared message could change on air. Add a separate card for messages.`;
+}
+
 /** One field's binding write - a path to set, or `null` to unbind it. Shared by the single-field
  *  setter below and the bulk one "Bind all by title" uses so both write through the same rule,
  *  which refuses a path on a field prepared messages use (unbinding is always allowed). */
@@ -1639,14 +1687,14 @@ export function setFieldBinding(
   fieldId: string,
   path: string | null,
 ): Show[] {
-  return patchShow(showId, (show) => {
+  return patchShowChecked(showId, (show) => {
     const before = show.bindings ?? {};
     const bindings = applyFieldBinding(show, before, graphic, fieldId, path);
     if (bindings === before) return false;
     if (Object.keys(bindings).length > 0) show.bindings = bindings;
     else delete show.bindings;
     return true;
-  });
+  }, true).shows;
 }
 
 /** Bind several fields, possibly across several graphics, in ONE read-mutate-write cycle — what
@@ -1658,7 +1706,7 @@ export function setFieldBindings(
   showId: string,
   entries: { graphic: string; fieldId: string; path: string }[],
 ): Show[] {
-  return patchShow(showId, (show) => {
+  return patchShowChecked(showId, (show) => {
     if (entries.length === 0) return false;
     const before = show.bindings ?? {};
     let bindings = before;
@@ -1667,7 +1715,7 @@ export function setFieldBindings(
     if (Object.keys(bindings).length > 0) show.bindings = bindings;
     else delete show.bindings;
     return true;
-  });
+  }, true).shows;
 }
 
 /**
@@ -1688,14 +1736,15 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
   });
 }
 
-/** Remember where messages go (Show.messageTarget), or forget it with `null`. */
+/** Remember where messages go (Show.messageTarget), or forget it with `null`. Part of a prepare,
+ *  so it is rebased like the prepare: a Messages tab behind a binding must not write it away. */
 export function setShowMessageTarget(showId: string, graphicId: string | null): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, (show) => {
     if ((show.messageTarget ?? null) === graphicId) return false;
     if (graphicId) show.messageTarget = graphicId;
     else delete show.messageTarget;
     return true;
-  });
+  }, true);
 }
 
 /**
