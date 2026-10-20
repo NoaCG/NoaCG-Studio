@@ -9,7 +9,8 @@ routing, saved-data/preferences, retained CSS and all assertions/CI gates stay p
 No broader product change or Phase 3 work is authorized by the release.
 
 Status: **steps 1-5 landed and issue #800 closed. Step 6 is implemented in #1526;
-local browser/visual verification and normal merge-queue landing remain pending.**
+cloud acceptance is verified. Landing and exact-merge results are tracked in the
+[existing repair receipt](https://github.com/NoaCG/NoaCG-Studio/pull/1526#issuecomment-6283097769).**
 The owner released this cleanup through #1522 while deferring #1466; this is not
 a Phase 2 acceptance claim.
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
@@ -904,11 +905,12 @@ Home, save and production controls. No declaration is removed and no maintenance
 Why: retired editor state and styles still obscure the live editor and video workspace.
 Goal: remove only old-editor state, preview probes, obsolete callers and individually
 proven unused CSS rules. The owner released this scope in #1522; Phase 2 stays BLOCKED
-and #1466 is deferred, not fixed. This run executes locally following the owner's latest
-request to use this local session's access.
+and #1466 is deferred, not fixed. Implementation began locally; the owner then requested
+continuation in the prepared cloud environment so the laptop could close.
 
 Non-goals: no save/sync, routing, persisted data/layout/preferences, current runtime,
-selection/history/modal behavior, account enforcement, tests, limits or Phase 3 change.
+selection/history/modal behavior, account enforcement, test removal, weakened assertions
+or limits, or Phase 3 change.
 
 Decisions: remove SPX-only old state after checking all consumers, preserving the video
 store's independent state; wait for rendered field text before import glyph measurement;
@@ -1549,3 +1551,73 @@ local capture script covered the first editor/wizard context only. Its source la
 authoritative. The owner requests cloud continuation because the laptop must close; the
 local cleanup heartbeat is paused to prevent competing editors. PR #1526 remains draft,
 with no auto-merge or queue entry until verification and explicit successor ownership.
+
+### Step 6 cloud acceptance and check (2026-10-20)
+
+The successor acknowledged sole repair ownership in the existing #1526 receipt before
+editing: native session `01a1578f-ce03-7254-9f07-8773128be053`, worktree
+`/workspace/worktrees/codebase-lean-step6`. The laptop chat is idle and its heartbeat stays
+paused. No second fixer or PR was launched. Git and Actions API preflights passed with the
+supported shell network permission; credentials and network policy were preserved. The worker
+detected four CPUs, 16 GiB machine memory and two browser workers, using machine totals for
+hidden cgroup ancestors. No laptop memory override was inherited. Current main
+`c417eadb4ba031239007f651e6191452303902e2` was merged in commit
+`4b0d2acdec4c94f97a56bf2ba10f71ebb2ec68f0`; contracts were regenerated.
+
+The original 32-path scope was recovered from the PR and reviewed inline against that main.
+Review found one remaining stale source-header claim that the timeline target lives in the
+store; it is removed from timelineLens.ts. Simplification remains inline and preserves the
+existing helpers. All eight comment-only production modules have identical comment-free
+TypeScript output. The CSS audit independently counts 345 removed rules, with all 88 retained
+rules byte-identical and ordered. Both retained keyboard helper bodies are identical.
+
+Cloud gates passed all six affected Node files / 33 tests and cheap checks; client/API
+TypeScript, targeted ESLint, changed-spec protection and all 528 catalog emits passed.
+Queue j-0007 passed all 37 cases in import-canvas, editor-foundation, brand-editor and
+video-project in 1.4 minutes, including the corrected real-typeset import case. This adds
+fresh cloud evidence to, and does not erase, j-4638/j-4640's failures or j-4642's import pass.
+No app production build or full local suite ran. Installation generated the required
+player-host artifact; authoritative app builds and full suites remain in Actions.
+
+[Settled visual evidence](evidence/step6/README.md) records all eight inspected images and
+per-context console/network observations. Images stay ignored on the cloud worker under the
+repository's picture policy; the committed manifest preserves their hashes. Wizard and editor
+pass at 1366, 1093 and 390 pixels;
+video preview, guides, backing and fully loaded Monaco pass at 1366 and 390 pixels. j-0015
+waits for loaded fields, rendered text and completed GSAP motion; j-0011 waits for the video
+load, rendered countdown and actual code lines. Final contexts have no console errors or
+HTTP errors. Navigation-cancelled requests and the existing Remotion notice remain recorded.
+Earlier cloud captures that caught loading/entrance states are superseded, not accepted.
+j-0001's mobile capture also recorded negative SVG outline dimensions; unchanged main
+reproduced the exact error under subpixel sizing in j-0010. That pre-existing issue is
+[tracked separately as #1527](https://github.com/NoaCG/NoaCG-Studio/issues/1527), not repaired
+or hidden by this cleanup. j-0002's baseline setup had a symlink-induced font 403; a real
+dependency installation removed that setup fault. j-0009's first direct-render probe had a
+CommonJS import-shape error; j-0010 corrected only that probe setup and confirmed the defect.
+
+CI run 39368943598 on `9f7209475929216db1d2004b26b0656e06626d37` failed the unstamped
+Reviewed job and the cold-open wizard case (105 other shard cases passed). Whole job logs and
+the failure artifact were read. Its trace shows Chromium `net::ERR_INSUFFICIENT_RESOURCES`
+before App.tsx could load. The same failure already affects main in #1524. Local j-0004
+reproduced the boot failure; trace-enabled diagnostics j-0008 on main and j-0013 on the branch
+passed without establishing a repair. One permitted failed-job rerun was requested on the
+unchanged original PR SHA; its actual result remains in the repair receipt.
+
+That rerun also failed the same template-file assertion (job 118456134612), with 105 other
+shard cases passing again. It is not a fail-then-pass or a quarantine candidate. The original
+run remains failed; the fresh-page correction is tested on a new committed state.
+
+Repair attempt 1 for #1524, commit `117f08bd77a95372fe4f2cd28ab08f4748c78d9c`, gives each
+of the nine cold-open slugs a fresh page and closes it after its assertions. All slugs, both
+assertions, the seven-second budget and every other case are unchanged. This contained
+test-only repair is included under the queue workflow's CI-repair requirement; no live
+editor, routing, save, account or data behavior changes. All 18 wizard-shell cases passed
+in j-0014 (44.1 seconds), with TypeScript, ESLint and changed-spec protection passing.
+Actions must confirm it; no green retry or quarantine classification is claimed as a fix.
+Inline simplification closes each successful page directly, leaving a failing page to the
+fixture's screenshot and context teardown. This retains the original failure diagnostics.
+
+Review, simplify and verify are inline. The exact-tip check stamp is generated after the
+final evidence commit. The rejected external CLI review was not retried or bypassed.
+The active cloud session owns queue-merge and exact-merge CI, Post-landing, Quarantine and
+configured-suite results in the existing receipt. Nothing here claims Phase 2 PASS or #1466 fixed.

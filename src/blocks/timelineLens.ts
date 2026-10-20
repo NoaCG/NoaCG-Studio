@@ -9,10 +9,6 @@
 // PROJECT: reading a branch target hands the surfaces an AnimData whose single step IS that
 // state's timeline, so animEdit, animEval, the keyframe drags and the Inspector all keep
 // working unchanged; writing folds the edited step back into the state it came from.
-//
-// The target lives in templateStore, not in the dock's local state, because the Inspector
-// resolves values and stamps keyframes against the SAME projection — a component-local target
-// would have it editing the entrance while the timeline showed a branch.
 
 import type { AnimData, AnimStep } from './animData';
 
