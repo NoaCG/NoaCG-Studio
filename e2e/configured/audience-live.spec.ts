@@ -2,6 +2,8 @@ import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { openWorkspace } from '../_workspace';
+import { settleDurableWrites } from '../_durable';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -59,6 +61,66 @@ test.describe(() => {
 
     await unpublishForCleanup(page);
     await expect(page.getByTestId('production-publish')).toBeVisible();
+    await wipeMyGraphics(page);
+  });
+
+  test('a pasted message on a published production goes through the operator door, and prepares safely', async ({ page }) => {
+    // data-sources C0, the published half: paste reaches the REAL inbox through
+    // `audience_operator_add` (migration 0095, the control slug), survives a reload because the
+    // database holds it, and prepares a cue on a card the operator accepts; a batch over 100 is
+    // refused by the server itself; a binding on the card's prepared Question is refused.
+    await signIn(page);
+    await settleSync(page);
+    await wipeMyGraphics(page);
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
+    const showId = await openProductionWithCurrent(page, `Paste Live ${Date.now()}`);
+    await publishProduction(page);
+    await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
+    await page.keyboard.press('Escape');
+
+    const messages = await openWorkspace(page, 'audience');
+    await messages.getByTestId('message-paste-name').fill('Ana');
+    await messages.getByTestId('message-paste-body').fill('Pasted on a published production');
+    await messages.getByTestId('message-paste-add').click();
+    const row = messages.locator('.pd-aud-row', { hasText: 'Pasted on a published production' });
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    await expect(row.getByTestId('audience-provenance')).toHaveText('Pasted');
+    await messages.reload();
+    await expect(row).toBeVisible({ timeout: 20_000 });
+
+    // The server's own bound, asked directly: 101 items is refused before anything is written.
+    const refused = await messages.evaluate(async (id) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const slug = loadShows().find((s) => s.id === id)?.hostedSlug;
+      const sb = await getSupabase();
+      const items = Array.from({ length: 101 }, (_, i) => ({ body: `bulk ${i}` }));
+      const { error } = await sb!.rpc('audience_operator_add', { p_slug: slug, p_items: items });
+      return error?.message ?? null;
+    }, showId);
+    expect(refused).toContain('at most 100');
+    await expect(messages.locator('.pd-aud-row', { hasText: 'bulk 0' })).toHaveCount(0);
+
+    // A lower third holds no message, so Prepare offers the cards; one press adds card and cue.
+    await row.getByTestId('audience-prepare').click();
+    await expect(row.getByTestId('audience-no-destination')).toBeVisible();
+    await row.getByTestId('audience-choose-card').first().click();
+    await expect(messages.getByTestId('audience-note')).toContainText('It airs when you Take it', { timeout: 20_000 });
+    await settleDurableWrites(messages);
+
+    // The card's Question now holds a prepared message: a binding on it is refused.
+    const bound = await messages.evaluate(async (id) => {
+      const shows = await import('/src/model/shows.ts');
+      const show = shows.loadShows().find((s) => s.id === id)!;
+      const card = show.graphics.find((g) => (g.template.fields ?? []).some((f) => f.title === 'Question'))!;
+      const question = (card.template.fields ?? []).find((f) => f.title === 'Question')!.field;
+      shows.setFieldBinding(id, card.name, question, 'feed.question');
+      return shows.loadShows().find((s) => s.id === id)?.bindings?.[card.name]?.[question] ?? null;
+    }, showId);
+    expect(bound).toBeNull();
+
+    await messages.close();
+    await unpublishForCleanup(page);
     await wipeMyGraphics(page);
   });
 });

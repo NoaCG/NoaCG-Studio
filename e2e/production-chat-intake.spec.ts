@@ -82,12 +82,15 @@ test('a chat line reaches air the way a phone question does: inbox, edit, approv
   // The operator's ordinary moderation: tidy the broadcast version, approve - which moves the
   // row out of the Inbox filter and into Approved - then send it from there.
   await row.getByTestId('audience-edit-body').fill('Best show of the year - thank you!');
-  await row.getByTestId('audience-approve').click();
+  await row.getByTestId('audience-more').click();
+  await audience.getByTestId('audience-approve').click();
   await expect(audience.locator('.pd-aud-row')).toHaveCount(0); // the inbox is done with it
   await audience.getByTestId('audience-filter-approved').click();
   const approved = audience.locator('.pd-aud-row').first();
   await expect(approved.locator('.pd-aud-author')).toHaveText('rivergirl · Chat');
-  await approved.getByTestId('audience-send').click();
+  // The first Prepare asks where messages go; the choice is the operator's, never a guess.
+  await approved.getByTestId('audience-prepare').click();
+  await approved.getByTestId('audience-choose-graphic').first().click();
   await expect(audience.getByTestId('audience-note')).toContainText('airs when you Take it');
 
   // And the ONE exit works end to end: the cue airs on Take, with the edited text and the
