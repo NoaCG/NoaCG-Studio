@@ -1,14 +1,5 @@
 # Leave-editor reliability
 
-## Current disposition, 2026-10-20
-
-**Deferred by the owner; independent Phase 2 remains BLOCKED.** Use one active
-authoring tab/device per account while the concurrent-save feature is deferred.
-The [owner decision and workaround](owner-deferral.md) release the shared paths only
-for the already approved codebase-lean Step 6 cleanup. That cleanup may proceed
-without a Phase 2 PASS. Existing save guards, assertions and CI gates remain; Phase 3
-is not authorized. Historical scope and acceptance criteria below are retained.
-
 ## Why and goal
 
 The October 6 review reported that unsaved work was questioned after reaching Home.

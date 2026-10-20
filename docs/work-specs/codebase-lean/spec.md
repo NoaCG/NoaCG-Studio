@@ -1,13 +1,5 @@
 # Make the codebase lean, starting with the retired editor
 
-Owner decision, 2026-10-20: **Step 6 may proceed without waiting for Phase 2
-acceptance.** The owner deferred further #1466 conflicted-copy work. The
-[decision and operational workaround](../editor-leave-reliability/owner-deferral.md)
-release the checker's shared-path reservation only for this already approved cleanup,
-owned by the existing Step 6 coordinator. Phase 2 remains BLOCKED; live save/sync,
-routing, saved-data/preferences, retained CSS and all assertions/CI gates stay protected.
-No broader product change or Phase 3 work is authorized by the release.
-
 Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
 through singles-i, the panels and the released editor/account checks have landed. The kept
 Sheet and insertion cases landed in #1492. This branch removes obsolete helpers and updates
