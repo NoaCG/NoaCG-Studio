@@ -104,8 +104,8 @@ test('the session\'s newest event and the pull request\'s merge-queue run are ac
   for (const bad of ['soon', '2030-01-01T11:55:00']) {
     assert.equal(main(['--branch', 'feature', '--event-at', bad], { now: NOW, run: fake(branchAt(50)), print() {} }), 2, `${bad} has no offset`);
   }
-  // An event ahead of the clock counts as now, not as future activity.
-  const ahead = progress(observe({ eventAt: new Date(NOW + 3_600_000).toISOString() }, fake({})), NOW);
+  // An event slightly ahead of the clock counts as now.
+  const ahead = progress(observe({ eventAt: new Date(NOW + 60_000).toISOString() }, fake({})), NOW);
   assert.equal(ahead.lastActivity, minutesAgo(0));
   // Its pull request #42 waits in the merge queue: the queue's run is running, another PR's is not this worker's.
   const queue = JSON.stringify([
@@ -117,6 +117,32 @@ test('the session\'s newest event and the pull request\'s merge-queue run are ac
   assert.equal(progress(queued, NOW, 30, minutesAgo(55)).state, 'progressing');
   const other = observe({ branch: 'feature' }, fake({ ...branchAt(50), pr: '7', queue }));
   assert.deepEqual(other.map((s) => s.source), ['commit']);
+});
+
+test('a worker that stalls before its first push turns idle from its launch; one with no launch time stays unknown', () => {
+  // ls-remote answers with nothing: read, no branch yet. No CI, no log.
+  const unpushed = { 'ls-remote': '' };
+  const sources = observe({ branch: 'feature' }, fake(unpushed));
+  assert.deepEqual(sources, [{ source: 'branch', at: null }]);
+  assert.deepEqual([progress(sources, NOW, 30, minutesAgo(40)).state, progress(sources, NOW, 30, minutesAgo(40)).idleMinutes], ['idle', 40]);
+  assert.equal(progress(sources, NOW, 30, minutesAgo(10)).state, 'progressing');
+  assert.equal(progress(sources, NOW).state, 'unknown', 'no launch time: nothing to count from');
+  // git itself unreadable is not "nothing pushed": still unknown.
+  assert.equal(progress(observe({ branch: 'feature' }, fake({})), NOW, 30, minutesAgo(40)).state, 'unknown');
+  assert.equal(main(['--branch', 'feature', '--since', minutesAgo(40)], { now: NOW, run: fake(unpushed), print() {} }), 1);
+});
+
+test('a time far ahead of the clock is ignored, not renewed as now on every poll', () => {
+  const ahead = (minutes) => progress(observe({ branch: 'feature', eventAt: new Date(NOW + minutes * 60_000).toISOString() }, fake(branchAt(50))), NOW, 30, minutesAgo(55));
+  assert.equal(ahead(2).state, 'progressing', 'two minutes of skew is now');
+  assert.deepEqual([ahead(60).state, ahead(60).idleMinutes], ['idle', 50], 'an hour ahead counts for nothing');
+  // A launch time written by a fast clock is no floor either: an unpushed branch then has nothing to count from.
+  const unpushed = observe({ branch: 'feature' }, fake({ 'ls-remote': '' }));
+  assert.equal(progress(unpushed, NOW, 30, new Date(NOW + 40 * 60_000).toISOString()).state, 'unknown');
+  // Nor may an old run, from before any real launch, then pass for this worker's activity.
+  const old = observe({ branch: 'feature' }, fake({ ...branchAt(90), ci: runs(['in_progress', 80], ['queued', 85]) }));
+  assert.equal(progress(old, NOW, 30, new Date(NOW + 40 * 60_000).toISOString()).state, 'unknown');
+  assert.equal(progress(unpushed, NOW, 30, new Date(NOW + 60_000).toISOString()).state, 'progressing');
 });
 
 test('the command exits 1 for an idle worker, 0 for a progressing one, 2 for bad input', () => {
