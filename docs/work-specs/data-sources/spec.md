@@ -682,16 +682,20 @@ C2's gate runs where an agent can reach it (owner decision A): on the local stac
 scenario turns the switch on in the local database and drives the tick handler with
 `Authorization: Bearer <the stack's test CRON_SECRET>` (a wrong or missing Bearer gets 401), and
 the cloud worker runs the closed-browser real-Sheet run against that local stack with the owner's
-test Sheets; C2 passes on those. The tick records each run's start, duration and outcome
-(accepted, refused, sources read) in the read state C2's migration adds, so its runs can be read
-from the database. Production follow-ups are the coordinator's, never C2's gate, and use its
-`SUPABASE_ACCESS_TOKEN` (parent §9.2): confirm from those recorded runs that the first scheduled
-call was accepted (not 401), without reading the secret's value; turn the production switch on;
-estimate an hour's real cost from the recorded runs (invocations times duration at Vercel Pro's
-function rates) while C3 builds, cross-checked with Vercel usage where that is readable; and
-leave the switch on only if this month's usage so far plus the measured hourly cost for the rest of the
-month stays within Pro's included usage (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`); otherwise it
-turns it off, records why and notifies the owner. Closed-page continuity is accepted as
+test Sheets; C2 passes on those. Each authenticated tick run records its start, wall-clock
+duration and the sources it read in the read state C2's migration adds; a refused call (no or a
+wrong Bearer) returns 401 and writes nothing, so an outside caller cannot write to the database.
+Production follow-ups are the coordinator's, never C2's gate, and use its `SUPABASE_ACCESS_TOKEN`
+(parent §9.2): turn the production switch on; confirm that a recorded run appears within a few
+minutes, which proves the cron's call was accepted without reading the secret's value (if none
+appears, Vercel's logs are read where readable, otherwise the switch goes back off and the owner
+is told); and, while C3 builds, take an hour's upper-bound cost: the
+invocations, plus the recorded wall-clock time counted both as active CPU and as provisioned
+memory at the function's configured size, at Vercel Pro's rates. Because the bound can only
+overstate Fluid compute's billed cost, the switch stays on if this month's usage so far plus that
+hourly bound for the rest of the month stays within Pro's included usage (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`). If the bound does
+not fit, the coordinator uses Vercel's billed metrics where they are readable, and otherwise
+turns the switch off, records why and notifies the owner. Closed-page continuity is accepted as
 "works while the switch is on, and says so when it is off" (sheet AC-4), so a cost decision never
 undoes an accepted criterion; parent phase 14 and S record the switch's state and the month's
 projection at the time. *Budget watch:* while the switch
