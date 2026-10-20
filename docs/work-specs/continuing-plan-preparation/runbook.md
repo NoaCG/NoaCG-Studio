@@ -81,8 +81,8 @@ replacement's receipt, and PASS comes from the latest checker.
 observed, and the checker starts on that immutable SHA. PASS is the latest checker's
 JSON receipt: its `mergeSha` is the one the phase landed, and its `mergeChecks` says
 every required check on that exact merge SHA is green; the checker waits for them
-before recording PASS. A plan may let a check outside its own areas that was already red on
-the merge's first parent be named with its issue instead (production-page decision 18):
+before recording PASS. A plan may let a failing spec its own rule shows the phase did not
+cause be named with its issue instead (production-page decision 18):
 
 ```json
 {

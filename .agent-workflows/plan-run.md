@@ -52,7 +52,7 @@ Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a con
 - **launch build/repair**: use the brief below in the phase's owned worktree. Record `landed {"mergeSha"}` once the merge is observed.
   Preserve carry findings, failure history and existing per-command/test bounds. A recorded intent alone proves no worker was launched.
 - **launch check**: fresh independent checker on that immutable merge SHA at once, without inherited build/repair conversation or a context-sharing builder fork.
-  PASS requires evidence for every authorized criterion in its specified environment, and `mergeChecks` once every exact-merge check is green or, where its plan allows, already red before the merge outside the plan's areas (it waits for them).
+  PASS requires evidence for every authorized criterion in its specified environment, and `mergeChecks` once every exact-merge check is green or, where its plan allows, red only on specs the phase did not cause, each named with its issue (it waits for them).
   `fail product:` gets one repair; `fail blocked:` one more check. An infrastructure/capacity outage spends no budget: the step stays in flight, `wait`, `clear-wait`, resume.
 - **diagnose** (a second failure): one fresh agent, independent of every builder, repairer and checker of the phase, records `diagnose`
   `{"actor","decision":"repair"|"check"|"stop","reason"}`: one last scoped repair, one re-check after a blocked prerequisite recovered, or stop for the owner. A failure after it stops; limits never reset.

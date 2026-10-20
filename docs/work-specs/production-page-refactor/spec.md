@@ -562,24 +562,21 @@ deploy-verify run, and the exact revert command.
   launches nothing against it, waits inside its background job and retries when it is back, and
   notifies the owner only if it lasts more than two hours or needs his account. No `stop` and no
   `answered` are involved.
-- **Separate from the editor (owner, 2026-10-20, decision 18).** The run owns the production
-  page and its child specs' areas; the editor, the wizard, import and accounts are not the run's.
-  The phase's checker decides who owns a red check on the merge SHA with one test: was it already
-  red on main before the merge (the merge's first parent)?
-  - **Red before:** not the phase's failure. In the run's areas it is a regression the run repairs
-    between phases, as above. In another area it gets one issue with the failing run, named in
-    `mergeChecks` in place of a green result, and it never fails a phase or stops the run.
-  - **Green before, or never run there:** the phase's failure, in any area, repaired as above;
-    that repair may change editor code to undo what the phase broke.
-  - **Flaky:** a spec in another area that fails and then passes on the same commit goes to
-    quarantine (on the phase's pull request the builder re-runs the failed jobs once, as
-    `/queue-merge` says). `quarantine.yml` still runs every quarantined spec on each main push, so
-    the same test applies to its `noacg/quarantine/<spec>` status: failing on the merge SHA and on
-    one re-run, after passing on the first parent, is the phase's failure.
-  - **Blocking:** when another area's failure keeps a phase's pull request from landing, it is a
-    wait, not a spent failure. The coordinator launches one session outside the phase ledger that
-    fixes it or reverts the landing that broke it, through `/check` and `/queue-merge` and never
-    by loosening a test, and notifies the owner if the wait lasts more than two hours.
+- **Separate from the editor (owner, 2026-10-20, decision 18).** A phase answers only for what
+  it can break, so an editor bug or any other unrelated failure never fails a phase or stops the
+  run. A failing spec on the merge SHA counts against the phase only when `e2e-affected` selects
+  it for the phase's changed files (`node scripts/e2e-affected.mjs --list --files <files>`) and it
+  passed on main before the phase landed (`node scripts/ci-failure-set.mjs --run <id>` lists a
+  run's failing specs). Any other failing spec is outside the phase: the checker names it in
+  `mergeChecks` with the issue that tracks it (the rolling red-main issue, or one new issue) and
+  the phase can pass; one in a production-page spec also gets a between-phases repair, as above.
+  A quarantined spec the phase selects is judged the same way from its `noacg/quarantine/<spec>`
+  statuses. Main's CI already quarantines a fail-then-pass and reverts a landing that turns a
+  green main red, so an editor landing that breaks main undoes itself. If main stays red for
+  another reason and that keeps a phase's pull request from landing, its builder lands the
+  smallest fix forward as its own pull request through `/check` and `/queue-merge`, never by
+  loosening a test, spending none of the phase's budget; after two hours the coordinator
+  notifies the owner while the step stays in flight.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its
