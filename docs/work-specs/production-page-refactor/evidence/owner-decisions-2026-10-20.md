@@ -98,6 +98,17 @@ Argon's review of `main` `1b9091537`, and the automated review comments on #1548
 | R21 | In a cloud session a quarantine is entered on its own branch from main without `--queue` and landed through the cloud path; between phases the coordinator lists open quarantine pull requests and carries a red one through; stale ones close through the GitHub connector or REST | parent §8, §9; queue-merge.md |
 | R22 | A worker refused auto-merge as self-approval (#1408) is covered by the coordinator, which can turn it on with `/queue-merge` step 5's head checks; the start line's permission policy names it and the check branches | parent §8, §10 step 3 |
 
+## Wake test, same day
+
+The owner asked for a live test of whether `send_later` wakes an owner-started cloud coordinator
+after its container is gone, and for a check-in if it does
+(`docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`).
+
+| # | Fix | Where |
+| --- | --- | --- |
+| R23 | It does, with the disk intact and nothing in memory. The coordinator keeps one `send_later` check-in about 60 minutes ahead; when one fires it asks `next` of its own store, stops checking in on `superseded` or an ended project, and otherwise re-arms and restarts its wait, running `continue` only when its store is gone. A lost container now needs nothing from the owner; R11's typed line stays for a usage limit or a stopped or ended session | parent §9, §9.2, §10 step 6 |
+| R24 | The preflight checks each key by one harmless authenticated read that prints only pass or fail (promised on #1550); all four passed on 2026-10-20 | parent §9, §9.2 |
+
 ## Runner check
 
 Read on `331a98a91`: `scripts/plan-run.mjs`, `scripts/run-supervisor.mjs`,
