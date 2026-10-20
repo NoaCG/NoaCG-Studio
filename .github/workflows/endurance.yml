@@ -1,0 +1,112 @@
+# ENDURANCE - one long software run, on demand only.
+#
+# The production-page plan needs a 60-minute endurance run of the whole election data path
+# (docs/work-specs/playout-expanded-acceptance/spec.md, phase E8.1b) and, earlier, a short smoke
+# of the election replay server and trusted agent (docs/work-specs/playout-external-connectors/
+# spec.md, phase E4.1). Neither fits a pull-request job. And no phase of an unattended run should
+# have to land a workflow file, because that needs a token with the `workflow` scope and would
+# wait for the owner. So this generic workflow lands before the run opens, and those phases add
+# only the npm scripts it runs.
+#
+# MANUAL DISPATCH ONLY: it never runs on a push or a pull request, so it is never a required
+# check. Its own 90-minute job timeout leaves room for a 60-minute run plus install and teardown;
+# no other workflow's timeout changed for it (owner, 2026-10-20).
+#
+# The script gets `--minutes <n>` and writes whatever it wants kept to `endurance-output/`, which
+# is uploaded as an artifact even when the run fails. With `local-supabase` on, the local stack is
+# started as configured-suite.yml starts it; the script reads its identity with
+# `supabase status -o json` itself.
+
+name: endurance
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: The npm script to run, for example `endurance:election`
+        required: true
+        type: string
+      minutes:
+        description: How long the script runs, passed as --minutes (1 to 75)
+        required: false
+        default: '60'
+        type: string
+      local-supabase:
+        description: Start the local Supabase stack first
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: endurance-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: ${{ inputs.script }} for ${{ inputs.minutes }} min
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      # Inputs reach the shell only through env, never interpolated into the script text.
+      - name: Check the inputs
+        env:
+          SCRIPT: ${{ inputs.script }}
+          MINUTES: ${{ inputs.minutes }}
+        run: |
+          case "$SCRIPT" in
+            ''|*[!A-Za-z0-9:._-]*) echo "::error title=Bad script::'$SCRIPT' is not an npm script name"; exit 1 ;;
+          esac
+          case "$MINUTES" in
+            ''|*[!0-9]*) echo "::error title=Bad minutes::'$MINUTES' is not a whole number"; exit 1 ;;
+          esac
+          if [ "$MINUTES" -lt 1 ] || [ "$MINUTES" -gt 75 ]; then
+            echo "::error title=Bad minutes::$MINUTES is outside 1-75, so the run could not end inside the 90-minute job"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      - uses: ./.github/actions/playwright-chromium
+
+      - name: Require the script in package.json
+        env:
+          SCRIPT: ${{ inputs.script }}
+        run: |
+          node -e 'const name = process.argv[1]; if (!(require("./package.json").scripts ?? {})[name]) { console.log(`::error title=No such script::package.json has no script "${name}"`); process.exit(1); }' "$SCRIPT"
+
+      # Same CLI version as configured-suite.yml, for the same reason given there.
+      - if: inputs.local-supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      - name: Start the local Supabase stack
+        if: inputs.local-supabase
+        run: |
+          set -euo pipefail
+          supabase start -x studio,edge-runtime
+
+      - name: Run
+        env:
+          SCRIPT: ${{ inputs.script }}
+          MINUTES: ${{ inputs.minutes }}
+        run: npm run "$SCRIPT" -- --minutes "$MINUTES"
+
+      - name: Keep the receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: endurance-${{ github.run_id }}
+          path: endurance-output/
+          if-no-files-found: ignore
+          retention-days: 30
