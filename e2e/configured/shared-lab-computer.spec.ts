@@ -169,6 +169,14 @@ test.describe('shared lab computer (configured)', () => {
 
 // Temporary first-attempt diagnostics; no test behavior or assertion changes.
 test.beforeEach(async ({ page }) => {
+  let appBoot = 0;
+  await page.route('**/src/App.tsx', route => {
+    appBoot += 1;
+    console.log('[diagnostic-app-boot]', appBoot);
+    // Original failure is on the third sign-in: first boot + sign-in/out for each student.
+    if (appBoot === 6) return route.abort('failed');
+    return route.continue();
+  });
   page.on('requestfailed', request => {
     const path = new URL(request.url()).pathname;
     if (path.startsWith('/src/')) console.log('[module-requestfailed]', path, request.failure()?.errorText);
