@@ -12,6 +12,11 @@ Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both*
 and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
 planning update does not start `/plan-run production-page`; the owner explicitly said not to.
 
+19 October full-project refinement: C7 remains the technical rehearsal and prepares the full
+human trial; that trial now runs at parent phase 14 after the remaining refactors. Its tasks
+and thresholds are unchanged. Whole-graphic data connections must enforce the same prepared
+message refusal as individual connections. No implementation or run starts from this update.
+
 ## What the reconciliation changed here
 
 The shared changes are listed once in the data-sources spec. For this document: the Audience view
@@ -203,9 +208,9 @@ screen. The participant pastes it, strips the phone number, edits name and text,
 card, previews, prepares and Takes; then a second message while the first is on air (the program
 must not change). These two tasks run early in Q on C0's build. The third task, a link-shared
 message Sheet with the second message aired without the surname while a proctor edits and
-reorders the Sheet, runs in C7's trial with the first two repeated. Pass: four of five complete
+reorders the Sheet, runs at parent phase 14's final trial with the first two repeated. Pass: four of five complete
 unaided and answer the three comprehension questions (data-sources AC-14); medians reported, no
-time target. Layer: `evidence/trial-paste.md` (Q) and `evidence/trial.md` (C7).
+time target. Layer: `evidence/trial-paste.md` (Q) and `evidence/trial.md` (parent phase 14; prepared in C7).
 
 ### AC-8: Candidates are first-class content
 A pasted body works with no name, reference, login or integration. Sheet starter rows carry Name,
@@ -228,6 +233,8 @@ blocks the run. Layer: `evidence/youtube.md`; C7's separately labeled results.
 ## Phases
 
 In the data-sources schedule: C0 (AC-1/2/3/6/8 paste half), Q (AC-7 paste tasks, AC-9), C3
-(AC-4/8/9), C7 (AC-5/7/9). The old phases 21, 23, 24 and 25 map there (synthesis §5).
+(AC-4/8/9), C7 (AC-5/9 and AC-7 trial preparation), parent phase 14 (AC-7 final trial and
+revalidation after later changes). The old phases 21, 23, 24 and 25 map to the content work
+(synthesis §5); the final trial placement follows the owner's 19 October full-project scope.
 
 ## Phase notes

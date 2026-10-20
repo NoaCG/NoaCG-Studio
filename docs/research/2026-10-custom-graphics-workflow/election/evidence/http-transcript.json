@@ -1,0 +1,1757 @@
+[
+  {
+    "method": "PATCH",
+    "path": "/api/data/patch",
+    "body": {
+      "election": {
+        "summary": {
+          "status": "PRELIMINARY · DEMO",
+          "observed_at": "2027-02-20T18:00:00Z",
+          "revision": 1,
+          "reporting_text": "60 / 100"
+        },
+        "parties": {
+          "KOK": {
+            "label": "KOK",
+            "votes": 225000,
+            "votes_text": "225,000",
+            "share_text": "22.5",
+            "seats_text": "48",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+          },
+          "SDP": {
+            "label": "SDP",
+            "votes": 215000,
+            "votes_text": "215,000",
+            "share_text": "21.5",
+            "seats_text": "44",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+          },
+          "PS": {
+            "label": "PS",
+            "votes": 180000,
+            "votes_text": "180,000",
+            "share_text": "18.0",
+            "seats_text": "36",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "KESK": {
+            "label": "KESK",
+            "votes": 130000,
+            "votes_text": "130,000",
+            "share_text": "13.0",
+            "seats_text": "26",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+          },
+          "VAS": {
+            "label": "VAS",
+            "votes": 85000,
+            "votes_text": "85,000",
+            "share_text": "8.5",
+            "seats_text": "16",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+          },
+          "VIHR": {
+            "label": "VIHR",
+            "votes": 75000,
+            "votes_text": "75,000",
+            "share_text": "7.5",
+            "seats_text": "14",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+          },
+          "RKP": {
+            "label": "RKP",
+            "votes": 45000,
+            "votes_text": "45,000",
+            "share_text": "4.5",
+            "seats_text": "9",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+          },
+          "KD": {
+            "label": "KD",
+            "votes": 30000,
+            "votes_text": "30,000",
+            "share_text": "3.0",
+            "seats_text": "5",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "LIIK": {
+            "label": "LIIK",
+            "votes": 10000,
+            "votes_text": "10,000",
+            "share_text": "1.0",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+          },
+          "ALAND": {
+            "label": "ALAND",
+            "votes": 5000,
+            "votes_text": "5,000",
+            "share_text": "0.5",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+          }
+        },
+        "candidates": {
+          "FI2027_02_101": {
+            "votes": 3500,
+            "votes_text": "3,500",
+            "status": "Counting"
+          },
+          "FI2027_02_102": {
+            "votes": 3300,
+            "votes_text": "3,300",
+            "status": "Counting"
+          },
+          "FI2027_02_103": {
+            "votes": 2100,
+            "votes_text": "2,100",
+            "status": "Counting"
+          },
+          "FI2027_01_101": {
+            "votes": 2900,
+            "votes_text": "2,900",
+            "status": "Counting"
+          },
+          "FI2027_01_102": {
+            "votes": 2400,
+            "votes_text": "2,400",
+            "status": "Counting"
+          },
+          "FI2027_02_104": {
+            "votes": 2700,
+            "votes_text": "2,700",
+            "status": "Counting"
+          }
+        },
+        "headlines": [
+          "DEMO DATA — NOT ELECTION RESULTS",
+          "Aino Example · Uusimaa · Counting continues"
+        ]
+      }
+    },
+    "response": {
+      "ok": true,
+      "data": {
+        "election": {
+          "summary": {
+            "status": "PRELIMINARY · DEMO",
+            "observed_at": "2027-02-20T18:00:00Z",
+            "revision": 1,
+            "reporting_text": "60 / 100"
+          },
+          "parties": {
+            "KOK": {
+              "label": "KOK",
+              "votes": 225000,
+              "votes_text": "225,000",
+              "share_text": "22.5",
+              "seats_text": "48",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+            },
+            "SDP": {
+              "label": "SDP",
+              "votes": 215000,
+              "votes_text": "215,000",
+              "share_text": "21.5",
+              "seats_text": "44",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+            },
+            "PS": {
+              "label": "PS",
+              "votes": 180000,
+              "votes_text": "180,000",
+              "share_text": "18.0",
+              "seats_text": "36",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "KESK": {
+              "label": "KESK",
+              "votes": 130000,
+              "votes_text": "130,000",
+              "share_text": "13.0",
+              "seats_text": "26",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+            },
+            "VAS": {
+              "label": "VAS",
+              "votes": 85000,
+              "votes_text": "85,000",
+              "share_text": "8.5",
+              "seats_text": "16",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+            },
+            "VIHR": {
+              "label": "VIHR",
+              "votes": 75000,
+              "votes_text": "75,000",
+              "share_text": "7.5",
+              "seats_text": "14",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+            },
+            "RKP": {
+              "label": "RKP",
+              "votes": 45000,
+              "votes_text": "45,000",
+              "share_text": "4.5",
+              "seats_text": "9",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+            },
+            "KD": {
+              "label": "KD",
+              "votes": 30000,
+              "votes_text": "30,000",
+              "share_text": "3.0",
+              "seats_text": "5",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "LIIK": {
+              "label": "LIIK",
+              "votes": 10000,
+              "votes_text": "10,000",
+              "share_text": "1.0",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+            },
+            "ALAND": {
+              "label": "ALAND",
+              "votes": 5000,
+              "votes_text": "5,000",
+              "share_text": "0.5",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+            }
+          },
+          "candidates": {
+            "FI2027_02_101": {
+              "votes": 3500,
+              "votes_text": "3,500",
+              "status": "Counting"
+            },
+            "FI2027_02_102": {
+              "votes": 3300,
+              "votes_text": "3,300",
+              "status": "Counting"
+            },
+            "FI2027_02_103": {
+              "votes": 2100,
+              "votes_text": "2,100",
+              "status": "Counting"
+            },
+            "FI2027_01_101": {
+              "votes": 2900,
+              "votes_text": "2,900",
+              "status": "Counting"
+            },
+            "FI2027_01_102": {
+              "votes": 2400,
+              "votes_text": "2,400",
+              "status": "Counting"
+            },
+            "FI2027_02_104": {
+              "votes": 2700,
+              "votes_text": "2,700",
+              "status": "Counting"
+            }
+          },
+          "headlines": [
+            "DEMO DATA — NOT ELECTION RESULTS",
+            "Aino Example · Uusimaa · Counting continues"
+          ]
+        }
+      },
+      "writes": [
+        {
+          "graphic": "Election Party Board",
+          "event": 1,
+          "applied": {
+            "f0": "KOK",
+            "f1": "225,000",
+            "f2": "22.5",
+            "f3": "48",
+            "f4": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4=",
+            "f5": "SDP",
+            "f6": "215,000",
+            "f7": "21.5",
+            "f8": "44",
+            "f9": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4=",
+            "f10": "PS",
+            "f11": "180,000",
+            "f12": "18.0",
+            "f13": "36",
+            "f14": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg==",
+            "f15": "KESK",
+            "f16": "130,000",
+            "f17": "13.0",
+            "f18": "26",
+            "f19": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+",
+            "f20": "VAS",
+            "f21": "85,000",
+            "f22": "8.5",
+            "f23": "16",
+            "f24": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4=",
+            "f25": "VIHR",
+            "f26": "75,000",
+            "f27": "7.5",
+            "f28": "14",
+            "f29": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+",
+            "f30": "RKP",
+            "f31": "45,000",
+            "f32": "4.5",
+            "f33": "9",
+            "f34": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4=",
+            "f35": "KD",
+            "f36": "30,000",
+            "f37": "3.0",
+            "f38": "5",
+            "f39": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg==",
+            "f40": "LIIK",
+            "f41": "10,000",
+            "f42": "1.0",
+            "f43": "1",
+            "f44": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+",
+            "f45": "ALAND",
+            "f46": "5,000",
+            "f47": "0.5",
+            "f48": "1",
+            "f49": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+          }
+        },
+        {
+          "graphic": "Election Candidate Card",
+          "event": 2,
+          "applied": {
+            "f2": "3,500",
+            "f3": "Counting"
+          }
+        },
+        {
+          "graphic": "Election Count Bug",
+          "event": 3,
+          "applied": {
+            "f0": "60 / 100",
+            "f1": "PRELIMINARY · DEMO",
+            "f2": "2027-02-20T18:00:00Z"
+          }
+        },
+        {
+          "graphic": "Election Ticker",
+          "event": 4,
+          "applied": {
+            "f0": "DEMO DATA — NOT ELECTION RESULTS\nAino Example · Uusimaa · Counting continues"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/data/patch",
+    "body": {
+      "election": {
+        "summary": {
+          "status": "PRELIMINARY · DEMO",
+          "observed_at": "2027-02-20T18:00:05Z",
+          "revision": 2,
+          "reporting_text": "61 / 100"
+        },
+        "parties": {
+          "KOK": {
+            "label": "KOK",
+            "votes": 228000,
+            "votes_text": "228,000",
+            "share_text": "22.7",
+            "seats_text": "48",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+          },
+          "SDP": {
+            "label": "SDP",
+            "votes": 217000,
+            "votes_text": "217,000",
+            "share_text": "21.6",
+            "seats_text": "44",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+          },
+          "PS": {
+            "label": "PS",
+            "votes": 180000,
+            "votes_text": "180,000",
+            "share_text": "17.9",
+            "seats_text": "36",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "KESK": {
+            "label": "KESK",
+            "votes": 130000,
+            "votes_text": "130,000",
+            "share_text": "12.9",
+            "seats_text": "26",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+          },
+          "VAS": {
+            "label": "VAS",
+            "votes": 85000,
+            "votes_text": "85,000",
+            "share_text": "8.5",
+            "seats_text": "16",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+          },
+          "VIHR": {
+            "label": "VIHR",
+            "votes": 75000,
+            "votes_text": "75,000",
+            "share_text": "7.5",
+            "seats_text": "14",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+          },
+          "RKP": {
+            "label": "RKP",
+            "votes": 45000,
+            "votes_text": "45,000",
+            "share_text": "4.5",
+            "seats_text": "9",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+          },
+          "KD": {
+            "label": "KD",
+            "votes": 30000,
+            "votes_text": "30,000",
+            "share_text": "3.0",
+            "seats_text": "5",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "LIIK": {
+            "label": "LIIK",
+            "votes": 10000,
+            "votes_text": "10,000",
+            "share_text": "1.0",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+          },
+          "ALAND": {
+            "label": "ALAND",
+            "votes": 5000,
+            "votes_text": "5,000",
+            "share_text": "0.5",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+          }
+        },
+        "candidates": {
+          "FI2027_02_101": {
+            "votes": 3700,
+            "votes_text": "3,700",
+            "status": "Counting"
+          },
+          "FI2027_02_102": {
+            "votes": 3300,
+            "votes_text": "3,300",
+            "status": "Counting"
+          },
+          "FI2027_02_103": {
+            "votes": 2100,
+            "votes_text": "2,100",
+            "status": "Counting"
+          },
+          "FI2027_01_101": {
+            "votes": 2900,
+            "votes_text": "2,900",
+            "status": "Counting"
+          },
+          "FI2027_01_102": {
+            "votes": 2400,
+            "votes_text": "2,400",
+            "status": "Counting"
+          },
+          "FI2027_02_104": {
+            "votes": 2700,
+            "votes_text": "2,700",
+            "status": "Counting"
+          }
+        },
+        "headlines": [
+          "DEMO DATA — NOT ELECTION RESULTS",
+          "Aino Example · Uusimaa · Counting continues"
+        ]
+      }
+    },
+    "response": {
+      "ok": true,
+      "data": {
+        "election": {
+          "summary": {
+            "status": "PRELIMINARY · DEMO",
+            "observed_at": "2027-02-20T18:00:05Z",
+            "revision": 2,
+            "reporting_text": "61 / 100"
+          },
+          "parties": {
+            "KOK": {
+              "label": "KOK",
+              "votes": 228000,
+              "votes_text": "228,000",
+              "share_text": "22.7",
+              "seats_text": "48",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+            },
+            "SDP": {
+              "label": "SDP",
+              "votes": 217000,
+              "votes_text": "217,000",
+              "share_text": "21.6",
+              "seats_text": "44",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+            },
+            "PS": {
+              "label": "PS",
+              "votes": 180000,
+              "votes_text": "180,000",
+              "share_text": "17.9",
+              "seats_text": "36",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "KESK": {
+              "label": "KESK",
+              "votes": 130000,
+              "votes_text": "130,000",
+              "share_text": "12.9",
+              "seats_text": "26",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+            },
+            "VAS": {
+              "label": "VAS",
+              "votes": 85000,
+              "votes_text": "85,000",
+              "share_text": "8.5",
+              "seats_text": "16",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+            },
+            "VIHR": {
+              "label": "VIHR",
+              "votes": 75000,
+              "votes_text": "75,000",
+              "share_text": "7.5",
+              "seats_text": "14",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+            },
+            "RKP": {
+              "label": "RKP",
+              "votes": 45000,
+              "votes_text": "45,000",
+              "share_text": "4.5",
+              "seats_text": "9",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+            },
+            "KD": {
+              "label": "KD",
+              "votes": 30000,
+              "votes_text": "30,000",
+              "share_text": "3.0",
+              "seats_text": "5",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "LIIK": {
+              "label": "LIIK",
+              "votes": 10000,
+              "votes_text": "10,000",
+              "share_text": "1.0",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+            },
+            "ALAND": {
+              "label": "ALAND",
+              "votes": 5000,
+              "votes_text": "5,000",
+              "share_text": "0.5",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+            }
+          },
+          "candidates": {
+            "FI2027_02_101": {
+              "votes": 3700,
+              "votes_text": "3,700",
+              "status": "Counting"
+            },
+            "FI2027_02_102": {
+              "votes": 3300,
+              "votes_text": "3,300",
+              "status": "Counting"
+            },
+            "FI2027_02_103": {
+              "votes": 2100,
+              "votes_text": "2,100",
+              "status": "Counting"
+            },
+            "FI2027_01_101": {
+              "votes": 2900,
+              "votes_text": "2,900",
+              "status": "Counting"
+            },
+            "FI2027_01_102": {
+              "votes": 2400,
+              "votes_text": "2,400",
+              "status": "Counting"
+            },
+            "FI2027_02_104": {
+              "votes": 2700,
+              "votes_text": "2,700",
+              "status": "Counting"
+            }
+          },
+          "headlines": [
+            "DEMO DATA — NOT ELECTION RESULTS",
+            "Aino Example · Uusimaa · Counting continues"
+          ]
+        }
+      },
+      "writes": [
+        {
+          "graphic": "Election Party Board",
+          "event": 5,
+          "applied": {
+            "f1": "228,000",
+            "f2": "22.7",
+            "f6": "217,000",
+            "f7": "21.6",
+            "f12": "17.9",
+            "f17": "12.9"
+          }
+        },
+        {
+          "graphic": "Election Candidate Card",
+          "event": 6,
+          "applied": {
+            "f2": "3,700"
+          }
+        },
+        {
+          "graphic": "Election Count Bug",
+          "event": 7,
+          "applied": {
+            "f0": "61 / 100",
+            "f2": "2027-02-20T18:00:05Z"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/data/patch",
+    "body": {
+      "election": {
+        "summary": {
+          "status": "PRELIMINARY · DEMO",
+          "observed_at": "2027-02-20T18:00:05Z",
+          "revision": 2,
+          "reporting_text": "61 / 100"
+        },
+        "parties": {
+          "KOK": {
+            "label": "KOK",
+            "votes": 228000,
+            "votes_text": "228,000",
+            "share_text": "22.7",
+            "seats_text": "48",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+          },
+          "SDP": {
+            "label": "SDP",
+            "votes": 217000,
+            "votes_text": "217,000",
+            "share_text": "21.6",
+            "seats_text": "44",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+          },
+          "PS": {
+            "label": "PS",
+            "votes": 180000,
+            "votes_text": "180,000",
+            "share_text": "17.9",
+            "seats_text": "36",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "KESK": {
+            "label": "KESK",
+            "votes": 130000,
+            "votes_text": "130,000",
+            "share_text": "12.9",
+            "seats_text": "26",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+          },
+          "VAS": {
+            "label": "VAS",
+            "votes": 85000,
+            "votes_text": "85,000",
+            "share_text": "8.5",
+            "seats_text": "16",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+          },
+          "VIHR": {
+            "label": "VIHR",
+            "votes": 75000,
+            "votes_text": "75,000",
+            "share_text": "7.5",
+            "seats_text": "14",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+          },
+          "RKP": {
+            "label": "RKP",
+            "votes": 45000,
+            "votes_text": "45,000",
+            "share_text": "4.5",
+            "seats_text": "9",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+          },
+          "KD": {
+            "label": "KD",
+            "votes": 30000,
+            "votes_text": "30,000",
+            "share_text": "3.0",
+            "seats_text": "5",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "LIIK": {
+            "label": "LIIK",
+            "votes": 10000,
+            "votes_text": "10,000",
+            "share_text": "1.0",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+          },
+          "ALAND": {
+            "label": "ALAND",
+            "votes": 5000,
+            "votes_text": "5,000",
+            "share_text": "0.5",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+          }
+        },
+        "candidates": {
+          "FI2027_02_101": {
+            "votes": 3700,
+            "votes_text": "3,700",
+            "status": "Counting"
+          },
+          "FI2027_02_102": {
+            "votes": 3300,
+            "votes_text": "3,300",
+            "status": "Counting"
+          },
+          "FI2027_02_103": {
+            "votes": 2100,
+            "votes_text": "2,100",
+            "status": "Counting"
+          },
+          "FI2027_01_101": {
+            "votes": 2900,
+            "votes_text": "2,900",
+            "status": "Counting"
+          },
+          "FI2027_01_102": {
+            "votes": 2400,
+            "votes_text": "2,400",
+            "status": "Counting"
+          },
+          "FI2027_02_104": {
+            "votes": 2700,
+            "votes_text": "2,700",
+            "status": "Counting"
+          }
+        },
+        "headlines": [
+          "DEMO DATA — NOT ELECTION RESULTS",
+          "Aino Example · Uusimaa · Counting continues"
+        ]
+      }
+    },
+    "response": {
+      "ok": true,
+      "data": {
+        "election": {
+          "summary": {
+            "status": "PRELIMINARY · DEMO",
+            "observed_at": "2027-02-20T18:00:05Z",
+            "revision": 2,
+            "reporting_text": "61 / 100"
+          },
+          "parties": {
+            "KOK": {
+              "label": "KOK",
+              "votes": 228000,
+              "votes_text": "228,000",
+              "share_text": "22.7",
+              "seats_text": "48",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+            },
+            "SDP": {
+              "label": "SDP",
+              "votes": 217000,
+              "votes_text": "217,000",
+              "share_text": "21.6",
+              "seats_text": "44",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+            },
+            "PS": {
+              "label": "PS",
+              "votes": 180000,
+              "votes_text": "180,000",
+              "share_text": "17.9",
+              "seats_text": "36",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "KESK": {
+              "label": "KESK",
+              "votes": 130000,
+              "votes_text": "130,000",
+              "share_text": "12.9",
+              "seats_text": "26",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+            },
+            "VAS": {
+              "label": "VAS",
+              "votes": 85000,
+              "votes_text": "85,000",
+              "share_text": "8.5",
+              "seats_text": "16",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+            },
+            "VIHR": {
+              "label": "VIHR",
+              "votes": 75000,
+              "votes_text": "75,000",
+              "share_text": "7.5",
+              "seats_text": "14",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+            },
+            "RKP": {
+              "label": "RKP",
+              "votes": 45000,
+              "votes_text": "45,000",
+              "share_text": "4.5",
+              "seats_text": "9",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+            },
+            "KD": {
+              "label": "KD",
+              "votes": 30000,
+              "votes_text": "30,000",
+              "share_text": "3.0",
+              "seats_text": "5",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "LIIK": {
+              "label": "LIIK",
+              "votes": 10000,
+              "votes_text": "10,000",
+              "share_text": "1.0",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+            },
+            "ALAND": {
+              "label": "ALAND",
+              "votes": 5000,
+              "votes_text": "5,000",
+              "share_text": "0.5",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+            }
+          },
+          "candidates": {
+            "FI2027_02_101": {
+              "votes": 3700,
+              "votes_text": "3,700",
+              "status": "Counting"
+            },
+            "FI2027_02_102": {
+              "votes": 3300,
+              "votes_text": "3,300",
+              "status": "Counting"
+            },
+            "FI2027_02_103": {
+              "votes": 2100,
+              "votes_text": "2,100",
+              "status": "Counting"
+            },
+            "FI2027_01_101": {
+              "votes": 2900,
+              "votes_text": "2,900",
+              "status": "Counting"
+            },
+            "FI2027_01_102": {
+              "votes": 2400,
+              "votes_text": "2,400",
+              "status": "Counting"
+            },
+            "FI2027_02_104": {
+              "votes": 2700,
+              "votes_text": "2,700",
+              "status": "Counting"
+            }
+          },
+          "headlines": [
+            "DEMO DATA — NOT ELECTION RESULTS",
+            "Aino Example · Uusimaa · Counting continues"
+          ]
+        }
+      },
+      "writes": []
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/data/patch",
+    "body": {
+      "election": {
+        "summary": {
+          "status": "PRELIMINARY · DEMO",
+          "observed_at": "2027-02-20T18:00:10Z",
+          "revision": 3,
+          "reporting_text": "61 / 100"
+        },
+        "parties": {
+          "KOK": {
+            "label": "KOK",
+            "votes": 228000,
+            "votes_text": "228,000",
+            "share_text": "22.7",
+            "seats_text": "48",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+          },
+          "SDP": {
+            "label": "SDP",
+            "votes": 217000,
+            "votes_text": "217,000",
+            "share_text": "21.6",
+            "seats_text": "44",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+          },
+          "PS": {
+            "label": "PS",
+            "votes": 180000,
+            "votes_text": "180,000",
+            "share_text": "17.9",
+            "seats_text": "36",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "KESK": {
+            "label": "KESK",
+            "votes": 130000,
+            "votes_text": "130,000",
+            "share_text": "12.9",
+            "seats_text": "26",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+          },
+          "VAS": {
+            "label": "VAS",
+            "votes": 85000,
+            "votes_text": "85,000",
+            "share_text": "8.5",
+            "seats_text": "16",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+          },
+          "VIHR": {
+            "label": "VIHR",
+            "votes": 75000,
+            "votes_text": "75,000",
+            "share_text": "7.5",
+            "seats_text": "14",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+          },
+          "RKP": {
+            "label": "RKP",
+            "votes": 45000,
+            "votes_text": "45,000",
+            "share_text": "4.5",
+            "seats_text": "9",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+          },
+          "KD": {
+            "label": "KD",
+            "votes": 30000,
+            "votes_text": "30,000",
+            "share_text": "3.0",
+            "seats_text": "5",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "LIIK": {
+            "label": "LIIK",
+            "votes": 10000,
+            "votes_text": "10,000",
+            "share_text": "1.0",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+          },
+          "ALAND": {
+            "label": "ALAND",
+            "votes": 5000,
+            "votes_text": "5,000",
+            "share_text": "0.5",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+          }
+        },
+        "candidates": {
+          "FI2027_02_101": {
+            "votes": 3680,
+            "votes_text": "3,680",
+            "status": "Counting"
+          },
+          "FI2027_02_102": {
+            "votes": 3300,
+            "votes_text": "3,300",
+            "status": "Counting"
+          },
+          "FI2027_02_103": {
+            "votes": 2100,
+            "votes_text": "2,100",
+            "status": "Counting"
+          },
+          "FI2027_01_101": {
+            "votes": 2900,
+            "votes_text": "2,900",
+            "status": "Counting"
+          },
+          "FI2027_01_102": {
+            "votes": 2400,
+            "votes_text": "2,400",
+            "status": "Counting"
+          },
+          "FI2027_02_104": {
+            "votes": 2700,
+            "votes_text": "2,700",
+            "status": "Counting"
+          }
+        },
+        "headlines": [
+          "DEMO DATA — NOT ELECTION RESULTS",
+          "Aino Example · Uusimaa · Counting continues"
+        ]
+      }
+    },
+    "response": {
+      "ok": true,
+      "data": {
+        "election": {
+          "summary": {
+            "status": "PRELIMINARY · DEMO",
+            "observed_at": "2027-02-20T18:00:10Z",
+            "revision": 3,
+            "reporting_text": "61 / 100"
+          },
+          "parties": {
+            "KOK": {
+              "label": "KOK",
+              "votes": 228000,
+              "votes_text": "228,000",
+              "share_text": "22.7",
+              "seats_text": "48",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+            },
+            "SDP": {
+              "label": "SDP",
+              "votes": 217000,
+              "votes_text": "217,000",
+              "share_text": "21.6",
+              "seats_text": "44",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+            },
+            "PS": {
+              "label": "PS",
+              "votes": 180000,
+              "votes_text": "180,000",
+              "share_text": "17.9",
+              "seats_text": "36",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "KESK": {
+              "label": "KESK",
+              "votes": 130000,
+              "votes_text": "130,000",
+              "share_text": "12.9",
+              "seats_text": "26",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+            },
+            "VAS": {
+              "label": "VAS",
+              "votes": 85000,
+              "votes_text": "85,000",
+              "share_text": "8.5",
+              "seats_text": "16",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+            },
+            "VIHR": {
+              "label": "VIHR",
+              "votes": 75000,
+              "votes_text": "75,000",
+              "share_text": "7.5",
+              "seats_text": "14",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+            },
+            "RKP": {
+              "label": "RKP",
+              "votes": 45000,
+              "votes_text": "45,000",
+              "share_text": "4.5",
+              "seats_text": "9",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+            },
+            "KD": {
+              "label": "KD",
+              "votes": 30000,
+              "votes_text": "30,000",
+              "share_text": "3.0",
+              "seats_text": "5",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "LIIK": {
+              "label": "LIIK",
+              "votes": 10000,
+              "votes_text": "10,000",
+              "share_text": "1.0",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+            },
+            "ALAND": {
+              "label": "ALAND",
+              "votes": 5000,
+              "votes_text": "5,000",
+              "share_text": "0.5",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+            }
+          },
+          "candidates": {
+            "FI2027_02_101": {
+              "votes": 3680,
+              "votes_text": "3,680",
+              "status": "Counting"
+            },
+            "FI2027_02_102": {
+              "votes": 3300,
+              "votes_text": "3,300",
+              "status": "Counting"
+            },
+            "FI2027_02_103": {
+              "votes": 2100,
+              "votes_text": "2,100",
+              "status": "Counting"
+            },
+            "FI2027_01_101": {
+              "votes": 2900,
+              "votes_text": "2,900",
+              "status": "Counting"
+            },
+            "FI2027_01_102": {
+              "votes": 2400,
+              "votes_text": "2,400",
+              "status": "Counting"
+            },
+            "FI2027_02_104": {
+              "votes": 2700,
+              "votes_text": "2,700",
+              "status": "Counting"
+            }
+          },
+          "headlines": [
+            "DEMO DATA — NOT ELECTION RESULTS",
+            "Aino Example · Uusimaa · Counting continues"
+          ]
+        }
+      },
+      "writes": [
+        {
+          "graphic": "Election Candidate Card",
+          "event": 8,
+          "applied": {
+            "f2": "3,680"
+          }
+        },
+        {
+          "graphic": "Election Count Bug",
+          "event": 9,
+          "applied": {
+            "f2": "2027-02-20T18:00:10Z"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/data/patch",
+    "body": {
+      "election": {
+        "candidates": {
+          "FI2027_02_101": {
+            "votes_text": null
+          }
+        }
+      }
+    },
+    "response": {
+      "ok": true,
+      "data": {
+        "election": {
+          "summary": {
+            "status": "PRELIMINARY · DEMO",
+            "observed_at": "2027-02-20T18:00:10Z",
+            "revision": 3,
+            "reporting_text": "61 / 100"
+          },
+          "parties": {
+            "KOK": {
+              "label": "KOK",
+              "votes": 228000,
+              "votes_text": "228,000",
+              "share_text": "22.7",
+              "seats_text": "48",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+            },
+            "SDP": {
+              "label": "SDP",
+              "votes": 217000,
+              "votes_text": "217,000",
+              "share_text": "21.6",
+              "seats_text": "44",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+            },
+            "PS": {
+              "label": "PS",
+              "votes": 180000,
+              "votes_text": "180,000",
+              "share_text": "17.9",
+              "seats_text": "36",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "KESK": {
+              "label": "KESK",
+              "votes": 130000,
+              "votes_text": "130,000",
+              "share_text": "12.9",
+              "seats_text": "26",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+            },
+            "VAS": {
+              "label": "VAS",
+              "votes": 85000,
+              "votes_text": "85,000",
+              "share_text": "8.5",
+              "seats_text": "16",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+            },
+            "VIHR": {
+              "label": "VIHR",
+              "votes": 75000,
+              "votes_text": "75,000",
+              "share_text": "7.5",
+              "seats_text": "14",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+            },
+            "RKP": {
+              "label": "RKP",
+              "votes": 45000,
+              "votes_text": "45,000",
+              "share_text": "4.5",
+              "seats_text": "9",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+            },
+            "KD": {
+              "label": "KD",
+              "votes": 30000,
+              "votes_text": "30,000",
+              "share_text": "3.0",
+              "seats_text": "5",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "LIIK": {
+              "label": "LIIK",
+              "votes": 10000,
+              "votes_text": "10,000",
+              "share_text": "1.0",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+            },
+            "ALAND": {
+              "label": "ALAND",
+              "votes": 5000,
+              "votes_text": "5,000",
+              "share_text": "0.5",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+            }
+          },
+          "candidates": {
+            "FI2027_02_101": {
+              "votes": 3680,
+              "status": "Counting"
+            },
+            "FI2027_02_102": {
+              "votes": 3300,
+              "votes_text": "3,300",
+              "status": "Counting"
+            },
+            "FI2027_02_103": {
+              "votes": 2100,
+              "votes_text": "2,100",
+              "status": "Counting"
+            },
+            "FI2027_01_101": {
+              "votes": 2900,
+              "votes_text": "2,900",
+              "status": "Counting"
+            },
+            "FI2027_01_102": {
+              "votes": 2400,
+              "votes_text": "2,400",
+              "status": "Counting"
+            },
+            "FI2027_02_104": {
+              "votes": 2700,
+              "votes_text": "2,700",
+              "status": "Counting"
+            }
+          },
+          "headlines": [
+            "DEMO DATA — NOT ELECTION RESULTS",
+            "Aino Example · Uusimaa · Counting continues"
+          ]
+        }
+      },
+      "writes": []
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/data/patch",
+    "body": {
+      "election": {
+        "headlines": ""
+      }
+    },
+    "response": {
+      "ok": true,
+      "data": {
+        "election": {
+          "summary": {
+            "status": "PRELIMINARY · DEMO",
+            "observed_at": "2027-02-20T18:00:10Z",
+            "revision": 3,
+            "reporting_text": "61 / 100"
+          },
+          "parties": {
+            "KOK": {
+              "label": "KOK",
+              "votes": 228000,
+              "votes_text": "228,000",
+              "share_text": "22.7",
+              "seats_text": "48",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+            },
+            "SDP": {
+              "label": "SDP",
+              "votes": 217000,
+              "votes_text": "217,000",
+              "share_text": "21.6",
+              "seats_text": "44",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+            },
+            "PS": {
+              "label": "PS",
+              "votes": 180000,
+              "votes_text": "180,000",
+              "share_text": "17.9",
+              "seats_text": "36",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "KESK": {
+              "label": "KESK",
+              "votes": 130000,
+              "votes_text": "130,000",
+              "share_text": "12.9",
+              "seats_text": "26",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+            },
+            "VAS": {
+              "label": "VAS",
+              "votes": 85000,
+              "votes_text": "85,000",
+              "share_text": "8.5",
+              "seats_text": "16",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+            },
+            "VIHR": {
+              "label": "VIHR",
+              "votes": 75000,
+              "votes_text": "75,000",
+              "share_text": "7.5",
+              "seats_text": "14",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+            },
+            "RKP": {
+              "label": "RKP",
+              "votes": 45000,
+              "votes_text": "45,000",
+              "share_text": "4.5",
+              "seats_text": "9",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+            },
+            "KD": {
+              "label": "KD",
+              "votes": 30000,
+              "votes_text": "30,000",
+              "share_text": "3.0",
+              "seats_text": "5",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "LIIK": {
+              "label": "LIIK",
+              "votes": 10000,
+              "votes_text": "10,000",
+              "share_text": "1.0",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+            },
+            "ALAND": {
+              "label": "ALAND",
+              "votes": 5000,
+              "votes_text": "5,000",
+              "share_text": "0.5",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+            }
+          },
+          "candidates": {
+            "FI2027_02_101": {
+              "votes": 3680,
+              "status": "Counting"
+            },
+            "FI2027_02_102": {
+              "votes": 3300,
+              "votes_text": "3,300",
+              "status": "Counting"
+            },
+            "FI2027_02_103": {
+              "votes": 2100,
+              "votes_text": "2,100",
+              "status": "Counting"
+            },
+            "FI2027_01_101": {
+              "votes": 2900,
+              "votes_text": "2,900",
+              "status": "Counting"
+            },
+            "FI2027_01_102": {
+              "votes": 2400,
+              "votes_text": "2,400",
+              "status": "Counting"
+            },
+            "FI2027_02_104": {
+              "votes": 2700,
+              "votes_text": "2,700",
+              "status": "Counting"
+            }
+          },
+          "headlines": ""
+        }
+      },
+      "writes": [
+        {
+          "graphic": "Election Ticker",
+          "event": 10,
+          "applied": {
+            "f0": ""
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/data/patch",
+    "body": {
+      "election": {
+        "summary": {
+          "status": "PRELIMINARY · DEMO",
+          "observed_at": "2027-02-20T18:00:05Z",
+          "revision": 2,
+          "reporting_text": "61 / 100"
+        },
+        "parties": {
+          "KOK": {
+            "label": "KOK",
+            "votes": 228000,
+            "votes_text": "228,000",
+            "share_text": "22.7",
+            "seats_text": "48",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+          },
+          "SDP": {
+            "label": "SDP",
+            "votes": 217000,
+            "votes_text": "217,000",
+            "share_text": "21.6",
+            "seats_text": "44",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+          },
+          "PS": {
+            "label": "PS",
+            "votes": 180000,
+            "votes_text": "180,000",
+            "share_text": "17.9",
+            "seats_text": "36",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "KESK": {
+            "label": "KESK",
+            "votes": 130000,
+            "votes_text": "130,000",
+            "share_text": "12.9",
+            "seats_text": "26",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+          },
+          "VAS": {
+            "label": "VAS",
+            "votes": 85000,
+            "votes_text": "85,000",
+            "share_text": "8.5",
+            "seats_text": "16",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+          },
+          "VIHR": {
+            "label": "VIHR",
+            "votes": 75000,
+            "votes_text": "75,000",
+            "share_text": "7.5",
+            "seats_text": "14",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+          },
+          "RKP": {
+            "label": "RKP",
+            "votes": 45000,
+            "votes_text": "45,000",
+            "share_text": "4.5",
+            "seats_text": "9",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+          },
+          "KD": {
+            "label": "KD",
+            "votes": 30000,
+            "votes_text": "30,000",
+            "share_text": "3.0",
+            "seats_text": "5",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+          },
+          "LIIK": {
+            "label": "LIIK",
+            "votes": 10000,
+            "votes_text": "10,000",
+            "share_text": "1.0",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+          },
+          "ALAND": {
+            "label": "ALAND",
+            "votes": 5000,
+            "votes_text": "5,000",
+            "share_text": "0.5",
+            "seats_text": "1",
+            "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+          }
+        },
+        "candidates": {
+          "FI2027_02_101": {
+            "votes": 3700,
+            "votes_text": "3,700",
+            "status": "Counting"
+          },
+          "FI2027_02_102": {
+            "votes": 3300,
+            "votes_text": "3,300",
+            "status": "Counting"
+          },
+          "FI2027_02_103": {
+            "votes": 2100,
+            "votes_text": "2,100",
+            "status": "Counting"
+          },
+          "FI2027_01_101": {
+            "votes": 2900,
+            "votes_text": "2,900",
+            "status": "Counting"
+          },
+          "FI2027_01_102": {
+            "votes": 2400,
+            "votes_text": "2,400",
+            "status": "Counting"
+          },
+          "FI2027_02_104": {
+            "votes": 2700,
+            "votes_text": "2,700",
+            "status": "Counting"
+          }
+        },
+        "headlines": [
+          "DEMO DATA — NOT ELECTION RESULTS",
+          "Aino Example · Uusimaa · Counting continues"
+        ]
+      }
+    },
+    "response": {
+      "ok": true,
+      "data": {
+        "election": {
+          "summary": {
+            "status": "PRELIMINARY · DEMO",
+            "observed_at": "2027-02-20T18:00:05Z",
+            "revision": 2,
+            "reporting_text": "61 / 100"
+          },
+          "parties": {
+            "KOK": {
+              "label": "KOK",
+              "votes": 228000,
+              "votes_text": "228,000",
+              "share_text": "22.7",
+              "seats_text": "48",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0MzhmZDYiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktPSzwvdGV4dD48L3N2Zz4="
+            },
+            "SDP": {
+              "label": "SDP",
+              "votes": 217000,
+              "votes_text": "217,000",
+              "share_text": "21.6",
+              "seats_text": "44",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlNDVlNmMiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNEUDwvdGV4dD48L3N2Zz4="
+            },
+            "PS": {
+              "label": "PS",
+              "votes": 180000,
+              "votes_text": "180,000",
+              "share_text": "17.9",
+              "seats_text": "36",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlOWJkNDIiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlBTPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "KESK": {
+              "label": "KESK",
+              "votes": 130000,
+              "votes_text": "130,000",
+              "share_text": "12.9",
+              "seats_text": "26",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM0ZmI0OTEiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktFU0s8L3RleHQ+PC9zdmc+"
+            },
+            "VAS": {
+              "label": "VAS",
+              "votes": 85000,
+              "votes_text": "85,000",
+              "share_text": "8.5",
+              "seats_text": "16",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjOTc2OTgiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZBUzwvdGV4dD48L3N2Zz4="
+            },
+            "VIHR": {
+              "label": "VIHR",
+              "votes": 75000,
+              "votes_text": "75,000",
+              "share_text": "7.5",
+              "seats_text": "14",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YmM3NjQiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZJSFI8L3RleHQ+PC9zdmc+"
+            },
+            "RKP": {
+              "label": "RKP",
+              "votes": 45000,
+              "votes_text": "45,000",
+              "share_text": "4.5",
+              "seats_text": "9",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNkOTllNTkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJLUDwvdGV4dD48L3N2Zz4="
+            },
+            "KD": {
+              "label": "KD",
+              "votes": 30000,
+              "votes_text": "30,000",
+              "share_text": "3.0",
+              "seats_text": "5",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5YzliZGUiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktEPC90ZXh0Pjwvc3ZnPg=="
+            },
+            "LIIK": {
+              "label": "LIIK",
+              "votes": 10000,
+              "votes_text": "10,000",
+              "share_text": "1.0",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNjYTc5YzAiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxJSUs8L3RleHQ+PC9zdmc+"
+            },
+            "ALAND": {
+              "label": "ALAND",
+              "votes": 5000,
+              "votes_text": "5,000",
+              "share_text": "0.5",
+              "seats_text": "1",
+              "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM5MWFlYjkiLz48dGV4dCB4PSI0OCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMxMDE4MjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFMQU5EPC90ZXh0Pjwvc3ZnPg=="
+            }
+          },
+          "candidates": {
+            "FI2027_02_101": {
+              "votes": 3700,
+              "status": "Counting",
+              "votes_text": "3,700"
+            },
+            "FI2027_02_102": {
+              "votes": 3300,
+              "votes_text": "3,300",
+              "status": "Counting"
+            },
+            "FI2027_02_103": {
+              "votes": 2100,
+              "votes_text": "2,100",
+              "status": "Counting"
+            },
+            "FI2027_01_101": {
+              "votes": 2900,
+              "votes_text": "2,900",
+              "status": "Counting"
+            },
+            "FI2027_01_102": {
+              "votes": 2400,
+              "votes_text": "2,400",
+              "status": "Counting"
+            },
+            "FI2027_02_104": {
+              "votes": 2700,
+              "votes_text": "2,700",
+              "status": "Counting"
+            }
+          },
+          "headlines": [
+            "DEMO DATA — NOT ELECTION RESULTS",
+            "Aino Example · Uusimaa · Counting continues"
+          ]
+        }
+      },
+      "writes": [
+        {
+          "graphic": "Election Candidate Card",
+          "event": 11,
+          "applied": {
+            "f2": "3,700"
+          }
+        },
+        {
+          "graphic": "Election Count Bug",
+          "event": 12,
+          "applied": {
+            "f2": "2027-02-20T18:00:05Z"
+          }
+        },
+        {
+          "graphic": "Election Ticker",
+          "event": 13,
+          "applied": {
+            "f0": "DEMO DATA — NOT ELECTION RESULTS\nAino Example · Uusimaa · Counting continues"
+          }
+        }
+      ]
+    }
+  }
+]

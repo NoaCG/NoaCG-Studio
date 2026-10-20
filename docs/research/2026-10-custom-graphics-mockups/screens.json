@@ -1,0 +1,94 @@
+[
+  {
+    "id": "01-svg-import",
+    "title": "01 / SVG · Start with unfamiliar artwork"
+  },
+  {
+    "id": "02-svg-fields",
+    "title": "02 / SVG · Expose text, scores and images"
+  },
+  {
+    "id": "03-svg-controls",
+    "title": "03 / SVG · Keep values and actions separate"
+  },
+  {
+    "id": "04-svg-cue",
+    "title": "04 / SVG · Finish, add to production, prepare a cue"
+  },
+  {
+    "id": "05-svg-cell",
+    "title": "05 / SVG · Connect one score to a Sheet cell"
+  },
+  {
+    "id": "06-svg-list",
+    "title": "06 / SVG · Add a scrolling list from another tab"
+  },
+  {
+    "id": "07-svg-verify",
+    "title": "07 / SVG · Verify images and mappings before air"
+  },
+  {
+    "id": "08-svg-live",
+    "title": "08 / SVG · Take once, then follow changing values"
+  },
+  {
+    "id": "09-bracket-author",
+    "title": "09 / Bracket · Declare matches, not just sixteen labels"
+  },
+  {
+    "id": "10-bracket-connect",
+    "title": "10 / Bracket · Match structured rows by stable IDs"
+  },
+  {
+    "id": "11-bracket-live",
+    "title": "11 / Bracket · Scores update; the operator advances"
+  },
+  {
+    "id": "12-provider-import",
+    "title": "12 / Commercial roll · Package and hosted content are different"
+  },
+  {
+    "id": "13-provider-package",
+    "title": "13 / Commercial roll · Inspect a supplied package"
+  },
+  {
+    "id": "14-provider-hosted",
+    "title": "14 / Commercial roll · A URL does not imply editable fields"
+  },
+  {
+    "id": "15-provider-live",
+    "title": "15 / Commercial roll · External content, deliberate playback"
+  },
+  {
+    "id": "16-player-author",
+    "title": "16 / Player overlay · Author the mixed-content contract"
+  },
+  {
+    "id": "17-player-api",
+    "title": "17 / Player overlay · Connect an API value or collection"
+  },
+  {
+    "id": "18-player-row",
+    "title": "18 / Player overlay · Fill a selected roster row once"
+  },
+  {
+    "id": "19-player-live",
+    "title": "19 / Player overlay · Operate without losing value ownership"
+  },
+  {
+    "id": "20-recovery-failed",
+    "title": "20 / Recovery · Failed reads keep the last good values"
+  },
+  {
+    "id": "21-recovery-override",
+    "title": "21 / Recovery · Pause holds an operator’s correction"
+  },
+  {
+    "id": "22-recovery-empty",
+    "title": "22 / Recovery · A valid empty list is not a failed read"
+  },
+  {
+    "id": "23-disconnect-reuse",
+    "title": "23 / Reuse · Disconnect deliberately, then reconnect elsewhere"
+  }
+]

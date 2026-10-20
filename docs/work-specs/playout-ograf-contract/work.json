@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "75ff60045fc2ba4841565cd81395ca1d90ff59ae84d87fe29dbfd11390a221a4",
+  "authority": {
+    "status": "agreed",
+    "source": "Owner, 2026-10-19: \"Yes, please turn the selected extensions into precise executable specs and reconcile the complete plan with current main.\" Adopts H0 and E1\u2013E8 from the reconciled full-run proposal for the production-page programme. Authorizes planning/documentation and main reconciliation, not feature implementation, opening a run, deployment or claiming acceptance. Execution requires the separate parent start instruction and finite project authorization."
+  },
+  "review": null
+}
