@@ -674,7 +674,98 @@ function queueWrite(key: string, value: string | null, previous: string | null):
   });
 }
 
-export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
+/**
+ * A write whose RULE depends on what other tabs wrote: `value` is this tab's answer, put in the
+ * mirror at once as `setItem` does, and `rebase` computes the stored answer again from what the
+ * database holds when the transaction runs - in that one transaction, so nothing lands between
+ * the read and the put. A tab whose mirror is behind another tab's write therefore cannot put its
+ * old copy back or pass a check its old copy would pass. A `{ refused }` stores nothing, rolls the
+ * mirror back to the database, and is reported like a failed write (`commitDurableWrites` claims
+ * it). Opened synchronously, so it stays in order with this tab's other writes to the key.
+ */
+export function rebasedDurableSet(
+  key: DurableKey,
+  value: string,
+  rebase: (current: string | null) => { value: string } | { refused: string },
+): void {
+  assertAccountAuthoring();
+  conditionalWrites.get(key)?.();
+  if (!hydrated || !usingIndexedDb) {
+    // localStorage is shared and synchronous, so the stored value is already the fresh one.
+    const next = rebase(lsGet(physical(key)));
+    if ('refused' in next) {
+      recordReceipt({ sequence: ++writeSeq, key, value: null, account: namespace, settled: Promise.resolve(next.refused) });
+      reportError(key, next.refused, writeSeq);
+      return;
+    }
+    lsSet(physical(key), next.value);
+    recordReceipt({ sequence: ++writeSeq, key, value: next.value, account: namespace, settled: Promise.resolve(null) });
+    return;
+  }
+  const target = db!;
+  const previous = mirror.get(key) ?? null;
+  mirror.set(key, value);
+  writeSeq += 1;
+  const seq = writeSeq;
+  const account = namespace, storedKey = accountKey(key, account);
+  latestWrite.set(key, seq);
+  const settled = new Promise<string | null>((resolve) => {
+    let refusal: string | null = null, stored: string | null = null, accepted = previous, done = false;
+    const current = (): boolean => namespace === account && latestWrite.get(key) === seq;
+    const fail = (message: string) => {
+      if (done) return;
+      done = true;
+      if (current()) {
+        if (accepted === null) mirror.delete(key);
+        else mirror.set(key, accepted);
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+      }
+      if (namespace === account) reportError(key, message, seq);
+      resolve(message);
+    };
+    let tx: IDBTransaction;
+    try { tx = target.transaction(STORE, 'readwrite'); }
+    catch { fail('Your work could not be saved to browser storage.'); return; }
+    const store = tx.objectStore(STORE), request = store.get(storedKey);
+    request.onsuccess = () => {
+      accepted = typeof request.result === 'string' ? request.result : null;
+      try {
+        const next = rebase(accepted);
+        if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
+        stored = next.value;
+        store.put(stored, storedKey);
+      } catch {
+        refusal = 'The stored production could not be read safely.';
+        try { tx.abort(); } catch { /* already aborting */ }
+      }
+    };
+    tx.oncomplete = () => {
+      done = true;
+      if (current() && stored !== null) {
+        mirror.set(key, stored);
+        if (stored !== value && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+      }
+      resolve(null);
+    };
+    const failed = () => fail(refusal ?? (isQuotaError(tx.error)
+      ? 'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.'
+      : 'Your work could not be saved to browser storage.'));
+    tx.onerror = failed;
+    tx.onabort = failed;
+  });
+  const receipt: DurableWriteReceipt = { sequence: seq, key, value, account, settled };
+  unsettled.add(receipt);
+  void settled.then(() => unsettled.delete(receipt));
+  recordReceipt(receipt);
+  const write = settled.then(() => {});
+  pending.add(write);
+  void write.finally(() => {
+    pending.delete(write);
+    if (latestWrite.get(key) === seq) announceWrite(key);
+  });
+}
+
+export type ConditionalWriteResult ={ status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
 
 /** Read, compare and replace in one transaction. The callback is synchronous: no await can
  * separate the comparison from the put. A newer ordinary write cancels the inverse. */
@@ -787,8 +878,12 @@ function announceWrite(key: string): void {
 async function adoptWrite(key: string, syncedElsewhere: boolean): Promise<void> {
   const target = db;
   if (!target || !durableKeySet.has(key)) return;
+  const queued = latestWrite.get(key);
   try {
     const value = await idbReadKey(target, physical(key));
+    // A write this tab queued while the read was out is newer than what the read saw: its put
+    // lands after the read, so the mirror keeps it rather than going back to the older value.
+    if (latestWrite.get(key) !== queued) return;
     if (value === null) mirror.delete(key);
     else mirror.set(key, value);
     if (typeof window !== 'undefined') {
