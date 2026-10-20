@@ -426,7 +426,10 @@ repeated harder.
 
 ## 6. Verification matrix (one per phase; the builder follows it as written)
 
-Local targeted specs run through the browser queue: `node scripts/e2e-runs.mjs --wait && npx
+Local targeted specs are focused selections within `.agent-workflows/verify.md`'s bounds (five
+minutes, or one twelve-minute broader selection); a row naming "every ... offline spec" means that
+affected selection in Actions. One configured run on one revision satisfies every configured
+item of the phase, including both rows of 2+7. They run through the browser queue: `node scripts/e2e-runs.mjs --wait && npx
 playwright test <files>`, the configured ones with `--config=playwright.live.config.ts` only
 where a local stack exists, else dispatched. Node tests: `node --test <files>`. Configured
 dispatch on the candidate ref: `gh workflow run configured-suite.yml --ref <branch>` (about 25
@@ -461,10 +464,10 @@ configured run URL with its tested sha, the assessor's verdict with the reviewed
 - **Revalidation.** A commit that changes `src/`, `e2e/`, `scripts/` or `package.json` after any
   evidence invalidates that evidence; the matrix rows the change reaches run again (all of them
   for `src/control/` or the page).
-- **Evidence-only commit.** A commit touching only this spec's `evidence/` directory is allowed
+- **Evidence-only commit.** A commit touching only the programme's `evidence/` directories is allowed
   once after the last material commit; it does not invalidate evidence; `/check` then runs on
   that tip, and its verify step cites the evidence after confirming the tested sha differs only
-  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/production-page-refactor/evidence'`
+  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/*/evidence'`
   is empty). `/queue-merge` requires the stamp on the final tip; a review or simplify change
   during `/check` is a material commit and restarts the matrix.
 - **Mappings.** New Node tests carry `// guards: <module>`; specs whose `// covers:` named a
@@ -534,9 +537,14 @@ phase 1 does not. plan-run does not isolate the refactor from production.
 deploy-verify run, and the exact revert command.
 
 **Ledger sequences** (`scripts/plan-run.mjs`):
-- A failed post-merge check: `fail` -> `repair` (one) -> `landed` -> `check` -> `pass`; a second
-  `fail` makes the coordinator record `stop` and ask the owner; only his real answer is recorded
-  as `answered`. This is the runner's failure limit, a real decision, not a thumbs-up gate.
+- A failed post-merge check: `fail` -> `repair` (one) -> `landed` -> `check` -> `pass`. A second
+  failure is diagnosed, not an automatic owner stop (owner, 2026-10-20, decision 17): one fresh
+  deciding agent, independent of the phase's builders, repairers and checkers, either makes one
+  last scoped repair (never loosening a test, check or limit), re-checks once after an
+  infrastructure failure has cleared, or concludes that a genuine owner decision is needed; only
+  then does the coordinator record `stop` and notify him, and only his real answer is recorded as
+  `answered`. Infrastructure and capacity failures are waits and re-checks, never spent failures
+  (runner PR, below).
 - A product regression found after `pass` (a laptop receipt, the landing's configured run,
   deploy-verify, a later main run attributed to the phase, an owner report) becomes a repair
   (owner, 2026-10-20, B): the coordinator uses the helper's issue, or files one with the failing
@@ -612,7 +620,15 @@ the first rehearsal.
   progress check; [runner check](evidence/owner-decisions-2026-10-20.md#runner-check)) and must be
   on `main` before the run opens, with its one live test (start a coordinator, end it, continue in
   a new session, confirm the ledger carries on) recorded under
-  `docs/work-specs/continuing-plan-preparation/`.
+  `docs/work-specs/continuing-plan-preparation/` (landed: #1535, #1539). A second runner PR,
+  from the 2026-10-20 second opinions, must also be on `main` before opening: a fenced handoff
+  so a replacement worker can finish its step under its own identity; a progress check that counts
+  only activity since the step's launch and treats a running Actions job as active; consistent
+  ledger, database and checkpoint state when a publication fails; decision 17's diagnosis step;
+  checking from the observed merge with PASS waiting for every exact-merge check; and a qualified
+  watchdog that starts a new coordinator with the same line when the heartbeat goes stale.
+  `run-supervisor.mjs record` takes the row number (1-47) of the `extensions.md` table; the
+  midpoint retro after row 23 is the procedure's ordinary retro step.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
   `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
   problems (open runtime acceptance is expected) and the plan listed under "Runnable plans";
@@ -625,9 +641,9 @@ the first rehearsal.
   and its live-test receipt on main; a local Supabase stack can start or the configured-suite
   dispatch route is confirmed; `gh` authenticated; `.github/workflows/endurance.yml` on main;
   the current runner's builder/checker interfaces qualified; one test phone notification received
-  from the coordinator session; Vercel usage readable from the coordinator (C2's budget watch); no
-  open wave or plan run other than this project (`scripts/wave-plan-store.mjs`, never assumed
-  from a document); no open pull request that would quarantine a spec this plan gates on; the
+  from the coordinator session; no open wave or plan run other than this project (`scripts/wave-plan-store.mjs`, never assumed
+  from a document); open quarantine pull requests reconciled by an agent (stale ones closed, a
+  fresh fail-then-pass left to the quarantine flow, a spec this plan names repaired first); the
   owner has supplied the finite project deadline in Helsinki time
   with its offset and the actual permission policy. A missing item is one configuration request
   to the owner before opening, never a gate during the run.
@@ -663,7 +679,7 @@ step 4 prompt whenever the laptop is on, runs beside the cloud coordinator. It n
 pauses, continues or changes the run. The repository is the shared channel:
 
 1. It reads the run's ledger from the recovery ref (`git ls-remote origin
-   'refs/heads/noacg-recovery/*'` lists it) and lists the landed phases whose `extensions.md` row
+   'refs/noacg-recovery/*'` lists it) and lists the landed phases whose `extensions.md` row
    has a laptop entry (speed checks with `scripts/playout-lag-bench.mjs` as §7 describes).
 2. For each merge SHA that still has no receipt under `evidence/local/` (bench output under
    `evidence/perf/`), it checks that SHA out in its own worktree, runs the check and writes the
@@ -702,13 +718,14 @@ the final owner block, which waits for him.
 
 | Item | Environment | Who | Needed by | Status | If missing |
 | --- | --- | --- | --- | --- | --- |
-| Runner change (free continuation, progress check) and its live test | `main` | agents, separate PR | run opening | in progress (`claude/plan-run-container-restart`) | the run does not open: preflight item |
+| Runner change (free continuation, progress check) and its live test | `main` | agents, separate PR | run opening | landed (#1535, #1539; receipt `continuing-plan-preparation/live-continuation-2026-10-20.md`) | - |
+| Second runner PR (handoff, progress since launch, consistent publication, diagnosis step, check from the merge, watchdog) | `main` | agents, separate PR | run opening | in progress (`claude/plan-run-review-fixes`) | the run does not open: preflight item |
+| Production access for C2's follow-ups: Vercel runtime logs and usage, and a way to flip the tick switch (for example `SUPABASE_ACCESS_TOKEN` or a connected Vercel/Supabase connector) | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | not yet confirmed | the tick stays off; the follow-ups join the owner list with exact steps |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Claude cloud environment, the local env file, Vercel | owner | Q Sheet records (gate C1b), C1c, C2 | ready: the service account signs in | Q times reads on the public CSV export and records edit latency as unmeasured; C1b states the measured read figure; the timed edit run joins the owner list |
 | `NOACG_TEST_SHEET_IDS`: six owner-owned Sheets, comma-separated | same | owner | same | ready: the service account reads and writes each; each public CSV export works | as above |
 | `YOUTUBE_API_KEY` | same | owner | Q `youtube` (gates C3), C7 live smoke | ready: works | C3 builds and checks against recorded responses; the live receipt joins the owner list |
 | A reachable public 24/7 YouTube live stream | public | Q worker | Q `youtube` live-chat half | found when Q runs | Q retries later; C3 is not held |
 | `CRON_SECRET` (existing; do not create or rotate) | Vercel Production | owner | C2 tick | ready | the tick stays off; closed-page continuity is reported unavailable |
-| Vercel usage read access | Vercel team, from the coordinator | coordinator | C2 switch decision; daily budget watch | confirmed at preflight | the tick stays off |
 | Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
 | Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
 | `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files; this laptop's `gh` token lacks the `workflow` scope (2026-10-20), so the owner either runs `gh auth refresh -s workflow` once or lets a cloud session land it | E4.1, E8.1b | not yet landed | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
@@ -767,7 +784,8 @@ the final owner block, which waits for him.
 
    It restores the project from its recovery ref, takes over and carries on from the first
    unfinished step; a worker in flight is reconciled, not relaunched. An older coordinator that is
-   still alive is refused at its next step and stops by itself. Do this also when the morning
+   still alive is refused at its next step and stops by itself. The runner's watchdog does the
+   same by itself when the heartbeat goes stale; do it by hand also when the morning
    summary does not arrive or the helper reports a stale heartbeat.
 7. Block end: the coordinator opens the next block itself; the worker in flight keeps going.
    Reconcile workers, PRs, exact tested revisions and pending external intents before every
@@ -849,8 +867,9 @@ characterised and retained as existing behaviour.
 ## Phases
 
 Each phase runs `/check` and the §6 matrix and lands with `/queue-merge`; the builder adds the
-next phase's notes under `## Phase notes` (the previous verified `main` sha, the merge sha, the
-revert command, traps, the check's findings). Allowed `src` files are exactly those named.
+next phase's notes to `evidence/phase-notes.md` (the previous verified `main` sha, the previous
+merge sha, the revert command, traps, the check's findings), an evidence file so that no phase
+changes a spec's digest. The 2+7 builder pushes a checkpoint commit after phase 2's half. Allowed `src` files are exactly those named.
 Temporary interfaces are the callbacks a module takes from the page while the page still owns the
 state; each is removed in the phase that moves that state.
 
@@ -1029,6 +1048,6 @@ evidence and any confirmed fix landed in its own pull request; S2 characterised.
 
 ## Phase notes
 
-Each phase's pull request adds here what the next phase must allow for, newest first: the
-previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
-and the check's findings.
+From the 2026-10-20 run on, phase notes go to `evidence/phase-notes.md`, newest first: what the
+next phase must allow for, the previous verified `main` sha, the previous merge sha, the revert
+command, decisions taken, traps found, and the check's findings.

@@ -26,7 +26,9 @@ and compatibility differences explicitly. Never combine definitions from differe
 
 Owned seams: `src/control/ografContract.ts`, `controlModel.ts`, `src/export/targets/ografSchema.ts`,
 `ografImport.ts`, `src/model/types.ts`, `shows.ts`, command validation/persistence,
-`src/control/ografHost.ts`, `src/output/foreignOgraf.ts` and existing output recovery adapters.
+`src/control/ografHost.ts`, `src/output/foreignOgraf.ts`, existing output recovery adapters, and
+the typed foreign target adapter in `src/control/sourceMapping.ts` (E1.2a: E5's typed values reach
+a foreign field in E1's envelope, never as E5's strings).
 Respect the source-backed editor/native model. Do not convert all native fields or SPX wires to
 JSON, introduce a second scene or redesign authoring.
 
@@ -53,8 +55,9 @@ The typed foreign value travels in this spec's own discriminated envelope, never
 envelope; one that meets an envelope version it does not support shows the cue read-only, refuses
 to send or render it with a visible reason and preserves the bytes (precedent `readShowProfile`
 in `src/model/profile.ts`, enforced at both write doors in `src/model/shows.ts`). The output's
-reader obeys the CasparCG 2.3 Chromium 71 rule of `src/control/payloadVersion.ts`: no DOM, no
-imports, no syntax newer than that browser. Only E1.2a, a later deploy, writes envelopes, and it
+reader reaches outputs through Vite's `es2017` build target (`vite.config.ts`), which CasparCG 2.3's
+Chromium 71 can parse, with runtime APIs shimmed in `output.html`; its test checks the built
+output bundle, and a reader module shared with Node uses no DOM. Only E1.2a, a later deploy, writes envelopes, and it
 sends one only to an output whose seen report advertises the E1.1 reader; any other output gets
 a "reload this output" refusal instead of a stringified value.
 
@@ -84,7 +87,7 @@ export/backup and deterministic migration receipt; no destructive down-migration
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
-| E1.1 | Pin the standard; descriptors, validation, versioned persistence and the read gate. AC subset: AC-1 in full; AC-3's model and read-gate parts (native fields, exported packages and legacy `/patch`/`/update` fixtures unchanged; an unsupported envelope refused read-only by pages and the Chromium 71 output reader; no reader mistakes it for ordinary fields); AC-4's model parts (migration round trips of saved and imported fixtures, typed editing disabled without losing package or values, deterministic migration receipt) | Cloud: extend OGraf contract/schema and show-fixture Node tests; exact field/action fixture hashes and migration round trips; the output reader's test run under the Chromium 71 syntax target. |
+| E1.1 | Pin the standard; descriptors, validation, versioned persistence and the read gate. AC subset: AC-1 in full; AC-3's model and read-gate parts (native fields, exported packages and legacy `/patch`/`/update` fixtures unchanged; an unsupported envelope refused read-only by pages and the Chromium 71 output reader; no reader mistakes it for ordinary fields); AC-4's model parts (migration round trips of saved and imported fixtures, typed editing disabled without losing package or values, deterministic migration receipt) | Cloud: extend OGraf contract/schema and show-fixture Node tests; exact field/action fixture hashes and migration round trips; the output reader's test against the built `es2017` output bundle. |
 | E1.2a | The writer: persistence, E5 typed values through the source adapter, command payload, publish, Update and command log with output capability negotiation. AC subset: AC-2's persistence/binding/command-log part; AC-3's wire and hardware-verb part; AC-4's runtime part | Cloud: new `e2e/configured/ograf-typed-data.spec.ts` (save/reload, connect, publish, Update, reconnect) and native output regressions. |
 | E1.2b | Output replay, baseline and the renderer typed round trip. AC subset: AC-2's output replay/baseline/renderer part; AC-3's mixed-version output part | Cloud: actual browser host payload and render evidence, output recovery tests, an old-reader output refusing visibly. Target CasparCG/OBS qualification follows E3 and S. |
 

@@ -47,6 +47,30 @@ says why. Invariants stay binding: land only through `/queue-merge`; only the me
 | 15 | Laptop helper session beside the cloud coordinator: never changes the run; runs the local checks on landed revisions that lack receipts; lands receipts; opens an issue on a regression; the repository is the channel; direct messages only as a nudge; first task is a non-blocking channel test | parent §9.1, §10 step 4 |
 | 16 | Speed and stalls: no CI timeout changes (only the new endurance workflow gets 90 minutes); existing bounded waits plus one progress check that catches a worker with no progress for about 30 minutes and restarts or repairs it | parent §9 "Silent workers", "Speed"; runner PR |
 
+## Second opinions, same day
+
+Two independent reviews (Argon, Astra) walked all 47 phases against the landed plan and runner.
+Claims were checked against the code before acting; a few cited file names and quotes were not in
+the plan, but the risks behind them were.
+
+| # | Fix | Where |
+| --- | --- | --- |
+| 17 | Owner decision: a second failed check is diagnosed by one fresh deciding agent (one last scoped repair, a re-check after infrastructure clears, or a real owner decision), not an automatic stop; infrastructure failures are waits, not spent failures | parent §8; second runner PR |
+| R1 | C2 gates on the local stack (tick driven with the Bearer secret, closed-browser run against it); production log, switch and cost steps are coordinator follow-ups with their own access row | data-sources C2, parent §9.2 |
+| R2 | C1b gates only on its local halves (data AC-3, sheet AC-5 browser lease, sheet AC-7); published persistence, the tick's lease and closed-page Pause are C2's | extensions row 7, data-sources C1b |
+| R3 | Configured specs use stubs; provider runs are cloud-worker receipts | data-sources Verification |
+| R4 | The evidence-only commit covers every programme evidence folder; phase notes move to `evidence/phase-notes.md` so no phase changes a spec digest | parent §6, "Phases" |
+| R5 | H0.1 refreshes the stale hardware-panel record and measures hosted latency against staging | H0 phase table |
+| R6 | Migrations follow the live-safe rules; a HELD live-path migration is waited out and post-landing re-run | extensions |
+| R7 | Chromium 71: outputs are protected by Vite's `es2017` target, not source syntax | extensions, E1, E7 |
+| R8 | A narrowed AC in the gating column is the phase's gate; E6.1/E6.2 and E2 AC-4 wording aligned; E1 owns the typed foreign target adapter | extensions, E6, E2, E1 |
+| R9 | Bounded local selections, broad runs in Actions, one configured run per revision; the 2+7 builder pushes a mid-phase checkpoint | parent §6, "Phases" |
+| R10 | The coordinator builds a Q-gated phase only once its record is on main; open quarantine PRs are agent cleanup before opening; the helper reads `refs/noacg-recovery/*` | extensions, parent §9 |
+| R11 | Second runner PR: worker handoff identity, progress since launch, consistent publication, the diagnosis step, checking from the merge, a restart watchdog | parent §9, §9.2 |
+
+Not taken: recombining the a/b splits (the owner asked for builder-sized phases) and a function
+budget note (already stated).
+
 ## Runner check
 
 Read on `331a98a91`: `scripts/plan-run.mjs`, `scripts/run-supervisor.mjs`,

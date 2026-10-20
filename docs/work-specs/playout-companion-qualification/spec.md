@@ -79,7 +79,7 @@ this criterion. Provide a recovery runbook, previous known-good package and reve
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
-| H0.1 | Inspect current code/receipts, fix guide/protocol/presets and package delivery, and land the Companion trial kit; AC-1 packaging and guide portion plus automated AC-2/3 | Cloud: module's own lint/test/package commands, archive inspection, a headless guide walk on a scratch Companion where qualified, existing panel-feedback and configured relay/lease tests as affected. Package evidence is distinct from the app build. |
+| H0.1 | Inspect current code/receipts, fix guide/protocol/presets and package delivery, and land the Companion trial kit; refresh `hardware-panel-control/work.json` (its spec digest is stale) as part of the reconciliation, with hardware-panel AC-7's hosted latency measured against hosted staging; AC-1 packaging and guide portion plus automated AC-2/3 | Cloud: module's own lint/test/package commands, archive inspection, a headless guide walk on a scratch Companion where qualified, existing panel-feedback and configured relay/lease tests as affected. Package evidence is distinct from the app build. |
 | H0.2 | Final owner block: AC-1 (owner's guide walk), AC-4, and E6 AC-4; the operator's buttons set up on the deck | The owner's Windows laptop, Companion and physical deck with CasparCG/Bridge and OBS in the real studio, an agent session beside him recording receipts; hosted service available. Existing configured panel specs support, but do not replace, physical evidence. |
 
 Failure recovery: stop sending, restore the prior module and answering-page setup, revoke a
