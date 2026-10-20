@@ -43,10 +43,12 @@ feed sources with no live lease, and applies through `control_data_apply`.
 | 1 source, p95 read | 1.43 | 0.26 | 35.4 | 3.22 | $0.81 | $1.16 |
 | 6 sources, p95 reads | 3.57 | 0.31 | 88.5 | 3.84 | $1.46 | $2.08 |
 | 6 sources, slowest read each | 6.13 | 0.31 | 152.0 | 3.84 | $2.13 | $3.04 |
-| Ceiling: every tick runs to its 30 s `maxDuration` | 30.00 | 1.00 | 744.0 | 12.40 | $9.50 | $13.62 |
+| Every tick waits on I/O until its 30 s `maxDuration` | 30.00 | 1.00 | 744.0 | 12.40 | $9.50 | $13.62 |
+| Ceiling: every tick busy on its one vCPU for 30 s | 30.00 | 30.00 | 744.0 | 372.00 | $55.53 | $79.78 |
 
 Invocations alone: 44,640 a month, $0.03. A 48-hour switch window (2,880 ticks) with six sources
-at p95 costs $0.09 in iad1 and $0.13 in fra1.
+at p95 costs $0.09 in iad1 and $0.13 in fra1; at the ceiling it costs $3.58 in iad1 and $5.15 in
+fra1.
 
 ## Against included usage
 
@@ -54,16 +56,19 @@ Pro bills Functions on demand against the plan's $20 monthly usage credit
 (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`, "Current baseline"); Pro has no separate included CPU,
 memory or invocation allowance. If each cron call also counts as an Edge Request, that is 44,640 a
 month against the 10 million included. The tick's realistic cost, $1.46 to $2.08 a month with six published
-sources read every minute all month, is about a tenth of that credit. Even the ceiling, every tick
-held to its 30-second `maxDuration` all month, is $9.50 to $13.62, which fits the credit alone but would
-take most of it from builds and other functions.
+sources read every minute all month, is about a tenth of that credit. A tick stuck waiting on slow reads
+until its 30-second `maxDuration` all month costs $9.50 to $13.62, which fits the credit alone but
+would take most of it from builds and other functions. The true ceiling, a tick busy on its CPU for
+the full 30 seconds every minute all month (for example parsing an oversized body), is $55.53 to
+$79.78 and does not fit: it would draw on-demand spend beyond the credit.
 
 ## Judgement
 
-The tick is affordable inside the no-overage plan: about $0.69 to $0.97 a month when it reads nothing and
-about $1.46 to $2.08 for six sources, well under the $20 credit. The cost that matters is wall time, not
-CPU or invocations, so C2 should keep the 10-second read timeout and the 20-second cut-off (they
-bound the ceiling), read sources in parallel where the code allows, and keep the switch off
-except while a run uses it. The 48-hour expiry already limits a forgotten switch to about
-$0.13 per window. The current month's spend against the credit was not read; the weekly
+The tick is affordable inside the no-overage plan as designed: about $0.69 to $0.97 a month when it
+reads nothing and about $1.46 to $2.08 for six sources, well under the $20 credit. In normal running
+the cost that matters is wall time, not CPU or invocations. The plan's guards are what keep the
+ceiling away: C2 should keep the 10-second read timeout and the 20-second cut-off, cap the bytes it
+reads per source so parsing stays small, read sources in parallel where the code allows, and keep
+the switch off except while a run uses it. The 48-hour expiry limits even a runaway tick to about
+$5 per window. The current month's spend against the credit was not read; the weekly
 Usage review in the plan covers it.

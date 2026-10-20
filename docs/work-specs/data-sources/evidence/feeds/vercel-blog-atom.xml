@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+  <feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Vercel News</title>
+    <subtitle>Blog</subtitle>
+    <link href="https://vercel.com/atom" rel="self" type="application/rss+xml"/>
+    <link href="https://vercel.com/" />
+    <updated>2026-10-20T20:00:00.000Z</updated>
+    <id>https://vercel.com/</id>
+    
+    <entry>
+      <id>https://vercel.com/changelog/websocket-support-is-now-generally-available</id>
+      <title>WebSocket support is now generally available</title>
+      <link href="https://vercel.com/changelog/websocket-support-is-now-generally-available"/>
+      <updated>2026-10-20T20:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/docs/functions/websockets">WebSocket</a> support in <a href="https://vercel.com/docs/functions">Vercel Functions</a> is now generally available.</p><p>Since the <a href="https://vercel.com/changelog/websocket-support-is-now-in-public-beta-1Wz7OuDJmgObCjILLggdQI">public beta launched in late June</a>, Vercel CDN has served 300 million WebSocket connections, and now serves 15 million per day.</p><p>Customers use WebSockets for AI chat, streaming, and realtime multiplayer apps. WebSockets also power AI Gateway's <a href="https://vercel.com/docs/ai-gateway/modalities/realtime">realtime models</a>.</p><p>WebSocket connections follow the same limits and pricing as other Function invocations. With <a href="https://vercel.com/docs/functions/usage-and-pricing">Active CPU pricing</a>, CPU is billed only for the time spent processing messages. </p><p>Get started at <a href="https://vercel.com/docs/functions/websockets">the documentation</a>.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/websocket-support-is-now-generally-available">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Matthew Stanciu</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/updates-to-hobby-and-pro-terms-of-service</id>
+      <title>Updates to Hobby and Pro Terms of Service</title>
+      <link href="https://vercel.com/changelog/updates-to-hobby-and-pro-terms-of-service"/>
+      <updated>2026-10-19T18:39:47.247Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p>We are updating the Terms of Service for Hobby and Pro customers, effective October 19, 2026. The updates clarify some existing Vercel practices, expand terms on topics such as managed accounts and credits, and reflect applicable legal requirements, including certain cancellation and service-change rights for eligible consumers in the UK and EU.</p><h3><b>Credits and billing</b></h3><p>A new section sets out how credits work: plan-included credits expire at the end of the subscription term and purchased credits expire one year after purchase unless stated otherwise in the relevant credit purchase terms. Credits can only be used to pay Vercel fees, have no cash value, and are nontransferable. Credits are generally nonrefundable, but unused purchased credits are refunded if Vercel terminates your account without cause. </p><p>The Terms also clarify that credit purchases are billed in advance, subscriptions auto-renew unless you turn off renewal, and third-party pass-through rates may change when provider rates change. ⁠⁠</p><h3><b>Managed accounts</b></h3><p>The Terms now have a dedicated section for accounts that use a company email domain (e.g., work email), clarifying that the company can manage only the Projects you create inside its Team. We also clarified that if your company wishes to manage your account using your company work email, Vercel will now notify you first and give you a reasonable amount of time to move your personal content to an account with a different email address</p><h3><b>Renewal and cancellation</b></h3><p>You can turn off auto-renewal and cancel or downgrade through account settings or Support. Cancellation or downgrade generally takes effect at the start of the next renewal period. The Terms also explain statutory withdrawal and refund rights for eligible consumers.</p><h3><b>Service changes</b></h3><p>Eligible consumers in the UK and EU may cancel the affected subscription free of charge if a change has more than a minor negative impact on their access to or use of the Services. They have 30 days from notice or the change, whichever is later, and may receive a prorated refund of prepaid amounts for the remaining period.</p><h3><b>Other updates</b></h3><p>The service-specific provisions have been moved to a dedicated <a href="https://vercel.com/legal/service-terms">Service Terms page</a>. The Terms also clarify sanctions-related obligations, including that use of the Services must not be in connection with or for the benefit of a sanctioned person under applicable laws.</p><p>Read the full <a href="https://vercel.com/legal/terms">Terms of Service</a> and <a href="https://vercel.com/legal/service-terms">Service Terms</a> for details.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/updates-to-hobby-and-pro-terms-of-service">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Vercel</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/mercury-3-now-available-on-ai-gateway</id>
+      <title>Mercury 3 now available on AI Gateway</title>
+      <link href="https://vercel.com/changelog/mercury-3-now-available-on-ai-gateway"/>
+      <updated>2026-10-19T00:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/ai-gateway/models/mercury-3">Mercury 3 from Inception</a> is now available on AI Gateway with 50% off launch pricing. Inception reports strong results across a range of benchmarks, with generation speeds above 1,000 tokens per second.</p><p>Mercury 3 uses diffusion to generate text through parallel refinement. It brings improved reasoning to latency-sensitive workloads such as browser agents, real-time search, interactive education, and customer support. A 1M-token context window gives those applications room for long documents and extended conversation histories.</p><p>Set <code>AI_GATEWAY_API_KEY</code> in your environment. Use <code>inception/mercury-3</code> as the model name:</p><div></div><p>To use it in Claude Code, Codex, Cursor, and more, install the latest Vercel CLI and run setup:</p><div></div><p>Then select <code>inception/mercury-3</code> in the agent. See the <a href="https://vercel.com/docs/ai-gateway/coding-agents">coding agents guide</a> for details.</p><p>Try Mercury 3 in the <a href="https://vercel.com/ai-gateway/models/mercury-3">model playground</a>.</p><p>AI Gateway provides a unified API for calling models, tracking usage and cost, and configuring retries, failover, and performance optimizations for higher-than-provider uptime. It includes built-in <a href="https://vercel.com/changelog/custom-reporting-ai-gateway">custom reporting</a>, <a href="https://vercel.com/blog/zdr-on-ai-gateway">Zero Data Retention support</a>, <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys">budgets for API keys</a>, <a href="https://vercel.com/docs/ai-gateway/models-and-providers/routing-rules">routing rules</a>, and more.</p><p>AI Gateway reflects provider pricing with no markup and does not charge a platform fee on inference, including on <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/byok">Bring Your Own Key</a> (BYOK) requests.</p><p>You can view <a href="https://vercel.com/ai-gateway/models?type=text">all language models</a> available on AI Gateway.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/mercury-3-now-available-on-ai-gateway">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Jerilyn Zheng</name></author>
+      <author><name>Rohan Taneja</name></author>
+      <author><name>Zachary Chen</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/minimax-m3-1-flash-now-available-on-ai-gateway-for-free</id>
+      <title>MiniMax M3.1 Flash now available on AI Gateway for free</title>
+      <link href="https://vercel.com/changelog/minimax-m3-1-flash-now-available-on-ai-gateway-for-free"/>
+      <updated>2026-10-19T00:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/ai-gateway/models/minimax-m3.1-flash">MiniMax M3.1 Flash</a> from <a href="https://vercel.com/ai-gateway/models/providers/minimax">MiniMax</a> is now available on <a href="https://vercel.com/ai-gateway">AI Gateway</a> for free until Oct 22.</p><p>MiniMax M3.1 Flash is an open-weight multimodal model for coding and agentic work, with a 1M-token context window for long documents and multi-step agent sessions.</p><p>Compared with earlier MiniMax models, M3.1 Flash improves on complex agentic tasks, coding, and cybersecurity. On the agent side, that covers multi-step business processes and computer use that carries a task from one application to the next. For coding, MiniMax reports its best results on application development, particularly frontend interactions, targeted bug fixes, and component tests.</p><p>The free rate applies only when MiniMax serves the request. To make sure it does, sort the provider with <code>order</code> in the gateway <a href="https://vercel.com/docs/ai-gateway/models-and-providers/provider-options">provider options</a>. After the offer ends, pinned requests bill at MiniMax's standard rate.</p><p>Call it through the <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/ai-sdk">AI SDK</a>, the <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions">Chat Completions</a>, <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/responses">Responses</a>, and <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api">Anthropic Messages</a> APIs, or a <a href="https://vercel.com/docs/ai-gateway/coding-agents">coding agent</a> connected to AI Gateway. Use <code>minimax/minimax-m3.1-flash</code> as the model name:</p><div></div><p>To use it in Claude Code, Codex, Cursor, and more, install the latest Vercel CLI and run setup:</p><div></div><p>Then select <code>minimax/minimax-m3.1-flash</code> in the agent. See the <a href="https://vercel.com/docs/ai-gateway/coding-agents">coding agents guide</a> for details.</p><p>Try MiniMax M3.1 Flash in the <a href="https://vercel.com/ai-gateway/models/minimax-m3.1-flash">model playground</a>.</p><p>AI Gateway provides a unified API for calling models, tracking usage and cost, and configuring retries, failover, and performance optimizations for higher-than-provider uptime. It includes built-in <a href="https://vercel.com/changelog/custom-reporting-ai-gateway">custom reporting</a>, <a href="https://vercel.com/blog/zdr-on-ai-gateway">Zero Data Retention support</a>, <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys">budgets for API keys</a>, <a href="https://vercel.com/docs/ai-gateway/models-and-providers/routing-rules">routing rules</a>, and more.</p><p>AI Gateway reflects provider pricing with no markup and does not charge a platform fee on inference, including on <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/byok">Bring Your Own Key</a> (BYOK) requests.</p><p>You can view <a href="https://vercel.com/ai-gateway/models?type=text">all language models</a> available on AI Gateway.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/minimax-m3-1-flash-now-available-on-ai-gateway-for-free">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Zachary Chen</name></author>
+      <author><name>Jerilyn Zheng</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/ai-gateway-logs-now-show-session-affinity</id>
+      <title>AI Gateway logs now show session affinity</title>
+      <link href="https://vercel.com/changelog/ai-gateway-logs-now-show-session-affinity"/>
+      <updated>2026-10-18T20:03:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/docs/ai-gateway/observability-and-spend/logs">AI Gateway logs</a> now have a <a href="https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Flogs%3FgroupBy%3Dsessions&amp;title=AI+Gateway+Sessions">Sessions view</a> that groups requests into sessions and shows how session affinity routed each one. Each row shows the <a href="https://vercel.com/docs/ai-gateway/coding-agents">coding agent</a> or app that ran the session, such as Claude Code, Codex, or Cursor, along with its cost, models, providers, and how much of its input was cached across every turn.</p><div></div><p>Open a session to see its cache hit rate, duration, and path. The path lists each turn with its model and timing, and names the provider serving the session along with any earlier ones. <a href="https://vercel.com/docs/ai-gateway/models-and-providers/session-affinity">Session affinity</a> sends each turn to the provider that served the one before it, so the provider already has most of the prompt in cache. A session that stays on one provider reads more of each prompt from <a href="https://vercel.com/docs/ai-gateway/models-and-providers/automatic-caching">cache</a>.</p><p>Filter sessions by turns, client, model, provider, authentication, or cost. Single-turn sessions are hidden until you clear the minimum turns filter.</p><div></div><p>Session affinity runs by default on text and chat requests. To group requests yourself, send the same <code>sessionId</code> in <code>providerOptions.gateway</code>, or the same <code>x-session-id</code> header, on every request in a conversation. Requests without one are grouped by a fingerprint of the conversation's opening and appear as fingerprinted sessions.</p><p>Read the <a href="https://vercel.com/docs/ai-gateway/models-and-providers/session-affinity">session affinity documentation</a> for more information on how AI Gateway identifies sessions.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/ai-gateway-logs-now-show-session-affinity">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Sam Chitgopekar</name></author>
+      <author><name>Jerilyn Zheng</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/deepseek-v4-1-flash-1017-now-available-on-ai-gateway</id>
+      <title>DeepSeek V4.1 Flash 1017 now available on AI Gateway</title>
+      <link href="https://vercel.com/changelog/deepseek-v4-1-flash-1017-now-available-on-ai-gateway"/>
+      <updated>2026-10-17T00:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/ai-gateway/models/deepseek-v4.1-flash-1017">DeepSeek V4.1 Flash 1017</a> is now available on <a href="https://vercel.com/ai-gateway">AI Gateway</a>.</p><p>DeepSeek V4.1 Flash 1017 is a minor update to <a href="https://vercel.com/ai-gateway/models/deepseek-v4.1-flash">DeepSeek V4.1 Flash</a> that improves reasoning, coding, agentic tasks, and image understanding.</p><p>The coding gains show up in terminal work and in building and editing whole repositories, and the agentic gains in multi-step automation. With images, the model reads charts and handles visual reasoning more accurately when it can call tools.</p><p>DeepSeek V4.1 Flash 1017 also finishes tasks faster and with shorter outputs than the previous snapshot, so agent runs tend to take less time and use fewer output tokens.</p><p>Use <code>deepseek/deepseek-v4.1-flash-1017</code> as the model name:</p><div></div><p>To use it in Claude Code, Codex, Cursor, and more, install the latest Vercel CLI and run setup:</p><div></div><p>Try DeepSeek V4.1 Flash 1017 in the <a href="https://vercel.com/ai-gateway/models/deepseek-v4.1-flash-1017">model playground</a>.</p><p>AI Gateway provides a unified API for calling models, tracking usage and cost, and configuring retries, failover, and performance optimizations for higher-than-provider uptime. It includes built-in <a href="https://vercel.com/changelog/custom-reporting-ai-gateway">custom reporting</a>, <a href="https://vercel.com/blog/zdr-on-ai-gateway">Zero Data Retention support</a>, <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys">budgets for API keys</a>, <a href="https://vercel.com/docs/ai-gateway/models-and-providers/routing-rules">routing rules</a>, and more.</p><p>AI Gateway reflects provider pricing with no markup and does not charge a platform fee on inference, including on <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/byok">Bring Your Own Key</a> (BYOK) requests.</p><p>You can view <a href="https://vercel.com/ai-gateway/models?type=text">all language models</a> available on AI Gateway.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/deepseek-v4-1-flash-1017-now-available-on-ai-gateway">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Zachary Chen</name></author>
+      <author><name>Jerilyn Zheng</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/blog/vercel-and-shopify-make-agents-first-class-shoppers</id>
+      <title>Vercel and Shopify make agents first-class shoppers</title>
+      <link href="https://vercel.com/blog/vercel-and-shopify-make-agents-first-class-shoppers"/>
+      <updated>2026-10-16T07:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p>Agents already shop on the web, but they often use pages and tools originally built for people and search engines. Building a better shopping experience for agents means treating them as first-class shoppers, with product information they can read directly and tools designed for agents to shop.</p><p>Today, <a href="https://vercel.shop">Vercel Shop</a>, our open source <a href="https://nextjs.org">Next.js</a> storefront template for <a href="https://www.shopify.com">Shopify</a>, is generally available. Teams can launch storefronts optimized for how people, search engines, and agents interact with them.</p><div></div><p>Vercel Shop is built on <a href="https://shopify.dev/docs/api/hydrogen">Shopify’s Hydrogen SDK</a>. The SDK gives teams access to the store’s product catalog, cart and order management, payments, and checkout to build custom storefronts. Earlier this year, <a href="https://vercel.com/blog/vercel-and-shopify-are-rebuilding-hydrogen">Vercel and Shopify announced plans to rebuild Hydrogen</a> to work across JavaScript frameworks. Today, <a href="https://shopify.dev/changelog/blog/hydrogen-2026-10-is-now-available">the rebuilt SDK is generally available</a>.</p><div></div><h2>Give agents the information and tools they need</h2><p>Vercel Shop makes product pages available as <a href="https://vercel.shop/docs/anatomy/aeo-geo">machine-readable content</a>, including price, availability, and options. The same product URL can serve a visual page to people or product information that agents can read without interpreting the page’s layout. The template also includes structured data embedded in pages and sitemaps to help search and answer engines discover and understand the products.</p><div></div><p>Shopify co-developed the <a href="https://ucp.dev">Universal Commerce Protocol</a> (UCP), which gives agents a standard way to search a store’s catalog, read product details, check availability, build a cart, and get a checkout link. Vercel Shop makes these capabilities discoverable at the merchant’s own domain, so agents can use MCP to search products and build carts without navigating the site.</p><h2>Customize the experience for all customers</h2><p>Vercel Shop brings the store’s product catalog, cart, and checkout together with a Next.js storefront, product information and shopping tools for agents, and a shopping assistant powered by <a href="https://vercel.com/eve">eve</a>. The storefront and assistant live in the same codebase, so teams can customize the store’s design and how the assistant helps shoppers.</p><div></div><p><a href="https://vercel.shop/docs/getting-started/extending-with-agents">Skills included in the template</a> guide coding agents through setup, customization, and template updates. Teams can create an experience where shoppers browse product pages or ask the assistant to find products and add them to their cart. Both share the same cart, so shoppers keep what they’ve added as they move between experiences.</p><div></div><h2>Storefronts built with Shopify and Vercel</h2><p>Today, we launched our merch store at <a href="https://vercel.store/">vercel.store</a> with limited-edition drops. It’s built on Vercel Shop. The store’s shopping agent helps shoppers find products, add them to their cart, and continue to checkout.</p><div></div><p>Shopify, Next.js, and Vercel already power storefronts for brands including AG1, Bombas, and PAIGE. When PAIGE <a href="https://vercel.com/customers/how-paige-grew-revenue-by-22-with-shopify-next-js-and-vercel">re-architected its ecommerce platform</a>, it saw a 22% increase in revenue and a 76% increase in conversion over Black Friday and Cyber Monday, with no downtime.</p><h2>Get started with Vercel Shop</h2><p>Create a storefront:</p><div></div><p>Get started with <a href="https://vercel.shop/">Vercel Shop</a>. Check the <a href="https://vercel.shop/docs">documentation</a> to connect your Shopify store and configure the storefront.</p>
+          <p class="more">
+            <a href="https://vercel.com/blog/vercel-and-shopify-make-agents-first-class-shoppers">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Boris Besemer</name></author>
+      <author><name>Dan Laugharn</name></author>
+      <author><name>Kevin Sundstrom</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/elorian-ai-glimpse-now-available-on-ai-gateway</id>
+      <title>Elorian AI's Glimpse now available on AI Gateway</title>
+      <link href="https://vercel.com/changelog/elorian-ai-glimpse-now-available-on-ai-gateway"/>
+      <updated>2026-10-16T00:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/ai-gateway/models/glimpse">Glimpse from Elorian</a> is now available on AI Gateway. The visual reasoning model accepts images and video to follow objects through motion, interpret spatial relationships, and connect an action to its physical consequences.</p><p>Glimpse can return to visual evidence as it works: zooming into a detail, revisiting a short interval of video, or tracking the same feature across frames. This allows the model to support use cases like scientific chart analysis, video captioning, visual counting, and robotics data annotation.</p><p>Some examples include checking a train's motion to determine whether it is slowing down, keeping objects distinct through camera movement, and labeling completed actions in robot footage.</p><p>Use <code>elorian/glimpse</code> as the model name:</p><div></div><p>With AI SDK 7, you can send a video as a file part. Replace the placeholder URL with a public or signed HTTPS URL for your video:</p><div></div><p>To configure AI Gateway in Claude Code, Codex, Cursor, and more, install the latest Vercel CLI and run setup:</p><div></div><p>Try Glimpse in the <a href="https://vercel.com/ai-gateway/models/glimpse">model playground</a>.</p><p>AI Gateway provides a unified API for calling models, tracking usage and cost, and configuring retries, failover, and performance optimizations for higher-than-provider uptime. It includes built-in <a href="https://vercel.com/changelog/custom-reporting-ai-gateway">custom reporting</a>, <a href="https://vercel.com/blog/zdr-on-ai-gateway">Zero Data Retention support</a>, <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys">budgets for API keys</a>, <a href="https://vercel.com/docs/ai-gateway/models-and-providers/routing-rules">routing rules</a>, and more.</p><p>AI Gateway reflects provider pricing with no markup and does not charge a platform fee on inference, including on <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/byok">Bring Your Own Key</a> (BYOK) requests.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/elorian-ai-glimpse-now-available-on-ai-gateway">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Jerilyn Zheng</name></author>
+      <author><name>Rohan Taneja</name></author>
+      <author><name>Zachary Chen</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/perplexity-decider-v1-2-models-now-available-on-ai-gateway</id>
+      <title>Perplexity's Decider V1.2 models now available on AI Gateway</title>
+      <link href="https://vercel.com/changelog/perplexity-decider-v1-2-models-now-available-on-ai-gateway"/>
+      <updated>2026-10-16T00:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/ai-gateway/models/pplx-decider-v1.2">Perplexity Decider V1.2 27B</a> and <a href="https://vercel.com/ai-gateway/models/pplx-decider-flash-v1.2">Decider Flash V1.2 4B</a> are now available on <a href="https://vercel.com/ai-gateway">AI Gateway</a>. Both are multimodal <a href="https://vercel.com/docs/ai-gateway/modalities/decision">decision models</a> for classifying content, routing requests, and scoring text, structured records, and images.</p><p>The models answer typed questions with probabilities. Boolean questions return the likelihood of yes, Choice questions select from categories you define, and Score questions assess content against an ordered rubric. Your application can use those results to route a support ticket, flag a damaged product, or send an uncertain decision for human review. Multiple questions can share the same input in one request.</p><ul><li><p><b>Decider V1.2 27B</b> (<code>perplexity/pplx-decider-v1.2</code>) is the larger model, for nuanced judgments and detailed rubrics.</p></li><li><p><b>Decider Flash V1.2 4B</b> (<code>perplexity/pplx-decider-flash-v1.2</code>) is the smaller model, for high-volume labeling, filtering, and routing with clear criteria.</p></li></ul><p>The examples below use <code>perplexity/pplx-decider-v1.2</code> and check the same delivery report through the <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/ai-sdk">AI SDK</a>, the <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-decisions">Decisions API</a>, and the <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe">TypeSafe-compatible API</a>:</p><div></div><p>For image input, embed base64 <code>image_url</code> objects in JSON <code>state</code> through the AI SDK or TypeSafe-compatible API. See <a href="https://docs.perplexity.ai/docs/decisions/quickstart#images-in-state">Perplexity's image format</a> and the <a href="https://vercel.com/docs/ai-gateway/modalities/decision">decision models documentation</a> for request formats and question types.</p><p>Explore Decider V1.2 27B in the <a href="https://vercel.com/ai-gateway/models/pplx-decider-v1.2">model playground</a>, or try <a href="https://vercel.com/ai-gateway/models/pplx-decider-flash-v1.2">Decider Flash V1.2 4B</a>.</p><p>Use AI Gateway to call models with one API key and monitor usage and cost in one place. Decision requests are recorded in <a href="https://vercel.com/docs/ai-gateway/observability-and-spend/logs">request logs</a> and included in <a href="https://vercel.com/docs/ai-gateway/observability-and-spend/budgets">spend budgets</a>. Inference uses provider pricing without a markup or platform fee. This also applies when you supply your own provider credentials through <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/byok">BYOK</a>.</p><p>Browse the <a href="https://vercel.com/ai-gateway/models?modality=decision">decision model catalog</a> to see the available options.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/perplexity-decider-v1-2-models-now-available-on-ai-gateway">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Jerilyn Zheng</name></author>
+      <author><name>Zachary Chen</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/reflection-ai-beam-now-available-on-ai-gateway-for-free</id>
+      <title>Reflection AI's Beam now available on AI Gateway for free</title>
+      <link href="https://vercel.com/changelog/reflection-ai-beam-now-available-on-ai-gateway-for-free"/>
+      <updated>2026-10-16T00:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p><a href="https://vercel.com/ai-gateway/models/beam">Beam from Reflection AI</a>, previously available in stealth as <code>stealth/cat-jam</code>, is now available on <a href="https://vercel.com/ai-gateway">AI Gateway</a>. Beam is free to use for a limited time during the launch period when serviced by Reflection AI.</p><p>Beam is an low latency US open-weight reasoning model for coding and agentic tasks, with <a href="https://reflection.ai/blog/beam-is-available">weights released under Apache 2.0</a>. Beam supports <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/responses/tool-calling">tool calling</a> and <a href="https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions/structured-outputs">structured outputs</a>, with a 1M-token context window for code, documents, and conversation history. Reasoning effort is adjustable. Beam is designed for speed, activating only 23B of its 501B parameters per token and avoiding tokens a task doesn't need, so it tends to reach answers sooner than larger open models.</p><p>There are 2 ways to access Beam for free:</p><ul><li><p>Using the standard model name (<code>reflection/beam</code> with provider <code>reflection</code>). When the free period ends, the model slug will automatically transfer over to pricing with no downtime.</p></li><li><p>Using the <code>-free</code> suffix to the standard name (<code>reflection/beam-free</code>). The model will stop serving when the free offer ends.</p></li></ul><div></div><p>To use it in Claude Code, Codex, Cursor, and more, install the latest Vercel CLI and run setup:</p><div></div><p>Then select <code>reflection/beam</code> or <code>reflection/beam-free</code> in the agent. See the <a href="https://vercel.com/docs/ai-gateway/coding-agents">coding agents guide</a> for details.</p><p>Try Beam in the <a href="https://vercel.com/ai-gateway/models/beam">model playground</a>.</p><p>AI Gateway provides a unified API for calling models, tracking usage and cost, and configuring retries, failover, and performance optimizations for higher-than-provider uptime. It includes built-in <a href="https://vercel.com/changelog/custom-reporting-ai-gateway">custom reporting</a>, <a href="https://vercel.com/blog/zdr-on-ai-gateway">Zero Data Retention support</a>, <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys">budgets for API keys</a>, <a href="https://vercel.com/docs/ai-gateway/models-and-providers/routing-rules">routing rules</a>, and more.</p><p>AI Gateway reflects provider pricing with no markup and does not charge a platform fee on inference, including on <a href="https://vercel.com/docs/ai-gateway/authentication-and-byok/byok">Bring Your Own Key</a> (BYOK) requests.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/reflection-ai-beam-now-available-on-ai-gateway-for-free">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Jerilyn Zheng</name></author>
+      <author><name>Kevin Dawkins</name></author>
+      <author><name>Walter Korman</name></author>
+      <author><name>Zachary Chen</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/changelog/introducing-ai-agents-and-services-on-the-vercel-marketplace</id>
+      <title>Introducing AI agents &amp; services on the Vercel Marketplace</title>
+      <link href="https://vercel.com/changelog/introducing-ai-agents-and-services-on-the-vercel-marketplace"/>
+      <updated>2025-10-23T13:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p>The Vercel Marketplace now includes a dedicated <a href="https://vercel.com/marketplace/category/agents"><b>AI Agents &amp; Services</b></a> category, making it easier for developers to integrate AI-powered automation, observability, and infrastructure directly into their projects.</p><p>This category introduces native support for agentic integrations with unified authentication, provisioning, and billing across providers, all within the Vercel platform.</p><p><b>Agents - </b>Off-the-shelf agents that reason and act on your behalf</p><ul><li><p><a href="https://vercel.com/marketplace/coderabbit"><b>CodeRabbit</b></a><b>: </b> Automated code review and PR feedback</p></li><li><p><a href="https://vercel.com/marketplace/corridor"><b>Corridor</b></a><b>:</b> Real-time security and threat detection</p></li><li><p><a href="https://vercel.com/marketplace/sourcery"><b>Sourcery</b></a><b>:</b> Code review and generation assistance</p></li></ul><p><b>AI services - </b>Infrastructure for building and scaling your own agents</p><ul><li><p><a href="https://vercel.com/marketplace/braintrust"><b>Braintrust</b></a><b>:</b> Evaluation and monitoring frameworks</p></li><li><p><a href="https://vercel.com/marketplace/kernel"><b>Kernel</b></a><b>:</b> Cloud browser infrastructure for agentic workloads</p></li><li><p><a href="https://vercel.com/marketplace/mixedbread"><b>Mixedbread</b></a><b>:</b> Multimodal AI search and retrieval across documents, code, media, and more</p></li><li><p><a href="https://vercel.com/marketplace/kubiks"><b>Kubiks</b></a><b>:</b> Multi-step workflow orchestration and remediation</p></li><li><p><a href="https://vercel.com/marketplace/chatbase"><b>Chatbase:</b></a> Analytics and tuning for conversational agent</p></li><li><p><b></b><a href="https://vercel.com/marketplace/autonoma-ai"><b>Autonoma</b></a><b>:</b> AI-driven testing for your web and mobile apps to build, run, and analyze without writing code</p></li><li><p><a href="https://vercel.com/marketplace/browseruse"><b>Browser Use</b></a><b>: </b>Natural language browser control for web automation</p></li><li><p><a href="https://vercel.com/marketplace/descope"><b>Descope</b></a><b>:</b> No-code identity and authentication workflows for users, partners, and AI agents</p></li></ul><p>Explore the <a href="https://vercel.com/marketplace/category/agents">agentic marketplace</a>, read our <a href="https://vercel.com/blog/ai-agents-and-services-on-the-vercel-marketplace">blog</a>, and check out the <a href="https://vercel.com/docs/agent-integrations">documentation</a>.</p>
+          <p class="more">
+            <a href="https://vercel.com/changelog/introducing-ai-agents-and-services-on-the-vercel-marketplace">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Dima Voytenko</name></author>
+      <author><name>Josh Wolk</name></author>
+      <author><name>Hedi Zandi</name></author>
+      <author><name>Tony Pan</name></author>
+      <author><name>Justin Kropp</name></author>
+      <author><name>Michael Arguin</name></author>
+      <author><name>Michael Toth</name></author>
+      <author><name>Ismael Rumzan</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/blog/a-proposal-for-inline-llm-instructions-in-html</id>
+      <title>&lt;script type="text/llms.txt"&gt;</title>
+      <link href="https://vercel.com/blog/a-proposal-for-inline-llm-instructions-in-html"/>
+      <updated>2025-08-20T13:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p>How do you tell an AI agent what it needs to do when it hits a protected page? Most systems rely on external documentation or pre-configured knowledge, but there's a simpler approach.</p><p>What if the instructions were right there in the HTML response?</p><p><a href="https://llmstxt.org/">llms.txt</a> is an emerging standard for making content such as docs available for direct consumption by AIs. We’re proposing a convention to include such content directly in HTML responses as <code>&lt;script type=&quot;text/llms.txt&quot;&gt;</code>.</p>
+          <p class="more">
+            <a href="https://vercel.com/blog/a-proposal-for-inline-llm-instructions-in-html">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Malte Ubl</name></author>
+      
+    </entry>
+  <entry>
+      <id>https://vercel.com/blog/v0-app</id>
+      <title>v0.dev -&gt; v0.app</title>
+      <link href="https://vercel.com/blog/v0-app"/>
+      <updated>2025-08-11T13:00:00.000Z</updated>
+      <content type="xhtml">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <p>With a single prompt, anyone can go from idea to deployed app with UI, content, backend, and logic included.</p><p><a href="https://v0.app">v0</a> is now agentic, helping you research, reason, debug, and plan. It can collaborate with you or take on the work end-to-end.</p><p>From product managers writing specs to recruiters launching job boards, v0 is changing how teams operate.</p>
+          <p class="more">
+            <a href="https://vercel.com/blog/v0-app">Read more</a>
+          </p>
+        </div>
+      </content>
+      <author><name>Zeb Hermann</name></author>
+      
+    </entry>
+  </feed>

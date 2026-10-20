@@ -1,4 +1,4 @@
-# Q record: five public feeds (gates C4)
+# Q record: public feeds (gates C4)
 
 Measured by the Q worker of the production-page plan run, 2026-10-20, 21:07 to 21:09 UTC, from a
 Claude cloud session (Node 22.22.0 `fetch`, through the session's egress proxy), repository
@@ -26,13 +26,16 @@ stackoverflow.blog, theverge.com. C4's real-feed receipt should run where those 
 | `github-node-releases-atom.xml` | https://github.com/nodejs/node/releases.atom | Atom | 200, 54 ms | 707,128 | 10 / 3 | weak ETag | 304, 0 bytes | `max-age=0, private, must-revalidate` |
 | `youtube-channel-atom.xml` | https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw | Atom + `media:` + `yt:` | 200, 167 ms | 26,029 | 15 / 15 | none | not possible | `public, max-age=900` |
 
-Also reachable and not kept: https://supabase.com/rss.xml (RSS 2.0, 166,436 bytes, 436 items, weak
-ETag plus `Last-Modified`, 304 when both were sent) and https://vercel.com/atom (Atom, 3,914,056
-bytes, 1,687 entries, weak ETag, 304). None of the seven redirected.
+Two more were captured in the same run. `vercel-blog-atom.xml` is kept as a sixth fixture because
+it is the only one with escaped markup in a title: https://vercel.com/atom (Atom, 3,914,056 bytes,
+1,687 entries, weak ETag, 304 on the conditional GET). https://supabase.com/rss.xml (RSS 2.0,
+166,436 bytes, 436 items, weak ETag plus `Last-Modified`, 304 when both were sent) is not kept.
+None of the seven redirected.
 
 Trimming: the RSS fixtures keep the channel header and the first 25 items (the reader shows the
-newest 20). The GitHub fixture keeps entries 1, 3 and 10 of 10, unchanged, because entry 2 alone
-is 157 KB. Each kept item is byte for byte as served, and each fixture parses as XML.
+newest 20). The GitHub fixture keeps entries 1, 3 and 5 of 10 (entry 2 alone is 157 KB; entry 5 has
+an entity in its title). The Vercel fixture keeps entries 1 to 10 and entries 906, 1006 and 1022,
+the ones whose titles hold `&amp;`, `&lt;script ...&gt;` and `-&gt;`. Each kept item is byte for byte as served, and each fixture parses as XML.
 
 ## Notes on markup
 
@@ -48,9 +51,15 @@ is 157 KB. Each kept item is byte for byte as served, and each fixture parses as
   conditional request and has to rely on its own cache. 1,062 items in 324 KB: the reader must stop
   after the newest it needs or cap the size.
 - **GitHub releases (Atom).** `<content type="html">` holds escaped HTML (`&lt;h3&gt;`, `&quot;`),
-  and titles are plain text with commas and `@` handles. Identity is a `tag:` URI in `<id>`. Ten
-  entries weigh 707 KB, so a size cap set much below 1 MB refuses this feed whole; C4 should cap
-  on bytes read and parse what arrived, or set the cap knowing this.
+  and titles are plain text with commas and `@` handles, one with `&#39;` (entry 5:
+`Version 22.23.3 &#39;Jod&#39; (LTS)`). Identity is a `tag:` URI in `<id>`. Ten
+  entries weigh 707 KB, so a size cap set much below 1 MB refuses this feed. A body cut off at the
+  cap is not well-formed XML, so C4 should refuse an oversized response and keep the last good
+  list, and choose its cap knowing that ordinary feeds reach 1 MB.
+- **Vercel blog (Atom).** Titles hold entities and escaped markup: `&lt;script
+  type="text/llms.txt"&gt;`, `v0.dev -&gt; v0.app`, `Introducing AI agents &amp; services ...`.
+  These must come out as the plain text `<script type="text/llms.txt">`, not as markup. 3.9 MB
+  for the whole feed, the largest seen.
 - **YouTube channel (Atom).** Default namespace Atom with `yt:` and `media:`; titles carry emoji
   (7 of 15); the description is in `media:group/media:description`, not in `<summary>`. No
   validator, but `max-age=900` asks for 15 minutes between reads.
@@ -61,8 +70,8 @@ is 157 KB. Each kept item is byte for byte as served, and each fixture parses as
 
 ## Judgement
 
-The five fixtures give C4 what AC-5 needs: RSS 2.0 and Atom, CDATA, escaped HTML, entities,
-non-ASCII text and emoji, feeds with and without `<guid>`, and feeds with and without validators.
+The six fixtures give C4 what AC-5 needs: RSS 2.0 and Atom, CDATA titles, escaped markup and
+entities in titles (Vercel, GitHub) and in content (GitHub), non-ASCII text and emoji, feeds with and without `<guid>`, and feeds with and without validators.
 C4's polite reading (AC-6) should honour `<ttl>` and `max-age` as lower bounds on the 5-minute
-cache, and must handle feeds larger than its size cap, because two real feeds (Node.js blog,
-GitHub releases) are large by default.
+cache, and must refuse feeds larger than its size cap without losing the last good list, because three
+real feeds (Node.js blog, GitHub releases, Vercel blog) are large by default.
