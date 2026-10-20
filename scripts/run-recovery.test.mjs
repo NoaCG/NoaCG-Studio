@@ -10,7 +10,7 @@ import test from 'node:test';
 import { continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
-import { nextStep } from './plan-run.mjs';
+import { nextStep, recordStep } from './plan-run.mjs';
 
 // Defense in depth: every child git process is restricted to the temporary file remote.
 process.env.GIT_ALLOW_PROTOCOL = 'file';
@@ -248,6 +248,25 @@ test('a push accepted after the network failed is adopted as this store\'s own t
   // Another session's continuation is still superseding.
   assert.equal(f.continueAs('session-b').verdict, 'continued');
   assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /superseded/);
+});
+
+test('adopting an accepted checkpoint keeps a line recorded locally since, and a failed update undoes only its own write', (t) => {
+  // A short wave (no project): the coordinator records with plain plan-run, outside the supervisor.
+  const f = fixture(t);
+  let down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'wait', { kind: 'transient', reason: 'runner capacity', until: new Date(f.now + HOUR).toISOString() }, f.now), /Could not resolve host[\s\S]*the push said \(git: Connection reset\)/);
+  f.inject(null);
+  assert.equal(recordStep(f.manifest.wave, 1, 'build', 'worker-1', f.now).refusal, undefined);
+  const local = readFileSync(f.manifest.wave, 'utf8');
+  updateRun(f.db, f.manifest.id, 'clear-wait', 'capacity is back', f.now);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), local);
+  assert.equal(docFor(f.db).waitResolution, 'capacity is back');
+  assert.match(remoteLedger(f).ledger, /phase 1 build worker-1/);
 });
 
 test('whole source/store/ledger loss restores pinned code, hashes, waits and unresolved exact request without replay', async (t) => {

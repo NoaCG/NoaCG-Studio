@@ -72,8 +72,10 @@ function transaction(db, fn) {
 function ledgerTransaction(db, wave, fn) {
   return transaction(db, () => {
     const before = readFileSync(wave, 'utf8');
-    try { return fn(); } catch (error) {
-      if (readFileSync(wave, 'utf8') !== before) writeFileSync(wave, before);
+    let written = null;
+    try { return fn(() => { written = readFileSync(wave, 'utf8'); }); } catch (error) {
+      // Only this transition's own write is undone; a line another writer added since stays.
+      if (written !== null && readFileSync(wave, 'utf8') === written) writeFileSync(wave, before);
       throw error;
     }
   });
@@ -108,7 +110,7 @@ export function registerRun(db, manifest, now = Date.now()) {
   if (project && (manifest.kind !== 'plan' || project.id !== manifest.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Manifest differs from original project authorization');
   if (windowStart(text) !== start || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== end) throw new Error('Wave window differs from authorization');
   if (REPORT_HEADING.test(text)) throw new Error('Wave already reported');
-  return ledgerTransaction(db, normalized.wave, () => {
+  return ledgerTransaction(db, normalized.wave, (wrote) => {
     if (project) {
       const store = canonical(db.prepare('PRAGMA database_list').all().find((row) => row.name === 'main').file);
       const locked = withLedgerLock(normalized.wave, () => {
@@ -117,6 +119,7 @@ export function registerRun(db, manifest, now = Date.now()) {
         if (readFileSync(normalized.wave, 'utf8') !== text) throw Error('Project changed during registration; reconcile');
         project.authorityStore = store;
         writeFileSync(normalized.wave, writeProject(text, project));
+        wrote();
         return {};
       });
       if (locked.refusal) throw Error(locked.refusal);
@@ -137,7 +140,7 @@ export function registerRun(db, manifest, now = Date.now()) {
 /** Explicit operator/coordinator updates fence any in-flight tick; they never renew authorization. */
 export function updateRun(db, id, operation, value, now = Date.now()) {
   adoptAccepted(db, id);
-  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, () => {
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
     const { doc } = rowFor(db, id);
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
     assertCurrent(db, id, doc); // A superseded coordinator changes nothing, not even its own ledger.
@@ -161,6 +164,7 @@ export function updateRun(db, id, operation, value, now = Date.now()) {
         if (readFileSync(doc.manifest.wave, 'utf8') !== text) throw Error('Ledger changed; reconcile before updating project');
         const changed = changeProject(doc, project, text, operation, value, now);
         writeFileSync(doc.manifest.wave, changed);
+        wrote();
         return {};
       });
       if (locked.refusal) throw Error(locked.refusal);
@@ -174,7 +178,7 @@ export function updateRun(db, id, operation, value, now = Date.now()) {
 /** One supported phase admission path; SQLite plus the ledger lock serialize local callers. */
 export function recordRun(db, id, phase, event, detail = '', { now = Date.now(), authority } = {}) {
   adoptAccepted(db, id);
-  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, () => {
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
     const row = rowFor(db, id), { doc } = row;
     if (doc.status !== 'active') throw Error('Terminal run cannot record another phase');
     // A superseded coordinator is refused here, before it writes the ledger or launches anything.
@@ -187,6 +191,7 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
     }
     const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
     if (result.refusal) throw Error(result.refusal);
+    wrote();
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
     publishRun(db, id);
     return result;

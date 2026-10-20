@@ -173,10 +173,11 @@ export function publishRun(db, id) {
   try {
     git(config.repository, ['push', `--force-with-lease=${ref}:${old}`, config.remote, `${commit}:${ref}`]);
   } catch (error) {
-    // A transport failure may follow acceptance. Reconcile this exact commit, never force.
-    const accepted = remoteHead(git, config, ref);
     // Name git's own answer: a refused namespace and a lost connection need different fixes.
     const said = String(error.stderr || error.message).trim().split('\n').filter(Boolean).slice(-3).join(' | ').slice(0, 500);
+    // A transport failure may follow acceptance. Reconcile this exact commit, never force.
+    let accepted;
+    try { accepted = remoteHead(git, config, ref); } catch (readBack) { throw new Error(`${readBack.message}; the push said (git: ${said})`, { cause: readBack }); }
     if (accepted !== commit) throw accepted === old ? new Error(`Recovery publication unresolved; retry before acting (git: ${said})`) : superseded();
   }
   db.prepare('INSERT INTO recovery_heads VALUES(?,?) ON CONFLICT(id) DO UPDATE SET sha=excluded.sha').run(id, commit);
@@ -188,9 +189,18 @@ export function publishRun(db, id) {
  * not another coordinator's: same restoration generation, parented on this store's head. Adopt
  * its ledger and state so the store and the remote agree again. Returns whether it adopted. */
 export function adoptAccepted(db, id) {
-  const row = db.prepare('SELECT doc FROM runs WHERE id=?').get(id);
-  const doc = row && JSON.parse(row.doc), config = doc?.manifest.recovery;
-  if (!config) return false;
+  if (!JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id)?.doc ?? '{}').manifest?.recovery) return false;
+  // Under the write lock, so another local process's publication in progress is never mistaken for a lost one.
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const adopted = adoptLocked(db, id);
+    db.exec('COMMIT');
+    return adopted;
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
+}
+
+function adoptLocked(db, id) {
+  const doc = JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id).doc), config = doc.manifest.recovery;
   const git = transports.get(db) ?? recoveryGit, ref = refFor(id);
   const head = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha;
   const remote = remoteHead(git, config, ref);
@@ -200,15 +210,16 @@ export function adoptAccepted(db, id) {
   const snapshot = JSON.parse(git(config.repository, ['show', `${remote}:checkpoint.json`]));
   if (snapshot.version !== 1 || snapshot.doc?.manifest?.id !== id
       || snapshot.doc.restoration?.generation !== doc.restoration?.generation) return false;
+  // Take the accepted ledger only over the one this store last published: a line recorded
+  // locally since then (an unsupervised plan run) is kept, or refused if both changed.
+  const published = JSON.parse(git(config.repository, ['show', `${head}:checkpoint.json`])).ledger;
+  const local = readFileSync(doc.manifest.wave, 'utf8');
+  if (snapshot.ledger !== published && local !== published) throw new Error(`The ledger changed locally after a checkpoint GitHub accepted unacknowledged; reconcile it with ${ref} before acting`);
   // The durable copy omits the local adapter and paths; this store's own manifest supplies them.
   const adopted = { ...snapshot.doc, manifest: doc.manifest, packet: { ...snapshot.doc.packet, workspace: doc.packet.workspace } };
-  writeFileSync(doc.manifest.wave, snapshot.ledger);
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(adopted), id);
-    db.prepare('UPDATE recovery_heads SET sha=? WHERE id=?').run(remote, id);
-    db.exec('COMMIT');
-  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(adopted), id);
+  db.prepare('UPDATE recovery_heads SET sha=? WHERE id=?').run(remote, id);
+  if (snapshot.ledger !== published) writeFileSync(doc.manifest.wave, snapshot.ledger);
   return true;
 }
 
@@ -313,7 +324,7 @@ export function restoredObservation(doc, receipt, now) {
     const current = receipt.github.filter((p) => p.prNumber === owner.prNumber);
     if (current.length !== 1) return false;
     const p = current[0], at = Date.parse(p.observedAt);
-    if (p.repositoryFullName !== doc.manifest.recovery.repositoryFullName || p.headSha !== owner.headSha
+    if (!sameRepository(p.repositoryFullName, doc.manifest.recovery.repositoryFullName) || p.headSha !== owner.headSha
         || p.ownerSessionId !== owner.sessionId || p.commentId !== owner.commentId || !required(p.evidence)
         || !['open', 'closed', 'merged'].includes(p.state) || !Number.isFinite(at) || at > now || now - at > 30_000) return false;
   }

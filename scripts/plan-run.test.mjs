@@ -114,6 +114,18 @@ test('a product failure gets one repair; a second failure is diagnosed, and a fa
   assert.equal(readFileSync(file, 'utf8').match(/phase 1 repair/g).length, 3);
 });
 
+test('a diagnosis is a launch: never after the window, never out of turn', () => {
+  const file = run();
+  checked(file, 1);
+  record(file, 1, 'fail', 'product: one');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'product: two');
+  assert.equal(next(file, 420).action, 'time-limit');
+  assert.match(recordStep(file, 1, 'diagnose', 'repair: late', at(420)).refusal, /refuses diagnosis: time-limit/);
+  record(file, 1, 'paused', 'block ended');
+  assert.match(recordStep(file, 1, 'diagnose', 'repair: paused', at(10)).refusal, /refuses diagnosis: paused/);
+});
+
 test('a diagnosis that needs the owner records stop with its reason', () => {
   const file = run();
   checked(file, 1);

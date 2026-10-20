@@ -14,7 +14,7 @@ const fake = (answers) => (command, args) => {
   const answer = answers[key];
   return answer === undefined ? { status: 1, stdout: '' } : { status: 0, stdout: `${answer}\n` };
 };
-const runs = (...list) => JSON.stringify(list.map(([status, minutes]) => ({ status, updatedAt: minutesAgo(minutes) })));
+const runs = (...list) => JSON.stringify(list.map(([status, minutes, started = minutes]) => ({ status, createdAt: minutesAgo(started), updatedAt: minutesAgo(minutes) })));
 const branchAt = (minutes) => ({ 'ls-remote': `${'a'.repeat(40)}\trefs/heads/feature`, fetch: '', log: minutesAgo(minutes) });
 
 test('the newest activity decides; 30 minutes without any is idle', () => {
@@ -53,7 +53,11 @@ test('a queued or running Actions run is activity however long it has run', () =
   for (const status of ['in_progress', 'queued']) {
     const sources = observe({ branch: 'feature' }, fake({ ...branchAt(50), ci: runs([status, 40], ['completed', 45]) }));
     const result = progress(sources, NOW, 30, minutesAgo(55));
-    assert.deepEqual([result.state, result.idleMinutes], ['progressing', 0], status);
+    assert.deepEqual([result.state, result.idleMinutes, result.lastActivity], ['progressing', 0, minutesAgo(0)], status);
+  }
+  // One waiting for approval, or queued since before the launch, is not this worker's activity.
+  for (const ci of [runs(['waiting', 40]), runs(['queued', 40, 90])]) {
+    assert.equal(progress(observe({ branch: 'feature' }, fake({ ...branchAt(50), ci })), NOW, 30, minutesAgo(55)).state, 'idle');
   }
   const finished = observe({ branch: 'feature' }, fake({ ...branchAt(50), ci: runs(['completed', 40]) }));
   assert.equal(progress(finished, NOW, 30, minutesAgo(55)).state, 'idle');
@@ -90,7 +94,7 @@ test('the command exits 1 for an idle worker, 0 for a progressing one, 2 for bad
   assert.equal(main(['--branch', 'feature'], { now: NOW, run: fake(branchAt(90)), print: (s) => printed.push(s) }), 1);
   assert.equal(JSON.parse(printed[0]).state, 'idle');
   assert.equal(main(['--branch', 'feature'], { now: NOW, run: fake(branchAt(3)), print() {} }), 0);
-  for (const argv of [['--nope', 'x'], ['--branch', 'feature', '--idle-minutes', '30m'], ['--idle-minutes', '30'], ['--branch', 'feature', '--since', 'yesterday']]) {
+  for (const argv of [['--nope', 'x'], ['--branch', 'feature', '--idle-minutes', '30m'], ['--idle-minutes', '30'], ['--branch', 'feature', '--since', 'yesterday'], ['--branch', 'feature', '--since', minutesAgo(5), '--wave', 'w.md']]) {
     assert.equal(main(argv, { now: NOW, run: fake(branchAt(90)), print() {} }), 2);
   }
 });

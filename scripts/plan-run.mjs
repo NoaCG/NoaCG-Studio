@@ -198,9 +198,6 @@ function stepFor(text, now) {
     const { state, expect, waiting, diagnosis } = phaseState(steps.filter((step) => step.phase === phase));
     if (state === 'passed') continue;
     if (state === 'stopped') return { action: 'stopped', phase, why: 'stopped; the owner\'s answer is recorded as `answered`' };
-    if (expect.includes('diagnose')) {
-      return { action: 'diagnose', phase, why: `${state === 'built' ? 'its check was blocked twice' : 'its check failed again after a repair'}: one fresh agent, independent of the phase's builders, repairers and checkers, records diagnose ${state === 'built' ? 'check' : 'repair'}: or stop: with its reason` };
-    }
     if (expect.length === 0) {
       return { action: 'stop', phase, why: state === 'built' ? 'its check was blocked again after the diagnosis' : 'its check failed again after the diagnosed repair' };
     }
@@ -209,6 +206,10 @@ function stepFor(text, now) {
     }
     const end = windowEnd(text);
     if (!Number.isNaN(end) && now >= end) return { action: 'time-limit', phase, why: `the window ended at ${new Date(end).toISOString()}` };
+    // The deciding agent is a launch too: only inside the window.
+    if (expect.includes('diagnose')) {
+      return { action: 'diagnose', phase, why: `${state === 'built' ? 'its check was blocked twice' : 'its check failed again after a repair'}: one fresh agent, independent of the phase's builders, repairers and checkers, records diagnose ${state === 'built' ? 'check' : 'repair'}: or stop: with its reason` };
+    }
     // Nothing is in flight and the window is open. The one midpoint retro comes before the next launch.
     const middle = Math.floor(phases.length / 2);
     if (phases.length >= 4 && phase > middle && !/^## Midpoint retro\b/m.test(text.replace(/\r\n/g, '\n'))) {
@@ -297,6 +298,7 @@ function recordLocked(file, phase, event, detail, now, supervised) {
     const next = nextStep(text, now);
     if (next.action !== 'launch' || next.phase !== phase || next.step !== event) return { refusal: `Ledger refuses launch: ${next.action}` };
   }
+  if (event === 'diagnose' && !(nextStep(text, now).action === 'diagnose' && nextStep(text, now).phase === phase)) return { refusal: `Ledger refuses diagnosis: ${nextStep(text, now).action}` };
   if (project && ['build', 'repair', 'check', 'pass', 'resume', 'diagnose'].includes(event)) {
     let receipt;
     try { receipt = JSON.parse(detail); } catch { return { refusal: 'Project launch/verdict/handoff requires a JSON actor/evidence receipt' }; }

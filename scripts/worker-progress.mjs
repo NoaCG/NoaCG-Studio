@@ -9,8 +9,8 @@
 //
 // The clock starts at the step's launch: `--wave` takes the in-flight step's launch (or latest
 // handoff) time from the ledger, `--since` names it. Nothing older counts, so a branch cut from
-// main does not inherit main's age. A queued or running Actions run on the branch is activity
-// however long it takes. Prints { state: progressing | idle | unknown, lastActivity, idleMinutes,
+// main does not inherit main's age. A queued or running Actions run on the branch, started since
+// the launch, is activity however long it takes; one waiting for approval is not. Prints { state: progressing | idle | unknown, lastActivity, idleMinutes,
 // sources } and exits 0 when progressing, 1 when idle, 2 when nothing could be read (no branch yet,
 // no CI, no log): unknown means reconcile the worker, never replace it.
 import { spawnSync } from 'node:child_process';
@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { readSteps } from './plan-run.mjs';
 
 export const IDLE_MINUTES = 30;
-const ACTIVE_RUN = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
+const ACTIVE_RUN = new Set(['queued', 'in_progress', 'pending', 'requested']);
 const USAGE = 'Usage: node scripts/worker-progress.mjs --branch <branch> [--wave <file> | --since <ISO>] [--log <file>] [--idle-minutes 30]';
 
 /** The in-flight step's start in a wave ledger: its launch or the latest handoff to a replacement. */
@@ -38,9 +38,10 @@ export function progress(sources, now = Date.now(), idleMinutes = IDLE_MINUTES, 
   const times = sources.map((s) => Date.parse(s.at)).filter(Number.isFinite);
   if (Number.isFinite(floor)) times.push(floor);
   if (!times.length) return { state: 'unknown', lastActivity: null, idleMinutes: null, sources };
-  const last = Math.max(...times), idle = Math.max(0, Math.floor((now - last) / 60_000));
-  const running = sources.some((s) => s.running);
-  return { state: running || idle < idleMinutes ? 'progressing' : 'idle', lastActivity: new Date(last).toISOString(), idleMinutes: running ? 0 : idle, sources };
+  // A run counts only if it started since the launch: a stale one from before is not this worker's.
+  const running = sources.some((s) => s.running && !(Date.parse(s.running) < floor));
+  const last = running ? now : Math.max(...times), idle = Math.max(0, Math.floor((now - last) / 60_000));
+  return { state: running || idle < idleMinutes ? 'progressing' : 'idle', lastActivity: new Date(last).toISOString(), idleMinutes: idle, sources };
 }
 
 /** Each source that answers contributes its time; one that fails is left out. */
@@ -58,10 +59,12 @@ export function observe({ branch, log }, run = (command, args) => spawnSync(comm
       add('commit', read('git', ['log', '-1', '--format=%cI', tip]));
     }
     let runs = [];
-    try { runs = JSON.parse(read('gh', ['run', 'list', '--branch', branch, '--limit', '20', '--json', 'status,updatedAt']) || '[]'); } catch { /* Unreadable CI is not activity. */ }
+    try { runs = JSON.parse(read('gh', ['run', 'list', '--branch', branch, '--limit', '20', '--json', 'status,createdAt,updatedAt']) || '[]'); } catch { /* Unreadable CI is not activity. */ }
     if (Array.isArray(runs) && runs.length) {
       const latest = runs.map((r) => r.updatedAt).filter((at) => Number.isFinite(Date.parse(at))).sort().at(-1);
-      add('ci', latest, runs.some((r) => ACTIVE_RUN.has(r.status)) ? { running: true } : {});
+      // `running` is the newest active run's start, so the launch clock can rule out a stale one.
+      const active = runs.filter((r) => ACTIVE_RUN.has(r.status)).map((r) => r.createdAt).filter((at) => Number.isFinite(Date.parse(at))).sort().at(-1);
+      add('ci', latest, active ? { running: active } : {});
     }
   }
   if (log) { try { add('log', statSync(log).mtime.toISOString()); } catch { /* A missing log is not activity. */ } }
@@ -77,6 +80,7 @@ export function main(argv = process.argv.slice(2), { now = Date.now(), run, prin
   }
   const idleMinutes = Number(args['idle-minutes'] ?? IDLE_MINUTES);
   let since = args.since ?? null;
+  if (args.wave && args.since) { print(USAGE); return 2; }
   if (args.wave) {
     try { since = launchedAt(readFileSync(args.wave, 'utf8')); } catch { since = null; }
     if (!since) { print(USAGE); return 2; }
