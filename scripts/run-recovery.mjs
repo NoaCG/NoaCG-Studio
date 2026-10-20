@@ -1,7 +1,8 @@
 // Git-backed checkpoints for run-supervisor. No scheduler or native launcher lives here.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
 import { digest, immutableProject, readProject, validateAuthorization } from './project-authorization.mjs';
@@ -20,6 +21,8 @@ export function deliveredReceipt(result) {
 export const SUPERSEDED = 'superseded: another coordinator continued this project; stop';
 const superseded = () => Object.assign(new Error(SUPERSEDED), { code: 'SUPERSEDED' });
 const revision = (s) => /^[a-f0-9]{40}$/.test(s ?? '');
+/** GitHub owner and repository names are case-insensitive; a cloud clone may lower-case them. */
+export const sameRepository = (a, b) => typeof a === 'string' && typeof b === 'string' && a.toLowerCase() === b.toLowerCase();
 const runId = (s) => /^[a-zA-Z0-9_-]+$/.test(s ?? '');
 const COMMIT_IDENTITY = {
   GIT_AUTHOR_NAME: 'NoaCG Recovery', GIT_AUTHOR_EMAIL: 'noacg-recovery@users.noreply.github.com',
@@ -61,6 +64,13 @@ function settings(config, git) {
   ];
   if (destinations.some((destination) => !expected.test(destination))) throw new Error('Recovery effective fetch/push destination differs from the existing repository');
   return config;
+}
+
+/** One SQLite write transaction: committed when `fn` returns, rolled back when it throws. */
+export function transaction(db, fn) {
+  db.exec('BEGIN IMMEDIATE');
+  try { const result = fn(); db.exec('COMMIT'); return result; }
+  catch (error) { db.exec('ROLLBACK'); throw error; }
 }
 
 export function recoveryTables(db, transport = recoveryGit) {
@@ -170,13 +180,72 @@ export function publishRun(db, id) {
   const commit = git(config.repository, ['commit-tree', tree, ...(old ? ['-p', old] : []), '-p', r.revision], `Recovery checkpoint ${id}\n`);
   try {
     git(config.repository, ['push', `--force-with-lease=${ref}:${old}`, config.remote, `${commit}:${ref}`]);
-  } catch {
+  } catch (error) {
+    // Name git's own answer: a refused namespace and a lost connection need different fixes.
+    const said = String(error.stderr || error.message).trim().split('\n').filter(Boolean).slice(-3).join(' | ').slice(0, 500);
     // A transport failure may follow acceptance. Reconcile this exact commit, never force.
-    const accepted = remoteHead(git, config, ref);
-    if (accepted !== commit) throw accepted === old ? new Error('Recovery publication unresolved; retry before acting') : superseded();
+    let accepted;
+    try { accepted = remoteHead(git, config, ref); } catch (readBack) { throw new Error(`${readBack.message}; the push said (git: ${said})`, { cause: readBack }); }
+    if (accepted !== commit) throw accepted === old ? new Error(`Recovery publication unresolved; retry before acting (git: ${said})`) : superseded();
   }
   db.prepare('INSERT INTO recovery_heads VALUES(?,?) ON CONFLICT(id) DO UPDATE SET sha=excluded.sha').run(id, commit);
   return commit;
+}
+
+/** A push the remote accepted after this store gave up on it (the network failed after
+ * acceptance, so the transition was rolled back locally) is this store's own next checkpoint,
+ * not another coordinator's: same restoration generation, parented on this store's head. Adopt
+ * its ledger and state so the store and the remote agree again. Returns whether it adopted. */
+export function adoptAccepted(db, id) {
+  const config = JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id)?.doc ?? '{}').manifest?.recovery;
+  if (!config) return false;
+  // The common case, nothing to adopt, holds no lock across the network read.
+  const head = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha;
+  if (remoteHead(transports.get(db) ?? recoveryGit, config, refFor(id)) === head) return false;
+  // Under the write lock, so another local process's publication in progress is never mistaken for a lost one.
+  return transaction(db, () => adoptLocked(db, id));
+}
+
+function adoptLocked(db, id) {
+  const doc = JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id).doc), config = doc.manifest.recovery;
+  const git = transports.get(db) ?? recoveryGit, ref = refFor(id);
+  const head = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha;
+  const remote = remoteHead(git, config, ref);
+  if (!head || !revision(remote) || remote === head) return false;
+  git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
+  if (git(config.repository, ['rev-list', '--parents', '-n', '1', remote]).split(' ')[1] !== head) return false;
+  const snapshot = JSON.parse(git(config.repository, ['show', `${remote}:checkpoint.json`]));
+  if (snapshot.version !== 1 || snapshot.doc?.manifest?.id !== id
+      || snapshot.doc.restoration?.generation !== doc.restoration?.generation) return false;
+  // Merge the accepted ledger with what was written locally since this store last published
+  // (a Wake: line, a midpoint retro, an unsupervised plan-run record); refuse a real conflict.
+  const published = JSON.parse(git(config.repository, ['show', `${head}:checkpoint.json`])).ledger;
+  const local = readFileSync(doc.manifest.wave, 'utf8');
+  const ledger = mergeLedger(git, config.repository, local, published, snapshot.ledger, ref);
+  // The durable copy omits the local adapter and paths; this store's own manifest supplies them.
+  const adopted = { ...snapshot.doc, manifest: doc.manifest, packet: { ...snapshot.doc.packet, workspace: doc.packet.workspace } };
+  db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(adopted), id);
+  db.prepare('UPDATE recovery_heads SET sha=? WHERE id=?').run(remote, id);
+  if (ledger !== local) writeFileSync(doc.manifest.wave, ledger);
+  return true;
+}
+
+/** A three-way merge of the wave ledger (git merge-file); a conflict is refused, never guessed. */
+function mergeLedger(git, repository, local, base, accepted, ref) {
+  if (local === base || local === accepted) return accepted;
+  if (accepted === base) return local;
+  // Both sides appended (a recorded step and a local note): the accepted step goes first.
+  if (local.startsWith(base) && accepted.startsWith(base)) return accepted + local.slice(base.length);
+  const dir = mkdtempSync(path.join(tmpdir(), 'noacg-ledger-'));
+  try {
+    const [mine, old, theirs] = ['local', 'base', 'accepted'].map((name, i) => {
+      const file = path.join(dir, name);
+      writeFileSync(file, [local, base, accepted][i]);
+      return file;
+    });
+    try { return git(repository, ['merge-file', '-p', mine, old, theirs]).replace(/\n?$/, '\n'); }
+    catch { throw new Error(`The ledger changed locally in conflict with a checkpoint GitHub accepted unacknowledged; reconcile it with ${ref} before acting`); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
 /** Read-only check before acting: a store whose last publication is no longer the remote
@@ -228,7 +297,7 @@ export function restoreRun(db, config, now = Date.now()) {
   const raw = git(config.repository, ['show', `${checkpoint}:checkpoint.json`]);
   const snapshot = JSON.parse(raw), { doc, ledger } = snapshot;
   if (snapshot.version !== 1 || doc?.manifest?.id !== config.id
-      || doc.manifest.recovery?.repositoryFullName !== config.repositoryFullName) throw new Error('Recovery checkpoint identity differs');
+      || !sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Recovery checkpoint identity differs');
   const r = validateState(doc, ledger);
   verifySource(config, r, checkpoint, git);
   mkdirSync(path.dirname(config.wave), { recursive: true });
@@ -251,7 +320,7 @@ export function restoreRun(db, config, now = Date.now()) {
     if (readFileSync(config.wave, 'utf8') !== ledger) throw new Error('Prepared ledger changed; preserve it and reconcile');
   } else writeFileSync(config.wave, ledger, { flag: 'wx', mode: 0o600 });
   doc.manifest = { ...doc.manifest, wave: config.wave, adapter: config.adapter,
-    recovery: { repository: config.repository, remote: config.remote, repositoryFullName: config.repositoryFullName } };
+    recovery: { repository: config.repository, remote: config.remote, repositoryFullName: doc.manifest.recovery.repositoryFullName } };
   doc.packet.workspace = { ...doc.packet.workspace, worktree: config.worktree };
   // The block this store takes over: its first start-block may replace it while it is active.
   const supersedes = readProject(ledger, now)?.block?.id;
@@ -280,7 +349,7 @@ export function restoredObservation(doc, receipt, now) {
     const current = receipt.github.filter((p) => p.prNumber === owner.prNumber);
     if (current.length !== 1) return false;
     const p = current[0], at = Date.parse(p.observedAt);
-    if (p.repositoryFullName !== doc.manifest.recovery.repositoryFullName || p.headSha !== owner.headSha
+    if (!sameRepository(p.repositoryFullName, doc.manifest.recovery.repositoryFullName) || p.headSha !== owner.headSha
         || p.ownerSessionId !== owner.sessionId || p.commentId !== owner.commentId || !required(p.evidence)
         || !['open', 'closed', 'merged'].includes(p.state) || !Number.isFinite(at) || at > now || now - at > 30_000) return false;
   }

@@ -32,43 +32,43 @@
   Use supported shell network permission. Record non-secret receipts in the existing ledger, separating sandboxed, approved-network and escalated evidence.
   One pass is not reusable permission. Tool approval waits are pending, not executed failures. Requalify after policy/context changes.
   An unavailable owner prerequisite produces one concrete configuration request; checkpoint and stop dependent work without approval loops or provider substitution.
-  Pre-test infrastructure/capacity failures consume no product repairs: checker says `fail blocked:`, builder checkpoints; existing blocked-check limits remain.
 - First run `node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>`: it continues the plan's active project in this session with a new block, or answers `open`.
   Open only when execution is actually authorized: `node scripts/wave-plan-store.mjs --open <first-date> plan-<plan> --until <original-deadline> --project <json>`.
   The file starts paused. Register its manifest, id `plan-<plan>-<first-date>` with the recovery ref, via `run-supervisor.mjs register <db> <manifest.json>`.
   `run-supervisor.mjs start-block <db> <id> <block.json>` opens one bounded block with owner, deadline and reconciliation evidence.
   Same ID, deadline, scope and ledger on every restart; legacy short-window records keep their compatibility path, migration needs explicit review.
 - Prefer qualified cloud implementation and software verification via `.agent-workflows/cloud-delegate.md`. Route device/OS/performance/human acceptance to the plan's required environment.
-  Use its capability-aware native session/workflow, worktree, completion and wake selection; keep the supervisor as the sole phase-admission authority.
-  Same-VM qualification is not a native cloud-child receipt. Current preflight exposes native launch and wake/bootstrap gaps.
-- Arm only qualified, authorized block-specific wakes. `node scripts/run-wake.mjs awake <file>` holds locally only through the active block.
-  A scheduling acknowledgement or heartbeat is a check-in, not durable continuation. No new scheduler is introduced.
+  Use its capability-aware native session/workflow, worktree, completion and wake selection; the supervisor is the sole phase-admission authority. Same-VM qualification is not a native cloud-child receipt.
+- Arm only qualified, authorized block-specific wakes. `node scripts/run-wake.mjs awake <file>` holds locally only through the active block. A scheduling acknowledgement or heartbeat is a check-in, not continuation.
 
 ## 2. Continuing loop and ownership
 
 `node scripts/plan-run.mjs next <wave file>` names the next step (a project: `run-supervisor.mjs next <db> <id>`). For projects the only phase admission is
-`node scripts/run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <current-block.json>`.
+`node scripts/run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <current-block.json>`; `<phase>` is the 1-based row of `## Phases`.
 The supervisor's local transaction and ledger admission lock serialize claims; direct project `plan-run record` is refused.
 Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the intent before any external launch; reconcile uncertain acceptance before replay.
+Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a continued store's adapter answers unknown).
 
-- **launch build/repair**: use the brief below in the phase's owned worktree. Record `landed` only after actual merge and all exact-merge checks pass.
+- **launch build/repair**: use the brief below in the phase's owned worktree. Record `landed {"mergeSha"}` once the merge is observed.
   Preserve carry findings, failure history and existing per-command/test bounds. A recorded intent alone proves no worker was launched.
-- **launch check**: fresh independent checker on current `origin/main`, without inherited build/repair conversation or a context-sharing builder fork.
-  PASS requires evidence for every authorized criterion in its specified environment; native task/Workflow success alone is insufficient.
-  `fail product:` gets the existing one repair; `fail blocked:` gets the existing one repeated check. A second failure stops for the owner; limits never reset on restart.
+- **launch check**: fresh independent checker on that immutable merge SHA at once, without inherited build/repair conversation or a context-sharing builder fork.
+  PASS requires evidence for every authorized criterion in its specified environment, and `mergeChecks` once every exact-merge check is green (it waits for them).
+  `fail product:` gets one repair; `fail blocked:` one more check. An infrastructure/capacity outage spends no budget: the step stays in flight, `wait`, `clear-wait`, resume.
+- **diagnose** (a second failure): one fresh agent, independent of every builder, repairer and checker of the phase, records `diagnose`
+  `{"actor","decision":"repair"|"check"|"stop","reason"}`: one last scoped repair, one re-check after a blocked prerequisite recovered, or stop for the owner. A failure after it stops; limits never reset.
 - **wait**: reconcile the original native worker, PR, jobs and exact tested revision first. Record observed `landed`, or wait for its queue; never start another branch/phase.
   Unknown status or lost acknowledgement is unresolved, never absence. Never sit idle: wait in a running background job or monitor so a cloud machine is not reclaimed.
-  From it run `node scripts/worker-progress.mjs --branch <branch>`; on `idle` (30 minutes) nudge the worker, and if still idle stop it and resume the same step in a new session on its pushed branch (the recorded launch stands).
+  From it run `node scripts/worker-progress.mjs --branch <branch> --wave <file>` (counts only work since the launch). On `idle` (30 minutes) nudge; if still idle, stop it, record
+  `resume` with the replacement's JSON actor receipt (a checker's is independent of every builder) and launch it on the pushed branch. `unknown`: reconcile, never replace.
 - **retro**: write the requested `## Midpoint retro` (orchestrator step 6, five lines), then ask `next` again.
 - **stop/stopped**: record the reserved decision and ask the owner as verify.md requires. Record `answered` only from the answer; cancellation cannot be answered away.
 - **pause/block**: `run-supervisor.mjs pause <db> <id> <reason>` or `wait <db> <id> <wait.json>` stops launches immediately, between phases or in flight.
   Stop native automatic follow-ups/retries/new sessions and block wakes too; retain in-flight checkpoints and queued-PR repair ownership.
-  The in-flight worker must checkpoint and acknowledge its exact phase, step and block. Use `tick` for the bounded checkpoint request; no replacement is launched.
+  Ask the in-flight worker in its native session to checkpoint and acknowledge its exact phase, step and block; no replacement is launched.
   Resolve prerequisites explicitly, preserve pending intents, then open another bounded block with reconciliation evidence under the unchanged authorization.
 - **block end/coordinator closure**: checkpoint, stop launches and block wakes/keep-awake; a resumable pause. Any later session continues it with the same line (`continue`); a coordinator reading `superseded` stops.
 - **cancel/expired**: owner cancellation or original deadline ends launch authority. Preserve unfinished work, findings, pending evidence and queued PR ownership.
-- **done**: `finish` needs every phase/acceptance PASS; session/block end leaves unfinished phases resumable, never complete.
-  Write the final report/retro, exact-merge results and remaining limitations; stop wakes.
+- **done**: `finish` needs every phase/acceptance PASS (block end leaves them resumable). Write the final report/retro, exact-merge results and limitations; stop wakes.
 
 Use `<tool>/plan-<plan>-p<phase>-<build|check|repair>` worktrees. Native routing, bounded waits and one acknowledged PR repair owner follow cloud-delegate and queue-merge.
 Before relevant manual Actions dispatches follow verification lookup's observation procedure in verify.md; measurement behavior and failure/retry restrictions stay unchanged.
@@ -81,9 +81,9 @@ FINDINGS <carry from next, or none>. Checkpoint on pause/block/deadline; never b
 ```
 **Checker brief**:
 ```text
-CHECK   Phase <n> of <plan>. You did not build it. On current origin/main do the user's task
+CHECK   Phase <n> of <plan>. You did not build it. On the landed merge SHA do the user's task
         and check EVERY criterion/outcome in its required environment. Change no product code.
-        PASS needs your own evidence for all criteria. Otherwise FAIL product or FAIL blocked,
+        PASS needs your own evidence for all criteria and every exact-merge check green. Else FAIL product or blocked,
         named. Preserve findings and exact tested revisions; do not weaken tests or retry limits.
 NOTES   <land the required plan notes through /check and /queue-merge | open no PR>.
 ```
