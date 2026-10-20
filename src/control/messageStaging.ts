@@ -133,18 +133,18 @@ export type StageResult =
   | { ok: false; reason: 'pending' | 'used' | 'refused' | 'empty' | 'save'; message: string };
 
 /** What staging needs from its surroundings: the real stores (model/shows.ts `addShowCue` and
- *  `updateShowCue`, model/durableStore.ts `commitDurableWrites`), or a Node test's fakes. */
+ *  `updateShowCueChecked`, model/durableStore.ts `commitDurableWrites`), or a Node test's fakes. */
 export interface StageDeps {
   addCue: (
     showId: string,
     sourceId: string,
     seed: { label: string; values: Record<string, string>; stagedFrom: MessageReceipt },
-  ) => { shows: Show[]; cueId: string | null };
+  ) => { shows: Show[]; cueId: string | null; error: string | null };
   updateCue: (
     showId: string,
     cueId: ShowCue['id'],
     patch: { values: Record<string, string>; stagedFrom: MessageReceipt; label?: string },
-  ) => Show[];
+  ) => { shows: Show[]; error: string | null };
   /** Resolves to a failure message, or null once the write is durable. */
   commit: () => Promise<string | null>;
   /** Mark the candidate used, after the cue has landed. */
@@ -176,6 +176,9 @@ export async function stageMessage(
   if (refusal) return { ok: false, reason: 'refused', message: refusal };
   const dest = messageDestinations(show).find((x) => x.graphicId === target.graphicId)!;
   if (!candidate.air.body) return { ok: false, reason: 'empty', message: 'This message has no text to put on air.' };
+  if (target.cueId && !show.cues?.some((c) => c.id === target.cueId && c.sourceId === target.graphicId)) {
+    return { ok: false, reason: 'refused', message: 'This cue was removed.' };
+  }
 
   pending.add(candidate.id);
   try {
@@ -184,15 +187,19 @@ export async function stageMessage(
     const stagedFrom: MessageReceipt = { candidateId: candidate.id, fields: Object.keys(values), at };
     const label = messageLabel(candidate.air.body);
     let cueId: string | null = null;
+    let written: string | null;
     if (target.cueId) {
-      d.setShows(d.updateCue(show.id, target.cueId, { values, stagedFrom, ...(target.relabel ? { label } : {}) }));
+      const made = d.updateCue(show.id, target.cueId, { values, stagedFrom, ...(target.relabel ? { label } : {}) });
+      d.setShows(made.shows);
       cueId = target.cueId;
+      written = made.error;
     } else {
       const made = d.addCue(show.id, dest.graphicId, { label, values, stagedFrom });
       d.setShows(made.shows);
       cueId = made.cueId;
+      written = made.error;
     }
-    const failure = cueId ? await d.commit() : 'the cue could not be written.';
+    const failure = written ?? (cueId ? await d.commit() : 'the cue could not be written.');
     if (failure || !cueId) {
       return { ok: false, reason: 'save', message: `No cue was prepared on “${dest.name}”: ${failure}` };
     }

@@ -20,6 +20,8 @@
 -- per device, which a 100-row paste would trip by design, so they are skipped for a row this
 -- function inserts: it raises a transaction-local flag around its own insert. A client cannot
 -- raise it - PostgREST sets only `request.*` settings, and no exposed function sets this one.
+-- The operator's rows carry an `operator_` device token, which a viewer's row may not, and the
+-- per-production viewer cap does not count them, so a large paste never shuts viewers out.
 --
 -- `audience_list` gains the three columns. A table function's columns cannot change in place, so
 -- it is dropped and recreated in this one transaction; a client that reads the old columns by name
@@ -59,8 +61,14 @@ begin
   new.reference   := nullif(btrim(left(coalesce(new.reference, ''), 200)), '');
 
   if not operator_row then
+    -- The operator's rows carry an `operator_` device; a viewer's never may, so the per-show
+    -- count below can leave the operator's paste out without opening a way around it.
+    if new.device_token like 'operator\_%' then
+      raise exception 'invalid device' using errcode = 'check_violation';
+    end if;
     select count(*) into recent_show from public.audience_submissions
-      where show_id = new.show_id and created_at > now() - interval '10 seconds';
+      where show_id = new.show_id and created_at > now() - interval '10 seconds'
+        and device_token not like 'operator\_%';
     if recent_show >= 20 then
       raise exception 'too many messages' using errcode = 'check_violation';
     end if;

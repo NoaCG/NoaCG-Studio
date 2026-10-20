@@ -85,14 +85,14 @@ function harness(s, { refuse = false } = {}) {
     addCue: (showId, sourceId, seed) => {
       const cue = { id: `c${++n}`, sourceId, label: seed.label, values: { ...seed.values }, stagedFrom: seed.stagedFrom };
       if (!state.refuse) state.show.cues.push(cue);
-      return { shows: [state.show], cueId: cue.id };
+      return { shows: [state.show], cueId: cue.id, error: null };
     },
     updateCue: (showId, cueId, patch) => {
       const cue = state.show.cues.find((c) => c.id === cueId);
       Object.assign(cue.values, patch.values);
       cue.stagedFrom = patch.stagedFrom;
       if (patch.label) cue.label = patch.label;
-      return [state.show];
+      return { shows: [state.show], error: null };
     },
     commit: async () => {
       state.commits += 1;
@@ -172,6 +172,18 @@ test('the cue editor door fills the edited cue in place and keeps its name unles
   assert.equal(state.show.cues.length, 1);
   assert.equal(state.show.cues[0].label, 'Opening question');
   assert.deepEqual(state.show.cues[0].values, { f0: 'AUDIENCE Q&A', f1: 'How did you prepare?', f3: 'Sam' });
+});
+
+test('a refused write is said, and a cue removed meanwhile is refused, marking nothing used', async () => {
+  const { state, deps } = harness(show([qa]));
+  deps.addCue = () => ({ shows: [state.show], cueId: 'c9', error: 'Account editing is paused.' });
+  const refused = await stageMessage(state.show, candidate('m6'), { graphicId: 'g-qa' }, deps);
+  assert.equal(refused.reason, 'save');
+  assert.match(refused.message, /Account editing is paused/);
+  const gone = await stageMessage(state.show, candidate('m6'), { graphicId: 'g-qa', cueId: 'deleted' }, deps);
+  assert.equal(gone.reason, 'refused');
+  assert.deepEqual(state.used, []);
+  assert.equal(state.commits, 0);
 });
 
 test('the audience backend interface has no method that airs anything', async () => {

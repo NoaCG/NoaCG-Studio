@@ -23,8 +23,9 @@ export interface AudienceInbox {
  * published production on a build with a backend reads its real inbox through its control slug,
  * anything else the in-memory rehearsal provider - so the count and the inbox cannot disagree.
  *
- * The rehearsal provider lives in this browser tab only, so on the Playout tab of an unpublished
- * production it is empty, and the count shows on the Audience view's own tab, where it is.
+ * On an unpublished production the local provider's operator-added messages are in browser
+ * storage and reach every tab of the production; its simulated rows live in one tab only, so they
+ * count only on the Messages view's own tab (src/audience/localAudience.ts).
  */
 export function useAudienceInbox(show: Pick<Show, 'id' | 'name' | 'hostedSlug'> | null): AudienceInbox {
   const id = show?.id;

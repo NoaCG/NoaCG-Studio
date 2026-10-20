@@ -5,6 +5,7 @@ import {
   setShowMessageTarget,
   setShowPollLiveFigures,
   updateShowCue,
+  updateShowCueChecked,
   type Show,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
@@ -195,10 +196,12 @@ function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'>): { l
   return { live, backend };
 }
 
-/** The candidate list, kept fresh off the provider's change signal. */
-function useCandidates(backend: ObservableAudience): AudienceSubmission[] {
+/** The candidate list, kept fresh off the provider's change signal while `enabled` (a closed
+ *  menu reads nothing, so a published production is not polled for a list nobody sees). */
+function useCandidates(backend: ObservableAudience, enabled: boolean): AudienceSubmission[] {
   const [rows, setRows] = useState<AudienceSubmission[]>([]);
   useEffect(() => {
+    if (!enabled) return;
     let alive = true;
     const refresh = () =>
       void backend.list().then(
@@ -213,7 +216,7 @@ function useCandidates(backend: ObservableAudience): AudienceSubmission[] {
       alive = false;
       off();
     };
-  }, [backend]);
+  }, [backend, enabled]);
   return rows;
 }
 
@@ -245,7 +248,7 @@ async function addMessageCard(show: Show, cardName: string): Promise<{ shows: Sh
 function stagingDeps(backend: AudienceBackend, setShows: (shows: Show[]) => void) {
   return {
     addCue: addShowCue,
-    updateCue: updateShowCue,
+    updateCue: updateShowCueChecked,
     commit: commitDurableWrites,
     setShows,
     markUsed: (id: string, at: string) => backend.update(id, { status: 'approved', usedAt: at }),
@@ -278,8 +281,8 @@ export function CueMessageFill({
   beforeFill?: () => Promise<unknown>;
 }) {
   const { backend } = useMessagesBackend(show);
-  const rows = useCandidates(backend);
   const [open, setOpen] = useState(false);
+  const rows = useCandidates(backend, open);
   const [name, setName] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -292,12 +295,16 @@ export function CueMessageFill({
     setBusy(true);
     setNote(null);
     try {
-      await beforeFill?.();
+      // A draft the editor could not save would be written back over the message later.
+      if ((await beforeFill?.()) === false) return setNote('Your edits to this cue are not saved yet. Fill again once they are.');
       let candidate = row;
       if (!candidate) {
         if (!body.trim()) return;
         const [added] = await backend.addCandidates([{ author: name, body, source: 'Pasted' }]);
         if (!added) return setNote('The message was not kept. Try again.');
+        // Kept now: a retry picks it from the list rather than pasting a second copy.
+        setName('');
+        setBody('');
         candidate = added;
       }
       const result = await stageMessage(
@@ -831,6 +838,8 @@ export default function ProductionAudienceWorkspace({
         stagingDeps(backend, setShows),
       );
       setNote(result.ok ? preparedNote(result) : result.message);
+    } catch (err) {
+      setNote(`The message was not prepared: ${(err as Error).message}`);
     } finally {
       setPreparing(null);
     }
