@@ -24,6 +24,14 @@ has been reconciled. The owner subsequently selected E4/E5/E7 as separate later 
 of the same production-page programme; see [the extension contract](../production-page-refactor/extensions.md).
 C0–C7 and Q below retain their scope and order. No run is opened by this update.
 
+Owner decisions, 2026-10-20 ([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)):
+no owner thumbs-up gates; every phase passes on criteria an agent checks on a cloud worker or in
+GitHub Actions. Q is agent-run with the owner's verified Google, Sheet and YouTube access, and each
+record gates only the phase that needs it. C1 is split into C1a, C1b and C1c. C0 gains an operator
+insert RPC; C2's tick reuses the existing `CRON_SECRET`, ships switched off and is switched on by
+the agent within Pro's included usage; C4 names its shared cache. Human trials are trial kits the
+owner runs when he can; real-studio outputs are the parent's final phase S.
+
 ## What the reconciliation changed
 
 The owner's outcomes are fixed (`docs/research/2026-10-data-sources/external-review-prompt.md`,
@@ -39,7 +47,8 @@ it; reliability. Against those, the reviews changed:
   Audience view) and Data stay as views; no new workspace or store.
 - **Paste lands first (C0)**, before the refactor, as a declared feature change.
 - **Refactor phases 1, 2+7 and a props-only cue editor move precede C1**; the remaining refactors
-  follow C7 in the same project. Final acceptance covers the completed build (parent phase 14).
+  follow C7 in the same project. Final acceptance covers the completed build (parent phase 14
+  in software, then the real studio in parent phase S).
 - **Protection is destination hygiene**, enforced at both doors: a message destination has no
   binding on its body or name field, and no binding is added to a field that prepared cues use.
   The earlier field-level snapshot flag and `/update` protection are dropped.
@@ -199,8 +208,9 @@ label and arrange declared actions; they never implement their behavior. Clock s
 uses the existing route; a new high-rate transport requires measured need, not a competitor claim.
 
 C6 owns any bounded status/target presentation changes needed here, separately reviewed as product
-behavior. Refactor phases only preserve them. C7 and parent phase 14 collect actual-output and
-human evidence; unsupported foreign capabilities remain in the OGraf roadmap.
+behavior. Refactor phases only preserve them. C7 and parent phase 14 collect the software
+evidence, the laptop helper scratch-output receipts, parent phase S the real-studio outputs, and
+the trial kit human findings; unsupported foreign capabilities remain in the OGraf roadmap.
 
 ## Whole-graphic matching and starter data
 
@@ -279,8 +289,9 @@ failed read keeps the last good value; a valid empty read writes `""`.
 
 **News feed.** A public segment of the existing data catch-all fetches RSS 2.0 and Atom with the
 guards of AC-6, parses titles to plain text, newest 20, and caches one read per address for 5
-minutes, slower when the feed asks. The browser reader asks that route every 5 minutes while a
-page is open; the server tick reads it otherwise. Browsers cannot read most feeds directly, so
+minutes, slower when the feed asks, in a `feed_cache` table every serverless instance shares
+(C4). The browser reader asks that route every 5 minutes while a page is open; the server tick
+reads it otherwise. Browsers cannot read most feeds directly, so
 this works before anyone signs in.
 
 **Another system.** `/patch` stays the door, with a generated example from the selected
@@ -319,8 +330,8 @@ The owner answered DS1-DS20 by accepting the recommendations. Each is kept here 
 - **DS4. RSS and Atom feeds.** Answer: titles, newest 20, 5 minutes, conditional requests,
   publisher backoff. Kept.
 - **DS5. Who reads a feed for a local production.** Answer: a public route as a segment of an
-  existing catch-all. Kept (the data catch-all; the function budget is full at its cap of 13 at
-  this branch's base and is not raised; no phase adds a function file).
+  existing catch-all. Kept (the data catch-all; the function budget is nearly full,
+  `docs/DEPLOYMENT.md`, and no phase adds a function file).
 - **DS6. JSON addresses.** Answer: not in this run. Kept.
 - **DS7. The data API on the data view.** Answer: "Another system" card with address, key,
   example and last receipt; a pushed name connects matching fields on first arrival. Now: the
@@ -443,7 +454,7 @@ and last changed. For Sheets, browser reads are about every five seconds and ser
 once a minute when all pages close; other providers show their own effective cadence. The Sheet
 server mode is continuity at slower cadence, not equivalent latency. The
 default surface's vocabulary is sheet AC-9's. Layer: journey in `e2e/production-views.spec.ts`
-and `e2e/production-data.spec.ts`; owner look in the pull request.
+and `e2e/production-data.spec.ts` (owner look: parent §9.1).
 
 ### AC-10: Every message intake respects selection and staging
 Pasted text, Sheet message rows, join submissions and supported YouTube input enter the same
@@ -491,19 +502,20 @@ cancel leaves bindings unchanged and existing bindings need explicit review befo
 Cover CSV escaping, Unicode and text-preserving import. Layer: Node mapping/round-trip tests,
 the Sheet journey and the real-Sheet receipt. No rich bracket recipe is needed for this proof.
 
-### AC-14: A newcomer does each journey unaided
-On a fresh production, without documentation, a student pastes rows onto a ticker, connects a
-Sheet list and changes a line, connects a feed, and (with a prepared sender) pushes a score; the
-message tasks are audience AC-7 and the Sheet task is sheet AC-12. Include downloading and filling
-a custom graphic's starter data, connecting it as a unit and repairing one unmatched field.
-Pass: four of five participants
-complete each task unaided and answer the comprehension questions ("What happens when you press
-Take?", "If someone edits the Sheet now, what changes on air?", "If someone adds a row, what
-happens to the cue you prepared?", "Where did this value come from?", "Which target will this
-button affect?", "What is confirmed on air, and what is only preview or pending?") correctly;
-medians are reported without a time target. Layer:
-one full trial at parent phase 14 on the completed build, prepared during C7; the paste tasks
-also run early in Q on C0's build. Earlier pilots do not replace final acceptance after changes.
+### AC-14: The newcomer journeys have a trial kit, and reported trials feed repairs
+C7 lands a trial kit for unaided newcomers on a fresh production, without documentation: paste
+rows onto a ticker, connect a Sheet list and change a line, connect a feed, and (with a prepared
+sender) push a score; download and fill a custom graphic's starter data, connect it as a unit and
+repair one unmatched field. The message tasks are audience AC-7's and the Sheet task sheet AC-12's.
+The comprehension questions: "What happens when you press Take?", "If someone edits the Sheet
+now, what changes on air?", "If someone adds a row, what happens to the cue you prepared?",
+"Where did this value come from?", "Which target will this button affect?", "What is confirmed
+on air, and what is only preview or pending?". Reading guide: four of five participants complete
+each task unaided and answer correctly; medians without a time target. Pass: the kit holds these tasks, the questions, the reading guide and where findings go,
+and every trial the owner reports is recorded against its build with each finding filed as an
+issue. The trial's own result is reported, never required (owner, 2026-10-20, D).
+Layer: C7's `evidence/trial-kit.md`; `evidence/trial.md` and the paste pilot's
+`evidence/trial-paste.md` as trials are run.
 
 ### AC-15: Prepared messages are independent of source changes
 Audience AC-1, AC-2, AC-6 and AC-8: a prepared message airs exactly as approved; source edits,
@@ -526,11 +538,15 @@ resets the clock nor advances the quiz. Exercise All together with a failed chil
 layers; child outcomes and replacement policy remain inspectable. Distinguish selection, staged
 edits, pending commands and confirmed output; disconnect leaves no apparently fresh live image.
 Record simulation versus target capture, and unknown status where confirmation is unavailable.
-Expanded vMix/SPX qualification is later; existing regressions remain required. The unaided tasks of
-AC-14 are prepared in C7 and run at final close-out. Each route is recorded separately; Twitch's existing behaviour is checked for
-regression; a blocked YouTube route is recorded as unverified, never as a pass. Layer: C7's
-receipts in `evidence/`. An unavailable required route is unverified and blocks a production-ready
-claim. C7 is an intermediate rehearsal; parent phase 14 records final acceptance after the
+Expanded vMix/SPX qualification is later; existing regressions remain required. The unaided
+tasks of AC-14 come from C7's trial kit and never hold this criterion. Each route is recorded
+separately; Twitch's existing behaviour is checked for regression against recorded fixtures; a
+blocked YouTube route is recorded as unverified, never as a pass. Layer (owner, 2026-10-20): C7's
+software receipts in `evidence/` (local stack, fake Bridge, browser outputs) and parent phase 14's
+reconciliation gate their phases; the laptop helper's scratch CasparCG/Bridge and OBS walks inform
+repairs and never gate; the real-studio CasparCG/NoaCG Bridge and OBS/browser receipts are the
+parent's phase S. An unavailable required route is unverified and blocks a production-ready
+claim. C7 is an intermediate rehearsal; parent phase 14 and S record final acceptance after the
 remaining refactors, reusing evidence only under the parent's material-input rules.
 
 ## Phases
@@ -544,67 +560,165 @@ change landed before refactor phase 1; the phase 1 baseline then includes it. Fi
 builds the message workflow the audience spec defines: "Fill from… Paste a message" on a
 compatible body field, the named and remembered destination in Messages with the four Q&A cards
 offered when none fits, one staging function in `src/control/` behind both doors, refusal of a
-binding on a field that prepared cues use (the same function behind the Advanced binding rows),
-the durable local inbox, the three optional candidate fields and their nullable columns, one
-primary action per message, Setup always listing "Messages…" and "Data…", the Audience label
-becoming Messages with routes unchanged. Files: `src/control/messageStaging.ts` (new),
-`src/components/home/ProductionAudienceWorkspace.tsx`, `src/components/home/ProductionPage.tsx`
-(the cue editor menu only), `src/components/home/ProductionDataPanel.tsx` (the binding refusal),
+binding on a field that prepared cues use (inside the one binding write path, so the Advanced
+rows and the bulk write cannot bypass it), the durable local inbox, the three optional candidate
+fields and their nullable columns, one primary action per message, Setup always listing
+"Messages…" and "Data…", the Audience label becoming Messages with routes unchanged. Message
+destinations keep excluding vote boards (`pollFieldMap(...) === null`,
+`ProductionAudienceWorkspace.tsx` 607 at `331a98a91`): a vote board's Question field is not a
+message body.
+
+*Operator insert (2026-10-20).* On a published production, pasted messages go through a new
+operator RPC, `audience_operator_add(p_slug, p_items)`, keyed on the control slug and resolved
+by the existing `audience_owner_for_control` (0035), so the capability and kill-switch checks are
+those of every other operator function. It does not reuse `audience_submit`: that is the viewer
+door, gated on the join slug, an open round and the viewer caps, none of which applies to an
+operator. Its own bound: at most 100 items per call, each clamped to `AUDIENCE_LIMITS` (author 40,
+body 500), with optional `source`, `reference` and `external_id`. It inserts candidates only and
+reaches neither the command log nor production values. C3's bulk import reuses it in batches.
+
+*Local persistence.* C0 reverses `src/audience/localAudience.ts`'s documented decision to hold
+nothing durable: operator-authored and imported candidates persist per production in browser
+storage, because an inbox forgotten on reload is problem 4 above; simulated rows stay in memory,
+which keeps that decision's reason (a rehearsal's simulated questions never accumulate). C0
+rewrites the file's header to say so.
+
+Files: `src/control/messageStaging.ts` (new), `src/components/home/ProductionAudienceWorkspace.tsx`,
+`src/components/home/ProductionPage.tsx` (the cue editor menu, and the Audience-to-Messages
+rename lines: the view-switcher label `tab === 'data' ? 'Data' : 'Audience'` and the comments
+naming the view, at 4591-4595, 5516 and 5617-5638 of `331a98a91`; the `audience` route key stays),
+`src/components/home/ProductionDataPanel.tsx` (the binding refusal),
 `src/components/home/ProductionSetupMenu.tsx`, `src/audience/localAudience.ts`,
 `src/audience/audienceTypes.ts`, `src/audience/audienceData.ts` (the published provider's submit
-path), `src/model/shows.ts` (additive `stagedFrom`, `messageTarget`), one additive migration
-(`audience_submissions.external_id`, `source`, `reference`, nullable), tests.
+path), `src/model/shows.ts` (additive `stagedFrom`, `messageTarget`; the refusal inside
+`setFieldBinding` and `setFieldBindings`), one additive migration
+(`audience_submissions.external_id`, `source`, `reference`, nullable; `audience_operator_add`),
+tests.
 
-**Q. Qualification and early trial** (sheet AC-3 measurement half; audience AC-7 paste tasks,
-AC-9; AC-5 fixtures). No product code. In a session with network access and the owner's keys:
-20 real Sheet edits timed to the export; an hour of 5-second export reads; five public feeds
-captured as fixtures for C4 with notes on markup and conditional requests; one YouTube video and
-one live stream with the operator's key, recording whether a key alone authorizes and what the
-first page holds; an estimate of the server tick's cost on the hosting plan. The paste tasks of
-audience AC-7 with three to five students on C0's build, with the comprehension questions.
-Records in `evidence/` (`sheet-latency.md`, `sheet-endurance.md`, `feeds.md`, `youtube.md`,
-`trial-paste.md`, `tick-cost-estimate.md`). Recorded before C1 starts; a Sheet miss stops the plan
-at C1 and asks (D3).
+**Q. Qualification records, agent-run** (sheet AC-3 measurement half; audience AC-9; AC-5
+fixtures; owner, 2026-10-20, E). No product code and no phase of its own. At the run's start the
+coordinator launches one Q worker in a cloud session, beside C0, with the owner's access verified
+on 2026-10-20 in the cloud environments, the local env file and Vercel:
+`GOOGLE_SERVICE_ACCOUNT_JSON` (the service account signs in), `NOACG_TEST_SHEET_IDS` (six
+owner-owned Sheets, comma-separated; the service account can read and write each, and each public
+CSV export works) and `YOUTUBE_API_KEY`. Each record lands in
+`docs/work-specs/data-sources/evidence/` through `/check` and `/queue-merge` (records ready
+together land together, normally one PR before C1b) and is an acceptance item of the one phase it
+gates:
 
-**C1. Native lists and local Sheets** (AC-1/2/3/4/8/9/10/11/12/13; sheet AC-1/2/3 local/5/6/7/8/9).
-After refactor 2+7 and 13a. The five adapters and starter rows, custom scalar CSV generation and
-keyed matching, and "Fill from… Paste rows"; the graphic-level "Connect data…" action with
-Google Sheet tab preview, whole-graphic mapping confirmation, optional field repair, "Used by
-N cues" and explicit sharing; `Show.sources`;
-the browser reader with lease, states, Pause and the Playout sources line; the Data view as
-overview with Advanced; the cue editor's connected-field state; the fixture compatibility test;
-one real-Sheet receipt and the timed 20-edit run against the local program. Refuse connecting
-a detected legacy embedded poller until C6 provides its explicit migration choice. Files:
-`src/control/contentFormats.ts` (new), `src/control/sheetSource.ts` (new),
-`src/model/productionData.ts` (reuse matching; one reviewed binding path),
-`src/control/productionDataSession.ts` (the writer entry), `src/model/shows.ts` (`sources`),
-`src/components/home/CueEditor.tsx`, `src/components/home/ProductionPage.tsx`,
+| Record | What the agent does | Gates |
+| --- | --- | --- |
+| `sheet-latency.md` | 20 real edits it makes itself to a test Sheet through the Sheets API, each timed until the public CSV export shows it; slowest reported | C1b |
+| `sheet-endurance.md` | one hour of 5-second export reads of a test Sheet: refusals, errors, latency spread | C1b |
+| `tick-cost-estimate.md` | the server tick's projected monthly cost on Vercel Pro from measured read times and one invocation a minute, against included usage (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`) | C2 |
+| `youtube.md` | one public video's comments and one public 24/7 live stream's chat with the key alone: what the key authorizes, what the first page holds, pagination, units spent. If no live stream is reachable, the comments half is recorded and the live half retries later without holding C3 | C3 |
+| `feeds.md` | five public RSS 2.0/Atom feeds captured as fixtures, with notes on markup and conditional requests | C4 |
+
+The YouTube key is shared: Q spends at most 2,000 of its 10,000 daily units (comments cost 1 unit
+a call; live chat at most 10 minutes at the 5-second floor, about 600 units). **D3 without a stop:**
+if the measured edit latency misses ten seconds, C1b states the measured figure instead of that
+promise and also offers the documented "Publish to the web" CSV; the coordinator records the
+judgement and notifies the owner, and the run continues (owner, 2026-10-20, A). Twitch is not a Q
+record: it stays a non-blocking owner-list item and C7 tests it against recorded fixtures. The
+paste tasks of audience AC-7 become a non-blocking owner pilot: when C0 lands, the coordinator
+adds them to the owner list, and `evidence/trial-paste.md` records the pilot if he runs it.
+
+**C1a. Format adapters, Paste rows and starter data** (AC-2 adapter half, AC-4, AC-12 fixture
+test, AC-13 starter and scalar half). After refactor 2+7 and 13a. Goal: an operator fills a ticker,
+schedule, standings or credits field from pasted cells, and downloads starter data for any custom
+native graphic, with no source record. The five adapters and their starter rows; custom scalar
+CSV generation, parsing and keyed diagnostics; "Fill from… Paste rows"; the fixture compatibility
+test over a fixture saved by today's build. Files: `src/control/contentFormats.ts` (new),
+`src/components/home/CueEditor.tsx`, `src/model/productionData.ts` (shared parse helpers only),
+`scripts/show-fixture-compat.test.mjs` (new) and its fixture, tests.
+
+**C1b. Sheet source, reader and Connect data** (AC-1, AC-2 Sheet half, AC-3, AC-8, AC-10 inbox
+half, AC-11, AC-12 connection half, AC-13 mapping half; sheet AC-1 stub, AC-2, AC-5, AC-6, AC-7,
+AC-8). Needs Q's two Sheet records on main.
+Goal: a graphic connects to a Sheet tab from the cue editor in one reviewed whole-graphic
+confirmation, and one browser reader per source follows it under a lease. The graphic-level
+"Connect data…" action with Google Sheet tab preview, a whole-graphic mapping proposal applied in
+one confirmation through the shared binding write path (prepared-message refusal included),
+optional field repair, "Used by N cues" and explicit sharing; `Show.sources`; the browser reader
+with link parse, CSV, diff, states, the lease and Pause; the cue editor's connected-field state.
+Refuse connecting a detected legacy embedded poller until C6 provides its explicit migration
+choice. Files: `src/control/sheetSource.ts` (new), `src/model/productionData.ts` (reuse matching;
+one reviewed binding path), `src/control/productionDataSession.ts` (the writer entry),
+`src/model/shows.ts` (`sources`), `src/components/home/CueEditor.tsx`,
+`src/components/home/ProductionPage.tsx`, tests.
+
+**C1c. Data overview, sources line and real-Sheet receipts** (AC-9, AC-13 real-Sheet half; sheet
+AC-1 real Sheet, AC-3 local program, AC-9). Goal: the operator sees every source with its active
+reader, cadence, last checked and last changed, Pauses it from Playout, and the real-Sheet route
+is proved. The Data view as overview with Advanced; the Playout sources line; one real-Sheet
+receipt on a test Sheet; the timed 20-edit run against the local program, the agent editing the
+test Sheet itself through the service account; the real custom scalar/fixed-slot receipt. Files:
 `src/components/home/ProductionDataWorkspace.tsx`, `src/components/home/ProductionDataPanel.tsx`,
-`src/components/home/SourcesLine.tsx` (new), tests.
+`src/components/home/SourcesLine.tsx` (new), `src/components/home/ProductionPage.tsx` (wiring),
+evidence, tests.
 
-**C2. Published ownership** (AC-3/11/12; sheet AC-3 published/4/5/6/7). Depends on C1 only.
-`bindings` and `sources` written to the row at once on connect, disconnect and Pause; the lease on
-the published source; the server tick (`/api/data/tick`, a guarded segment of the data catch-all,
-from a one-minute Vercel cron) reading published Sheet and feed sources with no live lease and
-applying through `control_data_apply` with a source label; Pause on the row honoured by the tick;
-cost measured for an hour and recorded; the real-Sheet run repeated against the published output
-with the browser closed, latency reported as measured. Files: `src/control/hostedControl.ts`,
-`src/control/sheetSource.ts`, `api/data/[...path].ts`, `api/_lib/dataTick.ts` (new, a helper, not
-a function), one additive migration (`control_shows.sources`, read state), `vercel.json`, tests.
+**C2. Published ownership and the server tick** (AC-3/11/12; sheet AC-3 published/4/5/6/7).
+Depends on C1c; needs Q's `tick-cost-estimate.md` on main. `bindings` and `sources` written to the
+row at once on connect, disconnect and Pause; the lease on the published source, one RPC that
+browser readers, the tick and later E4's agent all use; the server tick (`/api/data/tick`, a
+guarded segment of the data catch-all, from a one-minute Vercel cron) reading published Sheet and
+feed sources with no live lease and applying through `control_data_apply` with a source label;
+Pause on the row honoured by the tick; the real-Sheet run repeated against the published output
+with every page closed, latency reported as measured.
 
-**C3. Sheet messages and YouTube** (AC-10/15; sheet AC-11; audience AC-4/8/9). Depends on C1
-only; scheduled after C2 to preserve one sequential project owner. A message Sheet is a `sheet` source with `inbox: true`
-through the rows adapter and the audience spec's identity rules; "Fill from… Pick a message" in
-the cue editor; the two YouTube modes as `Show.sources` entries, as the audience spec defines
-them; the unique index per show on `external_id`. Files: `src/audience/sheetMessages.ts` (new),
-`src/audience/youtubeComments.ts` (new), `src/audience/youtubeChat.ts`, `src/audience/chatIntake.ts`,
+*The tick's secret, switch and cost (owner, 2026-10-20, H).* The tick reuses the `CRON_SECRET`
+already set in Vercel Production; nobody creates or rotates it. Vercel sends that same Bearer
+secret to every cron in the project, and the tick checks it exactly as `api/render/cleanup.ts`
+does (`Authorization: Bearer <CRON_SECRET>`, else 401). `vercel.json` gains the cron
+(`/api/data/tick`, `* * * * *`) and a `functions` entry for `api/data/[...path].ts` with
+`maxDuration` 30: well inside the one-minute interval, so two ticks never overlap and a stuck read
+is cut off; each read keeps its 10-second timeout and the tick starts no new read after 20
+seconds. The tick ships behind a runtime switch, off: a setting beside the existing system
+settings (`api/_lib/systemSettings.ts`) that reads as off on any error, the opposite of that
+module's fail-open default, because its purpose is cost control, like a switched-off model route.
+After C2 lands, the checker confirms from the Vercel runtime logs that the tick's first scheduled
+call was accepted (not 401), without reading the secret's value, turns the switch on and runs the
+closed-browser real-Sheet run; C2 passes on those. The coordinator then finishes the hour in the
+background while C3 builds: it reads that hour's real cost from Vercel usage and leaves the
+switch on only if this month's usage so far plus the measured hourly cost for the rest of the
+month stays within Pro's included usage (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`); otherwise it
+turns it off, records why and notifies the owner. Closed-page continuity is accepted as
+"works while the switch is on, and says so when it is off" (sheet AC-4), so a cost decision never
+undoes an accepted criterion; parent phase 14 and S record the switch's state and the month's
+projection at the time. *Budget watch:* while the switch
+is on, the coordinator checks Vercel usage daily (its morning summary); if the month's projection
+would exceed included usage, it turns the tick off and notifies the owner. With the tick off,
+published sources follow while a page is open and closed-page continuity is reported as
+unavailable, never faked. Files: `src/control/hostedControl.ts`, `src/control/sheetSource.ts`,
+`api/data/[...path].ts`, `api/_lib/dataTick.ts` (new, a helper, not a function),
+`api/_lib/systemSettings.ts` (the switch), one additive migration (`control_shows.sources`, read
+state, the lease RPC, and the switch's setting if the settings table needs a column),
+`vercel.json`, tests.
+
+**C3. Sheet messages and YouTube** (AC-10/15; sheet AC-11; audience AC-4/8/9). Depends on C1c;
+scheduled after C2 to preserve one sequential project owner. Needs Q's `youtube.md` (at least its
+comments half) on main. A message Sheet is a `sheet` source with `inbox: true` through the rows
+adapter and the audience spec's identity rules; imported rows and comments reach the inbox through
+C0's `audience_operator_add`, at most 100 per call; "Fill from… Pick a message" in the cue editor;
+the two YouTube modes as `Show.sources` entries, as the audience spec defines them, with the quota
+line and the estimated remaining live-chat runtime; the unique index per show on `external_id`.
+Files: `src/audience/sheetMessages.ts` (new), `src/audience/youtubeComments.ts` (new),
+`src/audience/youtubeChat.ts`, `src/audience/chatIntake.ts`,
 `src/components/home/ProductionAudienceWorkspace.tsx`, `src/components/home/CueEditor.tsx`, one
 additive migration, tests.
 
-**C4. Feeds** (AC-5/6/11). The guarded feed route as a public segment of the data catch-all;
-`feedSource` on the browser reader and the server tick; "Connect… News feed" on ticker fields.
-Files: `api/_lib/feedFetch.ts` (new), `api/data/[...path].ts`, `src/control/feedSource.ts` (new),
-`src/components/home/CueEditor.tsx`, tests; one real feed receipt.
+**C4. Feeds** (AC-5/6/11). Needs Q's `feeds.md` on main. The guarded feed route as a public
+segment of the data catch-all; `feedSource` on the browser reader and the server tick; "Connect…
+News feed" on ticker fields. *One cached read per address across serverless instances
+(2026-10-20):* the shared store is a new `feed_cache` table in the existing Supabase database, one
+row per normalized address (keyed by its hash) holding the parsed headlines, `ETag` and
+`Last-Modified`, `fetched_at`, `next_allowed_at` (the 5-minute floor or the feed's own caching
+headers, whichever is later) and a `claimed_until` lease. Through the existing service-role
+client, the route serves a fresh row without fetching; on a stale row one instance takes the claim
+with a conditional update and fetches with a conditional request while the others serve the stale
+row with its age; a failed fetch keeps the last good row. Files: `api/_lib/feedFetch.ts` (new),
+`api/data/[...path].ts`, `src/control/feedSource.ts` (new), `src/components/home/CueEditor.tsx`,
+one additive migration (`feed_cache`), tests; one real feed receipt.
 
 **C5. "Another system" card and Pause** (AC-3/7/8). The card with the generated
 example, prepared sample sender and receipt; "Another system" in the same whole-graphic connection
@@ -630,14 +744,17 @@ Files: `src/components/home/CueEditor.tsx`, `src/components/home/PlayoutMonitors
 (reconcile its current location before editing; the former `ControlPanel.tsx` has been removed),
 docs, tests.
 
-**C7. Combined technical rehearsal and trial preparation** (AC-16 technical half; AC-14 trial
-preparation; audience AC-5/9). The rehearsal production of AC-16 on the local stack; actual
-CasparCG/Bridge and browser-source checks; the join, presenter and vote walks (audience AC-5);
-the Twitch regression check; prepare the full unaided tasks, fixtures and participant schedule.
-Blocking defects are fixed and retested, others filed with scope. C7 PASS requires these technical
-results and trial preparation, not a claim that AC-14, sheet AC-12 or audience AC-7's full trial
-has passed. Those remain open acceptance assigned to parent phase 14, after the remaining
-refactors; all thresholds and tasks stay unchanged. Files: fixes only; evidence.
+**C7. Combined technical rehearsal and the content trial kit** (AC-16 software half; AC-14 kit;
+audience AC-5/9). The rehearsal production of AC-16 on the local stack with the fake Bridge and
+browser outputs; the join, presenter and vote walks (audience AC-5); the Twitch regression check
+against recorded fixtures (responses of the existing `src/audience/twitchChat.ts` reader captured
+once and replayed; a live Twitch check is an owner-list item); YouTube against Q's recorded
+responses plus at most one 10-minute live smoke (about 600 units of the shared key); the content
+trial kit (`evidence/trial-kit.md`: the unaided tasks of AC-14, sheet AC-12 and audience AC-7, the
+comprehension questions, the reading guide and where findings go). Blocking defects are fixed and
+retested, others filed with scope. C7 PASS requires these software results and the kit landed.
+The laptop helper then runs the scratch CasparCG/Bridge and OBS/browser-source walks on C7's merge
+SHA (non-gating); the real-studio receipts are parent phase S. Files: fixes only; evidence.
 
 Refactor steps between C0 and C1 (phases 1, 2+7, 13a) follow the parent spec's own matrix.
 
@@ -646,19 +763,23 @@ Refactor steps between C0 and C1 (phases 1, 2+7, 13a) follow the parent spec's o
 Local targeted specs run through the browser queue; Node tests with `node --test`; configured
 dispatch on the candidate ref as the parent §6 describes; every phase also runs `/check`,
 `npm run depcruise`, `node scripts/gates.mjs run --changed origin/main` and the parent's scope
-fence. A = assessment by a fresh read-only `wave-row` session with the `/so` brief.
+fence. A = assessment by a fresh read-only `wave-row` session with the `/so` brief. Every
+criterion below is checked on a cloud worker or in GitHub Actions (owner, 2026-10-20, A); laptop
+and owner items are listed separately and never hold a phase.
 
 | Phase | Node (`scripts/*.test.mjs`) | Offline journeys (`e2e/`) | Configured (`e2e/configured/`) | Database and provider | Assessment |
 | --- | --- | --- | --- | --- | --- |
-| C0 | `message-staging` (destinations: a scoreboard-only pool offers the cards; a bound body or name field is refused; a field with prepared cues refuses a binding; values by title; dedupe; Source and Reference never mapped); the backend interface has no airing method | `production-audience` (#1313 steps with the restore-the-fallback mutation; paste, prepare, Take asserting PROGRAM text; two cues on one card; a binding attempted on the card's Question field before and after preparing is refused with the card offer; reload keeps pasted rows, simulated rows gone; double press makes one cue; a retry after a failed save marks nothing used and makes no duplicate); `production-views` (Setup items) | `audience-live` (a pasted candidate on a published production reaches the inbox and the cue; the binding refusal on a published production) | migration self-check for the three nullable columns | A |
-| Q | none | none | none | `evidence/sheet-latency.md`, `sheet-endurance.md`, `feeds.md`, `youtube.md`, `trial-paste.md`, `tick-cost-estimate.md` | owner reads the trial |
-| C1 | `content-formats` (the fixtures of Formats), `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty, the inbox consumer has no writer), `production-data-session` extended (the writer), `show-fixture-compat` (today's fixture loads and plays unchanged) | `production-data` (paste rows per adapter; connect a stub sheet; preview and "Used by"; status line; Pause; Disconnect; empty tab clears; equal title elsewhere untouched; a ± press on a connected value moves the shared value, asserted in a test that runs, since the existing one at line 749 is skipped under `skipOldEditor()`); `production-views` (Data overview, Advanced) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | `production-data-migration` and `merge-patch-conformance` carry the `""`-over-a-list-path case; one real-Sheet receipt (AC-13, sheet AC-1); the timed 20-edit run against the local program (sheet AC-3) | A |
-| C2 | `sheet-source` lease and handover rules | `production-data` (reload keeps sources) | `production-data-key` extended (bind after publish moves the output without republish; tick skips a leased source and reads an expired one; a value changed once written once; Pause written to the row holds the tick and shows after reload) | migration self-check; the tick's cost record; the closed-browser real-Sheet run in `evidence/` (sheet AC-4) | A |
-| C3 | `sheet-messages` (hash identity: reorder, delete and add, identical rows, occurrence; a used candidate survives its row), `youtube-comments` and `youtube-chat` with recorded responses (first page kept, floor, errors); `show-fixture-compat` extended | `production-audience` (Sheet rows as candidates; a vanished row leaves an unused candidate and keeps a used one; Source and Reference hidden); `production-chat-intake` (comments mode, remembered source, key prompt on reload) | `audience-live` (imported candidate on a published production, dedupe by `external_id`) | migration self-check; provider receipts from Q | A |
-| C4 | `feed-fetch` (fake resolver and fetch: public then private name, redirects, caps, conditional requests, cache), `feed-source`; `show-fixture-compat` extended | `production-data` (connect a stub feed; failed fetch keeps the list) | `feed-route` (new, small; `expected-run.json` raised) | one real feed receipt | A |
+| C0 | `message-staging` (destinations: a scoreboard-only pool offers the cards; a vote board is never a destination; a bound body or name field is refused; a field with prepared cues refuses a binding through `setFieldBinding` and `setFieldBindings`; values by title; dedupe; Source and Reference never mapped); the backend interface has no airing method | `production-audience` (#1313 steps with the restore-the-fallback mutation; paste, prepare, Take asserting PROGRAM text; two cues on one card; a binding attempted on the card's Question field before and after preparing is refused with the card offer; reload keeps pasted rows, simulated rows gone; double press makes one cue; a retry after a failed save marks nothing used and makes no duplicate); `production-views` (Setup items, the Messages label) | `audience-live` (a pasted candidate on a published production reaches the inbox through `audience_operator_add` and the cue; a batch over 100 is refused; the binding refusal on a published production) | migration self-check for the three nullable columns and the operator RPC (control-slug capability, no command-log path) | A |
+| Q | none | none | none | the five records in Q, each on main before the phase it gates | checked by that phase's checker |
+| C1a | `content-formats` (the fixtures of Formats; scalar CSV generation, parsing and diagnostics), `show-fixture-compat` (today's fixture loads and plays unchanged) | `production-data` (paste rows per adapter; starter download per adapter and for a custom graphic) | none | `merge-patch-conformance` carries the `""`-over-a-list-path case | A |
+| C1b | `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty, the inbox consumer has no writer), `production-data-session` extended (the writer), mapping proposal and confirmation contracts | `production-data` (connect a stub sheet; whole-graphic preview, matches and "Used by"; repair and cancel; Pause; Disconnect; empty tab clears; twelve rows reach a ticker and a running scroll continues; equal title elsewhere untouched; one score on two boards updates both; a source's display rename keeps the connection; a deleted target is flagged; a ± press on a connected value moves the shared value, alongside the existing running test at line 741) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | `production-data-migration` carries the `""` case | A |
+| C1c | none new | `production-data` (status line, checked versus changed); `production-views` (Data overview, Advanced) | none | one real-Sheet receipt (AC-13, sheet AC-1); the timed 20-edit run against the local program, edits made by the agent (sheet AC-3); the custom scalar/fixed-slot receipt | A |
+| C2 | `sheet-source` lease and handover rules; the tick's secret check (401 without the exact Bearer) and its fail-closed switch | `production-data` (reload keeps sources) | `production-data-key` extended (bind after publish moves the output without republish; tick skips a leased source and reads an expired one; a value changed once written once; Pause written to the row holds the tick and shows after reload) | migration self-check; the first scheduled call accepted in the Vercel logs; the closed-browser real-Sheet run (sheet AC-4); the hour's cost and switch decision follow in the background | A |
+| C3 | `sheet-messages` (hash identity: reorder, delete and add, identical rows, occurrence; a used candidate survives its row), `youtube-comments` and `youtube-chat` with recorded responses (first page kept, floor, errors, the remaining-runtime estimate); `show-fixture-compat` extended | `production-audience` (Sheet rows as candidates; a vanished row leaves an unused candidate and keeps a used one; Source and Reference hidden); `production-chat-intake` (comments mode, remembered source, key prompt on reload, quota line) | `audience-live` (imported candidates through `audience_operator_add`, dedupe by `external_id`) | migration self-check; Q's provider receipts | A |
+| C4 | `feed-fetch` (fake resolver and fetch: public then private name, redirects, caps, conditional requests, the `feed_cache` row and its claim), `feed-source`; `show-fixture-compat` extended | `production-data` (connect a stub feed; failed fetch keeps the list) | `feed-route` (new, small; `expected-run.json` raised; two concurrent readers make one upstream fetch) | migration self-check; one real feed receipt | A |
 | C5 | `data-pause` contracts; `show-fixture-compat` extended | `production-data` (the card, the example, receipt) | `production-data-key` extended (push, Pause, push with a null, `/update` while paused, Resume emits the final values once) | conformance cases in the migration's self-check | A |
 | C6 | a Node test that an existing graphic's `liveData` block still emits in its template output | `production-data` (no panel for new graphics; existing block still updates) | none | none | A |
-| C7 | none | the full offline suite on CI | the whole configured suite | `evidence/rehearsal.md` per route; actual output receipts; `evidence/trial-plan.md` (full trial at parent 14) | A+ |
+| C7 | Twitch reader against recorded fixtures | the full offline suite on CI | the whole configured suite | `evidence/rehearsal.md` per route in software; `evidence/trial-kit.md`; at most one 10-minute YouTube live smoke | A+ |
 
 Revalidation, evidence-only commits and mappings follow the parent §6. A configured spec added
 raises `e2e/configured/expected-run.json` in the same pull request.
@@ -668,27 +789,30 @@ their named checks, not a second suite to rerun on unchanged inputs:
 
 | Phase | Additional cases and receipt |
 | --- | --- |
-| C1 | Scalar template generation and Sheet round trip; scoped bulk suggestions; duplicate/missing IDs, ambiguous labels and incompatible types; row reorder and label edit; existing binding review, cancel and prepared-message refusal; header action/Done behavior; real custom scalar/fixed-slot fixture receipt (AC-3/13) |
+| C1a-C1c | Scalar template generation and Sheet round trip (C1a, C1c); scoped bulk suggestions; duplicate/missing IDs, ambiguous labels and incompatible types; row reorder and label edit; existing binding review, cancel and prepared-message refusal; header action/Done behavior (C1b); real custom scalar/fixed-slot fixture receipt (C1c) (AC-3/13) |
 | C2 | Shared scalar override survives unchanged-cell handover and Pause/Resume; changed cell wins; delayed/missing data cannot replace a newer value; published bulk mapping persists without republish (AC-3/11, sheet AC-5/7) |
 | C5 | Prepared collector/sender, unfamiliar fields, confirmed bulk mapping, receipt and correction; failed acquisition sends nothing; explicit API freeze policy; no lifecycle events (AC-7) |
 | C6 | Both retained legacy poller and explicit migration; no competing writers or misleading Pause. Extend existing production-control, monitor and folder journeys for staged/live distinction, target labels, pending/confirmed/unknown status, stale image after disconnect and child failure/collision visibility (AC-9/16); reuse existing Node status/folder contracts, adding a case only where behavior changes |
-| C7 | Actual CasparCG/Bridge and OBS/browser receipts with versions/revision; custom Sheet/API examples; independent quiz/clock and group-failure scenarios; complete final-trial script and fixtures. Full human trial remains assigned to parent phase 14 |
-| Parent 14 | Final AC-14/16, sheet AC-12 and audience AC-7 human trial; reconcile all content/output evidence against the completed build and rerun affected walks under parent §6 |
+| C7 | Custom Sheet/API examples; independent quiz/clock and group-failure scenarios, in software; the content trial kit. Scratch CasparCG/Bridge and OBS/browser receipts come from the laptop helper on C7's merge SHA (non-gating) |
+| Parent 14 and S | 14: reconcile all content evidence against the completed build in software and rerun affected walks under parent §6. S: the real-studio CasparCG/Bridge and OBS/browser receipts of AC-16. Trials run from the kit are reported as run, never awaited |
 
 ## Readiness
 
 The owner agreed the reconciled plan and all four synthesis §7 decisions on 2026-10-18, then
 authorized incorporating the 19 October refinements and completed competitor findings. The
 Argon review has been reconciled and the selected extensions now have separate executable
-child specs under the parent. No extension changes the C0–C7 acceptance below.
+child specs under the parent. On 2026-10-20 the owner removed every owner gate but the parent's
+final owner block, made Q agent-run and split C1. No extension changes the C0–C7 acceptance below.
 Before a run: the parent's run preflight and a separate owner start instruction. C0 needs no
 refactor phase before it. This update does not start the run.
 
-Before C1: refactor phases 1, 2+7 and 13a checked PASS on `main`; Q recorded with the Sheet
-measurement inside D3 or the plan stopped and asked; this spec and the audience spec agreed;
-digests current and `work-spec.mjs status` structurally valid (open runtime criteria are expected).
+Before C1a: refactor phases 1, 2+7 and 13a checked PASS on `main`; this spec and the audience
+spec agreed; digests current and `work-spec.mjs status` structurally valid (open runtime
+criteria are expected). Q's records gate the phases its table names.
 
-Before C2: the tick's cost estimate from Q reviewed; the hosting plan's cron confirmed.
+The hosting plan's cron is settled: the account is on Vercel Pro, which runs one-minute cron
+schedules, and `CRON_SECRET` is already set in Production (owner, 2026-10-20); C2's checker
+confirms the first scheduled call in the logs.
 
 ## External-API connection slice: selected extension, outside C0–C7
 
@@ -701,7 +825,7 @@ candidate selection and the installable election package. Their exact order is i
 and prepared sender, not a generic scraper; the baseline no-JSON-mapping boundary is preserved.
 
 Those children supersede the earlier proposal's unresolved provider/transform/identity questions:
-the first required source is a controlled authenticated JSON election replay provider, using the
+the first required source is an authenticated JSON election replay server we build (E4.1), using the
 existing production-data route; source JSON stays typed before the destination adapter. No secret
 travels in a downloaded template or ordinary show export. Actual official-feed access remains a
 separate qualification, never inferred from the replay provider. Private Sheets/OAuth, local

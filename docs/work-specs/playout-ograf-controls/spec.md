@@ -1,6 +1,7 @@
 # E2 — Generated typed OGraf forms, steps and action targets
 
 Status: agreed planning scope, 19 October 2026; implementation and acceptance unstarted.
+Revised 2026-10-20 ([owner decisions](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)).
 Reconciled against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`.
 
 ## Shared execution contract
@@ -11,12 +12,12 @@ file ownership, compatibility, evidence reuse, environment routing, stop/rollbac
 acceptance apply here. All phases below are product/qualification work, not refactor-only moves.
 Paths named as new are planned files, not claims that implementation already exists. Use the
 existing `/check`, targeted verification and `/queue-merge` procedures when execution starts.
-Each phase must pass its listed ACs before the next dependent phase. `work.json` records intent
+Each phase must pass its gating ACs (the extensions.md table) before the next phase. `work.json` records intent
 and acceptance, never worker progress. No implementation or run starts from this document.
 
 ## Scope, dependencies and ownership
 
-After E1.2. Extend the existing generated controls/profile rather than introduce a form designer.
+After E1.2b. Extend the existing generated controls/profile rather than introduce a form designer.
 Owned seams: `ografContract.ts`, control descriptors/profile arrangement, extracted cue editor
 and action bar, `ografCallFor`, `ografHost.ts`, foreign host target dispatch and related tests.
 Retain ARRANGE, More, pinning and the complete generated fallback. No panel scripts/macros,
@@ -66,7 +67,7 @@ only and do not add behavior or new state ownership.
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
 | E2.1 | Typed forms/arguments and schema semantics; AC-1/4 | Cloud: OGraf contract Node tests and new `e2e/ograf-controls.spec.ts`, including narrow panels and persistence. |
-| E2.2 | Runtime step/target controls and truthful feedback; AC-2–4 | Cloud actual browser-rendered fixture with held/rejected/late action promises; local operator comprehension is repeated at E8. |
+| E2.2 | Runtime step/target controls and truthful feedback; AC-2–4 | Cloud actual browser-rendered fixture with held/rejected/late action promises. Operator comprehension joins E8's trial kit (owner, 2026-10-20: a kit, never a gate). |
 
 Rollback: disable only the unsupported foreign capability/control and preserve cue data and full
 form recovery. Never map an unknown action to Next or silently discard its typed arguments.

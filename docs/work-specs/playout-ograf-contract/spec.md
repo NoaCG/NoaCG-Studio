@@ -1,6 +1,7 @@
 # E1 — Typed OGraf data and action contracts end to end
 
 Status: agreed planning scope, 19 October 2026; implementation and acceptance unstarted.
+Revised 2026-10-20 ([owner decisions](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)).
 Reconciled against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`.
 
 ## Shared execution contract
@@ -11,12 +12,13 @@ file ownership, compatibility, evidence reuse, environment routing, stop/rollbac
 acceptance apply here. All phases below are product/qualification work, not refactor-only moves.
 Paths named as new are planned files, not claims that implementation already exists. Use the
 existing `/check`, targeted verification and `/queue-merge` procedures when execution starts.
-Each phase must pass its listed ACs before the next dependent phase. `work.json` records intent
+Each phase must pass its gating ACs (the extensions.md table) before the next phase. `work.json` records intent
 and acceptance, never worker progress. No implementation or run starts from this document.
 
 ## Scope, dependencies and ownership
 
-After E6.2 in the programme; does not block the native connector/election path. Implements the
+E1.1 after E7.2b and before E6.1, whose argument types follow it; E1.2a and E1.2b after E6.1
+(owner, 2026-10-20). Does not block the native connector/election path. Implements the
 relevant A/E portions of [OGraf full stack](../../OGRAF_FULL_STACK_PLAN.md), not a second roadmap.
 Pin one matching EBU prose/schema/TypeScript revision before edits. Starting reference is the
 full-stack plan's `c821671195a077be13bbb96989d4220eea157b99`; record any selected newer revision
@@ -44,6 +46,17 @@ not offer a plausible widget or quietly strip a field. Existing native constrain
 Version stored foreign data and command capability negotiation additively. An old client/renderer
 must refuse unsupported new envelopes, not stringify them. Migration fixtures cover existing
 native and foreign saved shows. Keep opaque original package/schema bytes for repair and export.
+The typed foreign value travels in this spec's own discriminated envelope, never through E5's
+`sourceMapping.ts` string output.
+
+**Read gate first (2026-10-20).** E1.1 lands only the reading side: pages and outputs recognize the
+envelope; one that meets an envelope version it does not support shows the cue read-only, refuses
+to send or render it with a visible reason and preserves the bytes (precedent `readShowProfile`
+in `src/model/profile.ts`, enforced at both write doors in `src/model/shows.ts`). The output's
+reader obeys the CasparCG 2.3 Chromium 71 rule of `src/control/payloadVersion.ts`: no DOM, no
+imports, no syntax newer than that browser. Only E1.2a, a later deploy, writes envelopes, and it
+sends one only to an output whose seen report advertises the E1.1 reader; any other output gets
+a "reload this output" refusal instead of a stringified value.
 
 ## Acceptance
 
@@ -71,8 +84,9 @@ export/backup and deterministic migration receipt; no destructive down-migration
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
-| E1.1 | Pin standard; descriptors, validation, versioned persistence and compatibility design; AC-1/3/4 model portions | Cloud: extend OGraf contract/schema and show-fixture Node tests; exact field/action fixture hashes and migration round trips. |
-| E1.2 | Wire, source adapter, command log/recovery and renderer typed round trip; AC-1–4 | Cloud: new `e2e/configured/ograf-typed-data.spec.ts`, actual browser host payload/render evidence, native output regressions. Target CasparCG/OBS qualification follows E3/E8. |
+| E1.1 | Pin the standard; descriptors, validation, versioned persistence and the read gate. AC subset: AC-1 in full; AC-3's model and read-gate parts (native fields, exported packages and legacy `/patch`/`/update` fixtures unchanged; an unsupported envelope refused read-only by pages and the Chromium 71 output reader; no reader mistakes it for ordinary fields); AC-4's model parts (migration round trips of saved and imported fixtures, typed editing disabled without losing package or values, deterministic migration receipt) | Cloud: extend OGraf contract/schema and show-fixture Node tests; exact field/action fixture hashes and migration round trips; the output reader's test run under the Chromium 71 syntax target. |
+| E1.2a | The writer: persistence, E5 typed values through the source adapter, command payload, publish, Update and command log with output capability negotiation. AC subset: AC-2's persistence/binding/command-log part; AC-3's wire and hardware-verb part; AC-4's runtime part | Cloud: new `e2e/configured/ograf-typed-data.spec.ts` (save/reload, connect, publish, Update, reconnect) and native output regressions. |
+| E1.2b | Output replay, baseline and the renderer typed round trip. AC subset: AC-2's output replay/baseline/renderer part; AC-3's mixed-version output part | Cloud: actual browser host payload and render evidence, output recovery tests, an old-reader output refusing visibly. Target CasparCG/OBS qualification follows E3 and S. |
 
 Stop if the schema cannot be represented faithfully or the existing native wire would require
 an unreviewed blanket migration. Report a bounded unsupported subset; do not call generic typed
