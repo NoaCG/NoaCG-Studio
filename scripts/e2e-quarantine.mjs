@@ -206,14 +206,34 @@ export function dueForRelease(store, historyOf, threshold = RELEASE_AFTER) {
  * the latest state per context, so a reposted status cannot shadow the verdict): quarantine.yml
  * posts `noacg/quarantine/<spec>` as `success` or `failure`, and a commit with no status for a
  * spec (it was not yet quarantined, or the run never got there) is null for it.
+ * Only commits whose stored entry matches the current cycle qualify. In particular, a same-day
+ * re-entry cannot reuse successes from before its triggering failure. An unreadable boundary
+ * stops the walk rather than turning older statuses into release evidence.
  */
-export function passHistories({ repo, specs, gh = ghJsonLines, limit = HISTORY_RUNS, need = RELEASE_AFTER }) {
+export function passHistories({ repo, specs, store, gh = ghJsonLines, limit = HISTORY_RUNS, need = RELEASE_AFTER }) {
   const histories = new Map(specs.map((spec) => [spec, []]));
   const answered = new Map(specs.map((spec) => [spec, 0]));
+  const active = new Set(specs.filter((spec) => {
+    const entry = store?.specs?.[spec];
+    return entry?.run?.startsWith(`https://github.com/${repo}/actions/runs/`)
+      && /^\d+$/.test(entry.run.split('/').at(-1)) && Number.isInteger(entry.count) && entry.count > 0;
+  }));
   for (const run of mainPushRuns({ repo, workflow: 'quarantine.yml', limit, gh })) {
-    if ([...answered.values()].every((n) => n >= need)) break;
+    if (![...active].some((spec) => answered.get(spec) < need)) break;
+    const [file] = gh([`repos/${repo}/contents/e2e/quarantine.json?ref=${encodeURIComponent(run.head_sha)}`, '--jq', '{encoding, content}']);
+    let recorded;
+    try {
+      if (file?.encoding !== 'base64' || typeof file.content !== 'string') break;
+      recorded = JSON.parse(Buffer.from(file.content, 'base64').toString('utf8'));
+      if (recorded.version !== STORE_VERSION || !recorded.specs) break;
+    } catch { break; }
+    for (const spec of active) {
+      const entry = store.specs[spec], previous = recorded.specs[spec];
+      if (previous?.run !== entry.run || previous?.count !== entry.count || previous?.since !== entry.since) active.delete(spec);
+    }
+    if (active.size === 0) break;
     const statuses = gh([`repos/${repo}/commits/${run.head_sha}/status`, '--jq', '.statuses[] | {context, state}']);
-    for (const spec of specs) {
+    for (const spec of active) {
       const status = statuses.find((s) => s?.context === statusContext(spec));
       const verdict = status?.state === 'success' ? 'success' : status?.state === 'failure' || status?.state === 'error' ? 'failure' : null;
       histories.get(spec).push(verdict);
@@ -449,7 +469,7 @@ function main(argv) {
       console.error('release-due: GH_REPO (or GITHUB_REPOSITORY) must name the repository to read status history from.');
       return 2;
     }
-    const histories = passHistories({ repo, specs });
+    const histories = passHistories({ repo, specs, store });
     for (const spec of specs) console.log(`${spec}: ${consecutivePasses(histories.get(spec))} consecutive pass(es) of ${RELEASE_AFTER} needed`);
     const due = dueForRelease(store, (spec) => histories.get(spec) ?? []);
     if (due.length === 0) {
