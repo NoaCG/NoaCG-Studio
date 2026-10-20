@@ -83,7 +83,7 @@ FINDINGS <carry from next, or none>. Checkpoint on pause/block/deadline; never b
 ```text
 CHECK   Phase <n> of <plan>. You did not build it. On the landed merge SHA do the user's task
         and check EVERY criterion/outcome in its required environment. Change no product code.
-        PASS needs your own evidence for all criteria and every exact-merge check green. Infrastructure down is no FAIL:
+        PASS needs your own evidence for all criteria and every exact-merge check green, or red only where the plan allows. Infrastructure down is no FAIL:
         report it unavailable (a wait). Else FAIL product or blocked (a prerequisite), named; keep findings and exact tested revisions, weaken no test or retry limit.
 NOTES   <land the required plan notes through /check and /queue-merge | open no PR>.
 ```
