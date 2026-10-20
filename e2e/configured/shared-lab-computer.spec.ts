@@ -166,3 +166,16 @@ test.describe('shared lab computer (configured)', () => {
     }
   });
 });
+
+// Temporary first-attempt diagnostics; no test behavior or assertion changes.
+test.beforeEach(async ({ page }) => {
+  page.on('requestfailed', request => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/src/')) console.log('[module-requestfailed]', path, request.failure()?.errorText);
+  });
+  page.on('response', response => {
+    const path = new URL(response.url()).pathname;
+    if (path.startsWith('/src/') && response.status() >= 400) console.log('[module-response]', response.status(), path);
+  });
+  page.on('pageerror', error => console.log('[pageerror]', error.message));
+});
