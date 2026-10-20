@@ -57,10 +57,10 @@ jobs:
           MINUTES: ${{ inputs.minutes }}
         run: |
           case "$SCRIPT" in
-            ''|*[!A-Za-z0-9:._-]*) echo "::error title=Bad script::'$SCRIPT' is not an npm script name"; exit 1 ;;
+            ''|*[!A-Za-z0-9:._-]*) echo "::error title=Bad script::the script input is not an npm script name"; exit 1 ;;
           esac
           case "$MINUTES" in
-            ''|*[!0-9]*) echo "::error title=Bad minutes::'$MINUTES' is not a whole number"; exit 1 ;;
+            ''|*[!0-9]*) echo "::error title=Bad minutes::the minutes input is not a whole number"; exit 1 ;;
           esac
           if [ "$MINUTES" -lt 1 ] || [ "$MINUTES" -gt 75 ]; then
             echo "::error title=Bad minutes::$MINUTES is outside 1-75, so the run could not end inside the 90-minute job"
