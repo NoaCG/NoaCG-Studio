@@ -14,7 +14,7 @@ repair has been attempted for either failure.
 ## Audit and access
 
 Root/scoped instructions and cloud-delegate/check/verify/queue-merge were read.
-Current main is the pinned source; local queue/activity and open PRs were audited.
+At the initial audit, main was the pinned source; local queue/activity and open PRs were audited.
 Both #1532/#1533 remain held with auto-merge off. Git fetch/read and Actions read
 preflight pass. Runtime observations are current, running and network policy enforced.
 The original saved binding remains unchanged and is not equated with this runtime.
@@ -106,3 +106,17 @@ receipt checks only. No product PASS stamp is issued and no repair is queued.
 The complete staged diff has two trailing-space warnings solely in the preserved
 ineffective-probe raw log; these captured bytes were retained, not called a clean
 whole-diff whitespace result.
+
+## Final remote snapshot
+
+After packet publication, the final read found main had advanced independently
+through #1535 to `69ebf4ac4d94239aa6130175f2effb8434c0887a`. Its parent is the
+diagnosed landed source `5b843f32d3df48bcd10ca64ea2c957ae7b2810c1`. The merge
+changes plan-continuation tooling and documentation. The two failing specs, their
+shared helper and the examined application boot/account-library files are unchanged.
+This packet remains evidence for the pinned 5b843f3 source; it transfers no check or
+acceptance stamp to 69ebf4a. No new browser execution was started.
+
+At this snapshot both #1532/#1533 are OPEN at their original tips, with null
+auto-merge requests and null merge-queue entries. #1466 is CLOSED; #1498 is OPEN.
+No issue state was changed.
