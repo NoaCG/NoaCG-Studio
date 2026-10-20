@@ -1,10 +1,7 @@
 # E6 — Native declared graphic actions through Companion
 
 Status: agreed planning scope, 19 October 2026; implementation and acceptance unstarted.
-Revised 2026-10-20 for the owner's decisions
-([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)): phases pass on
-criteria an agent checks on a cloud worker or in Actions; owner-only items wait only in the
-final owner block; human trials are kits.
+Revised 2026-10-20 ([owner decisions](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)).
 Reconciled against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`.
 
 ## Shared execution contract
@@ -15,7 +12,7 @@ file ownership, compatibility, evidence reuse, environment routing, stop/rollbac
 acceptance apply here. All phases below are product/qualification work, not refactor-only moves.
 Paths named as new are planned files, not claims that implementation already exists. Use the
 existing `/check`, targeted verification and `/queue-merge` procedures when execution starts.
-Each phase must pass its listed ACs before the next dependent phase. `work.json` records intent
+Each phase must pass its gating ACs (the extensions.md table) before the next phase. `work.json` records intent
 and acceptance, never worker progress. No implementation or run starts from this document.
 
 ## Scope, dependencies and ownership
@@ -82,8 +79,6 @@ requalification. An unfamiliar operator following the guide without Windows comm
 is a task in E6.2's trial kit, not a gate (owner, 2026-10-20, D).
 
 ## Phases and verification
-
-Every gating criterion is checked on a cloud worker or in Actions (owner, 2026-10-20, A).
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |

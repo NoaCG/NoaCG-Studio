@@ -260,8 +260,7 @@ the inbox consumer has no writer. Layer: Node contracts.
 
 ### AC-9: One vocabulary
 The default data surface shows no "path", "seed", "Raw JSON" or "binding"; they sit behind
-Advanced and still work. Layer: journey. The owner's look is an owner-list item, never a gate
-(owner, 2026-10-20, A).
+Advanced and still work. Layer: journey (owner look: parent §9.1).
 
 ### AC-10: One way to connect a Sheet
 New graphics are not offered the graphic-level panel; existing graphics with the block still

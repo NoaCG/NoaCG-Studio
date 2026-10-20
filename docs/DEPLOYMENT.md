@@ -185,8 +185,8 @@ rule for a landing: a damaged Route A run is no run, so it falls through to Rout
 ## The serverless function budget
 
 The account is on **Vercel Pro**, which has no 12-function cap; the repository keeps its own cap
-as deployment discipline: **13 functions** (`FUNCTION_CAP` in `scripts/check-function-budget.mjs`),
-with 12 in use at `331a98a91`. Every file under `api/` that is not in `api/_lib/` (and not a
+as deployment discipline: **13 functions** (`FUNCTION_CAP` in `scripts/check-function-budget.mjs`).
+Every file under `api/` that is not in `api/_lib/` (and not a
 `.test.ts`) becomes one function. On the earlier **Hobby plan** Vercel capped a deployment at 12:
 in July 2026 the api/ tree grew to 29 files and **every production deploy failed for days while
 the repo stayed green** - the wake-up call this runbook exists for.
@@ -204,7 +204,7 @@ in its `_lib` router), never as a new top-level file, unless it genuinely needs 
 **`npm run check:function-budget` now counts them in the build gate**
 (`scripts/check-function-budget.mjs`), implementing Vercel's routing rule rather than an
 approximation: everything under `api/` is a function except paths with an `_` segment and
-`.d.ts` files. It prints the headroom on every build (12 of 13 at `331a98a91`) and fails over the cap,
+`.d.ts` files. It prints the headroom on every build and fails over the cap,
 so the count cannot climb back to 29 unnoticed. `scripts/check-function-budget.test.mjs`
 tests the rule against a fixture tree, since `api/` alone only ever exercises today's shape.
 

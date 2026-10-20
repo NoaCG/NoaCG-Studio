@@ -330,8 +330,8 @@ The owner answered DS1-DS20 by accepting the recommendations. Each is kept here 
 - **DS4. RSS and Atom feeds.** Answer: titles, newest 20, 5 minutes, conditional requests,
   publisher backoff. Kept.
 - **DS5. Who reads a feed for a local production.** Answer: a public route as a segment of an
-  existing catch-all. Kept (the data catch-all; `api/` routes 12 functions against the cap of 13
-  at `331a98a91`, and no phase adds a function file).
+  existing catch-all. Kept (the data catch-all; the function budget is nearly full,
+  `docs/DEPLOYMENT.md`, and no phase adds a function file).
 - **DS6. JSON addresses.** Answer: not in this run. Kept.
 - **DS7. The data API on the data view.** Answer: "Another system" card with address, key,
   example and last receipt; a pushed name connects matching fields on first arrival. Now: the
@@ -454,8 +454,7 @@ and last changed. For Sheets, browser reads are about every five seconds and ser
 once a minute when all pages close; other providers show their own effective cadence. The Sheet
 server mode is continuity at slower cadence, not equivalent latency. The
 default surface's vocabulary is sheet AC-9's. Layer: journey in `e2e/production-views.spec.ts`
-and `e2e/production-data.spec.ts`. The owner's look at the result is an owner-list item, never a
-gate (owner, 2026-10-20, A).
+and `e2e/production-data.spec.ts` (owner look: parent §9.1).
 
 ### AC-10: Every message intake respects selection and staging
 Pasted text, Sheet message rows, join submissions and supported YouTube input enter the same
@@ -603,8 +602,9 @@ on 2026-10-20 in the cloud environments, the local env file and Vercel:
 `GOOGLE_SERVICE_ACCOUNT_JSON` (the service account signs in), `NOACG_TEST_SHEET_IDS` (six
 owner-owned Sheets, comma-separated; the service account can read and write each, and each public
 CSV export works) and `YOUTUBE_API_KEY`. Each record lands in
-`docs/work-specs/data-sources/evidence/` through `/check` and `/queue-merge`, and is an acceptance
-item of the one phase it gates:
+`docs/work-specs/data-sources/evidence/` through `/check` and `/queue-merge` (records ready
+together land together, normally one PR before C1b) and is an acceptance item of the one phase it
+gates:
 
 | Record | What the agent does | Gates |
 | --- | --- | --- |
@@ -677,11 +677,12 @@ seconds. The tick ships behind a runtime switch, off: a setting beside the exist
 settings (`api/_lib/systemSettings.ts`) that reads as off on any error, the opposite of that
 module's fail-open default, because its purpose is cost control, like a switched-off model route.
 After C2 lands, the checker confirms from the Vercel runtime logs that the tick's first scheduled
-call was accepted (not 401), without reading the secret's value; turns the switch on for one hour,
-during which the closed-browser real-Sheet run happens; reads that hour's real cost from Vercel
-usage; and leaves it on only if this month's usage so far plus the measured hourly cost for the
-rest of the month stays within Pro's included usage (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`);
-otherwise it turns it off, records why and notifies the owner. *Budget watch:* while the switch
+call was accepted (not 401), without reading the secret's value, turns the switch on and runs the
+closed-browser real-Sheet run; C2 passes on those. The coordinator then finishes the hour in the
+background while C3 builds: it reads that hour's real cost from Vercel usage and leaves the
+switch on only if this month's usage so far plus the measured hourly cost for the rest of the
+month stays within Pro's included usage (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`); otherwise it
+turns it off, records why and notifies the owner. *Budget watch:* while the switch
 is on, the coordinator checks Vercel usage daily (its morning summary); if the month's projection
 would exceed included usage, it turns the tick off and notifies the owner. With the tick off,
 published sources follow while a page is open and closed-page continuity is reported as
@@ -770,7 +771,7 @@ and owner items are listed separately and never hold a phase.
 | C1a | `content-formats` (the fixtures of Formats; scalar CSV generation, parsing and diagnostics), `show-fixture-compat` (today's fixture loads and plays unchanged) | `production-data` (paste rows per adapter; starter download per adapter and for a custom graphic) | none | `merge-patch-conformance` carries the `""`-over-a-list-path case | A |
 | C1b | `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty, the inbox consumer has no writer), `production-data-session` extended (the writer), mapping proposal and confirmation contracts | `production-data` (connect a stub sheet; whole-graphic preview, matches and "Used by"; repair and cancel; Pause; Disconnect; empty tab clears; twelve rows reach a ticker and a running scroll continues; equal title elsewhere untouched; one score on two boards updates both; a source's display rename keeps the connection; a deleted target is flagged; a ± press on a connected value moves the shared value, alongside the existing running test at line 741) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | `production-data-migration` carries the `""` case | A |
 | C1c | none new | `production-data` (status line, checked versus changed); `production-views` (Data overview, Advanced) | none | one real-Sheet receipt (AC-13, sheet AC-1); the timed 20-edit run against the local program, edits made by the agent (sheet AC-3); the custom scalar/fixed-slot receipt | A |
-| C2 | `sheet-source` lease and handover rules; the tick's secret check (401 without the exact Bearer) and its fail-closed switch | `production-data` (reload keeps sources) | `production-data-key` extended (bind after publish moves the output without republish; tick skips a leased source and reads an expired one; a value changed once written once; Pause written to the row holds the tick and shows after reload) | migration self-check; the first scheduled call accepted in the Vercel logs; one hour's measured cost and the switch decision; the closed-browser real-Sheet run (sheet AC-4) | A |
+| C2 | `sheet-source` lease and handover rules; the tick's secret check (401 without the exact Bearer) and its fail-closed switch | `production-data` (reload keeps sources) | `production-data-key` extended (bind after publish moves the output without republish; tick skips a leased source and reads an expired one; a value changed once written once; Pause written to the row holds the tick and shows after reload) | migration self-check; the first scheduled call accepted in the Vercel logs; the closed-browser real-Sheet run (sheet AC-4); the hour's cost and switch decision follow in the background | A |
 | C3 | `sheet-messages` (hash identity: reorder, delete and add, identical rows, occurrence; a used candidate survives its row), `youtube-comments` and `youtube-chat` with recorded responses (first page kept, floor, errors, the remaining-runtime estimate); `show-fixture-compat` extended | `production-audience` (Sheet rows as candidates; a vanished row leaves an unused candidate and keeps a used one; Source and Reference hidden); `production-chat-intake` (comments mode, remembered source, key prompt on reload, quota line) | `audience-live` (imported candidates through `audience_operator_add`, dedupe by `external_id`) | migration self-check; Q's provider receipts | A |
 | C4 | `feed-fetch` (fake resolver and fetch: public then private name, redirects, caps, conditional requests, the `feed_cache` row and its claim), `feed-source`; `show-fixture-compat` extended | `production-data` (connect a stub feed; failed fetch keeps the list) | `feed-route` (new, small; `expected-run.json` raised; two concurrent readers make one upstream fetch) | migration self-check; one real feed receipt | A |
 | C5 | `data-pause` contracts; `show-fixture-compat` extended | `production-data` (the card, the example, receipt) | `production-data-key` extended (push, Pause, push with a null, `/update` while paused, Resume emits the final values once) | conformance cases in the migration's self-check | A |
@@ -804,13 +805,11 @@ refactor phase before it. This update does not start the run.
 
 Before C1a: refactor phases 1, 2+7 and 13a checked PASS on `main`; this spec and the audience
 spec agreed; digests current and `work-spec.mjs status` structurally valid (open runtime
-criteria are expected). Before C1b: Q's two Sheet records on `main`; a miss against D3 is
-reported and handled as Q says, not a stop.
+criteria are expected). Q's records gate the phases its table names.
 
-Before C2: Q's tick-cost estimate on `main`. The hosting plan's cron is settled: the account is on
-Vercel Pro, which runs one-minute cron schedules, and `CRON_SECRET` is already set in Production
-(owner, 2026-10-20); C2's checker confirms the first scheduled call in the logs. Before C3: Q's
-`youtube.md`. Before C4: Q's `feeds.md`.
+The hosting plan's cron is settled: the account is on Vercel Pro, which runs one-minute cron
+schedules, and `CRON_SECRET` is already set in Production (owner, 2026-10-20); C2's checker
+confirms the first scheduled call in the logs.
 
 ## External-API connection slice: selected extension, outside C0–C7
 

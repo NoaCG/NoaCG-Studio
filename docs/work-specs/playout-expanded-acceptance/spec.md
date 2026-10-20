@@ -1,10 +1,7 @@
 # E8 — Final expanded production acceptance
 
 Status: agreed planning scope, 19 October 2026; implementation and acceptance unstarted.
-Revised 2026-10-20 for the owner's decisions
-([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)): phases pass on
-criteria an agent checks on a cloud worker or in Actions; owner-only items wait only in the
-final owner block; human trials are kits.
+Revised 2026-10-20 ([owner decisions](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)).
 Reconciled against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`.
 
 ## Shared execution contract
@@ -15,7 +12,7 @@ file ownership, compatibility, evidence reuse, environment routing, stop/rollbac
 acceptance apply here. All phases below are product/qualification work, not refactor-only moves.
 Paths named as new are planned files, not claims that implementation already exists. Use the
 existing `/check`, targeted verification and `/queue-merge` procedures when execution starts.
-Each phase must pass its listed ACs before the next dependent phase. `work.json` records intent
+Each phase must pass its gating ACs (the extensions.md table) before the next phase. `work.json` records intent
 and acceptance, never worker progress. No implementation or run starts from this document.
 
 ## Scope, dependencies and ownership
@@ -37,13 +34,12 @@ vMix/SPX regressions; expanded vMix/SPX qualification is separately reported. Th
 OGraf controller check is backlog issue #1531, outside this run (owner, 2026-10-20, F). Official
 election-feed access remains a separate qualification verdict, not simulated success.
 
-One 60-minute software endurance run in `.github/workflows/endurance.yml` (manual dispatch,
-90-minute job timeout, not a required check; added in E4.1): 1,000 deterministic candidate
-records (owner, 2026-10-20, G: sized to fit E4's 256 KiB source-route body cap with headroom,
-about 150 bytes a record after projection) at five-second source cadence, a cue switch every 15
+One 60-minute software endurance run in E4's `endurance.yml`: 1,000 deterministic candidate
+records (owner, 2026-10-20, G: sized to fit E4's ingress limits with headroom) at five-second
+source cadence, a cue switch every 15
 seconds, scheduled malformed/duplicate/older revisions, Pause/Resume, reader handover, controller
-reload and output disconnect. Every revision stays inside E4's write budget and 64 KiB row check;
-the fixture's measured size is recorded before the run, and a fixture or limit change is
+reload and output disconnect. Every revision stays inside E4's ingress limits; the fixture's
+measured size is recorded before the run, and a fixture or limit change is
 reviewed with its reason, never made silently during a pass. No unhandled errors, wrong-person frames, stale-owner writes, duplicate
 non-idempotent actions or unbounded queue growth. Log memory and queue depth throughout; compare
 steady-state windows after warmup; pending reads are bounded to one per source and buffered
@@ -91,12 +87,10 @@ parity, unattended-cloud or election-day claim beyond the measured evidence.
 
 ## Phases and verification
 
-Every gating criterion is checked on a cloud worker or in Actions (owner, 2026-10-20, A).
-
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
 | E8.1a | Evidence reconciliation and bounded cross-feature checks; AC-1 software reconciliation, AC-2 cross-feature cases | Cloud: targeted Node/configured checks, full required suites in Actions using existing-run lookup. |
-| E8.1b | The 60-minute endurance run; AC-2 endurance | Actions: `.github/workflows/endurance.yml`, dispatched on E8.1b's own merge SHA (the landing that carries the endurance harness) with the 1,000-record fixture; memory, queue depth and timing receipts. Existing CI job timeouts unchanged. |
+| E8.1b | The 60-minute endurance run; AC-2 endurance | Actions: `.github/workflows/endurance.yml` with the 1,000-record fixture, dispatched by the builder on its branch before `/queue-merge`; the checker reuses that run under the parent §6 reuse rule when the merge's material inputs are unchanged, and otherwise dispatches it on the merge SHA. Memory, queue depth and timing receipts. Existing CI job timeouts unchanged. |
 | E8.2 | Runbook, capability/limitation matrix and the verdict on all agent evidence, plus the trial kit; AC-1 agent evidence complete, AC-4 | Cloud: guide and matrix checked against the landed build and receipts. The trial kit (AC-3 tasks) is an owner-list item; the physical evidence is H0.2 and parent phase S. |
 
 A failure produces a scoped repair and affected requalification under existing failure limits.

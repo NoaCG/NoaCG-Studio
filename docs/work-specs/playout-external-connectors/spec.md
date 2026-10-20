@@ -1,10 +1,7 @@
 # E4 — Trusted JSON acquisition through the existing production-data route
 
 Status: agreed planning scope, 19 October 2026; implementation and acceptance unstarted.
-Revised 2026-10-20 for the owner's decisions
-([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)): phases pass on
-criteria an agent checks on a cloud worker or in Actions; owner-only items wait only in the
-final owner block; human trials are kits.
+Revised 2026-10-20 ([owner decisions](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)).
 Reconciled against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`.
 
 ## Shared execution contract
@@ -15,7 +12,7 @@ file ownership, compatibility, evidence reuse, environment routing, stop/rollbac
 acceptance apply here. All phases below are product/qualification work, not refactor-only moves.
 Paths named as new are planned files, not claims that implementation already exists. Use the
 existing `/check`, targeted verification and `/queue-merge` procedures when execution starts.
-Each phase must pass its listed ACs before the next dependent phase. `work.json` records intent
+Each phase must pass its gating ACs (the extensions.md table) before the next phase. `work.json` records intent
 and acceptance, never worker progress. No implementation or run starts from this document.
 
 ## Scope, dependencies and ownership
@@ -109,9 +106,6 @@ The owner approved a planned ingress limit for this route, separate from `/patch
   This stays below Supabase's smallest broadcast limit (256 KB on Free; 3,000 KB on Pro) and its
   1,024 KB Postgres-change limit, so it holds on any plan.
 
-These limits may change when the plan's goal needs it, reviewed with the reason recorded in the
-pull request. A repair never loosens one to hide a real failure.
-
 **Storage, version gate and rollback.** E4.2's one additive migration adds
 `production_source_snapshots` (production, source, config revision, owner epoch, accepted
 revision, checked-at, changed-at, byte size, typed payload) and the fenced apply function behind
@@ -131,7 +125,7 @@ server, bearer-authenticated, serving the recorded election fixtures on a contro
 empty collection, a deleted person). It runs beside the trusted agent: on the cloud worker, inside
 the Actions job, or on the laptop, as an explicitly configured local agent destination with a
 test certificate that only that run trusts, so TLS validation stays on. It is never a Vercel
-function: `api/` already routes 12 functions against a cap of 13. E7 and E8 use it.
+function: the function budget is nearly full (`docs/DEPLOYMENT.md`). E7 and E8 use it.
 
 E4.1 also adds `.github/workflows/endurance.yml`: `workflow_dispatch` only, `timeout-minutes: 90`,
 inputs for minutes and record count, running the replay server, the agent and the production
@@ -170,8 +164,6 @@ breaking ordinary manual control. The persisted snapshot version has old-show fi
 read-only fallback above for clients that cannot understand it.
 
 ## Phases and verification
-
-Every criterion is checked on a cloud worker or in Actions (owner, 2026-10-20, A).
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |

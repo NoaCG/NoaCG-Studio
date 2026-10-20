@@ -539,7 +539,8 @@ deploy-verify run, and the exact revert command.
   as `answered`. This is the runner's failure limit, a real decision, not a thumbs-up gate.
 - A product regression found after `pass` (a laptop receipt, the landing's configured run,
   deploy-verify, a later main run attributed to the phase, an owner report) becomes a repair
-  (owner, 2026-10-20, B): the coordinator files an issue with the failing receipt and, between
+  (owner, 2026-10-20, B): the coordinator uses the helper's issue, or files one with the failing
+  receipt, and, between
   phases (after the step in flight lands, before the next launch), launches one repair session.
   It reproduces the failure, lands a fix through `/check` and `/queue-merge`, and the failing
   check runs again on the repaired merge SHA (in Actions, or by the laptop helper). No
@@ -577,12 +578,8 @@ the first rehearsal.
 ## 9. Execution settings
 
 - **Coordinator:** `/plan-run`, sequential. Its home is ONE Claude cloud session for the whole
-  project (owner, 2026-10-20, B), so nights and mornings continue with the laptop closed. Any
-  session can stop, and the same project (same ID, deadline, ledger and failure history)
-  continues in any new session, cloud or laptop, by typing the same `/plan-run` line (owner,
-  2026-10-20, 13): the ledger and store live in the project's Git recovery ref, the newest
-  coordinator takes over, and an older one still alive is refused at its next step and stops by
-  itself. The wave file lists the phases as `N. Phase <k> of the spec: <name> (AC-...)`, `<k>`
+  project (owner, 2026-10-20, B), so nights and mornings continue with the laptop closed; any
+  session can stop and any new one continue (§10 step 6). The wave file lists the phases as `N. Phase <k> of the spec: <name> (AC-...)`, `<k>`
   being a number for this spec's phases, `C0`..`C7` for the data-sources spec's (C1 as `C1a`,
   `C1b`, `C1c`), the child IDs (`H0.1`, `E4.1`, ...) and `S` for the studio phase, with `2+7`,
   `13a` and `13b` preserved. The project holds the exact 47 phases of `extensions.md`, each with
@@ -590,17 +587,10 @@ the first rehearsal.
   coordinator opens each next block itself. Each `landed` receipt carries the phase's merge SHA,
   which the laptop helper reads. Q is not a phase: each Q record is an acceptance item of the
   phase it gates.
-- **Never idle (14).** While it waits on builders, checks or CI, the coordinator waits inside a
-  running background job or monitor, never by ending its turn with nothing running, so a cloud
-  machine is not reclaimed.
-- **Silent workers (16).** The runner's existing bounded waits (the 30-minute heartbeat,
-  supervisor inspection, queue-merge's repair owner) catch a worker that died and a pull request
-  stalled in the queue. A worker that is alive but makes no progress for about 30 minutes (no
-  commits, no test output, no log activity) is caught by the runner's progress check (landed
-  with the runner change; `.agent-workflows/plan-run.md` names it), which the coordinator runs from
-  its background wait: it nudges the worker, and if it stays idle stops it and relaunches the same
-  step from its pushed branch, or launches the phase's repair when the worker is stuck on a
-  failure.
+- **Never idle, no silent workers (14, 16).** The coordinator waits on builders, checks and CI
+  inside a running background job or monitor, so a cloud machine is not reclaimed. The runner's
+  bounded waits plus its progress check (runner PR) catch a worker with no progress for about 30
+  minutes; the coordinator nudges it, then restarts or repairs it.
 - **Speed (16).** Iteration and landing speed matter; GitHub minutes cost us nothing. Full suites
   run in Actions, targeted checks on the worker, the Q worker ahead of the phases that need it,
   and no landing waits for a laptop or owner item. Existing CI job timeouts are unchanged; only the
@@ -618,81 +608,75 @@ the first rehearsal.
   `/code-review ultra <PR#>` when the owner triggers it; otherwise none.
 - **Runner readiness.** Follow `.agent-workflows/plan-run.md`, `cloud-delegate.md` and
   `docs/work-specs/continuing-plan-preparation/runbook.md` as landed. The runner change is a
-  separate verified PR (branch `claude/plan-run-container-restart`) and must be on `main` before
-  the run opens ([runner check](evidence/owner-decisions-2026-10-20.md#runner-check)): it removes
-  the refusals on restored, cross-machine and new-session continuation, makes the newest
-  coordinator take over through the recovery ref while an older one stops by itself, and adds
-  the progress check. Its one live test (start a coordinator, end it, continue in a new session,
-  confirm the ledger carries on) runs before the run opens, with its receipt under
-  `docs/work-specs/continuing-plan-preparation/`. A worker the older coordinator had launched
-  before a takeover shows in the ledger as in flight; the new coordinator reconciles it rather
-  than launching another.
+  separate verified PR (branch `claude/plan-run-container-restart`, free continuation and the
+  progress check; [runner check](evidence/owner-decisions-2026-10-20.md#runner-check)) and must be
+  on `main` before the run opens, with its one live test (start a coordinator, end it, continue in
+  a new session, confirm the ledger carries on) recorded under
+  `docs/work-specs/continuing-plan-preparation/`.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
   `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
   problems (open runtime acceptance is expected) and the plan listed under "Runnable plans";
   `origin/main` CI green; the latest `configured-suite` run on main green; deploy-verify green for
   main's head, or, when main's head deploy was skipped (Vercel's ignore step builds nothing for a
   range without deploy-affecting paths, so that SHA has no deploy-verify run), the last real
-  deploy-verify pass on main, recorded with the judgement from
-  `node scripts/deploy-affecting-paths.mjs --range <passed sha> origin/main`; the runner change
+  deploy-verify pass on main whose SHA equals
+  `node scripts/deploy-affecting-paths.mjs --last-affecting origin/main` (deploy-verify's own
+  rule), recorded with that judgement; the runner change
   and its live-test receipt on main; a local Supabase stack can start or the configured-suite
   dispatch route is confirmed; `gh` authenticated and able to land a workflow-file change (E4.1);
   the current runner's builder/checker interfaces qualified; one test phone notification received
   from the coordinator session; Vercel usage readable from the coordinator (C2's budget watch); no
   open wave or plan run other than this project (`scripts/wave-plan-store.mjs`, never assumed
-  from a document); no open pull request that would quarantine a spec this plan gates on (#1450
-  was closed on 2026-10-20); the owner has supplied the finite project deadline in Helsinki time
+  from a document); no open pull request that would quarantine a spec this plan gates on; the
+  owner has supplied the finite project deadline in Helsinki time
   with its offset and the actual permission policy. A missing item is one configuration request
   to the owner before opening, never a gate during the run.
 - **Placement (owner, 2026-10-20, A and B):** qualified cloud workers for implementation, review,
   targeted software checks and Q's Sheet/feed/YouTube/API records; authoritative full suites in
   Actions. Those are the only places a gating criterion is checked. The laptop helper (§9.1)
-  runs the Windows performance baselines and repeats (1, 11, 13b, 14) and the scratch
-  CasparCG/Bridge and OBS/browser-source walks (C7, 14, E3.2a, E7.2b) on exact merge SHAs; they
-  never gate. The physical deck, the real studio, Twitch, human trials and the owner's judgement
+  runs the laptop entries of the `extensions.md` table on exact merge SHAs; they never gate. The physical deck, the real studio, Twitch, human trials and the owner's judgement
   are owner-list items; only H0.2 and S, the final owner block, wait for the owner.
 - **Verification lookup:** follow the landed observation-only procedure referenced by
   `.agent-workflows/plan-run.md` before manual dispatches. Preserve the GitHub Teams measurement
   process, required checks and failure/retry rules. Reuse existing evidence only as §6 and the
   shared verification policy already permit; no new CI skipping or cache policy is introduced here.
 - **Preflight before phase 2** (recorded in phase 1's notes): phase 1's tests green on main; S1
-  and S3 decided with evidence and any confirmed fix landed. The two baselines are not a
-  precondition: the laptop helper measures them later on phase 1's merge SHA (§7).
+  and S3 decided with evidence and any confirmed fix landed.
 
 ### 9.1 Owner list, laptop helper and trial kits
 
-**Owner list (A).** The coordinator keeps it in its session and mirrors it in the body of one
-tracking issue for the run, which it opens at the start. Each item says what to do, where, on
-which revision, about how long it takes and what it informs. Each new item sends one phone
-notification with that text and is posted as a comment on the issue; then the coordinator
-continues. Items: starting the laptop helper
+**Owner list (A).** The coordinator keeps it in its session and posts each item as a comment on
+the run's tracking issue, which it opens at the start (so a new coordinator can rebuild the list).
+Each item says what to do, where, on which revision, about how long it takes and what it informs,
+and sends one phone notification with that text; then the coordinator continues. An owner look,
+a human trial or a participant task never gates: a look is an owner-list item, a task goes into a
+trial kit. Items: starting the laptop helper
 (§10 step 4), the Twitch live check, the trial-paste pilot, each trial kit as it lands, a YouTube
 live retry if Q found no live stream, any missing prerequisite, and last H0.2 and S. Only H0.2 and
 S hold anything back: the run ends with them. The coordinator also sends one morning summary
 (Helsinki time): phases passed, the phase in flight, the tick's budget projection and the open
-owner items.
+owner items. From its background wait it edits one heartbeat comment on the tracking issue about
+every 30 minutes.
 
 **Laptop helper session (B, 15).** A Claude session on the owner's laptop, started with the §10
 step 4 prompt whenever the laptop is on, runs beside the cloud coordinator. It never starts,
 pauses, continues or changes the run. The repository is the shared channel:
 
-1. It reads the run's ledger from the recovery ref (`refs/heads/noacg-recovery/<project id>`;
-   the project ID is in the tracking issue, and `git ls-remote origin 'refs/heads/noacg-recovery/*'`
-   lists the refs) and
-   lists the landed phases whose `extensions.md` row names a laptop check: the speed baselines on
-   1 and repeats on 11, 13b and 14 (`scripts/playout-lag-bench.mjs` as §7 describes), and the
-   scratch CasparCG with NoaCG Bridge and OBS/browser-source walks on C7, 14, E3.2a and E7.2b,
-   and on H0.1 the laptop items of H0 AC-2 (hardware-panel AC-8, AC-11 and AC-12).
+1. It reads the run's ledger from the recovery ref (`git ls-remote origin
+   'refs/heads/noacg-recovery/*'` lists it) and lists the landed phases whose `extensions.md` row
+   has a laptop entry (speed checks with `scripts/playout-lag-bench.mjs` as §7 describes).
 2. For each merge SHA that still has no receipt under `evidence/local/` (bench output under
    `evidence/perf/`), it checks that SHA out in its own worktree, runs the check and writes the
    receipt. It lands that pass's receipts as one evidence-only change through `/check` and
    `/queue-merge`.
 3. For a regression it opens one issue titled `production-page run: <phase> <check> regression`
-   with the receipt; the coordinator checks for new receipts and helper issues between phases and
-   turns a regression into a §8 repair. If a direct message from the helper to the cloud
+   with the receipt. Between phases the coordinator reads new receipts and helper issues,
+   acknowledges each helper issue with a comment and turns a regression into a §8 repair on that
+   same issue. If a direct message from the helper to the cloud
    coordinator works, the helper also sends one as a nudge, never as the only record.
-4. Between passes it waits about 20 minutes inside a background job, never idle. If the ledger
-   has not moved for three hours, it tells the owner the coordinator may have stopped (§10 step 6).
+4. Between passes it waits about 20 minutes inside a background job, never idle. If the
+   coordinator's heartbeat comment is more than 90 minutes old, it tells the owner the coordinator
+   may have stopped (§10 step 6).
 
 Isolation, never the owner's own setup or deck: CasparCG from a scratch config with AMCP outside
 5180-5298, OBS in a new scene collection switched back afterwards, Companion without its surface
@@ -728,7 +712,7 @@ the final owner block, which waits for him.
 | Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
 | Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
 | Landing a workflow-file change | GitHub | the worker landing E4.1 | E4.1 (`endurance.yml`) | checked at preflight | the owner enables auto-merge on that pull request; only E4.1's landing waits |
-| Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts (speed 1/11/13b/14; outputs C7/14/E3.2a/E7.2b; H0.1's hardware-panel items) | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
+| Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts: the laptop entries in `extensions.md` | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
 | Physical Stream Deck with Companion | owner's laptop | owner | H0.2 | owner's deck | waits (final owner block) |
 | The real studio: the owner's CasparCG/NoaCG Bridge setup and an OBS/browser source | studio | owner | S | owner's setup | waits (final owner block) |
 | A Twitch channel to read | public | owner | owner list; C7 uses recorded fixtures | not needed by any phase | continue |
@@ -766,7 +750,7 @@ the final owner block, which waits for him.
    this prompt; stop it and start it again with the same prompt at any time:
 
    ```
-   You are the laptop helper for the production-page plan run. Follow docs/work-specs/production-page-refactor/spec.md section 9.1 "Laptop helper session" exactly, on current origin/main. Never start, pause, continue or change the run, and never touch my own CasparCG, OBS or Companion setup or my Stream Deck. If this is the first helper session of the run, first do the quick channel test described there, without waiting on its result. Then repeat: find the landed phases that still lack laptop receipts, run their checks on the exact merge SHAs, land the receipts through /check and /queue-merge, open an issue for the coordinator on any regression, and wait about 20 minutes inside a background job between passes. Stop when the run's ledger says the project is finished.
+   You are the laptop helper for the production-page plan run. Follow docs/work-specs/production-page-refactor/spec.md section 9.1 "Laptop helper session" exactly, on current origin/main. Never start, pause, continue or change the run, and never touch my own CasparCG, OBS or Companion setup or my Stream Deck. Stop when the run's ledger says the project is finished.
    ```
 
 5. Permission mode is a harness setting, not an execution step. Switching a session to auto mode
@@ -784,21 +768,19 @@ the final owner block, which waits for him.
    It restores the project from its recovery ref, takes over and carries on from the first
    unfinished step; a worker in flight is reconciled, not relaunched. An older coordinator that is
    still alive is refused at its next step and stops by itself. Do this also when the morning
-   summary does not arrive or the helper reports a ledger unchanged for three hours.
+   summary does not arrive or the helper reports a stale heartbeat.
 7. Block end: the coordinator opens the next block itself; the worker in flight keeps going.
    Reconcile workers, PRs, exact tested revisions and pending external intents before every
    block; unknown worker status is not proof of absence. Use the supervisor's fenced admission
    for project events, never direct ledger writes.
-8. Throughout: same project identity, original deadline, ledger, failure history and child
-   phases; an expired or cancelled project is not renewed. Report complete only when every phase,
+8. An expired or cancelled project is not renewed. Report complete only when every phase,
    including H0.2 and S, has passed; a paused block is not a completed project.
 
 ## 11. Acceptance criteria
 
 ### AC-1: The safety net exists before any move
 The §5.3 phase-1 tests, the `// covers:` header on `dashboard-operator-walk` and the inventory
-exist on `main` before phase 2 lands. The two perf baselines are measured on phase 1's merge SHA
-by the laptop helper whenever it next runs (§7, owner 2026-10-20); they do not hold phase 2.
+exist on `main` before phase 2 lands (the perf baselines: §7).
 
 ### AC-2: Behaviour is identical at every phase
 Every §5.3 inventory spec and every phase-1 spec passes at every phase with unchanged
@@ -878,8 +860,7 @@ state; each is removed in the phase that moves that state.
    `e2e/configured/production-data-key-dispatch.spec.ts`, `e2e/configured/expected-run.json`,
    `e2e/dashboard-operator-walk.spec.ts` (header), `scripts/command-roads.test.mjs`,
    `evidence/*`. No `src/`. A confirmed S1 or S3 fix is a separate pull request landed before
-   this phase's tests are declared green. The two perf baselines are laptop-helper checks on this
-   phase's merge SHA (§7, §9.1); they are not part of this phase's PASS.
+   this phase's tests are declared green. The perf baselines: §7.
 2. **Infrastructure and pure helpers** (AC-3, AC-6, AC-8). Files: `src/control/storePart.ts`,
    `src/control/playoutSession.ts` (skeleton: key, alive, apply, dispose; no parts),
    `src/control/liveCue.ts`, `src/control/cueItems.ts`, `src/control/serverPlayoutStore.ts`
@@ -940,8 +921,10 @@ S. **Studio receipts, the final owner block** (AC-14 real-output half; with data
     lists). Runs after H0.2, which requalifies the physical deck once. The owner, with an agent
     session beside him on the laptop, walks the completed candidate through his own CasparCG/NoaCG
     Bridge setup and an ordinary OBS/browser source in the real studio and the agent records
-    `evidence/final-acceptance.md`. No product files; a defect found is a §8 repair and the
-    affected walk runs again. Environment: the owner's Windows laptop and the real studio.
+    `evidence/final-acceptance.md`. The owner walks H0.2 and S in one sitting; the agent records
+    both phases' receipts, and their landings and checks run afterwards without him. No product
+    files; a defect found is a §8 repair and the affected walk runs again. Environment: the
+    owner's Windows laptop and the real studio.
 
 ### Run order (reconciled 2026-10-17; expanded by owner 2026-10-19)
 
@@ -962,7 +945,7 @@ admission sequence, including H0, E1–E8 subphases and the final owner block, i
 | Step | Phase | Spec | Result |
 | --- | --- | --- | --- |
 | 1 | C0 | data-sources | Paste a message and safe staging; #1313 fixed. A feature change outside the refactor fence, landed before phase 1 so the baseline includes it |
-| 2 | 1 | this spec | Safety net, S1 and S3 decided (the perf baselines are measured later by the laptop helper) |
+| 2 | 1 | this spec | Safety net, S1 and S3 decided (perf baselines: §7) |
 | 3 | 2+7 | this spec | Store part, session skeleton, the production-data session (one phase; both §6 rows run in full: phase 2's targeted specs, Node tests and configured dispatch, and phase 7's) |
 | 4 | 13a | this spec | Props-only cue editor extraction |
 | 5 | C1a | data-sources | Format adapters, "Fill from… Paste rows", list starter rows and the custom scalar CSV |
@@ -987,8 +970,8 @@ admission sequence, including H0, E1–E8 subphases and the final owner block, i
 | 24 | 14 | this spec | Baseline close-out in software; the real-output part is S |
 
 Q (data-sources) is agent-run in its own cloud session, started beside step 1; each of its
-records is an acceptance item of the one phase that needs it (Sheet records C1b, tick cost C2,
-YouTube C3, feeds C4), never a phase of its own. H0.1 is inserted after C0. The final owner
+records is an acceptance item of the one phase that needs it (the data-sources Q table names
+it), never a phase of its own. H0.1 is inserted after C0. The final owner
 block, H0.2 then S, ends the run after E8.2. All phases follow the exact sequential admission
 table in `extensions.md`. The project manifest prepared at start copies its IDs, gating
 acceptance and environments. No phase is dropped to fit a work block; the block can end and the
@@ -1042,8 +1025,7 @@ optional Twitch work is not a completion gate.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with
-evidence and any confirmed fix landed in its own pull request; S2 characterised. The perf
-baselines are not awaited (§7).
+evidence and any confirmed fix landed in its own pull request; S2 characterised.
 
 ## Phase notes
 

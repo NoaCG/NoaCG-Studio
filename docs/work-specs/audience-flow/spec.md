@@ -186,8 +186,8 @@ body is refused; nothing is picked without a choice); the #1313 steps as a journ
 Each candidate shows "Prepare cue on <graphic>" and Reject; Shortlist, Now and Next sit one press
 away and say what they do. Success names the cue and says Take is still needed. A double press
 makes one cue; a retry after a failed save marks nothing used and makes no duplicate; "Prepare
-again" makes a deliberate second cue. Layer: journey with held and failed persistence. The
-owner's look is an owner-list item, never a gate (owner, 2026-10-20, A).
+again" makes a deliberate second cue. Layer: journey with held and failed persistence (owner
+look: parent §9.1).
 
 ### AC-3: Paste works from the cue editor and from Messages
 "Fill from… Paste a message" appears on a compatible body field and needs no audience enabling,

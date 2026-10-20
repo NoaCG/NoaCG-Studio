@@ -30,8 +30,8 @@ qualified Claude cloud worker plus GitHub Actions. The final owner block (rows 4
 **OW**: the owner's Windows laptop, the physical Stream Deck and the real studio) is the only part
 that waits for the owner. "Laptop" entries are non-gating checks the laptop helper runs on that
 phase's merge SHA (parent §9.1); "kit" entries are trial kits on the owner list (D). A "Q"
-record in the gating column must be on `main` before that phase's build starts, and its checker
-confirms it (data-sources Q).
+record in the gating column is an acceptance item of that phase; the Q worker starts at the
+opening, so it is normally on `main` well before that phase is built (data-sources Q).
 
 | # | Phase | Authority | Gating acceptance | Env | Non-gating |
 | --- | --- | --- | --- | --- | --- |
@@ -198,10 +198,8 @@ Each child's rollback disables its new capability or restores the prior qualifie
 retaining source/package data and refusing unsafe old-client edits. Never retry an uncertain
 non-idempotent action automatically or clear unrelated live layers as recovery.
 
-E4/E7/E8 use an authenticated election replay server we build (E4.1,
-`scripts/election-replay-server.mjs`): bearer-authenticated HTTPS serving the recorded fixtures
-on a controllable timeline, run beside the trusted agent on the cloud worker, in the Actions job
-or on the laptop, never as a Vercel function. Official Finnish/Yle feed access, licence/delivery
+E4/E7/E8 use the authenticated election replay server E4.1 builds (E4, "Replay server and
+endurance workflow"), never an external provider and never a Vercel function. Official Finnish/Yle feed access, licence/delivery
 arrangement, schema and rate/freshness expectations remain unverified. They are a separate
 real-election qualification gate: the software/replay programme can finish with that limitation
 explicit, but cannot claim to be approved for election-day feed operation. Actual CasparCG/Bridge,
