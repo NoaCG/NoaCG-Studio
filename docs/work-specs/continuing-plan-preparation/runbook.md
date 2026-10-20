@@ -111,7 +111,8 @@ coordinator by itself: the owner continues the project by typing the line again.
 
 ## Continuing in any session
 
-The recovery ref is the project's shared state. In any session, cloud or laptop,
+The recovery ref, `refs/noacg-recovery/<id>`, is the project's shared state. It is
+not a branch, so no deploy preview or CI builds it. In any session, cloud or laptop,
 the same `/plan-run` line first runs, from a checkout of this repository:
 
     node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>

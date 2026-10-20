@@ -54,8 +54,9 @@ they remain local and are replaced explicitly at restoration. Generated commits 
 a fixed NoaCG Recovery author/committer identity without changing host Git settings.
 All effective fetch and push URLs, including separate or multiple push URLs and
 Git URL rewrites, must identify that same repository before any record is exported.
-The dedicated `refs/heads/noacg-recovery/<run-id>` ref is state storage, never a
-product landing branch; product changes still use `/check` → `/queue-merge`.
+The dedicated `refs/noacg-recovery/<run-id>` ref is state storage, never a product
+landing branch; product changes still use `/check` → `/queue-merge`. It sits outside
+`refs/heads`, so deploy previews and push-triggered CI never build a checkpoint.
 
 Registration, waits, checkpoints, terminal changes, pending delivery intents and
 receipts automatically publish for an opted-in run. Use the supervisor wrapper for

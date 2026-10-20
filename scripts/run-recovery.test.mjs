@@ -85,7 +85,7 @@ function receipt(doc, now) {
 
 const HOUR = 3_600_000;
 const blockOf = (wave) => readProject(readFileSync(wave, 'utf8')).block;
-const ledgerAt = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`)).ledger;
+const ledgerAt = (f) => JSON.parse(git(f.remote, 'show', `refs/noacg-recovery/${f.manifest.id}:checkpoint.json`)).ledger;
 
 /** A 72-hour project named as `continue` finds it; `open` starts a block on the original host,
  * `inFlight` also records a build there. */
@@ -345,9 +345,11 @@ test('a durable phase update invalidates an already inspecting local tick before
 
 test('durable checkpoints omit adapter configuration while preserving local credentials', (t) => {
   const sentinel = 'private-adapter-argument-sentinel', f = fixture(t, ['--access-token', sentinel]);
-  const raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  const raw = git(f.remote, 'show', `refs/noacg-recovery/${f.manifest.id}:checkpoint.json`);
   assert.ok(!raw.includes(sentinel)); assert.equal(JSON.parse(raw).doc.manifest.adapter, undefined);
   assert.deepEqual(docFor(f.db).manifest.adapter.args, ['--access-token', sentinel]);
+  // Checkpoints are not branches: branch-driven deploys and CI never see them.
+  assert.equal(git(f.remote, 'for-each-ref', '--format=%(refname)', 'refs/heads/'), 'refs/heads/codex/test');
 });
 
 test('recovery commits have a machine identity even when the host has none', (t) => {
@@ -357,7 +359,7 @@ test('recovery commits have a machine identity even when the host has none', (t)
   const f = fixture(t);
   git(f.source, 'config', '--unset', 'user.name'); git(f.source, 'config', '--unset', 'user.email');
   updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'persist without host identity', until: null });
-  const identity = git(f.remote, 'show', '-s', '--format=%an <%ae> / %cn <%ce>', `refs/heads/noacg-recovery/${f.manifest.id}`);
+  const identity = git(f.remote, 'show', '-s', '--format=%an <%ae> / %cn <%ce>', `refs/noacg-recovery/${f.manifest.id}`);
   assert.equal(identity, 'NoaCG Recovery <noacg-recovery@users.noreply.github.com> / NoaCG Recovery <noacg-recovery@users.noreply.github.com>');
 });
 
@@ -372,12 +374,12 @@ test('separate and multiple effective push destinations are rejected before any 
       if (multiple) git(source, 'config', '--add', 'remote.origin.pushurl', remoteUrl);
       git(source, 'config', '--add', 'remote.origin.pushurl', forkUrl);
     }), /effective.*destination/);
-    assert.equal(git(fork, 'for-each-ref', '--format=%(refname)', 'refs/heads/noacg-recovery/'), '');
+    assert.equal(git(fork, 'for-each-ref', '--format=%(refname)', 'refs/noacg-recovery/'), '');
   }
 });
 
 test('a missing replacement adapter cannot create files or claim a new remote generation', (t) => {
-  const f = fixture(t), ref = `refs/heads/noacg-recovery/${f.manifest.id}`;
+  const f = fixture(t), ref = `refs/noacg-recovery/${f.manifest.id}`;
   const before = git(f.remote, 'rev-parse', ref);
   for (const field of ['command', 'cwd']) {
     const db = f.open(`invalid-${field}.sqlite`), worktree = path.join(f.root, `invalid-${field}`);
@@ -421,7 +423,7 @@ test('automatic adapter observations cannot export auxiliary token or raw-respon
   await tickRun(f.db, f.manifest.id, { invoke: async (_, r) => r.operation === 'inspect' ? { state: 'gone' }
     : { state: 'delivered', workerId: 'owned-worker', token: sentinel, rawProviderResponse: { secret: sentinel } } });
   assert.deepEqual(docFor(f.db).pending.receipt, { state: 'delivered', workerId: 'owned-worker' });
-  let raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  let raw = git(f.remote, 'show', `refs/noacg-recovery/${f.manifest.id}:checkpoint.json`);
   assert.ok(!raw.includes(sentinel));
   const legacy = docFor(f.db);
   legacy.pending.packet.restoredGithub = [{ ...receipt({ ...legacy, restoration: { checkpoint: 'test' } }, f.now).github[0], token: sentinel }];
@@ -432,7 +434,7 @@ test('automatic adapter observations cannot export auxiliary token or raw-respon
   proof.github[0].rawProviderResponse = { token: sentinel };
   proof.native = { ...proof.native, state: 'waiting', wait: { kind: 'permission', reason: 'same approval', until: null, token: sentinel } };
   assert.equal((await tickRun(restored.db, f.manifest.id, { now: () => f.now, invoke: async () => proof })).verdict, 'waiting');
-  raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  raw = git(f.remote, 'show', `refs/noacg-recovery/${f.manifest.id}:checkpoint.json`);
   assert.ok(!raw.includes(sentinel));
   const g = fixture(t);
   await tickRun(g.db, g.manifest.id, { invoke: async () => ({ state: 'waiting',
@@ -441,7 +443,7 @@ test('automatic adapter observations cannot export auxiliary token or raw-respon
   await tickRun(g.db, g.manifest.id, { now: () => g.now, invoke: async (_, r) => r.operation === 'inspect' ? { state: 'gone' } : { state: 'unknown' } });
   await tickRun(g.db, g.manifest.id, { now: () => g.now + 61_000, invoke: async (_, r) => r.operation === 'reconcile'
     ? { state: 'delivered', workerId: 'second-worker', rawProviderResponse: { token: sentinel } } : { state: 'running', workerId: 'second-worker' } });
-  const ref = `refs/heads/noacg-recovery/${g.manifest.id}`;
+  const ref = `refs/noacg-recovery/${g.manifest.id}`;
   for (const commit of git(g.remote, 'log', '--format=%H', ref, '--', 'checkpoint.json').split('\n')) {
     assert.ok(!git(g.remote, 'show', `${commit}:checkpoint.json`).includes(sentinel));
   }

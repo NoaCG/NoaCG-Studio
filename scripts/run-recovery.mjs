@@ -36,9 +36,12 @@ const canonicalPath = (file) => {
   const resolved = realpathSync(file);
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 };
+// Outside refs/heads, so branch-driven integrations (deploy previews, push-triggered CI) never
+// build a checkpoint: a checkpoint is published on every admission and holds no app source.
+const RECOVERY_REFS = 'refs/noacg-recovery/';
 const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
-  return `refs/heads/noacg-recovery/${id}`;
+  return `${RECOVERY_REFS}${id}`;
 };
 const remoteHead = (git, config, ref) => git(config.repository, ['ls-remote', config.remote, ref]).split(/\s+/)[0];
 const safePath = (s) => required(s) && !s.startsWith('-') && !s.includes('\\') && !path.posix.isAbsolute(s)
@@ -191,7 +194,7 @@ export function activeProject(db, config, plan, now = Date.now()) {
   settings(config, git);
   if (!PLAN_RUN_KIND.test(`plan-${plan}`)) throw new Error(`"${plan}" is not a plan name (lowercase words joined by single dashes)`);
   // Project ids are plan-<plan>-<first date>; the date keeps plan "a" from matching plan "a-b".
-  const prefix = `refs/heads/noacg-recovery/plan-${plan}-`;
+  const prefix = `${RECOVERY_REFS}plan-${plan}-`;
   const own = (ref) => Boolean(ref?.startsWith(prefix)) && /^\d{4}-\d\d-\d\d$/.test(ref.slice(prefix.length));
   const refs = git(config.repository, ['ls-remote', config.remote, `${prefix}*`])
     .split('\n').map((line) => line.split(/\s+/)).filter(([, ref]) => own(ref));
@@ -199,7 +202,7 @@ export function activeProject(db, config, plan, now = Date.now()) {
     git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
     const { doc } = JSON.parse(git(config.repository, ['show', `${sha}:checkpoint.json`]));
     return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < Date.parse(doc.manifest.authorization.deadline);
-  }).map(([, ref]) => ref.slice('refs/heads/noacg-recovery/'.length));
+  }).map(([, ref]) => ref.slice(RECOVERY_REFS.length));
   if (active.length > 1) throw new Error(`Several active ${plan} projects (${active.join(', ')}); finish or cancel all but one`);
   return active[0] ?? null;
 }
