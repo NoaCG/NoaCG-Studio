@@ -1132,6 +1132,7 @@ test('a stale local main plans only the changed specs, whichever main ref is fre
 // change itself edits stays blocking, because that edit is the fix and must not land untested.
 import { effectivePlan, splitQuarantined } from './e2e-affected.mjs';
 import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
+import { planIdentity } from './e2e-spec-names.mjs';
 
 test('quarantined specs leave the blocking list and are reported as e2e/ paths', () => {
   const split = splitQuarantined(['a.spec.ts', 'b.spec.ts', 'c.spec.ts'], ['e2e/b.spec.ts', 'e2e/zzz.spec.ts']);
@@ -1847,7 +1848,8 @@ for (const [shape, changed] of [
     assert.equal(cli.mode, 'subset');
     assert.ok(cli.specs.includes('editor-cli-round-trip.spec.ts'), 'the journey must reach the blocking CLI plan');
     assert.equal(cli.catalog, plan.catalog);
-    assert.deepEqual([...cli.specs, ...cli.quarantined].sort(), plan.specs);
+    // `quarantined` holds e2e/ paths (the store's identity), `specs` bare planner names.
+    assert.deepEqual([...cli.specs, ...cli.quarantined.map(planIdentity)].sort(), plan.specs);
   });
 }
 
