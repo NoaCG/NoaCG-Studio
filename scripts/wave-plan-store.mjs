@@ -81,7 +81,7 @@ export function ensureWavePlansDir(dir = jobsDir()) {
  * A plan run (`/plan-run <plan>`) is the third kind: `plan-<plan>`. It lives in this store as a wave
  * does, so "a wave runs alone" is the same open-wave check, not a second one.
  */
-const PLAN_RUN_KIND = /^plan-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const PLAN_RUN_KIND = /^plan-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Is this store file a plan run's? Its kind follows the `YYYY-MM-DD-` date. */
 function isPlanRunFile(file) {

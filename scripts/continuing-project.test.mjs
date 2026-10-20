@@ -91,13 +91,12 @@ test('a multi-day rehearsal pauses between phases, restarts without renewal and 
   assert.equal(f.current().authorization.deadline, authorization().deadline);
 });
 
-test('pause in flight requires matching checkpoint acknowledgement; repair history survives', async (t) => {
+test('pause in flight asks the worker to checkpoint; the next block waits on it and repair history survives', async (t) => {
   const f = fixture(t); f.start();
   f.record(1, 'build', { actor: 'builder' }); f.record(1, 'landed'); f.record(1, 'check', { actor: 'checker' });
   f.record(1, 'fail', 'product: retain these findings');
   f.record(1, 'repair', { actor: 'repairer' });
   updateRun(f.db, f.p.id, 'pause', 'checkpoint in-flight worker', NOW);
-  assert.throws(() => f.start(), /acknowledge checkpoint/);
   let deliveries = 0;
   const invoke = async (_adapter, request) => {
     if (request.operation === 'deliver') deliveries += 1;
@@ -106,6 +105,7 @@ test('pause in flight requires matching checkpoint acknowledgement; repair histo
   assert.equal((await tickRun(f.db, f.p.id, { now: () => NOW, invoke })).verdict, 'paused');
   f.start(NOW + HOUR);
   assert.equal(nextStep(f.text(), NOW + HOUR).action, 'wait');
+  assert.throws(() => f.record(1, 'repair', { actor: 'second-repairer' }, NOW + HOUR), /already launched/);
   f.record(1, 'landed', '', NOW + HOUR);
   f.record(1, 'check', { actor: 'new-checker' }, NOW + HOUR);
   f.record(1, 'fail', 'product: second failure retained', NOW + HOUR);
@@ -128,13 +128,12 @@ test('stale owners, duplicate phases, omitted acceptance and builder-as-checker 
   assert.throws(() => updateRun(f.db, f.p.id, 'finish', '', NOW), /every required phase/);
 });
 
-test('block end, cancellation, expiry and unsupported remote continuation stop launches and wakes', async (t) => {
+test('block end, cancellation and expiry stop launches and wakes', async (t) => {
   const f = fixture(t); f.start();
   assert.equal(nextStep(f.text(), NOW + HOUR).action, 'paused');
   assert.ok(holdable(f.text(), NOW + HOUR).why);
   const armed = writeWake(f.text(), { host: 'fixture', session: 'fixture', resume: '/never-run' });
   assert.equal(wakeVerdict({ text: armed, now: NOW + HOUR, inventory() { assert.fail('paused wake must not inspect or resume'); } }).verdict, 'over');
-  assert.equal(preflight({ context: 'worker', wave: f.file, continuation: 'remote-handoff', now: NOW, run() { assert.fail('unqualified mode'); } }).ok, false);
   assert.equal((await tickRun(f.db, f.p.id, { now: () => NOW, invoke() { assert.fail('no native substitution'); } })).verdict, 'unknown');
   assert.throws(() => f.record(1, 'build', { actor: 'builder' }, NOW + 72 * HOUR), /expired/);
   updateRun(f.db, f.p.id, 'cancel', 'owner cancellation fixture', NOW);
@@ -185,12 +184,12 @@ test('acknowledgement lost after phase acceptance never duplicates the controlle
   } finally { restarted.close(); }
 });
 
-test('mismatching checkpoint acknowledgement cannot resume; cancellation checkpoints the original worker', async (t) => {
+test('mismatching checkpoint acknowledgement is not accepted; cancellation checkpoints the original worker', async (t) => {
   const f = fixture(t); f.start(); f.record(1, 'build', { actor: 'builder' });
   updateRun(f.db, f.p.id, 'pause', 'pause fixture', NOW);
   const bad = await tickRun(f.db, f.p.id, { now: () => NOW, invoke: async () => ({ state: 'checkpointed', phase: 1, step: 'build', blockId: 'wrong-block', evidence: 'wrong target' }) });
   assert.equal(bad.verdict, 'unknown');
-  assert.throws(() => f.start(), /acknowledge checkpoint/);
+  assert.equal(JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pauseReceipt, undefined);
   updateRun(f.db, f.p.id, 'cancel', 'owner cancels fixture', NOW);
   const operations = [];
   const cancelled = await tickRun(f.db, f.p.id, { now: () => NOW, invoke: async (_, request) => {

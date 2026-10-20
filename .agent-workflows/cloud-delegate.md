@@ -155,7 +155,7 @@ On plan pause/block/expiry, stop native auto-continuations, retries and new-sess
 launches too; checkpoint/reconcile in-flight work and preserve queued-PR repair ownership.
 
 Continuing plan projects use the immutable project deadline and bounded work blocks in
-`plan-run.md`. Native replacement/remote handoff needs acceptance-side stale-owner fencing;
-the current local SQLite authority and Git checkpoint CAS do not provide it. Restored project
-execution stays refused. Checkpoint and stop when closing the active owner without qualified
-cloud acceptance. A project pause/block end stops local keep-awake and block-specific wakes.
+`plan-run.md`. Any session, cloud or laptop, continues a project with the same `/plan-run` line;
+the older coordinator is then refused as superseded and stops. A coordinator waiting on workers
+or CI waits in a running background job or monitor, never idle, so its machine is not reclaimed.
+A project pause/block end stops local keep-awake and block-specific wakes.

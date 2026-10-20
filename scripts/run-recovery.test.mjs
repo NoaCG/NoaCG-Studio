@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { main, openStore, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
+import { continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
 
@@ -61,8 +61,9 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
   const db = open('control.sqlite');
   prepareSource({ source, remote, root, manifest, wave, now });
   registerRun(db, manifest, now);
+  let clones = 0;
   const bootstrap = () => {
-    const repo = path.join(root, `bootstrap-${dbs.length}`);
+    const repo = path.join(root, `bootstrap-${clones += 1}`);
     git(root, 'init', repo); configure(repo); git(repo, 'remote', 'add', 'origin', remoteUrl);
     return repo;
   };
@@ -72,7 +73,7 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
       adapter: { command: process.execPath, args: ['-e', ''], cwd: repository } };
     return { db: fresh, database, config, result: restoreRun(fresh, config, clock) };
   };
-  return { root, remote, source, manifest, db, now, restore, open, transport };
+  return { root, remote, source, manifest, db, now, restore, open, transport, bootstrap };
 }
 
 function receipt(doc, now) {
@@ -82,19 +83,94 @@ function receipt(doc, now) {
     github: r.repairOwners.map((o) => ({ ...o, repositoryFullName: doc.manifest.recovery.repositoryFullName, ownerSessionId: o.sessionId, state: 'open', observedAt: new Date(now).toISOString(), evidence: 'PR and owner comment reads' })) };
 }
 
-test('multi-day project restoration preserves authorization but refuses unqualified replacement-host launches', async (t) => {
+const HOUR = 3_600_000;
+const blockOf = (wave) => readProject(readFileSync(wave, 'utf8')).block;
+const ledgerAt = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`)).ledger;
+
+/** A 72-hour project named as `continue` finds it; `open` starts a block on the original host,
+ * `inFlight` also records a build there. */
+function projectFixture(t, { open = true, inFlight = false, id = 'plan-fixture-2030-01-01' } = {}) {
   const f = fixture(t, ['-e', ''], ({ manifest, wave, now }) => {
-    manifest.authorization.deadline = new Date(now + 72 * 3_600_000).toISOString();
+    manifest.id = id;
+    manifest.authorization.deadline = new Date(now + 72 * HOUR).toISOString();
     const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
       status: 'paused', reason: 'restore fixture only', phases: [{ id: 'restore', title: 'Restore and check', dependsOn: [], acceptance: ['restore verified'], environment: 'controlled-fixture' }] };
     writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline}`), project));
   });
-  const restored = f.restore(f.now + 25 * 3_600_000);
+  if (open) updateRun(f.db, f.manifest.id, 'start-block', { owner: 'session-a', deadline: new Date(f.now + 12 * HOUR).toISOString(), evidence: 'fixture block' }, f.now);
+  if (inFlight) recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: blockOf(f.manifest.wave) });
+  // A new session typing the same /plan-run line: its own clone and an empty state root.
+  f.continueAs = (owner, now = f.now + 1000) => continueProject(path.join(f.root, `state-${owner}`),
+    { plan: 'fixture', owner, ...f.manifest.recovery, repository: f.bootstrap() }, { now, recoveryGit: f.transport });
+  return f;
+}
+
+test('multi-day project restoration preserves authorization and continues under a new block', async (t) => {
+  const f = projectFixture(t, { open: false }), clock = f.now + 25 * HOUR;
+  const restored = f.restore(clock);
   const doc = docFor(restored.db), project = readProject(readFileSync(restored.config.wave, 'utf8'));
   assert.equal(doc.manifest.authorization.deadline, f.manifest.authorization.deadline);
   assert.equal(project.id, f.manifest.id);
   assert.equal(project.authorization.deadline, f.manifest.authorization.deadline);
-  assert.equal((await tickRun(restored.db, f.manifest.id, { now: () => f.now + 25 * 3_600_000, invoke() { assert.fail('unqualified remote replacement'); } })).verdict, 'unknown');
+  assert.equal((await tickRun(restored.db, f.manifest.id, { now: () => clock, invoke() { assert.fail('a project tick launches nothing'); } })).verdict, 'paused');
+  updateRun(restored.db, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(clock + HOUR).toISOString(), evidence: 'restored' }, clock);
+  recordRun(restored.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: clock, authority: blockOf(restored.config.wave) });
+  assert.match(ledgerAt(f), /phase 1 build/);
+});
+
+test('a stopped coordinator\'s project continues in a new session after full filesystem loss, waiting on its in-flight step', (t) => {
+  const f = projectFixture(t, { inFlight: true }), oldBlock = blockOf(f.manifest.wave);
+  f.db.close(); rmSync(f.source, { recursive: true, force: true }); rmSync(f.manifest.wave); rmSync(path.join(f.root, 'control.sqlite'));
+  const continued = f.continueAs('session-b');
+  assert.equal(continued.verdict, 'continued');
+  assert.equal(continued.id, f.manifest.id);
+  assert.equal(continued.block.epoch, oldBlock.epoch + 1);
+  assert.match(readFileSync(continued.wave, 'utf8'), /phase 1 build \{"actor":"builder"\}/);
+  // The in-flight build is waited on and reconciled, never relaunched.
+  assert.equal(continued.next.action, 'wait');
+  const db = f.open(path.relative(f.root, continued.db));
+  assert.throws(() => recordRun(db, f.manifest.id, 1, 'build', '{"actor":"second-builder"}', { now: f.now + 1000, authority: continued.block }), /already launched/);
+  recordRun(db, f.manifest.id, 1, 'landed', 'merged', { now: f.now + 1000, authority: continued.block });
+  assert.match(ledgerAt(f), /phase 1 build[\s\S]*phase 1 landed merged/);
+});
+
+test('the older coordinator is superseded: its record, next and tick are refused and launch nothing', async (t) => {
+  const f = projectFixture(t), oldBlock = blockOf(f.manifest.wave), before = readFileSync(f.manifest.wave, 'utf8');
+  assert.equal(f.continueAs('session-b').verdict, 'continued');
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"stale-builder"}', { now: f.now + 1000, authority: oldBlock }), /^Error: superseded: another coordinator continued this project; stop$/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), before);
+  const tick = await tickRun(f.db, f.manifest.id, { now: () => f.now + 1000, invoke() { assert.fail('superseded coordinator launches nothing'); } });
+  assert.equal(tick.verdict, 'superseded');
+  assert.equal(await main(['next', path.join(f.root, 'control.sqlite'), f.manifest.id], { recoveryGit: f.transport }), 1);
+  // A third session takes over from the second the same way.
+  const second = f.continueAs('session-b'), third = f.continueAs('session-c');
+  assert.equal(third.block.epoch, second.block.epoch + 1);
+  const stale = f.open(path.relative(f.root, second.db));
+  assert.throws(() => recordRun(stale, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now + 1000, authority: second.block }), /superseded/);
+});
+
+test('continue answers open when the plan has no active project; cancelled and expired stay terminal', (t) => {
+  const f = projectFixture(t);
+  assert.equal(f.continueAs('session-b', Date.parse(f.manifest.authorization.deadline)).verdict, 'open');
+  updateRun(f.db, f.manifest.id, 'cancel', 'owner cancels the fixture', f.now);
+  const answer = f.continueAs('session-c');
+  assert.equal(answer.verdict, 'open');
+  assert.deepEqual(readdirSync(path.join(f.root, 'state-session-c')), []);
+  // Another plan whose name starts with this one's is never continued in its place.
+  assert.equal(projectFixture(t, { id: 'plan-fixture-v2-2030-01-01' }).continueAs('session-d').verdict, 'open');
+});
+
+test('a continued project with a recorded wait is owned by the new session, which resolves it and opens its block', (t) => {
+  const f = projectFixture(t);
+  updateRun(f.db, f.manifest.id, 'wait', { kind: 'owner', reason: 'owner decides the next phase', until: null }, f.now);
+  const blocked = f.continueAs('session-b');
+  assert.equal(blocked.verdict, 'blocked');
+  assert.match(blocked.why, /blocked prerequisite/);
+  const db = f.open(path.relative(f.root, blocked.db)), at = f.now + 1000;
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'clear-wait', 'stale session answer', at), /superseded/);
+  updateRun(db, f.manifest.id, 'clear-wait', 'owner answered in session B', at);
+  updateRun(db, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(at + HOUR).toISOString(), evidence: 'wait resolved' }, at);
+  recordRun(db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: at, authority: blockOf(blocked.wave) });
 });
 
 test('whole source/store/ledger loss restores pinned code, hashes, waits and unresolved exact request without replay', async (t) => {
@@ -132,7 +208,7 @@ test('replacement generation rejects stale host writes and no external delivery 
   const f = fixture(t); f.restore();
   assert.throws(() => publishRun(f.db, f.manifest.id), /superseded/);
   let called = 0;
-  assert.equal((await tickRun(f.db, f.manifest.id, { invoke: async () => { called++; } })).verdict, 'unknown');
+  assert.equal((await tickRun(f.db, f.manifest.id, { invoke: async () => { called++; } })).verdict, 'superseded');
   assert.equal(called, 0);
   assert.throws(() => updateRun(f.db, f.manifest.id, 'checkpoint', { ...docFor(f.db).packet, phase: 2 }), /superseded/);
   assert.equal(docFor(f.db).packet.phase, 1);

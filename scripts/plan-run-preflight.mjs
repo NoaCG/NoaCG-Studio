@@ -43,7 +43,7 @@ function workspaceDiagnosis(result) {
 }
 
 /** No persistent state: the existing wave file remains the receipt/launch ledger. */
-export function preflight({ context, until, wave, continuation = 'active-owner', cwd = ROOT, now,
+export function preflight({ context, until, wave, cwd = ROOT, now,
   run = runCommand, env = process.env } = {}) {
   const started = now ?? Date.now();
   const profile = executionProfile({ env });
@@ -51,7 +51,6 @@ export function preflight({ context, until, wave, continuation = 'active-owner',
   const receipt = { at: new Date(started).toISOString(), context: validContext ? context : null, site: profile.kind,
     scope: 'this invocation only', ok: false, checks: [], qualificationGaps: [
       'native Codex child launch/environment mapping', 'observed native wake/bootstrap after host loss',
-      'acceptance-side stale-owner fencing and remote handoff',
     ] };
   const block = (detail) => {
     receipt.checks.push({ name: 'Run window', ok: false, category: 'infrastructure', detail });
@@ -60,7 +59,6 @@ export function preflight({ context, until, wave, continuation = 'active-owner',
   if (!validContext || Boolean(until) === Boolean(wave)) {
     return block('supply coordinator or worker and exactly one of --until or --wave');
   }
-  if (continuation !== 'active-owner') return block('native recovery/remote handoff unqualified: require supported acceptance-side fencing and owner read-back; checkpoint and stop');
   let text;
   if (wave) {
     try { text = readFileSync(wave, 'utf8'); }
@@ -110,7 +108,7 @@ export function main(argv = process.argv.slice(2), { print = console.log, ...opt
   const args = {};
   for (let i = 0; i < argv.length; i += 2) {
     const key = argv[i]?.slice(2);
-    if (!['context', 'until', 'wave', 'continuation'].includes(key) || argv[i] !== `--${key}` || !argv[i + 1]
+    if (!['context', 'until', 'wave'].includes(key) || argv[i] !== `--${key}` || !argv[i + 1]
       || Object.hasOwn(args, key)) {
       print('Usage: node scripts/plan-run-preflight.mjs --context coordinator|worker --until <ISO with offset> | --wave <existing file>');
       return 2;
