@@ -582,8 +582,10 @@ deploy-verify run, and the exact revert command.
   green. Any other red main that blocks a phase's pull request, or that re-landing, is fixed by
   the repair owner of the landing that broke it (AGENTS.md). The phase waits as for an
   infrastructure outage, spending nothing, and the coordinator tells the owner after two hours.
-- **A refused landing.** A phase pull request the queue still refuses after its builder's repairs
-  is the phase's `fail product:` (repair, then diagnosis). A quarantine pull request that cannot
+- **A refused landing.** A phase pull request the queue still refuses after its builder's repair
+  attempts (`/queue-merge` allows three per failure) gets one replacement builder (`resume`); if
+  the replacement cannot land it either, the coordinator records `stop` and tells the owner. A
+  quarantine pull request that cannot
   land (its own CI red, or an owner hold) never holds the run: decision 18 already keeps that
   spec from failing a phase, the owner hold is an owner-list item, and a red bot pull request is
   carried through by a session outside the phase ledger, as #1546 did for #1544.
@@ -633,7 +635,9 @@ the first rehearsal.
   new endurance workflow, landed before the run opens, gets 90 minutes.
 - **Builders and ordinary checks:** use the current landed runner's qualified native
   worker selection and independent checker procedure; existing `wave-row` roles are fallback
-  roles where that procedure selects them. One builder owns the page in any phase.
+  roles where that procedure selects them. One builder owns the page in any phase. Every phase of
+  this programme, a child spec's included, writes its notes to `evidence/phase-notes.md`, so no
+  phase changes a spec's digest.
 - **`wave-row-deciding`** (Opus, xhigh): the pre-merge assessments of phases 11-13 (A+), and any
   narrow state or lifetime decision a builder meets that this spec does not settle; use the
   current runner's qualified native equivalent where selected (the builder
@@ -655,7 +659,10 @@ the first rehearsal.
   checkpoint state when a publication fails; decision 17's diagnosis step; and checking from the
   observed merge with PASS waiting for every exact-merge check. Recovery checkpoints now live on
   the branch `claude/noacg-recovery/<id>`, which a cloud session can push (landed: #1545; receipt
-  `docs/work-specs/continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`). No
+  `docs/work-specs/continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`). A third
+  runner PR, from the second opinions after those (#1549, unit-tested; no live test needed), keeps
+  failure counts from going down, lets a coordinator resumed at a diagnosis qualify, and adds
+  queued and merge-queue runs and the worker's session events to the progress check. No
   watchdog is built: a routine-started session has no `send_message` or `list_events`, so a
   coordinator it started could not message its workers or read their transcripts. A stopped
   coordinator is continued by typing the same `/plan-run` line (§10 step 6); the laptop helper
@@ -670,7 +677,8 @@ the first rehearsal.
   range without deploy-affecting paths, so that SHA has no deploy-verify run), the last real
   deploy-verify pass on main whose SHA equals
   `node scripts/deploy-affecting-paths.mjs --last-affecting origin/main` (deploy-verify's own
-  rule), recorded with that judgement; the runner changes and their live-test receipts on main;
+  rule), recorded with that judgement; the three runner PRs on main, with the first one's
+  live-test receipt;
   a local Supabase stack can start or the configured-suite dispatch route is confirmed;
   `.github/workflows/endurance.yml` on main; the current runner's builder/checker interfaces
   qualified; one test phone notification received from the coordinator session; the owner has
@@ -680,18 +688,22 @@ the first rehearsal.
   - **Keys:** `SUPABASE_ACCESS_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `NOACG_TEST_SHEET_IDS` and
     `YOUTUBE_API_KEY` are set (presence only, `node -e "process.exit(process.env.<NAME> ? 0 :
     1)"`, never printing a value).
-  - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`); a
-    whole failed-job log (the GitHub connector's job-log read); a workflow dispatch on main
-    (`cloud-queue-merge.yml`); a re-run of failed jobs; auto-merge turned on for a pull request;
-    a pull request opened and commented on. gh's GraphQL commands (`gh pr view`, `gh pr merge`)
-    are refused in cloud sessions, so the cloud path in `/queue-merge` is used, never `gh pr`.
+  - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`) and
+    a whole failed-job log (the GitHub connector's job-log read); and, from a recent real landing
+    by a cloud session, never a probe that could queue unfinished work: a `cloud-queue-merge.yml`
+    dispatch on main, auto-merge turned on, a re-run of failed jobs, and a pull request opened and
+    commented on (#1545 to #1549 did all of these on 2026-10-20). gh's GraphQL commands (`gh pr
+    view`, `gh pr merge`) are refused in cloud sessions, so the cloud path in `/queue-merge` is
+    used, never `gh pr`.
   - **Remote tools:** `create_session`, `get_session`, `send_message`, `list_events` and
     `send_later` are present.
   - **Quarantine bot:** it has opened a quarantine pull request on main's behalf within the last
     week (its pull request is the receipt), so a flake on main reaches quarantine unattended.
-  - **No other plan project:** `git ls-remote origin 'refs/heads/claude/noacg-recovery/*'` lists
-    nothing, or only this plan's `plan-production-page-*`; a fresh container's local wave store
-    is empty and proves nothing.
+  - **No other active plan project:** each branch `git ls-remote origin
+    'refs/heads/claude/noacg-recovery/*'` lists is fetched and its `checkpoint.json` read; only
+    this plan's own project may be `active` before its deadline (the test `run-supervisor
+    continue` uses). Checkpoint branches are never deleted, so finished, cancelled and expired
+    ones stay listed and pass. A fresh container's local wave store is empty and proves nothing.
   - **Open quarantine pull requests reconciled:** `gh api
     'repos/NoaCG/NoaCG-Studio/pulls?state=open&per_page=100' --jq '.[] |
     select(.head.ref | startswith("quarantine/")) | .number'` lists them; stale ones are closed, a
@@ -834,8 +846,10 @@ the final owner block, which waits for him.
    continue, after a stop, a lost container, an account usage limit, or to move between cloud
    and laptop, open a new Claude Code session as in step 3 (the cloud, environment NoaCG, from
    the desktop app or claude.ai/code, never a routine, which lacks the follow-up and transcript
-   tools) or on the laptop in the NoaCG-Studio folder, and type the same line with the original
-   deadline:
+   tools), and type the same line with the original deadline. The laptop (the NoaCG-Studio
+   folder) is the fallback when the cloud is unavailable; it needs the same keys in its
+   environment, and without `SUPABASE_ACCESS_TOKEN` the C2 follow-ups wait for a cloud
+   coordinator:
 
    ```
    /plan-run production-page until <the original deadline>
