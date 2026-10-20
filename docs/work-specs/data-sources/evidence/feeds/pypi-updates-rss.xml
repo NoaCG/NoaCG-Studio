@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>PyPI recent updates</title>
+    <link>https://pypi.org/</link>
+    <description>Recent updates to the Python Package Index</description>
+    <language>en</language>    <item>
+      <title>diffio 0.2.48</title>
+      <link>https://pypi.org/project/diffio/0.2.48/</link>
+      <description>Python SDK for the Diffio API.</description>
+      <pubDate>Tue, 20 Oct 2026 21:08:23 GMT</pubDate>
+    </item>    <item>
+      <title>pulumi-gcp 10.2.0</title>
+      <link>https://pypi.org/project/pulumi-gcp/10.2.0/</link>
+      <description>A Pulumi package for creating and managing Google Cloud Platform resources.</description>
+      <pubDate>Tue, 20 Oct 2026 21:08:22 GMT</pubDate>
+    </item>    <item>
+      <title>innoday 0.1.403b0</title>
+      <link>https://pypi.org/project/innoday/0.1.403b0/</link>
+      <description>AI-Powered Team Orchestration Platform - Streamline product development and team collaboration with AI</description>
+<author>support@haviland-software.com</author>      <pubDate>Tue, 20 Oct 2026 21:08:11 GMT</pubDate>
+    </item>    <item>
+      <title>pytrends-reliable 0.1.0</title>
+      <link>https://pypi.org/project/pytrends-reliable/0.1.0/</link>
+      <description>Maintained drop-in replacement for pytrends (Google Trends API): same methods, automatic 429 handling, working trending searches, optional reliable backend.</description>
+      <pubDate>Tue, 20 Oct 2026 21:08:11 GMT</pubDate>
+    </item>    <item>
+      <title>pyvko 0.1.17</title>
+      <link>https://pypi.org/project/pyvko/0.1.17/</link>
+      <description>VK API typed wrapper library</description>
+      <pubDate>Tue, 20 Oct 2026 21:08:10 GMT</pubDate>
+    </item>    <item>
+      <title>ipinb 0.1.12</title>
+      <link>https://pypi.org/project/ipinb/0.1.12/</link>
+      <description>Persistent IPython notebooks for MCP agents</description>
+<author>nimashoghi@gmail.com</author>      <pubDate>Tue, 20 Oct 2026 21:08:09 GMT</pubDate>
+    </item>    <item>
+      <title>holoscan-vision-cu13 5.0.0</title>
+      <link>https://pypi.org/project/holoscan-vision-cu13/5.0.0/</link>
+      <description>Holoscan Vision bindings for CUDA 13</description>
+      <pubDate>Tue, 20 Oct 2026 21:08:08 GMT</pubDate>
+    </item>    <item>
+      <title>onvif-python 0.4.5</title>
+      <link>https://pypi.org/project/onvif-python/0.4.5/</link>
+      <description>A Python Library + CLI for ONVIF-compliant devices</description>
+<author>open@nirsimetri.com</author>      <pubDate>Tue, 20 Oct 2026 21:07:50 GMT</pubDate>
+    </item>    <item>
+      <title>innoday 0.1.402b0</title>
+      <link>https://pypi.org/project/innoday/0.1.402b0/</link>
+      <description>AI-Powered Team Orchestration Platform - Streamline product development and team collaboration with AI</description>
+<author>support@haviland-software.com</author>      <pubDate>Tue, 20 Oct 2026 21:07:36 GMT</pubDate>
+    </item>    <item>
+      <title>ai-guardian 1.20.0</title>
+      <link>https://pypi.org/project/ai-guardian/1.20.0/</link>
+      <description>AI IDE security hook: blocks directories, scans secrets, and protects AI interactions</description>
+      <pubDate>Tue, 20 Oct 2026 21:07:34 GMT</pubDate>
+    </item>    <item>
+      <title>edgescaleai-cube-mcp 0.3.62.dev20261020210721</title>
+      <link>https://pypi.org/project/edgescaleai-cube-mcp/0.3.62.dev20261020210721/</link>
+      <description>MCP server for EdgescaleAI Cube operations</description>
+      <pubDate>Tue, 20 Oct 2026 21:07:33 GMT</pubDate>
+    </item>    <item>
+      <title>holoscan-vision 5.0.0</title>
+      <link>https://pypi.org/project/holoscan-vision/5.0.0/</link>
+      <description>The Holoscan Vision module: a meta-package for installing CUDA-specific versions</description>
+      <pubDate>Tue, 20 Oct 2026 21:07:31 GMT</pubDate>
+    </item>    <item>
+      <title>earthlens-imagery 0.29.0</title>
+      <link>https://pypi.org/project/earthlens-imagery/0.29.0/</link>
+      <description>satellite platform, SAR and EO catalog backends for earthlens</description>
+<author>moah.farag@gmail.com</author>      <pubDate>Tue, 20 Oct 2026 21:07:07 GMT</pubDate>
+    </item>    <item>
+      <title>pyoverkiz 2.2.3</title>
+      <link>https://pypi.org/project/pyoverkiz/2.2.3/</link>
+      <description>A fully asynchronous API client for interaction with smart devices connected to OverKiz, supporting multiple vendors such as Somfy TaHoma and Atlantic Cozytouch.</description>
+<author>mick@imick.nl</author>      <pubDate>Tue, 20 Oct 2026 21:06:47 GMT</pubDate>
+    </item>    <item>
+      <title>pystac-client 0.9.1</title>
+      <link>https://pypi.org/project/pystac-client/0.9.1/</link>
+      <description>Python library for searching SpatioTemporal Asset Catalog (STAC) APIs.</description>
+<author>duckontheweb@gmail.com, matt.a.hanson@gmail.com</author>      <pubDate>Tue, 20 Oct 2026 21:06:28 GMT</pubDate>
+    </item>    <item>
+      <title>holoscan-inference-cu13 5.0.0</title>
+      <link>https://pypi.org/project/holoscan-inference-cu13/5.0.0/</link>
+      <description>Holoscan Inference bindings for CUDA 13</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:27 GMT</pubDate>
+    </item>    <item>
+      <title>scistackstatsdb 0.1.46</title>
+      <link>https://pypi.org/project/scistackstatsdb/0.1.46/</link>
+      <description>scidb-backed statistics: saved StatStudio specs, linked plots and stat_ endpoints</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:27 GMT</pubDate>
+    </item>    <item>
+      <title>scistackstats 0.1.46</title>
+      <link>https://pypi.org/project/scistackstats/0.1.46/</link>
+      <description>Statistics for scistack: StatStudio designs, descriptives and tests from Plot Studio roles (math by csv-stats)</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:25 GMT</pubDate>
+    </item>    <item>
+      <title>scistackplotdb 0.1.46</title>
+      <link>https://pypi.org/project/scistackplotdb/0.1.46/</link>
+      <description>scidb-backed plotting: load variables into long tables and plot them with scistackplot</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:24 GMT</pubDate>
+    </item>    <item>
+      <title>scistackplot 0.1.46</title>
+      <link>https://pypi.org/project/scistackplot/0.1.46/</link>
+      <description>Spec-driven plotting for long-format scientific data — standalone, GUI-friendly</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:22 GMT</pubDate>
+    </item>    <item>
+      <title>wetterdienst 0.163.0</title>
+      <link>https://pypi.org/project/wetterdienst/0.163.0/</link>
+      <description>Open weather data for humans</description>
+<author>benjamin@eobs.org, andreas.motl@panodata.org</author>      <pubDate>Tue, 20 Oct 2026 21:06:22 GMT</pubDate>
+    </item>    <item>
+      <title>scistacklog 0.1.46</title>
+      <link>https://pypi.org/project/scistacklog/0.1.46/</link>
+      <description>Shared logging facade for the scistack framework (dual-sink console/file logging with layer tags)</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:21 GMT</pubDate>
+    </item>    <item>
+      <title>scalo 2.31.19</title>
+      <link>https://pypi.org/project/scalo/2.31.19/</link>
+      <description>Opinionated-for-scale integrated runtime of config, logging, secrets, cli and more for control-plane services.</description>
+<author>dev@hyperi.io</author>      <pubDate>Tue, 20 Oct 2026 21:06:19 GMT</pubDate>
+    </item>    <item>
+      <title>scistack-gui 0.1.46</title>
+      <link>https://pypi.org/project/scistack-gui/0.1.46/</link>
+      <description>GUI for SciStack pipelines</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:19 GMT</pubDate>
+    </item>    <item>
+      <title>memex-plugin 0.21.3</title>
+      <link>https://pypi.org/project/memex-plugin/0.21.3/</link>
+      <description>Collaborative memory CLI for human-AI work: local vaults, memos, and hybrid search</description>
+      <pubDate>Tue, 20 Oct 2026 21:06:17 GMT</pubDate>
+    </item>  </channel>
+</rss>
