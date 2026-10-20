@@ -1,21 +1,112 @@
-name: Phase 2 bounded diagnostic (not acceptance)
+# THE CONFIGURED (AUTHENTICATED) SUITE — against a LOCAL Supabase stack on the runner.
+#
+# `e2e/configured/` needs a real Supabase backend and a signed-in account, so it is the only suite
+# in the repo that no automation touched. ci.yml plans from scripts/e2e-affected.mjs, and that
+# script IGNORES `e2e/configured/**` on purpose; nightly.yml runs the OFFLINE config against a
+# different testDir. So these 32 specs — account, community, moderation, feedback, analytics, the
+# Pro wizard, agent access, and the four hosted-playout walks the student release is judged on —
+# were verified only when somebody remembered to type `npm run test:e2e:live` on a laptop that
+# happened to have an .env.
+#
+# WHY A LOCAL STACK RATHER THAN A HOSTED PROJECT. The obvious route is a staging Supabase project,
+# and it was costed: an extra project on the org's Pro plan is $10/month, a new Free org is $0.
+# This route is $0 too and buys two things neither hosted option can:
+#   - NO SUPABASE SECRET EVER LIVES IN GITHUB. The local stack's keys are the CLI's published
+#     shared defaults, read at runtime from `supabase status`. There is nothing here worth
+#     stealing, so the question "who can read our service-role key" stops existing rather than
+#     being managed. The previous design deliberately withheld SUPABASE_SERVICE_ROLE_KEY because
+#     this repository is public and .env points at PRODUCTION — which cost two specs their
+#     coverage. Both are back.
+#   - NOTHING IS WRITTEN TO PRODUCTION. The suite creates and deletes real rows every run; until
+#     now they landed in the owner's production project, against playwright.live.config.ts's own
+#     advice ("point .env at a test/staging Supabase project ... never a production tenant").
+#
+# WHAT THIS ROUTE GIVES UP, stated plainly because it is easy to forget: a local stack answers in
+# ~1 ms where a hosted one answers in ~200 ms from a runner. On 2026-08-24 a real user-facing
+# sync defect (every tombstone re-fetched in its own sequential round trip) was invisible on a
+# laptop at 5 ms/request and failed six specs at 207 ms/request from a runner. THIS JOB WOULD NOT
+# HAVE CAUGHT THAT. Latency-shaped regressions need a hosted target or a deliberate delay; do not
+# read a green run here as evidence that sync is fast enough anywhere real.
+#
+# NIGHTLY, not weekly: the suite costs minutes, and the surfaces it covers (quiz-output,
+# scorebug-output, imported-quiz-output, output-cold-boot, hosted-control-recovery) are what the
+# 2026-09-12 production is judged on. Its own schedule and its own rolling issue rather than
+# joining nightly.yml, so an infrastructure fault here can never red the main nightly verdict.
+#
+# THE FAILURE MODE THIS WORKFLOW IS BUILT AROUND. Every spec calls `test.skip(!haveCreds, …)`, so
+# with the environment unset the run executes NOTHING and exits 0 — a job checking only the exit
+# code is permanently, silently green, which is the hole that let five specs sit on main
+# unverified. The guards, in order: the stack must come up, the schema must match the repository,
+# the realtime publication must hold the tables the playout specs subscribe to, the test account
+# must actually AUTHENTICATE (not merely exist), and the JSON report must match
+# e2e/configured/expected-run.json: nothing skipped outside its allowlist, and at least its floor
+# run. Every way this job could execute zero tests fails loudly.
+#
+# ── IT ALSO RUNS ON EVERY LANDING (2026-09-04) ────────────────────────────────────────────────
+#
+# A daily cron was the only thing that ever ran these specs, and on 2026-09-03 that cost a day.
+# `imported-quiz-output.spec.ts` went red on a change nobody could name: the analytics consent
+# banner carried a bare `z-index: 1200`, which put it over every dialog in the app, and it took
+# the wizard's "Add it and go there" click. Attributing that to a commit meant diffing roughly
+# 130 landings, because nothing narrower had ever run against any of them.
+#
+# THE SHAPE THAT WAS CHOSEN, AND WHY IT IS NOT THE OTHER ONE. The alternative was to pack these
+# specs into `scripts/e2e-affected.mjs`'s per-change plan, selected by the surfaces they cover.
+# That break is the argument against it: the file that caused it was a stylesheet for a corner
+# notice, which no honest surface rule for "the hosted quiz output" would ever have named. A
+# per-change plan only ever runs what a change LOOKS like it can break, and this tier's whole
+# value is that it sees the app assembled against a real backend. Packing it would also mean
+# standing a Supabase stack up inside the gate jobs, minutes on every change, to reach a surface
+# a landing-time run reaches once.
+#
+# So: `push` on main. The merge queue lands one group at a time (docs/BRANCHING_AND_LANDING.md), so
+# a run here covers one landing and names it. It cannot block that landing - this workflow is not
+# among the pull request's required checks, and the queue gates on `ci.yml` alone - which is the
+# point: an infrastructure fault in a Docker pull must not freeze the queue. The verdict arrives
+# minutes after the landing, on the rolling issue this file already owns.
+#
+# WHAT IT COSTS, MEASURED. Run 33841739638 (2026-09-04, green): 39 tests in 4.2 minutes of
+# Playwright, no retries, inside a 14.3-minute job - of which `npm ci` alone was 7.7 minutes. The
+# install now goes through `./.github/actions/node-modules` like every other job in this repo, so
+# the landing verdict costs about 7 minutes and the suite is the largest part of it again.
+#
+# Each landing gets its OWN concurrency group (see below), so the runs do not queue behind each
+# other and each verdict is about exactly one commit. That is the property the whole design is
+# for, and a shared group would have thrown it away on any busy day.
+
+name: configured-suite
 
 on:
+  # EVERY LANDING. `main` only - a WIP branch pushing ten times an hour would file nothing (the
+  # issue steps are branch-guarded) while spending a Supabase stack on each push, and the whole
+  # value here is a verdict about what has actually landed.
+  push:
+    branches: [main]
+  schedule:
+    - cron: '10 1 * * *'
   workflow_dispatch: {}
+
+# ONE GROUP PER LANDING, and one shared group for everything else.
+#
+# A single machine-wide group would have made the landing runs queue behind each other, and
+# GitHub keeps only ONE pending run per group - so on a day with twenty landings most of them
+# would be cancelled while pending and a verdict would cover an unknown handful of commits.
+# Attribution is the entire reason this runs on push, so a push gets its own group and its own
+# verdict. The cron and any dispatch keep the shared one, where serialising is right.
 concurrency:
-  group: phase2-bounded-diagnostic-${{ github.ref }}
+  group: configured-suite-${{ github.event_name == 'push' && github.sha || 'shared' }}
   cancel-in-progress: false
 
 permissions:
   contents: read
+  issues: write # the rolling-issue steps
 
 jobs:
   configured:
     name: Configured E2E (authenticated, local Supabase)
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    # Diagnostic-only outputs; no downstream writes.
-    # For the original `quarantine` job: the specs to enter, and each quarantined spec's outcome.
+    # For the `quarantine` job: the specs to enter, and each quarantined spec's outcome.
     outputs:
       enter: ${{ steps.assert.outputs.enter || '[]' }}
       outcomes: ${{ steps.assert.outputs.outcomes || '{}' }}
@@ -260,24 +351,207 @@ jobs:
           fi
           echo "Teammate account authenticates."
 
-      # Disposable diagnosis only. The maintained workflow is restored before any repair PR.
-      - name: Original shared-lab case, first attempt with diagnostics
+      # playwright.live.config.ts starts its own Vite dev server; the env exported above is what
+      # puts the app in configured mode, signs the specs in, and gives api/ its server-side half.
+      # `|| true` so a red suite still reaches the assertion below — the real exit code is
+      # recovered from the report.
+      - name: Configured E2E suite
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: configured-report.json
-          DEBUG: vite:deps
-        run: npm run test:e2e:live -- shared-lab-computer.spec.ts --retries=0 --trace=on --reporter=list,json
+        run: npm run test:e2e:live -- --reporter=list,json || true
 
-      - name: Preserve diagnostic report
-        if: ${{ always() }}
+      # A green exit code from this suite means nothing on its own; only the counts do.
+      # ONE implementation of the verdict, shared with hosted-latency.yml, because both run the
+      # SAME specs and must judge them identically. It was eighty lines of jq in this file until
+      # 2026-08-25; a shared e2e helper drifting between its two callers on the same day is what
+      # argued for extracting it. scripts/configured-verdict.test.mjs pins the behaviour, with a
+      # fixture for every shape a real run produced - including the all-skipped one that exits 0.
+      #
+      # THE QUARANTINE is the one thing this caller adds (`--quarantine`; hosted-latency.yml keeps
+      # every flake red). The config's `retries: 1` re-runs a failed test once on this commit, so a
+      # fail-then-pass is the same receipt ci.yml's retry job collects for the main suite: the
+      # verdict passes it, and the `quarantine` job below writes the spec into e2e/quarantine.json
+      # through the merge queue. A spec already quarantined runs here as usual, reds nothing, and
+      # posts its outcome as the `noacg/quarantine/<spec>` status that earns its release
+      # (scripts/e2e-quarantine.mjs). A failure that survived its retry stays red, and so does a
+      # flake in a spec the landing itself edits (`--changed`, the push's `before`, read the way
+      # ci.yml's retry reads it); the cron and a dispatch test main as it stands. Main only, like
+      # the writes: off main a flake would pass with nothing written down, so it stays red there.
+      - name: Assert the suite actually ran
+        id: assert
+        env:
+          CHANGED: ${{ github.event_name == 'push' && github.event.before || '' }}
+          QUARANTINE: ${{ github.ref == 'refs/heads/main' && 'e2e/quarantine.json' || '' }}
+        run: >-
+          node scripts/configured-verdict.mjs configured-report.json
+          --expect e2e/configured/expected-run.json
+          --label "Configured suite (local stack)"
+          --quarantine "$QUARANTINE"
+          --changed "$CHANGED"
+
+      # Container logs are the difference between "the playout specs are red" and "realtime never
+      # came up". Only on failure, and only the stack's own logs.
+      - name: Supabase container logs (on failure)
+        if: ${{ failure() || steps.assert.outputs.green != 'true' }}
+        run: |
+          for c in $(docker ps -a --filter 'name=supabase_' --format '{{.Names}}'); do
+            echo "===== $c ====="
+            docker logs --tail 60 "$c" 2>&1 || true
+          done
+
+      - name: Upload report
         uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
-          name: phase2-shared-lab-first-attempt
+          name: configured-report
           path: |
             configured-report.json
             test-results/
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: ignore
 
-      - name: Stop the disposable stack
-        if: ${{ always() }}
-        run: supabase stop --no-backup
+      # The rolling-issue pattern every alarm here follows (docs/DEPLOYMENT.md): one open issue,
+      # one comment per newly red run, closed by the next green one.
+      #
+      # WITH ONE AMENDMENT, ported from nightly.yml: a repeat of the SAME failure set posts
+      # NOTHING. The run still fails, the issue stays open, the red tick stays red - only the
+      # comment is withheld, and GitHub mails on comments rather than on an issue continuing to
+      # exist. So a known flake stops arriving in the inbox every morning while remaining just as
+      # visible to anyone who looks.
+      #
+      # A spec that failed and then passed no longer reaches this step at all: the verdict passes
+      # it and the quarantine records it (see the assert step). What follows is about the reds
+      # that remain - a flake in a spec the landing edited, or one the quarantine could not name.
+      #
+      # This is deliberately NOT the same as downgrading flaky to a warning. The distinction that
+      # makes it safe is the pair of conditions below: the failure set must be byte-identical to
+      # the one already reported (a NEW spec failing always posts, even alongside a familiar one),
+      # AND there must be zero hard failures (only flakes are ever this quiet - a real failure
+      # posts however many times it repeats). Alarm fatigue is what makes people stop reading
+      # alarms, so the fix is to say each distinct thing once rather than to say less.
+      # THE BRANCH GUARD ON BOTH ISSUE STEPS. A rolling alarm titled "the configured suite is red"
+      # is a statement about MAIN. A workflow_dispatch from a WIP branch must not be able to make
+      # it, and must not be able to withdraw it either: on 2026-08-24 one branch being debugged
+      # put seven identical "Still red." comments on issue #38, about ~15 emails for one branch's
+      # iteration. The run still goes red and the report is still in the run log - only the
+      # inbox-facing half is scoped to the branch the alarm is actually about. Same shape as
+      # ci.yml's red-main steps.
+      - name: File / update the rolling issue
+        if: ${{ always() && steps.assert.outputs.green != 'true' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SUMMARY: ${{ steps.assert.outputs.summary }}
+          FAILHASH: ${{ steps.assert.outputs.failhash }}
+          HARDFAIL: ${{ steps.assert.outputs.hardfail }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          TITLE="Configured (authenticated) E2E suite is red"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="configured-failure-set: ${FAILHASH:-unknown}"
+          BODY="$(printf 'The configured suite failed at %s.\n\n%s\n\nThis tier brings up a LOCAL Supabase stack on the runner, so it no longer depends on any hosted project or credential. What it can still go red for without a code fault: a Docker image pull, `supabase start` health checks, or a Supabase CLI change. The container logs are in the run; check those before bisecting.\n\nRun: %s\n\n<!-- %s -->' \
+            "${{ github.sha }}" "${SUMMARY:-the stack or the account never came up - see the run log}" "$RUN_URL" "$MARKER")"
+          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$TITLE" --body "$BODY"
+            exit 0
+          fi
+          # Suppress ONLY a byte-identical repeat of a finding already at the bottom of the issue.
+          # `// .body` covers the freshly-created issue that has no comments yet.
+          #
+          # TWO CASES, and the second arrived with the push trigger.
+          #
+          # ON A SCHEDULE, unchanged: only a flake is this quiet - a byte-identical failure set
+          # with nothing failing outright. A real failure posts however many times it repeats,
+          # once a day, which is a reminder rather than fatigue.
+          #
+          # ON A PUSH, any byte-identical repeat is withheld - a hard failure and a stack that
+          # never came up included, since `MARKER` names that state too. This runs on every landing
+          # now: a break that takes five landings to fix would post five identical comments and
+          # five emails inside an hour, and the fifth says nothing the first did not. The run is
+          # still red, the issue is still open, and the line that keeps this from being "downgrade
+          # failures to warnings" is that a DIFFERENT finding always posts, whatever it arrived on.
+          if { [ -n "${FAILHASH:-}" ] && [ "${HARDFAIL:-1}" = "0" ]; } || [ "${EVENT:-}" = "push" ]; then
+            LAST="$(gh issue view "$EXISTING" --json comments,body --jq '(.comments | map(.body) | last) // .body')"
+            if printf '%s' "$LAST" | grep -q "$MARKER"; then
+              echo "::notice title=Same failure set already reported::${MARKER} is already the latest word on issue #${EXISTING}, so this run adds no comment. The run is still red."
+              exit 0
+            fi
+          fi
+          gh issue comment "$EXISTING" --body "Still red. $BODY"
+
+      - name: Close the rolling issue
+        if: ${{ steps.assert.outputs.green == 'true' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TITLE="Configured (authenticated) E2E suite is red"
+          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "Configured suite green again at ${{ github.sha }} (${{ steps.assert.outputs.summary }}): ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+      - name: Fail the run when the suite was not a clean verdict
+        if: ${{ steps.assert.outputs.green != 'true' }}
+        run: exit 1
+
+  # THE QUARANTINE'S WRITES, in their own job so the suite's job keeps read-only scopes: the same
+  # two that quarantine.yml and ci.yml's after-gate make for the main suite. Main only, because the
+  # quarantine is main's record and its statuses are what `release-due` reads off main's commits.
+  # Both steps `continue-on-error`: a write that fails (a refused push, the organisation not letting
+  # Actions open pull requests) is a warning, and the next run tries again.
+  quarantine:
+    name: Configured quarantine
+    needs: configured
+    if: ${{ always() && github.ref == 'refs/heads/main' && (needs.configured.outputs.enter != '[]' || needs.configured.outputs.outcomes != '{}') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the quarantine branch
+      pull-requests: write # open it, label it, auto-merge it
+      statuses: write # noacg/quarantine/<spec> on this commit, and the entry's `noacg/reviewed` stamp
+      actions: write # dispatch the entry branch's run when the bot App is not set up
+    env:
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      # THE BOT'S OWN TOKEN, as in quarantine.yml's release job: an App installation token makes the
+      # entry's push start its own CI, which GITHUB_TOKEN never does. Without the App configured the
+      # job falls back to the workflow token.
+      - name: Bot token
+        id: bot
+        if: ${{ vars.NOACG_BOT_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NOACG_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NOACG_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-statuses: write
+
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ steps.bot.outputs.token || github.token }}
+
+      # One status per quarantined configured spec, posted by the same command quarantine.yml uses.
+      - name: Post each quarantined spec's verdict on the commit
+        if: ${{ needs.configured.outputs.outcomes != '{}' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOMES: ${{ needs.configured.outputs.outcomes }}
+        run: |
+          set -euo pipefail
+          jq -r 'to_entries[] | "\(.key) \(.value)"' <<<"$OUTCOMES" | while read -r spec outcome; do
+            node scripts/e2e-quarantine.mjs status "$spec" "$outcome" --run "$RUN_URL"
+          done
+
+      - name: Quarantine the specs that failed and then passed
+        if: ${{ needs.configured.outputs.enter != '[]' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
+          NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}
+          GH_REPO: ${{ github.repository }}
+          SPECS: ${{ needs.configured.outputs.enter }}
+        run: node scripts/e2e-quarantine.mjs enter --from-json "$SPECS" --run "$RUN_URL" --queue

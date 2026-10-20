@@ -1,0 +1,9 @@
+2026-10-20T09:32:24.9059615Z [fresh-context-app-boot] 1
+2026-10-20T09:32:27.2610604Z [fresh-context-auth-response] 200
+2026-10-20T09:32:27.7361865Z [fresh-context-app-boot] 2
+2026-10-20T09:32:27.7386611Z [fresh-context-module-requestfailed] net::ERR_FAILED
+2026-10-20T09:32:48.2045013Z     Timeout: 20000ms
+2026-10-20T09:32:48.2046418Z        at _helpers.ts:112
+2026-10-20T09:32:48.2049647Z         at signInOnHome (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts:112:46)
+2026-10-20T09:32:48.2050231Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/shared-lab-computer.spec.ts:158:9
+2026-10-20T09:32:48.2055311Z   1 failed

@@ -1,0 +1,244 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: shared-lab-computer.spec.ts >> shared lab computer (configured) >> two students take turns on one browser and neither sees nor loses the work of the other
+- Location: e2e/configured/shared-lab-computer.spec.ts:113:3
+
+# Error details
+
+```
+Error: expect(locator).toBeVisible() failed
+
+Locator: locator('.auth-status')
+Expected: visible
+Timeout: 20000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "toBeVisible" with timeout 20000ms
+  - waiting for locator('.auth-status')
+
+```
+
+```yaml
+- heading "NoaCG Studio could not finish loading" [level=1]
+- paragraph: Part of the app failed to load - on a managed or filtered network this usually means a proxy blocked one of the app's own files.
+- paragraph: Nothing is wrong with your saved work.
+- paragraph:
+  - button "Try again"
+  - link "Run the connection check":
+    - /url: /app?diag=1
+- paragraph: "Failed to fetch dynamically imported module: http://127.0.0.1:5175/src/App.tsx"
+```
+
+# Test source
+
+```ts
+  12  | 
+  13  | /** A SECOND account, for the walks that need two people: a teammate joining a team the first
+  14  |  *  account made (teams.spec.ts). Optional - the specs that need it skip without it. */
+  15  | export const E2E_TEAMMATE_EMAIL = process.env.E2E_TEAMMATE_EMAIL ?? '';
+  16  | export const E2E_TEAMMATE_PASSWORD = process.env.E2E_TEAMMATE_PASSWORD ?? '';
+  17  | export const haveTeammateCreds = Boolean(E2E_TEAMMATE_EMAIL && E2E_TEAMMATE_PASSWORD);
+  18  | 
+  19  | /** What an output page says about itself on its live topic (src/output/main.ts `__noacgLive`). */
+  20  | export type ReadyWindow = {
+  21  |   __noacgLive?: {
+  22  |     presence: () => string;
+  23  |     ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
+  24  |   };
+  25  | };
+  26  | /**
+  27  |  * An output page's own READY answer, or null before it has one. Also null while the page is
+  28  |  * RELOADING: an output moves onto a newer version by reloading itself (src/output/prepare.ts), and
+  29  |  * `expect.poll` gives up on the first thrown error, so a read inside that reload must not throw.
+  30  |  */
+  31  | export const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null).catch(() => null);
+  32  | 
+  33  | /**
+  34  |  * Unpublish the open production for a spec's own cleanup. The operator UI has no Unpublish
+  35  |  * (docs/work-specs/playout-workflow-simplification AC-8: deleting a production still unpublishes),
+  36  |  * so this calls the same model and hosted-control functions the old button did, then reloads the
+  37  |  * page so it reads the unpublished record.
+  38  |  */
+  39  | export async function unpublishForCleanup(page: Page): Promise<void> {
+  40  |   await page.evaluate(async () => {
+  41  |     const id = /#\/production\/([^/?#]+)/.exec(location.hash)?.[1];
+  42  |     if (!id) throw new Error('unpublishForCleanup: not on a production page');
+  43  |     const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+  44  |     const S = await import('/src/model/shows.ts');
+  45  |     await unpublishControlShow(id);
+  46  |     S.setShowHostedSlug(id, undefined);
+  47  |     S.setShowOutputSlug(id, undefined);
+  48  |     await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+  49  |   });
+  50  |   await page.reload();
+  51  |   await page.getByTestId('production-page').waitFor();
+  52  | }
+  53  | 
+  54  | export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  55  | export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
+  56  | 
+  57  | /**
+  58  |  * Close the creation wizard and WAIT until it is gone.
+  59  |  *
+  60  |  * Every live spec that wants the topbar underneath used to press Escape and carry on. Two ways
+  61  |  * that goes wrong, and both were seen in the 2026-08-08 runs: pressed at the moment of
+  62  |  * navigation it lands before the modal mounts, and even pressed after `toBeVisible` it
+  63  |  * occasionally does not take - either way the full-screen backdrop is still there, swallowing
+  64  |  * the click that follows, and the failure reads as "Sign in is broken" or "the Feedback button
+  65  |  * is unclickable". Its own ✕ is deterministic, and asserting the modal is HIDDEN is what makes
+  66  |  * the next click safe.
+  67  |  */
+  68  | export async function dismissWizard(page: Page): Promise<void> {
+  69  |   const modal = page.locator('.wz-modal');
+  70  |   await expect(modal).toBeVisible();
+  71  |   await page.locator('.wz-modal .gallery-close').click();
+  72  |   await expect(modal).toBeHidden();
+  73  | }
+  74  | 
+  75  | /** Sign in with email + password via Home's topbar dialog (Era 5.6, no wall; fresh Playwright
+  76  |  *  contexts have no persisted session). Leaves the wizard OPEN afterwards, the same state a
+  77  |  *  fresh load presents, so createGraphicInEditor can run directly. There is no Advanced mode to switch on
+  78  |  *  any more (owner, 2026-09-24): the sign-in lives on Home, which every boot reaches. */
+  79  | export async function signIn(page: Page): Promise<void> {
+  80  |   await signInAs(page, E2E_EMAIL, E2E_PASSWORD);
+  81  | }
+  82  | 
+  83  | /** `signIn` with named credentials - the second account of a two-person walk. */
+  84  | export async function signInAs(page: Page, account: string, password: string): Promise<void> {
+  85  |   await page.goto('/app');
+  86  |   // The startup wizard covers the topbar — close it to reach the Sign in button.
+  87  |   await dismissWizard(page);
+  88  |   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  89  |   const email = page.locator('#auth-email');
+  90  |   await email.waitFor({ state: 'visible', timeout: 15_000 });
+  91  |   await email.fill(account);
+  92  |   await page.locator('#auth-pass').fill(password);
+  93  |   await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
+  94  |   // The dialog closes itself on session; the account appears in the topbar.
+  95  |   await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
+  96  |   // Restore the state downstream helpers expect (wizard open, as on a fresh load).
+  97  |   await startNewProject(page);
+  98  | }
+  99  | 
+  100 | /** Sign in through the Home topbar's own Sign in button, as a person at the computer would.
+  101 |  *  Signing in may RELOAD the page onto the account's library (an account this browser has seen
+  102 |  *  before); both paths end with the profile button showing. By default it then waits for the
+  103 |  *  first sync to settle; `settle: false` leaves that pass running, for a spec that watches it. */
+  104 | export async function signInOnHome(page: Page, email: string, password: string, { settle = true } = {}): Promise<void> {
+  105 |   await page.goto('/app#/home');
+  106 |   await expect(page.getByTestId('home-page')).toBeVisible();
+  107 |   await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
+  108 |   await page.locator('.auth-signin').click();
+  109 |   await page.locator('#auth-email').fill(email);
+  110 |   await page.locator('#auth-pass').fill(password);
+  111 |   await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
+> 112 |   await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
+      |                                              ^ Error: expect(locator).toBeVisible() failed
+  113 |   if (settle) await settleSync(page);
+  114 | }
+  115 | 
+  116 | /** Mint a throwaway account through the admin API and return its id. A leftover from a run that
+  117 |  *  died before its cleanup is deleted first, so every run starts the account with an empty cloud.
+  118 |  *  Deleting the account later takes its documents with it (`on delete cascade`). */
+  119 | export async function mintAccount(admin: SupabaseClient, email: string, password: string): Promise<string> {
+  120 |   await deleteAccountByEmail(admin, email);
+  121 |   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  122 |   if (error) throw new Error(`could not create ${email}: ${error.message}`);
+  123 |   return data.user.id;
+  124 | }
+  125 | 
+  126 | /** Delete the account with this address, if there is one. Throws when it cannot, so a leftover
+  127 |  *  is reported where it happened rather than as a later sign-up's "already registered". */
+  128 | export async function deleteAccountByEmail(admin: SupabaseClient, email: string): Promise<void> {
+  129 |   // One page large enough for any test project; the default page of 50 could hide the user.
+  130 |   const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  131 |   if (listError) throw new Error(`could not list users: ${listError.message}`);
+  132 |   const account = list.users.find((u) => u.email === email);
+  133 |   if (!account) return;
+  134 |   const { error } = await admin.auth.admin.deleteUser(account.id);
+  135 |   if (error) throw new Error(`could not delete ${email}: ${error.message}`);
+  136 | }
+  137 | 
+  138 | /** Create a graphic through the wizard (which opens on load) and land in the NEW editor through
+  139 |  *  Finish's "Edit this graphic" - the working document then holds it, and the editor's header
+  140 |  *  carries the save controls. */
+  141 | export async function createGraphicInEditor(page: Page, category: string, variant: string): Promise<void> {
+  142 |   await expect(page.locator('.wz-modal')).toBeVisible();
+  143 |   await page.locator('[data-entry="template"]').click();
+  144 |   await chooseType(page, category);
+  145 |   await pickDesign(page, variant);
+  146 |   await finishIntoNewEditor(page);
+  147 | }
+  148 | 
+  149 | /** Drop a screenshot of a signed-in surface into test-results/signed-in/. These surfaces render
+  150 |  *  NOTHING offline, so the shots are the only way to review how they actually look. */
+  151 | export async function shot(page: Page, name: string): Promise<void> {
+  152 |   await page.screenshot({ path: `test-results/signed-in/${name}.png` });
+  153 | }
+  154 | 
+  155 | /** Wait for the sign-in sync pass to finish, so a spec that reads or wipes the account's cloud
+  156 |  *  data sees a settled library rather than one still being pulled in. Signing in IS a sync
+  157 |  *  trigger (backend/syncController.ts), which is why this is reachable at all. */
+  158 | export async function settleSync(page: Page): Promise<void> {
+  159 |   await expect(page.locator('.sync-status.sync-synced')).toBeVisible({ timeout: 30_000 });
+  160 | }
+  161 | 
+  162 | /** Delete every saved graphic in the account's library and push the tombstones. The library
+  163 |  *  SYNCS, so without this each live run would leave another "Hairline" in the cloud for the next
+  164 |  *  one to pull back down — and specs that address a saved row by name would go ambiguous. */
+  165 | export async function wipeMyGraphics(page: Page): Promise<void> {
+  166 |   await page.evaluate(async () => {
+  167 |     const { loadGraphics, deleteGraphic } = await import('/src/model/library.ts');
+  168 |     for (const g of loadGraphics()) deleteGraphic(g.id);
+  169 |     const { syncNow } = await import('/src/backend/syncController.ts');
+  170 |     await syncNow();
+  171 |   });
+  172 | }
+  173 | 
+  174 | /**
+  175 |  * Publish nothing behind us. The test account is shared by every spec in this suite, and a
+  176 |  * production left published still holds its reserved control and output addresses on the next run
+  177 |  * (migration 0040), so a walk that publishes has to unpublish before it exits and before it
+  178 |  * starts.
+  179 |  *
+  180 |  * It lives here because three configured specs need it and each had grown its own copy. The two
+  181 |  * older copies (`playout-both-roads`, `hosted-control-recovery`) are identical and should collapse
+  182 |  * onto this one the next time either file is touched for a reason of its own.
+  183 |  */
+  184 | export async function clearPublishedShows(page: Page): Promise<void> {
+  185 |   await page.evaluate(async () => {
+  186 |     const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+  187 |     const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+  188 |     for (const s of loadShows()) {
+  189 |       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
+  190 |       deleteShow(s.id);
+  191 |     }
+  192 |     const { syncNow } = await import('/src/backend/syncController.ts');
+  193 |     await syncNow();
+  194 |   });
+  195 | }
+  196 | 
+  197 | /**
+  198 |  * WATCH A HOSTED OPERATOR PAGE'S READS OF THE LOG, so a press can wait until the page is level.
+  199 |  *
+  200 |  * While the page reads the numbered log's tail (on joining, and on each poll) its own presses take
+  201 |  * the durable road and leave its monitor alone (hostedControl.ts `recovering`): the chip does not
+  202 |  * say "on air" and Out stays disabled until the server answers the Take. A spec that holds that
+  203 |  * answer and presses as the page comes up can land inside the join's read. Against a local stack
+  204 |  * the read takes a millisecond and never caught a press; against hosted staging it takes about
+  205 |  * 200 ms and caught two (issue #902).
+  206 |  *
+  207 |  * Level means: one read answered, none open, and none for LEVEL_QUIET_MS, because a walk that
+  208 |  * pages or is asked again starts its next read right after the last answer. It watches the
+  209 |  * numbered log only, so the page must be on protocol 2 (migration 0071).
+  210 |  *
+  211 |  * Call before the page's `goto`; await the returned function before a press that needs the page's
+  212 |  * own monitor to move at once.
+```

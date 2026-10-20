@@ -154,7 +154,7 @@ test.describe('shared lab computer (configured)', () => {
       // A second computer: a fresh browser with nothing on it, the same device as the first.
       const anotherComputer = await browser.newContext({ ...devices['Desktop Chrome'], baseURL });
       try {
-        const elsewhere = await anotherComputer.newPage(); await interruptFreshBoot(elsewhere);
+        const elsewhere = await anotherComputer.newPage();
         await signInOnHome(elsewhere, E2E_EMAIL, E2E_PASSWORD);
         await expect.poll(() => libraryNames(elsewhere)).toEqual([work1]);
       } finally {
@@ -166,33 +166,3 @@ test.describe('shared lab computer (configured)', () => {
     }
   });
 });
-
-// Temporary first-attempt diagnostics; no test behavior or assertion changes.
-test.beforeEach(async ({ page }) => {
-  page.on('requestfailed', request => {
-    const path = new URL(request.url()).pathname;
-    if (path.startsWith('/src/')) console.log('[module-requestfailed]', path, request.failure()?.errorText);
-  });
-  page.on('response', response => {
-    const path = new URL(response.url()).pathname;
-    if (path.startsWith('/src/') && response.status() >= 400) console.log('[module-response]', response.status(), path);
-  });
-  page.on('pageerror', error => console.log('[pageerror]', error.message));
-});
-
-// Temporary precise challenge: original caller is line 158 in the fresh context.
-async function interruptFreshBoot(page: Page): Promise<void> {
-  let appBoot = 0;
-  await page.route('**/src/App.tsx', route => {
-    appBoot += 1;
-    console.log('[fresh-context-app-boot]', appBoot);
-    if (appBoot === 2) return route.abort('failed');
-    return route.continue();
-  });
-  page.on('response', response => {
-    if (new URL(response.url()).pathname === '/auth/v1/token') console.log('[fresh-context-auth-response]', response.status());
-  });
-  page.on('requestfailed', request => {
-    if (new URL(request.url()).pathname === '/src/App.tsx') console.log('[fresh-context-module-requestfailed]', request.failure()?.errorText);
-  });
-}

@@ -1,0 +1,62 @@
+[
+  {
+    "path": "e2e/editor-groups.spec.ts",
+    "restoredUnchanged": true,
+    "sha256": "978d49bee880f4f31bbc73c994c975ce45c3c4415e512dcc7f378c9af2632a78"
+  },
+  {
+    "path": "e2e/import-svg-behaviour.spec.ts",
+    "restoredUnchanged": true,
+    "sha256": "31dd2f20a70abd7bcd76253686ab16c7c0acbe323c32673a81456c000c99d0b5"
+  },
+  {
+    "path": "e2e/configured/shared-lab-computer.spec.ts",
+    "restoredUnchanged": true,
+    "sha256": "a32cbfac3187ccfbfe791401c3f47f3339d5e1be1be419af53c15c7da5f78cec"
+  },
+  {
+    "path": "e2e/configured/_helpers.ts",
+    "restoredUnchanged": true,
+    "sha256": "6aaa58db8cb399128568c05ef35824648879b51eb50c6e4151533e5ef004c089"
+  },
+  {
+    "path": "playwright.config.ts",
+    "restoredUnchanged": true,
+    "sha256": "73837f5196f76acd0d9abb82bea9df3027153a432599b1b9877fd87321da8cce"
+  },
+  {
+    "path": "playwright.live.config.ts",
+    "restoredUnchanged": true,
+    "sha256": "0736bd0c22939dfdda33ccfeadd9b05552224b21a543dd050a360103c30a99c6"
+  },
+  {
+    "path": ".github/workflows/configured-suite.yml",
+    "restoredUnchanged": true,
+    "sha256": "f4458b22c6657fd7e3fb12cd70a3ae9910e3d6ae3a8c8519920abeb4c9bff09c"
+  },
+  {
+    "path": "e2e/quarantine.json",
+    "restoredUnchanged": true,
+    "sha256": "d66b6552aa2b7ff8a12d0778e7213557a87524666ea62fc3f67e0a155af41cbc"
+  },
+  {
+    "path": "src/components/home/ProductionPage.tsx",
+    "restoredUnchanged": true,
+    "sha256": "3b4ca5fe95f18fe8be7e8f81fbfde10b5337beff9f601770b7a11636926886d8"
+  },
+  {
+    "path": "src/backend/accountLibrary.ts",
+    "restoredUnchanged": true,
+    "sha256": "984e27da90d197511113e34bafd90380f21c220b8ed083a4dfa873e095cdb055"
+  },
+  {
+    "path": "src/backend/syncController.ts",
+    "restoredUnchanged": true,
+    "sha256": "2e25d50e841803e192fb8fd1c1e04c2387c62a1606ae0e0d76fb1b87e356c97c"
+  },
+  {
+    "path": "src/main.tsx",
+    "restoredUnchanged": true,
+    "sha256": "56fd5b11e6c9257c6bd38a9ec0687f71077a2751a3e7023b4233fabc063fa32b"
+  }
+]

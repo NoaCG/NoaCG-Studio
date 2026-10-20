@@ -1,0 +1,44 @@
+[
+  {
+    "name": "baseline",
+    "run": 39399877600,
+    "source": "614aabea1c05e77993118ad748fc1e34aaf3cdb3",
+    "zipSha256": "62b3c167eecad30761fa91c0c424e61eb81bebffb19264f64ab5d69305ebf162",
+    "stats": {
+      "startTime": "2026-10-20T09:22:02.537Z",
+      "duration": 35041.583,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "results": [
+      {
+        "status": "passed",
+        "retry": 0,
+        "duration": 32300
+      }
+    ]
+  },
+  {
+    "name": "matching-fault",
+    "run": 39401062955,
+    "source": "acdc745232cae25d5e9c8c06fa4c06fed98bb090",
+    "zipSha256": "490c38696299ee0309861369ec65a1a038ad8687162a3dd0eaf79b5d15e8926e",
+    "stats": {
+      "startTime": "2026-10-20T09:31:55.804Z",
+      "duration": 52396.485,
+      "expected": 0,
+      "skipped": 0,
+      "unexpected": 1,
+      "flaky": 0
+    },
+    "results": [
+      {
+        "status": "failed",
+        "retry": 0,
+        "duration": 49649
+      }
+    ]
+  }
+]

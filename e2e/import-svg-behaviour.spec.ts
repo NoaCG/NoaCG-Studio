@@ -490,7 +490,7 @@ test('imported quiz: drawn layers are proposed from their names, and the operato
   await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await shot(page, '5-quiz-locked');
 
-  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
   // C is the key: its row lights, the other three take the wrong treatment.
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
   for (const row of ['A', 'B', 'D']) {
@@ -654,7 +654,7 @@ test('an undrawn quiz moment wears NoaCG’s own look, and a drawn one replaces 
   await expect(made('locked')).toHaveClass(/imported-design-on/);
   await expect(made('locked').locator('text')).toHaveText('LOCKED IN');
 
-  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
   await expect(made('answer.correct/C')).toHaveClass(/imported-design-on/);
   await expect(made('answer.wrong/A')).toHaveClass(/imported-design-on/);
   await expect(made('answer.wrong/B')).toHaveClass(/imported-design-on/);
@@ -680,9 +680,9 @@ test('the quiz\u2019s first option: no lock, and Reveal correct works straight f
   await page.getByRole('button', { name: /Select answer/ }).click();
   // Legal from the pick, with no lock in between - and the lock is still there for a show that
   // wants it.
-  await expect(page.getByRole('button', { name: '⚡ Reveal correct', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
   await expect(page.getByRole('button', { name: /Lock it in/ })).toBeEnabled();
-  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
 });
@@ -2361,7 +2361,7 @@ test('an Illustrator SAVE AS quiz: the answers keep their type on air, lock and 
   await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
-  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
   for (const row of ['A', 'B', 'D']) {
     await expect(air.locator(`[data-noacg-role~="answer.wrong/${row}"]`)).toHaveClass(/imported-design-on/);
@@ -2594,7 +2594,7 @@ test('the docs example quiz imports as a quiz and runs select, lock and reveal w
   await expect(air.locator('[data-noacg-role~="answer.selected/C"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
-  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await page.getByRole('button', { name: /Reveal correct/ }).click();
   await expect(air.locator('[data-noacg-role~="answer.correct/A"]')).toHaveClass(/imported-design-on/);
   await expect(air.locator('[data-noacg-role~="answer.wrong/C"]')).toHaveClass(/imported-design-on/);
 
