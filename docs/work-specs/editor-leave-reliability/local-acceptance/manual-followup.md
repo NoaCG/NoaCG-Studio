@@ -148,3 +148,33 @@ community-pack objects after retirement. Its normal wrapper mechanism requires
 an explicit `--allow 0085` decision. The coordinator stopped and asked the owner
 for that branch-only approval; no override was used and no paid branch, account,
 local server or acceptance run was started. See [backend-recovery.json](backend-recovery.json).
+
+## Branch-only approval and creation refusal
+
+The owner replied `Ok` to the pending request for the normal explicit approval
+of 0085 on a new disposable branch only. That approval does not cover production,
+another migration override or a changed assertion, limit or SQL file.
+
+After re-reading the workflows, migration wrapper and terminal PR 1537 receipt,
+the coordinator reconciled the idle cloud repair owner, local worktrees, shared
+port reservations and empty local job queue. The owned 5282 reservation remains.
+Local main was 331a98a9 and remote-tracking main was 1b909153; neither is qualified
+by the pinned 12ecc receipt. The source paths for product, tests, scripts,
+workflows, migrations and package files still have no changes from 12ecc.
+Repository PR reads succeeded through the connector; this does not qualify
+GraphQL, database connectivity, dispatch or other writes.
+
+One Supabase MCP request attempted to create
+`codex-p2-local-recovery-12ecc-20261020`. It returned `INVALID_ARGUMENT` with
+`Invalid or expired requestState` and reason `invalid_request_state`. A fresh
+branch listing then returned only default main. The coordinator stopped under
+the approved stop-at-refusal rule, without retrying creation or substituting
+another creation route. No new branch was present to delete. No migration
+runner, account creation, key retrieval, local server or acceptance check ran.
+Database connectivity remains unqualified. The 0085 approval was not executed.
+
+This is a setup refusal, not a new editor acceptance failure or a repair claim.
+Imported-animation playback and sequential isolated-profile handoff remain
+pending; whole Phase 2 acceptance remains incomplete. All original failures,
+spent diagnosis limits and deferrals remain effective. No paid test branch is
+active, and no PR, landing, passing stamp or issue closure was requested.
