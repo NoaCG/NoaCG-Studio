@@ -1,0 +1,34 @@
+  1) [configured] › e2e/configured/shared-lab-computer.spec.ts:113:3 › shared lab computer (configured) › two students take turns on one browser and neither sees nor loses the work of the other 
+2026-10-20T08:25:20.2426837Z 
+2026-10-20T08:25:20.2427038Z     Error: expect(locator).toBeVisible() failed
+2026-10-20T08:25:20.2427317Z 
+2026-10-20T08:25:20.2427475Z     Locator: locator('.auth-status')
+2026-10-20T08:25:20.2427801Z     Expected: visible
+2026-10-20T08:25:20.2428065Z     Timeout: 20000ms
+2026-10-20T08:25:20.2428340Z     Error: element(s) not found
+2026-10-20T08:25:20.2428531Z 
+2026-10-20T08:25:20.2428630Z     Call log:
+2026-10-20T08:25:20.2428936Z       - Expect "toBeVisible" with timeout 20000ms
+2026-10-20T08:25:20.2429322Z       - waiting for locator('.auth-status')
+2026-10-20T08:25:20.2429545Z 
+2026-10-20T08:25:20.2429907Z 
+2026-10-20T08:25:20.2430031Z        at _helpers.ts:112
+2026-10-20T08:25:20.2430370Z 
+2026-10-20T08:25:20.2430596Z       110 |   await page.locator('#auth-pass').fill(password);
+2026-10-20T08:25:20.2431263Z       111 |   await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
+2026-10-20T08:25:20.2432011Z     > 112 |   await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
+2026-10-20T08:25:20.2432541Z           |                                              ^
+2026-10-20T08:25:20.2432928Z       113 |   if (settle) await settleSync(page);
+2026-10-20T08:25:20.2433329Z       114 | }
+2026-10-20T08:25:20.2433706Z       115 |
+2026-10-20T08:25:20.2434515Z         at signInOnHome (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts:112:46)
+2026-10-20T08:25:20.2435348Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/shared-lab-computer.spec.ts:158:9
+2026-10-20T08:25:20.2435766Z 
+2026-10-20T08:25:20.2436611Z     Error Context: test-results/shared-lab-computer-shared-66e55-loses-the-work-of-the-other-configured/error-context.md
+2026-10-20T08:25:20.2437189Z 
+2026-10-20T08:25:20.2437704Z     Error Context: test-results/shared-lab-computer-shared-66e55-loses-the-work-of-the-other-configured/error-context.md
+2026-10-20T08:25:20.2438553Z 
+2026-10-20T08:25:20.2438659Z   1 flaky
+2026-10-20T08:25:20.2439690Z     [configured] › e2e/configured/shared-lab-computer.spec.ts:113:3 › shared lab computer (configured) › two students take turns on one browser and neither sees nor loses the work of the other 
+2026-10-20T08:25:20.2440501Z   3 skipped
+2026-10-20T08:25:20.2440741Z   108 passed (32.0m)

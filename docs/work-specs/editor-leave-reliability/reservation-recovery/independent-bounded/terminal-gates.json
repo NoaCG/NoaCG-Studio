@@ -1,0 +1,309 @@
+{
+  "source": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+  "observedAt": "2026-10-20T08:27:58.422063+00:00",
+  "runs": [
+    {
+      "id": 39389568777,
+      "name": "deploy-verify",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389568777"
+    },
+    {
+      "id": 39389313979,
+      "name": "deploy-verify",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "skipped",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389313979"
+    },
+    {
+      "id": 39389266927,
+      "name": "deploy-verify",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "skipped",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389266927"
+    },
+    {
+      "id": 39389263924,
+      "name": "deploy-verify",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "skipped",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389263924"
+    },
+    {
+      "id": 39389263804,
+      "name": "deploy-verify",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "skipped",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389263804"
+    },
+    {
+      "id": 39389262289,
+      "name": "deploy-verify",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "skipped",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389262289"
+    },
+    {
+      "id": 39389253588,
+      "name": "Push on main",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253588"
+    },
+    {
+      "id": 39389253777,
+      "name": "Quarantine",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253777"
+    },
+    {
+      "id": 39389253758,
+      "name": "Post-landing",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253758"
+    },
+    {
+      "id": 39389253794,
+      "name": "CI",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253794"
+    },
+    {
+      "id": 39389253761,
+      "name": "configured-suite",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253761"
+    },
+    {
+      "id": 39388485111,
+      "name": "CI",
+      "head_sha": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39388485111"
+    }
+  ],
+  "mainJobs": [
+    {
+      "id": 118516518909,
+      "name": "Vercel accepted the commit",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516519224,
+      "name": "E2E plan",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516519295,
+      "name": "Build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516519379,
+      "name": "Factory gates",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516520694,
+      "name": "Reviewed",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118516608491,
+      "name": "Catalog calibration gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608593,
+      "name": "E2E 1/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608594,
+      "name": "E2E 5/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608625,
+      "name": "E2E 8/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608632,
+      "name": "E2E 11/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608639,
+      "name": "E2E 3/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608659,
+      "name": "E2E 15/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608670,
+      "name": "E2E 10/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608678,
+      "name": "E2E 9/15 (full)",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 118516608697,
+      "name": "E2E 6/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608709,
+      "name": "E2E 13/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608719,
+      "name": "E2E 14/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608742,
+      "name": "E2E 7/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608752,
+      "name": "E2E 2/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608754,
+      "name": "E2E 12/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516608758,
+      "name": "E2E 4/15 (full)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118516610877,
+      "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118518346472,
+      "name": "Re-run (failed Build or Factory job, same commit)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 118521742775,
+      "name": "Combined E2E report",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118521742810,
+      "name": "E2E retry (failed specs, same commit)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118523456599,
+      "name": "CI gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118523514300,
+      "name": "After the gate",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "configuredJobs": [
+    {
+      "id": 118516518899,
+      "name": "Configured E2E (authenticated, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 118529760871,
+      "name": "Configured quarantine",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "heldProposals": {
+    "a": {
+      "number": 1532,
+      "state": "OPEN",
+      "headRefOid": "cf3fcb7f4041f2dbbc2f9e0d6442842cf7db8600",
+      "autoMergeRequest": null,
+      "mergeQueueEntry": null
+    },
+    "b": {
+      "number": 1533,
+      "state": "OPEN",
+      "headRefOid": "b0a61914543dd9b31aac51a4e28648fece4ac148",
+      "autoMergeRequest": null,
+      "mergeQueueEntry": null
+    }
+  },
+  "mainStillCheckedSource": true
+}

@@ -1,0 +1,549 @@
+﻿2026-10-20T07:51:17.9664401Z Current runner version: '2.337.0'
+2026-10-20T07:51:17.9687892Z ##[group]Runner Image Provisioner
+2026-10-20T07:51:17.9688854Z Hosted Compute Agent
+2026-10-20T07:51:17.9689616Z Version: 20261012.601
+2026-10-20T07:51:17.9690343Z Commit: f3dc54e1fb89da6852db922499a0233137369e1d
+2026-10-20T07:51:17.9691165Z Build Date: 2026-10-12T17:48:21Z
+2026-10-20T07:51:17.9692058Z Worker ID: {c000888e-b176-4a08-a944-3f1de1caaf65}
+2026-10-20T07:51:17.9692909Z Region: westus3
+2026-10-20T07:51:17.9693769Z Cloud: Azure
+2026-10-20T07:51:17.9694399Z ##[endgroup]
+2026-10-20T07:51:17.9695848Z ##[group]Operating System
+2026-10-20T07:51:17.9696739Z Ubuntu
+2026-10-20T07:51:17.9697321Z 26.04.1
+2026-10-20T07:51:17.9697935Z LTS
+2026-10-20T07:51:17.9698535Z ##[endgroup]
+2026-10-20T07:51:17.9699158Z ##[group]Runner Image
+2026-10-20T07:51:17.9699930Z Image: ubuntu-26.04
+2026-10-20T07:51:17.9700565Z Version: 20261012.163.1
+2026-10-20T07:51:17.9702070Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261012.163/images/ubuntu/Ubuntu2604-Readme.md
+2026-10-20T07:51:17.9703899Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261012.163
+2026-10-20T07:51:17.9705146Z ##[endgroup]
+2026-10-20T07:51:17.9706433Z ##[group]GITHUB_TOKEN Permissions
+2026-10-20T07:51:17.9708431Z Contents: read
+2026-10-20T07:51:17.9709092Z Metadata: read
+2026-10-20T07:51:17.9709696Z ##[endgroup]
+2026-10-20T07:51:17.9712461Z Secret source: Actions
+2026-10-20T07:51:17.9713644Z Cache mode: write
+2026-10-20T07:51:17.9714532Z Prepare workflow directory
+2026-10-20T07:51:18.1285687Z Prepare all required actions
+2026-10-20T07:51:18.1326683Z Getting action download info
+2026-10-20T07:51:18.4567611Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-10-20T07:51:18.7711483Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-10-20T07:51:19.6830304Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-20T07:51:20.2059725Z Complete job name: E2E 9/15 (full)
+2026-10-20T07:51:20.2639958Z ##[group]Run actions/checkout@v5
+2026-10-20T07:51:20.2640447Z with:
+2026-10-20T07:51:20.2640677Z   repository: NoaCG/NoaCG-Studio
+2026-10-20T07:51:20.2642938Z   token: ***
+2026-10-20T07:51:20.2643157Z   ssh-strict: true
+2026-10-20T07:51:20.2643377Z   ssh-user: git
+2026-10-20T07:51:20.2643782Z   persist-credentials: true
+2026-10-20T07:51:20.2644021Z   clean: true
+2026-10-20T07:51:20.2644262Z   sparse-checkout-cone-mode: true
+2026-10-20T07:51:20.2644530Z   fetch-depth: 1
+2026-10-20T07:51:20.2644751Z   fetch-tags: false
+2026-10-20T07:51:20.2644973Z   show-progress: true
+2026-10-20T07:51:20.2645182Z   lfs: false
+2026-10-20T07:51:20.2645500Z   submodules: false
+2026-10-20T07:51:20.2645912Z   set-safe-directory: true
+2026-10-20T07:51:20.2646166Z   allow-unsafe-pr-checkout: false
+2026-10-20T07:51:20.2646603Z ##[endgroup]
+2026-10-20T07:51:20.3444081Z Syncing repository: NoaCG/NoaCG-Studio
+2026-10-20T07:51:20.3445892Z ##[group]Getting Git version info
+2026-10-20T07:51:20.3446541Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-10-20T07:51:20.3447438Z [command]/usr/bin/git version
+2026-10-20T07:51:20.3447815Z git version 2.55.0
+2026-10-20T07:51:20.3454292Z ##[endgroup]
+2026-10-20T07:51:20.3459028Z Temporarily overriding HOME='/home/runner/work/_temp/38143871-8496-4bbc-8ded-418d1cf57954' before making global git config changes
+2026-10-20T07:51:20.3460128Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T07:51:20.3463705Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-10-20T07:51:20.3515651Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-10-20T07:51:20.3518033Z ##[group]Initializing the repository
+2026-10-20T07:51:20.3522083Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-10-20T07:51:20.3612827Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-20T07:51:20.3614364Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-20T07:51:20.3615414Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-20T07:51:20.3616574Z hint: call:
+2026-10-20T07:51:20.3617084Z hint:
+2026-10-20T07:51:20.3617787Z hint: 	git config --global init.defaultBranch <name>
+2026-10-20T07:51:20.3618543Z hint:
+2026-10-20T07:51:20.3619234Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-20T07:51:20.3620220Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-20T07:51:20.3621023Z hint:
+2026-10-20T07:51:20.3621568Z hint: 	git branch -m <name>
+2026-10-20T07:51:20.3622160Z hint:
+2026-10-20T07:51:20.3622885Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-20T07:51:20.3624278Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-10-20T07:51:20.3626485Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-10-20T07:51:20.3700352Z ##[endgroup]
+2026-10-20T07:51:20.3700985Z ##[group]Disabling automatic garbage collection
+2026-10-20T07:51:20.3704307Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-20T07:51:20.3735673Z ##[endgroup]
+2026-10-20T07:51:20.3736241Z ##[group]Setting up auth
+2026-10-20T07:51:20.3741900Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T07:51:20.3772361Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T07:51:20.4482884Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T07:51:20.4516281Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T07:51:20.4753783Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T07:51:20.4782774Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T07:51:20.5018110Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-20T07:51:20.5147111Z ##[endgroup]
+2026-10-20T07:51:20.5154233Z ##[group]Fetching the repository
+2026-10-20T07:51:20.5154991Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5b843f32d3df48bcd10ca64ea2c957ae7b2810c1:refs/remotes/origin/main
+2026-10-20T07:51:22.2512793Z From https://github.com/NoaCG/NoaCG-Studio
+2026-10-20T07:51:22.2513594Z  * [new ref]         5b843f32d3df48bcd10ca64ea2c957ae7b2810c1 -> origin/main
+2026-10-20T07:51:22.2518653Z ##[endgroup]
+2026-10-20T07:51:22.2519198Z ##[group]Determining the checkout info
+2026-10-20T07:51:22.2521368Z ##[endgroup]
+2026-10-20T07:51:22.2545345Z [command]/usr/bin/git sparse-checkout disable
+2026-10-20T07:51:22.2591599Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-20T07:51:22.2618440Z ##[group]Checking out the ref
+2026-10-20T07:51:22.2624386Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-20T07:51:22.7863792Z Switched to a new branch 'main'
+2026-10-20T07:51:22.7864322Z branch 'main' set up to track 'origin/main'.
+2026-10-20T07:51:22.7887163Z ##[endgroup]
+2026-10-20T07:51:22.7938071Z [command]/usr/bin/git log -1 --format=%H
+2026-10-20T07:51:22.7959031Z 5b843f32d3df48bcd10ca64ea2c957ae7b2810c1
+2026-10-20T07:51:22.8262639Z ##[group]Run actions/setup-node@v5
+2026-10-20T07:51:22.8262904Z with:
+2026-10-20T07:51:22.8263073Z   node-version: 24
+2026-10-20T07:51:22.8263248Z   cache: npm
+2026-10-20T07:51:22.8263544Z   always-auth: false
+2026-10-20T07:51:22.8263739Z   check-latest: false
+2026-10-20T07:51:22.8265982Z   token: ***
+2026-10-20T07:51:22.8266169Z   package-manager-cache: true
+2026-10-20T07:51:22.8266369Z ##[endgroup]
+2026-10-20T07:51:22.9850309Z Found in cache @ /opt/hostedtoolcache/node/24.21.0/x64
+2026-10-20T07:51:22.9853728Z (node:2172) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T07:51:22.9854312Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T07:51:22.9856432Z ##[group]Environment details
+2026-10-20T07:51:28.7560942Z node: v24.21.0
+2026-10-20T07:51:28.7561317Z npm: 11.19.0
+2026-10-20T07:51:28.7562294Z yarn: 1.22.22
+2026-10-20T07:51:28.7563076Z ##[endgroup]
+2026-10-20T07:51:28.7581800Z [command]/opt/hostedtoolcache/node/24.21.0/x64/bin/npm config get cache
+2026-10-20T07:51:29.0986091Z /home/runner/.npm
+2026-10-20T07:51:29.3298069Z Cache hit for: node-cache-Linux-x64-npm-0ad742e45cefbcd6edd543e5ff1c632c7bb4197447c07afcf3276d4ec8c25c67
+2026-10-20T07:51:29.3383236Z (node:2172) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-20T07:51:30.5357592Z Received 54525952 of 98410812 (55.4%), 51.9 MBs/sec
+2026-10-20T07:51:30.8091942Z Received 98410812 of 98410812 (100.0%), 73.7 MBs/sec
+2026-10-20T07:51:30.8093194Z Cache Size: ~94 MB (98410812 B)
+2026-10-20T07:51:30.8143689Z [command]/usr/bin/tar -xf /home/runner/work/_temp/47b7c645-3eab-420b-b7f8-45b5af466d80/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-10-20T07:51:30.9925724Z Cache restored successfully
+2026-10-20T07:51:30.9974030Z Cache restored from key: node-cache-Linux-x64-npm-0ad742e45cefbcd6edd543e5ff1c632c7bb4197447c07afcf3276d4ec8c25c67
+2026-10-20T07:51:31.0256636Z Prepare all required actions
+2026-10-20T07:51:31.0257085Z Getting action download info
+2026-10-20T07:51:31.1453803Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-20T07:51:31.5742981Z ##[group]Run ./.github/actions/node-modules
+2026-10-20T07:51:31.5743238Z ##[endgroup]
+2026-10-20T07:51:31.5789017Z ##[start-action display=Resolve Node version;id=__self.node]
+2026-10-20T07:51:31.5817753Z ##[group]Run echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+2026-10-20T07:51:31.5818312Z [36;1mecho "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"[0m
+2026-10-20T07:51:31.7052906Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-20T07:51:31.7053231Z ##[endgroup]
+2026-10-20T07:51:31.7475239Z ##[end-action id=__self.node;outcome=success;conclusion=success;duration_ms=168]
+2026-10-20T07:51:31.7479368Z ##[start-action display=Cache node_modules;id=__self.cache]
+2026-10-20T07:51:31.8004538Z ##[group]Run actions/cache@v4
+2026-10-20T07:51:31.8004783Z with:
+2026-10-20T07:51:31.8004988Z   path: node_modules
+player-host/node_modules
+
+2026-10-20T07:51:31.8005458Z   key: node-modules-Linux-X64-node24-b5f1358323e4a1e0ce52e19db81d9f09adcbf22303828fcdfd41c9e275b5c5f4
+2026-10-20T07:51:31.8005901Z   enableCrossOsArchive: false
+2026-10-20T07:51:31.8006114Z   fail-on-cache-miss: false
+2026-10-20T07:51:31.8006307Z   lookup-only: false
+2026-10-20T07:51:31.8006483Z   save-always: false
+2026-10-20T07:51:31.8006662Z ##[endgroup]
+2026-10-20T07:51:31.8867977Z (node:2248) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T07:51:31.8868746Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T07:51:32.0915915Z Cache hit for: node-modules-Linux-X64-node24-b5f1358323e4a1e0ce52e19db81d9f09adcbf22303828fcdfd41c9e275b5c5f4
+2026-10-20T07:51:32.0995749Z (node:2248) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-20T07:51:33.2988267Z Received 54525952 of 119697629 (45.6%), 52.0 MBs/sec
+2026-10-20T07:51:34.2987757Z Received 115503325 of 119697629 (96.5%), 55.1 MBs/sec
+2026-10-20T07:51:35.2987760Z Received 115503325 of 119697629 (96.5%), 36.7 MBs/sec
+2026-10-20T07:51:36.2988552Z Received 115503325 of 119697629 (96.5%), 27.5 MBs/sec
+2026-10-20T07:51:36.7949987Z Received 119697629 of 119697629 (100.0%), 25.4 MBs/sec
+2026-10-20T07:51:36.7951096Z Cache Size: ~114 MB (119697629 B)
+2026-10-20T07:51:36.8003313Z [command]/usr/bin/tar -xf /home/runner/work/_temp/cb774b63-e388-4f5e-86e7-1d575b218029/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-10-20T07:51:38.0445989Z Cache restored successfully
+2026-10-20T07:51:38.0556041Z Cache restored from key: node-modules-Linux-X64-node24-b5f1358323e4a1e0ce52e19db81d9f09adcbf22303828fcdfd41c9e275b5c5f4
+2026-10-20T07:51:38.0706065Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=6322]
+2026-10-20T07:51:38.0708171Z ##[start-action display=npm ci;id=__self.__run]
+2026-10-20T07:51:38.0717123Z ##[end-action id=__self.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-20T07:51:38.0718794Z ##[start-action display=Regenerate install-time artifacts;id=__self.__run_2]
+2026-10-20T07:51:38.0736663Z ##[group]Run npm run postinstall
+2026-10-20T07:51:38.0736931Z [36;1mnpm run postinstall[0m
+2026-10-20T07:51:38.0812219Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-20T07:51:38.0812554Z ##[endgroup]
+2026-10-20T07:51:38.1873306Z 
+2026-10-20T07:51:38.1874516Z > noacg-studio@0.1.0 postinstall
+2026-10-20T07:51:38.1875175Z > node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+2026-10-20T07:51:38.1875535Z 
+2026-10-20T07:51:38.2802746Z 5174
+2026-10-20T07:51:38.8310830Z [video-fonts] wrote 263669 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+2026-10-20T07:51:38.8966351Z [player-host] npm run build
+2026-10-20T07:51:38.9776483Z 
+2026-10-20T07:51:38.9776874Z > noacg-player-host@0.1.0 build
+2026-10-20T07:51:38.9777259Z > vite build
+2026-10-20T07:51:38.9777383Z 
+2026-10-20T07:51:39.6006339Z [36mvite v8.1.4 [32mbuilding client environment for production...[36m[39m
+2026-10-20T07:51:39.6076246Z [2K
+2026-10-20T07:51:39.6592231Z transforming...✓ 21 modules transformed.
+2026-10-20T07:51:39.6776834Z rendering chunks...
+2026-10-20T07:51:39.7172703Z computing gzip size...
+2026-10-20T07:51:39.7235646Z ../public/player-host/index.html                  0.79 kB │ gzip:   0.45 kB
+2026-10-20T07:51:39.7236235Z ../public/player-host/assets/index-CUQtVJHC.js  461.17 kB │ gzip: 145.37 kB
+2026-10-20T07:51:39.7236517Z 
+2026-10-20T07:51:39.7238406Z [32m✓ built in 122ms[39m
+2026-10-20T07:51:39.7603933Z [player-host] built into public/player-host/ (single self-contained page)
+2026-10-20T07:51:39.7724251Z ##[end-action id=__self.__run_2;outcome=success;conclusion=success;duration_ms=1700]
+2026-10-20T07:51:39.7769137Z Prepare all required actions
+2026-10-20T07:51:39.7769563Z Getting action download info
+2026-10-20T07:51:39.9366757Z ##[group]Run ./.github/actions/playwright-chromium
+2026-10-20T07:51:39.9367043Z ##[endgroup]
+2026-10-20T07:51:39.9370900Z ##[start-action display=Resolve Playwright version;id=__self_2.version]
+2026-10-20T07:51:39.9385471Z ##[group]Run echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+2026-10-20T07:51:39.9386046Z [36;1mecho "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"[0m
+2026-10-20T07:51:39.9440754Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-20T07:51:39.9441044Z ##[endgroup]
+2026-10-20T07:51:39.9950182Z ##[end-action id=__self_2.version;outcome=success;conclusion=success;duration_ms=57]
+2026-10-20T07:51:39.9952319Z ##[start-action display=Cache Playwright browser;id=__self_2.cache]
+2026-10-20T07:51:39.9985707Z ##[group]Run actions/cache@v4
+2026-10-20T07:51:39.9985982Z with:
+2026-10-20T07:51:39.9986322Z   path: ~/.cache/ms-playwright
+2026-10-20T07:51:39.9986554Z   key: playwright-Linux-1.61.1
+2026-10-20T07:51:39.9986771Z   enableCrossOsArchive: false
+2026-10-20T07:51:39.9986983Z   fail-on-cache-miss: false
+2026-10-20T07:51:39.9987193Z   lookup-only: false
+2026-10-20T07:51:39.9987377Z   save-always: false
+2026-10-20T07:51:39.9987559Z ##[endgroup]
+2026-10-20T07:51:40.0856350Z (node:2344) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T07:51:40.0857153Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T07:51:40.2979571Z Cache hit for: playwright-Linux-1.61.1
+2026-10-20T07:51:40.3093372Z (node:2344) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-20T07:51:41.5111073Z Received 46137344 of 274154549 (16.8%), 44.0 MBs/sec
+2026-10-20T07:51:42.5115982Z Received 226492416 of 274154549 (82.6%), 107.9 MBs/sec
+2026-10-20T07:51:43.1767833Z Received 274154549 of 274154549 (100.0%), 98.1 MBs/sec
+2026-10-20T07:51:43.1769439Z Cache Size: ~261 MB (274154549 B)
+2026-10-20T07:51:43.1879786Z [command]/usr/bin/tar -xf /home/runner/work/_temp/5d96c993-2791-47e0-82dd-dd26eed06b42/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-10-20T07:51:44.0444018Z Cache restored successfully
+2026-10-20T07:51:44.0614512Z Cache restored from key: playwright-Linux-1.61.1
+2026-10-20T07:51:44.0707677Z ##[end-action id=__self_2.cache;outcome=success;conclusion=success;duration_ms=4075]
+2026-10-20T07:51:44.0710429Z ##[start-action display=Install Playwright browser;id=__self_2.__run]
+2026-10-20T07:51:44.0715682Z ##[end-action id=__self_2.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-20T07:51:44.0717384Z ##[start-action display=Install Playwright system dependencies (bounded);id=__self_2.__run_2]
+2026-10-20T07:51:44.0720988Z ##[end-action id=__self_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-20T07:51:44.1188048Z ##[group]Run SPECS="$(node -e '
+2026-10-20T07:51:44.1188350Z [36;1mSPECS="$(node -e '[0m
+2026-10-20T07:51:44.1188659Z [36;1m  const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");[0m
+2026-10-20T07:51:44.1189026Z [36;1m  const mine = bins[Number(process.env.SHARD_INDEX) - 1];[0m
+2026-10-20T07:51:44.1189365Z [36;1m  if (!Array.isArray(mine) || mine.length === 0) {[0m
+2026-10-20T07:51:44.1189751Z [36;1m    console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);[0m
+2026-10-20T07:51:44.1190101Z [36;1m    process.exit(1);[0m
+2026-10-20T07:51:44.1190312Z [36;1m  }[0m
+2026-10-20T07:51:44.1190656Z [36;1m  import("./scripts/e2e-affected.mjs").then((m) => console.log(mine.map(m.specFilterArg).join(" ")));[0m
+2026-10-20T07:51:44.1191047Z [36;1m')"[0m
+2026-10-20T07:51:44.1191349Z [36;1mecho "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"[0m
+2026-10-20T07:51:44.1191721Z [36;1mnpm run test:e2e -- $SPECS[0m
+2026-10-20T07:51:44.1246920Z shell: /usr/bin/bash -e {0}
+2026-10-20T07:51:44.1247154Z env:
+2026-10-20T07:51:44.1262420Z   SHARD_SPECS: [["admin.spec.ts","dashboard-operator-walk.spec.ts","editor-drawing-persistence.spec.ts","editor-pen.spec.ts","image-purpose.spec.ts","import-canvas.spec.ts","import-svg.spec.ts","output-font-hold.spec.ts","playout-rail-width.spec.ts","save-transaction-leave-modal.spec.ts","spike-instruments.spec.ts","state-machine.spec.ts","video-inputs.spec.ts","video-surface-tag.spec.ts","wizard-preview.spec.ts"],["ai-tiers.spec.ts","editor-images.spec.ts","format.spec.ts","lite-parity.spec.ts","machine-graph.spec.ts","new-graphic-guard.spec.ts","package.spec.ts","pasteboard.spec.ts","pro.spec.ts","public-chrome-baseline.spec.ts","save-transaction-leave.spec.ts","storage-full.spec.ts","studio-evening-reliability.spec.ts","template-pack-10.spec.ts","video-hyperframes.spec.ts","wizard-filters.spec.ts"],["agent-made-graphics.spec.ts","counting-settle.spec.ts","feedback.spec.ts","graphic-sound-controls.spec.ts","library-productions.spec.ts","lite-field-paint.spec.ts","motion-presets.spec.ts","ograf-starters.spec.ts","output-boot-resilience.spec.ts","playout-feedback-health.spec.ts","pro-language.spec.ts","publish-output-setup.spec.ts","score-tracker-moments.spec.ts","video-settings.spec.ts","wizard-shell.spec.ts"],["adapt-first.spec.ts","catalog-baseline.spec.ts","control-panel-types.spec.ts","editor-command-task.spec.ts","editor-key-ease.spec.ts","editor-steps.spec.ts","images.spec.ts","inspector.spec.ts","output-ready.spec.ts","playout-fixed-panes.spec.ts","playout-nav.spec.ts","production-controls.spec.ts","sports.spec.ts","ux.spec.ts","wizard-draft-guard.spec.ts"],["ai-lite.spec.ts","assets.spec.ts","comments.spec.ts","docs.spec.ts","editor-arrangement.spec.ts","editor-fidelity-trim.spec.ts","hosted-control.spec.ts","live-actions-first.spec.ts","network-resilience.spec.ts","output-first-paint.spec.ts","overlay-layers.spec.ts","production-persistence.spec.ts","project-format.spec.ts","publish-drift.spec.ts","save-transaction-holds.spec.ts","svg-examples.spec.ts"],["ai-retrieval.spec.ts","bridge-connect.spec.ts","editor-typography.spec.ts","editor-usability.spec.ts","flows.spec.ts","full-frame-offering.spec.ts","google-fonts.spec.ts","import-analysis.spec.ts","import-stretch.spec.ts","import-svg-sticker-sample.spec.ts","local-relay.spec.ts","machine-edit.spec.ts","productions.spec.ts","quiz-pilot.spec.ts","shows.spec.ts","template-insert.spec.ts"],["audience-pack.spec.ts","bridge.spec.ts","cross-tab.spec.ts","editor-keys.spec.ts","landing.spec.ts","legacy-timeline.spec.ts","ograf-parity.spec.ts","production-audience.spec.ts","save-transaction.spec.ts","stage-fit-determinism.spec.ts","studio-release-completion.spec.ts","template-escaping.spec.ts","timeline-v2.spec.ts","wave2.spec.ts"],["analytics.spec.ts","community-pack-lock.spec.ts","competition-pack.spec.ts","design-rules-product.spec.ts","editor-ease.spec.ts","editor-proposal-task.spec.ts","layout.spec.ts","lite-line-content.spec.ts","no-old-editor.spec.ts","playout-sequence.spec.ts","preview-error.spec.ts","quiz-show.spec.ts","stream-notification.spec.ts","video-readability.spec.ts","wizard-setup-fields.spec.ts"],["brand-editor.spec.ts","bridge-ograf.spec.ts","control.spec.ts","downloads.spec.ts","editor-cli-round-trip.spec.ts","editor-layer-property-qualification.spec.ts","holding-pack.spec.ts","import-svg-behaviour.spec.ts","library-bulk.spec.ts","ograf-lifecycle.spec.ts","panel-production-page.spec.ts","playout-clock.spec.ts","production-pack.spec.ts","route-transition-flash.spec.ts","save-copy-arrival.spec.ts"],["ai-consent.spec.ts","community-packs.spec.ts","creative-pilot.spec.ts","editor-base-edits.spec.ts","graphic-types.spec.ts","import-svg-credits.spec.ts","legal.spec.ts","mark-legibility.spec.ts","quiz-live-consistency.spec.ts","rundown-history-storage.spec.ts","rundown-timing.spec.ts","spx-operator.spec.ts","template-deep-link.spec.ts","video-project.spec.ts","wizard-entry-fit.spec.ts","wizard-finish.spec.ts"],["ai-depth.spec.ts","editor-canvas-short-height.spec.ts","editor-transforms.spec.ts","foreign-ograf-sandbox.spec.ts","import-prepare.spec.ts","lite-type-floor.spec.ts","ograf-contract.spec.ts","pack-import.spec.ts","playout-drills.spec.ts","playout-folders.spec.ts","playout-rundown-feedback.spec.ts","public-service.spec.ts","rundown-history.spec.ts","save-transaction-wizard.spec.ts","template-pack-4.spec.ts"],["account-library.spec.ts","ai-dev-routes.spec.ts","ai-more-control.spec.ts","ai.spec.ts","anim-engine.spec.ts","asset-workflow.spec.ts","data-api.spec.ts","editor-commands.spec.ts","editor-drawing-task.spec.ts","editor-model-proposals.spec.ts","import-graphic.spec.ts","playout-cues.spec.ts","production-sounds.spec.ts","publish-gate.spec.ts","render-schedule.spec.ts","student-rehearsal.spec.ts","wizard-logo.spec.ts"],["auth.spec.ts","bench.spec.ts","editor-cross-cue.spec.ts","editor-folders-bins.spec.ts","editor-transform-qualification.spec.ts","exports.spec.ts","graphic-sound.spec.ts","import-svg-centred-title.spec.ts","import-svg-corpus.spec.ts","lite-line-fit.spec.ts","production-chat-intake.spec.ts","specialist-lower-thirds.spec.ts","video-generation-corpus.spec.ts","video-player-host.spec.ts","wizard-brand.spec.ts"],["agent-access.spec.ts","creative-routing.spec.ts","editor-foundation.spec.ts","editor-out-step.spec.ts","editor-out.spec.ts","import-name-collision.spec.ts","import.spec.ts","library.spec.ts","live-field-change.spec.ts","live-path.spec.ts","offline.spec.ts","playout-baseline.spec.ts","pro-custom.spec.ts","production-data.spec.ts","production-views.spec.ts","render.spec.ts"],["editor-alpha-entry.spec.ts","editor-canvas-transforms.spec.ts","editor-groups.spec.ts","end-credits.spec.ts","house.spec.ts","ograf-conformance.spec.ts","ograf-isolation.spec.ts","output-prepare.spec.ts","production-gate.spec.ts","project.spec.ts","save-transaction-leave-shortcut.spec.ts","snap-recovery.spec.ts","studio-feedback.spec.ts","sync.spec.ts","wizard-kit.spec.ts","wysiwyg.spec.ts"]]
+2026-10-20T07:51:44.1278363Z   SHARD_INDEX: 9
+2026-10-20T07:51:44.1278576Z   NOACG_BLOB_NAME: report-9.zip
+2026-10-20T07:51:44.1278791Z ##[endgroup]
+2026-10-20T07:51:44.2528656Z ##[notice]15 spec file(s)
+2026-10-20T07:51:44.3237894Z 
+2026-10-20T07:51:44.3238511Z > noacg-studio@0.1.0 test:e2e
+2026-10-20T07:51:44.3240542Z > playwright test [\\/]brand-editor\.spec\.ts$ [\\/]bridge-ograf\.spec\.ts$ [\\/]control\.spec\.ts$ [\\/]downloads\.spec\.ts$ [\\/]editor-cli-round-trip\.spec\.ts$ [\\/]editor-layer-property-qualification\.spec\.ts$ [\\/]holding-pack\.spec\.ts$ [\\/]import-svg-behaviour\.spec\.ts$ [\\/]library-bulk\.spec\.ts$ [\\/]ograf-lifecycle\.spec\.ts$ [\\/]panel-production-page\.spec\.ts$ [\\/]playout-clock\.spec\.ts$ [\\/]production-pack\.spec\.ts$ [\\/]route-transition-flash\.spec\.ts$ [\\/]save-copy-arrival\.spec\.ts$
+2026-10-20T07:51:44.3242052Z 
+2026-10-20T07:51:51.5771593Z 
+2026-10-20T07:51:51.5772346Z Running 130 tests using 1 worker
+2026-10-20T07:51:51.5792997Z 
+2026-10-20T07:51:51.9156278Z [1/130] [chromium] › e2e/brand-editor.spec.ts:19:1 › rapid brand edits keep controls immediate and rebuild previews only after settling
+2026-10-20T07:51:55.5076451Z [2/130] [chromium] › e2e/brand-editor.spec.ts:42:1 › create a brand without a graphic, preview it, edit it and reuse it in the wizard
+2026-10-20T07:52:00.3955542Z [3/130] [chromium] › e2e/brand-editor.spec.ts:79:1 › brand drafts cancel without changing the open graphic; oversized and invalid logos are refused
+2026-10-20T07:52:03.3187609Z [4/130] [chromium] › e2e/brand-editor.spec.ts:104:1 › a refused brand save retains the draft and retries without duplicating it
+2026-10-20T07:52:06.1326730Z [5/130] [chromium] › e2e/brand-editor.spec.ts:118:1 › an uploaded font survives reopen and a stale brand editor refuses to overwrite another save
+2026-10-20T07:52:09.4731827Z [6/130] [chromium] › e2e/bridge-ograf.spec.ts:85:1 › the Bridge names the OGraf adapter, and status and list read the server, its graphics and its renderers
+2026-10-20T07:52:09.7004252Z [7/130] [chromium] › e2e/bridge-ograf.spec.ts:127:1 › take, update, next, out and All out each put exactly the standard request on the wire
+2026-10-20T07:52:09.8601792Z [8/130] [chromium] › e2e/bridge-ograf.spec.ts:195:1 › a result the Bridge cannot be sure of is uncertain and never retried; what OGraf cannot do sends nothing
+2026-10-20T07:52:11.0156399Z [9/130] [chromium] › e2e/control.spec.ts:35:1 › export bundles controlpanel.shtml + injects the receiver into the graphic's own html
+2026-10-20T07:52:13.7714599Z [10/130] [chromium] › e2e/control.spec.ts:58:1 › the exported control panel escapes the graphic name (it is the page title)
+2026-10-20T07:52:16.5606091Z [11/130] [chromium] › e2e/control.spec.ts:100:1 › live data: adding a Google Sheet appends an editable polling block, remove strips it
+2026-10-20T07:52:20.8136040Z [12/130] [chromium] › e2e/control.spec.ts:131:1 › live data: a published CSV drives the graphic (mocked sheet)
+2026-10-20T07:52:27.0879744Z [13/130] [chromium] › e2e/control.spec.ts:163:1 › round-trip: the exported panel fires machine events, greys illegal ones, and shows the state
+2026-10-20T07:52:30.2330749Z [14/130] [chromium] › e2e/control.spec.ts:226:1 › the exported panel says so when no graphic is answering (file:// and cross-engine truth)
+2026-10-20T07:52:35.7043293Z [15/130] [chromium] › e2e/control.spec.ts:250:1 › staging + event log: staged data airs only on take, and refresh recovers both sides
+2026-10-20T07:52:38.8323735Z [16/130] [chromium] › e2e/control.spec.ts:324:1 › round-trip: the exported control panel drives the exported graphic over the channel
+2026-10-20T07:52:41.7188619Z [17/130] [chromium] › e2e/downloads.spec.ts:80:1 › the landing names both tools and links each download where it is introduced, plus its nav and footer
+2026-10-20T07:52:42.1356006Z [18/130] [chromium] › e2e/downloads.spec.ts:100:1 › each card resolves its own channel: the newest bridge-v* exe, and npm latest for the CLI
+2026-10-20T07:52:42.3888760Z [19/130] [chromium] › e2e/downloads.spec.ts:139:1 › a Bridge release whose exe carries its version is the one offered, with its own checksum
+2026-10-20T07:52:42.6381352Z [20/130] [chromium] › e2e/downloads.spec.ts:156:1 › with neither API answering the page still downloads the newest Bridge and reads "latest"
+2026-10-20T07:52:42.8508612Z [21/130] [chromium] › e2e/downloads.spec.ts:167:1 › the Bridge card says which browsers work, and what to do about one that keeps asking
+2026-10-20T07:52:43.1046280Z [22/130] [chromium] › e2e/downloads.spec.ts:189:1 › the SVG examples sit under the two tools and their zip is served from /downloads
+2026-10-20T07:52:43.5769343Z [23/130] [chromium] › e2e/downloads.spec.ts:223:1 › the top bar is the landing top bar, with Downloads as the current page
+2026-10-20T07:52:43.8029765Z [24/130] [chromium] › e2e/downloads.spec.ts:237:1 › the CLI card leads with one short prompt that copies whole and reads at every width
+2026-10-20T07:52:44.5889383Z [25/130] [chromium] › e2e/downloads.spec.ts:279:1 › no command runs under its Copy button, and none scrolls sideways, at any width
+2026-10-20T07:52:44.8546232Z [26/130] [chromium] › e2e/editor-cli-round-trip.spec.ts:81:124 › agent package visual round-trip desktop
+2026-10-20T07:52:57.4106077Z [27/130] [chromium] › e2e/editor-cli-round-trip.spec.ts:81:124 › agent package visual round-trip laptop
+2026-10-20T07:53:09.5419881Z [28/130] [chromium] › e2e/editor-cli-round-trip.spec.ts:81:124 › agent package visual round-trip laptop-125
+2026-10-20T07:53:21.3686148Z [29/130] [chromium] › e2e/editor-cli-round-trip.spec.ts:163:1 › independent CLI scoreboard retains its operator machine after visual edit and reopen
+2026-10-20T07:53:34.2147332Z [30/130] [chromium] › e2e/editor-cli-round-trip.spec.ts:203:1 › inline data scripts retain their tags while classic scripts use the JS pane
+2026-10-20T07:53:34.4778931Z [31/130] [chromium] › e2e/editor-cli-round-trip.spec.ts:217:1 › CSS edits patch effective repeated rules without changing nested or unrelated rules
+2026-10-20T07:53:34.7980649Z [32/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:7:57 › ordinary layer selection rename eye and history 1920
+2026-10-20T07:53:40.8478237Z [33/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:7:57 › ordinary layer selection rename eye and history 1366
+2026-10-20T07:53:46.5719133Z [34/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:35:1 › numeric scrub previews one undo exact cancellation modifiers and armed routing
+2026-10-20T07:53:54.2919153Z [35/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:66:1 › create canvas selection context actions and input keyboard ownership
+2026-10-20T07:54:00.0197500Z [36/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:84:1 › cumulative import text artwork animation cancel save reopen executable outputs
+2026-10-20T07:54:07.5890438Z [37/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:114:1 › ordinary nested SVG label and eye retain definitions masks references and identity
+2026-10-20T07:54:11.6706975Z [38/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:127:1 › modifier drag copies selected artwork atomically and cancellation retains the original
+2026-10-20T07:54:18.5170277Z [39/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:167:1 › keyboard duplicate select all and canvas context retain input ownership
+2026-10-20T07:54:22.5530704Z [40/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:187:1 › property reveal and key navigation leave source and history unchanged
+2026-10-20T07:54:26.6555837Z [41/130] [chromium] › e2e/editor-layer-property-qualification.spec.ts:206:1 › modifier drag preserves multi-root animated group and refusal boundaries
+2026-10-20T07:54:35.1265483Z [42/130] [chromium] › e2e/holding-pack.spec.ts:64:1 › the three families are browsable and every design in them is offered
+2026-10-20T07:54:43.6093684Z [43/130] [chromium] › e2e/holding-pack.spec.ts:87:1 › the holding set covers the whole show, not just the front door
+2026-10-20T07:54:47.9297492Z [44/130] [chromium] › e2e/holding-pack.spec.ts:98:1 › a ceremony card creates from the wizard and lands in the editor
+2026-10-20T07:54:51.9046538Z [45/130] [chromium] › e2e/holding-pack.spec.ts:115:1 › a start-time countdown chases the wall clock and never goes negative
+2026-10-20T07:54:53.8316115Z [46/130] [chromium] › e2e/holding-pack.spec.ts:148:1 › the countdown self-corrects through a stalled event loop
+2026-10-20T07:54:59.8437784Z [47/130] [chromium] › e2e/holding-pack.spec.ts:176:1 › Update re-arms a running countdown, and an update that did not touch it leaves it alone
+2026-10-20T07:55:03.8769453Z [48/130] [chromium] › e2e/holding-pack.spec.ts:236:1 › a clock-less holding screen carries no countdown at all
+2026-10-20T07:55:05.1409009Z [49/130] [chromium] › e2e/holding-pack.spec.ts:254:1 › the credit reel loops with no seam and does not stack clones on replay
+2026-10-20T07:55:09.1787213Z [50/130] [chromium] › e2e/holding-pack.spec.ts:292:1 › a static board holds still and shrinks to fit rather than losing rows
+2026-10-20T07:55:12.0922161Z [51/130] [chromium] › e2e/holding-pack.spec.ts:321:1 › a looping reel survives create, save and reopen with its motion intact
+2026-10-20T07:55:15.4314092Z [52/130] [chromium] › e2e/import-svg-behaviour.spec.ts:142:1 › imported scoreboard: a numeric layer is a ± stepper that acts on air, and survives a reload
+2026-10-20T07:55:20.3800872Z [53/130] [chromium] › e2e/import-svg-behaviour.spec.ts:227:1 › imported score board: four teams are proposed, and one press adds a point and plays the flash
+2026-10-20T07:55:26.8515161Z [54/130] [chromium] › e2e/import-svg-behaviour.spec.ts:357:1 › imported score board: NEW GAME zeroes the scores on the EXPORTED controller too
+2026-10-20T07:55:31.4306068Z [55/130] [chromium] › e2e/import-svg-behaviour.spec.ts:437:1 › imported quiz: drawn layers are proposed from their names, and the operator drives select → lock → reveal
+2026-10-20T07:55:35.2473322Z [56/130] [chromium] › e2e/import-svg-behaviour.spec.ts:503:1 › the proposal reads evidence, not order: answer rows with bars are a vote, and a heading is not a row
+2026-10-20T07:55:37.0987835Z [57/130] [chromium] › e2e/import-svg-behaviour.spec.ts:538:1 › switches and a choice: hidden layers named show: and choice: get their own buttons, beside a quiz
+2026-10-20T07:55:41.0475868Z [58/130] [chromium] › e2e/import-svg-behaviour.spec.ts:617:1 › an undrawn quiz moment wears NoaCG’s own look, and a drawn one replaces it
+2026-10-20T07:55:44.7879305Z [59/130] [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick
+2026-10-20T07:55:48.3940957Z ##[error]  1) [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick 
+    Error: expect(locator).toBeEnabled() failed
+
+    Locator: getByRole('button', { name: /Reveal correct/ })
+    Expected: enabled
+    Error: strict mode violation: getByRole('button', { name: /Reveal correct/ }) resolved to 2 elements:
+        1) <button data-testid="verb-next" class="pd-verb pd-verb-named">…</button> aka getByTestId('verb-next')
+        2) <button class="pd-action" data-testid="cue-action-judge" title="Fires Reveal correct on the live graphic, carrying this cue's Correct answer.">⚡ Reveal correct</button> aka getByTestId('cue-action-judge')
+
+    Call log:
+      - Expect "toBeEnabled" with timeout 7000ms
+      - waiting for getByRole('button', { name: /Reveal correct/ })
+
+
+      681 |   // Legal from the pick, with no lock in between - and the lock is still there for a show that
+      682 |   // wants it.
+    > 683 |   await expect(page.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
+          |                                                                      ^
+      684 |   await expect(page.getByRole('button', { name: /Lock it in/ })).toBeEnabled();
+      685 |   await page.getByRole('button', { name: /Reveal correct/ }).click();
+      686 |   const air = page.frameLocator('[data-testid="program-stage"] iframe');
+        at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/import-svg-behaviour.spec.ts:683:70
+2026-10-20T07:55:48.3949383Z   1) [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick 
+2026-10-20T07:55:48.3950070Z 
+2026-10-20T07:55:48.3950307Z     Error: expect(locator).toBeEnabled() failed
+2026-10-20T07:55:48.3950616Z 
+2026-10-20T07:55:48.3950906Z     Locator: getByRole('button', { name: /Reveal correct/ })
+2026-10-20T07:55:48.3951403Z     Expected: enabled
+2026-10-20T07:55:48.3952053Z     Error: strict mode violation: getByRole('button', { name: /Reveal correct/ }) resolved to 2 elements:
+2026-10-20T07:55:48.3953175Z         1) <button data-testid="verb-next" class="pd-verb pd-verb-named">…</button> aka getByTestId('verb-next')
+2026-10-20T07:55:48.3955048Z         2) <button class="pd-action" data-testid="cue-action-judge" title="Fires Reveal correct on the live graphic, carrying this cue's Correct answer.">⚡ Reveal correct</button> aka getByTestId('cue-action-judge')
+2026-10-20T07:55:48.3956378Z 
+2026-10-20T07:55:48.3956528Z     Call log:
+2026-10-20T07:55:48.3956895Z       - Expect "toBeEnabled" with timeout 7000ms
+2026-10-20T07:55:48.3957396Z       - waiting for getByRole('button', { name: /Reveal correct/ })
+2026-10-20T07:55:48.3957703Z 
+2026-10-20T07:55:48.3957709Z 
+2026-10-20T07:55:48.3958131Z       681 |   // Legal from the pick, with no lock in between - and the lock is still there for a show that
+2026-10-20T07:55:48.3958752Z       682 |   // wants it.
+2026-10-20T07:55:48.3959392Z     > 683 |   await expect(page.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
+2026-10-20T07:55:48.3960121Z           |                                                                      ^
+2026-10-20T07:55:48.3960845Z       684 |   await expect(page.getByRole('button', { name: /Lock it in/ })).toBeEnabled();
+2026-10-20T07:55:48.3961638Z       685 |   await page.getByRole('button', { name: /Reveal correct/ }).click();
+2026-10-20T07:55:48.3962436Z       686 |   const air = page.frameLocator('[data-testid="program-stage"] iframe');
+2026-10-20T07:55:48.3963222Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/import-svg-behaviour.spec.ts:683:70
+2026-10-20T07:55:48.3963802Z 
+2026-10-20T07:55:48.3964292Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-20T07:55:48.3965276Z     test-results/import-svg-behaviour-the-q-cb1ce--works-straight-from-a-pick-chromium/test-failed-1.png
+2026-10-20T07:55:48.3966501Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-20T07:55:48.3966817Z 
+2026-10-20T07:55:48.3967355Z     Error Context: test-results/import-svg-behaviour-the-q-cb1ce--works-straight-from-a-pick-chromium/error-context.md
+2026-10-20T07:55:48.3968006Z 
+2026-10-20T07:55:48.3968519Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-20T07:55:48.3969665Z     test-results/import-svg-behaviour-the-q-cb1ce--works-straight-from-a-pick-chromium/trace.zip
+2026-10-20T07:55:48.3970335Z     Usage:
+2026-10-20T07:55:48.3970486Z 
+2026-10-20T07:55:48.3971152Z         npx playwright show-trace test-results/import-svg-behaviour-the-q-cb1ce--works-straight-from-a-pick-chromium/trace.zip
+2026-10-20T07:55:48.3971851Z 
+2026-10-20T07:55:48.3972310Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-20T07:55:48.3972684Z 
+2026-10-20T07:55:48.3972690Z 
+2026-10-20T07:55:49.1225155Z [60/130] [chromium] › e2e/import-svg-behaviour.spec.ts:690:1 › a meter: the bar the designer drew fills toward the target as the figure goes up
+2026-10-20T07:55:54.4821920Z [61/130] [chromium] › e2e/import-svg-behaviour.spec.ts:730:1 › an alert takes itself off air after its hold
+2026-10-20T07:56:06.8137151Z [62/130] [chromium] › e2e/import-svg-behaviour.spec.ts:747:1 › imported vote board: a real audience round moves the bars the designer drew
+2026-10-20T07:56:20.1865534Z [63/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1067:1 › imported countdown: the take starts it, and the operator holds, resumes and resets it
+2026-10-20T07:56:40.8499192Z [64/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1245:1 › imported countdown: changing your mind puts the clock layer back to plain text
+2026-10-20T07:56:42.8438225Z [65/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1274:1 › imported quiz: the behaviour survives the export and runs standalone from a file
+2026-10-20T07:56:45.7877708Z [66/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1350:1 › imported board: copy the design cannot hold is WARNED about on the cue editor, never clipped
+2026-10-20T07:56:50.2948653Z [67/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1393:1 › imported board: the EXPORTED CONTROLLER carries the same warning, in the same words
+2026-10-20T07:56:54.9833760Z [68/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1518:1 › CasparCG package: the standalone panel drives the imported SCORE board, reset included
+2026-10-20T07:57:01.1110097Z [69/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1561:1 › CasparCG package: the standalone panel drives the imported QUIZ board through lock and reveal
+2026-10-20T07:57:07.2826547Z [70/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1605:1 › the mapping step explains itself: the name under an empty box, the count of what did not match, and one press that fills them with reasons
+2026-10-20T07:57:09.3914341Z [71/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1680:1 › the unmatched count leaves out the plate the board is drawn on
+2026-10-20T07:57:11.2981754Z [72/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1755:1 › survey board: reveal in any order lights the row and adds its points to the total, and the fourth strike is greyed
+2026-10-20T07:57:15.9937850Z [73/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1822:1 › stepped list: Next reveals the entries from ten down to one, each staying up, the mark on the newest
+2026-10-20T07:57:19.4772481Z [74/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1859:1 › lineup with a segment bug and a coming-up strip: Next guest walks the list, past guests dim, and the extras compose beside it
+2026-10-20T07:57:23.7815606Z [75/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1908:1 › puzzle board: one press reveals the guessed letter, one takes it back, and Solve shows the rest
+2026-10-20T07:57:28.5414451Z [76/130] [chromium] › e2e/import-svg-behaviour.spec.ts:1981:1 › bid and price reveal: the typed price stays behind the cover until one press, and the winner is a choice
+2026-10-20T07:57:32.1005901Z [77/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2014:1 › bracket: no recipe at all - the slots are typed, the match highlight is a choice and the crown a switch
+2026-10-20T07:57:35.4777625Z [78/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2037:1 › bingo caller: one press lights the number and rings it, the readouts follow, and Take back and New game undo it
+2026-10-20T07:57:40.3734291Z [79/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2114:1 › standings: points move a row into its new place, the position numbers stay with their slots, and a tie shares a place
+2026-10-20T07:57:45.3766309Z [80/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2190:1 › standings, lowest first: the smallest figure takes the top slot the moment the table arrives
+2026-10-20T07:57:48.6994834Z [81/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2211:1 › CasparCG package: the standalone panel drives the bingo caller, add and take back included
+2026-10-20T07:57:55.8600928Z [82/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2305:1 › an Illustrator SAVE AS quiz: the answers keep their type on air, lock and reveal work, and a long question stays on its card
+2026-10-20T07:58:00.4405836Z [83/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2386:1 › an Illustrator scoreboard LOWER THIRD on slanted plates: +1 and −1 play the drawn flash, and a long club name stays on its plate
+2026-10-20T07:58:04.3713735Z [84/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2454:1 › a slanted polygon plate told to get wider grows by its points and keeps its slant
+2026-10-20T07:58:07.3419454Z [85/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2524:1 › a type with no hidden layers is told about Export As, letter tiles start unticked and last, and a text wrapper is not a moment
+2026-10-20T07:58:09.1745836Z [86/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2565:1 › the docs example quiz imports as a quiz and runs select, lock and reveal with every line on its row
+2026-10-20T07:58:13.3735776Z [87/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2613:1 › the docs example scoreboard imports as a score tracker, +1 raises the drawn goal flag, and a long name stays on the board
+2026-10-20T07:58:17.0884389Z [88/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2740:1 › a long question on the docs example quiz wraps at its drawn size in the band above the rows
+2026-10-20T07:58:22.4075210Z [89/130] [chromium] › e2e/import-svg-behaviour.spec.ts:2777:1 › a long question on the docs example LOWER-THIRD quiz wraps above its answer rows rather than shrinking onto one line
+2026-10-20T07:58:26.7788838Z [90/130] [chromium] › e2e/library-bulk.spec.ts:43:1 › multi-select: checkbox + shift-click range, select all, and one-confirm bulk delete
+2026-10-20T07:58:29.7324087Z [91/130] [chromium] › e2e/library-bulk.spec.ts:66:1 › folders GROUP the table: rows first, unfiled under them, opening one shows it alone
+2026-10-20T07:58:34.2719195Z [92/130] [chromium] › e2e/library-bulk.spec.ts:126:1 › search is GLOBAL: it says which folder each match came from, and gives the folder back
+2026-10-20T07:58:37.3050782Z [93/130] [chromium] › e2e/library-bulk.spec.ts:167:1 › folder CARDS: name one, drag a graphic in, open it, and rename it from inside
+2026-10-20T07:58:41.9021774Z [94/130] [chromium] › e2e/library-bulk.spec.ts:229:1 › bulk add to a NEW production pools the selection and lands on its page
+2026-10-20T07:58:44.9625902Z [95/130] [chromium] › e2e/library-bulk.spec.ts:243:1 › the bulk "+ Production" picker opens UPWARD, fully on screen
+2026-10-20T07:58:48.0999873Z [96/130] [chromium] › e2e/library-bulk.spec.ts:290:1 › a "+ Production" pick CLOSES the picker and confirms on the button
+2026-10-20T07:58:51.2560105Z [97/130] [chromium] › e2e/library-bulk.spec.ts:314:1 › a folder pools WHOLE into an existing production, through the bulk verb
+2026-10-20T07:58:54.7777292Z [98/130] [chromium] › e2e/ograf-lifecycle.spec.ts:93:1 › a template's DOM-ready code runs once its whole script has, as on a page (#964)
+2026-10-20T07:58:57.1933089Z [99/130] [chromium] › e2e/ograf-lifecycle.spec.ts:128:1 › dispose() stops the timers the template started, so a countdown stops counting (#989)
+2026-10-20T07:59:00.6271773Z [100/130] [chromium] › e2e/ograf-lifecycle.spec.ts:180:1 › dispose() removes the listeners and observers the template added (#998)
+2026-10-20T07:59:02.9780507Z [101/130] [chromium] › e2e/ograf-lifecycle.spec.ts:236:1 › a graphic set to leave by itself leaves after its entrance and hold, unless a later action cancels it (#1012)
+2026-10-20T07:59:07.4438535Z [102/130] [chromium] › e2e/panel-production-page.spec.ts:15:1 › the Panel door is in Setup, before All out, and before a publish its dialog says to publish once
+2026-10-20T07:59:10.1262277Z [103/130] [chromium] › e2e/panel-production-page.spec.ts:46:1 › on a phone Setup and its Panel door stand down and All out stays reachable
+2026-10-20T07:59:12.6657167Z [104/130] [chromium] › e2e/playout-clock.spec.ts:246:1 › the clock counts the segment the server reports, warns at 10 and 5, then holds and counts up
+2026-10-20T07:59:19.6421981Z [105/130] [chromium] › e2e/playout-clock.spec.ts:277:1 › a clip the server has not put on the layer yet stays ON AIR, counting from the Take
+2026-10-20T07:59:26.9582312Z [106/130] [chromium] › e2e/playout-clock.spec.ts:306:1 › PAUSED stops the count and Resume moves it on; a looping clip never warns
+2026-10-20T07:59:34.9958390Z [107/130] [chromium] › e2e/playout-clock.spec.ts:333:1 › a Bridge from before phase 2: the clock counts from the Take, and says it is estimated
+2026-10-20T07:59:39.4876133Z [108/130] [chromium] › e2e/playout-clock.spec.ts:345:1 › the Bridge gone mid-clip: the count carries on, and says estimated after three seconds
+2026-10-20T07:59:47.1882605Z [109/130] [chromium] › e2e/playout-clock.spec.ts:357:1 › a reading from before a Take that lands after it is ignored
+2026-10-20T07:59:54.5013704Z [110/130] [chromium] › e2e/playout-clock.spec.ts:378:1 › the clock and the rows move with the server; the page does not re-render with them
+2026-10-20T08:00:02.8525285Z [111/130] [chromium] › e2e/playout-clock.spec.ts:420:1 › a clip ended on the server takes the row, Out and All out with it
+2026-10-20T08:00:08.0694261Z [112/130] [chromium] › e2e/playout-clock.spec.ts:437:1 › a reload finds its own clip by instance; another client's take is "replaced", a restarted Bridge's unidentified
+2026-10-20T08:00:17.0390396Z [113/130] [chromium] › e2e/playout-clock.spec.ts:475:1 › NEXT ON SERVER: a clip waiting behind another on its slot says so
+2026-10-20T08:00:22.3066106Z [114/130] [chromium] › e2e/playout-clock.spec.ts:486:1 › a server clip shows as a STILL: its picture and length on PREVIEW, its picture under PROGRAM
+2026-10-20T08:00:26.8106240Z [115/130] [chromium] › e2e/playout-clock.spec.ts:500:1 › with no picture to show, PROGRAM names the server clip instead of standing blank
+2026-10-20T08:00:31.3034964Z [116/130] [chromium] › e2e/playout-clock.spec.ts:513:1 › the tab coming back into view reads the server at once
+2026-10-20T08:00:35.6990779Z [117/130] [chromium] › e2e/playout-clock.spec.ts:526:1 › on a phone the clock sits in the stacked column, and the verbs stay pinned
+2026-10-20T08:00:40.1404947Z [118/130] [chromium] › e2e/playout-clock.spec.ts:544:1 › P pauses the clip on air and P again resumes it; held, typed into a box, or off the Playout screen it does nothing more
+2026-10-20T08:00:46.4252303Z [119/130] [chromium] › e2e/production-pack.spec.ts:28:1 › a production exports as a graphics pack and imports back with its rundown intact
+2026-10-20T08:00:51.6175566Z [120/130] [chromium] › e2e/production-pack.spec.ts:120:1 › the Fight Night pack installs whole: 12 graphics, the 19-cue rundown in show order
+2026-10-20T08:00:53.5362450Z [121/130] [chromium] › e2e/production-pack.spec.ts:158:1 › a broken or too-new pack is refused with a readable message
+2026-10-20T08:00:55.0803299Z [122/130] [chromium] › e2e/route-transition-flash.spec.ts:103:1 › a returning reader booting /app never sees the editor on the way to Home
+2026-10-20T08:00:57.5047164Z [123/130] [chromium] › e2e/route-transition-flash.spec.ts:112:1 › a first-ever visit to /app opens the wizard and never paints the editor
+2026-10-20T08:00:59.0775517Z [124/130] [chromium] › e2e/route-transition-flash.spec.ts:126:1 › a deep link to a production never opens under the startup wizard
+2026-10-20T08:01:01.5446940Z [125/130] [chromium] › e2e/route-transition-flash.spec.ts:143:1 › a navigation inside the boot window never strands the startup wizard
+2026-10-20T08:01:04.7268843Z [126/130] [chromium] › e2e/route-transition-flash.spec.ts:171:1 › a boot decision never rewrites a fragment the app does not own
+2026-10-20T08:01:07.1765152Z [127/130] [chromium] › e2e/route-transition-flash.spec.ts:186:1 › a FIRST-EVER visit on a reset link keeps the fragment too
+2026-10-20T08:01:08.7595991Z [128/130] [chromium] › e2e/save-copy-arrival.spec.ts:76:3 › clean copy arrival timeout: unedited, real ten-second wait and retry
+2026-10-20T08:01:26.3581627Z [chromium] › e2e/save-copy-arrival.spec.ts:76:3 › clean copy arrival timeout: unedited, real ten-second wait and retry
+2026-10-20T08:01:26.3582989Z COPY ARRIVAL RETRY {"duringWait":"unedited","elapsed":10373,"target":"4fb9c85b-0988-45a9-b451-58aa22d484fd","records":2}
+2026-10-20T08:01:26.3583744Z 
+2026-10-20T08:01:26.4376119Z [129/130] [chromium] › e2e/save-copy-arrival.spec.ts:76:3 › clean copy arrival timeout: edited, real ten-second wait and retry
+2026-10-20T08:01:43.7898643Z [chromium] › e2e/save-copy-arrival.spec.ts:76:3 › clean copy arrival timeout: edited, real ten-second wait and retry
+2026-10-20T08:01:43.7901805Z COPY ARRIVAL RETRY {"duringWait":"edited","elapsed":10333,"target":"8f25bd39-a092-49b7-b9a1-079eb298b270","records":2}
+2026-10-20T08:01:43.7902578Z 
+2026-10-20T08:01:43.9017109Z [130/130] [chromium] › e2e/save-copy-arrival.spec.ts:76:3 › clean copy arrival timeout: chained, real ten-second wait and retry
+2026-10-20T08:02:11.4409020Z [chromium] › e2e/save-copy-arrival.spec.ts:76:3 › clean copy arrival timeout: chained, real ten-second wait and retry
+2026-10-20T08:02:11.4410922Z COPY ARRIVAL RETRY {"duringWait":"chained","elapsed":20526,"target":"4c5ed8f0-31fd-4767-bb80-ecbb98c1318b","records":3}
+2026-10-20T08:02:11.4411568Z 
+2026-10-20T08:02:11.9592466Z ##[warning][chromium] › e2e/playout-clock.spec.ts took 1.6m
+2026-10-20T08:02:11.9594954Z ##[warning][chromium] › e2e/save-copy-arrival.spec.ts took 1.0m
+2026-10-20T08:02:11.9596608Z ##[warning][chromium] › e2e/editor-layer-property-qualification.spec.ts took 1.0m
+2026-10-20T08:02:11.9597900Z ##[warning][chromium] › e2e/editor-cli-round-trip.spec.ts took 49.9s
+2026-10-20T08:02:11.9599712Z ##[notice]  1 failed
+    [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick 
+  129 passed (10.4m)
+2026-10-20T08:02:11.9600834Z   Slow test file: [chromium] › e2e/playout-clock.spec.ts (1.6m)
+2026-10-20T08:02:11.9601320Z   Slow test file: [chromium] › e2e/save-copy-arrival.spec.ts (1.0m)
+2026-10-20T08:02:11.9601845Z   Slow test file: [chromium] › e2e/editor-layer-property-qualification.spec.ts (1.0m)
+2026-10-20T08:02:11.9602361Z   Slow test file: [chromium] › e2e/editor-cli-round-trip.spec.ts (49.9s)
+2026-10-20T08:02:11.9602911Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+2026-10-20T08:02:11.9603315Z   1 failed
+2026-10-20T08:02:11.9604065Z     [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick 
+2026-10-20T08:02:11.9604927Z   129 passed (10.4m)
+2026-10-20T08:02:12.5126509Z ##[error]Process completed with exit code 1.
+2026-10-20T08:02:12.5185714Z ##[group]Run actions/upload-artifact@v4
+2026-10-20T08:02:12.5185968Z with:
+2026-10-20T08:02:12.5186156Z   name: blob-report-9
+2026-10-20T08:02:12.5186352Z   path: blob-report/
+2026-10-20T08:02:12.5186549Z   retention-days: 7
+2026-10-20T08:02:12.5186746Z   if-no-files-found: error
+2026-10-20T08:02:12.5186963Z   compression-level: 6
+2026-10-20T08:02:12.5187154Z   overwrite: false
+2026-10-20T08:02:12.5187349Z   include-hidden-files: false
+2026-10-20T08:02:12.5187561Z ##[endgroup]
+2026-10-20T08:02:12.6573139Z (node:5104) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T08:02:12.6574401Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T08:02:12.6674362Z With the provided path, there will be 1 file uploaded
+2026-10-20T08:02:12.6704522Z Artifact name is valid!
+2026-10-20T08:02:12.6704935Z Root directory input is valid!
+2026-10-20T08:02:12.9866993Z Beginning upload of artifact content to blob storage
+2026-10-20T08:02:13.0727945Z (node:5104) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-20T08:02:13.7214428Z Uploaded bytes 2757771
+2026-10-20T08:02:13.7875326Z Finished uploading artifact content to blob storage!
+2026-10-20T08:02:13.7876603Z SHA256 digest of uploaded artifact zip is 3211ae5330f73af4ba61b8f264e651e9b3aca1a9863bd3c93d21b2ee8c6ac953
+2026-10-20T08:02:13.7877623Z Finalizing artifact upload
+2026-10-20T08:02:14.0423160Z Artifact blob-report-9.zip successfully finalized. Artifact ID 12249386913
+2026-10-20T08:02:14.0424380Z Artifact blob-report-9 has been successfully uploaded! Final size is 2757771 bytes. Artifact ID is 12249386913
+2026-10-20T08:02:14.0429874Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253794/artifacts/12249386913
+2026-10-20T08:02:14.0585248Z ##[group]Run actions/upload-artifact@v4
+2026-10-20T08:02:14.0585515Z with:
+2026-10-20T08:02:14.0585705Z   name: test-results-9
+2026-10-20T08:02:14.0585918Z   path: test-results/
+2026-10-20T08:02:14.0586127Z   retention-days: 7
+2026-10-20T08:02:14.0586321Z   if-no-files-found: ignore
+2026-10-20T08:02:14.0586541Z   compression-level: 6
+2026-10-20T08:02:14.0586738Z   overwrite: false
+2026-10-20T08:02:14.0586931Z   include-hidden-files: false
+2026-10-20T08:02:14.0587157Z ##[endgroup]
+2026-10-20T08:02:14.1966946Z (node:5116) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T08:02:14.1967626Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T08:02:14.2101684Z With the provided path, there will be 35 files uploaded
+2026-10-20T08:02:14.2106739Z Artifact name is valid!
+2026-10-20T08:02:14.2107389Z Root directory input is valid!
+2026-10-20T08:02:14.5443684Z Beginning upload of artifact content to blob storage
+2026-10-20T08:02:14.6946747Z (node:5116) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-20T08:02:15.3651248Z Uploaded bytes 4028806
+2026-10-20T08:02:15.4275700Z Finished uploading artifact content to blob storage!
+2026-10-20T08:02:15.4276697Z SHA256 digest of uploaded artifact zip is c1753fa2df0d6134a7b138576bf63018a02c2a9b96d40add262ba83851cc1d09
+2026-10-20T08:02:15.4277448Z Finalizing artifact upload
+2026-10-20T08:02:15.7004915Z Artifact test-results-9.zip successfully finalized. Artifact ID 12249088829
+2026-10-20T08:02:15.7005818Z Artifact test-results-9 has been successfully uploaded! Final size is 4028806 bytes. Artifact ID is 12249088829
+2026-10-20T08:02:15.7011577Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253794/artifacts/12249088829
+2026-10-20T08:02:15.7202820Z Post job cleanup.
+2026-10-20T08:02:15.7205953Z ##[start-action display=Cache Playwright browser;id=__6a594a79-e4f6-446c-9c0f-e8f88aaea70c.cache]
+2026-10-20T08:02:15.7207782Z ##[end-action id=__6a594a79-e4f6-446c-9c0f-e8f88aaea70c.cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-20T08:02:15.7248395Z Post job cleanup.
+2026-10-20T08:02:15.7250760Z ##[start-action display=Cache node_modules;id=__0416ffa7-036c-402c-baee-e5a97494a05f.cache]
+2026-10-20T08:02:15.7252528Z ##[end-action id=__0416ffa7-036c-402c-baee-e5a97494a05f.cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-20T08:02:15.7306511Z Post job cleanup.
+2026-10-20T08:02:15.8009046Z [command]/usr/bin/git version
+2026-10-20T08:02:15.8049834Z git version 2.55.0
+2026-10-20T08:02:15.8078650Z Temporarily overriding HOME='/home/runner/work/_temp/fd463eb8-a1ab-4879-8528-493607362809' before making global git config changes
+2026-10-20T08:02:15.8079949Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T08:02:15.8082767Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-10-20T08:02:15.8116639Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T08:02:15.8148052Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T08:02:15.8404500Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T08:02:15.8427464Z http.https://github.com/.extraheader
+2026-10-20T08:02:15.8436601Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-20T08:02:15.8468547Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T08:02:15.8737985Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T08:02:15.8771015Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T08:02:15.9164918Z Cleaning up orphan processes
+2026-10-20T08:02:15.9430417Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

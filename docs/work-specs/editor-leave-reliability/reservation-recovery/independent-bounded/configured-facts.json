@@ -1,0 +1,2177 @@
+{
+  "artifactPath": "/workspace/attachments/ac9e241d-7d4f-4d14-adf0-c89866420fa7/p2-exact-configured-report.zip",
+  "sha256": "3abbf30d21dcf587b705086235f8eb5420d3eb79fa7c2c90725b3645ec2fbf04",
+  "metadata": null,
+  "stats": {
+    "cases": 112,
+    "outcomes": {
+      "expected": 108,
+      "skipped": 3,
+      "flaky": 1
+    },
+    "attemptStatuses": {
+      "passed": 109,
+      "skipped": 3,
+      "failed": 1
+    },
+    "retries": {
+      "0": 112,
+      "1": 1
+    }
+  },
+  "cases": [
+    {
+      "title": "Settings shows the account: email, password change round-trip, sign out",
+      "location": {
+        "file": "account.spec.ts",
+        "line": 28,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 8777,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the sign-in dialog offers the forgot-password path",
+      "location": {
+        "file": "account.spec.ts",
+        "line": 65,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2360,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a lost session offers explicit recovery; local work survives and sync resumes",
+      "location": {
+        "file": "account.spec.ts",
+        "line": 86,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 11267,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "consent -> loopback code -> redeem -> save 201 -> deep link -> revoke -> 401",
+      "location": {
+        "file": "agent-access.spec.ts",
+        "line": 144,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 26725,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the CLI delivers a set once, however its save is interrupted, repeated or doubled",
+      "location": {
+        "file": "agent-access.spec.ts",
+        "line": 538,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 71055,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the published entry path: npx from a clean home, a new account, early consent, a three-graphic production opened",
+      "location": {
+        "file": "agent-access.spec.ts",
+        "line": 757,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 89981,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "All out clears a graphic the server says is on that this page holds no cue for",
+      "location": {
+        "file": "all-out-from-heads.spec.ts",
+        "line": 22,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 11200,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "analytics remains empty until acceptance and withdrawal erases local and server history",
+      "location": {
+        "file": "analytics.spec.ts",
+        "line": 23,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3042,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "declining sends nothing and the phone prompt stays fully reachable",
+      "location": {
+        "file": "analytics.spec.ts",
+        "line": 62,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2391,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "Global Privacy Control overrides the prompt and any collection",
+      "location": {
+        "file": "analytics.spec.ts",
+        "line": 97,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 273,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "creates a graphic and reaches export with no account",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 39,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 5017,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the wizard a first visit opens on says \"Not signed in\" and offers Sign in beside Home",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 65,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2164,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the AI door offers a free account, not just a sign-in",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 79,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4157,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "account features prompt for sign-in instead of walling the app",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 120,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4087,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an expiry notification leaves anonymous creation usable and sign-in stays explicit",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 147,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4344,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "signed out, the save dialog says the graphic stays on this computer",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 171,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4701,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "signed out, Start production says it needs an account and offers sign-in right there",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 185,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2431,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "signed out, a control-panel link offers a sign-in that actually opens",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 225,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2189,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a dead reset link says so, and offers a new one",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 238,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 3424,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a reset link that predates the route still opens the recovery page",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 256,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2071,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a new account that works at once is signed in, never told to check an email, and keeps Home",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 329,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 25079,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a sign-up that waits on a confirmation says to check the email, and signs nobody in",
+      "location": {
+        "file": "anonymous.spec.ts",
+        "line": 399,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2285,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "publishing derives a readable audience link, and that link opens the join page",
+      "location": {
+        "file": "audience-live.spec.ts",
+        "line": 19,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 12437,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the Bridge airs the production, the dashboard reveals and scores it in CasparCG, and the server's own library is cued beside it",
+      "location": {
+        "file": "bridge-real-server.spec.ts",
+        "line": 75,
+        "column": 1
+      },
+      "outcome": "skipped",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "skipped",
+          "retry": 0,
+          "duration": 0,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else",
+      "location": {
+        "file": "bridge-real-server.spec.ts",
+        "line": 242,
+        "column": 1
+      },
+      "outcome": "skipped",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "skipped",
+          "retry": 0,
+          "duration": 0,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a press another screen overtook is refused, writes nothing, and the operator is told",
+      "location": {
+        "file": "command-sequence.spec.ts",
+        "line": 136,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 12167,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a Take held on its way arrives after the Out, is left out, and never airs",
+      "location": {
+        "file": "command-sequence.spec.ts",
+        "line": 187,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 18360,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a press of several batches never undoes a later press, and nothing pressed before All out airs after it",
+      "location": {
+        "file": "command-sequence.spec.ts",
+        "line": 235,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 9375,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a renderer whose first numbered join fails joins again within seconds, and a Take reaches air",
+      "location": {
+        "file": "command-sequence.spec.ts",
+        "line": 437,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 12300,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a Presence channel closed by the server mid-burst costs the renderer no Take",
+      "location": {
+        "file": "command-sequence.spec.ts",
+        "line": 473,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 18246,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a renderer whose new resolve keeps timing out boots on today's road and airs",
+      "location": {
+        "file": "command-sequence.spec.ts",
+        "line": 539,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 11264,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a saved graphic offers no publish entry to a signed-in account",
+      "location": {
+        "file": "community-authed.spec.ts",
+        "line": 26,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 7845,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the server refuses a direct publish and a community-assets upload",
+      "location": {
+        "file": "community-authed.spec.ts",
+        "line": 44,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 6845,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an admin submits a folder, approves it, a visitor installs it, and Take down removes it",
+      "location": {
+        "file": "community-pack-review.spec.ts",
+        "line": 121,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 35674,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a maker updates a live pack: the update waits beside it, approval replaces it, and Install gives the new one",
+      "location": {
+        "file": "community-pack-review.spec.ts",
+        "line": 275,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 35766,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "Home: a folder and a selection open the submit sheet with their own graphics chosen",
+      "location": {
+        "file": "community-pack-review.spec.ts",
+        "line": 363,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 30802,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the server takes a submit from an account that is not an admin for review only, and refuses one with community.publish off",
+      "location": {
+        "file": "community-pack-review.spec.ts",
+        "line": 457,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 286,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a chat client signs in through the consent page, is served as a connector, and is stopped by Revoke",
+      "location": {
+        "file": "connector-grants.spec.ts",
+        "line": 55,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 14464,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path",
+      "location": {
+        "file": "connector-grants.spec.ts",
+        "line": 200,
+        "column": 3
+      },
+      "outcome": "skipped",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "skipped",
+          "retry": 0,
+          "duration": 7,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a chat client signs in with PKCE and its token reaches no table, function or object directly",
+      "location": {
+        "file": "connector-oauth.spec.ts",
+        "line": 23,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 994,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a chat client sends one package that installs into a working, branded production; refusals store nothing; a recipe pack imports",
+      "location": {
+        "file": "connector-send.spec.ts",
+        "line": 88,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 20358,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a chat client finds catalog designs and reads its own user's library, never another account's",
+      "location": {
+        "file": "connector-tools.spec.ts",
+        "line": 103,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1752,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a control link moves bound values and cannot delete, truncate or blank the data",
+      "location": {
+        "file": "control-link-guard.spec.ts",
+        "line": 37,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 86,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a suspended account cannot rename its team, rotate its code or file a report",
+      "location": {
+        "file": "control-link-guard.spec.ts",
+        "line": 103,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 146,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a published quiz and scoreboard run across the dashboard and two hosted tabs, through a reload of each",
+      "location": {
+        "file": "dashboard-hosted-walk.spec.ts",
+        "line": 40,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 48831,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a signed-out deep link keeps its address @production",
+      "location": {
+        "file": "deep-link-boot.spec.ts",
+        "line": 51,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 5057,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a signed-out production link asks for a sign-in rather than calling it gone @production",
+      "location": {
+        "file": "deep-link-boot.spec.ts",
+        "line": 70,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2140,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a production link opens once signed in from it, and an absent one names only the account",
+      "location": {
+        "file": "deep-link-boot.spec.ts",
+        "line": 80,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 10713,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a graphic saved elsewhere opens on its link, however slow the pull",
+      "location": {
+        "file": "deep-link-boot.spec.ts",
+        "line": 132,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 24061,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a sync asked for during a pass waits for one that can see the new data",
+      "location": {
+        "file": "deep-link-boot.spec.ts",
+        "line": 195,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 10650,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an absent production is answered by its completed pass while unrelated writes remain pending",
+      "location": {
+        "file": "deep-link-boot.spec.ts",
+        "line": 224,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 6979,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a note reaches the endpoint, and carries nothing it should not",
+      "location": {
+        "file": "feedback.spec.ts",
+        "line": 38,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2336,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a positive rating asks nothing further",
+      "location": {
+        "file": "feedback.spec.ts",
+        "line": 88,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2215,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the dialog closes without sending anything",
+      "location": {
+        "file": "feedback.spec.ts",
+        "line": 108,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2101,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "Home has its own door, and it reports Home",
+      "location": {
+        "file": "feedback.spec.ts",
+        "line": 126,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2185,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the sheet wears the shared header shape",
+      "location": {
+        "file": "feedback.spec.ts",
+        "line": 144,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2145,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a production whose live connection never joins says so, and a healthy one does not",
+      "location": {
+        "file": "follow-status-is-visible.spec.ts",
+        "line": 24,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 23628,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "avatar menu routes to Home and opens settings; sign out returns the Sign in button",
+      "location": {
+        "file": "homebase.spec.ts",
+        "line": 12,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 6076,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a published profile arranges and moves the shared value on the hosted page",
+      "location": {
+        "file": "hosted-control-profile.spec.ts",
+        "line": 133,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 9053,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a fresh operator page boots, takes its first cue, and holds it on air",
+      "location": {
+        "file": "hosted-control-recovery.spec.ts",
+        "line": 66,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 8422,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows",
+      "location": {
+        "file": "hosted-reveal-after-reload.spec.ts",
+        "line": 63,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 36883,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the hosted page carries both SPACE modes: the cursor previews nothing, SPACE stages, SPACE airs, SPACE cuts back",
+      "location": {
+        "file": "hosted-space-modes.spec.ts",
+        "line": 18,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 9448,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an imported quiz board publishes, runs on the real output renderer, and repaints its drawn states after a reboot",
+      "location": {
+        "file": "imported-quiz-output.spec.ts",
+        "line": 54,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 29209,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a Take that commits after its page gave up takes the \"on this monitor only\" notice down",
+      "location": {
+        "file": "late-commit-notice.spec.ts",
+        "line": 67,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 22515,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+      "location": {
+        "file": "late-send-abandoned.spec.ts",
+        "line": 28,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 29583,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "Home says the library is on its way, not that nothing is saved",
+      "location": {
+        "file": "library-arrival.spec.ts",
+        "line": 81,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 27621,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an output says who it is and how commands reach it, and both operator pages show one health line",
+      "location": {
+        "file": "live-health.spec.ts",
+        "line": 72,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 20240,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the readiness run publishes what changed, checks every output and ends in a stamp both surfaces show",
+      "location": {
+        "file": "live-prepare.spec.ts",
+        "line": 33,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 86314,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an output stays listed on the hosted health line through 90 s of a busy show",
+      "location": {
+        "file": "live-presence-steady.spec.ts",
+        "line": 19,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 100302,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "READY: every output says whether it is ready, both surfaces read one line, a broken graphic is named and a dead output is red",
+      "location": {
+        "file": "live-ready.spec.ts",
+        "line": 23,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 56530,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an operator page waits out a database outage instead of calling the production unpublished",
+      "location": {
+        "file": "operator-outage-not-unpublished.spec.ts",
+        "line": 52,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 16796,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a cue taken before the renderer exists is on air when the browser source boots",
+      "location": {
+        "file": "output-cold-boot.spec.ts",
+        "line": 36,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 9644,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a renderer whose realtime channel never joins still airs a take, and says it is polling",
+      "location": {
+        "file": "output-realtime-floor.spec.ts",
+        "line": 39,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 39450,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an output URL can render the show and cannot push a command onto it",
+      "location": {
+        "file": "output-url-cannot-push.spec.ts",
+        "line": 69,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 18166,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a reload keeps the panel, a second production page never takes it, and takes over once the first is gone",
+      "location": {
+        "file": "panel-lease.spec.ts",
+        "line": 19,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 34208,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a hosted page pairs a panel, answers it, runs its presses and refuses repeated and stale ones",
+      "location": {
+        "file": "panel-page.spec.ts",
+        "line": 19,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 39445,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the production page pairs a panel, answers it, runs its presses and refuses repeated and stale ones",
+      "location": {
+        "file": "panel-production-page.spec.ts",
+        "line": 25,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 31206,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the clip clock a panel counts follows the server clip the production page plays",
+      "location": {
+        "file": "panel-production-page.spec.ts",
+        "line": 145,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 15173,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a one-time code pairs a panel once, and the page lists it",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 123,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 65,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "with no answering page a press is refused and nothing is relayed",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 162,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2555,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a press reaches the answering page stamped with its claim, with only the permitted fields",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 182,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 4265,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the relay refuses foreign verbs, malformed presses, wrong keys and bursts",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 236,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 107,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the panel lease: taken when free, never taken from a live page, kept on reload, moved by Use here, renewed, and lapsing",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 260,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 16126,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "two pages taking a free panel at once: exactly one gets it",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 308,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 51,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "revoking a panel stops it at once, moves the feedback topic, and leaves the others working",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 320,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 76,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "feedback travels page to panels on its topic; nobody but the database writes the press topic",
+      "location": {
+        "file": "panel-relay.spec.ts",
+        "line": 341,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 1561,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "two outputs each swap a changed graphic in place, and hold one on air until it is cleared",
+      "location": {
+        "file": "per-graphic-replacement.spec.ts",
+        "line": 61,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 70376,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "one press is one entrance on the sender, on another operator, and on air",
+      "location": {
+        "file": "playout-both-roads.spec.ts",
+        "line": 112,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 10057,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the playout status: quiet until something reports, green when it does, red only for loss or a fault, and Publish changes moves the outputs",
+      "location": {
+        "file": "playout-status.spec.ts",
+        "line": 25,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 71779,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the pro-status route is REACHED and answers the wire contract",
+      "location": {
+        "file": "pro-wizard.spec.ts",
+        "line": 61,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 17,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a configured backend does not reopen the closed wizard door",
+      "location": {
+        "file": "pro-wizard.spec.ts",
+        "line": 74,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 10114,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a published production shows its data key, and that key writes the production data",
+      "location": {
+        "file": "production-data-key.spec.ts",
+        "line": 47,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 10261,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "unpublishing and publishing again keeps every capability URL",
+      "location": {
+        "file": "production-links.spec.ts",
+        "line": 25,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 8920,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a newer design on air stops the publish, and a publish landing in between is published over once",
+      "location": {
+        "file": "publish-guard.spec.ts",
+        "line": 263,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 11274,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a teammate's older copy never replaces the newer design, and their cue and layer still publish",
+      "location": {
+        "file": "publish-guard.spec.ts",
+        "line": 165,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 14661,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the CasparCG default is stored by Auth, starts a new production switched on in another browser, and clearing it leaves existing productions alone",
+      "location": {
+        "file": "publish-output-default.spec.ts",
+        "line": 44,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 15469,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a published quiz runs the sealed sequence on the real output renderer, and survives a renderer reboot mid-lock",
+      "location": {
+        "file": "quiz-output.spec.ts",
+        "line": 25,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 17411,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an exported graphic loaded after the take airs it, from the real log",
+      "location": {
+        "file": "relay-cold-boot.spec.ts",
+        "line": 43,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 9071,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a timed cue counts the same second on two pages and a reload, ends once, holds from a phone, and stays missed",
+      "location": {
+        "file": "rundown-timing-recovery.spec.ts",
+        "line": 78,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 49860,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a published scorebug takes a score bump and a running clock on the real output renderer",
+      "location": {
+        "file": "scorebug-output.spec.ts",
+        "line": 43,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 25021,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "two students take turns on one browser and neither sees nor loses the work of the other",
+      "location": {
+        "file": "shared-lab-computer.spec.ts",
+        "line": 113,
+        "column": 3
+      },
+      "outcome": "flaky",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "failed",
+          "retry": 0,
+          "duration": 42522,
+          "error": {
+            "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.auth-status')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('.auth-status')\u001b[22m\n",
+            "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.auth-status')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('.auth-status')\u001b[22m\n\n    at signInOnHome (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts:112:46)\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/shared-lab-computer.spec.ts:158:9",
+            "location": {
+              "file": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts",
+              "column": 46,
+              "line": 112
+            },
+            "snippet": "   at _helpers.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'#auth-pass'\u001b[39m)\u001b[33m.\u001b[39mfill(password)\u001b[33m;\u001b[39m\n \u001b[90m 111 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'.auth-card'\u001b[39m)\u001b[33m.\u001b[39mgetByRole(\u001b[32m'button'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Sign in'\u001b[39m\u001b[33m,\u001b[39m exact\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'.auth-status'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m20\u001b[39m_000 })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (settle) \u001b[36mawait\u001b[39m settleSync(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m }\n \u001b[90m 115 |\u001b[39m\u001b[0m"
+          },
+          "errors": [
+            {
+              "location": {
+                "file": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts",
+                "column": 46,
+                "line": 112
+              },
+              "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.auth-status')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('.auth-status')\u001b[22m\n\n\n   at _helpers.ts:112\n\n  110 |   await page.locator('#auth-pass').fill(password);\n  111 |   await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();\n> 112 |   await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });\n      |                                              ^\n  113 |   if (settle) await settleSync(page);\n  114 | }\n  115 |\n    at signInOnHome (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts:112:46)\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/shared-lab-computer.spec.ts:158:9"
+            }
+          ]
+        },
+        {
+          "status": "passed",
+          "retry": 1,
+          "duration": 34377,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the topbar holds one row at laptop widths with the account controls in it",
+      "location": {
+        "file": "signed-in-ux.spec.ts",
+        "line": 71,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 7326,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the save dialog says a signed-in save follows the account",
+      "location": {
+        "file": "signed-in-ux.spec.ts",
+        "line": 145,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 12933,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "the hosted control page publish surface speaks productions",
+      "location": {
+        "file": "signed-in-ux.spec.ts",
+        "line": 163,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 10042,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "two tabs, one edit: exactly one library sync pass, run by the tab that made it",
+      "location": {
+        "file": "sync-one-pass-per-edit.spec.ts",
+        "line": 87,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 25795,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a tab that closes before its pass hands the pass to ONE of the tabs still open",
+      "location": {
+        "file": "sync-one-pass-per-edit.spec.ts",
+        "line": 108,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 30220,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "a Take pressed while the Out is on its way stays on air here, and All out then clears it",
+      "location": {
+        "file": "take-behind-out.spec.ts",
+        "line": 29,
+        "column": 1
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 10640,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "signed out: a production has no team door anywhere",
+      "location": {
+        "file": "teams.spec.ts",
+        "line": 245,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2273,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "signed out: a join link offers an account rather than a wall",
+      "location": {
+        "file": "teams.spec.ts",
+        "line": 271,
+        "column": 3
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 2189,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "creates a team, hands out its code, re-joins by link, and leaves nothing behind",
+      "location": {
+        "file": "teams.spec.ts",
+        "line": 290,
+        "column": 5
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 6435,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "an invited teammate finds the team and its production on Home, and both edit it",
+      "location": {
+        "file": "teams.spec.ts",
+        "line": 450,
+        "column": 5
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 13319,
+          "error": null,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "title": "three members build one production, and a member plays it out with its creator signed out",
+      "location": {
+        "file": "teams.spec.ts",
+        "line": 623,
+        "column": 5
+      },
+      "outcome": "expected",
+      "projectName": "configured",
+      "results": [
+        {
+          "status": "passed",
+          "retry": 0,
+          "duration": 35562,
+          "error": null,
+          "errors": []
+        }
+      ]
+    }
+  ]
+}

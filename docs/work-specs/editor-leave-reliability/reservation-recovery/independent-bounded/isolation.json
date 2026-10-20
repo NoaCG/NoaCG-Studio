@@ -1,0 +1,41 @@
+{
+  "at": "2026-10-20T07:56:55.737382+00:00",
+  "source": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+  "tree": "490bc9177c452d348c0098e93eb7af629bfea431",
+  "worktree": "/workspace/p2-bounded-independent",
+  "branch": "codex/p2-bounded-independent-20261020",
+  "runtimeBinding": "ccarenv_b64_Y2NhcmVudl8zZTEzNGIwYWJkZTg4MTkxOTc1NTlkYmU3NDY4OGQ3OQ",
+  "nativeQualification": "same-VM independent subagent only; no separately qualified native remote cloud-child launch",
+  "profile": {
+    "kind": "cloud",
+    "provider": "codex",
+    "limits": {
+      "effectiveCpus": 4,
+      "memoryLimitBytes": 17179869184,
+      "availableMemoryBytes": 14343700480,
+      "limitsObserved": false,
+      "reasons": [
+        "cpu: hidden ancestors above /..",
+        "memory: hidden ancestors above /..",
+        "the machine totals stand in for what could not be read"
+      ]
+    },
+    "known": false,
+    "freeMb": 13679,
+    "workers": 2,
+    "smallMinutes": 5,
+    "broaderMinutes": 12,
+    "buildMinutes": 5
+  },
+  "worktrees": "worktree /workspace/NoaCG-Studio\nHEAD 331a98a919b21dad676d8729d254eb208db76ce0\nbranch refs/heads/work\n\nworktree /workspace/p2-bounded-independent\nHEAD 5b843f32d3df48bcd10ca64ea2c957ae7b2810c1\nbranch refs/heads/codex/p2-bounded-independent-20261020\n\nworktree /workspace/p2-reservation-recovery\nHEAD f4b5c59b4dcbac807cccbf3b5b1990a7a4b146eb\nbranch refs/heads/codex/p2-reservation-recovery\n\n",
+  "activity": "Nothing else in this checkout has work in flight right now.\n",
+  "broaderFiles": [
+    "e2e/save-transaction.spec.ts",
+    "e2e/editor-groups.spec.ts",
+    "e2e/save-transaction-holds.spec.ts",
+    "e2e/save-transaction-leave.spec.ts",
+    "e2e/save-transaction-leave-modal.spec.ts",
+    "e2e/save-transaction-leave-shortcut.spec.ts",
+    "e2e/save-transaction-wizard.spec.ts"
+  ]
+}

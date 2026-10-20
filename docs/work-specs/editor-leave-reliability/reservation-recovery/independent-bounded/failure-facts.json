@@ -1,0 +1,42 @@
+{
+  "source": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+  "run": 39389253794,
+  "job": 118516608678,
+  "jobName": "E2E 9/15 (full)",
+  "originalResult": {
+    "passed": 129,
+    "failed": 1,
+    "skipped": 0,
+    "retries": 0,
+    "duration": "10.4m"
+  },
+  "failure": {
+    "file": "e2e/import-svg-behaviour.spec.ts",
+    "caseLine": 665,
+    "assertionLine": 683,
+    "assertionColumn": 70,
+    "expectTimeoutMs": 7000,
+    "assertion": "toBeEnabled",
+    "error": "strict mode violation; Reveal correct button locator matched2 elements",
+    "matchedTestIds": [
+      "verb-next",
+      "cue-action-judge"
+    ]
+  },
+  "wholeLogSha256": "e9a08454294c2390f686332d3cb62f544cb5df99137859bd301ce509c5a41708",
+  "wholeLogTransport": "GitHub connector fetch_workflow_job_logs; no CLI signed redirect",
+  "automaticRetry": {
+    "job": 118521742810,
+    "source": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+    "conclusion": "success",
+    "passed": 38,
+    "failed": 0,
+    "skipped": 0,
+    "duration": "4.0m",
+    "manualDispatchByChecker": false,
+    "qualification": "fail-then-pass on identical source; not a repair; original result remains failed",
+    "wholeLogSha256": "31d55cd32eaacba69122992dcf46f273f839d0484c95681b3ce4972f0af9f0c2"
+  },
+  "checkerStopped": true,
+  "diagnosisOrRepairPerformed": false
+}

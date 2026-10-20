@@ -1,0 +1,49 @@
+{
+  "source": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+  "evidenceScope": "docs/work-specs/editor-leave-reliability/reservation-recovery/independent-bounded/ only",
+  "review": {
+    "mode": "inline",
+    "findings": 0,
+    "scope": "evidence source/identity, factual results and limits; no product repair"
+  },
+  "simplify": {
+    "mode": "inline",
+    "changes": "no product changes; explicit scope and original/retry separation retained"
+  },
+  "documentationChecks": {
+    "command": "npm run gates -- run --changed HEAD",
+    "result": "pass",
+    "selected": [
+      "check:contract-freshness",
+      "check:contract-citations",
+      "check:docs-index",
+      "check:client-secrets",
+      "check:copy"
+    ],
+    "productOrBrowserTestsExecuted": false
+  },
+  "jsonAndRelativeLinks": "pass",
+  "acceptanceVerdict": "FAIL gated engineering acceptance",
+  "acceptanceStampIssued": false,
+  "productionBuild": "not required; evidence-only modification; no build performed",
+  "configuredQualification": {
+    "cases": 112,
+    "expected": 108,
+    "flaky": 1,
+    "skipped": 3,
+    "attemptsPassed": 109,
+    "attemptsFailed": 1,
+    "retry0": 112,
+    "retry1": 1,
+    "minimumRunFloor": 104,
+    "floorSatisfied": true,
+    "cleanPass": false
+  },
+  "terminalGateResult": "main CI FAILURE; configured workflow SUCCESS with1flaky; all other applicable source workflows terminal",
+  "finalScope": "20 evidence files only; product/tests/helpers/assertions/budgets/quarantine/workflows unchanged",
+  "whitespace": {
+    "authoredMarkdownAndJson": "pass",
+    "completeDiff": "49 trailing-space warnings in preserved raw logs; original capture retained unchanged",
+    "rawLogWarningsCount": 49
+  }
+}

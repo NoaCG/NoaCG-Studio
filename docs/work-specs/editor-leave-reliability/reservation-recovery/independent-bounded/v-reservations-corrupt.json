@@ -1,0 +1,12 @@
+{
+  "shape": "corrupt",
+  "listBeforeReload": "{\"version\":1,\"ids\":[",
+  "linkAfterReload": {
+    "graphicId": "e0099111-dfe8-46d2-97fa-f46747f3eca8",
+    "dirty": true,
+    "status": "idle"
+  },
+  "named": 0,
+  "records": 1,
+  "mintedHoldsRequested": true
+}

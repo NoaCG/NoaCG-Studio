@@ -1,0 +1,39 @@
+
+> noacg-studio@0.1.0 gates
+> node scripts/gates.mjs run --changed HEAD
+
+
+[gates] check:contract-freshness: node scripts/check-contract-freshness.mjs
+[measured] 866 contract files
+Contract freshness OK: 866 contract file(s), every referenced script, doc and path exists.
+[gates] check:contract-freshness ok (0.1s) - 866 contract files
+
+[gates] check:contract-citations: node scripts/check-contract-citations.mjs
+[measured] 562 rule ids in contracts/rules
+[measured] 4590 text files scanned for citations
+Contract citations OK: 4590 file(s), every cited rule id and contract section exists.
+[gates] check:contract-citations ok (1.4s) - 562 rule ids in contracts/rules, 4590 text files scanned for citations
+
+[gates] check:docs-index: node scripts/check-docs-index.mjs
+[measured] 150 top-level docs
+[measured] 153 docs/README.md index rows
+check-docs-index: OK - all 150 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).
+[gates] check:docs-index ok (0.1s) - 150 top-level docs, 153 docs/README.md index rows
+
+[gates] check:client-secrets: node scripts/check-client-secrets.mjs
+[measured] 4047 source files scanned
+Client secret scan OK (src, e2e, scripts, docs).
+[gates] check:client-secrets ok (0.8s) - 4047 source files scanned
+
+[gates] check:copy: node scripts/check-copy.mjs
+[measured] 902 source files scanned
+[measured] 481 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+[gates] check:copy ok (0.5s) - 902 source files scanned, 481 copy baseline rows
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
