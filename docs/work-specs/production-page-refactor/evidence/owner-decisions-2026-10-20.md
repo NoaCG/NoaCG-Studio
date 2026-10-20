@@ -46,7 +46,7 @@ says why. Invariants stay binding: land only through `/queue-merge`; only the me
 | 14 | The coordinator never sits idle while it waits: it waits inside a running background job or monitor | parent §9 "Never idle"; runner PR procedure text |
 | 15 | Laptop helper session beside the cloud coordinator: never changes the run; runs the local checks on landed revisions that lack receipts; lands receipts; opens an issue on a regression; the repository is the channel; direct messages only as a nudge; first task is a non-blocking channel test | parent §9.1, §10 step 4 |
 | 16 | Speed and stalls: no CI timeout changes (only the new endurance workflow gets 90 minutes); existing bounded waits plus one progress check that catches a worker with no progress for about 30 minutes and restarts or repairs it | parent §9 "Silent workers", "Speed"; runner PR |
-| 18 | The run is separate from the editor (owner: "two completely different things"). A failing spec counts against a phase only when the phase adds or changes it, or when e2e-affected selects it for the phase's changed files and it passes on main without the phase; anything else is named in the checker's `mergeChecks` with its issue and never fails a phase or stops the run. Quarantined specs gate nothing. Main's CI already quarantines flakes and reverts landings that turn a green main red; a phase taken out by that revert is landed again, and any other red main is its own landing's repair owner's to fix while the phase waits at no cost, with the owner told after two hours. Fresh flakes #1532 (import-svg-behaviour, which most production page changes select) and #1533 are quarantined | parent §5.3, §8; e2e/quarantine.json; runbook and plan-run.md `mergeChecks` |
+| 18 | The run is separate from the editor (owner: "two completely different things"). A failing spec counts against a phase only when the phase adds or changes it, or when it passes on main without the phase (test selection proves nothing either way); anything else is named in the checker's `mergeChecks` with its issue and never fails a phase or stops the run. Quarantined specs gate nothing. Main's CI already quarantines flakes and reverts landings that turn a green main red; a phase taken out by that revert is landed again, and any other red main is its own landing's repair owner's to fix while the phase waits at no cost, with the owner told after two hours. Fresh flakes #1532 (import-svg-behaviour, which most production page changes select) and #1533 are quarantined | parent §5.3, §8; e2e/quarantine.json; runbook and plan-run.md `mergeChecks` |
 
 ## Second opinions, same day
 
@@ -85,6 +85,18 @@ Each claim was checked against the code before acting.
 | R15 | The preflight checks each landing operation by its own receipt (from a real landing, never a probe that could queue unfinished work), the four keys by presence, the quarantine bot by a recent pull request, other active plan projects by the remote checkpoints' status, and open quarantine pull requests by one REST call; a refused landing gets one replacement builder, then a stop; a stuck quarantine pull request never holds the run | parent §8, §9 |
 | R16 | C2: month-to-date usage is read before the switch goes on, and while it cannot be read the switch stays off; a run with no recorded duration counts as 30 s; refused calls show in the month's usage; the switch holds an expiry at most 48 h ahead (a later one reads as off) that the daily watch moves forward, so a lost coordinator cannot leave the tick running, and the final report says when it turns off; the first-call proof is a recorded run | data-sources C2, matrix, cron note; parent §9.2 |
 | R17 | Phase notes: every phase of the programme, a child spec's included, writes to `evidence/phase-notes.md`; the data-sources spec points there, and the builder brief keeps notes under `## Phase notes` or the file it names. §10 step 6 continues in the same cloud environment as step 3, never from a routine, with the laptop as a fallback that needs the same keys | parent §9, §10; data-sources "Phase notes"; #1549 |
+
+## Third review round, same day
+
+Argon's review of `main` `1b9091537`, and the automated review comments on #1548 and #1549.
+
+| # | Fix | Where |
+| --- | --- | --- |
+| R18 | Test selection is no proof of cause (it has missed real coverage, #927): a failure counts against a phase whenever it passes on main without the phase | parent §8 decision 18 |
+| R19 | A merge whose main run was cancelled as superseded is checked on its own SHA, by dispatching `ci.yml` on a `claude/check-<sha7>` branch, never by a later main run that tests other landings too | parent §8; runbook; plan-run.md |
+| R20 | The progress check counts a branch not pushed yet from the launch, so a worker stalled before its first push turns idle, and ignores times more than five minutes ahead of its clock | worker-progress.mjs |
+| R21 | In a cloud session a quarantine is entered without `--queue` and landed through the cloud path; between phases the coordinator lists open quarantine pull requests and carries a red one through; stale ones close through REST | parent §8, §9; queue-merge.md |
+| R22 | A worker refused auto-merge as self-approval (#1408) is covered by the coordinator, which can turn it on; the start line's permission policy names it | parent §8, §10 step 3 |
 
 ## Runner check
 

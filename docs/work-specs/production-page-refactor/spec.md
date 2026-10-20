@@ -566,16 +566,17 @@ deploy-verify run, and the exact revert command.
   `answered` are involved.
 - **Separate from the editor (owner, 2026-10-20, decision 18).** A phase answers only for what
   it can break: an editor bug or any other unrelated failure never fails a phase or stops the run.
-  A failing spec counts against the phase when the phase adds or changes it, or when
-  `e2e-affected` selects it for the phase's changed files (`node scripts/e2e-affected.mjs --list
-  --files <files>`; configured specs count as selected when it asks for the configured suite) and
-  it passes on main without the phase (the merge's first parent; the checker runs it there when
-  main's own runs do not show it). Any other failing spec is outside the phase: the checker names
+  A failing spec counts against the phase when the phase adds or changes it, or when it passes on
+  main without the phase (the merge's first parent; the checker runs it there when main's own
+  runs do not show it). Test selection is no proof either way, since it has missed real coverage
+  (#927), and a failure on main has already survived main's own re-run, so it is no flake. Any
+  other failing spec, one already failing without the phase, is outside the phase: the checker names
   it in `mergeChecks` with the issue that tracks it (the rolling red-main issue, or one new issue)
   and that evidence, and the phase can pass; one in a production-page spec also gets a
   between-phases repair, as above. Quarantined specs gate nothing; `quarantine.yml` keeps running
-  them. When main cancelled the run on the merge SHA as superseded, the first completed main run
-  that contains the merge stands in for it.
+  them. When main cancelled the run on the merge SHA as superseded, the checker pushes a
+  `claude/check-<sha7>` branch at that SHA and dispatches `ci.yml` on it (an empty `diff_base`
+  runs the full suite); a later main run would test other landings too.
 - **A red main the phase did not cause.** Main's CI quarantines a fail-then-pass and reverts the
   landings that turn a green main red, so an editor landing that breaks main undoes itself; if
   that revert also takes out the phase's merge, the phase's builder lands it again once main is
@@ -588,7 +589,15 @@ deploy-verify run, and the exact revert command.
   quarantine pull request that cannot
   land (its own CI red, or an owner hold) never holds the run: decision 18 already keeps that
   spec from failing a phase, the owner hold is an owner-list item, and a red bot pull request is
-  carried through by a session outside the phase ledger, as #1546 did for #1544.
+  carried through by a session outside the phase ledger, as #1546 did for #1544. In a cloud
+  session a quarantine is entered with `node scripts/e2e-quarantine.mjs enter <spec> --run <url>`
+  without `--queue` (its `gh pr` calls are GraphQL, refused there) and landed through the cloud
+  path in `/queue-merge`. Between phases the coordinator lists open quarantine pull requests (the
+  §9 REST call) and carries a red one through the same way.
+- **Auto-merge.** A worker's own permission check may refuse turning on auto-merge for its pull
+  request as self-approval (#1408). The coordinator, an owner-started session that can (#1546 to
+  #1550, 2026-10-20), then turns it on for that phase pull request, as the owner's permission
+  policy authorizes (§10 step 3).
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its
@@ -671,7 +680,8 @@ the first rehearsal.
   midpoint retro after row 23 is the procedure's ordinary retro step.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
   `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
-  problems (open runtime acceptance is expected) and the plan listed under "Runnable plans";
+  problems (open runtime acceptance is expected) and the plan listed under "Runnable plans" in
+  `.agent-workflows/plan-run.md`;
   `origin/main` CI green; the latest `configured-suite` run on main green; deploy-verify green for
   main's head, or, when main's head deploy was skipped (Vercel's ignore step builds nothing for a
   range without deploy-affecting paths, so that SHA has no deploy-verify run), the last real
@@ -706,7 +716,8 @@ the first rehearsal.
     ones stay listed and pass. A fresh container's local wave store is empty and proves nothing.
   - **Open quarantine pull requests reconciled:** `gh api
     'repos/NoaCG/NoaCG-Studio/pulls?state=open&per_page=100' --jq '.[] |
-    select(.head.ref | startswith("quarantine/")) | .number'` lists them; stale ones are closed, a
+    select(.head.ref | startswith("quarantine/")) | .number'` lists them; stale ones are closed through the GitHub connector or REST (`gh api -X PATCH
+    repos/NoaCG/NoaCG-Studio/pulls/<n> -f state=closed`, never `gh pr close`), a
     fresh fail-then-pass is left to the quarantine flow, and a spec this plan names is repaired
     first.
 
@@ -822,7 +833,7 @@ the final owner block, which waits for him.
    measured 2026-10-17), and send:
 
    ```
-   /plan-run production-page until <date and time with UTC offset>
+   /plan-run production-page until <date and time with UTC offset>, permission policy: auto mode; the coordinator and its workers may turn on auto-merge and dispatch cloud-queue-merge.yml for the run's own reviewed pull requests
    ```
 
    The coordinator reads this spec on `origin/main`, runs the §9 preflight, prepares the project
