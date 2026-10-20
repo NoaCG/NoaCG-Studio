@@ -9,7 +9,8 @@ Main reconciliation: `4e067b65674a9bf0a7632430b5dd0772c03a0331`; revised for the
 This document is part of the [parent specification](spec.md). It owns integration of H0 and
 E1–E8. Each linked child owns its detailed contract and ACs. The baseline steps and Q's records
 retain their requirements and refactor fences. There are **31 named work packages** (22 baseline
-+ nine extensions), expanded below into **47 execution phases** so each fits one builder session
++ nine extensions; C1's split makes the baseline 24 phases), expanded below into **47 execution
+phases** so each fits one builder session
 and contract, implementation and real-device acceptance have explicit boundaries. The extra
 phases are not extra product scope. Friday 23 October is a progress checkpoint, never a
 completion deadline.
@@ -28,22 +29,23 @@ criteria are only those an agent verifies (owner, 2026-10-20, A): environment **
 qualified Claude cloud worker plus GitHub Actions. The final owner block (rows 46-47, environment
 **OW**: the owner's Windows laptop, the physical Stream Deck and the real studio) is the only part
 that waits for the owner. "Laptop" entries are non-gating checks the laptop helper runs on that
-phase's merge SHA (parent §9.1); "kit" entries are trial kits on the owner list (D); "Q"
-entries are Q records that must be on `main` before that phase is built (data-sources Q).
+phase's merge SHA (parent §9.1); "kit" entries are trial kits on the owner list (D). A "Q"
+record in the gating column must be on `main` before that phase's build starts, and its checker
+confirms it (data-sources Q).
 
 | # | Phase | Authority | Gating acceptance | Env | Non-gating |
 | --- | --- | --- | --- | --- | --- |
 | 1 | C0 | [data-sources](../data-sources/spec.md) | data AC-10 structural half, AC-15; audience AC-1/2/3/6/8 paste half; C0 matrix row | CA | - |
-| 2 | H0.1 | [Companion qualification](../playout-companion-qualification/spec.md) | H0 AC-1 packaging/guide portion, AC-2, AC-3 (automated, relay and configured) | CA | kit: Companion install and pairing |
+| 2 | H0.1 | [Companion qualification](../playout-companion-qualification/spec.md) | H0 AC-1 packaging/guide portion, AC-2, AC-3 (automated, relay and configured) | CA | laptop: hardware-panel AC-8/11/12 receipts; kit: Companion install and pairing |
 | 3 | 1 | [parent](spec.md) | AC-1, AC-15; phase 1 matrix row | CA | laptop: two perf baselines |
 | 4 | 2+7 | [parent](spec.md) | AC-3, AC-6, AC-8; phase 2 and 7 matrix rows in full | CA | - |
 | 5 | 13a | [parent](spec.md) | AC-2, AC-8; phase 3 row plus `production-data`, `playout-air-contract` | CA | - |
-| 6 | C1a | [data-sources](../data-sources/spec.md) | data AC-2, AC-4, AC-12 (fixture test added), AC-13 starter/scalar half; C1a matrix row | CA | - |
-| 7 | C1b | [data-sources](../data-sources/spec.md) | data AC-1, AC-3, AC-8, AC-10 inbox half, AC-11, AC-13 mapping half; sheet AC-1 stub, AC-2, AC-5, AC-6, AC-7, AC-8; C1b row | CA | Q: `sheet-latency`, `sheet-endurance` |
+| 6 | C1a | [data-sources](../data-sources/spec.md) | data AC-2 adapter half, AC-4, AC-12 fixture test, AC-13 starter/scalar half; C1a matrix row | CA | - |
+| 7 | C1b | [data-sources](../data-sources/spec.md) | Q `sheet-latency` and `sheet-endurance`; data AC-1, AC-2 Sheet half, AC-3, AC-8, AC-10 inbox half, AC-11, AC-12 connection half, AC-13 mapping half; sheet AC-1 stub, AC-2, AC-5, AC-6, AC-7, AC-8; C1b row | CA | - |
 | 8 | C1c | [data-sources](../data-sources/spec.md) | data AC-9, AC-13 real-Sheet half; sheet AC-1 real Sheet, AC-3 local program, AC-9; C1c row | CA | - |
-| 9 | C2 | [data-sources](../data-sources/spec.md) | data AC-3 published, AC-11, AC-12; sheet AC-3 published, AC-4 to AC-7; tick checks (C2) | CA | Q: `tick-cost-estimate` |
-| 10 | C3 | [data-sources](../data-sources/spec.md) | data AC-10, AC-15; sheet AC-11; audience AC-4, AC-8, AC-9 | CA | Q: `youtube` |
-| 11 | C4 | [data-sources](../data-sources/spec.md) | data AC-5, AC-6, AC-11 | CA | Q: `feeds` |
+| 9 | C2 | [data-sources](../data-sources/spec.md) | Q `tick-cost-estimate`; data AC-3 published, AC-11, AC-12; sheet AC-3 published, AC-4 to AC-7; tick checks (C2) | CA | - |
+| 10 | C3 | [data-sources](../data-sources/spec.md) | Q `youtube` (comments half at least); data AC-10, AC-15; sheet AC-11; audience AC-4, AC-8, AC-9 | CA | - |
+| 11 | C4 | [data-sources](../data-sources/spec.md) | Q `feeds`; data AC-5, AC-6, AC-11 | CA | - |
 | 12 | C5 | [data-sources](../data-sources/spec.md) | data AC-3, AC-7, AC-8 | CA | - |
 | 13 | C6 | [data-sources](../data-sources/spec.md) | sheet AC-10; data AC-9, AC-16 status-presentation part | CA | - |
 | 14 | C7 | [data-sources](../data-sources/spec.md) | data AC-16 software half; audience AC-5, AC-9; the content trial kit landed | CA | laptop: scratch CasparCG/Bridge + OBS; kit: content |
@@ -79,7 +81,7 @@ entries are Q records that must be on `main` before that phase is built (data-so
 | 44 | E8.1b | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-2 60-minute endurance in `endurance.yml` | CA | - |
 | 45 | E8.2 | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 agent evidence complete, AC-4 runbook and capability matrix | CA | kit: E8 AC-3 tasks |
 | 46 | H0.2 | [Companion qualification](../playout-companion-qualification/spec.md) | H0 AC-1 owner's guide walk, AC-4; E6 AC-4; the operator's buttons on the deck | OW | - |
-| 47 | S | [parent](spec.md) | parent AC-14 real outputs; data AC-16 actual outputs; E3 AC-2, E7 AC-4 and E8 dress rehearsal on the real studio | OW | - |
+| 47 | S | [parent](spec.md) | parent AC-14 real outputs; data AC-16 actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal) on the real studio; E8 AC-1's final reconciliation including H0.2's and S's receipts | OW | - |
 
 A child phase can satisfy only its stated subset; passing H0.1 or E1.1 is not a pass for the
 whole child. Baseline 14 closes the baseline in software, E8.2 the expanded programme, and the
@@ -109,9 +111,9 @@ never authorizes substituting simulated evidence there.
   `readShowProfile` in `src/model/profile.ts`, enforced at both write doors in
   `src/model/shows.ts`). The writer lands in a later phase and deploy (E1.2a, E7.2a). Output
   readers obey the CasparCG 2.3 Chromium 71 rule of `src/control/payloadVersion.ts`.
-- **Native and foreign controls:** E6 owns all Companion actions, native and foreign, through
-  the shared dispatcher, so the module's protocol is bumped once and the deck requalified once
-  (H0.2). E6.1 runs after E1.1 and types its argument descriptors with E1's model; E6.2 runs after
+- **Native and foreign controls:** H0 keeps the existing transport and selection verbs; E6 owns
+  every new graphic action, native and foreign, through the shared dispatcher, so the module's
+  protocol is bumped once and the deck requalified once (H0.2). E6.1 runs after E1.1 and types its argument descriptors with E1's model; E6.2 runs after
   E3.2 so foreign actions are invoked on real foreign rundown cues. There is no dependency cycle.
 - **Type boundary:** E1 adds explicit foreign typed envelopes while retaining existing native
   wires and source-backed editor authority. Old-client refusal and saved-show compatibility

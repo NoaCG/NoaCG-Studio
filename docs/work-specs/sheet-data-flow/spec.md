@@ -213,7 +213,8 @@ live binding through both bulk and individual doors. Layer: Node contracts; the 
 
 ### AC-3: A cell edit reaches the output without a Take
 With a connected graphic on air and a page open, a cell edit changes the output within 10
-seconds, measured over at least 20 real edits with the slowest reported; nothing is taken,
+seconds, or within the figure C1b states when Q measured a miss (D3, revised 2026-10-20),
+measured over at least 20 real edits with the slowest reported; nothing is taken,
 advanced or removed. Unpublished it changes the local program; published it changes the published
 output exactly once. Layer: Q times 20 edits the agent makes itself to a test Sheet; C1c runs
 the timed real-Sheet run against the local program; C2 repeats it against the published output;
@@ -259,7 +260,8 @@ the inbox consumer has no writer. Layer: Node contracts.
 
 ### AC-9: One vocabulary
 The default data surface shows no "path", "seed", "Raw JSON" or "binding"; they sit behind
-Advanced and still work. Layer: journey; owner look.
+Advanced and still work. Layer: journey. The owner's look is an owner-list item, never a gate
+(owner, 2026-10-20, A).
 
 ### AC-10: One way to connect a Sheet
 New graphics are not offered the graphic-level panel; existing graphics with the block still

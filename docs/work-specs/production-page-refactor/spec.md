@@ -547,9 +547,9 @@ deploy-verify run, and the exact revert command.
   on the next phase and notify the owner: revert or redesign is then his decision.
 - Infrastructure unavailable (CI, the local stack, Vercel, GitHub, provider usage limits): no
   check is spent on known-down infrastructure and no healthy source is reverted. The coordinator
-  records a supervisor `wait` (kind `transient` or `usage`, with its retry or reset time),
-  resumes by itself when it clears, and notifies the owner only if it lasts more than two hours
-  or needs his account.
+  launches nothing against it, waits inside its background job and retries when it is back, and
+  notifies the owner only if it lasts more than two hours or needs his account. No `stop` and no
+  `answered` are involved.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its
@@ -664,7 +664,8 @@ the first rehearsal.
 **Owner list (A).** The coordinator keeps it in its session and mirrors it in the body of one
 tracking issue for the run, which it opens at the start. Each item says what to do, where, on
 which revision, about how long it takes and what it informs. Each new item sends one phone
-notification with that text; then the coordinator continues. Items: starting the laptop helper
+notification with that text and is posted as a comment on the issue; then the coordinator
+continues. Items: starting the laptop helper
 (§10 step 4), the Twitch live check, the trial-paste pilot, each trial kit as it lands, a YouTube
 live retry if Q found no live stream, any missing prerequisite, and last H0.2 and S. Only H0.2 and
 S hold anything back: the run ends with them. The coordinator also sends one morning summary
@@ -675,10 +676,13 @@ owner items.
 step 4 prompt whenever the laptop is on, runs beside the cloud coordinator. It never starts,
 pauses, continues or changes the run. The repository is the shared channel:
 
-1. It reads the run's ledger from the recovery ref (`refs/heads/noacg-recovery/<project id>`) and
+1. It reads the run's ledger from the recovery ref (`refs/heads/noacg-recovery/<project id>`;
+   the project ID is in the tracking issue, and `git ls-remote origin 'refs/heads/noacg-recovery/*'`
+   lists the refs) and
    lists the landed phases whose `extensions.md` row names a laptop check: the speed baselines on
    1 and repeats on 11, 13b and 14 (`scripts/playout-lag-bench.mjs` as §7 describes), and the
-   scratch CasparCG with NoaCG Bridge and OBS/browser-source walks on C7, 14, E3.2a and E7.2b.
+   scratch CasparCG with NoaCG Bridge and OBS/browser-source walks on C7, 14, E3.2a and E7.2b,
+   and on H0.1 the laptop items of H0 AC-2 (hardware-panel AC-8, AC-11 and AC-12).
 2. For each merge SHA that still has no receipt under `evidence/local/` (bench output under
    `evidence/perf/`), it checks that SHA out in its own worktree, runs the check and writes the
    receipt. It lands that pass's receipts as one evidence-only change through `/check` and
@@ -722,9 +726,9 @@ the final owner block, which waits for him.
 | `CRON_SECRET` (existing; do not create or rotate) | Vercel Production | owner | C2 tick | ready | the tick stays off; closed-page continuity is reported unavailable |
 | Vercel usage read access | Vercel team, from the coordinator | coordinator | C2 switch decision; daily budget watch | confirmed at preflight | the tick stays off |
 | Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
-| Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | the owner list stays in the tracking issue, which GitHub emails |
+| Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
 | Landing a workflow-file change | GitHub | the worker landing E4.1 | E4.1 (`endurance.yml`) | checked at preflight | the owner enables auto-merge on that pull request; only E4.1's landing waits |
-| Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts (speed 1/11/13b/14; outputs C7/14/E3.2a/E7.2b) | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
+| Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts (speed 1/11/13b/14; outputs C7/14/E3.2a/E7.2b; H0.1's hardware-panel items) | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
 | Physical Stream Deck with Companion | owner's laptop | owner | H0.2 | owner's deck | waits (final owner block) |
 | The real studio: the owner's CasparCG/NoaCG Bridge setup and an OBS/browser source | studio | owner | S | owner's setup | waits (final owner block) |
 | A Twitch channel to read | public | owner | owner list; C7 uses recorded fixtures | not needed by any phase | continue |
@@ -905,7 +909,7 @@ state; each is removed in the phase that moves that state.
     tests. Temporary interface: `serverVerb`, `takeGraphic`, `send`, `liveCueOf`, the `setLiveCue`
     folds, `flush`.
 11. **airState.ts, sessionWire.ts, the `air` and `log` parts: the liveCue move** (AC-2, AC-3,
-    AC-4 seed, claim and restore, AC-5, AC-6, AC-8, AC-9 repeat, AC-13). Safety-sensitive. Files:
+    AC-4 seed, claim and restore, AC-5, AC-6, AC-8, AC-13; AC-9's repeat is a laptop-helper check). Safety-sensitive. Files:
     the two modules, `playoutSession.ts`, `ProductionPage.tsx`, `PlayoutMonitors.tsx` and
     `CueRundown.tsx` only if a prop type changes, tests. The page's verbs call the session's
     folds; no verb moves; the `liveCueOf` and `setLiveCue` interfaces of phases 9 and 10 are
@@ -913,7 +917,8 @@ state; each is removed in the phase that moves that state.
 12. **graphicVerbs.ts, verbDispatch.ts, verbView.ts** (AC-2, AC-3, AC-4 all rows, AC-8). Files:
     the three modules, `ProductionPage.tsx`, tests. Selection is passed in; the remaining
     temporary interfaces (`cueView`, `flush`, `resolvedOf`) stay until phase 13.
-13. **cueDraft.ts, the `draft` part, CueEditor.tsx** (AC-2, AC-3, AC-6, AC-7, AC-8, AC-9 repeat).
+13. **cueDraft.ts, the `draft` part, CueEditor.tsx** (AC-2, AC-3, AC-6, AC-7, AC-8, AC-9 render
+    targets; AC-9's timing repeat is a laptop-helper check).
     Safety-sensitive: the draft decides what Take and Update air, and the preview shows it. Files:
     the module, the component, `playoutSession.ts`, `ProductionPage.tsx`, `CueRundown.tsx` (label
     subscription), `PlayoutMonitors.tsx` (its own draft subscription for `settleData`, D12),

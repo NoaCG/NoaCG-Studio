@@ -96,7 +96,7 @@ Every gating criterion is checked on a cloud worker or in Actions (owner, 2026-1
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
 | E8.1a | Evidence reconciliation and bounded cross-feature checks; AC-1 software reconciliation, AC-2 cross-feature cases | Cloud: targeted Node/configured checks, full required suites in Actions using existing-run lookup. |
-| E8.1b | The 60-minute endurance run; AC-2 endurance | Actions: `.github/workflows/endurance.yml`, dispatched on E8.1a's merge SHA with the 1,000-record fixture; memory, queue depth and timing receipts. Existing CI job timeouts unchanged. |
+| E8.1b | The 60-minute endurance run; AC-2 endurance | Actions: `.github/workflows/endurance.yml`, dispatched on E8.1b's own merge SHA (the landing that carries the endurance harness) with the 1,000-record fixture; memory, queue depth and timing receipts. Existing CI job timeouts unchanged. |
 | E8.2 | Runbook, capability/limitation matrix and the verdict on all agent evidence, plus the trial kit; AC-1 agent evidence complete, AC-4 | Cloud: guide and matrix checked against the landed build and receipts. The trial kit (AC-3 tasks) is an owner-list item; the physical evidence is H0.2 and parent phase S. |
 
 A failure produces a scoped repair and affected requalification under existing failure limits.

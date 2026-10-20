@@ -47,7 +47,8 @@ it; reliability. Against those, the reviews changed:
   Audience view) and Data stay as views; no new workspace or store.
 - **Paste lands first (C0)**, before the refactor, as a declared feature change.
 - **Refactor phases 1, 2+7 and a props-only cue editor move precede C1**; the remaining refactors
-  follow C7 in the same project. Final acceptance covers the completed build (parent phase 14).
+  follow C7 in the same project. Final acceptance covers the completed build (parent phase 14
+  in software, then the real studio in parent phase S).
 - **Protection is destination hygiene**, enforced at both doors: a message destination has no
   binding on its body or name field, and no binding is added to a field that prepared cues use.
   The earlier field-level snapshot flag and `/update` protection are dropped.
@@ -453,7 +454,8 @@ and last changed. For Sheets, browser reads are about every five seconds and ser
 once a minute when all pages close; other providers show their own effective cadence. The Sheet
 server mode is continuity at slower cadence, not equivalent latency. The
 default surface's vocabulary is sheet AC-9's. Layer: journey in `e2e/production-views.spec.ts`
-and `e2e/production-data.spec.ts`; owner look in the pull request.
+and `e2e/production-data.spec.ts`. The owner's look at the result is an owner-list item, never a
+gate (owner, 2026-10-20, A).
 
 ### AC-10: Every message intake respects selection and staging
 Pasted text, Sheet message rows, join submissions and supported YouTube input enter the same
@@ -621,8 +623,8 @@ record: it stays a non-blocking owner-list item and C7 tests it against recorded
 paste tasks of audience AC-7 become a non-blocking owner pilot: when C0 lands, the coordinator
 adds them to the owner list, and `evidence/trial-paste.md` records the pilot if he runs it.
 
-**C1a. Format adapters, Paste rows and starter data** (AC-2, AC-4, AC-12 fixture test, AC-13
-starter and scalar half). After refactor 2+7 and 13a. Goal: an operator fills a ticker,
+**C1a. Format adapters, Paste rows and starter data** (AC-2 adapter half, AC-4, AC-12 fixture
+test, AC-13 starter and scalar half). After refactor 2+7 and 13a. Goal: an operator fills a ticker,
 schedule, standings or credits field from pasted cells, and downloads starter data for any custom
 native graphic, with no source record. The five adapters and their starter rows; custom scalar
 CSV generation, parsing and keyed diagnostics; "Fill from… Paste rows"; the fixture compatibility
@@ -630,8 +632,9 @@ test over a fixture saved by today's build. Files: `src/control/contentFormats.t
 `src/components/home/CueEditor.tsx`, `src/model/productionData.ts` (shared parse helpers only),
 `scripts/show-fixture-compat.test.mjs` (new) and its fixture, tests.
 
-**C1b. Sheet source, reader and Connect data** (AC-1, AC-3, AC-8, AC-10 inbox half, AC-11, AC-13
-mapping half; sheet AC-1 stub, AC-2, AC-5, AC-6, AC-7, AC-8). Needs Q's two Sheet records on main.
+**C1b. Sheet source, reader and Connect data** (AC-1, AC-2 Sheet half, AC-3, AC-8, AC-10 inbox
+half, AC-11, AC-12 connection half, AC-13 mapping half; sheet AC-1 stub, AC-2, AC-5, AC-6, AC-7,
+AC-8). Needs Q's two Sheet records on main.
 Goal: a graphic connects to a Sheet tab from the cue editor in one reviewed whole-graphic
 confirmation, and one browser reader per source follows it under a lease. The graphic-level
 "Connect data…" action with Google Sheet tab preview, a whole-graphic mapping proposal applied in
@@ -765,7 +768,7 @@ and owner items are listed separately and never hold a phase.
 | C0 | `message-staging` (destinations: a scoreboard-only pool offers the cards; a vote board is never a destination; a bound body or name field is refused; a field with prepared cues refuses a binding through `setFieldBinding` and `setFieldBindings`; values by title; dedupe; Source and Reference never mapped); the backend interface has no airing method | `production-audience` (#1313 steps with the restore-the-fallback mutation; paste, prepare, Take asserting PROGRAM text; two cues on one card; a binding attempted on the card's Question field before and after preparing is refused with the card offer; reload keeps pasted rows, simulated rows gone; double press makes one cue; a retry after a failed save marks nothing used and makes no duplicate); `production-views` (Setup items, the Messages label) | `audience-live` (a pasted candidate on a published production reaches the inbox through `audience_operator_add` and the cue; a batch over 100 is refused; the binding refusal on a published production) | migration self-check for the three nullable columns and the operator RPC (control-slug capability, no command-log path) | A |
 | Q | none | none | none | the five records in Q, each on main before the phase it gates | checked by that phase's checker |
 | C1a | `content-formats` (the fixtures of Formats; scalar CSV generation, parsing and diagnostics), `show-fixture-compat` (today's fixture loads and plays unchanged) | `production-data` (paste rows per adapter; starter download per adapter and for a custom graphic) | none | `merge-patch-conformance` carries the `""`-over-a-list-path case | A |
-| C1b | `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty, the inbox consumer has no writer), `production-data-session` extended (the writer), mapping proposal and confirmation contracts | `production-data` (connect a stub sheet; whole-graphic preview, matches and "Used by"; repair and cancel; Pause; Disconnect; empty tab clears; equal title elsewhere untouched; a ± press on a connected value moves the shared value, alongside the existing running test at line 741) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | `production-data-migration` carries the `""` case | A |
+| C1b | `sheet-source` (link parse, CSV, diff, states, lease with a fake clock, `""` on empty, the inbox consumer has no writer), `production-data-session` extended (the writer), mapping proposal and confirmation contracts | `production-data` (connect a stub sheet; whole-graphic preview, matches and "Used by"; repair and cancel; Pause; Disconnect; empty tab clears; twelve rows reach a ticker and a running scroll continues; equal title elsewhere untouched; one score on two boards updates both; a source's display rename keeps the connection; a deleted target is flagged; a ± press on a connected value moves the shared value, alongside the existing running test at line 741) | `production-data-key` (a connected list on a published production, browser reader through the operator door) | `production-data-migration` carries the `""` case | A |
 | C1c | none new | `production-data` (status line, checked versus changed); `production-views` (Data overview, Advanced) | none | one real-Sheet receipt (AC-13, sheet AC-1); the timed 20-edit run against the local program, edits made by the agent (sheet AC-3); the custom scalar/fixed-slot receipt | A |
 | C2 | `sheet-source` lease and handover rules; the tick's secret check (401 without the exact Bearer) and its fail-closed switch | `production-data` (reload keeps sources) | `production-data-key` extended (bind after publish moves the output without republish; tick skips a leased source and reads an expired one; a value changed once written once; Pause written to the row holds the tick and shows after reload) | migration self-check; the first scheduled call accepted in the Vercel logs; one hour's measured cost and the switch decision; the closed-browser real-Sheet run (sheet AC-4) | A |
 | C3 | `sheet-messages` (hash identity: reorder, delete and add, identical rows, occurrence; a used candidate survives its row), `youtube-comments` and `youtube-chat` with recorded responses (first page kept, floor, errors, the remaining-runtime estimate); `show-fixture-compat` extended | `production-audience` (Sheet rows as candidates; a vanished row leaves an unused candidate and keeps a used one; Source and Reference hidden); `production-chat-intake` (comments mode, remembered source, key prompt on reload, quota line) | `audience-live` (imported candidates through `audience_operator_add`, dedupe by `external_id`) | migration self-check; Q's provider receipts | A |

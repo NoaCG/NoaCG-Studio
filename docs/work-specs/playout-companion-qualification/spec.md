@@ -63,6 +63,9 @@ produces one intended dispatch, duplicate delivery none. Separate selected, prev
 allowed, pending and stale feedback. Reconcile all 13 hardware-panel ACs, including the open
 October 3 items, against current evidence; retain their existing latency criteria and distinguish
 hosted feedback latency from press-to-render time. No new blanket 100 ms budget is introduced.
+The reconciliation's laptop items, hardware-panel AC-8 (press-to-first-frame from the laptop),
+AC-11 (the timed isolated Companion run) and AC-12 (CasparCG, OBS and vMix), are laptop-helper
+checks on H0.1's merge SHA and never gate; anything that needs the physical deck is H0.2.
 
 ### AC-3: Ownership and credentials fail safely
 With two answering contexts, hidden page, reload, disconnect, expired lease and revoked key,
