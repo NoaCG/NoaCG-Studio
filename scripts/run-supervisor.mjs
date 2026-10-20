@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-// Opt-in, single-host recovery control. No model client and no scheduler are installed here.
+// Opt-in recovery control. With a recovery ref, any session can continue a project (`continue`)
+// and the coordinator it replaced is refused as superseded. No model client or scheduler here.
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { activeProject, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, SUPERSEDED } from './run-recovery.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
-import { digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { changeProject, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
@@ -126,7 +127,6 @@ export function updateRun(db, id, operation, value, now = Date.now()) {
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
     const text = readFileSync(doc.manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now);
-    if (project && doc.restoration && operation === 'start-block') throw Error('Replacement-host launch authority is unqualified; do not rebind the local store');
     if (operation === 'wait') doc.wait = validateWait(value);
     else if (operation === 'clear-wait') {
       if (!required(value)) throw new Error('Clearing a wait needs evidence or the owner answer');
@@ -163,10 +163,11 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
     const text = readFileSync(doc.manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now);
     if (project) {
-      if (doc.restoration) throw Error('Replacement-host launch authority is unqualified');
       checkBlock(project, authority, now);
       if (doc.wait || doc.pending || row.owner) throw Error('Reconcile blocked prerequisite, active lease or uncertain action before phase admission');
     }
+    // A superseded coordinator is refused here, before it writes the ledger or launches anything.
+    if (doc.manifest.recovery) publishRun(db, id);
     const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
     if (result.refusal) throw Error(result.refusal);
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
@@ -264,7 +265,7 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     }
     const text = readFileSync(manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now());
-    if (project && doc.restoration) return result('unknown', 'Replacement-host continuation requires qualified native stale-owner fencing; local store is insufficient');
+    if (project && manifest.recovery) publishRun(db, id); // Stops a superseded coordinator.
     if (project && projectBoundary(project, now())) {
       const boundary = projectBoundary(project, now());
       if (hasInFlight(text) && !doc.pauseReceipt) {
@@ -274,9 +275,8 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
       }
       return result(boundary.action, boundary.why);
     }
-    // Local phase admission is supported; native coordinator replacement is not yet fenced
-    // where the provider accepts work. Do not turn a local lease into a remote guarantee.
-    if (project) return result('unknown', 'Active single owner records phases locally; automatic native continuation requires qualified acceptance-side fencing');
+    // A project's phases are admitted only by record; a tick never launches project work.
+    if (project) return result('unknown', 'Active project: admit phases with record and follow next; tick launches nothing');
     if (REPORT_HEADING.test(text)) {
       doc.status = 'finished'; save(db, claim, now()); return result('finished', 'wave report');
     }
@@ -374,23 +374,64 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     if (delivered?.state === 'not-delivered') return result('waiting', 'confirmed non-delivery; bounded backoff');
     return result('unknown', 'delivery outcome is unknown');
   } catch (error) {
-    return result('unknown', error.message);
+    return result(error.message === SUPERSEDED ? 'superseded' : 'unknown', error.message);
   } finally {
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0 WHERE id=? AND owner=? AND epoch=?').run(id, claim.token, claim.epoch);
   }
 }
 
+/** Continue the plan's active project from its shared recovery ref in a fresh state directory
+ * under `root`. The new block takes over from whichever coordinator ran it before; that
+ * coordinator's next record, tick or next is refused as superseded. Answers `open` when the
+ * plan has no active project yet. */
+export function continueProject(root, { plan, owner, ...recovery }, { now = Date.now(), recoveryGit: transport } = {}) {
+  if (!required(owner)) throw new Error('Continue needs an owner label for the new block');
+  const dir = path.join(path.resolve(root), `${new Date(now).toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
+  mkdirSync(dir, { recursive: true });
+  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'worktree');
+  let db = openStore(dbFile, { recoveryGit: transport });
+  try {
+    const id = activeProject(db, recovery, plan, now);
+    if (!id) {
+      db.close(); db = null; rmSync(dir, { recursive: true, force: true });
+      return { verdict: 'open', why: `no active ${plan} project: open, register and start-block it` };
+    }
+    const { checkpoint } = restoreRun(db, { ...recovery, id, worktree, wave, adapter: { command: process.execPath, args: ['-e', ''], cwd: dir } }, now);
+    const project = readProject(readFileSync(wave, 'utf8'), now);
+    if (!project) throw new Error('Recovery checkpoint holds no continuing project');
+    const deadline = Math.min(now + DAY_MS, Date.parse(project.authorization.deadline));
+    updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
+    const text = readFileSync(wave, 'utf8');
+    return { verdict: 'continued', id, db: dbFile, wave, worktree, block: readProject(text, now).block, next: nextStep(text, now) };
+  } finally { db?.close(); }
+}
+
+/** The checkout's own GitHub repository, as `continue` uses it from the command line. */
+function localRecovery() {
+  const repository = recoveryGit(process.cwd(), ['rev-parse', '--show-toplevel']);
+  const url = recoveryGit(repository, ['remote', 'get-url', 'origin']);
+  return { repository: path.resolve(repository), remote: 'origin', repositoryFullName: /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/i.exec(url)?.[1] };
+}
+
 export async function main(args = process.argv.slice(2), options = {}) {
   const [command, file, id, value] = args;
-  if (!file || !['register', 'restore', 'resume', 'record', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'pause', 'finish', 'cancel'].includes(command)) {
-    process.stderr.write('Usage: run-supervisor.mjs register <db> <manifest.json> | restore|resume <db> <config.json> | record <db> <id> <phase> <event> [detail] [--authority <block.json>] | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
+  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'pause', 'finish', 'cancel'].includes(command)) {
+    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase> <event> [detail] [--authority <block.json>] | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
   }
   let db;
   try {
+    if (command === 'continue') {
+      process.stdout.write(`${JSON.stringify(continueProject(file, { plan: id, owner: value, ...localRecovery() }, options))}\n`); return 0;
+    }
     if (['restore', 'resume'].includes(command)) mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
     db = openStore(file, options);
     let output;
     if (command === 'register') output = registerRun(db, JSON.parse(readFileSync(id, 'utf8')));
+    else if (command === 'next') {
+      const { doc } = rowFor(db, id);
+      if (doc.manifest.recovery) publishRun(db, id);
+      output = nextStep(readFileSync(doc.manifest.wave, 'utf8'));
+    }
     else if (command === 'restore') output = restoreRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'resume') {
       const config = JSON.parse(readFileSync(id, 'utf8'));

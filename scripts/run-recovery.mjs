@@ -15,6 +15,8 @@ export function deliveredReceipt(result) {
   if (result?.state !== 'delivered' || !required(result.workerId)) throw new Error('Delivery needs a stable workerId');
   return { state: 'delivered', workerId: result.workerId };
 }
+/** The remote checkpoint moved past this store: a newer coordinator owns the run. */
+export const SUPERSEDED = 'superseded: another coordinator continued this project; stop';
 const revision = (s) => /^[a-f0-9]{40}$/.test(s ?? '');
 const runId = (s) => /^[a-zA-Z0-9_-]+$/.test(s ?? '');
 const COMMIT_IDENTITY = {
@@ -153,7 +155,7 @@ export function publishRun(db, id) {
   if (Buffer.byteLength(payload) > 256 * 1024) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
   const ref = refFor(id);
   if (old && git(config.repository, ['show', `${old}:checkpoint.json`]) === payload) {
-    if (git(config.repository, ['ls-remote', config.remote, ref]).split(/\s+/)[0] !== old) throw new Error('Recovery publication superseded; restore the remote checkpoint before acting');
+    if (git(config.repository, ['ls-remote', config.remote, ref]).split(/\s+/)[0] !== old) throw new Error(SUPERSEDED);
     return old;
   }
   const blob = git(config.repository, ['hash-object', '-w', '--stdin'], payload);
@@ -165,10 +167,26 @@ export function publishRun(db, id) {
   } catch {
     // A transport failure may follow acceptance. Reconcile this exact commit, never force.
     const accepted = git(config.repository, ['ls-remote', config.remote, ref]).split(/\s+/)[0];
-    if (accepted !== commit) throw new Error('Recovery publication unresolved or superseded; restore the remote checkpoint before acting');
+    if (accepted !== commit) throw new Error(accepted === old ? 'Recovery publication unresolved; retry before acting' : SUPERSEDED);
   }
   db.prepare('INSERT INTO recovery_heads VALUES(?,?) ON CONFLICT(id) DO UPDATE SET sha=excluded.sha').run(id, commit);
   return commit;
+}
+
+/** The id of the plan's one unexpired active project among the shared recovery refs, or null. */
+export function activeProject(db, config, plan, now = Date.now()) {
+  const git = transports.get(db) ?? recoveryGit;
+  settings(config, git);
+  if (!/^[a-z0-9-]+$/.test(plan ?? '')) throw new Error('Plan name must be lowercase letters, digits and dashes');
+  const refs = git(config.repository, ['ls-remote', config.remote, `refs/heads/noacg-recovery/plan-${plan}-*`])
+    .split('\n').filter(Boolean).map((line) => line.split(/\s+/)[1]);
+  const active = refs.filter((ref) => {
+    git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
+    const { doc } = JSON.parse(git(config.repository, ['show', 'FETCH_HEAD:checkpoint.json']));
+    return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < Date.parse(doc.manifest.authorization.deadline);
+  }).map((ref) => ref.slice('refs/heads/noacg-recovery/'.length));
+  if (active.length > 1) throw new Error(`Several active ${plan} projects (${active.join(', ')}); finish or cancel all but one`);
+  return active[0] ?? null;
 }
 
 /** Rebuild an empty local store and worktree from the latest remote checkpoint. Never dispatch. */

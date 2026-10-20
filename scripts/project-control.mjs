@@ -23,12 +23,16 @@ export function changeProject(doc, project, text, operation, value, now) {
   if (operation !== 'cancel' && now >= instant(project.authorization.deadline)) throw Error('Original project deadline expired');
   if (operation === 'start-block') {
     if (!value?.evidence?.trim() || !value.owner?.trim()) throw Error('Resume requires owner identity and reconciliation evidence');
-    if (project.status === 'active' && !projectBoundary(project, now)) throw Error('Another block already owns launch authority');
+    // A store restored from the shared checkpoint takes over the block it continued from; the
+    // older coordinator's next publication is then rejected as superseded. In-flight work stays
+    // in the ledger, so the new coordinator waits on it rather than relaunching it.
+    const continuing = doc.restoration && doc.restoration.blockId !== project.block?.id;
+    if (project.status === 'active' && !projectBoundary(project, now) && !continuing) throw Error('Another block already owns launch authority');
     if (doc.pending) throw Error('Uncertain external action must be reconciled before resume');
-    if (hasInFlight(text) && !doc.pauseReceipt) throw Error('In-flight work must acknowledge checkpoint before resume');
     if (doc.wait) throw Error('Resolve the blocked prerequisite before resume');
     project.block = { id: randomUUID(), owner: value.owner, epoch: (project.block?.epoch ?? 0) + 1,
       startedAt: new Date(now).toISOString(), deadline: value.deadline };
+    if (doc.restoration) doc.restoration.blockId = project.block.id;
     project.status = 'active'; project.reason = value.evidence;
     doc.status = 'active'; delete doc.pauseReceipt;
   } else if (['pause', 'wait'].includes(operation)) {

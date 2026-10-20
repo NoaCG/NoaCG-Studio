@@ -24,7 +24,7 @@ export function validateAuthorization(auth, { now = Date.now(), open = true, kin
 
 export function validateProject(project, now = Date.now()) {
   if (project?.version !== 1 || !/^[\w-]+$/.test(project.id ?? '')
-      || project.ownership !== 'local-single-owner') throw Error('Project requires stable identity and local-single-owner authority; remote fencing is unqualified');
+      || project.ownership !== 'local-single-owner') throw Error('Project requires stable identity and its single-owner marker (ownership: local-single-owner)');
   validateAuthorization(project.authorization, { now, open: false });
   const phases = project.phases;
   if (!Array.isArray(phases) || !phases.length) throw Error('Owner-defined phases and acceptance required');

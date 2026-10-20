@@ -16,7 +16,7 @@ IDs, dates, phases and environments below are placeholders, not reusable authori
 ```json
 {
   "version": 1,
-  "id": "owner-project-id",
+  "id": "plan-<plan>-<first-date>",
   "ownership": "local-single-owner",
   "authorization": {
     "source": "current owner authorization reference",
@@ -52,14 +52,15 @@ reviewed migration preserving its original phases/events/authorization. The
 bounded-production-pilot resume helper is separate and keeps its original limits.
 
 Register the existing version-1 supervisor manifest: same `id`, `kind: "plan"`,
-absolute wave path, identical `authorization`, bounded packet and explicit local
-adapter. Packet/adapter requirements remain in the native-recovery runbook.
+absolute wave path, identical `authorization`, bounded packet, explicit local
+adapter and the `recovery` block, so the project can continue in any session (below).
+Packet/adapter/recovery requirements remain in the native-recovery runbook.
 Start a block with `run-supervisor.mjs start-block <db> <id> <json-file>` where the
 JSON contains `owner`, `deadline` and `evidence` of reconciliation. A block lasts
 at most 24 hours and ends no later than the project deadline. Save the returned
 block's `id`, `owner` and `epoch` as the authority receipt for phase recording.
-An active block cannot be replaced by a competing caller. An old receipt becomes
-invalid after resume. SQLite and the wave admission lock coordinate this host only.
+On one host an active block cannot be replaced by a competing caller. An old
+receipt becomes invalid after resume.
 
 Use `run-supervisor.mjs record ... --authority <block.json>` for every project
 phase event. A build/repair/check detail is a one-line JSON receipt with `actor`
@@ -92,8 +93,8 @@ truth of supplied evidence or qualify a provider by itself.
 - The in-flight worker checkpoints. A bounded supervisor `tick` asks its existing
   adapter for `operation: "checkpoint"`, including `workBlock` and reason. It
   accepts only `state: "checkpointed"`, matching `blockId`, `phase`, `step` and
-  nonempty `evidence`. No new worker is launched. Missing/uncertain acknowledgement
-  keeps resume refused; inspect the original worker and its external actions.
+  nonempty `evidence`. No new worker is launched. A new block does not wait for
+  it: the step stays in flight in the ledger, so `next` says wait, never relaunch.
 - At block end keep-awake and block wakes stop. A stale active header does not
   extend the block. Resume uses the same identity/deadline and a new block receipt.
 - Preserve unresolved external intents. An absent local record or empty provider
@@ -105,14 +106,24 @@ truth of supplied evidence or qualify a provider by itself.
   Preserve both records and reconcile the last acknowledged update; there is no
   automatic state rewrite. An interrupted `.admission` lock also stays refused;
   inspect its owner-pid and records before removing a proven abandoned local lock.
-- The existing Git checkpoint/restore can retain multi-day authorization, exact
-  source and ledger. Its CAS protects checkpoint publication, not remote action
-  acceptance. Restored project execution and automatic native replacement remain
-  refused: native stale-owner rejection, cloud-owner acceptance and wake/bootstrap
-  are unqualified. Closing a coordinator therefore checkpoints and stops.
+No scheduling acknowledgement changes these boundaries. Nothing wakes a stopped
+coordinator by itself: the owner continues the project by typing the line again.
 
-No scheduling acknowledgement changes these boundaries. Do not claim durable or
-cross-machine execution from this single-host protocol or its deterministic tests.
+## Continuing in any session
+
+The recovery ref is the project's shared state. In any session, cloud or laptop,
+the same `/plan-run` line first runs, from a checkout of this repository:
+
+    node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>
+
+It finds the plan's active project (`plan-<plan>-*`), restores its latest checkpoint
+into a fresh directory under `<state-root>`, opens a new block (at most 24 hours,
+never past the original deadline) and prints `db`, `wave`, `block` and `next`. Save
+`block` as the authority receipt and carry on from `next`; failures, repair counts
+and in-flight steps carry over. `open` means no project is active: open one.
+
+The previous coordinator needs nothing. Its next `record`, `next` or `tick` answers
+`superseded: another coordinator continued this project; stop` and launches nothing.
 
 ## Checklist before any future planned run
 

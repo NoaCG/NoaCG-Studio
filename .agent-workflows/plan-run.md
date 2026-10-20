@@ -33,19 +33,20 @@
   One pass is not reusable permission. Tool approval waits are pending, not executed failures. Requalify after policy/context changes.
   An unavailable owner prerequisite produces one concrete configuration request; checkpoint and stop dependent work without approval loops or provider substitution.
   Pre-test infrastructure/capacity failures consume no product repairs: checker says `fail blocked:`, builder checkpoints; existing blocked-check limits remain.
-- Open only when execution is actually authorized: `node scripts/wave-plan-store.mjs --open <first-date> plan-<plan> --until <original-deadline> --project <json>`.
-  The continuing file starts paused. Register its immutable manifest with `run-supervisor.mjs register <db> <manifest.json>`.
+- First run `node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>`: it continues the plan's active project in this session with a new block, or answers `open`.
+  Open only when execution is actually authorized: `node scripts/wave-plan-store.mjs --open <first-date> plan-<plan> --until <original-deadline> --project <json>`.
+  The file starts paused. Register its manifest, id `plan-<plan>-<first-date>` with the recovery ref, via `run-supervisor.mjs register <db> <manifest.json>`.
   `run-supervisor.mjs start-block <db> <id> <block.json>` opens one bounded block with owner, deadline and reconciliation evidence.
-  Keep the same ID, file, deadline, scope and phase ledger on every restart. Legacy short-window records retain their compatibility path; migration needs explicit review.
+  Same ID, deadline, scope and ledger on every restart; legacy short-window records keep their compatibility path, migration needs explicit review.
 - Prefer qualified cloud implementation and software verification via `.agent-workflows/cloud-delegate.md`. Route device/OS/performance/human acceptance to the plan's required environment.
   Use its capability-aware native session/workflow, worktree, completion and wake selection; keep the supervisor as the sole phase-admission authority.
-  Same-VM qualification is not a native cloud-child receipt. Current preflight exposes native launch, wake/bootstrap and remote-fencing gaps.
+  Same-VM qualification is not a native cloud-child receipt. Current preflight exposes native launch and wake/bootstrap gaps.
 - Arm only qualified, authorized block-specific wakes. `node scripts/run-wake.mjs awake <file>` holds locally only through the active block.
   A scheduling acknowledgement or heartbeat is a check-in, not durable continuation. No new scheduler is introduced.
 
 ## 2. Continuing loop and ownership
 
-`node scripts/plan-run.mjs next <wave file>` names the next step. For projects the only supported phase admission is
+`node scripts/plan-run.mjs next <wave file>` names the next step (a project: `run-supervisor.mjs next <db> <id>`). For projects the only phase admission is
 `node scripts/run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <current-block.json>`.
 The supervisor's local transaction and ledger admission lock serialize claims; direct project `plan-run record` is refused.
 Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the intent before any external launch; reconcile uncertain acceptance before replay.
@@ -56,21 +57,20 @@ Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the int
   PASS requires evidence for every authorized criterion in its specified environment; native task/Workflow success alone is insufficient.
   `fail product:` gets the existing one repair; `fail blocked:` gets the existing one repeated check. A second failure stops for the owner; limits never reset on restart.
 - **wait**: reconcile the original native worker, PR, jobs and exact tested revision first. Record observed `landed`, or wait for its queue; never start another branch/phase.
-  Unknown status or lost acknowledgement is unresolved, never absence. The local supervisor does not establish remote exclusion.
+  Unknown status or lost acknowledgement is unresolved, never absence. Never sit idle: wait in a running background job or monitor so a cloud machine is not reclaimed.
+  From it run `node scripts/worker-progress.mjs --branch <branch> [--pr <n>]`; `idle` (30 minutes) means nudge the worker, then stop it and relaunch the same step from its pushed branch.
 - **retro**: write the requested `## Midpoint retro` (orchestrator step 6, five lines), then ask `next` again.
 - **stop/stopped**: record the reserved decision and ask the owner as verify.md requires. Record `answered` only from the answer; cancellation cannot be answered away.
 - **pause/block**: `run-supervisor.mjs pause <db> <id> <reason>` or `wait <db> <id> <wait.json>` stops launches immediately, between phases or in flight.
   Stop native automatic follow-ups/retries/new sessions and block wakes too; retain in-flight checkpoints and queued-PR repair ownership.
   The in-flight worker must checkpoint and acknowledge its exact phase, step and block. Use `tick` for the bounded checkpoint request; no replacement is launched.
   Resolve prerequisites explicitly, preserve pending intents, then open another bounded block with reconciliation evidence under the unchanged authorization.
-- **block end/local coordinator closure**: checkpoint, stop launches and block-specific wakes/keep-awake. This is resumable pause, not completion or cancellation.
-  Continuing remotely requires qualified cloud-owner acceptance and acceptance-side stale-owner fencing. Without it, stop; current automatic native replacement is refused.
+- **block end/coordinator closure**: checkpoint, stop launches and block wakes/keep-awake; a resumable pause. Any later session continues it with the same line (`continue`); a coordinator reading `superseded` stops.
 - **cancel/expired**: owner cancellation or original deadline ends launch authority. Preserve unfinished work, findings, pending evidence and queued PR ownership.
 - **done**: `finish` needs every phase/acceptance PASS; session/block end leaves unfinished phases resumable, never complete.
   Write the final report/retro, exact-merge results and remaining limitations; stop wakes.
 
 Use `<tool>/plan-<plan>-p<phase>-<build|check|repair>` worktrees. Native routing, bounded waits and one acknowledged PR repair owner follow cloud-delegate and queue-merge.
-A restored local SQLite/file lock cannot fence another machine. Git checkpoint CAS protects publication only; restored project execution stays refused until native fencing is qualified.
 Before relevant manual Actions dispatches follow verification lookup's observation procedure in verify.md; measurement behavior and failure/retry restrictions stay unchanged.
 
 **Builder brief** (after orchestrator step 3's row brief):
