@@ -14,7 +14,7 @@ import {
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
-import { setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '../../model/shows';
+import { addGraphicToShow, preparedMessageField, setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { copyLink } from './copyLink';
@@ -503,6 +503,14 @@ function BindingTable({
     setShows(setFieldBinding(show.id, graphic, fieldId, text));
   });
   const bindKey = (graphic: string, fieldId: string) => JSON.stringify({ graphic, fieldId });
+  /** A free pool name for the separate card a refused binding offers. */
+  const separateName = (name: string) => {
+    const taken = new Set(show.graphics.map((x) => x.name));
+    let n = 1;
+    let next = `${name} (live data)`;
+    while (taken.has(next)) next = `${name} (live data ${++n})`;
+    return next;
+  };
 
   /** Apply every unambiguous suggestion across one or more graphics in ONE write to the show
    *  record. This is the operator's press, never a load-time effect (the suggestion above is
@@ -587,6 +595,10 @@ function BindingTable({
               const ambiguous = hits.length > 1 ? hits : [];
               const live = resolved[g.name]?.[d.key];
               const key = bindKey(g.name, d.key);
+              // A field prepared messages use takes no binding: it would let data rewrite a message
+              // the operator approved. setFieldBinding refuses it whatever the door; this says why
+              // here, and offers the way that works - a separate card for the live data.
+              const refused = !path && preparedMessageField(show, g.name, d.key);
               return (
                 <div className="pd-bind-row" key={d.key}>
                   <span className="pd-bind-field">
@@ -594,6 +606,7 @@ function BindingTable({
                   </span>
                   <input
                     value={bindEdits.text(key, path)}
+                    readOnly={refused}
                     data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
@@ -604,7 +617,19 @@ function BindingTable({
                     }}
                     data-testid={`bind-${g.name}-${d.key}`}
                   />
-                  {suggestion && (
+                  {refused && (
+                    <span className="pd-bind-miss" data-testid={`bind-refused-${g.name}-${d.key}`}>
+                      Prepared messages use this field, so it cannot follow data.{' '}
+                      <button
+                        className="pd-bind-suggest"
+                        onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, name: separateName(g.name) }, {}).shows)}
+                        data-testid={`bind-separate-${g.name}`}
+                      >
+                        Add a separate card for live data
+                      </button>
+                    </span>
+                  )}
+                  {suggestion && !refused && (
                     <button
                       className="pd-bind-suggest"
                       onClick={() => setShows(setFieldBinding(show.id, g.name, d.key, suggestion))}

@@ -78,6 +78,21 @@ export interface ShowCue {
    *  and §2.2). Absent = manual, which is how every cue saved before it keeps behaving. A server
    *  cue never carries one: a clip's ending is its `playback.end`. */
   auto?: CueAuto;
+  /** ADDITIVE OPTIONAL. Set when a message was prepared into this cue
+   *  (control/messageStaging.ts): which candidate, and which of the cue's fields it filled. The
+   *  values stay the cue's own; this is the receipt, and the reason no binding may be added to
+   *  those fields later (`preparedMessageField`). */
+  stagedFrom?: MessageReceipt;
+}
+
+/** Where a prepared message came from, kept on its cue. */
+export interface MessageReceipt {
+  /** The AudienceSubmission id. */
+  candidateId: string;
+  /** The field ids the message filled (its body, and its name when the graphic has one). */
+  fields: string[];
+  /** ISO, when it was prepared. */
+  at: string;
 }
 
 /** What a timed cue does when its time is up: play its layer off, take the next graphic cue in the
@@ -306,6 +321,10 @@ export interface Show {
    * ADDITIVE OPTIONAL, and ABSENT MEANS OFF — which is what every existing production did.
    */
   pollLiveFigures?: boolean;
+  /** Where messages go: the pool graphic id the operator chose in Messages, remembered so the
+   *  next "Prepare cue on <graphic>" names it. Never guessed (control/messageStaging.ts).
+   *  ADDITIVE OPTIONAL; absent = not chosen yet. */
+  messageTarget?: string;
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
@@ -741,11 +760,11 @@ function seedPlayoutValues(item: PlayoutItem): Record<string, string> {
 export function addShowCue(
   showId: string,
   sourceId: string,
-  seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback; auto?: CueAuto; accentColor?: string },
+  seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback; auto?: CueAuto; accentColor?: string; stagedFrom?: MessageReceipt },
   after?: string,
-): { shows: Show[]; cueId: string | null } {
+): { shows: Show[]; cueId: string | null; error: string | null } {
   let cueId: string | null = null;
-  const shows = patchShow(showId, (show) => {
+  const { shows, error } = patchShowChecked(showId, (show) => {
     const source = show.graphics.find((g) => g.id === sourceId);
     const item = source ? null : (show.playoutItems?.find((i) => i.id === sourceId) ?? null);
     if (!source && !item) return false;
@@ -761,13 +780,14 @@ export function addShowCue(
       ...(item && seed?.playback && Object.keys(seed.playback).length ? { playback: { ...seed.playback } } : {}),
       // A duplicated timed graphic cue keeps its timing, as a copied one does (model/cueClipboard.ts).
       ...(!item && seed?.auto ? { auto: { ...seed.auto } } : {}),
+      ...(!item && seed?.stagedFrom ? { stagedFrom: { ...seed.stagedFrom, fields: [...seed.stagedFrom.fields] } } : {}),
     };
     // After `after`, in its folder, so the folder's run goes on through the copy; else at the end.
     show.cues = after === undefined ? appendCue(show.cues ?? [], cue) : insertAfter(show.cues ?? [], after, cue);
     cueId = cue.id;
     return true;
   });
-  return { shows, cueId };
+  return { shows, cueId, error };
 }
 
 /** Clips share one layer below every graphic, on purpose: one clip at a time, and a strap
@@ -1013,7 +1033,7 @@ export function removePlayoutItemChecked(showId: string, itemId: string): { show
 export function updateShowCue(
   showId: string,
   cueId: string,
-  patch: { label?: string; values?: Record<string, string>; note?: string | null },
+  patch: { label?: string; values?: Record<string, string>; note?: string | null; stagedFrom?: MessageReceipt },
 ): Show[] {
   return updateShowCueChecked(showId, cueId, patch).shows;
 }
@@ -1022,13 +1042,14 @@ export function updateShowCue(
 export function updateShowCueChecked(
   showId: string,
   cueId: string,
-  patch: { label?: string; values?: Record<string, string>; note?: string | null },
+  patch: { label?: string; values?: Record<string, string>; note?: string | null; stagedFrom?: MessageReceipt },
 ): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
     if (!cue) return false;
     if (patch.label !== undefined) cue.label = patch.label;
     if (patch.values) cue.values = { ...cue.values, ...patch.values };
+    if (patch.stagedFrom) cue.stagedFrom = { ...patch.stagedFrom, fields: [...patch.stagedFrom.fields] };
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
@@ -1584,9 +1605,23 @@ export function setShowSeedData(showId: string, data: JsonObject | undefined): S
   });
 }
 
+/**
+ * Is this field one that prepared messages use? A prepared cue owns its values, and a binding on
+ * its body or name field is the one live route into them, so such a field never takes a binding
+ * (docs/work-specs/audience-flow/spec.md, "What protects the cue"). Checked inside the one binding
+ * write below, so the Advanced rows, the bulk write and any later "Connect…" all meet it.
+ * `graphic` is the pool graphic's NAME, as bindings are keyed.
+ */
+export function preparedMessageField(show: Pick<Show, 'graphics' | 'cues'>, graphic: string, fieldId: string): boolean {
+  const ids = new Set(show.graphics.filter((g) => g.name === graphic).map((g) => g.id));
+  return (show.cues ?? []).some((c) => ids.has(c.sourceId) && c.stagedFrom?.fields.includes(fieldId) === true);
+}
+
 /** One field's binding write - a path to set, or `null` to unbind it. Shared by the single-field
- *  setter below and the bulk one "Bind all by title" uses so both write through the same rule. */
-function applyFieldBinding(bindings: ProductionBindings, graphic: string, fieldId: string, path: string | null): ProductionBindings {
+ *  setter below and the bulk one "Bind all by title" uses so both write through the same rule,
+ *  which refuses a path on a field prepared messages use (unbinding is always allowed). */
+function applyFieldBinding(show: Show, bindings: ProductionBindings, graphic: string, fieldId: string, path: string | null): ProductionBindings {
+  if (path && path.trim() !== '' && preparedMessageField(show, graphic, fieldId)) return bindings;
   const forGraphic = { ...(bindings[graphic] ?? {}) };
   if (path && path.trim() !== '') forGraphic[fieldId] = path.trim();
   else delete forGraphic[fieldId];
@@ -1605,7 +1640,9 @@ export function setFieldBinding(
   path: string | null,
 ): Show[] {
   return patchShow(showId, (show) => {
-    const bindings = applyFieldBinding(show.bindings ?? {}, graphic, fieldId, path);
+    const before = show.bindings ?? {};
+    const bindings = applyFieldBinding(show, before, graphic, fieldId, path);
+    if (bindings === before) return false;
     if (Object.keys(bindings).length > 0) show.bindings = bindings;
     else delete show.bindings;
     return true;
@@ -1623,8 +1660,10 @@ export function setFieldBindings(
 ): Show[] {
   return patchShow(showId, (show) => {
     if (entries.length === 0) return false;
-    let bindings = show.bindings ?? {};
-    for (const { graphic, fieldId, path } of entries) bindings = applyFieldBinding(bindings, graphic, fieldId, path);
+    const before = show.bindings ?? {};
+    let bindings = before;
+    for (const { graphic, fieldId, path } of entries) bindings = applyFieldBinding(show, bindings, graphic, fieldId, path);
+    if (bindings === before) return false;
     if (Object.keys(bindings).length > 0) show.bindings = bindings;
     else delete show.bindings;
     return true;
@@ -1645,6 +1684,16 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
   return patchShow(showId, (show) => {
     if (on) show.pollLiveFigures = true;
     else delete show.pollLiveFigures;
+    return true;
+  });
+}
+
+/** Remember where messages go (Show.messageTarget), or forget it with `null`. */
+export function setShowMessageTarget(showId: string, graphicId: string | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if ((show.messageTarget ?? null) === graphicId) return false;
+    if (graphicId) show.messageTarget = graphicId;
+    else delete show.messageTarget;
     return true;
   });
 }

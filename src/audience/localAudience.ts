@@ -1,4 +1,4 @@
-// THE LOCAL AUDIENCE PROVIDER — in memory, with a submission simulator.
+// THE LOCAL AUDIENCE PROVIDER — the inbox of an unpublished production, with a simulator.
 //
 // This is what REHEARSAL runs on, what an offline build runs on, and what the e2e suite drives.
 // It is not a mock in the testing sense: it implements the whole `AudienceBackend` contract with
@@ -6,14 +6,19 @@
 // that works here is the workflow, and the Supabase provider is a second implementation of an
 // interface that has already been exercised rather than the first one anybody tried.
 //
-// It holds NOTHING durable on purpose. Audience material is other people's words: keeping a
-// rehearsal's simulated questions in localStorage would mean the studio quietly accumulated
-// them, and there is no reason a practice run should outlive the tab. What an operator decides
-// to KEEP leaves through the ordinary door — a cue on the rundown — like anything else on air.
+// WHAT IS KEPT, AND WHAT IS NOT (data-sources C0, reversing this file's earlier rule that it held
+// nothing durable). Messages the OPERATOR put here - pasted now, imported later - are kept in
+// browser storage per production, with their moderation: an inbox forgotten on reload lost the
+// operator's own work, and the Playout tab and the Messages tab are two browser tabs that must see
+// the same inbox. SIMULATED rows, and what a local join preview or a chat source sends, stay in
+// memory: a rehearsal's invented questions must never accumulate, which was the reason for the old
+// rule and still holds for them.
 
 import { uuid } from '../model/id';
 import {
   AUDIENCE_LIMITS,
+  OPERATOR_ADD_MAX,
+  clampProvenance,
   clampSubmission,
   type AudienceBackend,
   type AudienceRound,
@@ -51,6 +56,38 @@ export interface LocalAudienceOptions {
   productionName: string;
   /** Deterministic sequence for the simulator, so a spec never depends on randomness. */
   seed?: number;
+  /** Keep operator-added candidates in browser storage under this production. Absent = memory
+   *  only (a Node test, or a provider nobody reloads). */
+  showId?: string;
+}
+
+/** Where operator-added candidates are kept: production id -> rows. Plain localStorage, as the
+ *  live data tree is (model/productionState.ts): small, per machine, and it has to survive a
+ *  reload and be seen by the production's other tab. */
+export const LOCAL_INBOX_KEY = 'spx-gfx-audience-inbox';
+
+type InboxStore = Record<string, AudienceSubmission[]>;
+
+function readInbox(): InboxStore {
+  try {
+    const raw = globalThis.localStorage?.getItem(LOCAL_INBOX_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as InboxStore) : {};
+  } catch {
+    // Unreadable is empty, never a crash on the way into the Messages view.
+    return {};
+  }
+}
+
+/** False when the browser refused the write (quota, private mode). */
+function writeInbox(store: InboxStore): boolean {
+  try {
+    if (!globalThis.localStorage) return false;
+    globalThis.localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(store));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export interface LocalAudience extends AudienceBackend {
@@ -65,18 +102,18 @@ export interface LocalAudience extends AudienceBackend {
 /**
  * One provider PER PRODUCTION, for the life of the tab.
  *
- * It is a module-level registry rather than component state because the Audience workspace
+ * It is a module-level registry rather than component state because the Messages workspace
  * unmounts every time the operator visits Playout or Data, and an inbox that emptied itself on
  * a tab switch would be useless — the same class of defect as the PROGRAM monitor losing air on
- * that round trip. It is deliberately NOT persisted: a rehearsal's material is other people's
- * words in shape if not in fact, and there is no reason a practice run should outlive the tab.
+ * that round trip. Its operator-added rows are also in browser storage (above); its simulated
+ * rows live only here.
  */
 const byProduction = new Map<string, LocalAudience>();
 
 export function localAudienceFor(showId: string, productionName: string): LocalAudience {
   const existing = byProduction.get(showId);
   if (existing) return existing;
-  const made = createLocalAudience({ productionName });
+  const made = createLocalAudience({ productionName, showId });
   byProduction.set(showId, made);
   return made;
 }
@@ -101,6 +138,25 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
   let seq = options.seed ?? 0;
   const listeners: Array<() => void> = [];
   const changed = () => listeners.forEach((cb) => cb());
+  /** The kept rows: browser storage when there is a production to key them by, else memory. */
+  let keptInMemory: AudienceSubmission[] = [];
+  const kept = (): AudienceSubmission[] => (options.showId ? readInbox()[options.showId] ?? [] : keptInMemory);
+  const keep = (rows: AudienceSubmission[]): boolean => {
+    if (!options.showId) {
+      keptInMemory = rows;
+      return true;
+    }
+    const store = readInbox();
+    if (rows.length > 0) store[options.showId] = rows;
+    else delete store[options.showId];
+    return writeInbox(store);
+  };
+  // The production's other tab added or moderated a kept row: tell this one's listeners.
+  if (options.showId && typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key === LOCAL_INBOX_KEY) changed();
+    });
+  }
   // The clock is read once per write rather than being injected: a virtual clock belongs to the
   // render runtime, and every consumer here only ever compares two of these to each other.
   const nowIso = () => new Date().toISOString();
@@ -167,11 +223,35 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     async list(): Promise<AudienceSubmission[]> {
-      return submissions.map((s) => ({ ...s }));
+      return [...kept(), ...submissions].map((s) => ({ ...s }));
+    },
+
+    async addCandidates(items): Promise<AudienceSubmission[]> {
+      if (items.length > OPERATOR_ADD_MAX) {
+        throw new Error(`At most ${OPERATOR_ADD_MAX} messages at a time.`);
+      }
+      const rows = kept();
+      const known = new Set(
+        [...rows, ...submissions].map((s) => s.externalId).filter((x): x is string => Boolean(x)),
+      );
+      const added: AudienceSubmission[] = [];
+      for (const item of items) {
+        if (!item.body.trim()) continue;
+        const provenance = clampProvenance(item);
+        if (provenance.externalId && known.has(provenance.externalId)) continue;
+        if (provenance.externalId) known.add(provenance.externalId);
+        added.push({ ...make(item.author ?? '', item.body), ...provenance });
+      }
+      if (added.length === 0) return [];
+      if (!keep([...rows, ...added])) throw new Error('This browser refused to keep the message.');
+      changed();
+      return added.map((s) => ({ ...s }));
     },
 
     async update(id, patch): Promise<void> {
-      const row = submissions.find((s) => s.id === id);
+      const rows = kept();
+      const keptRow = rows.find((s) => s.id === id);
+      const row = keptRow ?? submissions.find((s) => s.id === id);
       if (!row) return;
       // The allowlist IS the immutability of the original: `author` and `body` are not in the
       // patch type and are not assigned here either, so neither a UI bug nor a future caller
@@ -182,6 +262,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       if (patch.status !== undefined) row.status = patch.status;
       if (patch.shortlisted !== undefined) row.shortlisted = patch.shortlisted;
       if (patch.usedAt !== undefined) row.usedAt = patch.usedAt;
+      if (keptRow && !keep(rows)) throw new Error('This browser refused to keep the change.');
       changed();
     },
 

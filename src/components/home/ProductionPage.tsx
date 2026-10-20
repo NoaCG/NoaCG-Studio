@@ -140,7 +140,7 @@ import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
-import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceWorkspace';
+import ProductionAudienceWorkspace, { CueMessageFill, isMessageBodyField, pollFieldMap } from './ProductionAudienceWorkspace';
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox } from './useAudienceInbox';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
@@ -4589,10 +4589,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   // WHICH VIEWS THE SWITCHER SHOWS (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03): Data and
-  // Audience are views used live, so they stay views, but only on a production that uses them. A
+  // Messages are views used live, so they stay views, but only on a production that uses them. A
   // plain production shows Playout alone and reaches both through Setup. Data is in use once
-  // there is a table, a seed, a binding or a live value; Audience once the pool holds a graphic
-  // made for it (a message card or a vote board) or anything has arrived through the join page.
+  // there is a table, a seed, a binding or a live value; Messages once the pool holds a graphic
+  // made for it (a message card or a vote board) or anything is in its inbox.
   const views = {
     data:
       (show.datasets?.length ?? 0) > 0 ||
@@ -5189,7 +5189,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                             </div>
                           );
                         }
-                        return (
+                        const field = (
                           <FieldRow
                             key={d.key}
                             descriptor={{ ...d, label: `${d.key.toUpperCase()} · ${d.label}` }}
@@ -5204,6 +5204,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                                 : "Add pictures in the graphic's Assets tab."
                             }
                           />
+                        );
+                        // A MESSAGE BODY offers "Fill from…": paste or pick a message into this
+                        // cue, through the same staging Messages uses (data-sources C0).
+                        if (!editingCue || !isMessageBodyField(show, poolGraphic.id, d.key)) return field;
+                        return (
+                          <div className="pd-field-with-fill" key={d.key}>
+                            {field}
+                            <CueMessageFill show={show} setShows={setShows} cueId={editingCue.id} graphicId={poolGraphic.id} beforeFill={flushDraft} />
+                          </div>
                         );
                       })}
                     </div>
@@ -5525,7 +5534,7 @@ function ProductionShell({
   // The verb keys (docs/PLAYOUT_DASHBOARD.md §2) come from the SHARED keymap, so the hosted
   // control page cannot drift away from this one again — see components/playoutKeys.ts.
   //
-  // ONLY WHILE PLAYOUT IS THE SURFACE ON SCREEN. This shell renders on Data and Audience too,
+  // ONLY WHILE PLAYOUT IS THE SURFACE ON SCREEN. This shell renders on Data and Messages too,
   // with the playout column hidden behind them, so bound-while-mounted meant SPACE ran Take
   // from a screen showing neither monitor. The hosted page has no workspaces and passes nothing.
   const shortcuts = useCueShortcutSet(show.cues ?? NO_CUES);
@@ -5616,7 +5625,8 @@ function ProductionShell({
             2026-08-21: "the buttons that we have and the side pages we have feel a bit
             dangerous to swap between. I think the playout should always be open." Data and
             Audience are AUTHORING surfaces, and authoring while the thing you are steering is
-            off-screen is how a live mistake happens.
+            off-screen is how a live mistake happens. (The Audience view is called Messages now;
+            its route stays `audience`.)
             This needed the durable store's CROSS-TAB INVALIDATION first (model/durableStore.ts):
             two tabs on one production used to overwrite each other, so shipping this before that
             would have made the losing path the default rather than an unlucky one.
@@ -5626,16 +5636,16 @@ function ProductionShell({
             returns IN THIS TAB, where the monitors already are.
 
             ONLY THE VIEWS THIS PRODUCTION USES (owner, 2026-10-03). A plain production has no
-            switcher at all, and Setup offers Data and Audience instead. The view you are standing
-            on is always listed, so nothing disappears under the operator. Audience carries the
-            count of submissions waiting in its inbox. */}
+            switcher at all; Setup always lists Data and Messages. The view you are standing
+            on is always listed, so nothing disappears under the operator. Messages carries the
+            count of messages waiting in its inbox. */}
         {tabs.length > 0 && (
           <nav className="pd-tabs" aria-label="Production workspaces">
             <button className={sub === null ? 'on' : undefined} onClick={onTab} data-testid="tab-playout">
               Playout
             </button>
             {tabs.map((tab) => {
-              const label = tab === 'data' ? 'Data' : 'Audience';
+              const label = tab === 'data' ? 'Data' : 'Messages';
               const count =
                 tab === 'audience' && views.waiting > 0 ? (
                   <span className="pd-tab-count" title={`${views.waiting} waiting in the inbox`} data-testid="tab-audience-count">
@@ -5709,8 +5719,6 @@ function ProductionShell({
           onPlayoutSettings={onPlayoutSettings}
           onLinks={onLinks}
           onExport={onExport}
-          offerData={!tabs.includes('data')}
-          offerAudience={!tabs.includes('audience')}
         />
         {panelDialog}
         <button
