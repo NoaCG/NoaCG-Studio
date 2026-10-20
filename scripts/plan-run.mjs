@@ -302,6 +302,9 @@ function recordLocked(file, phase, event, detail, now, supervised) {
       return { refusal: `Ledger refuses ${diagnose ? 'diagnosis' : 'launch'}: ${next.action}` };
     }
   }
+  // The checker starts on the merge at once, so `landed` names that exact commit.
+  const mergeShaOf = (text) => { try { const { mergeSha } = JSON.parse(text); return /^[a-f0-9]{40}$/.test(mergeSha ?? '') ? mergeSha : null; } catch { return null; } };
+  if (project && event === 'landed' && !mergeShaOf(detail)) return { refusal: 'Project landed needs a JSON receipt with mergeSha: the exact 40-hex merge commit' };
   if (project && ['build', 'repair', 'check', 'pass', 'resume', 'diagnose'].includes(event)) {
     let receipt;
     try { receipt = JSON.parse(detail); } catch { return { refusal: 'Project launch/verdict/handoff requires a JSON actor/evidence receipt' }; }
@@ -318,6 +321,8 @@ function recordLocked(file, phase, event, detail, now, supervised) {
             && typeof e.evidence === 'string' && e.evidence.trim() && e.environment === acceptance.environment))) return { refusal: 'PASS needs the latest independent checker\'s evidence for every criterion in its required environment' };
       // The check may start at the merge; PASS waits until every exact-merge check is green.
       if (typeof receipt.mergeChecks !== 'string' || !receipt.mergeChecks.trim()) return { refusal: 'PASS needs mergeChecks: evidence that every required check on the exact merge SHA is green' };
+      const landed = mergeShaOf(steps.findLast((step) => step.event === 'landed')?.detail ?? '');
+      if (receipt.mergeSha !== landed) return { refusal: `PASS needs mergeSha: the merge SHA the phase landed (${landed})` };
     }
   }
   const line = `- ${new Date(now).toISOString()} phase ${phase} ${event}${detail ? ` ${detail}` : ''}`;

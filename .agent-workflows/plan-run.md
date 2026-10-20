@@ -49,7 +49,7 @@ The supervisor's local transaction and ledger admission lock serialize claims; d
 Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the intent before any external launch; reconcile uncertain acceptance before replay.
 Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a continued store's adapter answers unknown).
 
-- **launch build/repair**: use the brief below in the phase's owned worktree. Record `landed` with the merge SHA once the merge is observed.
+- **launch build/repair**: use the brief below in the phase's owned worktree. Record `landed {"mergeSha"}` once the merge is observed.
   Preserve carry findings, failure history and existing per-command/test bounds. A recorded intent alone proves no worker was launched.
 - **launch check**: fresh independent checker on that immutable merge SHA at once, without inherited build/repair conversation or a context-sharing builder fork.
   PASS requires evidence for every authorized criterion in its specified environment, and `mergeChecks` once every exact-merge check is green (it waits for them).

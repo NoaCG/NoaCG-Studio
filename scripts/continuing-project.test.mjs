@@ -18,6 +18,7 @@ import { holdable, wakeVerdict, writeWake } from './run-wake.mjs';
 const NOW = Date.parse('2026-10-19T12:00:00Z');
 const iso = (time) => new Date(time).toISOString();
 const HOUR = 3_600_000;
+const MERGE = { mergeSha: 'b'.repeat(40) };
 const authorization = () => ({ source: 'owner fixture only', scope: 'two generic fixture phases',
   permissionPolicy: 'controlled adapters only', startedAt: iso(NOW), deadline: iso(NOW + 72 * HOUR) });
 const project = () => ({ version: 1, id: 'fixture-project', ownership: 'local-single-owner',
@@ -50,13 +51,13 @@ function fixture(t) {
 const networkPass = (command) => ({ status: 0, stdout: command === 'git' ? `${'a'.repeat(40)}\trefs/heads/main\n` : command === 'gh' ? '12\n' : 'workspace-child-ok' });
 function finishPhase(f, phase, at = NOW) {
   f.record(phase, 'build', { actor: `builder-${phase}` }, at);
-  f.record(phase, 'landed', 'fixture merge and all required exact-merge checks', at);
+  f.record(phase, 'landed', MERGE, at);
   f.record(phase, 'check', { actor: `checker-${phase}` }, at);
   f.record(phase, 'pass', passReceipt(f, phase, `checker-${phase}`), at);
 }
 function passReceipt(f, phase, actor) {
   const criterion = f.p.phases[phase - 1];
-  return { actor, findings: 'carry forward', mergeChecks: 'every required check green on the fixture merge SHA',
+  return { actor, findings: 'carry forward', mergeSha: MERGE.mergeSha, mergeChecks: 'every required check green on the fixture merge SHA',
     evidence: criterion.acceptance.map((c) => ({ criterion: c, evidence: 'controlled fixture receipt', environment: criterion.environment })) };
 }
 
@@ -97,7 +98,7 @@ test('a multi-day rehearsal pauses between phases, restarts without renewal and 
 
 test('pause in flight asks the worker to checkpoint; the next block waits on it and repair history survives', async (t) => {
   const f = fixture(t); f.start();
-  f.record(1, 'build', { actor: 'builder' }); f.record(1, 'landed'); f.record(1, 'check', { actor: 'checker' });
+  f.record(1, 'build', { actor: 'builder' }); f.record(1, 'landed', MERGE); f.record(1, 'check', { actor: 'checker' });
   f.record(1, 'fail', 'product: retain these findings');
   f.record(1, 'repair', { actor: 'repairer' });
   updateRun(f.db, f.p.id, 'pause', 'checkpoint in-flight worker', NOW);
@@ -110,7 +111,7 @@ test('pause in flight asks the worker to checkpoint; the next block waits on it 
   f.start(NOW + HOUR);
   assert.equal(nextStep(f.text(), NOW + HOUR).action, 'wait');
   assert.throws(() => f.record(1, 'repair', { actor: 'second-repairer' }, NOW + HOUR), /already launched/);
-  f.record(1, 'landed', '', NOW + HOUR);
+  f.record(1, 'landed', MERGE, NOW + HOUR);
   f.record(1, 'check', { actor: 'new-checker' }, NOW + HOUR);
   f.record(1, 'fail', 'product: second failure retained', NOW + HOUR);
   assert.equal(nextStep(f.text(), NOW + HOUR).action, 'diagnose');
@@ -125,7 +126,7 @@ test('stale owners, duplicate phases, omitted acceptance and builder-as-checker 
   assert.throws(() => f.record(1, 'build', { actor: 'builder' }, NOW, { ...old, epoch: old.epoch - 1 }), /Stale/);
   f.record(1, 'build', { actor: 'builder' });
   assert.throws(() => f.record(1, 'build', { actor: 'competitor' }), /already launched/);
-  f.record(1, 'landed');
+  f.record(1, 'landed', MERGE);
   assert.throws(() => f.record(1, 'check', { actor: 'builder' }), /independent/);
   f.record(1, 'check', { actor: 'checker' });
   assert.throws(() => f.record(1, 'pass', { actor: 'checker', evidence: [] }), /every criterion/);
@@ -141,7 +142,9 @@ test('a replacement worker takes over its in-flight step through a fenced handof
   assert.throws(() => f.record(1, 'resume', { actor: 'builder-b' }, NOW, { ...authority, epoch: authority.epoch - 1 }), /Stale/);
   f.record(1, 'resume', { actor: 'builder-b', branch: 'claude/p1-build' });
   assert.deepEqual(nextStep(f.text(), NOW), { action: 'wait', phase: 1, step: 'build', launched: '{"actor":"builder-b","branch":"claude/p1-build"}' });
-  f.record(1, 'landed', 'merge observed at the merge SHA');
+  assert.throws(() => f.record(1, 'landed', 'merge observed'), /mergeSha/);
+  assert.throws(() => f.record(1, 'landed', { mergeSha: 'abc123' }), /mergeSha/);
+  f.record(1, 'landed', MERGE);
   // Every builder, original or replacement, is excluded from checking.
   for (const actor of ['builder-a', 'builder-b']) assert.throws(() => f.record(1, 'check', { actor }), /independent/);
   f.record(1, 'check', { actor: 'checker-a' });
@@ -152,6 +155,7 @@ test('a replacement worker takes over its in-flight step through a fenced handof
   const { mergeChecks, ...early } = passReceipt(f, 1, 'checker-b');
   assert.ok(mergeChecks);
   assert.throws(() => f.record(1, 'pass', early), /mergeChecks/);
+  assert.throws(() => f.record(1, 'pass', { ...passReceipt(f, 1, 'checker-b'), mergeSha: 'c'.repeat(40) }), /merge SHA the phase landed/);
   f.record(1, 'pass', passReceipt(f, 1, 'checker-b'));
   assert.deepEqual(readSteps(f.text()).map((s) => s.event), ['build', 'resume', 'landed', 'check', 'resume', 'pass']);
   assert.throws(() => f.record(1, 'resume', { actor: 'late' }), /nothing in phase 1 is running/);
@@ -160,9 +164,9 @@ test('a replacement worker takes over its in-flight step through a fenced handof
 
 test('a second failure is diagnosed by an agent independent of everyone who worked on the phase', (t) => {
   const f = fixture(t); f.start();
-  f.record(1, 'build', { actor: 'builder' }); f.record(1, 'landed'); f.record(1, 'check', { actor: 'checker' });
+  f.record(1, 'build', { actor: 'builder' }); f.record(1, 'landed', MERGE); f.record(1, 'check', { actor: 'checker' });
   f.record(1, 'fail', 'product: first');
-  f.record(1, 'repair', { actor: 'repairer' }); f.record(1, 'landed'); f.record(1, 'check', { actor: 'checker-2' });
+  f.record(1, 'repair', { actor: 'repairer' }); f.record(1, 'landed', MERGE); f.record(1, 'check', { actor: 'checker-2' });
   f.record(1, 'fail', 'product: second');
   assert.equal(nextStep(f.text(), NOW).action, 'diagnose');
   for (const actor of ['builder', 'repairer', 'checker', 'checker-2']) {
@@ -172,7 +176,7 @@ test('a second failure is diagnosed by an agent independent of everyone who work
   assert.throws(() => f.record(1, 'diagnose', { actor: 'decider', decision: 'repair' }), /decision and its reason/);
   f.record(1, 'diagnose', { actor: 'decider', decision: 'repair', reason: 'the fixture input is parsed twice; fix only the parser' });
   assert.deepEqual(nextStep(f.text(), NOW), { action: 'launch', phase: 1, step: 'repair', carry: 'product: second (diagnosis: the fixture input is parsed twice; fix only the parser)' });
-  f.record(1, 'repair', { actor: 'repairer-2' }); f.record(1, 'landed'); f.record(1, 'check', { actor: 'checker-3' });
+  f.record(1, 'repair', { actor: 'repairer-2' }); f.record(1, 'landed', MERGE); f.record(1, 'check', { actor: 'checker-3' });
   f.record(1, 'fail', 'product: third');
   assert.equal(nextStep(f.text(), NOW).action, 'stop');
   assert.throws(() => f.record(1, 'diagnose', { actor: 'decider-2', decision: 'repair', reason: 'again' }), /next event is stop/);

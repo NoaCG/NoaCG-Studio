@@ -77,15 +77,17 @@ block, no wait, pending action or lease), a replacement checker must be independ
 of every builder, and failure/repair counts do not change. `next` then shows the
 replacement's receipt, and PASS comes from the latest checker.
 
-`landed` is recorded with the merge SHA as soon as the merge is observed, and the
-checker starts on that immutable SHA. PASS is the latest checker's JSON receipt, and
-its `mergeChecks` says every required check on that exact merge SHA is green; the
-checker waits for them before recording PASS:
+`landed {"mergeSha":"<40-hex merge commit>"}` is recorded as soon as the merge is
+observed, and the checker starts on that immutable SHA. PASS is the latest checker's
+JSON receipt: its `mergeSha` is the one the phase landed, and its `mergeChecks` says
+every required check on that exact merge SHA is green; the checker waits for them
+before recording PASS:
 
 ```json
 {
   "actor": "independent-checker-id",
   "findings": "findings carried forward",
+  "mergeSha": "<the landed merge SHA>",
   "mergeChecks": "every required check on <merge SHA> green: <checks link>",
   "evidence": [
     {
@@ -134,7 +136,8 @@ truth of supplied evidence or qualify a provider by itself.
   publication fails restores the wave file with the SQLite rollback, so a retry
   works. A push GitHub accepted after the network failed is this store's own next
   checkpoint (same restoration generation, parented on its head): the next
-  operation adopts its ledger and state instead of reading it as superseded. An interrupted `.admission` lock also stays refused;
+  operation adopts its state and merges its ledger with lines written locally since
+  (a conflict is refused) instead of reading it as superseded. An interrupted `.admission` lock also stays refused;
   inspect its owner-pid and records before removing a proven abandoned local lock.
 No scheduling acknowledgement changes these boundaries. Nothing wakes a stopped
 coordinator by itself: the owner continues the project by typing the line again.

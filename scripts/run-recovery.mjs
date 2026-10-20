@@ -1,7 +1,8 @@
 // Git-backed checkpoints for run-supervisor. No scheduler or native launcher lives here.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
 import { digest, immutableProject, readProject, validateAuthorization } from './project-authorization.mjs';
@@ -216,17 +217,35 @@ function adoptLocked(db, id) {
   const snapshot = JSON.parse(git(config.repository, ['show', `${remote}:checkpoint.json`]));
   if (snapshot.version !== 1 || snapshot.doc?.manifest?.id !== id
       || snapshot.doc.restoration?.generation !== doc.restoration?.generation) return false;
-  // Take the accepted ledger only over the one this store last published: a line recorded
-  // locally since then (an unsupervised plan run) is kept, or refused if both changed.
+  // Merge the accepted ledger with what was written locally since this store last published
+  // (a Wake: line, a midpoint retro, an unsupervised plan-run record); refuse a real conflict.
   const published = JSON.parse(git(config.repository, ['show', `${head}:checkpoint.json`])).ledger;
   const local = readFileSync(doc.manifest.wave, 'utf8');
-  if (snapshot.ledger !== published && local !== published) throw new Error(`The ledger changed locally after a checkpoint GitHub accepted unacknowledged; reconcile it with ${ref} before acting`);
+  const ledger = mergeLedger(git, config.repository, local, published, snapshot.ledger, ref);
   // The durable copy omits the local adapter and paths; this store's own manifest supplies them.
   const adopted = { ...snapshot.doc, manifest: doc.manifest, packet: { ...snapshot.doc.packet, workspace: doc.packet.workspace } };
   db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(adopted), id);
   db.prepare('UPDATE recovery_heads SET sha=? WHERE id=?').run(remote, id);
-  if (snapshot.ledger !== published) writeFileSync(doc.manifest.wave, snapshot.ledger);
+  if (ledger !== local) writeFileSync(doc.manifest.wave, ledger);
   return true;
+}
+
+/** A three-way merge of the wave ledger (git merge-file); a conflict is refused, never guessed. */
+function mergeLedger(git, repository, local, base, accepted, ref) {
+  if (local === base || local === accepted) return accepted;
+  if (accepted === base) return local;
+  // Both sides appended (a recorded step and a local note): the accepted step goes first.
+  if (local.startsWith(base) && accepted.startsWith(base)) return accepted + local.slice(base.length);
+  const dir = mkdtempSync(path.join(tmpdir(), 'noacg-ledger-'));
+  try {
+    const [mine, old, theirs] = ['local', 'base', 'accepted'].map((name, i) => {
+      const file = path.join(dir, name);
+      writeFileSync(file, [local, base, accepted][i]);
+      return file;
+    });
+    try { return git(repository, ['merge-file', '-p', mine, old, theirs]).replace(/\n?$/, '\n'); }
+    catch { throw new Error(`The ledger changed locally in conflict with a checkpoint GitHub accepted unacknowledged; reconcile it with ${ref} before acting`); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
 /** Read-only check before acting: a store whose last publication is no longer the remote

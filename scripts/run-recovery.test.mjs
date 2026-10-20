@@ -134,8 +134,8 @@ test('a stopped coordinator\'s project continues in a new session after full fil
   assert.equal(continued.next.action, 'wait');
   const db = f.open(path.relative(f.root, continued.db));
   assert.throws(() => recordRun(db, f.manifest.id, 1, 'build', '{"actor":"second-builder"}', { now: f.now + 1000, authority: continued.block }), /already launched/);
-  recordRun(db, f.manifest.id, 1, 'landed', 'merged', { now: f.now + 1000, authority: continued.block });
-  assert.match(ledgerAt(f), /phase 1 build[\s\S]*phase 1 landed merged/);
+  recordRun(db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now + 1000, authority: continued.block });
+  assert.match(ledgerAt(f), /phase 1 build[\s\S]*phase 1 landed \{"mergeSha":"a{40}"\}/);
 });
 
 test('a cloud checkout whose remote spells the repository in another case still continues the project', (t) => {
@@ -233,7 +233,7 @@ test('a push accepted after the network failed is adopted as this store\'s own t
   // The next operation adopts it: the build is recorded once and waited on, not launched again.
   assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder-2"}', { now: f.now, authority: block }), /already launched/);
   assert.equal(readFileSync(f.manifest.wave, 'utf8'), remoteLedger(f).ledger);
-  recordRun(f.db, f.manifest.id, 1, 'landed', 'merge observed', { now: f.now, authority: block });
+  recordRun(f.db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now, authority: block });
   // The same for a project update: an accepted pause is adopted with its project state.
   down = false;
   f.inject((args, call) => {
@@ -248,6 +248,37 @@ test('a push accepted after the network failed is adopted as this store\'s own t
   // Another session's continuation is still superseding.
   assert.equal(f.continueAs('session-b').verdict, 'continued');
   assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /superseded/);
+});
+
+test('adopting an accepted record merges in what the coordinator wrote to the wave file since', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave);
+  let down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /Could not resolve host/);
+  f.inject(null);
+  // The procedure writes these directly, outside recordRun.
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}Wake: fixture host, next check-in 12:00\n\n## Midpoint retro\n\n- fine so far\n`);
+  recordRun(f.db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now, authority: block });
+  const ledger = readFileSync(f.manifest.wave, 'utf8');
+  for (const kept of [/phase 1 build \{"actor":"builder"\}/, /^Wake: fixture host/m, /^## Midpoint retro$/m, /phase 1 landed/]) assert.match(ledger, kept);
+  assert.equal(remoteLedger(f).ledger, ledger);
+  // An accepted pause rewrites the Project line while a note is added at the end: both stay.
+  down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /Could not resolve host/);
+  f.inject(null);
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}- paused for the night\n`);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /refuses work: paused/);
+  assert.equal(readProject(readFileSync(f.manifest.wave, 'utf8'), f.now).status, 'paused');
+  assert.match(readFileSync(f.manifest.wave, 'utf8'), /- paused for the night\n$/);
 });
 
 test('adopting an accepted checkpoint keeps a line recorded locally since, and a failed update undoes only its own write', (t) => {
