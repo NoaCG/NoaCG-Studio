@@ -60,13 +60,14 @@
     "serverStarted": false,
     "browserAcceptanceRunStarted": false
   },
-  "sequentialIsolatedProfileHandoff": "INCOMPLETE: first account save and cloud arrival confirmed; first tab closed; owner reported site cannot be reached after unchanged 12-minute server cap",
+  "sequentialIsolatedProfileHandoff": "INCOMPLETE: later owner-approved j-4661 stopped at owner request before native backup import or second-profile inspection; earlier animation/Save/cloud-arrival observations remain in dashboard-recovery.json",
   "dockerStarted": false,
   "headlessSuiteStarted": false,
   "productionCredentialsUsedOrCopied": false,
   "accountAuthenticated": true,
   "physicalDeviceProof": false,
   "wholePhase2Accepted": false,
-  "latestContinuationReceipt": "dashboard-recovery.json",
-  "accountAuthenticationQualification": "Disposable branch account only; branch deleted after stopped handoff"
+  "latestContinuationReceipt": "handoff-only.json",
+  "accountAuthenticationQualification": "Disposable branch account only; branch deleted after stopped handoff",
+  "latestStop": "Owner ended the session to go to bed; server stopped and temporary branch deletion verified"
 }

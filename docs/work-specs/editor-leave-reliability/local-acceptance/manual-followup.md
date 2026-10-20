@@ -262,3 +262,58 @@ remains incomplete. Whole Phase 2 acceptance is not complete. Original failures,
 all assertions and 32 group cases, budgets, skips and deferrals remain intact;
 no further historical diagnosis, quarantine workaround, Phase 3, landing or issue
 closure follows from this result.
+
+## Owner-approved handoff-only admission, then owner stop
+
+The owner approved one new twelve-minute handoff-only check and required deletion
+of its temporary branch. Earlier successful observations and failed/incomplete
+admissions remained intact. Readiness again refused browser admission below
+1536 MiB; the clock did not start during that wait. Current worktrees and owners,
+the empty queue and the retained 5282 reservation were reconciled. No product,
+test, script, workflow, migration or package source differed from pinned 12ecc;
+the group spec's Git blob remained identical, preserving all 32 cases.
+
+Git origin/main and the Actions API each passed their own preflight. A separate
+supported GraphQL read confirmed the repository, PR 1537's exact 12ecc merge,
+closed #1466 and open #1498. Observed main was cc3500f2 and was not qualified by
+the pinned source receipt. No write or dispatch access followed from those reads.
+
+The dashboard created `codex-p2-handoff-only-12ecc-20261020` at 20:40:22 UTC,
+without production data and at the unchanged USD 0.01344/hour compute quote.
+The normal pinned CLI wrapper applied its nineteen pending migrations without
+retries, using only the previously approved branch-only 0085 override. Its
+quiet-window and exact ledger addition checks passed. The separate automatic
+deployment was observed as `MIGRATIONS_FAILED`, not passing. No SQL or guard was
+edited. The setup dashboard was closed to save memory.
+
+At 2774 MiB free, the empty queue admitted new job `j-4661`, sweep cost 1,
+cap twelve minutes, using the approved process-local 1536 MiB floor. It created
+one confirmed disposable branch account and started the sanctioned server. The
+privileged branch key remained in server memory; no credential file or privileged
+browser value was created. A single visible sign-in submission reached an empty,
+Synced account workspace. One accessibility observation timed out on
+`Page.getFrameTree`; a screenshot confirmed successful sign-in, and a subsequent
+accessibility read succeeded without repeating sign-in. That transport failure
+is retained, without an app-failure or historical module-cause inference.
+
+The first profile reached the import Design step. The owner was asked to select
+the existing native backup, but replied `cant do it im going to bed`. No import,
+new graphic save or second-profile observation completed in this admission. The
+coordinator immediately requested stop with exit 1, closed the test tab, and
+preserved failed `j-4661`. It ran about 173 seconds, within its unchanged cap.
+The generic queue reason mentions auto-merge, but no merge was attempted.
+
+Dashboard deletion completed. At 20:50:34 UTC, a fresh branch listing showed
+only main and port 5282 was closed, with no live queue job. Only the exact owned
+idle exception runner was stopped after checking its PID, start time and empty
+queue, restoring normal defaults for later runners. Deletion proof is retained
+as an ignored local screenshot. Brief prior branch usage may still be billed.
+See [handoff-only.json](handoff-only.json),
+[terminal queue record](handoff-only-queue-final.json) and
+[log](handoff-only-log.txt).
+
+Work is stopped at the owner's request; no unattended continuation or automatic
+restart is armed. The isolated-profile handoff remains incomplete, so whole
+Phase 2 is not accepted. All earlier results, original failures, assertions,
+32 group cases, budgets, skips and deferrals remain preserved. No issue was
+closed and no source change was landed. Keep this chat for a later resumption.

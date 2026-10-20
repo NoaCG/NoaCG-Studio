@@ -1,8 +1,8 @@
 {
   "date": "2026-10-20",
   "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
-  "verdict": "DASHBOARD RECOVERY MIGRATIONS PASS / MANUAL HANDOFF INCOMPLETE / BRANCH DELETED",
-  "latestContinuationReceipt": "dashboard-recovery.json",
+  "verdict": "OWNER STOPPED HANDOFF-ONLY CONTINUATION / INCOMPLETE / BRANCH DELETED",
+  "latestContinuationReceipt": "handoff-only.json",
   "authorization": "One bounded normal-runner backend recovery; unchanged migrations/tests/limits; branch-only access; stop at refusal; cleanup required",
   "cloud": {
     "ownerThread": "01a15836-9bcd-7339-9fac-4d7f6238705c",
