@@ -20,13 +20,13 @@ import {
   type PresenterPointers,
   type ObservableAudience,
 } from '../../audience/audienceTypes';
-import { localAudienceFor } from '../../audience/localAudience';
 import {
   mountJoinSurface,
   type JoinSurfaceClient,
   type JoinSurfaceHandle,
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
+import { useMessagesBackend } from './useAudienceInbox';
 import {
   chatIntakeFor,
   chatPlatformWord,
@@ -35,7 +35,6 @@ import {
 } from '../../audience/chatIntake';
 import { normalizeTwitchChannel } from '../../audience/twitchChat';
 import { normalizeYouTubeVideoId } from '../../audience/youtubeChat';
-import { isBackendConfigured } from '../../backend/config';
 import {
   POLL_LIVE_ON,
   POLL_LIVE_TITLE,
@@ -49,10 +48,10 @@ import {
   destinationRefusal,
   messageDestinations,
   messageFields,
+  lastTitled,
   rememberedDestination,
   stageMessage,
   voteBoardFields,
-  type MessageDestination,
   type StageResult,
 } from '../../control/messageStaging';
 
@@ -103,14 +102,7 @@ export function pollFieldMap(
   // likely to have a text layer called "Question" that they did not bind to the vote - which,
   // scanning forwards, would take the round's question and leave the wire empty while overwriting
   // a layer nobody asked us to touch. Later means more specific here, because later means ours.
-  const byTitle = (...wanted: string[]): string | null => {
-    let found: string | null = null;
-    for (const f of fields) {
-      const title = (f.title ?? '').trim().toLowerCase();
-      if (wanted.some((w) => title === w)) found = f.field;
-    }
-    return found;
-  };
+  const byTitle = (...wanted: string[]): string | null => lastTitled(fields, wanted);
   // Whether it is a vote board at all is answered once, where messages are kept off one
   // (control/messageStaging.ts): a vote board's Question is not a message body.
   const board = voteBoardFields(fields);
@@ -177,23 +169,6 @@ function tallyValues(
     values[map.live] = liveFigures ? POLL_LIVE_ON : '';
   }
   return values;
-}
-
-/**
- * The production's inbox: a PUBLISHED production on a build with a backend reads its real one
- * through its control slug, anything else the local provider (src/audience/localAudience.ts). One
- * choice, shared by Messages and the cue editor's Fill, so the two cannot read different inboxes.
- */
-function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'>): { live: boolean; backend: ObservableAudience } {
-  const live = Boolean(show.hostedSlug) && isBackendConfigured();
-  const backend = useMemo<ObservableAudience>(
-    () =>
-      live && show.hostedSlug
-        ? createSupabaseAudience({ controlSlug: show.hostedSlug })
-        : localAudienceFor(show.id, show.name),
-    [live, show.hostedSlug, show.id, show.name],
-  );
-  return { live, backend };
 }
 
 /** The candidate list, kept fresh off the provider's change signal while `enabled` (a closed
@@ -314,8 +289,6 @@ export function CueMessageFill({
         stagingDeps(backend, setShows),
       );
       if (!result.ok) return setNote(result.message);
-      setName('');
-      setBody('');
       setOpen(false);
     } catch (err) {
       setNote(`The message was not kept: ${(err as Error).message}`);
@@ -851,7 +824,7 @@ export default function ProductionAudienceWorkspace({
       {destinations.length > 0 ? (
         <>
           <span className="hint">Prepare on:</span>
-          {destinations.map((d: MessageDestination) => (
+          {destinations.map((d) => (
             <button key={d.graphicId} disabled={!!preparing} onClick={() => void prepare(row, { graphicId: d.graphicId })} data-testid="audience-choose-graphic">
               {d.name}
             </button>

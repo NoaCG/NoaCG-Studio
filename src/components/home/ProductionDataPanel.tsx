@@ -16,6 +16,7 @@ import {
 } from '../../model/productionData';
 import { addGraphicToShow, preparedMessageField, setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
+import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { copyLink } from './copyLink';
 import { useDeferredEdits } from './useDeferredEdits';
@@ -504,13 +505,7 @@ function BindingTable({
   });
   const bindKey = (graphic: string, fieldId: string) => JSON.stringify({ graphic, fieldId });
   /** A free pool name for the separate card a refused binding offers. */
-  const separateName = (name: string) => {
-    const taken = new Set(show.graphics.map((x) => x.name));
-    let n = 1;
-    let next = `${name} (live data)`;
-    while (taken.has(next)) next = `${name} (live data ${++n})`;
-    return next;
-  };
+  const separateName = (name: string) => freeName(show.graphics.map((x) => x.name), `${name} (live data)`);
 
   /** Apply every unambiguous suggestion across one or more graphics in ONE write to the show
    *  record. This is the operator's press, never a load-time effect (the suggestion above is

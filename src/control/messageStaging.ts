@@ -34,7 +34,7 @@ type Field = { field: string; title?: string };
 
 /** The LAST field whose title is one of `wanted`. Last, because imported artwork puts its own
  *  recipe fields after the designer's layers (ProductionAudienceWorkspace's `pollFieldMap`). */
-function lastTitled(fields: readonly Field[], wanted: readonly string[]): string | null {
+export function lastTitled(fields: readonly Field[], wanted: readonly string[]): string | null {
   let found: string | null = null;
   for (const f of fields) {
     if (wanted.includes((f.title ?? '').trim().toLowerCase())) found = f.field;
@@ -172,9 +172,8 @@ export async function stageMessage(
   if (candidate.usedAt && !target.again) {
     return { ok: false, reason: 'used', message: 'This message is already in a cue. Choose Prepare again for a second one.' };
   }
-  const refusal = destinationRefusal(show, target.graphicId);
-  if (refusal) return { ok: false, reason: 'refused', message: refusal };
-  const dest = messageDestinations(show).find((x) => x.graphicId === target.graphicId)!;
+  const dest = messageDestinations(show).find((x) => x.graphicId === target.graphicId);
+  if (!dest) return { ok: false, reason: 'refused', message: destinationRefusal(show, target.graphicId) ?? 'Not a destination.' };
   if (!candidate.air.body) return { ok: false, reason: 'empty', message: 'This message has no text to put on air.' };
   if (target.cueId && !show.cues?.some((c) => c.id === target.cueId && c.sourceId === target.graphicId)) {
     return { ok: false, reason: 'refused', message: 'This cue was removed.' };
@@ -186,20 +185,12 @@ export async function stageMessage(
     const values = messageValues(dest, candidate.air);
     const stagedFrom: MessageReceipt = { candidateId: candidate.id, fields: Object.keys(values), at };
     const label = messageLabel(candidate.air.body);
-    let cueId: string | null = null;
-    let written: string | null;
-    if (target.cueId) {
-      const made = d.updateCue(show.id, target.cueId, { values, stagedFrom, ...(target.relabel ? { label } : {}) });
-      d.setShows(made.shows);
-      cueId = target.cueId;
-      written = made.error;
-    } else {
-      const made = d.addCue(show.id, dest.graphicId, { label, values, stagedFrom });
-      d.setShows(made.shows);
-      cueId = made.cueId;
-      written = made.error;
-    }
-    const failure = written ?? (cueId ? await d.commit() : 'the cue could not be written.');
+    const made = target.cueId
+      ? { ...d.updateCue(show.id, target.cueId, { values, stagedFrom, ...(target.relabel ? { label } : {}) }), cueId: target.cueId }
+      : d.addCue(show.id, dest.graphicId, { label, values, stagedFrom });
+    d.setShows(made.shows);
+    const cueId = made.cueId;
+    const failure = made.error ?? (cueId ? await d.commit() : 'the cue could not be written.');
     if (failure || !cueId) {
       return { ok: false, reason: 'save', message: `No cue was prepared on “${dest.name}”: ${failure}` };
     }

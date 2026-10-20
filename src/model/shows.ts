@@ -1033,7 +1033,7 @@ export function removePlayoutItemChecked(showId: string, itemId: string): { show
 export function updateShowCue(
   showId: string,
   cueId: string,
-  patch: { label?: string; values?: Record<string, string>; note?: string | null; stagedFrom?: MessageReceipt },
+  patch: { label?: string; values?: Record<string, string>; note?: string | null },
 ): Show[] {
   return updateShowCueChecked(showId, cueId, patch).shows;
 }

@@ -10,6 +10,26 @@ import { isBackendConfigured } from '../../backend/config';
  *  third as often and costs a third of the requests. */
 const HEADER_READ_MS = 12_000;
 
+/**
+ * The production's inbox provider: a PUBLISHED production on a build with a backend reads its real
+ * inbox through its control slug, anything else the local provider (src/audience/localAudience.ts).
+ * One choice, shared by the header count, Messages and the cue editor's Fill, so none of them can
+ * read a different inbox.
+ */
+export function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'>): { live: boolean; backend: ObservableAudience };
+export function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'> | null): { live: boolean; backend: ObservableAudience | null };
+export function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'> | null): { live: boolean; backend: ObservableAudience | null } {
+  const id = show?.id;
+  const name = show?.name ?? '';
+  const slug = show?.hostedSlug;
+  const live = Boolean(slug) && isBackendConfigured();
+  const backend = useMemo<ObservableAudience | null>(
+    () => (!id ? null : live && slug ? createSupabaseAudience({ controlSlug: slug }) : localAudienceFor(id, name)),
+    [live, slug, id, name],
+  );
+  return { live, backend };
+}
+
 export interface AudienceInbox {
   /** Submissions waiting in the inbox (status `new`): the header's "Audience 3". */
   waiting: number;
@@ -28,14 +48,7 @@ export interface AudienceInbox {
  * count only on the Messages view's own tab (src/audience/localAudience.ts).
  */
 export function useAudienceInbox(show: Pick<Show, 'id' | 'name' | 'hostedSlug'> | null): AudienceInbox {
-  const id = show?.id;
-  const name = show?.name ?? '';
-  const slug = show?.hostedSlug;
-  const live = Boolean(slug) && isBackendConfigured();
-  const backend = useMemo<ObservableAudience | null>(
-    () => (!id ? null : live && slug ? createSupabaseAudience({ controlSlug: slug }) : localAudienceFor(id, name)),
-    [live, slug, id, name],
-  );
+  const { live, backend } = useMessagesBackend(show);
   const [inbox, setInbox] = useState<AudienceInbox>({ waiting: 0, any: false });
   useEffect(() => {
     if (!backend) return;

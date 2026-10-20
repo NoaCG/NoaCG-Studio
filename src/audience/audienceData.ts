@@ -25,6 +25,7 @@ import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
   clampProvenance,
+  clampSubmission,
   type AudienceBrand,
   type AudienceRound,
   type AudienceState,
@@ -308,8 +309,7 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
         .map((i) => {
           const p = clampProvenance(i);
           return {
-            author: (i.author ?? '').trim().slice(0, AUDIENCE_LIMITS.author),
-            body: i.body.trim().slice(0, AUDIENCE_LIMITS.body),
+            ...clampSubmission(i.author ?? '', i.body),
             external_id: p.externalId,
             source: p.source,
             reference: p.reference,
