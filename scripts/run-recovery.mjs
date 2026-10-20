@@ -7,6 +7,7 @@ import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
 import { digest, immutableProject, readProject, validateAuthorization } from './project-authorization.mjs';
 import { PLAN_RUN_KIND } from './wave-plan-store.mjs';
+import { RECOVERY_BRANCH_PREFIX, recoveryCheckpointBranch } from './recovery-branch.mjs';
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const required = (s) => typeof s === 'string' && s.trim().length > 0;
@@ -39,9 +40,11 @@ const canonicalPath = (file) => {
   const resolved = realpathSync(file);
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 };
-// Outside refs/heads, so branch-driven integrations (deploy previews, push-triggered CI) never
-// build a checkpoint: a checkpoint is published on every admission and holds no app source.
-const RECOVERY_REFS = 'refs/noacg-recovery/';
+// A claude/ branch, the one namespace a Claude cloud session's git connection accepts pushes to
+// (refs/noacg-recovery/* was dropped, 2026-10-20). A checkpoint is published on every admission
+// and holds no app source, so its tree turns Vercel deployments off and has no workflows to run.
+const RECOVERY_REFS = `refs/heads/${RECOVERY_BRANCH_PREFIX}`;
+const NO_DEPLOY = `${JSON.stringify({ git: { deploymentEnabled: false } })}\n`;
 const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
   return `${RECOVERY_REFS}${id}`;
@@ -128,7 +131,7 @@ function validateState(doc, ledger) {
 
 function verifySource(config, r, published, git) {
   git(config.repository, ['check-ref-format', `refs/heads/${r.branch}`]);
-  if (r.branch === 'main' || r.branch.startsWith('noacg-recovery/')) throw new Error('Recovery source must be an owned feature branch');
+  if (r.branch === 'main' || r.branch.startsWith('noacg-recovery/') || recoveryCheckpointBranch(r.branch)) throw new Error('Recovery source must be an owned feature branch');
   let retained = false;
   if (published) {
     try { git(config.repository, ['merge-base', '--is-ancestor', r.revision, published]); retained = true; } catch { /* New source must be pushed first. */ }
@@ -175,7 +178,8 @@ export function publishRun(db, id) {
     return old;
   }
   const blob = git(config.repository, ['hash-object', '-w', '--stdin'], payload);
-  const tree = git(config.repository, ['mktree'], `100644 blob ${blob}\tcheckpoint.json\n`);
+  const vercel = git(config.repository, ['hash-object', '-w', '--stdin'], NO_DEPLOY);
+  const tree = git(config.repository, ['mktree'], `100644 blob ${blob}\tcheckpoint.json\n100644 blob ${vercel}\tvercel.json\n`);
   // Keep the actual source tree reachable after its feature branch has been deleted.
   const commit = git(config.repository, ['commit-tree', tree, ...(old ? ['-p', old] : []), '-p', r.revision], `Recovery checkpoint ${id}\n`);
   try {

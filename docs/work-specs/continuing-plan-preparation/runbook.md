@@ -144,9 +144,16 @@ coordinator by itself: the owner continues the project by typing the line again.
 
 ## Continuing in any session
 
-The recovery ref, `refs/noacg-recovery/<id>`, is the project's shared state. It is
-not a branch, so no deploy preview or CI builds it. In any session, cloud or laptop,
-the same `/plan-run` line first runs, from a checkout of this repository:
+The recovery branch, `claude/noacg-recovery/<id>`, is the project's shared state:
+a branch because that is the namespace a Claude cloud session can push (pushes to
+`refs/noacg-recovery/*` were dropped, `cloud-recovery-probe-2026-10-20.md`). Each
+checkpoint commit holds only `checkpoint.json` and a `vercel.json` that turns
+Vercel deployments off, so no preview is built and no workflow runs. A publication
+is a `--force-with-lease` push of a commit on top of the previous checkpoint, so a
+stale host is refused. Worktree cleanup never deletes these branches, and wave-tick,
+merge-order and the jobs view do not list them as unlanded work. In any session,
+cloud or laptop, the same `/plan-run` line first runs, from a checkout of this
+repository:
 
     node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>
 
@@ -159,11 +166,8 @@ and in-flight steps carry over. `open` means no project is active: open one.
 `blocked` means this session now owns the project but its recorded wait must be
 resolved (`clear-wait`) before `start-block`.
 
-Known limit (2026-10-20, `cloud-recovery-probe-2026-10-20.md`): a Claude cloud
-session's git connection drops pushes to `refs/noacg-recovery/*`, so `continue`
-there fails with `Recovery publication unresolved ... (git: send-pack: unexpected
-disconnect ...)`. Until the owner picks a fallback, run the coordinator where that
-push works (the laptop); cloud workers are unaffected.
+A Claude cloud session continued a disposable project this way on 2026-10-20
+(`cloud-checkpoint-branch-2026-10-20.md`).
 
 The previous coordinator needs nothing. Its next `record`, `next` or `tick` answers
 `superseded: another coordinator continued this project; stop` and launches nothing.

@@ -38,6 +38,7 @@ import { promisify } from 'node:util';
 
 import { mainRef } from './main-ref.mjs';
 import { normalize, worktreeEntries } from './worktree-cleanup-lib.mjs';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -661,7 +662,7 @@ async function remoteOnlyBranches(primary, target, local) {
     .map((line) => line.trim())
     .filter((ref) => ref.startsWith('origin/') && !ref.includes('->'))
     .map((ref) => ref.slice('origin/'.length))
-    .filter((branch) => branch && branch !== 'HEAD' && branch !== target && !known.has(branch))
+    .filter((branch) => branch && branch !== 'HEAD' && branch !== target && !known.has(branch) && !recoveryCheckpointBranch(branch))
     .sort();
 }
 

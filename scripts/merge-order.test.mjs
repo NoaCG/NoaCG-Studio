@@ -356,13 +356,15 @@ test('a branch that exists only on origin is NAMED, never ranked', async (t) => 
   const root = makeRepo(t);
   branchWith(root, 'feature/local', { 'docs/local.md': 'here\n' });
   branchWith(root, 'feature/pushed', { 'docs/pushed.md': 'from a closed session\n' });
+  // A plan run's recovery checkpoint is state on a claude/ branch, never work to land.
+  branchWith(root, 'claude/noacg-recovery/plan-x-2030-01-01', { 'checkpoint.json': '{}\n' });
 
   const origin = mkdtempSync(join(tmpdir(), 'noacg-merge-order-origin-'));
   t.after(() => rmSync(origin, { recursive: true, force: true }));
   runGit(origin, 'init', '--bare', '--initial-branch=main', '.');
   runGit(root, 'remote', 'add', 'origin', origin);
-  runGit(root, 'push', '-q', 'origin', 'main', 'feature/pushed');
-  runGit(root, 'branch', '-D', 'feature/pushed');
+  runGit(root, 'push', '-q', 'origin', 'main', 'feature/pushed', 'claude/noacg-recovery/plan-x-2030-01-01');
+  runGit(root, 'branch', '-D', 'feature/pushed', 'claude/noacg-recovery/plan-x-2030-01-01');
   runGit(root, 'fetch', '-q', 'origin');
 
   const assessment = await assessMergeOrder(root);

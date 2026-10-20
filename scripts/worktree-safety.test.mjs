@@ -415,6 +415,8 @@ test('the managed namespaces cover the harness\'s own branches, and stop at huma
   // Deletion needs containment AND ownership. These are the namespaces nothing but a harness
   // writes into: the two session prefixes, plus the branch an agent's isolated worktree mints.
   assert.equal(managedBranch('claude/x-something'), true);
+  // Recovery checkpoints are never cleaned up: they are the only copy of a plan run's state.
+  assert.equal(managedBranch('claude/noacg-recovery/plan-editor-2026-10-20'), false);
   assert.equal(managedBranch('codex/x-something'), true);
   assert.equal(managedBranch('worktree-agent-a01fa11bd8cc5d99a'), true);
 
