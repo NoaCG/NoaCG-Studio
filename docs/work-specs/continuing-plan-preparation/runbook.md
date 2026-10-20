@@ -147,8 +147,8 @@ truth of supplied evidence or qualify a provider by itself.
   (a conflict is refused) instead of reading it as superseded. An interrupted `.admission` lock also stays refused;
   inspect its owner-pid and records before removing a proven abandoned local lock.
 No scheduling acknowledgement changes these boundaries. Nothing wakes a stopped
-coordinator by itself: the owner continues the project by typing the line again. A plan's
-check-in (production-page spec §9) only revives a session whose container was lost.
+coordinator by itself: the owner continues the project by typing the line again. A plan's own
+check-in (production-page spec §9) wakes its coordinator's session until the run is paused.
 
 ## Continuing in any session
 

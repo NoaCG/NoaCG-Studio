@@ -680,26 +680,26 @@ the first rehearsal.
   the progress check counts queued and merge-queue runs and the worker's session events.
   `run-supervisor.mjs record` takes the row number (1-47) of the `extensions.md` table; the
   midpoint retro after row 23 is the procedure's ordinary retro step.
-- **Check-in after a lost container.** No watchdog session is built (a routine-started session
-  has no `send_message` or `list_events`). A cloud coordinator's block wake (`plan-run.md` §1,
+- **Check-in after a lost container.** No watchdog session is built (a routine-started session has
+  no `send_message` or `list_events`). A cloud coordinator's block wake (`plan-run.md` §1,
   `cloud-delegate.md`) is one `send_later` check-in named `plan-run check-in <project id>`, its
-  message naming the project ID, the store's `<db>` path and the owner label. Every coordinator
-  turn that ends in a wait leaves exactly one pending for its own session, about 60 minutes ahead
-  and never past the deadline: of the check-ins `list_triggers` shows with that name and this
-  session as target, it moves one (`update_trigger`), arms one if there is none, and deletes the
-  rest. Other sessions' check-ins are left alone; each ends on its session's `superseded`. While
-  the project waits for the owner (a `stop`, the owner's pause, the final owner block) or has
-  ended, the coordinator keeps none. When one fires, it asks
-  `node scripts/run-supervisor.mjs next <db> <id>` and carries on from the answer as usual (a
-  block end opens the next block), restarting its background wait unless that process runs on
-  this machine: a new machine keeps the disk but no process. `superseded` ends the check-ins; an
-  error is asked twice more a few minutes apart, then sent to the owner once. If the `<db>` file
-  is gone, it tells the owner and keeps none, since `continue` could take the run back from a
-  session the owner moved it to. Receipt
-  `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner decision
-  R23. It cannot help after an account usage limit or a stopped or ended session: then the same
-  `/plan-run` line continues the run (§10 step 6), and the laptop helper (§9.1 step 4) reports a
-  stale heartbeat, as does a missing morning summary.
+  message naming the project ID, the current store's `<db>` path and the owner label. Every
+  coordinator turn that ends in a wait leaves exactly one pending for its own session, about 60
+  minutes ahead and never past the deadline: of the check-ins `list_triggers` shows with that name
+  and this session as target, it moves one and refreshes its message (`update_trigger`), arms one
+  if there is none, and deletes the rest. Other sessions' check-ins are left alone; each ends on
+  its session's `superseded`. While the project waits for the owner (a `stop`, the owner's pause,
+  the final owner block) or has ended, the coordinator keeps none. When one fires: if the `<db>`
+  file is gone, the coordinator tells the owner and keeps none, since `continue` could take the run
+  back from a session the owner moved it to. Otherwise it asks `node scripts/run-supervisor.mjs
+  next <db> <id>` and carries on from the answer as usual, restarting its background wait unless
+  that process runs on this machine (a new machine keeps the disk but no process). A block end
+  (`paused`, "work block ended") opens the next block. `superseded` ends the check-ins. Any other
+  error is an infrastructure wait (§8): the restarted wait retries it and the check-in stays.
+  Receipt `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner
+  decision R23. It is no help after an account usage limit and is not relied on once the session is
+  closed: then the same `/plan-run` line continues the run (§10 step 6), and the laptop helper
+  (§9.1 step 4) reports a stale heartbeat, as does a missing morning summary.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
   `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
   problems (open runtime acceptance is expected) and the plan listed under "Runnable plans" in
@@ -878,14 +878,16 @@ the final owner block, which waits for him.
    never replaces invoking `/plan-run`, supplying the deadline, passing the preflight, or the
    merge safeguards.
 6. **Stop and continue anywhere (13).** To stop, tell the coordinator to pause the run: it records
-   the pause and deletes its check-in. Stopping or closing the session does not delete the
-   check-in. A lost container needs nothing from the owner: the check-in carries on within about an
-   hour (§9). To continue after a pause or an account usage limit, or to move between cloud and
-   laptop, open a new Claude Code session as in step 3 (the cloud, environment NoaCG, from the
-   desktop app or claude.ai/code, never a routine, which lacks the follow-up and transcript tools),
-   and type the same line with the original deadline. The laptop (the NoaCG-Studio folder) is the
-   fallback when the cloud is unavailable; it needs the same keys in its environment, and without
-   `SUPABASE_ACCESS_TOKEN` the C2 follow-ups wait for a cloud coordinator:
+   the pause and deletes its check-in. Stopping or closing its session is not enough, since the
+   check-in would wake it; if the coordinator cannot answer, ask any new Claude Code session to
+   delete the scheduled task named `plan-run check-in <project id>`. A lost container needs nothing
+   from the owner: the check-in carries on within about an hour (§9). To continue after a pause, an
+   account usage limit or a closed session, or to move between cloud and laptop, open a new Claude
+   Code session as in step 3 (the cloud, environment NoaCG, from the desktop app or claude.ai/code,
+   never a routine, which lacks the follow-up and transcript tools), and type the same line with
+   the original deadline. The laptop (the NoaCG-Studio folder) is the fallback when the cloud is
+   unavailable; it needs the same keys in its environment, and without `SUPABASE_ACCESS_TOKEN` the
+   C2 follow-ups wait for a cloud coordinator:
 
    ```
    /plan-run production-page until <the original deadline>
