@@ -371,7 +371,10 @@ Node test; `matchClockWire.ts` has no Node test today (its readers are in-page i
 Reconciled against `origin/main` `331a98a91` on 2026-10-20: `e2e/quarantine.json` holds no
 specs (`late-send-abandoned`, `dashboard-hosted-walk` and `production-data-key` were released
 after consecutive passes; stale PR #1450, which would have quarantined `production-data-key`
-again, was closed the same day). `e2e/configured/expected-run.json`: floor (`minTests`) 104
+again, was closed the same day). Later that day four specs entered it (`configured/agent-access`,
+`wizard-shell`, `import-svg-behaviour`, `configured/shared-lab-computer`); a quarantined spec
+leaves the blocking shards but still runs on every main push (§8, decision 18).
+`e2e/configured/expected-run.json`: floor (`minTests`) 104
 tests, five allowed skips (the four connector OAuth specs that run on the local stack only, and
 `bridge-real-server.spec.ts`). `skipOldEditor()` no longer exists in `e2e/`, so the ± press on a
 bound field (`e2e/production-data.spec.ts` 741) and the bound adjust (800) run and count.
@@ -559,6 +562,24 @@ deploy-verify run, and the exact revert command.
   launches nothing against it, waits inside its background job and retries when it is back, and
   notifies the owner only if it lasts more than two hours or needs his account. No `stop` and no
   `answered` are involved.
+- **Separate from the editor (owner, 2026-10-20, decision 18).** A phase answers only for what
+  it can break: an editor bug or any other unrelated failure never fails a phase or stops the run.
+  A failing spec counts against the phase when the phase adds or changes it, or when
+  `e2e-affected` selects it for the phase's changed files (`node scripts/e2e-affected.mjs --list
+  --files <files>`; configured specs count as selected when it asks for the configured suite) and
+  it passes on main without the phase (the merge's first parent; the checker runs it there when
+  main's own runs do not show it). Any other failing spec is outside the phase: the checker names
+  it in `mergeChecks` with the issue that tracks it (the rolling red-main issue, or one new issue)
+  and that evidence, and the phase can pass; one in a production-page spec also gets a
+  between-phases repair, as above. Quarantined specs gate nothing; `quarantine.yml` keeps running
+  them. When main cancelled the run on the merge SHA as superseded, the first completed main run
+  that contains the merge stands in for it.
+- **A red main the phase did not cause.** Main's CI quarantines a fail-then-pass and reverts the
+  landings that turn a green main red, so an editor landing that breaks main undoes itself; if
+  that revert also takes out the phase's merge, the phase's builder lands it again once main is
+  green. Any other red main that blocks a phase's pull request, or that re-landing, is fixed by
+  the repair owner of the landing that broke it (AGENTS.md). The phase waits as for an
+  infrastructure outage, spending nothing, and the coordinator tells the owner after two hours.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its
