@@ -623,7 +623,7 @@ function BindingTable({
                       <button
                         className="pd-bind-suggest"
                         onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, name: separateName(g.name) }, {}).shows)}
-                        data-testid={`bind-separate-${g.name}`}
+                        data-testid={`bind-separate-${g.name}-${d.key}`}
                       >
                         Add a separate card for live data
                       </button>

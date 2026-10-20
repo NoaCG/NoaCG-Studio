@@ -531,6 +531,8 @@ test('a pasted message airs exactly as prepared; a second message, an edit and a
   expect((await record(messages, showId)).cues.filter((c) => c.values[question] === 'A late arrival')).toHaveLength(1);
 
   // A used message prepares again only when asked: "Prepare again" makes the deliberate second cue.
+  // (Pasting put the list back on Inbox, where a used message is not shown.)
+  await messages.getByTestId('audience-filter-all').click();
   await expect(late.getByTestId('audience-prepare')).toBeDisabled();
   await fromMenu(messages, late, 'audience-prepare-again');
   await settleDurableWrites(messages);
@@ -579,7 +581,7 @@ test('a binding on the card\'s Question is refused once messages are prepared, a
   const refused = data.getByTestId(`bind-refused-House Q&A-${question}`);
   await expect(refused).toContainText('Prepared messages use this field');
   await expect(data.getByTestId(`bind-House Q&A-${question}`)).toHaveAttribute('readonly', '');
-  await data.getByTestId('bind-separate-House Q&A').click();
+  await data.getByTestId(`bind-separate-House Q&A-${question}`).click();
   await expect(data.getByTestId('bind-graphic-House Q&A (live data)')).toBeVisible();
 });
 
