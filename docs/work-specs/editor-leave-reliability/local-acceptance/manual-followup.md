@@ -95,3 +95,31 @@ remain. Repeated reference execution remains deferred. Step 6 is COMPLETE;
 existing instruction; this follow-up does not change their state. No issue closure,
 landing, quarantine workaround, Phase 3 or whole-acceptance stamp is authorized by
 these observations. See [manual-followup.json](manual-followup.json).
+
+## Temporary hosted branch attempt
+
+The owner subsequently approved using the NoaCG organization and a temporary
+Supabase branch, with deletion at the end. The cost interface quoted USD 0.01344
+per hour for compute. One fresh, non-persistent branch was created without
+production data at 18:41:03 UTC on October 20. Its automatic setup reached
+`MIGRATIONS_FAILED`; its ledger contained versions 0001 through 0073. No browser
+acceptance check, account creation, key retrieval, local server or migration
+repair followed. One bounded Postgres error-log query returned no rows; the
+deployment error itself was not captured.
+
+The repository's next migration, `0074_seq_log_index.sql`, uses
+`CREATE INDEX CONCURRENTLY`. Current [Supabase documentation](https://supabase.com/docs/guides/deployment/branching/github-integration)
+states that branching executes each migration file in a single transaction and
+cannot apply that statement, whereas the normal CLI migration runner can.
+This documents a compatibility mismatch consistent with the stopping point;
+it is not a captured error or a demonstrated repair. The compatibility check
+should have been made before creating the branch. No production migration or
+editor defect is established by this setup failure.
+
+Deletion succeeded. A fresh branch listing at 18:42:51 UTC showed only the main
+branch, confirming that the temporary branch no longer incurs ongoing compute.
+Usage during its short lifetime may still be billed; no zero-invoice claim is
+made. The setup was not retried. See [temporary-branch-attempt.json](temporary-branch-attempt.json).
+Whole acceptance remains incomplete, with imported-animation playback and
+sequential isolated-profile handoff pending. All original failures and attempt
+limits remain; this does not renew the spent shared-lab diagnosis allowance.
