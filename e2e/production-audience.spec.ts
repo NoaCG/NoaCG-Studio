@@ -593,7 +593,8 @@ test('a binding on the card\'s Question is refused once messages are prepared, a
 // durable-writes channel that hears nothing, so the window is forced rather than hoped for. The
 // read-back is from a fresh third tab, which sees only what the database holds.
 
-/** A tab on `url` that never hears another tab's durable writes, until it writes itself. */
+/** A tab on `url` cut off from the other tabs' durable-write announcements, both ways. It re-reads
+ *  the database only when it writes itself. */
 async function staleTab(page: Page, url: string): Promise<Page> {
   const tab = await page.context().newPage();
   await tab.addInitScript(() => {
@@ -636,10 +637,10 @@ test('a tab that has not heard of a prepared message cannot bind its field', asy
   expect((await record(data, showId)).cues.some((c) => c.stagedFrom)).toBe(false);
   await data.evaluate(async ([id, field]) => {
     const shows = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     shows.setFieldBinding(id, 'House Q&A', field, 'feed.question');
-    await commitDurableWrites();
+    await new Promise((r) => setTimeout(r));
   }, [showId, question] as const);
+  await settleDurableWrites(data);
 
   const stored = await storedRecord(page, showId);
   expect(stored.bindings['House Q&A'] ?? {}).toEqual({});
@@ -659,10 +660,10 @@ test('a tab that has not heard of a binding cannot prepare a message onto it', a
 
   await page.evaluate(async ([id, field]) => {
     const shows = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     shows.setFieldBinding(id, 'House Q&A', field, 'feed.question');
-    await commitDurableWrites();
+    await new Promise((r) => setTimeout(r));
   }, [showId, question] as const);
+  await settleDurableWrites(page);
 
   // The stale tab still offers the card, and the prepare is refused where it is written.
   await prepare(messages.locator('.pd-aud-row').first(), 'House Q&A');

@@ -32,7 +32,7 @@ changes a spec's digest.
   record into the Playout tab's mirror, which is why `record(page)` read `{}` at :578 while the
   Data tab read the binding. The fix: `rebasedDurableSet` (model/durableStore.ts) puts this tab's
   answer in the mirror and re-runs the mutation on the record IndexedDB holds, in one readwrite
-  transaction; `patchShowRebased` (model/shows.ts) uses it for `setFieldBinding`,
+  transaction; `patchShowChecked`'s rebased mode (model/shows.ts) uses it for `setFieldBinding`,
   `setFieldBindings`, a prepare (`addShowCue` / `updateShowCueChecked` with `stagedFrom`, which
   now also refuse a bound body or name field there) and `setShowMessageTarget` (the prepare's
   first write, which from a stale Messages tab erased the binding). `adoptWrite` no longer

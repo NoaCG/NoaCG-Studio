@@ -646,31 +646,41 @@ function queueWrite(key: string, value: string | null, previous: string | null):
     // accepted database value; never latch that earlier optimistic edit as the rollback.
     let accepted = previous;
     try { accepted = await idbReadKey(target, storedKey); } catch { /* the previous value is the remaining fallback */ }
-    if (namespace === account && latestWrite.get(key) === seq) {
-      if (accepted === null) mirror.delete(key);
-      else mirror.set(key, accepted);
-      // The surfaces that just rendered the accepted value have to re-read the real one.
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('spx-data-changed'));
-      }
-    }
-    const message = isQuotaError(e)
-      ? 'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.'
-      : 'Your work could not be saved to browser storage.';
-    if (namespace === account) reportError(key, message, seq);
+    const message = isQuotaError(e) ? FULL_MESSAGE : FAILED_MESSAGE;
+    rollBack(key, seq, account, accepted, message);
     return message;
   });
-  const receipt: DurableWriteReceipt = { sequence: seq, key, value, account, settled };
+  trackWrite({ sequence: seq, key, value, account, settled });
+}
+
+const FULL_MESSAGE = 'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.';
+const FAILED_MESSAGE = 'Your work could not be saved to browser storage.';
+const UNREADABLE_MESSAGE = 'The stored production could not be read safely.';
+
+/** Put the last accepted database value back in the mirror after a refused write, unless a newer
+ *  write owns the mirror now, and report the refusal. */
+function rollBack(key: string, seq: number, account: string | null, accepted: string | null, message: string): void {
+  if (namespace === account && latestWrite.get(key) === seq) {
+    if (accepted === null) mirror.delete(key);
+    else mirror.set(key, accepted);
+    // The surfaces that just rendered the refused value have to re-read the real one.
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+  }
+  if (namespace === account) reportError(key, message, seq);
+}
+
+/** A put handed to the database: its receipt, its place in `pending`, and the announcement. */
+function trackWrite(receipt: DurableWriteReceipt): void {
   unsettled.add(receipt);
-  void settled.then(() => unsettled.delete(receipt));
+  void receipt.settled.then(() => unsettled.delete(receipt));
   recordReceipt(receipt);
-  const write = settled.then(() => {});
+  const write = receipt.settled.then(() => {});
   pending.add(write);
   void write.finally(() => {
     pending.delete(write);
     // Tell the other tabs. AFTER the put has settled, so a tab that re-reads on this message
     // cannot read the value the write was replacing.
-    if (latestWrite.get(key) === seq) announceWrite(key);
+    if (latestWrite.get(receipt.key) === receipt.sequence) announceWrite(receipt.key);
   });
 }
 
@@ -692,9 +702,12 @@ export function rebasedDurableSet(
   conditionalWrites.get(key)?.();
   if (!hydrated || !usingIndexedDb) {
     // localStorage is shared and synchronous, so the stored value is already the fresh one.
-    const next = rebase(lsGet(physical(key)));
+    const stored = lsGet(physical(key));
+    let next: { value: string } | { refused: string };
+    try { next = rebase(stored); }
+    catch { next = { refused: UNREADABLE_MESSAGE }; }
     if ('refused' in next) {
-      recordReceipt({ sequence: ++writeSeq, key, value: null, account: namespace, settled: Promise.resolve(next.refused) });
+      recordReceipt({ sequence: ++writeSeq, key, value: stored, account: namespace, settled: Promise.resolve(next.refused) });
       reportError(key, next.refused, writeSeq);
       return;
     }
@@ -715,27 +728,23 @@ export function rebasedDurableSet(
     const fail = (message: string) => {
       if (done) return;
       done = true;
-      if (current()) {
-        if (accepted === null) mirror.delete(key);
-        else mirror.set(key, accepted);
-        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
-      }
-      if (namespace === account) reportError(key, message, seq);
+      rollBack(key, seq, account, accepted, message);
       resolve(message);
     };
     let tx: IDBTransaction;
     try { tx = target.transaction(STORE, 'readwrite'); }
-    catch { fail('Your work could not be saved to browser storage.'); return; }
+    catch { fail(FAILED_MESSAGE); return; }
     const store = tx.objectStore(STORE), request = store.get(storedKey);
     request.onsuccess = () => {
       accepted = typeof request.result === 'string' ? request.result : null;
       try {
-        const next = rebase(accepted);
+        // Nothing landed since this tab's copy, so this tab's answer is the stored answer.
+        const next = accepted === previous ? { value } : rebase(accepted);
         if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
         stored = next.value;
         store.put(stored, storedKey);
       } catch {
-        refusal = 'The stored production could not be read safely.';
+        refusal = UNREADABLE_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
       }
     };
@@ -747,25 +756,14 @@ export function rebasedDurableSet(
       }
       resolve(null);
     };
-    const failed = () => fail(refusal ?? (isQuotaError(tx.error)
-      ? 'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.'
-      : 'Your work could not be saved to browser storage.'));
+    const failed = () => fail(refusal ?? (isQuotaError(tx.error) ? FULL_MESSAGE : FAILED_MESSAGE));
     tx.onerror = failed;
     tx.onabort = failed;
   });
-  const receipt: DurableWriteReceipt = { sequence: seq, key, value, account, settled };
-  unsettled.add(receipt);
-  void settled.then(() => unsettled.delete(receipt));
-  recordReceipt(receipt);
-  const write = settled.then(() => {});
-  pending.add(write);
-  void write.finally(() => {
-    pending.delete(write);
-    if (latestWrite.get(key) === seq) announceWrite(key);
-  });
+  trackWrite({ sequence: seq, key, value, account, settled });
 }
 
-export type ConditionalWriteResult ={ status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
+export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
 
 /** Read, compare and replace in one transaction. The callback is synchronous: no await can
  * separate the comparison from the put. A newer ordinary write cancels the inverse. */
@@ -808,7 +806,7 @@ export async function conditionalDurableWrite(
         store.put(value, accountKey(key, account));
       } catch (error) {
         writeError = error;
-        refusal = isQuotaError(error) ? null : 'The stored production could not be read safely.';
+        refusal = isQuotaError(error) ? null : UNREADABLE_MESSAGE;
         try { tx.abort(); } catch { /* already aborting */ }
       }
     };
