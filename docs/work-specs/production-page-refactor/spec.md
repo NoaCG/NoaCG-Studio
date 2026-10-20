@@ -596,8 +596,8 @@ the first rehearsal.
 - **Silent workers (16).** The runner's existing bounded waits (the 30-minute heartbeat,
   supervisor inspection, queue-merge's repair owner) catch a worker that died and a pull request
   stalled in the queue. A worker that is alive but makes no progress for about 30 minutes (no
-  commits, no test output, no log activity) is caught by the runner's progress check
-  (`scripts/worker-progress.mjs`, landed with the runner change), which the coordinator runs from
+  commits, no test output, no log activity) is caught by the runner's progress check (landed
+  with the runner change; `.agent-workflows/plan-run.md` names it), which the coordinator runs from
   its background wait: it nudges the worker, and if it stays idle stops it and relaunches the same
   step from its pushed branch, or launches the phase's repair when the worker is stuck on a
   failure.
