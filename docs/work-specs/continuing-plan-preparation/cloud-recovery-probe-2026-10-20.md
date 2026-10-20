@@ -4,8 +4,9 @@ Question: can a Claude cloud session continue a plan project, which means publis
 checkpoints to `refs/noacg-recovery/<id>` with `git push --force-with-lease`? Before this,
 only the laptop had pushed there (`live-continuation-2026-10-20.md`).
 
-**Answer: no, not today.** The cloud session's git connection drops every push to
-`refs/noacg-recovery/*`. Nothing was moved under `refs/heads`; the fallback is an owner decision.
+**Answer: no.** The cloud session's git connection drops every push to
+`refs/noacg-recovery/*`. Checkpoints have since moved to the `claude/noacg-recovery/<id>`
+branch, which a cloud session can push (`cloud-checkpoint-branch-2026-10-20.md`).
 
 ## Setup
 
