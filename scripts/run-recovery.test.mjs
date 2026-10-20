@@ -138,6 +138,15 @@ test('a stopped coordinator\'s project continues in a new session after full fil
   assert.match(ledgerAt(f), /phase 1 build[\s\S]*phase 1 landed merged/);
 });
 
+test('a cloud checkout whose remote spells the repository in another case still continues the project', (t) => {
+  // Claude cloud clones https://github.com/NoaCG/noacg-studio: GitHub names are case-insensitive.
+  const f = projectFixture(t);
+  const continued = continueProject(path.join(f.root, 'state-cloud'), { plan: 'fixture', owner: 'cloud', ...f.manifest.recovery,
+    repositoryFullName: f.manifest.recovery.repositoryFullName.toLowerCase(), repository: f.bootstrap() }, { now: f.now + 1000, recoveryGit: f.transport });
+  assert.equal(continued.verdict, 'continued');
+  assert.equal(remoteLedger(f).doc.manifest.recovery.repositoryFullName, f.manifest.recovery.repositoryFullName);
+});
+
 test('the older coordinator is superseded: its record, next and tick are refused and launch nothing', async (t) => {
   const f = projectFixture(t), oldBlock = blockOf(f.manifest.wave), before = readFileSync(f.manifest.wave, 'utf8');
   assert.equal(f.continueAs('session-b').verdict, 'continued');

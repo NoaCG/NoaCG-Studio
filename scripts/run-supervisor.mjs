@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { activeProject, adoptAccepted, assertCurrent, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
@@ -469,7 +469,7 @@ export async function main(args = process.argv.slice(2), options = {}) {
       const config = JSON.parse(readFileSync(id, 'utf8'));
       if (!db.prepare('SELECT id FROM runs').get()) restoreRun(db, config);
       const { doc } = rowFor(db, config.id);
-      if (doc.manifest.recovery?.repositoryFullName !== config.repositoryFullName) throw new Error('Resume repository differs');
+      if (!sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Resume repository differs');
       output = await tickRun(db, config.id);
     }
     else if (command === 'record') {

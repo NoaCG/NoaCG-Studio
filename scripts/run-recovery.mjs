@@ -20,6 +20,8 @@ export function deliveredReceipt(result) {
 export const SUPERSEDED = 'superseded: another coordinator continued this project; stop';
 const superseded = () => Object.assign(new Error(SUPERSEDED), { code: 'SUPERSEDED' });
 const revision = (s) => /^[a-f0-9]{40}$/.test(s ?? '');
+/** GitHub owner and repository names are case-insensitive; a cloud clone may lower-case them. */
+export const sameRepository = (a, b) => typeof a === 'string' && typeof b === 'string' && a.toLowerCase() === b.toLowerCase();
 const runId = (s) => /^[a-zA-Z0-9_-]+$/.test(s ?? '');
 const COMMIT_IDENTITY = {
   GIT_AUTHOR_NAME: 'NoaCG Recovery', GIT_AUTHOR_EMAIL: 'noacg-recovery@users.noreply.github.com',
@@ -257,7 +259,7 @@ export function restoreRun(db, config, now = Date.now()) {
   const raw = git(config.repository, ['show', `${checkpoint}:checkpoint.json`]);
   const snapshot = JSON.parse(raw), { doc, ledger } = snapshot;
   if (snapshot.version !== 1 || doc?.manifest?.id !== config.id
-      || doc.manifest.recovery?.repositoryFullName !== config.repositoryFullName) throw new Error('Recovery checkpoint identity differs');
+      || !sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Recovery checkpoint identity differs');
   const r = validateState(doc, ledger);
   verifySource(config, r, checkpoint, git);
   mkdirSync(path.dirname(config.wave), { recursive: true });
@@ -280,7 +282,7 @@ export function restoreRun(db, config, now = Date.now()) {
     if (readFileSync(config.wave, 'utf8') !== ledger) throw new Error('Prepared ledger changed; preserve it and reconcile');
   } else writeFileSync(config.wave, ledger, { flag: 'wx', mode: 0o600 });
   doc.manifest = { ...doc.manifest, wave: config.wave, adapter: config.adapter,
-    recovery: { repository: config.repository, remote: config.remote, repositoryFullName: config.repositoryFullName } };
+    recovery: { repository: config.repository, remote: config.remote, repositoryFullName: doc.manifest.recovery.repositoryFullName } };
   doc.packet.workspace = { ...doc.packet.workspace, worktree: config.worktree };
   // The block this store takes over: its first start-block may replace it while it is active.
   const supersedes = readProject(ledger, now)?.block?.id;
