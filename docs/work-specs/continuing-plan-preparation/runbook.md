@@ -82,8 +82,8 @@ observed, and the checker starts on that immutable SHA. PASS is the latest check
 JSON receipt: its `mergeSha` is the one the phase landed, and its `mergeChecks` says
 every required check on that exact merge SHA is green; the checker waits for them
 before recording PASS. When main cancelled that SHA's run as superseded, the checker pushes a
-`claude/check-<sha7>` branch at the merge SHA and dispatches `ci.yml` on it (an empty
-`diff_base` runs the full suite); that run stands in, never a later main run, which would test
+`claude/check-<sha7>` branch at the merge SHA and dispatches `ci.yml` on it once (an empty
+`diff_base` runs the full suite; a second dispatch on that branch cancels the first); that run stands in, never a later main run, which would test
 other landings too. A plan may let a failing spec its own rule
 shows the phase did not cause be named with its issue and that evidence instead
 (production-page decision 18):

@@ -92,7 +92,8 @@ a limit, or re-record a baseline only to make a run green: a re-record is for a 
 finding that was meant. A spec this branch does not touch that fails, then passes when the failed
 jobs re-run on the same commit (`gh run rerun <run> --failed`), is a flake: quarantine it
 (`node scripts/e2e-quarantine.mjs enter <spec> --run <url> --queue`; in a cloud session, whose gh
-refuses GraphQL, drop `--queue` and land the entry through the cloud path below). Ask the owner only when the
+refuses GraphQL, drop `--queue`, enter it on its own branch from `origin/main`, never this one, and
+land that branch through the cloud path below). Ask the owner only when the
 fix needs a product decision or a change well outside the pull request's scope.
 
 ## 4. When a landing is refused, reconcile and queue again

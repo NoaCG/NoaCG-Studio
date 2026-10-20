@@ -48,7 +48,9 @@ export function launchedAt(text) {
  */
 export function progress(sources, now = Date.now(), idleMinutes = IDLE_MINUTES, since = null) {
   if (!sources.length) return { state: 'unknown', lastActivity: null, idleMinutes: null, sources };
-  const floor = Date.parse(since ?? '');
+  // The launch time follows the same clock rule as the sources: a little ahead is now, far ahead is no floor.
+  const launch = Date.parse(since ?? '');
+  const floor = launch <= now + SKEW_MS ? Math.min(launch, now) : NaN;
   // A time slightly ahead of now (clock skew) is now; one further ahead is ignored, so a fixed
   // future time cannot keep a stuck worker looking busy on every poll.
   const times = sources.map((s) => Date.parse(s.at)).filter((at) => Number.isFinite(at) && at <= now + SKEW_MS).map((at) => Math.min(at, now));

@@ -136,6 +136,10 @@ test('a time far ahead of the clock is ignored, not renewed as now on every poll
   const ahead = (minutes) => progress(observe({ branch: 'feature', eventAt: new Date(NOW + minutes * 60_000).toISOString() }, fake(branchAt(50))), NOW, 30, minutesAgo(55));
   assert.equal(ahead(2).state, 'progressing', 'two minutes of skew is now');
   assert.deepEqual([ahead(60).state, ahead(60).idleMinutes], ['idle', 50], 'an hour ahead counts for nothing');
+  // A launch time written by a fast clock is no floor either: an unpushed branch then has nothing to count from.
+  const unpushed = observe({ branch: 'feature' }, fake({ 'ls-remote': '' }));
+  assert.equal(progress(unpushed, NOW, 30, new Date(NOW + 40 * 60_000).toISOString()).state, 'unknown');
+  assert.equal(progress(unpushed, NOW, 30, new Date(NOW + 60_000).toISOString()).state, 'progressing');
 });
 
 test('the command exits 1 for an idle worker, 0 for a progressing one, 2 for bad input', () => {
