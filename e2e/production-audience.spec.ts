@@ -20,7 +20,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
 // The production AUDIENCE workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 5).
@@ -583,6 +583,95 @@ test('a binding on the card\'s Question is refused once messages are prepared, a
   await expect(data.getByTestId(`bind-House Q&A-${question}`)).toHaveAttribute('readonly', '');
   await data.getByTestId(`bind-separate-House Q&A-${question}`).click();
   await expect(data.getByTestId('bind-graphic-House Q&A (live data)')).toBeVisible();
+});
+
+// THE SAME RULE ACROSS TABS. Data and Messages open in their own tabs, and every model write is a
+// read-modify-WHOLE-RECORD write from that tab's mirror (model/durableStore.ts). A tab that has
+// not yet heard of the other tab's write used to check the rule against its old copy and write
+// that copy back: a binding next to a prepared cue (CI run 39506957594 on the test above, 4 ms
+// between the prepare landing and the bind). These hold one tab stale ON PURPOSE, by giving it a
+// durable-writes channel that hears nothing, so the window is forced rather than hoped for. The
+// read-back is from a fresh third tab, which sees only what the database holds.
+
+/** A tab on `url` that never hears another tab's durable writes, until it writes itself. */
+async function staleTab(page: Page, url: string): Promise<Page> {
+  const tab = await page.context().newPage();
+  await tab.addInitScript(() => {
+    const Real = window.BroadcastChannel;
+    window.BroadcastChannel = class extends Real {
+      constructor(name: string) {
+        super(name === 'noacg-durable-writes' ? `${name}-deaf-${Math.random()}` : name);
+      }
+    };
+  });
+  await tab.goto(url);
+  return tab;
+}
+
+/** What the database holds, read from a tab opened after every write. */
+async function storedRecord(page: Page, showId: string) {
+  const fresh = await page.context().newPage();
+  await fresh.goto(page.url().split('#')[0] + '#/home');
+  await awaitDurableReady(fresh);
+  const rec = await record(fresh, showId);
+  await fresh.close();
+  return rec;
+}
+
+test('a tab that has not heard of a prepared message cannot bind its field', async ({ page }) => {
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Stale Data');
+  const question = fieldOf(await record(page, showId), 'House Q&A', 'Question');
+  await settleDurableWrites(page);
+  const data = await staleTab(page, page.url());
+  await expect(data.getByTestId('production-page')).toBeVisible();
+
+  const messages = await openWorkspace(page, 'audience');
+  await paste(messages, 'Prepared elsewhere');
+  await prepare(messages.locator('.pd-aud-row').first(), 'House Q&A');
+  await expect(messages.getByTestId('audience-note')).toContainText('✓ Cue');
+  await settleDurableWrites(messages);
+
+  // The stale tab still believes nothing is prepared, and binds the Question.
+  expect((await record(data, showId)).cues.some((c) => c.stagedFrom)).toBe(false);
+  await data.evaluate(async ([id, field]) => {
+    const shows = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    shows.setFieldBinding(id, 'House Q&A', field, 'feed.question');
+    await commitDurableWrites();
+  }, [showId, question] as const);
+
+  const stored = await storedRecord(page, showId);
+  expect(stored.bindings['House Q&A'] ?? {}).toEqual({});
+  expect(stored.cues.filter((c) => c.stagedFrom).map((c) => c.values[question])).toEqual(['Prepared elsewhere']);
+  // And the stale tab now holds what the database holds.
+  expect(await record(data, showId)).toEqual(stored);
+});
+
+test('a tab that has not heard of a binding cannot prepare a message onto it', async ({ page }) => {
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Stale Messages');
+  const question = fieldOf(await record(page, showId), 'House Q&A', 'Question');
+  await settleDurableWrites(page);
+  const messages = await staleTab(page, `${page.url()}/audience`);
+  await expect(messages.getByTestId('production-audience')).toBeVisible();
+  await paste(messages, 'Should not land');
+
+  await page.evaluate(async ([id, field]) => {
+    const shows = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    shows.setFieldBinding(id, 'House Q&A', field, 'feed.question');
+    await commitDurableWrites();
+  }, [showId, question] as const);
+
+  // The stale tab still offers the card, and the prepare is refused where it is written.
+  await prepare(messages.locator('.pd-aud-row').first(), 'House Q&A');
+  await expect(messages.getByTestId('audience-note')).toContainText('No cue was prepared');
+  await expect(messages.locator('.pd-aud-row').first().getByTestId('audience-used')).toHaveCount(0);
+
+  const stored = await storedRecord(page, showId);
+  expect(stored.bindings['House Q&A']).toEqual({ [question]: 'feed.question' });
+  expect(stored.cues.some((c) => c.stagedFrom)).toBe(false);
 });
 
 test('Fill from… in the cue editor pastes a message into the edited cue, and Messages lists it as used', async ({ page }) => {
