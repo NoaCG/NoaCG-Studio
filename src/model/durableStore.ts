@@ -849,7 +849,8 @@ export async function conditionalDurableWrite(
 // writes in the milliseconds between the message and the re-read landing can still overwrite.
 // Removing that last window means writing through the DATABASE rather than the mirror, which
 // every synchronous model reader in the app is built against - a much larger change, and a
-// separate one. This is the ordinary case, which is a person editing in one tab at a time.
+// separate one. This is the ordinary case, which is a person editing in one tab at a time. The
+// few writes whose RULE reads the rest of the record take that path already: `rebasedDurableSet`.
 //
 // `spx-data-changed` is dispatched after the re-read, because a refreshed mirror nobody re-reads
 // leaves every mounted surface showing the value it already had.
