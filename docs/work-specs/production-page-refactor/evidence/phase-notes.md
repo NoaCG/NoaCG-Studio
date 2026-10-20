@@ -67,13 +67,21 @@ changes a spec's digest.
   reads the inbox only while Fill is open, the per-production viewer cap no longer counts the
   operator's rows (and a viewer may not use the `operator_` device prefix), and the header-count
   comment follows the new storage. Filed: #1554 (messages pasted before publishing are hidden after
-  publishing) and #1555 (kept local messages outlive their production). Not changed: the Messages
+  publishing; then fixed in this PR after the PR review, below) and #1555 (kept local messages
+  outlive their production). Not changed: the Messages
   workspace keeps its own list effect, which also refreshes the join preview from the same signal.
   Simplify moved the provider choice into `useAudienceInbox.ts` (`useMessagesBackend`), reused
   `lastTitled`, `clampSubmission` and `freeName`. Not taken from simplify: letting `stagedFrom`
   fields win over bindings at resolve time (the spec chose the refusal inside `setFieldBinding`),
   an `origin` column instead of the `operator_` device prefix (the spec names three columns), and
   one shared paste component (the two doors lay out differently).
+- **PR review (four findings on `fc41275`, all real, all fixed).** A cue that landed while marking
+  its message used failed is now reported ready with a warning, and the page refuses a second cue
+  for it unless "Prepare again". Kept local messages move into the published inbox on publish
+  (`moveKeptMessages`, through `audience_operator_add`, deduped by `local:<id>` external ids, with
+  edits and use carried), which closes #1554. The kept inbox is stored as `{ v: 1, inbox }`;
+  damaged rows are skipped and a newer version is read-only. The Messages paste button is off while
+  its add is in flight. `localAudience.ts` now uses `.ts` imports, so its store is tested in Node.
 - **Left for later phases.** `scripts/acceptance-pack.mjs` presses the presenter buttons, which are
   now in the row menu; its clicks are tolerant (`.catch`), so it skips them rather than failing.
   C3 adds the unique `external_id` index this phase's dedupe anticipates.
