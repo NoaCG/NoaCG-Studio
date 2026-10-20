@@ -371,7 +371,10 @@ Node test; `matchClockWire.ts` has no Node test today (its readers are in-page i
 Reconciled against `origin/main` `331a98a91` on 2026-10-20: `e2e/quarantine.json` holds no
 specs (`late-send-abandoned`, `dashboard-hosted-walk` and `production-data-key` were released
 after consecutive passes; stale PR #1450, which would have quarantined `production-data-key`
-again, was closed the same day). `e2e/configured/expected-run.json`: floor (`minTests`) 104
+again, was closed the same day). Later that day four specs entered it (`configured/agent-access`,
+`wizard-shell`, `import-svg-behaviour`, `configured/shared-lab-computer`); a quarantined spec
+leaves the blocking shards but still runs on every main push (§8, decision 18).
+`e2e/configured/expected-run.json`: floor (`minTests`) 104
 tests, five allowed skips (the four connector OAuth specs that run on the local stack only, and
 `bridge-real-server.spec.ts`). `skipOldEditor()` no longer exists in `e2e/`, so the ± press on a
 bound field (`e2e/production-data.spec.ts` 741) and the bound adjust (800) run and count.
@@ -559,18 +562,24 @@ deploy-verify run, and the exact revert command.
   launches nothing against it, waits inside its background job and retries when it is back, and
   notifies the owner only if it lasts more than two hours or needs his account. No `stop` and no
   `answered` are involved.
-- Separate from the editor (owner, 2026-10-20, decision 18): the run owns the production page
-  and its child specs' areas. A failing check in another area (the editor, the wizard, import,
-  accounts) is never a phase's failure and never stops the run unless the phase caused it. On the
-  phase's pull request or merge SHA, a spec that fails and then passes on the same commit goes to
-  the quarantine flow. A check that fails consistently and also failed on main before the merge
-  (the merge's first parent) is outside the run: it gets one issue with the failing run, and the
-  checker records PASS with that issue named in `mergeChecks` (this plan's reading of the
-  runbook's rule). A failure the phase did cause is the phase's, in any area, and is repaired as
-  above. When an outside failure keeps a phase's pull request from landing, the coordinator
-  launches one session outside the phase ledger that fixes it, or reverts the landing that broke
-  it, through `/check` and `/queue-merge`, never by loosening a test. No phase builder works on
-  the editor.
+- **Separate from the editor (owner, 2026-10-20, decision 18).** The run owns the production
+  page and its child specs' areas; the editor, the wizard, import and accounts are not the run's.
+  The phase's checker decides who owns a red check on the merge SHA with one test: was it already
+  red on main before the merge (the merge's first parent)?
+  - **Red before:** not the phase's failure. In the run's areas it is a regression the run repairs
+    between phases, as above. In another area it gets one issue with the failing run, named in
+    `mergeChecks` in place of a green result, and it never fails a phase or stops the run.
+  - **Green before, or never run there:** the phase's failure, in any area, repaired as above;
+    that repair may change editor code to undo what the phase broke.
+  - **Flaky:** a spec in another area that fails and then passes on the same commit goes to
+    quarantine (on the phase's pull request the builder re-runs the failed jobs once, as
+    `/queue-merge` says). `quarantine.yml` still runs every quarantined spec on each main push, so
+    the same test applies to its `noacg/quarantine/<spec>` status: failing on the merge SHA and on
+    one re-run, after passing on the first parent, is the phase's failure.
+  - **Blocking:** when another area's failure keeps a phase's pull request from landing, it is a
+    wait, not a spent failure. The coordinator launches one session outside the phase ledger that
+    fixes it or reverts the landing that broke it, through `/check` and `/queue-merge` and never
+    by loosening a test, and notifies the owner if the wait lasts more than two hours.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its

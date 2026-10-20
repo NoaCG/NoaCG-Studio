@@ -46,6 +46,7 @@ says why. Invariants stay binding: land only through `/queue-merge`; only the me
 | 14 | The coordinator never sits idle while it waits: it waits inside a running background job or monitor | parent §9 "Never idle"; runner PR procedure text |
 | 15 | Laptop helper session beside the cloud coordinator: never changes the run; runs the local checks on landed revisions that lack receipts; lands receipts; opens an issue on a regression; the repository is the channel; direct messages only as a nudge; first task is a non-blocking channel test | parent §9.1, §10 step 4 |
 | 16 | Speed and stalls: no CI timeout changes (only the new endurance workflow gets 90 minutes); existing bounded waits plus one progress check that catches a worker with no progress for about 30 minutes and restarts or repairs it | parent §9 "Silent workers", "Speed"; runner PR |
+| 18 | The run is separate from the editor (owner: "two completely different things"): a red check on a phase's merge SHA that was already red on main before the merge, in another area, gets one issue instead of failing the phase; a flaky spec there goes to quarantine, which still runs it on every main push; an outside failure that blocks a landing gets one fix or revert session outside the phase ledger and is a wait, not a spent failure. A failure the phase caused stays the phase's in any area. Fresh flakes #1532 (import-svg-behaviour, which most production page changes select) and #1533 are quarantined | parent §5.3, §8; e2e/quarantine.json; runbook and plan-run.md `mergeChecks` |
 
 ## Second opinions, same day
 
@@ -56,7 +57,6 @@ the plan, but the risks behind them were.
 | # | Fix | Where |
 | --- | --- | --- |
 | 17 | Owner decision: a second failed check is diagnosed by one fresh deciding agent (one last scoped repair, a re-check after infrastructure clears, or a real owner decision), not an automatic stop; infrastructure failures are waits, not spent failures | parent §8; second runner PR |
-| 18 | Owner decision: the run is separate from the editor. A failure in another area that the phase did not cause (a fail-then-pass, or a check already red on main before the merge) never fails a phase or stops the run: quarantine, or one issue named in the checker's `mergeChecks`; a failure that blocks a phase's landing gets one fix or revert session outside the phase ledger. Fresh flakes #1532 (import-svg-behaviour, which most production page changes select) and #1533 are quarantined | parent §8; e2e/quarantine.json |
 | R1 | C2 gates on the local stack (tick driven with the Bearer secret, closed-browser run against it); production log, switch and cost steps are coordinator follow-ups with their own access row | data-sources C2, parent §9.2 |
 | R2 | C1b gates only on its local halves (data AC-3, sheet AC-5 browser lease, sheet AC-7); published persistence, the tick's lease and closed-page Pause are C2's | extensions row 7, data-sources C1b |
 | R3 | Configured specs use stubs; provider runs are cloud-worker receipts | data-sources Verification |
