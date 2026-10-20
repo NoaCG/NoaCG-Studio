@@ -178,3 +178,16 @@ Imported-animation playback and sequential isolated-profile handoff remain
 pending; whole Phase 2 acceptance remains incomplete. All original failures,
 spent diagnosis limits and deferrals remain effective. No paid test branch is
 active, and no PR, landing, passing stamp or issue closure was requested.
+
+When the owner asked what comes next, the coordinator investigated the supported
+cost-confirmation route. A fresh quote remained USD 0.01344 per hour; the existing
+owner approval covered that unchanged cost. `confirm_cost` issued a fresh ID.
+The exposed `create_branch` documentation accepts `confirm_cost_id`, but its
+server rejected that field with a Zod `unrecognized_keys` error. A fresh branch
+listing again showed only main. This is an interface mismatch, not database or
+write-access qualification. No confirmation value is retained in this receipt.
+
+The coordinator stopped again and requested a specific decision to resume via
+the Supabase dashboard, preserving the same scope, price, migration checks and
+cleanup requirement. No alternate creation route, account, migration or local
+acceptance check was started while that decision remained pending.

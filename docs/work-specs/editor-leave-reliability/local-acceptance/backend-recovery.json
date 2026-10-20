@@ -1,7 +1,7 @@
 {
   "date": "2026-10-20",
   "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
-  "verdict": "0085 APPROVED / CREATION REQUEST EXPIRED / NO NEW PAID BRANCH",
+  "verdict": "0085 APPROVED / CONNECTOR CONFIRMATION SCHEMA REFUSED / NO NEW PAID BRANCH",
   "authorization": "One bounded normal-runner backend recovery; unchanged migrations/tests/limits; branch-only access; stop at refusal; cleanup required",
   "cloud": {
     "ownerThread": "01a15836-9bcd-7339-9fac-4d7f6238705c",
@@ -54,6 +54,18 @@
     "localMainAtAudit": "331a98a919b21dad676d8729d254eb208db76ce0",
     "remoteTrackingMainAtAudit": "1b909153753eb3043092ced7c681592a3d924820",
     "newerMainQualifiedByPinnedReceipt": false
+  },
+  "confirmationRecovery": {
+    "trigger": "Owner asked What now?",
+    "freshQuoteUsdPerHour": 0.01344,
+    "costApproval": "Existing owner approval reused for the unchanged quote",
+    "freshCostConfirmationIssued": true,
+    "creationWithConfirmationResult": "INVALID_ARGUMENT: ZodError unrecognized_keys: confirm_cost_id",
+    "interfaceMismatch": "Exposed create_branch documentation accepts confirm_cost_id; server rejected that field",
+    "reconciliation": "Fresh list_branches again returned only default main",
+    "newBranchCreated": false,
+    "sqlOrMigrationsExecuted": false,
+    "dashboardAlternative": "Owner route-resumption decision pending; no dashboard mutation attempted"
   },
   "temporaryBranchActive": false,
   "priorBranchDeletionReceipt": "temporary-branch-attempt.json",
