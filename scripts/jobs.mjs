@@ -39,6 +39,7 @@ import { reviveReviewed } from './cloud-queue.mjs';
 import { spawnRunner } from './queue-pr.mjs';
 import { dispatchRecovery } from './verification-dispatch.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
+import { recoveryCheckpointBranch } from './worktree-cleanup-lib.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
@@ -885,7 +886,7 @@ function refsAheadOfMain() {
   const names = new Set([...list('refs/heads/'), ...list('refs/remotes/origin/').map((n) => n.replace(/^origin\//, ''))]);
   const out = [];
   for (const branch of names) {
-    if (branch === 'main' || branch === 'HEAD') continue;
+    if (branch === 'main' || branch === 'HEAD' || recoveryCheckpointBranch(branch)) continue;
     const ref = resolveRef(branch);
     if (!ref) continue;
     const count = spawnSync('git', ['rev-list', '--count', `origin/main..${ref}`], { encoding: 'utf8', windowsHide: true });
