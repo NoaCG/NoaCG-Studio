@@ -1,0 +1,1482 @@
+{
+  "run": 39372122320,
+  "artifact": 12242521006,
+  "archive_sha256": "f0a4d0b573c34b43536c0d01e646495bff7a93e15826c02c04c3f199d1eb6a5d",
+  "report_stats": {
+    "total": 2186,
+    "expected": 2184,
+    "unexpected": 1,
+    "flaky": 0,
+    "skipped": 1,
+    "ok": false
+  },
+  "metadata": {
+    "ci": {
+      "commitHref": "https://github.com/NoaCG/NoaCG-Studio/commit/b433aba4f0542ab11f85bcf76aae3df6d3b949b6",
+      "commitHash": "b433aba4f0542ab11f85bcf76aae3df6d3b949b6",
+      "buildHref": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39372122320"
+    },
+    "gitCommit": {
+      "shortHash": "b433aba",
+      "hash": "b433aba4f0542ab11f85bcf76aae3df6d3b949b6",
+      "subject": "Merge pull request #1528 from NoaCG/codex/phase2-single-device-acceptance",
+      "body": "Merge pull request #1528 from NoaCG/codex/phase2-single-device-acceptance\n\nBind quarantine release evidence to the current entry cycle\n",
+      "author": {
+        "name": "miwco",
+        "email": "ahonemi@arcada.fi",
+        "time": 1792471740000
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "time": 1792471740000
+      },
+      "branch": "main"
+    },
+    "actualWorkers": 15
+  },
+  "actual_counts": {
+    "passed": 2184,
+    "failed": 1,
+    "skipped": 1
+  },
+  "retry_indices": {
+    "0": 2186
+  },
+  "failures": [
+    {
+      "file": "wizard-shell.spec.ts",
+      "title": "a cold open on a step only another walk has lands on Entry",
+      "location": {
+        "file": "wizard-shell.spec.ts",
+        "line": 558,
+        "column": 1
+      },
+      "outcome": "unexpected",
+      "retry": 0,
+      "status": "failed",
+      "duration": 14733,
+      "errors": [
+        {
+          "message": "Error: template-file\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-entry=\"template\"]')\nExpected: visible\nTimeout: 7000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - template-file with timeout 7000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-entry=\"template\"]')\u001b[22m\n\n\n  563 |     await page.goto('about:blank');\n  564 |     await page.goto(`/app#/new/step/${slug}`);\n> 565 |     await expect(page.locator('[data-entry=\"template\"]'), slug).toBeVisible();\n      |                                                                 ^\n  566 |     await expect(counter(page), slug).toHaveCount(0);\n  567 |   }\n  568 | });\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/wizard-shell.spec.ts:565:65",
+          "codeframe": "  465 |\n  466 | test('opened for a production that names a brand, the chooser has that brand chosen', async ({ page }) => {\n  467 |   await page.goto('/app#/home');\n  468 |   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });\n  469 |   await awaitDurableReady(page);\n  470 |   const ids = await page.evaluate(async () => {\n  471 |     const { createLook } = await import('/src/model/packets.ts');\n  472 |     const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');\n  473 |     const { PALETTES } = await import('/src/model/wizard.ts');\n  474 |     const brand = (name: string, palette: (typeof PALETTES)[number]) =>\n  475 |       createLook(name, { styleTag: 'minimal', palette, fontId: null, customFont: null });\n  476 |     brand('Other Brand', PALETTES[1]);\n  477 |     const chosen = brand('Studio Blue', PALETTES[2]);\n  478 |     const { show } = createShowNamedChecked('Brand Show');\n  479 |     setShowBrand(show.id, chosen.id);\n  480 |     return { brand: chosen.id, show: show.id };\n  481 |   });\n  482 |   await settleDurableWrites(page);\n  483 |   await page.evaluate((id) => {\n  484 |     window.location.hash = `#/production/${id}`;\n  485 |   }, ids.show);\n  486 |   await page.getByTestId('production-new-graphic').click();\n  487 |   await page.locator('[data-entry=\"template\"]').click();\n  488 |   await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);\n  489 | });\n  490 |\n  491 | test('a design picked again on Browse asks the steps question again', async ({ page }) => {\n  492 |   // S2 (spec section 1.3): the steps answer belongs to the design, as on the images walk's\n  493 |   // Template step, so a re-pick starts from the new design's own default.\n  494 |   await wizard(page);\n  495 |   await page.locator('[data-entry=\"template\"]').click();\n  496 |   const steps = page.locator('.dlg-check', { hasText: 'Reveal in steps' }).locator('input[type=\"checkbox\"]');\n  497 |   await pickDesign(page, 'Clean Steps');\n  498 |   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next \u2192' }).click();\n  499 |   await expect(steps).toBeChecked();\n  500 |   await steps.uncheck();\n  501 |\n  502 |   await page.locator('.wz-dot', { hasText: 'Browse' }).click();\n  503 |   await pickDesign(page, 'Frost Checklist');\n  504 |   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next \u2192' }).click();\n  505 |   await expect(steps).toBeChecked();\n  506 | });\n  507 |\n  508 | /** The accent the live preview's document is drawn in. */\n  509 | async function previewAccent(page: Page): Promise<string | null> {\n  510 |   return /--accent:\\s*([^;]+);/.exec(await previewDoc(page))?.[1]?.trim().toLowerCase() ?? null;\n  511 | }\n  512 |\n  513 | test('a deep link builds in the brand in force, and a fresh open takes none from the walk before', async ({ page }) => {\n  514 |   // S3 (spec section 1.3): the deep link is the Browse pick of the same design, brand included.\n  515 |   await page.goto('/app#/home');\n  516 |   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });\n  517 |   await awaitDurableReady(page);\n  518 |   const ids = await page.evaluate(async () => {\n  519 |     const { createLook } = await import('/src/model/packets.ts');\n  520 |     const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');\n  521 |     const { PALETTES } = await import('/src/model/wizard.ts');\n  522 |     const palette = PALETTES.find((p) => p.id === 'signal')!;\n  523 |     const look = createLook('Signal Brand', { styleTag: 'minimal', palette, fontId: null, customFont: null });\n  524 |     const { show } = createShowNamedChecked('Brand Show');\n  525 |     setShowBrand(show.id, look.id);\n  526 |     return { brand: look.id, show: show.id, accent: palette.accent.toLowerCase() };\n  527 |   });\n  528 |   await settleDurableWrites(page);\n  529 |   await page.evaluate((id) => {\n  530 |     window.location.hash = `#/production/${id}`;\n  531 |   }, ids.show);\n  532 |   await page.getByTestId('production-new-graphic').click();\n  533 |   await page.locator('[data-entry=\"template\"]').click();\n  534 |   await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);\n  535 |\n  536 |   // A deep link over the production's brand: the chooser and the preview both carry it.\n  537 |   await page.evaluate(() => {\n  538 |     window.location.hash = '#/new/lt01';\n  539 |   });\n  540 |   await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);\n  541 |   await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);\n  542 |   expect(await previewAccent(page)).toBe(ids.accent);\n  543 |\n  544 |   // A deep link that opens the wizard fresh lands in the same commit as that open: it takes the\n  545 |   // brand the open chose (None here), never the one the closed walk still holds.\n  546 |   await page.getByTestId('wz-home').click();\n  547 |   await expect(page.getByTestId('home-page')).toBeVisible();\n  548 |   await page.evaluate(() => {\n  549 |     window.location.hash = '#/new/lt01';\n  550 |   });\n  551 |   await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);\n  552 |   await expect(page.getByTestId('wz-brand')).toHaveValue('');\n  553 |   const fresh = await previewAccent(page);\n  554 |   expect(fresh).toMatch(/^#[0-9a-f]{6}$/);\n  555 |   expect(fresh).not.toBe(ids.accent);\n  556 | });\n  557 |\n  558 | test('a cold open on a step only another walk has lands on Entry', async ({ page }) => {\n  559 |   // Decided in S1c (spec section 4): a reload keeps no walk's material, so a cold open resolves\n  560 |   // the step name against the template walk alone, and a name only another walk has (the import,\n  561 |   // design, file, AI, video and kit walks) degrades to the front page.\n  562 |   for (const slug of ['images', 'template', 'design', 'prepare', 'text', 'template-file', 'create', 'video', 'kit']) {\n  563 |     await page.goto('about:blank');\n  564 |     await page.goto(`/app#/new/step/${slug}`);\n> 565 |     await expect(page.locator('[data-entry=\"template\"]'), slug).toBeVisible();\n      |                                                                 ^ Error: template-file\n  566 |     await expect(counter(page), slug).toHaveCount(0);\n  567 |   }\n  568 | });\n  569 |\n  570 | //"
+        }
+      ],
+      "attachments": [
+        {
+          "name": "screenshot",
+          "contentType": "image/png",
+          "path": "data/919f97e668cfbe061d7e1295379c52136a08704c.png"
+        },
+        {
+          "name": "error-context",
+          "contentType": "text/markdown",
+          "path": "data/fde322e5306f0afb109a78064eed881b497bb11e.markdown"
+        },
+        {
+          "name": "trace",
+          "contentType": "application/zip",
+          "path": "data/b8477ea5988fe112377973932a88617afdeec828.zip"
+        }
+      ]
+    }
+  ],
+  "skips": [
+    {
+      "file": "catalog-baseline.spec.ts",
+      "title": "every catalog variant renders identically",
+      "location": {
+        "file": "catalog-baseline.spec.ts",
+        "line": 392,
+        "column": 1
+      },
+      "outcome": "skipped",
+      "retry": 0,
+      "status": "skipped",
+      "duration": 90,
+      "errors": [],
+      "attachments": []
+    }
+  ],
+  "selected_files": {
+    "editor-groups.spec.ts": [
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "baseline probe: imported hierarchy and missing group controls",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 42,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2722,
+        "errors": [],
+        "attachments": [
+          {
+            "name": "stdout",
+            "contentType": "text/plain",
+            "body": "{ nestedParts: 14, group: 1, breadcrumbs: 1 }\n"
+          }
+        ]
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "group and ungroup preserve child pose, identities, fields and one undo",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 52,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3870,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "a selected group moves every member by composition pixels and cancels as one gesture",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 66,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3656,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "group editing exposes parent bar, local ruler and breadcrumb without hiding canvas",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 76,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3247,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "noncontiguous selection refuses with source and history unchanged",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 90,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2772,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "group transform and centered pivot preserve child offsets and ungrouped appearance",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 112,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4459,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "independent child and group motion survive ungroup and repeated cue seeks",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 133,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 5707,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "nested group navigation and transformed-parent nudge preserve fine world geometry",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 148,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4256,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "SVG members under a rotated scaled parent group and ungroup without jumps",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 162,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 5168,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "group parent bar moves child keys atomically and local time follows its visibility start",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 172,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3838,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "stale group requests and unsupported batches leave source, selection and history unchanged",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 184,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3386,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "structural selectors refuse grouping and mixed parents have no partial source write",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 199,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2836,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "text mask, field bindings and asset bytes survive transformed grouping and undo",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 206,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4301,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "group arrow gestures cancel on focus, source and assets; local ruler owns its arrows",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 226,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 7015,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "mixed parents and parent/member selection refuse the complete operation batch",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 244,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3283,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "template search, UI-created shapes and Pen, group and member motion, save/reopen and executed exports at desktop and laptop sizes",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 252,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 12285,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "SVG group rotation and scale motion ungroup exactly at different poses",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 329,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 6065,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "group canvas transform is one undo and Escape or navigation cancels its draft",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 342,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4617,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "painted pseudo-element selectors refuse without wrapping new artwork",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 365,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2843,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "ungroup refuses a group-owned outline without losing source or selection",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 371,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3172,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "SVG group pivot is centered and remains static during child and group motion",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 378,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 6782,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "local parent trim keeps child motion and navigation cancels timeline drafts",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 395,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4388,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "grouping existing SVG member motion refuses exactly beside its control",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 417,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3270,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "SVG parent movement retains only owned static pivots and anchor refuses unknown data",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 426,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3919,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "new wrapper inheritance refuses without changing member paint",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 440,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3068,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "new wrapper dynamic selector refuses without changing source",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 453,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2655,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "member blending refuses transformed HTML ungroup without losing source",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 467,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3242,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "Project placement respects local group scope and remains available in Composition",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 476,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4234,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "source wrapper rules refuse group marker",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 491,
+          "column": 72
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3701,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "source wrapper rules refuse carrier marker",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 491,
+          "column": 72
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3585,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "source wrapper rules refuse frame attributes",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 491,
+          "column": 72
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3202,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-groups.spec.ts",
+        "title": "serialized group frame refuses zero after rounding",
+        "location": {
+          "file": "editor-groups.spec.ts",
+          "line": 507,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2616,
+        "errors": [],
+        "attachments": []
+      }
+    ],
+    "editor-keys.spec.ts": [
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "Quiz source-controlled animation is preserved and explains the base editing path",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 11,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4730,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "text and box second keys, cancel, history and reopen 1920",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 85,
+          "column": 41
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 13334,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "text and box second keys, cancel, history and reopen 1366",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 85,
+          "column": 41
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 12583,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "text and box second keys, cancel, history and reopen 1093",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 85,
+          "column": 41
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 12447,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "nonzero first key, diamond last removal, interpolated disable and exact undo",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 153,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 5005,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "nested SVG armed parent-coordinate drag and explicit base offset preserve motion",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 172,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3542,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "bar movement carries disjoint spans and keys, cancel and refusal are atomic",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 199,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4138,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "numeric animation controls are available on a created layer",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 219,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 1747,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "armed scale handles key both axes in one transaction and stale numeric drafts refuse",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 233,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3925,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "mixed multi-selection keys only armed channels and commits one undo",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 250,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3769,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "explicit visibility preserves keyed opacity at a hold and resolves cue-side ownership",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 265,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3071,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "stored frames, source preservation, inheritance and atomic refusal",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 289,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2237,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "known legacy interpreter upgrades for spans while customized source refuses",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 330,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2218,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-keys.spec.ts",
+        "title": "visibility intervals and numeric poses match executable SPX, CasparCG and OGraf packages",
+        "location": {
+          "file": "editor-keys.spec.ts",
+          "line": 353,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4223,
+        "errors": [],
+        "attachments": []
+      }
+    ],
+    "editor-arrangement.spec.ts": [
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "baseline probe: current alignment and canvas arrow capability",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 37,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2935,
+        "errors": [],
+        "attachments": [
+          {
+            "name": "stdout",
+            "contentType": "text/plain",
+            "body": "{ align: 1, distribute: 1, arrowChangesSource: true }\n"
+          }
+        ]
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "selection alignment uses rendered bounds, one undo and unchanged motion",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 43,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3150,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "distribution leaves endpoints fixed and equalizes gaps of unequal items",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 50,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2936,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "held canvas arrows preview then commit and undo as one gesture",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 58,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3308,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "keyboard resize changes local width about the pivot and cancels exactly",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 66,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3413,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "six alignment edges against selection",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 76,
+          "column": 50
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 6068,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "six alignment edges against canvas",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 76,
+          "column": 50
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 6193,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "vertical gaps, nested parent mapping and rotated artwork retain source and pose on undo",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 91,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4780,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "imported SVG and Pen geometry align as artwork, with identity and sibling preservation",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 116,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3516,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "mixed animated and base movement keys only its armed channel at the playhead",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 128,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3586,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "keyboard text-box resizing reflows without scaling type or moving the pivot",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 147,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3485,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "focus guards preserve input editing, timeline arrows and Pen drafting",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 165,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3545,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "Escape, blur and stale source cancel a held key and later repeats stay quiet",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 187,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 8479,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "mixed unsupported selection and collapsed parent refuse without partial source changes",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 207,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2919,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "template search, UI-created artwork, save/reopen and executed exports at desktop and laptop sizes",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 222,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 10965,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "animated resize preserves its earlier scale key and refuses shared-axis conflicts",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 277,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3759,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "parent-child selection refuses and no-op alignment adds no history",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 291,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3669,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "keyboard resize refuses collapsing any member of a mixed selection",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 300,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3681,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "one-pixel keyboard resize remains precise on a wide layer",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 307,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3249,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "an anonymous imported path gains identity only on committed alignment",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 314,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3837,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "imported image keyboard transforms preserve its asset and siblings",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 324,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4020,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "own SVG transform resizes in local axes or specifically refuses without changing source",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 332,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3601,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "own CSS transform resizes in local axes or specifically refuses without changing source: rotate(25deg)",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 345,
+          "column": 66
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2920,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "own CSS transform resizes in local axes or specifically refuses without changing source: translate(20px,10px)",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 345,
+          "column": 66
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3104,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "editor-arrangement.spec.ts",
+        "title": "one composition pixel remains exact with normalized SVG coordinates",
+        "location": {
+          "file": "editor-arrangement.spec.ts",
+          "line": 357,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3614,
+        "errors": [],
+        "attachments": []
+      }
+    ],
+    "wizard-shell.spec.ts": [
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "the step counter appears from the second step, counting the ACTIVE mode",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 36,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4638,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "the header keeps its shape whether or not the counter is there",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 56,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2448,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "\u2715 past Entry returns to the wizard front page, keeping the project format",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 85,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4899,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "Escape goes exactly where the \u2715 goes",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 115,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3963,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "\u2715 on the Entry step still leaves the wizard",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 135,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 1807,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "Home is one press from any step, and the logo is the front page",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 143,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3939,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "the wizard shell answers a hover in amber, exactly as the entry cards do",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 160,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3693,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "the wizard header and the Home topbar are the same bar, to the pixel",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 199,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2242,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "the page you stand on is marked current and is not a button, on the wizard and on Home",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 277,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2741,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a cold entry from the landing page paints nothing under the wizard",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 324,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 3895,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "every step is its own history entry, and step 0 still leaves",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 374,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4980,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a step URL is NAMED, so it survives a reload and an extra step cannot shift it",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 405,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2304,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a reload on any step URL of the template walk lands on that step",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 424,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 8010,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a deep link starts the walk exactly where the Browse pick of the same design does",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 443,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4883,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "opened for a production that names a brand, the chooser has that brand chosen",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 466,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2455,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a design picked again on Browse asks the steps question again",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 491,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 5856,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a deep link builds in the brand in force, and a fresh open takes none from the walk before",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 513,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4395,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a cold open on a step only another walk has lands on Entry",
+        "location": {
+          "file": "wizard-shell.spec.ts",
+          "line": 558,
+          "column": 1
+        },
+        "outcome": "unexpected",
+        "retry": 0,
+        "status": "failed",
+        "duration": 14733,
+        "errors": [
+          {
+            "message": "Error: template-file\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-entry=\"template\"]')\nExpected: visible\nTimeout: 7000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - template-file with timeout 7000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-entry=\"template\"]')\u001b[22m\n\n\n  563 |     await page.goto('about:blank');\n  564 |     await page.goto(`/app#/new/step/${slug}`);\n> 565 |     await expect(page.locator('[data-entry=\"template\"]'), slug).toBeVisible();\n      |                                                                 ^\n  566 |     await expect(counter(page), slug).toHaveCount(0);\n  567 |   }\n  568 | });\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/wizard-shell.spec.ts:565:65",
+            "codeframe": "  465 |\n  466 | test('opened for a production that names a brand, the chooser has that brand chosen', async ({ page }) => {\n  467 |   await page.goto('/app#/home');\n  468 |   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });\n  469 |   await awaitDurableReady(page);\n  470 |   const ids = await page.evaluate(async () => {\n  471 |     const { createLook } = await import('/src/model/packets.ts');\n  472 |     const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');\n  473 |     const { PALETTES } = await import('/src/model/wizard.ts');\n  474 |     const brand = (name: string, palette: (typeof PALETTES)[number]) =>\n  475 |       createLook(name, { styleTag: 'minimal', palette, fontId: null, customFont: null });\n  476 |     brand('Other Brand', PALETTES[1]);\n  477 |     const chosen = brand('Studio Blue', PALETTES[2]);\n  478 |     const { show } = createShowNamedChecked('Brand Show');\n  479 |     setShowBrand(show.id, chosen.id);\n  480 |     return { brand: chosen.id, show: show.id };\n  481 |   });\n  482 |   await settleDurableWrites(page);\n  483 |   await page.evaluate((id) => {\n  484 |     window.location.hash = `#/production/${id}`;\n  485 |   }, ids.show);\n  486 |   await page.getByTestId('production-new-graphic').click();\n  487 |   await page.locator('[data-entry=\"template\"]').click();\n  488 |   await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);\n  489 | });\n  490 |\n  491 | test('a design picked again on Browse asks the steps question again', async ({ page }) => {\n  492 |   // S2 (spec section 1.3): the steps answer belongs to the design, as on the images walk's\n  493 |   // Template step, so a re-pick starts from the new design's own default.\n  494 |   await wizard(page);\n  495 |   await page.locator('[data-entry=\"template\"]').click();\n  496 |   const steps = page.locator('.dlg-check', { hasText: 'Reveal in steps' }).locator('input[type=\"checkbox\"]');\n  497 |   await pickDesign(page, 'Clean Steps');\n  498 |   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next \u2192' }).click();\n  499 |   await expect(steps).toBeChecked();\n  500 |   await steps.uncheck();\n  501 |\n  502 |   await page.locator('.wz-dot', { hasText: 'Browse' }).click();\n  503 |   await pickDesign(page, 'Frost Checklist');\n  504 |   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next \u2192' }).click();\n  505 |   await expect(steps).toBeChecked();\n  506 | });\n  507 |\n  508 | /** The accent the live preview's document is drawn in. */\n  509 | async function previewAccent(page: Page): Promise<string | null> {\n  510 |   return /--accent:\\s*([^;]+);/.exec(await previewDoc(page))?.[1]?.trim().toLowerCase() ?? null;\n  511 | }\n  512 |\n  513 | test('a deep link builds in the brand in force, and a fresh open takes none from the walk before', async ({ page }) => {\n  514 |   // S3 (spec section 1.3): the deep link is the Browse pick of the same design, brand included.\n  515 |   await page.goto('/app#/home');\n  516 |   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });\n  517 |   await awaitDurableReady(page);\n  518 |   const ids = await page.evaluate(async () => {\n  519 |     const { createLook } = await import('/src/model/packets.ts');\n  520 |     const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');\n  521 |     const { PALETTES } = await import('/src/model/wizard.ts');\n  522 |     const palette = PALETTES.find((p) => p.id === 'signal')!;\n  523 |     const look = createLook('Signal Brand', { styleTag: 'minimal', palette, fontId: null, customFont: null });\n  524 |     const { show } = createShowNamedChecked('Brand Show');\n  525 |     setShowBrand(show.id, look.id);\n  526 |     return { brand: look.id, show: show.id, accent: palette.accent.toLowerCase() };\n  527 |   });\n  528 |   await settleDurableWrites(page);\n  529 |   await page.evaluate((id) => {\n  530 |     window.location.hash = `#/production/${id}`;\n  531 |   }, ids.show);\n  532 |   await page.getByTestId('production-new-graphic').click();\n  533 |   await page.locator('[data-entry=\"template\"]').click();\n  534 |   await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);\n  535 |\n  536 |   // A deep link over the production's brand: the chooser and the preview both carry it.\n  537 |   await page.evaluate(() => {\n  538 |     window.location.hash = '#/new/lt01';\n  539 |   });\n  540 |   await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);\n  541 |   await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);\n  542 |   expect(await previewAccent(page)).toBe(ids.accent);\n  543 |\n  544 |   // A deep link that opens the wizard fresh lands in the same commit as that open: it takes the\n  545 |   // brand the open chose (None here), never the one the closed walk still holds.\n  546 |   await page.getByTestId('wz-home').click();\n  547 |   await expect(page.getByTestId('home-page')).toBeVisible();\n  548 |   await page.evaluate(() => {\n  549 |     window.location.hash = '#/new/lt01';\n  550 |   });\n  551 |   await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);\n  552 |   await expect(page.getByTestId('wz-brand')).toHaveValue('');\n  553 |   const fresh = await previewAccent(page);\n  554 |   expect(fresh).toMatch(/^#[0-9a-f]{6}$/);\n  555 |   expect(fresh).not.toBe(ids.accent);\n  556 | });\n  557 |\n  558 | test('a cold open on a step only another walk has lands on Entry', async ({ page }) => {\n  559 |   // Decided in S1c (spec section 4): a reload keeps no walk's material, so a cold open resolves\n  560 |   // the step name against the template walk alone, and a name only another walk has (the import,\n  561 |   // design, file, AI, video and kit walks) degrades to the front page.\n  562 |   for (const slug of ['images', 'template', 'design', 'prepare', 'text', 'template-file', 'create', 'video', 'kit']) {\n  563 |     await page.goto('about:blank');\n  564 |     await page.goto(`/app#/new/step/${slug}`);\n> 565 |     await expect(page.locator('[data-entry=\"template\"]'), slug).toBeVisible();\n      |                                                                 ^ Error: template-file\n  566 |     await expect(counter(page), slug).toHaveCount(0);\n  567 |   }\n  568 | });\n  569 |\n  570 | //"
+          }
+        ],
+        "attachments": [
+          {
+            "name": "screenshot",
+            "contentType": "image/png",
+            "path": "data/919f97e668cfbe061d7e1295379c52136a08704c.png"
+          },
+          {
+            "name": "error-context",
+            "contentType": "text/markdown",
+            "path": "data/fde322e5306f0afb109a78064eed881b497bb11e.markdown"
+          },
+          {
+            "name": "trace",
+            "contentType": "application/zip",
+            "path": "data/b8477ea5988fe112377973932a88617afdeec828.zip"
+          }
+        ]
+      }
+    ],
+    "account.spec.ts": [],
+    "deep-link-boot.spec.ts": [],
+    "late-send-abandoned.spec.ts": []
+  }
+}

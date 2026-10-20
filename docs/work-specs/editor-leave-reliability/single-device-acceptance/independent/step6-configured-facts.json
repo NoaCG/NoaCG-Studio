@@ -1,0 +1,231 @@
+{
+  "run": 39373347849,
+  "artifact": 12243513199,
+  "archive_sha256": "19b16c221e229e0b462516ccbf368860c5fe90cd76ef304a640f427bb68acc3a",
+  "report_stats": {
+    "startTime": "2026-10-20T05:11:19.934Z",
+    "duration": 1907956.658,
+    "expected": 109,
+    "skipped": 3,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "metadata": null,
+  "actual_counts": {
+    "passed": 109,
+    "skipped": 3
+  },
+  "retry_indices": {
+    "0": 112
+  },
+  "failures": [],
+  "skips": [
+    {
+      "file": "bridge-real-server.spec.ts",
+      "title": "the Bridge airs the production, the dashboard reveals and scores it in CasparCG, and the server's own library is cued beside it",
+      "location": {
+        "file": "bridge-real-server.spec.ts",
+        "line": 75,
+        "column": 1
+      },
+      "outcome": "skipped",
+      "retry": 0,
+      "status": "skipped",
+      "duration": 0,
+      "errors": [],
+      "attachments": []
+    },
+    {
+      "file": "bridge-real-server.spec.ts",
+      "title": "one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else",
+      "location": {
+        "file": "bridge-real-server.spec.ts",
+        "line": 242,
+        "column": 1
+      },
+      "outcome": "skipped",
+      "retry": 0,
+      "status": "skipped",
+      "duration": 0,
+      "errors": [],
+      "attachments": []
+    },
+    {
+      "file": "connector-grants.spec.ts",
+      "title": "a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path",
+      "location": {
+        "file": "connector-grants.spec.ts",
+        "line": 200,
+        "column": 3
+      },
+      "outcome": "skipped",
+      "retry": 0,
+      "status": "skipped",
+      "duration": 7,
+      "errors": [],
+      "attachments": []
+    }
+  ],
+  "selected_files": {
+    "editor-groups.spec.ts": [],
+    "editor-keys.spec.ts": [],
+    "editor-arrangement.spec.ts": [],
+    "wizard-shell.spec.ts": [],
+    "account.spec.ts": [
+      {
+        "file": "account.spec.ts",
+        "title": "Settings shows the account: email, password change round-trip, sign out",
+        "location": {
+          "file": "account.spec.ts",
+          "line": 28,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 9063,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "the sign-in dialog offers the forgot-password path",
+        "location": {
+          "file": "account.spec.ts",
+          "line": 65,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2578,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "a lost session offers explicit recovery; local work survives and sync resumes",
+        "location": {
+          "file": "account.spec.ts",
+          "line": 86,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 11439,
+        "errors": [],
+        "attachments": []
+      }
+    ],
+    "deep-link-boot.spec.ts": [
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out deep link keeps its address @production",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 51,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 5077,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out production link asks for a sign-in rather than calling it gone @production",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 70,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 2058,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a production link opens once signed in from it, and an absent one names only the account",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 80,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 10847,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a graphic saved elsewhere opens on its link, however slow the pull",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 132,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 24027,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a sync asked for during a pass waits for one that can see the new data",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 195,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 10764,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "an absent production is answered by its completed pass while unrelated writes remain pending",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 224,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 7130,
+        "errors": [],
+        "attachments": []
+      }
+    ],
+    "late-send-abandoned.spec.ts": [
+      {
+        "file": "late-send-abandoned.spec.ts",
+        "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+        "location": {
+          "file": "late-send-abandoned.spec.ts",
+          "line": 28,
+          "column": 1
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 30001,
+        "errors": [],
+        "attachments": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "source": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b",
+  "tree": "3580262e357bf9f1bfda643cef42d8fee4ad2b05",
+  "queue_job": "j-0004",
+  "cap_minutes": 5,
+  "command": "npm run test:e2e -- e2e/leave-ninth-checker.spec.ts --grep V-reservations --retries=0",
+  "canonical_source": "9bef784b73fa979d24fe254da1dbc156cb7ba342",
+  "carried_spec_sha256": "2e8fdba7d45b65a67649a4ce13cefe10707db157834b9af183079c1e92e00307",
+  "byte_identical": true,
+  "workers": 2,
+  "actual_counts": {
+    "passed": 0,
+    "failed": 3,
+    "skipped": 0
+  },
+  "retries": 0,
+  "raw_facts": [
+    {
+      "shape": "missing",
+      "listBeforeReload": null,
+      "linkAfterReload": {
+        "graphicId": null,
+        "dirty": true,
+        "status": "idle"
+      },
+      "named": 1,
+      "records": 2,
+      "mintedHoldsRequested": true
+    },
+    {
+      "shape": "newer version",
+      "listBeforeReload": "{\"version\":2,\"ids\":[\"kept-by-a-newer-build\"]}",
+      "linkAfterReload": {
+        "graphicId": null,
+        "dirty": true,
+        "status": "idle"
+      },
+      "named": 1,
+      "records": 2,
+      "mintedHoldsRequested": true,
+      "newerListKept": "{\"version\":2,\"ids\":[\"kept-by-a-newer-build\"]}"
+    },
+    {
+      "shape": "corrupt",
+      "listBeforeReload": "{\"version\":1,\"ids\":[",
+      "linkAfterReload": {
+        "graphicId": null,
+        "dirty": true,
+        "status": "idle"
+      },
+      "named": 1,
+      "records": 2,
+      "mintedHoldsRequested": true
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "/workspace/p2-single-device-independent/test-results/leave-ninth-checker-ninth--a7ca4-ssing-one-reload-save-again-chromium/test-failed-1.png",
+      "sha256": "d2888d228c497902c7c11424b98b35feef17f3f6570296527cc71a0405ce36ca"
+    },
+    {
+      "path": "/workspace/p2-single-device-independent/test-results/leave-ninth-checker-ninth--58e0a-rsion-one-reload-save-again-chromium/test-failed-1.png",
+      "sha256": "d2888d228c497902c7c11424b98b35feef17f3f6570296527cc71a0405ce36ca"
+    },
+    {
+      "path": "/workspace/p2-single-device-independent/test-results/leave-ninth-checker-ninth--fa40c-rrupt-one-reload-save-again-chromium/test-failed-1.png",
+      "sha256": "d2888d228c497902c7c11424b98b35feef17f3f6570296527cc71a0405ce36ca"
+    }
+  ],
+  "whole_log": "=== j-0004 npm run test:e2e -- e2e/leave-ninth-checker.spec.ts --grep V-reservations --retries=0\n=== cwd /workspace/p2-single-device-independent\n\n> noacg-studio@0.1.0 test:e2e\n> playwright test e2e/leave-ninth-checker.spec.ts --grep V-reservations --retries=0\n\n[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 13865 MB free (machine totals stand in for cgroup limits it could not read)\n[WebServer] (node:7642) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)\n[WebServer] (node:7655) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)\n\nRunning 3 tests using 2 workers\n\n(node:7773) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:7774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  \u2718  1 [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations corrupt: R and K refused, the list is a corrupt one, reload, save again (6.3s)\n(node:7955) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  \u2718  2 [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations newer version: R and K refused, the list is a newer version one, reload, save again (6.9s)\n  \u2718  3 [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations missing: R and K refused, the list is a missing one, reload, save again (5.0s)\n\n\n  1) [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations newer version: R and K refused, the list is a newer version one, reload, save again \n\n    Error: a second record was minted for the same work\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 1\n    Received: 2\n\n      245 |       });\n      246 |       expect(facts.mintedHoldsRequested, 'the minted record lost the requested source').toBe(true);\n    > 247 |       expect(facts.records, 'a second record was minted for the same work').toBe(1);\n          |                                                                             ^\n      248 |     } finally {\n      249 |       out(`v-reservations-${shape.replace(/ /g, '-')}.json`, facts);\n      250 |     }\n        at /workspace/p2-single-device-independent/e2e/leave-ninth-checker.spec.ts:247:77\n\n    attachment #1: screenshot (image/png) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/leave-ninth-checker-ninth--58e0a-rsion-one-reload-save-again-chromium/test-failed-1.png\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n    Error Context: test-results/leave-ninth-checker-ninth--58e0a-rsion-one-reload-save-again-chromium/error-context.md\n\n  2) [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations corrupt: R and K refused, the list is a corrupt one, reload, save again \n\n    Error: a second record was minted for the same work\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 1\n    Received: 2\n\n      245 |       });\n      246 |       expect(facts.mintedHoldsRequested, 'the minted record lost the requested source').toBe(true);\n    > 247 |       expect(facts.records, 'a second record was minted for the same work').toBe(1);\n          |                                                                             ^\n      248 |     } finally {\n      249 |       out(`v-reservations-${shape.replace(/ /g, '-')}.json`, facts);\n      250 |     }\n        at /workspace/p2-single-device-independent/e2e/leave-ninth-checker.spec.ts:247:77\n\n    attachment #1: screenshot (image/png) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/leave-ninth-checker-ninth--fa40c-rrupt-one-reload-save-again-chromium/test-failed-1.png\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n    Error Context: test-results/leave-ninth-checker-ninth--fa40c-rrupt-one-reload-save-again-chromium/error-context.md\n\n  3) [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations missing: R and K refused, the list is a missing one, reload, save again \n\n    Error: a second record was minted for the same work\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 1\n    Received: 2\n\n      245 |       });\n      246 |       expect(facts.mintedHoldsRequested, 'the minted record lost the requested source').toBe(true);\n    > 247 |       expect(facts.records, 'a second record was minted for the same work').toBe(1);\n          |                                                                             ^\n      248 |     } finally {\n      249 |       out(`v-reservations-${shape.replace(/ /g, '-')}.json`, facts);\n      250 |     }\n        at /workspace/p2-single-device-independent/e2e/leave-ninth-checker.spec.ts:247:77\n\n    attachment #1: screenshot (image/png) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/leave-ninth-checker-ninth--a7ca4-ssing-one-reload-save-again-chromium/test-failed-1.png\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n    Error Context: test-results/leave-ninth-checker-ninth--a7ca4-ssing-one-reload-save-again-chromium/error-context.md\n\n  3 failed\n    [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations newer version: R and K refused, the list is a newer version one, reload, save again \n    [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations corrupt: R and K refused, the list is a corrupt one, reload, save again \n    [chromium] \u203a e2e/leave-ninth-checker.spec.ts:209:3 \u203a ninth V-reservations missing: R and K refused, the list is a missing one, reload, save again \nnpm notice\nnpm notice New major version of npm available! 11.9.0 -> 12.2.0\nnpm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0\nnpm notice To update run: npm install -g npm@12.2.0\nnpm notice\n"
+}

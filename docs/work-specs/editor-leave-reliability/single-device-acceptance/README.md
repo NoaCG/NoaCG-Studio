@@ -1,5 +1,45 @@
 # Phase 2 single-device acceptance
 
+Latest independent receipt, 2026-10-20 UTC: **FAIL** on source
+`32027cc2abd0ad7d50d8152ad2ebe83f1c95833b`, tree
+`3580262e357bf9f1bfda643cef42d8fee4ad2b05`. The fresh checker built none of the
+repairs. Its original unchanged V-reservations newer/corrupt/missing selection
+ran 3 cases, **all 3 failed** at 247:77 (two records, expected one), no skips or
+retries. Each uses one page; the concurrent-authoring deferral cannot cover them.
+The source is the actual #1526 merge including #1528. Current main's later
+`331a98a919b21dad676d8729d254eb208db76ce0` changes only traced-map metadata.
+
+The [independent receipt and complete retained-criterion table](independent/README.md)
+is authoritative for this latest source. Its [fresh queue facts](independent/queue-facts.json),
+[directly parsed CI/configured reports](independent/reports-summary.json),
+[canonical integrity checks](independent/integrity.json) and
+[provider observations](independent/provider-observations.json) preserve the evidence.
+The initial audit below remains historical, including the older BLOCKED verdict
+and its earlier judgments; it is not a verdict on the newer source.
+
+| Retained criterion | Latest disposition |
+| --- | --- |
+| AC1 mounted-editor decision/cancellation | Satisfied bounded engineering evidence: current maintained CI and reused carried receipts. |
+| AC2/AC3 failed-write/reload duplicate prevention | **FAILED**, original 3/3 one-page V-reservations assertions, no waiver inferred from historical disclosed limits. Ordinary Save/discard/refusal paths remain passing evidence. |
+| AC2 copy-arrival retry/edit/chained-copy protections | Current maintained CI plus prior independent real-time proof retained; no new local challenge after failure. |
+| AC3 navigation/history and durable recovery | Ordinary maintained cases pass; the duplicate subcriterion above fails. |
+| AC4 baseline/wizard/library/cloud/production separation | Current maintained/configured CI and prior separation evidence retained. Original R-departure red expectation remains visible. |
+| Serialized device handoff | **Unverified** on final source; operating instructions are not an executed device journey. |
+| AC5 pinned reference lifecycle/hash comparison | Reused bounded independent-12 evidence; no fresh reference execution after the retained failure. |
+| AC6 cumulative desktop/laptop/125% and outputs | Prior browser engineering proof retained; fresh independent final-source cumulative/native leg **unverified** after cleanup. Physical/native-host and owner comfort remain separate. |
+| Refused discard/newer edits/history and all 32 #1509 assertions | Current maintained CI coverage; group source independently byte-identical and all 32 normal/retry 0. |
+| Exact-merge main CI/configured | **Satisfied:** 2,185 passes/1 existing platform skip and 109 passes/3 identical existing skips, all retry 0. |
+| Nightly / historical late-send release and failure | **Unverified/unresolved:** no pinned-source nightly; #1498 open; future-history repair #1528 does not repair old late-send predicate failure or validate #1517's fresh-pass claim. |
+| Concurrent authoring | **Explicitly deferred**, original red results remain red; no original multi-device PASS. |
+
+Step 6's approved release remains effective and its owner reports cleanup complete.
+No Phase 3, automatic #1466 closure, test/helper/assertion/budget/classification
+change or broad reservation release follows from this receipt.
+
+---
+
+## Initial coordinator audit (preserved)
+
 Maintained receipt, 2026-10-20. **Verdict: BLOCKED.** The owner now requires one
 active authoring tab/device per account, with serialized device handoffs. This
 narrows acceptance; it does not mean that the original multi-device criteria

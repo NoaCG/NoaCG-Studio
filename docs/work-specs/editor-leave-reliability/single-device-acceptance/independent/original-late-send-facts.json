@@ -1,0 +1,285 @@
+{
+  "run": 39287029913,
+  "artifact": 12205042779,
+  "archive_sha256": "074e44c95aafb1c344df50c5d5e74c68cfc5e7f901c174d71d184f0e7f52250d",
+  "report_stats": {
+    "startTime": "2026-10-19T16:40:23.642Z",
+    "duration": 1484352.7689999999,
+    "expected": 107,
+    "skipped": 3,
+    "unexpected": 0,
+    "flaky": 1
+  },
+  "metadata": null,
+  "actual_counts": {
+    "passed": 108,
+    "skipped": 3,
+    "failed": 1
+  },
+  "retry_indices": {
+    "0": 111,
+    "1": 1
+  },
+  "failures": [
+    {
+      "file": "late-send-abandoned.spec.ts",
+      "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+      "location": {
+        "file": "late-send-abandoned.spec.ts",
+        "line": 28,
+        "column": 1
+      },
+      "outcome": "flaky",
+      "retry": 0,
+      "status": "failed",
+      "duration": 34709,
+      "errors": [
+        {
+          "location": {
+            "file": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts",
+            "column": 8,
+            "line": 237
+          },
+          "message": "Error: the operator page has read the log and is not reading it now\n\nthe operator page has read the log and is not reading it now\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\nCall Log:\n- Timeout 30000ms exceeded while waiting on the predicate\n\n   at _helpers.ts:237\n\n  235 |         timeout: 30_000,\n  236 |       })\n> 237 |       .toBe(true);\n      |        ^\n  238 | }\n  239 |\n  240 | /**\n    at followerLevel (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts:237:8)\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/late-send-abandoned.spec.ts:96:9"
+        }
+      ],
+      "attachments": [
+        {
+          "name": "error-context",
+          "contentType": "text/markdown",
+          "path": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/test-results/late-send-abandoned-a-held-778f2-air-even-behind-a-later-Out-configured/error-context.md"
+        }
+      ]
+    }
+  ],
+  "skips": [
+    {
+      "file": "bridge-real-server.spec.ts",
+      "title": "the Bridge airs the production, the dashboard reveals and scores it in CasparCG, and the server's own library is cued beside it",
+      "location": {
+        "file": "bridge-real-server.spec.ts",
+        "line": 75,
+        "column": 1
+      },
+      "outcome": "skipped",
+      "retry": 0,
+      "status": "skipped",
+      "duration": 0,
+      "errors": [],
+      "attachments": []
+    },
+    {
+      "file": "bridge-real-server.spec.ts",
+      "title": "one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else",
+      "location": {
+        "file": "bridge-real-server.spec.ts",
+        "line": 242,
+        "column": 1
+      },
+      "outcome": "skipped",
+      "retry": 0,
+      "status": "skipped",
+      "duration": 0,
+      "errors": [],
+      "attachments": []
+    },
+    {
+      "file": "connector-grants.spec.ts",
+      "title": "a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path",
+      "location": {
+        "file": "connector-grants.spec.ts",
+        "line": 200,
+        "column": 3
+      },
+      "outcome": "skipped",
+      "retry": 0,
+      "status": "skipped",
+      "duration": 5,
+      "errors": [],
+      "attachments": []
+    }
+  ],
+  "selected_files": {
+    "editor-groups.spec.ts": [],
+    "editor-keys.spec.ts": [],
+    "editor-arrangement.spec.ts": [],
+    "wizard-shell.spec.ts": [],
+    "account.spec.ts": [
+      {
+        "file": "account.spec.ts",
+        "title": "Settings shows the account: email, password change round-trip, sign out",
+        "location": {
+          "file": "account.spec.ts",
+          "line": 28,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4571,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "the sign-in dialog offers the forgot-password path",
+        "location": {
+          "file": "account.spec.ts",
+          "line": 63,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 1190,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "account.spec.ts",
+        "title": "a lost session offers explicit recovery; local work survives and sync resumes",
+        "location": {
+          "file": "account.spec.ts",
+          "line": 84,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 7190,
+        "errors": [],
+        "attachments": []
+      }
+    ],
+    "deep-link-boot.spec.ts": [
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out deep link keeps its address @production",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 51,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 4490,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a signed-out production link asks for a sign-in rather than calling it gone @production",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 70,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 947,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a production link opens once signed in from it, and an absent one names only the account",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 80,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 6369,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a graphic saved elsewhere opens on its link, however slow the pull",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 132,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 18471,
+        "errors": [],
+        "attachments": []
+      },
+      {
+        "file": "deep-link-boot.spec.ts",
+        "title": "a sync asked for during a pass waits for one that can see the new data",
+        "location": {
+          "file": "deep-link-boot.spec.ts",
+          "line": 195,
+          "column": 3
+        },
+        "outcome": "expected",
+        "retry": 0,
+        "status": "passed",
+        "duration": 8349,
+        "errors": [],
+        "attachments": []
+      }
+    ],
+    "late-send-abandoned.spec.ts": [
+      {
+        "file": "late-send-abandoned.spec.ts",
+        "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+        "location": {
+          "file": "late-send-abandoned.spec.ts",
+          "line": 28,
+          "column": 1
+        },
+        "outcome": "flaky",
+        "retry": 0,
+        "status": "failed",
+        "duration": 34709,
+        "errors": [
+          {
+            "location": {
+              "file": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts",
+              "column": 8,
+              "line": 237
+            },
+            "message": "Error: the operator page has read the log and is not reading it now\n\nthe operator page has read the log and is not reading it now\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\nCall Log:\n- Timeout 30000ms exceeded while waiting on the predicate\n\n   at _helpers.ts:237\n\n  235 |         timeout: 30_000,\n  236 |       })\n> 237 |       .toBe(true);\n      |        ^\n  238 | }\n  239 |\n  240 | /**\n    at followerLevel (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/_helpers.ts:237:8)\n    at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/configured/late-send-abandoned.spec.ts:96:9"
+          }
+        ],
+        "attachments": [
+          {
+            "name": "error-context",
+            "contentType": "text/markdown",
+            "path": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/test-results/late-send-abandoned-a-held-778f2-air-even-behind-a-later-Out-configured/error-context.md"
+          }
+        ]
+      },
+      {
+        "file": "late-send-abandoned.spec.ts",
+        "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+        "location": {
+          "file": "late-send-abandoned.spec.ts",
+          "line": 28,
+          "column": 1
+        },
+        "outcome": "flaky",
+        "retry": 1,
+        "status": "passed",
+        "duration": 30397,
+        "errors": [],
+        "attachments": [
+          {
+            "name": "trace",
+            "contentType": "application/zip",
+            "path": "/home/runner/work/NoaCG-Studio/NoaCG-Studio/test-results/late-send-abandoned-a-held-778f2-air-even-behind-a-later-Out-configured-retry1/trace.zip"
+          }
+        ]
+      }
+    ]
+  }
+}

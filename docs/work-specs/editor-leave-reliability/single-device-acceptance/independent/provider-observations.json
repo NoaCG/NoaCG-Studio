@@ -1,0 +1,226 @@
+{
+  "observed_at": "2026-10-20T05:50:38.811Z",
+  "source": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b",
+  "remote_main": "331a98a919b21dad676d8729d254eb208db76ce0",
+  "source_tree": "3580262e357bf9f1bfda643cef42d8fee4ad2b05",
+  "drift": {
+    "status": "ahead",
+    "files": [
+      {
+        "path": "scripts/e2e-traced.json",
+        "sha": "2b8b2489fe8225d79e99665f86c7481d80b9fb61",
+        "status": "modified"
+      }
+    ]
+  },
+  "exact_source_runs": [
+    {
+      "id": 39373614624,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373392282,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373357296,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373354424,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373353126,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373347903,
+      "name": "Post-landing",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373347866,
+      "name": "Quarantine",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373347435,
+      "name": "Push on main",
+      "event": "dynamic",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373347796,
+      "name": "CI",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39373347849,
+      "name": "configured-suite",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    },
+    {
+      "id": 39372313249,
+      "name": "CI",
+      "event": "merge_group",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b"
+    }
+  ],
+  "nightly_present": false,
+  "open_prs": [
+    {
+      "n": 1503,
+      "title": "Re-record the E2E shard durations from run 39233650555",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1503"
+    },
+    {
+      "n": 1486,
+      "title": "Quarantine 2 specs after a fail-then-pass on one commit",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1486"
+    },
+    {
+      "n": 1452,
+      "title": "Prevent active content from surviving SVG import",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1452"
+    },
+    {
+      "n": 1450,
+      "title": "Quarantine e2e/configured/production-data-key.spec.ts after a fail-then-pass on one commit",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1450"
+    },
+    {
+      "n": 1432,
+      "title": "Release e2e/import-svg-corpus.spec.ts from quarantine",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1432"
+    },
+    {
+      "n": 1322,
+      "title": "Release e2e/editor-arrangement.spec.ts from quarantine",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1322"
+    },
+    {
+      "n": 1157,
+      "title": "Quarantine e2e/configured/late-send-abandoned.spec.ts after a fail-then-pass on one commit",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1157"
+    },
+    {
+      "n": 1137,
+      "title": "Quarantine e2e/configured/late-send-abandoned.spec.ts after a fail-then-pass on one commit",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/1137"
+    }
+  ],
+  "open_issues": [
+    {
+      "n": 1498,
+      "title": "Nightly full test suite is red",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1498"
+    },
+    {
+      "n": 766,
+      "title": "Split ProductionPage.tsx before it grows further",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/766"
+    },
+    {
+      "n": 1527,
+      "title": "Video guide outline emits negative SVG dimensions during subpixel layout",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1527"
+    },
+    {
+      "n": 1507,
+      "title": "External data sources: Excel Online and local TXT, CSV, JSON and XLSX files",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1507"
+    },
+    {
+      "n": 1499,
+      "title": "Cover independent operator values after inserting a template graphic",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1499"
+    },
+    {
+      "n": 805,
+      "title": "Orchestrator: finish the changeover after the proof nights",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/805"
+    },
+    {
+      "n": 1301,
+      "title": "Complete measured cloud verification and provider-native delegation",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1301"
+    },
+    {
+      "n": 1491,
+      "title": "Inspect Codex package preview on Windows before phase 2 passes",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1491"
+    },
+    {
+      "n": 1469,
+      "title": "Harness bench records a session the usage limit cut silently as failed",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1469"
+    },
+    {
+      "n": 1435,
+      "title": "Coverage writes a picture description into a text field when stress keys are positional",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1435"
+    },
+    {
+      "n": 1388,
+      "title": "Publish a CLI release that carries record --review before the plugin's hand-in reference relies on it",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1388"
+    },
+    {
+      "n": 1386,
+      "title": "After a hash-change leave, a renamed first Save often lands but the leave never continues",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1386"
+    },
+    {
+      "n": 1384,
+      "title": "Wizard Export door pressed again under a new name during its pending save mints a second record",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1384"
+    },
+    {
+      "n": 1380,
+      "title": "Execution profile: cgroup v2 namespace hides parent limits; a pure-v2 root always reads as unknown",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1380"
+    },
+    {
+      "n": 1360,
+      "title": "Move remaining durable-write callers to scoped receipts and update the durable-write rules",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/issues/1360"
+    }
+  ]
+}

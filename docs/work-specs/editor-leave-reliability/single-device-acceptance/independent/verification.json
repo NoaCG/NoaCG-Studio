@@ -1,0 +1,39 @@
+{
+  "source": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b",
+  "review_base": "32027cc2abd0ad7d50d8152ad2ebe83f1c95833b",
+  "branch": "codex/p2-independent-single-device",
+  "review_mode": "inline",
+  "review_findings": 0,
+  "simplify_mode": "inline",
+  "simplify_changes": "none needed",
+  "verify_mode": "inline",
+  "acceptance_verdict": "FAIL",
+  "documentation_check": "PASS",
+  "gates_command": "npm run gates -- run --changed origin/main",
+  "gates_passed": [
+    "check:contract-freshness",
+    "check:contract-citations",
+    "check:docs-index",
+    "check:client-secrets",
+    "check:copy"
+  ],
+  "relative_links": "PASS",
+  "whitespace": "PASS",
+  "build": "not required for evidence-only documentation",
+  "stamp": "not issued; evidence-only branch not queued; standard stamp invokes known-denied CLI fetch through review-request, which was not retried",
+  "files": [
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/README.md",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/README.md",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/integrity.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/original-late-send-facts.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/provider-observations.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/queue-facts.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/repair1528-configured-facts.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/repair1528-main-facts.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/reports-summary.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/scheduled-pre-step6-facts.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/step6-configured-facts.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/step6-main-facts.json",
+    "docs/work-specs/editor-leave-reliability/single-device-acceptance/independent/verification.json"
+  ]
+}

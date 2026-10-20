@@ -1,0 +1,159 @@
+{
+  "step6-main": {
+    "run": 39373347796,
+    "artifact": 12242478911,
+    "archive_sha256": "36f11fe83eb8c066ac96818ff51492b941b041adc05c60b9c556c94e675f06c9",
+    "report_stats": {
+      "total": 2186,
+      "expected": 2185,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 1,
+      "ok": true
+    },
+    "actual_counts": {
+      "passed": 2185,
+      "skipped": 1
+    },
+    "retry_indices": {
+      "0": 2186
+    },
+    "failures": []
+  },
+  "step6-configured": {
+    "run": 39373347849,
+    "artifact": 12243513199,
+    "archive_sha256": "19b16c221e229e0b462516ccbf368860c5fe90cd76ef304a640f427bb68acc3a",
+    "report_stats": {
+      "startTime": "2026-10-20T05:11:19.934Z",
+      "duration": 1907956.658,
+      "expected": 109,
+      "skipped": 3,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "actual_counts": {
+      "passed": 109,
+      "skipped": 3
+    },
+    "retry_indices": {
+      "0": 112
+    },
+    "failures": []
+  },
+  "repair1528-main": {
+    "run": 39372052729,
+    "artifact": 12241824060,
+    "archive_sha256": "d53912a3b63d20553e9a2beccf63673699c8888f5d4d71f93965707a5f92acdf",
+    "report_stats": {
+      "total": 2186,
+      "expected": 2183,
+      "unexpected": 2,
+      "flaky": 0,
+      "skipped": 1,
+      "ok": false
+    },
+    "actual_counts": {
+      "passed": 2183,
+      "failed": 2,
+      "skipped": 1
+    },
+    "retry_indices": {
+      "0": 2186
+    },
+    "failures": [
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a deep link starts the walk exactly where the Browse pick of the same design does",
+        "retry": 0,
+        "status": "failed"
+      },
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a cold open on a step only another walk has lands on Entry",
+        "retry": 0,
+        "status": "failed"
+      }
+    ]
+  },
+  "repair1528-configured": {
+    "run": 39372052735,
+    "artifact": 12243081957,
+    "archive_sha256": "8814c00dc34003819258bd86c20e30f3a32034b4f1a32936baf75745afb04a44",
+    "report_stats": {
+      "startTime": "2026-10-20T04:56:39.890Z",
+      "duration": 1888565.28,
+      "expected": 109,
+      "skipped": 3,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "actual_counts": {
+      "passed": 109,
+      "skipped": 3
+    },
+    "retry_indices": {
+      "0": 112
+    },
+    "failures": []
+  },
+  "scheduled-pre-step6": {
+    "run": 39372122320,
+    "artifact": 12242521006,
+    "archive_sha256": "f0a4d0b573c34b43536c0d01e646495bff7a93e15826c02c04c3f199d1eb6a5d",
+    "report_stats": {
+      "total": 2186,
+      "expected": 2184,
+      "unexpected": 1,
+      "flaky": 0,
+      "skipped": 1,
+      "ok": false
+    },
+    "actual_counts": {
+      "passed": 2184,
+      "failed": 1,
+      "skipped": 1
+    },
+    "retry_indices": {
+      "0": 2186
+    },
+    "failures": [
+      {
+        "file": "wizard-shell.spec.ts",
+        "title": "a cold open on a step only another walk has lands on Entry",
+        "retry": 0,
+        "status": "failed"
+      }
+    ]
+  },
+  "original-late-send": {
+    "run": 39287029913,
+    "artifact": 12205042779,
+    "archive_sha256": "074e44c95aafb1c344df50c5d5e74c68cfc5e7f901c174d71d184f0e7f52250d",
+    "report_stats": {
+      "startTime": "2026-10-19T16:40:23.642Z",
+      "duration": 1484352.7689999999,
+      "expected": 107,
+      "skipped": 3,
+      "unexpected": 0,
+      "flaky": 1
+    },
+    "actual_counts": {
+      "passed": 108,
+      "skipped": 3,
+      "failed": 1
+    },
+    "retry_indices": {
+      "0": 111,
+      "1": 1
+    },
+    "failures": [
+      {
+        "file": "late-send-abandoned.spec.ts",
+        "title": "a held Take is abandoned inside the window and never reaches air, even behind a later Out",
+        "retry": 0,
+        "status": "failed"
+      }
+    ]
+  }
+}
