@@ -6,6 +6,11 @@
       "since": "2026-10-20",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39404236197"
+    },
+    "e2e/wizard-shell.spec.ts": {
+      "since": "2026-10-20",
+      "count": 4,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39418049519"
     }
   },
   "released": {
@@ -104,10 +109,6 @@
     "e2e/rundown-history.spec.ts": {
       "count": 1,
       "last": "2026-10-14"
-    },
-    "e2e/wizard-shell.spec.ts": {
-      "count": 3,
-      "last": "2026-10-03"
     }
   }
 }
