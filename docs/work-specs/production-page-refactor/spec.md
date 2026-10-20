@@ -559,6 +559,18 @@ deploy-verify run, and the exact revert command.
   launches nothing against it, waits inside its background job and retries when it is back, and
   notifies the owner only if it lasts more than two hours or needs his account. No `stop` and no
   `answered` are involved.
+- Separate from the editor (owner, 2026-10-20, decision 18): the run owns the production page
+  and its child specs' areas. A failing check in another area (the editor, the wizard, import,
+  accounts) is never a phase's failure and never stops the run unless the phase caused it. On the
+  phase's pull request or merge SHA, a spec that fails and then passes on the same commit goes to
+  the quarantine flow. A check that fails consistently and also failed on main before the merge
+  (the merge's first parent) is outside the run: it gets one issue with the failing run, and the
+  checker records PASS with that issue named in `mergeChecks` (this plan's reading of the
+  runbook's rule). A failure the phase did cause is the phase's, in any area, and is repaired as
+  above. When an outside failure keeps a phase's pull request from landing, the coordinator
+  launches one session outside the phase ledger that fixes it, or reverts the landing that broke
+  it, through `/check` and `/queue-merge`, never by loosening a test. No phase builder works on
+  the editor.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its

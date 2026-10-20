@@ -56,6 +56,7 @@ the plan, but the risks behind them were.
 | # | Fix | Where |
 | --- | --- | --- |
 | 17 | Owner decision: a second failed check is diagnosed by one fresh deciding agent (one last scoped repair, a re-check after infrastructure clears, or a real owner decision), not an automatic stop; infrastructure failures are waits, not spent failures | parent §8; second runner PR |
+| 18 | Owner decision: the run is separate from the editor. A failure in another area that the phase did not cause (a fail-then-pass, or a check already red on main before the merge) never fails a phase or stops the run: quarantine, or one issue named in the checker's `mergeChecks`; a failure that blocks a phase's landing gets one fix or revert session outside the phase ledger. Fresh flakes #1532 (import-svg-behaviour, which most production page changes select) and #1533 are quarantined | parent §8; e2e/quarantine.json |
 | R1 | C2 gates on the local stack (tick driven with the Bearer secret, closed-browser run against it); production log, switch and cost steps are coordinator follow-ups with their own access row | data-sources C2, parent §9.2 |
 | R2 | C1b gates only on its local halves (data AC-3, sheet AC-5 browser lease, sheet AC-7); published persistence, the tick's lease and closed-page Pause are C2's | extensions row 7, data-sources C1b |
 | R3 | Configured specs use stubs; provider runs are cloud-worker receipts | data-sources Verification |
