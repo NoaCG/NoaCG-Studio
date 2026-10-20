@@ -1753,9 +1753,10 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
   });
 }
 
-/** Remember where messages go (Show.messageTarget), or forget it with `null`. */
+/** Remember where messages go (Show.messageTarget), or forget it with `null`. Part of a prepare,
+ *  so it is rebased like the prepare: a Messages tab behind a binding must not write it away. */
 export function setShowMessageTarget(showId: string, graphicId: string | null): { shows: Show[]; error: string | null } {
-  return patchShowChecked(showId, (show) => {
+  return patchShowRebased(showId, (show) => {
     if ((show.messageTarget ?? null) === graphicId) return false;
     if (graphicId) show.messageTarget = graphicId;
     else delete show.messageTarget;
