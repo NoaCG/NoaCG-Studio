@@ -1,5 +1,12 @@
 # Editor animation and preview contract
 
+Owner decision, 2026-10-20: further #1466 conflicted-copy work and its independent
+Phase 2 acceptance campaign are deferred. Phase 2 remains **BLOCKED**. The
+[decision and one-device workaround](work-specs/editor-leave-reliability/owner-deferral.md)
+supersede the historical Step 6 hold below: the existing cleanup coordinator may
+edit the narrowly approved Step 6 store/helper/CSS paths now, preserving live behavior
+and all checks. This is not Phase 2 acceptance or authorization for Phase 3.
+
 Cleanup handover, 2026-10-18: the owner released only the nine skipped cases in
 library (seven), project (one) and wizard-finish (one) to issue #800. Their current-UI
 restoration does not change this phase's repair checks, carried challenges or acceptance
