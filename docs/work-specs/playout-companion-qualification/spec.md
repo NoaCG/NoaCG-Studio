@@ -45,13 +45,13 @@ Trigger without changing selection, and clip versus graphic-clock Pause.
 
 ## Acceptance
 
-### AC-1: A new operator installs and pairs the actual archive
+### AC-1: The actual archive installs and pairs from the guide alone
 On a clean Companion connection, follow only the guide to install, pair and add the starter
 buttons. Archive manifest versions match the packaged module/base; no obsolete answer switch.
 Record elapsed time and wrong turns. HELP, protocol, action list and actual 14 verbs agree.
 H0.1 checks the archive, the guide against the module and a headless guide walk on a scratch
 Companion; in H0.2 the owner follows the guide on his own Companion. A walk by a new operator is
-a task in H0.1's trial kit, never a gate (owner, 2026-10-20, D).
+a task in H0.1's trial kit, reported when run and never required (owner, 2026-10-20, D).
 
 ### AC-2: Existing actions and feedback traverse the real route
 Exercise every declared transport/selection verb through the relay, including retake, update,

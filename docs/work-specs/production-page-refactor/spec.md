@@ -594,7 +594,7 @@ the first rehearsal.
 - **Speed (16).** Iteration and landing speed matter; GitHub minutes cost us nothing. Full suites
   run in Actions, targeted checks on the worker, the Q worker ahead of the phases that need it,
   and no landing waits for a laptop or owner item. Existing CI job timeouts are unchanged; only the
-  new endurance workflow gets 90 minutes.
+  new endurance workflow, landed before the run opens, gets 90 minutes.
 - **Builders and ordinary checks:** use the current landed runner's qualified native
   worker selection and independent checker procedure; existing `wave-row` roles are fallback
   roles where that procedure selects them. One builder owns the page in any phase.
@@ -623,7 +623,7 @@ the first rehearsal.
   `node scripts/deploy-affecting-paths.mjs --last-affecting origin/main` (deploy-verify's own
   rule), recorded with that judgement; the runner change
   and its live-test receipt on main; a local Supabase stack can start or the configured-suite
-  dispatch route is confirmed; `gh` authenticated and able to land a workflow-file change (E4.1);
+  dispatch route is confirmed; `gh` authenticated; `.github/workflows/endurance.yml` on main;
   the current runner's builder/checker interfaces qualified; one test phone notification received
   from the coordinator session; Vercel usage readable from the coordinator (C2's budget watch); no
   open wave or plan run other than this project (`scripts/wave-plan-store.mjs`, never assumed
@@ -711,7 +711,7 @@ the final owner block, which waits for him.
 | Vercel usage read access | Vercel team, from the coordinator | coordinator | C2 switch decision; daily budget watch | confirmed at preflight | the tick stays off |
 | Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
 | Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
-| Landing a workflow-file change | GitHub | the worker landing E4.1 | E4.1 (`endurance.yml`) | checked at preflight | the owner enables auto-merge on that pull request; only E4.1's landing waits |
+| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files; this laptop's `gh` token lacks the `workflow` scope (2026-10-20), so the owner either runs `gh auth refresh -s workflow` once or lets a cloud session land it | E4.1, E8.1b | not yet landed | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
 | Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts: the laptop entries in `extensions.md` | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
 | Physical Stream Deck with Companion | owner's laptop | owner | H0.2 | owner's deck | waits (final owner block) |
 | The real studio: the owner's CasparCG/NoaCG Bridge setup and an OBS/browser source | studio | owner | S | owner's setup | waits (final owner block) |

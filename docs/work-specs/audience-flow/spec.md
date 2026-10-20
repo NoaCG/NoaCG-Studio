@@ -221,17 +221,18 @@ it, both with the card offer, locally and published, through the Advanced rows a
 journey with two cues and a binding attempted before and after preparing; the same on a
 published production in `e2e/configured/audience-live.spec.ts`.
 
-### AC-7: A newcomer completes the message journeys without a guide
+### AC-7: The message newcomer tasks are in the pilot and the trial kit
 Fresh unpublished production with one scoreboard; a raw message in a chat window on the same
 screen. The participant pastes it, strips the phone number, edits name and text, accepts the
 card, previews, prepares and Takes; then a second message while the first is on air (the program
-must not change). These two tasks are an early pilot on C0's build. The third task, a
+must not change). These two tasks are the early paste pilot on C0's build. The third task, a
 link-shared message Sheet with the second message aired without the surname while a proctor
-edits and reorders the Sheet, is in the content trial kit with the first two repeated. Pass: four
-of five complete unaided and answer the three comprehension questions (data-sources AC-14);
-medians reported, no time target. Layer (owner, 2026-10-20): a kit, not a gate; the owner runs
-the pilot and the kit when he can and reports in `evidence/trial-paste.md` and `evidence/trial.md`;
-findings become issues. No phase waits for either.
+edits and reorders the Sheet, is in the content trial kit with the first two repeated. Reading
+guide: four of five complete unaided and answer the three comprehension questions (data-sources
+AC-14); medians, no time target. Pass: the kit holds these tasks, the questions, the reading guide and where findings go,
+and every trial the owner reports is recorded against its build with each finding filed as an
+issue. The trial's own result is reported, never required (owner, 2026-10-20, D). Layer: the owner-list paste pilot
+(`evidence/trial-paste.md`) and C7's kit (`evidence/trial.md`) as they are run.
 
 ### AC-8: Candidates are first-class content
 A pasted body works with no name, reference, login or integration. Sheet starter rows carry Name,

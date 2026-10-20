@@ -221,12 +221,16 @@ the timed real-Sheet run against the local program; C2 repeats it against the pu
 a Node diff test with a fake clock; the configured scenario.
 
 ### AC-4: Published, the output keeps following with no page open
-With every operator page closed, an edited cell reaches the published output at the tick's
-cadence, measured and recorded, and a reloaded page shows the row's true status and Pause.
+While the server tick's switch is on, with every operator page closed, an edited cell reaches
+the published output at the tick's cadence, measured and recorded, and a reloaded page shows the
+row's true status and Pause. The switch stays on only within Vercel Pro's included usage
+(data-sources C2); while it is off, the sources line and source details say that closed-page
+reading is off, and nothing claims continuity.
 Source details identify the active browser reader (about five seconds) or server reader (about
 one minute). Closed-controller operation is continuity at slower cadence, not the open-page
 ten-second promise. Handover updates this display without inventing a successful read.
-Layer: configured scenario with the tick driven directly; the closed-browser real-Sheet run (C2).
+Layer: configured scenario with the tick driven directly, including the switch-off display; the
+closed-browser real-Sheet run with the switch on (C2).
 
 ### AC-5: One active reader per source
 A second tab reads nothing; a source with a live lease is skipped by the tick; an expired lease
@@ -274,13 +278,15 @@ preparing a message copies that revision into a cue; later row changes, reorders
 cannot rewrite it; identity and persistence follow audience AC-8. Layer: Node contracts; the
 two-cue refresh journey (C3).
 
-### AC-12: A newcomer does it unaided
-A newcomer pastes rows onto a ticker, then connects a Sheet list and puts a changed line on air,
-without documentation; also download a custom graphic's template, fill it and connect all its
-fields once, then repair one unmatched field. The message-Sheet task of audience AC-7 runs in the same trial. Pass:
-four of five complete unaided and answer the comprehension questions; medians reported, no time
-target. Layer (owner, 2026-10-20): the content trial kit C7 lands; the owner runs it when he can
-and reports in `evidence/trial.md`; findings become issues. It never holds a phase.
+### AC-12: The Sheet newcomer tasks are in the trial kit
+The content trial kit (data-sources AC-14) includes, without documentation: paste rows onto a
+ticker, then connect a Sheet list and put a changed line on air; download a custom graphic's
+template, fill it and connect all its fields once, then repair one unmatched field. The
+message-Sheet task of audience AC-7 is in the same kit. Reading guide: four of five complete
+unaided and answer the comprehension questions; medians, no time target. Pass: the kit holds these tasks, the questions, the reading guide and where findings go,
+and every trial the owner reports is recorded against its build with each finding filed as an
+issue. The trial's own result is reported, never required (owner, 2026-10-20, D).
+Layer: C7's kit; `evidence/trial.md` as trials are run.
 
 ## Historical six-phase breakdown (not executable)
 

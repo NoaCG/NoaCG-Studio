@@ -34,7 +34,7 @@ vMix/SPX regressions; expanded vMix/SPX qualification is separately reported. Th
 OGraf controller check is backlog issue #1531, outside this run (owner, 2026-10-20, F). Official
 election-feed access remains a separate qualification verdict, not simulated success.
 
-One 60-minute software endurance run in E4's `endurance.yml`: 1,000 deterministic candidate
+One 60-minute software endurance run in `endurance.yml` (landed before the run opens): 1,000 deterministic candidate
 records (owner, 2026-10-20, G: sized to fit E4's ingress limits with headroom) at five-second
 source cadence, a cue switch every 15
 seconds, scheduled malformed/duplicate/older revisions, Pause/Resume, reader handover, controller
@@ -68,15 +68,16 @@ through the same negotiated guarded route under this workload, respecting unknow
 preview/program instance targeting. A quiz reveal leaves its clock running; data arrival never Takes. Groups
 expose collision/partial failure; last-confirmed monitors become visibly stale on loss.
 
-### AC-3: A producer can operate and recover the real setup
-Unaided participants meet the existing parent/data trial's four-of-five criterion for the original
-tasks and the added tasks: connect a sample API, select a live candidate, distinguish preview from
-air, use a declared Companion button and recover a source failure. Reuse participants only with
-recorded familiarity; do not pass a newcomer test using its builders. State what failed and repeat
-affected tasks after fixes. Physical CasparCG/Bridge, OBS and Stream Deck evidence is required.
-Layer (owner, 2026-10-20, D): the participant tasks are E8.2's trial kit, run by the owner when he
-can and never a gate; their findings become issues. The physical evidence is the final owner
-block: the deck in H0.2, the 30-minute dress rehearsal and outputs in parent phase S.
+### AC-3: The real setup can be operated and recovered, and newcomer tasks have a kit
+In the 30-minute dress rehearsal (parent phase S), the added tasks run on the real setup: connect
+a sample API, select a live candidate, distinguish preview from air, use a declared Companion
+button and recover a source failure, with physical CasparCG/Bridge, OBS and Stream Deck evidence
+(the deck requalified in H0.2). E8.2 lands a trial kit with these tasks for unaided participants;
+reading guide: the parent/data trial's four of five, reusing participants only with recorded
+familiarity and never the builders. Pass: the kit holds these tasks, the questions, the reading guide and where findings go,
+and every trial the owner reports is recorded against its build with each finding filed as an
+issue. The trial's own result is reported, never required (owner, 2026-10-20, D). State what failed and repeat
+affected tasks after fixes.
 
 ### AC-4: Release and rollback instructions match qualified capability
 Operator guide covers install/rebind, credentials, source status/cadence, manual/Fill fallback,
@@ -91,7 +92,7 @@ parity, unattended-cloud or election-day claim beyond the measured evidence.
 | --- | --- | --- |
 | E8.1a | Evidence reconciliation and bounded cross-feature checks; AC-1 software reconciliation, AC-2 cross-feature cases | Cloud: targeted Node/configured checks, full required suites in Actions using existing-run lookup. |
 | E8.1b | The 60-minute endurance run; AC-2 endurance | Actions: `.github/workflows/endurance.yml` with the 1,000-record fixture, dispatched by the builder on its branch before `/queue-merge`; the checker reuses that run under the parent §6 reuse rule when the merge's material inputs are unchanged, and otherwise dispatches it on the merge SHA. Memory, queue depth and timing receipts. Existing CI job timeouts unchanged. |
-| E8.2 | Runbook, capability/limitation matrix and the verdict on all agent evidence, plus the trial kit; AC-1 agent evidence complete, AC-4 | Cloud: guide and matrix checked against the landed build and receipts. The trial kit (AC-3 tasks) is an owner-list item; the physical evidence is H0.2 and parent phase S. |
+| E8.2 | Runbook, capability/limitation matrix and the verdict on all agent evidence, plus the trial kit; AC-1 agent evidence complete, AC-3 kit, AC-4 | Cloud: guide and matrix checked against the landed build and receipts; the kit landed and on the owner list. The physical evidence is H0.2 and parent phase S. |
 
 A failure produces a scoped repair and affected requalification under existing failure limits.
 A missing device, person or provider holds only the final owner block, never an agent phase; it

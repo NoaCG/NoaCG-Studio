@@ -502,20 +502,20 @@ cancel leaves bindings unchanged and existing bindings need explicit review befo
 Cover CSV escaping, Unicode and text-preserving import. Layer: Node mapping/round-trip tests,
 the Sheet journey and the real-Sheet receipt. No rich bracket recipe is needed for this proof.
 
-### AC-14: A newcomer does each journey unaided
-On a fresh production, without documentation, a student pastes rows onto a ticker, connects a
-Sheet list and changes a line, connects a feed, and (with a prepared sender) pushes a score; the
-message tasks are audience AC-7 and the Sheet task is sheet AC-12. Include downloading and filling
-a custom graphic's starter data, connecting it as a unit and repairing one unmatched field.
-Pass: four of five participants
-complete each task unaided and answer the comprehension questions ("What happens when you press
-Take?", "If someone edits the Sheet now, what changes on air?", "If someone adds a row, what
-happens to the cue you prepared?", "Where did this value come from?", "Which target will this
-button affect?", "What is confirmed on air, and what is only preview or pending?") correctly;
-medians are reported without a time target. Layer (owner, 2026-10-20): a trial kit, not a
-gate. C7 lands the kit; the owner runs it on the newest build when he can, and the paste tasks
-also as an early pilot on C0's build; findings become issues and repairs; the final report
-records which trials ran and their results. No phase waits for a trial.
+### AC-14: The newcomer journeys have a trial kit, and reported trials feed repairs
+C7 lands a trial kit for unaided newcomers on a fresh production, without documentation: paste
+rows onto a ticker, connect a Sheet list and change a line, connect a feed, and (with a prepared
+sender) push a score; download and fill a custom graphic's starter data, connect it as a unit and
+repair one unmatched field. The message tasks are audience AC-7's and the Sheet task sheet AC-12's.
+The comprehension questions: "What happens when you press Take?", "If someone edits the Sheet
+now, what changes on air?", "If someone adds a row, what happens to the cue you prepared?",
+"Where did this value come from?", "Which target will this button affect?", "What is confirmed
+on air, and what is only preview or pending?". Reading guide: four of five participants complete
+each task unaided and answer correctly; medians without a time target. Pass: the kit holds these tasks, the questions, the reading guide and where findings go,
+and every trial the owner reports is recorded against its build with each finding filed as an
+issue. The trial's own result is reported, never required (owner, 2026-10-20, D).
+Layer: C7's `evidence/trial-kit.md`; `evidence/trial.md` and the paste pilot's
+`evidence/trial-paste.md` as trials are run.
 
 ### AC-15: Prepared messages are independent of source changes
 Audience AC-1, AC-2, AC-6 and AC-8: a prepared message airs exactly as approved; source edits,
@@ -682,7 +682,10 @@ closed-browser real-Sheet run; C2 passes on those. The coordinator then finishes
 background while C3 builds: it reads that hour's real cost from Vercel usage and leaves the
 switch on only if this month's usage so far plus the measured hourly cost for the rest of the
 month stays within Pro's included usage (`docs/VERCEL_PRO_NO_OVERAGE_PLAN.md`); otherwise it
-turns it off, records why and notifies the owner. *Budget watch:* while the switch
+turns it off, records why and notifies the owner. Closed-page continuity is accepted as
+"works while the switch is on, and says so when it is off" (sheet AC-4), so a cost decision never
+undoes an accepted criterion; parent phase 14 and S record the switch's state and the month's
+projection at the time. *Budget watch:* while the switch
 is on, the coordinator checks Vercel usage daily (its morning summary); if the month's projection
 would exceed included usage, it turns the tick off and notifies the owner. With the tick off,
 published sources follow while a page is open and closed-page continuity is reported as

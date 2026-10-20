@@ -127,11 +127,11 @@ the Actions job, or on the laptop, as an explicitly configured local agent desti
 test certificate that only that run trusts, so TLS validation stays on. It is never a Vercel
 function: the function budget is nearly full (`docs/DEPLOYMENT.md`). E7 and E8 use it.
 
-E4.1 also adds `.github/workflows/endurance.yml`: `workflow_dispatch` only, `timeout-minutes: 90`,
-inputs for minutes and record count, running the replay server, the agent and the production
-path. It is not a required check, and no existing workflow's timeout changes. E4.1 proves it
-with a short replay smoke so its landing and permissions are settled long before E8.1b runs it
-for 60 minutes.
+`.github/workflows/endurance.yml` lands before the run opens, as its own prerequisite change
+(parent §9.2), so no phase has to land a workflow file: `workflow_dispatch` only,
+`timeout-minutes: 90`, inputs for the npm script to run and its minutes, `npm ci` then that
+script. It is not a required check, and no existing workflow's timeout changes. E4.1 adds the
+replay-smoke script and proves the pair with a short run; E8.1b adds the 60-minute harness.
 
 ## Acceptance
 
@@ -167,7 +167,7 @@ read-only fallback above for clients that cannot understand it.
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
-| E4.1 | Pure versioned acquisition contract, headless agent, replay server and `endurance.yml`; AC-1 cloud-worker part | Cloud: new `scripts/external-data-connector.test.mjs` with fake clock/fetch and a real replay-server HTTP boundary; credential/export and fetch-defense tests; one `endurance.yml` smoke run. Record supported limits and provider assumptions. |
+| E4.1 | Pure versioned acquisition contract, headless agent, replay server and its smoke script; AC-1 cloud-worker part | Cloud: new `scripts/external-data-connector.test.mjs` with fake clock/fetch and a real replay-server HTTP boundary; credential/export and fetch-defense tests; one `endurance.yml` smoke run of the new script. Record supported limits and provider assumptions. |
 | E4.2 | `sourceMapping.ts` identity projection, the claim through C2's lease, source status, fencing, ingress limits, atomic apply, Pause, the migration; AC-1 installed-agent part, AC-2–4 | Cloud: new `e2e/configured/external-data-connector.spec.ts`, source/session Node tests, limit and version-gate tests, existing data API compatibility tests; the documented agent install, restart and credential rotation on the cloud worker. Actual outputs join E7/E8. |
 
 If atomic source fencing cannot be enforced in the existing apply route, stop at this contract

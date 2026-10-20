@@ -48,7 +48,7 @@ opening, so it is normally on `main` well before that phase is built (data-sourc
 | 11 | C4 | [data-sources](../data-sources/spec.md) | Q `feeds`; data AC-5, AC-6, AC-11 | CA | - |
 | 12 | C5 | [data-sources](../data-sources/spec.md) | data AC-3, AC-7, AC-8 | CA | - |
 | 13 | C6 | [data-sources](../data-sources/spec.md) | sheet AC-10; data AC-9, AC-16 status-presentation part | CA | - |
-| 14 | C7 | [data-sources](../data-sources/spec.md) | data AC-16 software half; audience AC-5, AC-9; the content trial kit landed | CA | laptop: scratch CasparCG/Bridge + OBS; kit: content |
+| 14 | C7 | [data-sources](../data-sources/spec.md) | data AC-16 software half, AC-14 (kit); sheet AC-12 (kit); audience AC-5, AC-7 (kit), AC-9 | CA | laptop: scratch CasparCG/Bridge + OBS; the owner runs the kit |
 | 15 | 3 | [parent](spec.md) | AC-2, AC-8 | CA | - |
 | 16 | 4 | [parent](spec.md) | AC-2, AC-8 | CA | - |
 | 17 | 5 | [parent](spec.md) | AC-2, AC-3, AC-8 | CA | - |
@@ -60,7 +60,7 @@ opening, so it is normally on `main` well before that phase is built (data-sourc
 | 23 | 12 | [parent](spec.md) | AC-2, AC-3, AC-4 all rows, AC-8 | CA | - |
 | 24 | 13b | [parent](spec.md) | AC-2, AC-3, AC-6, AC-7, AC-8, AC-9 render targets | CA | laptop: perf repeat |
 | 25 | 14 | [parent](spec.md) | AC-11, AC-12, AC-14 software half (automated rehearsal, data AC-16 reconciliation) | CA | laptop: final perf, scratch outputs |
-| 26 | E4.1 | [Trusted JSON acquisition](../playout-external-connectors/spec.md) | E4 AC-1 cloud-worker part; replay server; `endurance.yml` smoke | CA | - |
+| 26 | E4.1 | [Trusted JSON acquisition](../playout-external-connectors/spec.md) | E4 AC-1 cloud-worker part; replay server; its `endurance.yml` smoke | CA | - |
 | 27 | E4.2 | [Trusted JSON acquisition](../playout-external-connectors/spec.md) | E4 AC-1 installed-agent part, AC-2, AC-3, AC-4 | CA | - |
 | 28 | E5.1 | [Sample-based API mapping](../playout-api-mapping/spec.md) | E5 AC-2, AC-4 automated | CA | - |
 | 29 | E5.2 | [Sample-based API mapping](../playout-api-mapping/spec.md) | E5 AC-1, AC-3, AC-4 | CA | - |
@@ -79,7 +79,7 @@ opening, so it is normally on `main` well before that phase is built (data-sourc
 | 42 | E6.2 | [Declared actions through Companion](../playout-companion-actions/spec.md) | E6 AC-1 to AC-3 through the module, native and foreign | CA | kit: custom and foreign buttons |
 | 43 | E8.1a | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 software reconciliation; AC-2 cross-feature cases | CA | - |
 | 44 | E8.1b | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-2 60-minute endurance in `endurance.yml` | CA | - |
-| 45 | E8.2 | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 agent evidence complete, AC-4 runbook and capability matrix | CA | kit: E8 AC-3 tasks |
+| 45 | E8.2 | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 agent evidence complete, AC-3 kit, AC-4 runbook and capability matrix | CA | the owner runs the kit |
 | 46 | H0.2 | [Companion qualification](../playout-companion-qualification/spec.md) | H0 AC-1 owner's guide walk, AC-4; E6 AC-4; the operator's buttons on the deck | OW | - |
 | 47 | S | [parent](spec.md) | parent AC-14 real outputs; data AC-16 actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal) on the real studio; E8 AC-1's final reconciliation including H0.2's and S's receipts | OW | - |
 

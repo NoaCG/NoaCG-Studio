@@ -28,7 +28,7 @@ says why. Invariants stay binding: land only through `/queue-merge`; only the me
 | 1 | C0 operator insert RPC on the control slug without viewer caps (100 items per call), reused by C3; fence widened to the Messages label lines and `setFieldBinding(s)`; vote boards stay excluded; local inbox persistence reverses `localAudience.ts`'s decision | data-sources C0, C3; audience "Persistence" |
 | 2 | One shared evaluator `src/control/sourceMapping.ts` for typed JSON, recipes and keyed selectors, used by the browser reader, the server tick and the source route; results go through the existing apply path as strings and lists; SQL keeps legacy bindings; E1 has its own typed envelope; E4.2 migration with version gate, fixtures and rollback | E4, E5, E7, E1 |
 | 3 | E1.1 and E7.1 land the read-only gate; the writers land in a later deploy (E1.2a, E7.2a); output readers obey Chromium 71 like `payloadVersion.ts` | E1, E7 |
-| 4 | `.github/workflows/endurance.yml`, manual dispatch, 90-minute timeout, not a required check; introduced in E4.1 | E4, E8 |
+| 4 | `.github/workflows/endurance.yml`, manual dispatch, 90-minute timeout, not a required check; lands before the run opens so no phase lands a workflow file | E4, E8, parent §9.2 |
 | 5 | Foreign Companion actions move from E8.1 into E6; E6.1 follows E1.1's type model and runs after it; E6.2 after E3.2; one protocol bump, one deck requalification (H0.2) | E6, E8, extensions |
 | 6 | C1 → C1a/C1b/C1c; E1.2, E3.2, E7.2, E8.1 → a/b; counts updated | data-sources, E1, E3, E7, E8, extensions |
 | 7 | C4's shared cache: a `feed_cache` table in Supabase, one row per address, with a short claim so one instance fetches | data-sources C4 |
