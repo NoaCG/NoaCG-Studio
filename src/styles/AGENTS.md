@@ -1,6 +1,6 @@
 # src/styles - the app's stylesheet
 
-The stylesheet is 30 PARTS, one per surface, and **`styles/index.css` IS the cascade order** -
+The stylesheet is split into parts by surface, and **`styles/index.css` IS the cascade order** -
 append a new part where its rules already sat, never re-sort. Rich-but-commented CSS is the house
 style, so the reasoning for a specific rule belongs in the rule's own comment; what lives here is
 the anatomy several surfaces must agree on.

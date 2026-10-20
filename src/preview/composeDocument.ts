@@ -94,7 +94,7 @@ export interface ComposeOptions {
    */
   liveControl?: boolean;
   /**
-   * The EDITOR's own live simulator (PlayoutSimulator.tsx): play/stop/next/settle/scrub/snap,
+   * The legacy simulator channel: play/stop/next/settle/scrub/snap,
    * distinct from `liveControl`'s plain commands because these prefer the house builder contract
    * (`buildInTimeline`/`buildOutTimeline`/`revealNextStep`) when the template has one, own
    * `window.__activeTl`/`__scrubTl` for a pushed playhead (`PreviewPlayheadMessage`, read by
@@ -109,7 +109,7 @@ export interface ComposeOptions {
    */
   simulate?: boolean;
   /**
-   * The EDITOR canvas's direct-manipulation channel (CanvasInteraction.tsx): hit-testing, live
+   * The legacy canvas direct-manipulation channel: hit-testing, live
    * drag/scale/rotate previews, and inline text editing, none of which fit `liveControl`'s
    * discrete commands — see preview/canvasControlProtocol.ts for the full design (a continuous
    * rect-push stream in place of per-pointermove hit-test queries, plus a small correlated
@@ -165,7 +165,7 @@ export function composeDocument(template: SpxTemplate, options: ComposeOptions =
   const styleTag = `<style id="spx-base-style">\n${baseStyle}\n</style>\n<style id="spx-inline-css">\n${css}\n</style>`;
 
   // Authoring/pasteboard mode (editor preview only, never exported): the iframe VIEWPORT is
-  // grown to canvas + pad on every side (by PreviewFrame), so painting off-canvas content
+  // grown to canvas + pad on every side by its host, so painting off-canvas content
   // requires a viewport larger than the canvas. This style — injected AFTER the template CSS
   // so it wins the cascade — insets the canvas by `pad` and stops the body from clipping.
   // `position: relative` is the least-invasive containing block: it keeps the root and every

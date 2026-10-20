@@ -1,5 +1,5 @@
 /**
- * The postMessage protocol for CanvasInteraction.tsx — the editor canvas's direct-manipulation
+ * The legacy postMessage protocol originally used by the retired canvas's direct-manipulation
  * layer (drag/scale/rotate handles, hit-testing, inline text editing). Distinct from
  * previewProtocol.ts's `PreviewCmd` channel: this one needs a continuous RECT STREAM (for
  * hit-testing and live position tracking) and correlated request/reply QUERIES (for GSAP-
@@ -12,7 +12,7 @@
  * every placed-line wrapper) is already known on the app side. So instead of round-tripping a
  * query on every pointermove (the hover hit-test fires on literally every mouse-move over the
  * canvas), the document PUSHES a full rect map every animation frame (`CanvasRectsMessage`), and
- * CanvasInteraction keeps 100% of its hit-test/selection MATH unchanged, now reading a local
+ * The retired CanvasInteraction kept its hit-test/selection math unchanged, reading a local
  * cache instead of the DOM directly. `depth` rides along with each rect (the document already has
  * to walk `parentElement` to compute it) so the innermost-first tie-break in the hit-test
  * fallback still works without a live DOM walk.
@@ -20,7 +20,7 @@
  * ONE TRADE-OFF worth naming: the original hit-test tried `elementFromPoint` first (true paint-
  * order stacking) and fell back to rect-containment + depth/area tie-break only for templates
  * opting out of pointer hit-testing. The rect-push design can only offer the fallback algorithm
- * (a rect has no paint-order information), so CanvasInteraction now uses it universally. This
+ * (a rect has no paint-order information), so the retired CanvasInteraction used it universally. This
  * only differs from the old primary path when two rendered elements' rects overlap AND their
  * real paint order disagrees with depth/area — narrow, and the fallback was already
  * production-tested for a real class of templates.

@@ -39,9 +39,6 @@
   /* The video stage carries no intrinsic aspect height (the frame floats inside it), so give
      it an explicit height in the single-column mobile flow. */
   .workspace-mobile .video-stage { height: 44vh; min-height: 0; }
-  /* Panels flow into the page rather than scrolling inside a fixed box. */
-  .panel-body { overflow: visible; }
-  .panel-tabs { row-gap: 4px; }
 
   /* Collapsible code section. */
   .mobile-code { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
@@ -126,4 +123,3 @@
   .pk-body { padding: 12px 14px; }
   .gallery-modal { width: 100vw; max-height: 100dvh; border-radius: 0; }
 }
-

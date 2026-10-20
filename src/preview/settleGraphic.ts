@@ -4,8 +4,7 @@
  * A graphic is hidden until `play()` runs, so any surface that shows one WITHOUT a playback
  * gesture - a Home card's thumbnail, the operator panel's preview before the first take - must
  * drive it to rest itself, or it reads as an empty black frame. This is that one recipe, shared
- * so those surfaces can never drift into a second render path (the editor canvas settles the
- * same way in PlayoutSimulator).
+ * so those surfaces share one render path. The retired editor simulator used the same recipe.
  *
  * The recipe: write the data, jump the house entrance builder to the end of its FINITE
  * motion, write the data AGAIN, and jump again. The second `update()` is load-bearing - the

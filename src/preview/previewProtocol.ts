@@ -120,7 +120,7 @@ export type PreviewCmd =
    *  design-view park, `true` for renderer recovery (the output stage does). */
   | { cmd: 'snap'; assignments: Record<string, string> | null; timers?: boolean }
   /**
-   * The editor's own simulator lifecycle (PlayoutSimulator.tsx), distinct from the plain
+   * The legacy simulator lifecycle, distinct from the plain
    * 'play'/'stop'/'next' above: these prefer the house builder contract (`buildInTimeline`/
    * `buildOutTimeline`/`revealNextStep`) when the template has one, own `__activeTl`/`__scrubTl`
    * for the pushed playhead (`PreviewPlayheadMessage`), and schedule the SPX `out` auto-exit
