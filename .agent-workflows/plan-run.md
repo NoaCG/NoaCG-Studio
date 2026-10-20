@@ -55,11 +55,11 @@ Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a con
   PASS requires evidence for every authorized criterion in its specified environment, and `mergeChecks` once every exact-merge check is green or, where its plan allows, red only on specs the phase did not cause, each named with its issue (it waits for them; the first main run containing a superseded merge stands in).
   `fail product:` gets one repair; `fail blocked:` one more check. An infrastructure/capacity outage spends no budget: the step stays in flight, `wait`, `clear-wait`, resume.
 - **diagnose** (a second failure): one fresh agent, independent of every builder, repairer and checker of the phase, records `diagnose`
-  `{"actor","decision":"repair"|"check"|"stop","reason"}`: one last scoped repair, one re-check after a blocked prerequisite recovered, or stop for the owner. A failure after it stops; limits never reset.
+  `{"actor","decision":"repair"|"check"|"stop","reason"}`: one last scoped repair (after product fails), one re-check after a blocked prerequisite recovered, or stop for the owner. Any failure after it stops; counts never go down, and the owner's `answered` to a phase out of attempts grants exactly one more.
 - **wait**: reconcile the original native worker, PR, jobs and exact tested revision first. Record observed `landed`, or wait for its queue; never start another branch/phase.
   Unknown status or lost acknowledgement is unresolved, never absence. Never sit idle: wait in a running background job or monitor so a cloud machine is not reclaimed.
-  From it run `node scripts/worker-progress.mjs --branch <branch> --wave <file>` (counts only work since the launch). On `idle` (30 minutes) nudge; if still idle, stop it, record
-  `resume` with the replacement's JSON actor receipt (a checker's is independent of every builder) and launch it on the pushed branch. `unknown`: reconcile, never replace.
+  From it run `node scripts/worker-progress.mjs --branch <branch> --wave <file> --event-at <ISO time of the worker's newest assistant or tool event in list_events, never a user or system event>` (only work since the launch counts, merge-queue runs included). On `idle` (30 minutes) nudge; if still idle, stop it, record
+  `resume` with the replacement's JSON actor receipt (a checker's is independent of every builder) and launch it on the pushed branch. `queued` (a run waiting over an hour for a runner) is an infrastructure wait, told to the owner after two hours; `unknown`: reconcile; neither replaces.
 - **retro**: write the requested `## Midpoint retro` (orchestrator step 6, five lines), then ask `next` again.
 - **stop/stopped**: record the reserved decision and ask the owner as verify.md requires. Record `answered` only from the answer; cancellation cannot be answered away.
 - **pause/block**: `run-supervisor.mjs pause <db> <id> <reason>` or `wait <db> <id> <wait.json>` stops launches immediately, between phases or in flight.
@@ -76,14 +76,14 @@ Before relevant manual Actions dispatches follow verification lookup's observati
 **Builder brief** (after orchestrator step 3's row brief):
 ```text
 PHASE    <n> of <plan>: <name>. Read its decisions; build only its authorized acceptance.
-NOTES    Same PR, under ## Phase notes: previous findings, constraints, decisions and traps.
+NOTES    Same PR, under ## Phase notes or in the file it names: previous findings, constraints, decisions and traps.
 FINDINGS <carry from next, or none>. Checkpoint on pause/block/deadline; never broaden scope.
 ```
 **Checker brief**:
 ```text
 CHECK   Phase <n> of <plan>. You did not build it. On the landed merge SHA do the user's task
         and check EVERY criterion/outcome in its required environment. Change no product code.
-        PASS needs your own evidence for all criteria and every exact-merge check green. Else FAIL product or blocked,
-        named. Preserve findings and exact tested revisions; do not weaken tests or retry limits.
+        PASS needs your own evidence for all criteria and every exact-merge check green, or red only where the plan allows. Infrastructure down is no FAIL:
+        report it unavailable (a wait). Else FAIL product or blocked (a prerequisite), named; keep findings and exact tested revisions, weaken no test or retry limit.
 NOTES   <land the required plan notes through /check and /queue-merge | open no PR>.
 ```

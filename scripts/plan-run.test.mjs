@@ -95,7 +95,7 @@ test('a product failure gets one repair; a second failure is diagnosed, and a fa
   assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'repair'), /next event is diagnose/);
   assert.match(refuseStep(readFileSync(file, 'utf8'), 2, 'build'), /phase 1 has not passed/);
   assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'diagnose', 'the decider looked'), /decision/);
-  assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'diagnose', 'check: infrastructure'), /repair or stop/);
+  assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'diagnose', 'check: the prerequisite is back'), /repair or stop/);
   record(file, 1, 'diagnose', 'repair: the z-index fight, scope it to the overlay layer');
   assert.deepEqual(next(file), { action: 'launch', phase: 1, step: 'repair', carry: 'product: still hidden (diagnosis: the z-index fight, scope it to the overlay layer)' });
   // The diagnosed repair is the last one: one diagnosis per phase, and a further failure is a real stop.
@@ -120,6 +120,7 @@ test('a diagnosis is a launch: never after the window, never out of turn', () =>
   record(file, 1, 'fail', 'product: one');
   for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
   record(file, 1, 'fail', 'product: two');
+  assert.equal(next(file, 400).closingMinutes, 20, 'the deciding agent is told the window is closing');
   assert.equal(next(file, 420).action, 'time-limit');
   assert.match(recordStep(file, 1, 'diagnose', 'repair: late', at(420)).refusal, /refuses diagnosis: time-limit/);
   record(file, 1, 'paused', 'block ended');
@@ -145,27 +146,75 @@ test('a product failure repairs, a blocked check runs again without a repair, an
   assert.deepEqual(next(file), { action: 'launch', phase: 1, step: 'repair', carry: 'product: the label clips' });
   for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
   // Blocked is not the phase's fault: the check runs again, lands its notes, and no repair is spent.
-  record(file, 1, 'fail', 'Blocked: the CI runner was offline');
+  record(file, 1, 'fail', 'Blocked: the Q Sheet record is not on main yet');
   assert.deepEqual(next(file), { action: 'launch', phase: 1, step: 'check', notes: 'second check' });
   assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'repair'), /next event is check/);
   record(file, 1, 'check');
-  record(file, 1, 'fail', 'blocked: still offline');
+  record(file, 1, 'fail', 'blocked: still no Q record');
   assert.equal(next(file).action, 'diagnose');
   assert.match(next(file).why, /blocked twice/);
   assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'diagnose', 'repair: rebuild'), /check or stop/);
-  // The deciding agent saw the runner recover: one more check, no repair spent.
-  record(file, 1, 'diagnose', 'check: the runner is back online');
+  // The deciding agent saw the prerequisite recover: one more check, no repair spent.
+  record(file, 1, 'diagnose', 'check: the Q record landed');
   assert.deepEqual(next(file), { action: 'launch', phase: 1, step: 'check', notes: 'second check' });
   record(file, 1, 'check');
-  record(file, 1, 'fail', 'blocked: offline again');
+  record(file, 1, 'fail', 'blocked: the Q record was reverted');
   assert.deepEqual(next(file), { action: 'stop', phase: 1, why: 'its check was blocked again after the diagnosis' });
   // The owner's answer buys one more check, as it buys one more repair after product failures.
-  record(file, 1, 'stop', 'asked the owner about the runner');
-  record(file, 1, 'answered', 'runner is back');
+  record(file, 1, 'stop', 'asked the owner about the Q record');
+  record(file, 1, 'answered', 'record is back');
   assert.deepEqual(next(file), { action: 'launch', phase: 1, step: 'check', notes: 'second check' });
   record(file, 1, 'check');
   record(file, 1, 'pass', 'ok');
   assert.deepEqual(next(file), { action: 'launch', phase: 2, step: 'build', carry: 'ok' });
+});
+
+test('after the diagnosed repair, a blocked check stops the run too: counts never go down', () => {
+  const file = run();
+  checked(file, 1);
+  record(file, 1, 'fail', 'product: one');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'product: two');
+  record(file, 1, 'diagnose', 'repair: scope it to the overlay');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'blocked: the Q record went missing');
+  assert.deepEqual(next(file), { action: 'stop', phase: 1, why: 'its check was blocked again after the diagnosis' });
+  assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'check'), /next event is stop/);
+});
+
+test('the owner\'s answer grants one attempt only to a phase that had used them all', () => {
+  const file = run();
+  checked(file, 1);
+  record(file, 1, 'fail', 'product: one');
+  // A stop for a decision the owner reserves, while a repair was still allowed: his answer adds none.
+  record(file, 1, 'stop', 'the owner decides the wording');
+  record(file, 1, 'answered', 'use the short wording');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'product: two');
+  assert.equal(next(file).action, 'diagnose');
+  record(file, 1, 'diagnose', 'stop: the design must change');
+  record(file, 1, 'answered', 'change it this way');
+  assert.equal(next(file).step, 'repair');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'blocked: the Q record went missing');
+  assert.deepEqual(next(file), { action: 'stop', phase: 1, why: 'its check was blocked again after the owner\'s answer' });
+});
+
+test('an owner\'s answer before any diagnosis is the one extra attempt: the next failure stops', () => {
+  const file = run();
+  checked(file, 1);
+  record(file, 1, 'fail', 'product: one');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'product: two');
+  assert.equal(next(file).action, 'diagnose');
+  // The coordinator stops for a decision the owner reserves instead, and he answers.
+  record(file, 1, 'stop', 'the owner decides the scope');
+  record(file, 1, 'answered', 'narrow it');
+  assert.equal(next(file).step, 'repair');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'product: three');
+  assert.deepEqual(next(file), { action: 'stop', phase: 1, why: 'its check failed again after the owner\'s answer' });
+  assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'diagnose', 'repair: again'), /next event is stop/);
 });
 
 test('a fail without a kind is refused', () => {

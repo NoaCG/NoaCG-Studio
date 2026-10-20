@@ -17,12 +17,14 @@
 //
 // Events, per phase and in order: build -> landed -> check -> pass. A `fail` names its kind in its
 // detail: `fail product:` (the phase misses its outcome) gets one repair -> landed -> check;
-// `fail blocked:` (a prerequisite or the infrastructure failed) runs the check again without a
-// repair. A second product or blocked fail is diagnosed (owner decision 2026-10-20): one fresh
-// deciding agent, independent of everyone who built, repaired or checked the phase, records
-// `diagnose` with exactly one decision, `repair:` (one last scoped repair), `check:` (one more
-// check after a blocked prerequisite recovered) or `stop:` (the owner decides); a failure after a
-// diagnosed repair or check stops the run. One diagnosis per phase; no limit resets. The pass or fail
+// `fail blocked:` (a prerequisite failed) runs the check again without a repair. Infrastructure
+// that is down is no fail at all: the step stays in flight under a wait. A second product or
+// blocked fail is diagnosed (owner decision 2026-10-20): one fresh deciding agent, independent of
+// everyone who built, repaired or checked the phase, records `diagnose` with exactly one decision,
+// `repair:` (one last scoped repair, after product fails), `check:` (one more check after a blocked
+// prerequisite recovered) or `stop:` (the owner decides). The diagnosis allows one more attempt,
+// and any failure after it, product or blocked, stops the run. One diagnosis per phase; counts
+// never go down. The pass or fail
 // detail is the checker's findings: `next` carries them to the next build or repair, and tells the
 // last phase's check, or a check after a fail, to land the notes. `resume` notes that an interrupted
 // step's session was started again in its own worktree (in a project, the replacement worker's actor
@@ -30,7 +32,8 @@
 // checkpointed at the block's end. Pause stops admission until an explicit reconciled resume;
 // neither counts as another phase launch. `stop` may also
 // end any step that met a decision the owner reserves, and `answered` (his answer) lets the stopped
-// step go on, with one more repair or check if it stopped on failed checks. Once the middle phase of
+// step go on; if it had used every attempt, his answer allows exactly one more, and a failure
+// after that stops it again. Once the middle phase of
 // a plan of four or more has passed, `next` asks once for the `## Midpoint retro` before it goes on.
 
 import { appendFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -104,8 +107,12 @@ function phaseState(steps) {
   let before = null;
   let waiting = null;
   let diagnosis = null;
-  // A diagnosed repair or check is one more than the limit allows, once.
-  const limit = (decision) => REPAIRS + (diagnosis?.decision === decision ? 1 : 0);
+  // The one more attempt a diagnosis or the owner's answer allows. Counts never go down: once an
+  // attempt is granted, any failure after it, product or blocked, uses it up.
+  let grantedBy = null;
+  let failedSinceGrant = false;
+  const spentUp = () => (grantedBy ? failedSinceGrant : fails > REPAIRS || blocked > REPAIRS);
+  const grant = (by) => { grantedBy = by; failedSinceGrant = false; };
   for (const step of steps) {
     if (step.event === 'paused') continue;
     if (step.event === 'resume') {
@@ -118,13 +125,13 @@ function phaseState(steps) {
       if (step.event === 'stop' || diagnosis.decision === 'stop') {
         before = state;
         state = 'stopped';
-      }
+      } else grant('diagnosis');
       continue;
     }
     if (step.event === 'answered') {
       state = before ?? 'new';
-      if (state === 'failed') fails = Math.min(fails, limit('repair'));
-      if (state === 'built') blocked = Math.min(blocked, limit('check'));
+      // Nothing is recorded between a stop and its answer, so the attempts are as the stop found them.
+      if (spentUp()) grant('owner');
       continue;
     }
     if (step.event === 'build' || step.event === 'repair' || step.event === 'check') waiting = step;
@@ -134,21 +141,22 @@ function phaseState(steps) {
       state = 'built';
       blocked += 1;
     } else if (step.event === 'fail') fails += 1;
+    if (step.event === 'fail' && grantedBy) failedSinceGrant = true;
     if (step.event === 'landed' || step.event === 'pass' || step.event === 'fail') waiting = null;
   }
-  // Past its limit, a phase is diagnosed once; after the diagnosis it stops.
-  const spent = diagnosis ? [] : ['diagnose'];
+  // Past its limit, a phase is diagnosed once; after a diagnosis or any granted attempt it stops.
+  const spent = diagnosis || grantedBy ? [] : ['diagnose'];
   const expect = {
     new: ['build'],
     building: ['landed'],
     repairing: ['landed'],
-    built: blocked > limit('check') ? spent : ['check'],
+    built: spentUp() ? spent : ['check'],
     checking: ['pass', 'fail'],
-    failed: fails > limit('repair') ? spent : ['repair'],
+    failed: spentUp() ? spent : ['repair'],
     stopped: ['answered'],
     passed: [],
   }[state];
-  return { state, fails, blocked, expect, waiting, diagnosis };
+  return { state, fails, blocked, expect, waiting, diagnosis, grantedBy };
 }
 
 /** The detail of the last `event` line recorded for `phase`, or undefined when there is none or it is empty. */
@@ -172,7 +180,7 @@ function windowEnd(text) {
  *   { action: 'stop', phase, why }     a failure after the diagnosed repair or check: record `stop`, ask the owner, report
  *   { action: 'stopped', phase, why }  stopped and waiting for the owner's answer
  *   { action: 'done' | 'time-limit' | 'no-phases', why }
- * In the window's last 45 minutes a launch, wait or retro also carries `closingMinutes`, the whole minutes left.
+ * In the window's last 45 minutes a launch, wait, retro or diagnose also carries `closingMinutes`, the whole minutes left.
  */
 export function nextStep(text, now = Date.now()) {
   let project;
@@ -185,7 +193,7 @@ export function nextStep(text, now = Date.now()) {
   if (control?.event === 'paused') return { action: 'paused', phase: control.phase, why: control.detail || 'explicit resume and reconciliation required' };
   const next = stepFor(text, now);
   const left = (project?.block ? Date.parse(project.block.deadline) : windowEnd(text)) - now;
-  const closing = ['launch', 'wait', 'retro'].includes(next.action) && left > 0 && left <= CLOSING_MS;
+  const closing = ['launch', 'wait', 'retro', 'diagnose'].includes(next.action) && left > 0 && left <= CLOSING_MS;
   return closing ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
 }
 
@@ -197,11 +205,14 @@ function stepFor(text, now) {
   const steps = readSteps(text);
   for (let phase = 1; phase <= phases.length; phase += 1) {
     const own = steps.filter((step) => step.phase === phase);
-    const { state, expect, waiting, diagnosis } = phaseState(own);
+    const { state, expect, waiting, diagnosis, grantedBy } = phaseState(own);
     if (state === 'passed') continue;
     if (state === 'stopped') return { action: 'stopped', phase, why: 'stopped; the owner\'s answer is recorded as `answered`' };
     if (expect.length === 0) {
-      return { action: 'stop', phase, why: state === 'built' ? 'its check was blocked again after the diagnosis' : 'its check failed again after the diagnosed repair' };
+      const why = grantedBy === 'owner' ? `its check ${state === 'built' ? 'was blocked' : 'failed'} again after the owner's answer`
+        : state === 'built' ? 'its check was blocked again after the diagnosis'
+          : diagnosis?.decision === 'check' ? 'its check failed after the diagnosed check' : 'its check failed again after the diagnosed repair';
+      return { action: 'stop', phase, why };
     }
     if (expect.includes('landed') || expect.includes('pass')) {
       return { action: 'wait', phase, step: waiting?.event ?? expect[0], launched: waiting?.detail ?? '' };
