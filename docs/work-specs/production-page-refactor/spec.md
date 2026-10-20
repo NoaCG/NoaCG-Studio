@@ -620,13 +620,18 @@ the first rehearsal.
   progress check; [runner check](evidence/owner-decisions-2026-10-20.md#runner-check)) and must be
   on `main` before the run opens, with its one live test (start a coordinator, end it, continue in
   a new session, confirm the ledger carries on) recorded under
-  `docs/work-specs/continuing-plan-preparation/` (landed: #1535, #1539). A second runner PR,
-  from the 2026-10-20 second opinions, must also be on `main` before opening: a fenced handoff
-  so a replacement worker can finish its step under its own identity; a progress check that counts
-  only activity since the step's launch and treats a running Actions job as active; consistent
-  ledger, database and checkpoint state when a publication fails; decision 17's diagnosis step;
-  checking from the observed merge with PASS waiting for every exact-merge check; and a qualified
-  watchdog that starts a new coordinator with the same line when the heartbeat goes stale.
+  `docs/work-specs/continuing-plan-preparation/` (landed: #1535, #1539). The second runner PR,
+  from the 2026-10-20 second opinions, landed (#1543): a fenced handoff so a replacement worker
+  can finish its step under its own identity; a progress check that counts only activity since
+  the step's launch and treats a running Actions job as active; consistent ledger, database and
+  checkpoint state when a publication fails; decision 17's diagnosis step; and checking from the
+  observed merge with PASS waiting for every exact-merge check. Recovery checkpoints now live on
+  the branch `claude/noacg-recovery/<id>`, which a cloud session can push (landed: #1545; receipt
+  `docs/work-specs/continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`). No
+  watchdog is built: a routine-started session has no `send_message` or `list_events`, so a
+  coordinator it started could not message its workers or read their transcripts. A stopped
+  coordinator is continued by typing the same `/plan-run` line (§10 step 6); the laptop helper
+  (§9.1 step 4) reports a stale heartbeat, and a missing morning summary shows the same.
   `run-supervisor.mjs record` takes the row number (1-47) of the `extensions.md` table; the
   midpoint retro after row 23 is the procedure's ordinary retro step.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
@@ -678,9 +683,10 @@ every 30 minutes.
 step 4 prompt whenever the laptop is on, runs beside the cloud coordinator. It never starts,
 pauses, continues or changes the run. The repository is the shared channel:
 
-1. It reads the run's ledger from the recovery ref (`git ls-remote origin
-   'refs/noacg-recovery/*'` lists it) and lists the landed phases whose `extensions.md` row
-   has a laptop entry (speed checks with `scripts/playout-lag-bench.mjs` as §7 describes).
+1. It reads the run's ledger from the recovery branch (`git ls-remote origin
+   'refs/heads/claude/noacg-recovery/*'` lists it; the run's is `plan-production-page-<date>`)
+   and lists the landed phases whose `extensions.md` row has a laptop entry (speed checks with
+   `scripts/playout-lag-bench.mjs` as §7 describes).
 2. For each merge SHA that still has no receipt under `evidence/local/` (bench output under
    `evidence/perf/`), it checks that SHA out in its own worktree, runs the check and writes the
    receipt. It lands that pass's receipts as one evidence-only change through `/check` and
@@ -719,7 +725,9 @@ the final owner block, which waits for him.
 | Item | Environment | Who | Needed by | Status | If missing |
 | --- | --- | --- | --- | --- | --- |
 | Runner change (free continuation, progress check) and its live test | `main` | agents, separate PR | run opening | landed (#1535, #1539; receipt `continuing-plan-preparation/live-continuation-2026-10-20.md`) | - |
-| Second runner PR (handoff, progress since launch, consistent publication, diagnosis step, check from the merge, watchdog) | `main` | agents, separate PR | run opening | in progress (`claude/plan-run-review-fixes`) | the run does not open: preflight item |
+| Second runner PR (handoff, progress since launch, consistent publication, diagnosis step, check from the merge) | `main` | agents, separate PR | run opening | landed (#1543) | - |
+| Recovery checkpoints on a branch a cloud session can push (`claude/noacg-recovery/<id>`) | `main` | agents, separate PR | run opening | landed (#1545; receipt `continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`) | - |
+| Restart watchdog | - | - | - | not built: a routine-started session has no `send_message` or `list_events` | a stopped coordinator is continued by typing the same `/plan-run` line; the laptop helper reports a stale heartbeat, and a missing morning summary shows the same |
 | Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch); Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); preflight checks that it is set | the tick stays off; the follow-ups join the owner list with exact steps |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Claude cloud environment, the local env file, Vercel | owner | Q Sheet records (gate C1b), C1c, C2 | ready: the service account signs in | Q times reads on the public CSV export and records edit latency as unmeasured; C1b states the measured read figure; the timed edit run joins the owner list |
 | `NOACG_TEST_SHEET_IDS`: six owner-owned Sheets, comma-separated | same | owner | same | ready: the service account reads and writes each; each public CSV export works | as above |
@@ -728,7 +736,7 @@ the final owner block, which waits for him.
 | `CRON_SECRET` (existing; do not create or rotate) | Vercel Production | owner | C2 tick | ready | the tick stays off; closed-page continuity is reported unavailable |
 | Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
 | Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
-| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files; this laptop's `gh` token lacks the `workflow` scope (2026-10-20), so the owner either runs `gh auth refresh -s workflow` once or lets a cloud session land it | E4.1, E8.1b | not yet landed | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
+| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files | E4.1, E8.1b | landed (#1536) | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
 | Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts: the laptop entries in `extensions.md` | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
 | Physical Stream Deck with Companion | owner's laptop | owner | H0.2 | owner's deck | waits (final owner block) |
 | The real studio: the owner's CasparCG/NoaCG Bridge setup and an OBS/browser source | studio | owner | S | owner's setup | waits (final owner block) |
@@ -758,7 +766,7 @@ the final owner block, which waits for him.
 
    The coordinator reads this spec on `origin/main`, runs the §9 preflight, prepares the project
    record with the exact 47-phase sequence in `extensions.md` (gating ACs, one environment each),
-   opens it with its recovery ref, opens the tracking issue, starts the Q worker (data-sources Q),
+   opens it with its recovery branch, opens the tracking issue, starts the Q worker (data-sources Q),
    sends the laptop-helper item (step 4) and starts a bounded block. These are execution actions,
    not performed by this planning edit. No per-phase start and no routine approval is needed; the
    coordinator stops only on `stop` (§8) and in the final owner block.
@@ -782,10 +790,9 @@ the final owner block, which waits for him.
    /plan-run production-page until <the original deadline>
    ```
 
-   It restores the project from its recovery ref, takes over and carries on from the first
+   It restores the project from its recovery branch, takes over and carries on from the first
    unfinished step; a worker in flight is reconciled, not relaunched. An older coordinator that is
-   still alive is refused at its next step and stops by itself. The watchdog from the second
-   runner PR does the same by itself when the heartbeat goes stale; do it by hand also when the morning
+   still alive is refused at its next step and stops by itself. Do this also when the morning
    summary does not arrive or the helper reports a stale heartbeat.
 7. Block end: the coordinator opens the next block itself; the worker in flight keeps going.
    Reconcile workers, PRs, exact tested revisions and pending external intents before every
