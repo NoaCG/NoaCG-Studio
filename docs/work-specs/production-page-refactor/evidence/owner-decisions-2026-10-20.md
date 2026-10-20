@@ -65,8 +65,8 @@ the plan, but the risks behind them were.
 | R7 | Chromium 71: outputs are protected by Vite's `es2017` target, not source syntax | extensions, E1, E7 |
 | R8 | A narrowed AC in the gating column is the phase's gate; E6.1/E6.2 and E2 AC-4 wording aligned; E1 owns the typed foreign target adapter | extensions, E6, E2, E1 |
 | R9 | Bounded local selections, broad runs in Actions, one configured run per revision; the 2+7 builder pushes a mid-phase checkpoint | parent §6, "Phases" |
-| R10 | The coordinator builds a Q-gated phase only once its record is on main; open quarantine PRs are agent cleanup before opening; the helper reads `refs/noacg-recovery/*` | extensions, parent §9 |
-| R11 | Second runner PR: worker handoff identity, progress since launch, consistent publication, the diagnosis step, checking from the merge, a restart watchdog | parent §9, §9.2 |
+| R10 | The coordinator builds a Q-gated phase only once its record is on main; open quarantine PRs are agent cleanup before opening; the helper lists the recovery branch with `git ls-remote origin 'refs/heads/claude/noacg-recovery/*'` (checkpoints moved there in #1545, because a cloud session cannot push `refs/noacg-recovery/*`) | extensions, parent §9 |
+| R11 | Second runner PR, landed (#1543): worker handoff identity, progress since launch, consistent publication, the diagnosis step, checking from the merge. The restart watchdog is not built: a routine-started session has no `send_message` or `list_events` (#1545's receipt), so a stopped coordinator is continued by typing the same `/plan-run` line, and the laptop helper reports a stale heartbeat, as does a missing morning summary | parent §9, §9.2, §10 step 6 |
 
 Not taken: recombining the a/b splits (the owner asked for builder-sized phases) and a function
 budget note (already stated).
