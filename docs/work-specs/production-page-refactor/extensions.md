@@ -31,7 +31,9 @@ qualified Claude cloud worker plus GitHub Actions. The final owner block (rows 4
 that waits for the owner. "Laptop" entries are non-gating checks the laptop helper runs on that
 phase's merge SHA (parent §9.1); "kit" entries are trial kits on the owner list (D). A "Q"
 record in the gating column is an acceptance item of that phase; the Q worker starts at the
-opening, so it is normally on `main` well before that phase is built (data-sources Q).
+opening, and the coordinator launches that phase's build only once the record is on `main`
+(data-sources Q). Where the gating column narrows an AC (a half, a part, "kit"), that narrowing
+is the phase's gate; the child's full AC text is the eventual whole, met across its phases.
 
 | # | Phase | Authority | Gating acceptance | Env | Non-gating |
 | --- | --- | --- | --- | --- | --- |
@@ -41,7 +43,7 @@ opening, so it is normally on `main` well before that phase is built (data-sourc
 | 4 | 2+7 | [parent](spec.md) | AC-3, AC-6, AC-8; phase 2 and 7 matrix rows in full | CA | - |
 | 5 | 13a | [parent](spec.md) | AC-2, AC-8; phase 3 row plus `production-data`, `playout-air-contract` | CA | - |
 | 6 | C1a | [data-sources](../data-sources/spec.md) | data AC-2 adapter half, AC-4, AC-12 fixture test, AC-13 starter/scalar half; C1a matrix row | CA | - |
-| 7 | C1b | [data-sources](../data-sources/spec.md) | Q `sheet-latency` and `sheet-endurance`; data AC-1, AC-2 Sheet half, AC-3, AC-8, AC-10 inbox half, AC-11, AC-12 connection half, AC-13 mapping half; sheet AC-1 stub, AC-2, AC-5, AC-6, AC-7, AC-8; C1b row | CA | - |
+| 7 | C1b | [data-sources](../data-sources/spec.md) | Q `sheet-latency` and `sheet-endurance`; data AC-1, AC-2 Sheet half, AC-3 local half, AC-8, AC-10 inbox half, AC-11, AC-12 connection half, AC-13 mapping half; sheet AC-1 stub, AC-2, AC-5 browser-lease half, AC-6, AC-7 local half, AC-8; C1b row | CA | - |
 | 8 | C1c | [data-sources](../data-sources/spec.md) | data AC-9, AC-13 real-Sheet half; sheet AC-1 real Sheet, AC-3 local program, AC-9; C1c row | CA | - |
 | 9 | C2 | [data-sources](../data-sources/spec.md) | Q `tick-cost-estimate`; data AC-3 published, AC-11, AC-12; sheet AC-3 published, AC-4 to AC-7; tick checks (C2) | CA | - |
 | 10 | C3 | [data-sources](../data-sources/spec.md) | Q `youtube` (comments half at least); data AC-10, AC-15; sheet AC-11; audience AC-4, AC-8, AC-9 | CA | - |
@@ -110,7 +112,9 @@ never authorizes substituting simulated evidence there.
   meet a format they do not support refuse it read-only and preserve it (precedent
   `readShowProfile` in `src/model/profile.ts`, enforced at both write doors in
   `src/model/shows.ts`). The writer lands in a later phase and deploy (E1.2a, E7.2a). Output
-  readers obey the CasparCG 2.3 Chromium 71 rule of `src/control/payloadVersion.ts`.
+  reader code reaches outputs through Vite's `es2017` build target (`vite.config.ts`), which CasparCG 2.3's
+  Chromium 71 can parse, with runtime APIs shimmed in `output.html`; its test checks the built
+  output bundle, and a reader module shared with Node uses no DOM.
 - **Native and foreign controls:** H0 keeps the existing transport and selection verbs; E6 owns
   every new graphic action, native and foreign, through the shared dispatcher, so the module's
   protocol is bumped once and the deck requalified once (H0.2). E6.1 runs after E1.1 and types its argument descriptors with E1's model; E6.2 runs after
@@ -142,6 +146,13 @@ Production behavior belongs in `src/control/` and pure models; components expose
 and presentation. E4 and E6 may extend their existing backend validation boundary, with additive
 migrations under the repository's rules. All extension changes are product changes with their
 own regressions, separate from baseline extraction commits.
+
+Every migration follows the repository's live-safe rules (`docs/work-specs/live-safe-migrations/`,
+`scripts/db-push.mjs`): lock and statement timeouts, a `-- live-path:` header when it touches
+`control_*`, and a `supabase/advisor-baseline.json` entry for any advisor finding it deliberately
+accepts. If post-landing reports a live-path migration HELD because an output was seen in the last
+minutes, the coordinator waits and re-runs post-landing before the next migration lands. Q and the
+laptop helper never drive hosted outputs.
 
 Before a contract-changing phase lands: record old/new wire and persisted examples, version and
 unsupported-client behavior, caller inventory, publication/restore path, compatibility tests and

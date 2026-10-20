@@ -58,8 +58,8 @@ Selected, staged, preview, pending and last-confirmed state are distinguishable 
 including on narrow panels. Unknown foreign legality does not appear as native confirmed legality.
 
 ### AC-4: Native controls and profile recovery remain intact
-Sports score, quiz reveal and independent clock still use their declared behavior; E6 buttons
-remain compatible. Full generated form stays reachable. Order/groups/pinning change presentation
+Sports score, quiz reveal and independent clock still use their declared behavior; E6.1's
+dispatcher and descriptors remain compatible (E6.2's module follows after E3.2). Full generated form stays reachable. Order/groups/pinning change presentation
 only and do not add behavior or new state ownership.
 
 ## Phases and verification
