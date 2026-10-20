@@ -38,6 +38,13 @@ changes a spec's digest.
   first write, which from a stale Messages tab erased the binding). `adoptWrite` no longer
   overwrites a write this tab queued while its read was out. Other writes keep the ordinary path:
   the general whole-record hazard stays as `durableStore.ts` describes it.
+- **Review findings on #1558.** A team production keeps the ordinary save, and a refused
+  team save is merged per field, so one member's prepared cue and another's binding on its field
+  both survived: `mergeTeamShow` now drops such a binding and reports "the field bindings" as
+  lost (two tests in `scripts/team-show-merge.test.mjs`, red before, green after). In the
+  localStorage fallback a rebased write that hits the quota is now reported like any refused
+  write instead of throwing out of the mutator. `src/model/teamShowMerge.ts` is the other file
+  outside the row's list.
 - **Reproduction.** Two tests in `production-audience.spec.ts` give one tab a durable-writes
   channel that hears nothing and read back from a fresh tab: a stale tab binding a prepared
   field, and a stale Messages tab preparing onto a bound field. Both failed before the fix (the
