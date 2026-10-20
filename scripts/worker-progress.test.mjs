@@ -101,7 +101,12 @@ test('the session\'s newest event and the pull request\'s merge-queue run are ac
   assert.deepEqual(session.map((s) => s.source), ['commit', 'session']);
   assert.equal(progress(session, NOW, 30, minutesAgo(55)).state, 'progressing');
   assert.equal(main(['--event-at', minutesAgo(5), '--since', minutesAgo(55)], { now: NOW, run: fake({}), print() {} }), 0);
-  assert.equal(main(['--branch', 'feature', '--event-at', 'soon'], { now: NOW, run: fake(branchAt(50)), print() {} }), 2);
+  for (const bad of ['soon', '2030-01-01T11:55:00']) {
+    assert.equal(main(['--branch', 'feature', '--event-at', bad], { now: NOW, run: fake(branchAt(50)), print() {} }), 2, `${bad} has no offset`);
+  }
+  // An event ahead of the clock counts as now, not as future activity.
+  const ahead = progress(observe({ eventAt: new Date(NOW + 3_600_000).toISOString() }, fake({})), NOW);
+  assert.equal(ahead.lastActivity, minutesAgo(0));
   // Its pull request #42 waits in the merge queue: the queue's run is running, another PR's is not this worker's.
   const queue = JSON.stringify([
     { headBranch: 'gh-readonly-queue/main/pr-42-abc', status: 'in_progress', createdAt: minutesAgo(10), updatedAt: minutesAgo(10) },

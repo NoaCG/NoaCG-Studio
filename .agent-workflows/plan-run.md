@@ -58,8 +58,8 @@ Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a con
   `{"actor","decision":"repair"|"check"|"stop","reason"}`: one last scoped repair (after product fails), one re-check after a blocked prerequisite recovered, or stop for the owner. Any failure after it stops; counts never go down, and the owner's `answered` to a phase out of attempts grants exactly one more.
 - **wait**: reconcile the original native worker, PR, jobs and exact tested revision first. Record observed `landed`, or wait for its queue; never start another branch/phase.
   Unknown status or lost acknowledgement is unresolved, never absence. Never sit idle: wait in a running background job or monitor so a cloud machine is not reclaimed.
-  From it run `node scripts/worker-progress.mjs --branch <branch> --wave <file> --event-at <newest list_events time of the worker>` (only work since the launch counts, merge-queue runs included). On `idle` (30 minutes) nudge; if still idle, stop it, record
-  `resume` with the replacement's JSON actor receipt (a checker's is independent of every builder) and launch it on the pushed branch. `queued` (a run waiting over an hour for a runner) is an infrastructure wait; `unknown`: reconcile; neither replaces.
+  From it run `node scripts/worker-progress.mjs --branch <branch> --wave <file> --event-at <ISO time of the worker's newest assistant or tool event in list_events, never a user or system event>` (only work since the launch counts, merge-queue runs included). On `idle` (30 minutes) nudge; if still idle, stop it, record
+  `resume` with the replacement's JSON actor receipt (a checker's is independent of every builder) and launch it on the pushed branch. `queued` (a run waiting over an hour for a runner) is an infrastructure wait, told to the owner after two hours; `unknown`: reconcile; neither replaces.
 - **retro**: write the requested `## Midpoint retro` (orchestrator step 6, five lines), then ask `next` again.
 - **stop/stopped**: record the reserved decision and ask the owner as verify.md requires. Record `answered` only from the answer; cancellation cannot be answered away.
 - **pause/block**: `run-supervisor.mjs pause <db> <id> <reason>` or `wait <db> <id> <wait.json>` stops launches immediately, between phases or in flight.
@@ -76,7 +76,7 @@ Before relevant manual Actions dispatches follow verification lookup's observati
 **Builder brief** (after orchestrator step 3's row brief):
 ```text
 PHASE    <n> of <plan>: <name>. Read its decisions; build only its authorized acceptance.
-NOTES    Same PR, in the plan's phase-notes file (its ## Phase notes names it): findings, constraints, decisions, traps.
+NOTES    Same PR, under ## Phase notes or in the file it names: previous findings, constraints, decisions and traps.
 FINDINGS <carry from next, or none>. Checkpoint on pause/block/deadline; never broaden scope.
 ```
 **Checker brief**:

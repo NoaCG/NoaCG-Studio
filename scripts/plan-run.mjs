@@ -111,7 +111,6 @@ function phaseState(steps) {
   // attempt is granted, any failure after it, product or blocked, uses it up.
   let grantedBy = null;
   let failedSinceGrant = false;
-  let spentAtStop = false;
   const spentUp = () => (grantedBy ? failedSinceGrant : fails > REPAIRS || blocked > REPAIRS);
   const grant = (by) => { grantedBy = by; failedSinceGrant = false; };
   for (const step of steps) {
@@ -124,7 +123,6 @@ function phaseState(steps) {
     if (step.event === 'diagnose') diagnosis = diagnosisOf(step.detail) ?? { decision: 'stop', reason: step.detail };
     if (step.event === 'stop' || step.event === 'diagnose') {
       if (step.event === 'stop' || diagnosis.decision === 'stop') {
-        spentAtStop = spentUp();
         before = state;
         state = 'stopped';
       } else grant('diagnosis');
@@ -132,7 +130,8 @@ function phaseState(steps) {
     }
     if (step.event === 'answered') {
       state = before ?? 'new';
-      if (spentAtStop) grant('owner');
+      // Nothing is recorded between a stop and its answer, so the attempts are as the stop found them.
+      if (spentUp()) grant('owner');
       continue;
     }
     if (step.event === 'build' || step.event === 'repair' || step.event === 'check') waiting = step;
@@ -145,8 +144,8 @@ function phaseState(steps) {
     if (step.event === 'fail' && grantedBy) failedSinceGrant = true;
     if (step.event === 'landed' || step.event === 'pass' || step.event === 'fail') waiting = null;
   }
-  // Past its limit, a phase is diagnosed once; after the diagnosis it stops.
-  const spent = diagnosis ? [] : ['diagnose'];
+  // Past its limit, a phase is diagnosed once; after a diagnosis or any granted attempt it stops.
+  const spent = diagnosis || grantedBy ? [] : ['diagnose'];
   const expect = {
     new: ['build'],
     building: ['landed'],
@@ -181,7 +180,7 @@ function windowEnd(text) {
  *   { action: 'stop', phase, why }     a failure after the diagnosed repair or check: record `stop`, ask the owner, report
  *   { action: 'stopped', phase, why }  stopped and waiting for the owner's answer
  *   { action: 'done' | 'time-limit' | 'no-phases', why }
- * In the window's last 45 minutes a launch, wait or retro also carries `closingMinutes`, the whole minutes left.
+ * In the window's last 45 minutes a launch, wait, retro or diagnose also carries `closingMinutes`, the whole minutes left.
  */
 export function nextStep(text, now = Date.now()) {
   let project;
@@ -194,7 +193,7 @@ export function nextStep(text, now = Date.now()) {
   if (control?.event === 'paused') return { action: 'paused', phase: control.phase, why: control.detail || 'explicit resume and reconciliation required' };
   const next = stepFor(text, now);
   const left = (project?.block ? Date.parse(project.block.deadline) : windowEnd(text)) - now;
-  const closing = ['launch', 'wait', 'retro'].includes(next.action) && left > 0 && left <= CLOSING_MS;
+  const closing = ['launch', 'wait', 'retro', 'diagnose'].includes(next.action) && left > 0 && left <= CLOSING_MS;
   return closing ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
 }
 

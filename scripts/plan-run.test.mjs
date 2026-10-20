@@ -120,6 +120,7 @@ test('a diagnosis is a launch: never after the window, never out of turn', () =>
   record(file, 1, 'fail', 'product: one');
   for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
   record(file, 1, 'fail', 'product: two');
+  assert.equal(next(file, 400).closingMinutes, 20, 'the deciding agent is told the window is closing');
   assert.equal(next(file, 420).action, 'time-limit');
   assert.match(recordStep(file, 1, 'diagnose', 'repair: late', at(420)).refusal, /refuses diagnosis: time-limit/);
   record(file, 1, 'paused', 'block ended');
@@ -197,6 +198,23 @@ test('the owner\'s answer grants one attempt only to a phase that had used them 
   for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
   record(file, 1, 'fail', 'blocked: the Q record went missing');
   assert.deepEqual(next(file), { action: 'stop', phase: 1, why: 'its check was blocked again after the owner\'s answer' });
+});
+
+test('an owner\'s answer before any diagnosis is the one extra attempt: the next failure stops', () => {
+  const file = run();
+  checked(file, 1);
+  record(file, 1, 'fail', 'product: one');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'product: two');
+  assert.equal(next(file).action, 'diagnose');
+  // The coordinator stops for a decision the owner reserves instead, and he answers.
+  record(file, 1, 'stop', 'the owner decides the scope');
+  record(file, 1, 'answered', 'narrow it');
+  assert.equal(next(file).step, 'repair');
+  for (const event of ['repair', 'landed', 'check']) record(file, 1, event);
+  record(file, 1, 'fail', 'product: three');
+  assert.deepEqual(next(file), { action: 'stop', phase: 1, why: 'its check failed again after the owner\'s answer' });
+  assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'diagnose', 'repair: again'), /next event is stop/);
 });
 
 test('a fail without a kind is refused', () => {

@@ -22,11 +22,13 @@ import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { phasePosition, readSteps } from './plan-run.mjs';
+import { pullRequestNumberFromGroupRef } from './reviewed-status.mjs';
 
 export const IDLE_MINUTES = 30;
 /** How long a queued run counts as the worker's activity before the wait is GitHub's. */
 export const QUEUE_MINUTES = 60;
 const QUEUED_RUN = new Set(['queued', 'pending', 'requested']);
+const ISO_OFFSET = /^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:\d\d)$/;
 const USAGE = 'Usage: node scripts/worker-progress.mjs --branch <branch> [--wave <file> | --since <ISO>] [--log <file>] [--event-at <ISO>] [--idle-minutes 30]';
 
 /** The in-flight step's start in a wave ledger: its launch or the latest handoff to a replacement. */
@@ -43,7 +45,8 @@ export function launchedAt(text) {
 export function progress(sources, now = Date.now(), idleMinutes = IDLE_MINUTES, since = null) {
   if (!sources.length) return { state: 'unknown', lastActivity: null, idleMinutes: null, sources };
   const floor = Date.parse(since ?? '');
-  const times = sources.map((s) => Date.parse(s.at)).filter(Number.isFinite);
+  // A time ahead of now (clock skew) is now, never a promise of future activity.
+  const times = sources.map((s) => Math.min(Date.parse(s.at), now)).filter(Number.isFinite);
   if (Number.isFinite(floor)) times.push(floor);
   if (!times.length) return { state: 'unknown', lastActivity: null, idleMinutes: null, sources };
   // A run counts only if it started since the launch: a stale one from before is not this worker's.
@@ -65,7 +68,7 @@ function ciSource(runs) {
 }
 
 /** Each source that answers contributes its time; one that fails is left out. */
-export function observe({ branch, log, eventAt }, run = (command, args) => spawnSync(command, args, { encoding: 'utf8', timeout: 30_000, windowsHide: true })) {
+export function observe({ branch, log, eventAt, since }, run = (command, args) => spawnSync(command, args, { encoding: 'utf8', timeout: 30_000, windowsHide: true })) {
   const read = (command, args) => {
     const result = run(command, args);
     return result.status === 0 ? String(result.stdout).trim() : '';
@@ -83,15 +86,17 @@ export function observe({ branch, log, eventAt }, run = (command, args) => spawn
     const runs = list(['run', 'list', '--branch', branch, '--limit', '20', '--json', 'status,createdAt,updatedAt']);
     if (runs.length) { const { at, ...extra } = ciSource(runs); add('ci', at, extra); }
     // Once queued, the pull request's checks run on the merge queue's own branch, gh-readonly-queue/<base>/pr-<n>-<sha>.
-    const pr = Number(read('gh', ['api', `repos/{owner}/{repo}/pulls?head={owner}:${branch}&state=all&per_page=1`, '--jq', '.[0].number']));
+    // REST, not `gh pr list`: cloud sessions refuse gh's GraphQL commands.
+    const pr = Number(read('gh', ['api', `repos/{owner}/{repo}/pulls?head={owner}:${encodeURIComponent(branch)}&state=all&per_page=1`, '--jq', '.[0].number']));
     if (Number.isInteger(pr) && pr > 0) {
-      const queue = list(['run', 'list', '--event', 'merge_group', '--limit', '30', '--json', 'headBranch,status,createdAt,updatedAt'])
-        .filter((r) => new RegExp(`^gh-readonly-queue/.+/pr-${pr}-`).test(String(r.headBranch)));
+      const created = Number.isFinite(Date.parse(since ?? '')) ? ['--created', `>=${new Date(Date.parse(since)).toISOString()}`] : [];
+      const queue = list(['run', 'list', '--event', 'merge_group', ...created, '--limit', '100', '--json', 'headBranch,status,createdAt,updatedAt'])
+        .filter((r) => pullRequestNumberFromGroupRef(r.headBranch) === pr);
       if (queue.length) { const { at, ...extra } = ciSource(queue); add('merge-queue', at, extra); }
     }
   }
   if (log) { try { add('log', statSync(log).mtime.toISOString()); } catch { /* A missing log is not activity. */ } }
-  if (eventAt && Number.isFinite(Date.parse(eventAt))) add('session', new Date(Date.parse(eventAt)).toISOString());
+  if (ISO_OFFSET.test(eventAt ?? '')) add('session', new Date(Date.parse(eventAt)).toISOString());
   return sources;
 }
 
@@ -110,8 +115,8 @@ export function main(argv = process.argv.slice(2), { now = Date.now(), run, prin
     if (!since) { print(USAGE); return 2; }
   }
   if (!(args.branch || args.log || args['event-at']) || !(idleMinutes > 0) || (since !== null && !Number.isFinite(Date.parse(since)))
-    || (args['event-at'] && !Number.isFinite(Date.parse(args['event-at'])))) { print(USAGE); return 2; }
-  const result = progress(observe({ ...args, eventAt: args['event-at'] }, run), now, idleMinutes, since);
+    || (args['event-at'] && !(ISO_OFFSET.test(args['event-at']) && Number.isFinite(Date.parse(args['event-at']))))) { print(USAGE); return 2; }
+  const result = progress(observe({ ...args, eventAt: args['event-at'], since }, run), now, idleMinutes, since);
   print(JSON.stringify(result));
   return { progressing: 0, idle: 1, unknown: 2, queued: 3 }[result.state];
 }
