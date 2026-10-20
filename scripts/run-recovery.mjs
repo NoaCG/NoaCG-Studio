@@ -65,6 +65,13 @@ function settings(config, git) {
   return config;
 }
 
+/** One SQLite write transaction: committed when `fn` returns, rolled back when it throws. */
+export function transaction(db, fn) {
+  db.exec('BEGIN IMMEDIATE');
+  try { const result = fn(); db.exec('COMMIT'); return result; }
+  catch (error) { db.exec('ROLLBACK'); throw error; }
+}
+
 export function recoveryTables(db, transport = recoveryGit) {
   transports.set(db, transport);
   db.exec('CREATE TABLE IF NOT EXISTS recovery_heads (id TEXT PRIMARY KEY, sha TEXT NOT NULL)');
@@ -189,14 +196,13 @@ export function publishRun(db, id) {
  * not another coordinator's: same restoration generation, parented on this store's head. Adopt
  * its ledger and state so the store and the remote agree again. Returns whether it adopted. */
 export function adoptAccepted(db, id) {
-  if (!JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id)?.doc ?? '{}').manifest?.recovery) return false;
+  const config = JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id)?.doc ?? '{}').manifest?.recovery;
+  if (!config) return false;
+  // The common case, nothing to adopt, holds no lock across the network read.
+  const head = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha;
+  if (remoteHead(transports.get(db) ?? recoveryGit, config, refFor(id)) === head) return false;
   // Under the write lock, so another local process's publication in progress is never mistaken for a lost one.
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const adopted = adoptLocked(db, id);
-    db.exec('COMMIT');
-    return adopted;
-  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  return transaction(db, () => adoptLocked(db, id));
 }
 
 function adoptLocked(db, id) {

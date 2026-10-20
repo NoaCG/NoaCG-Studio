@@ -17,7 +17,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readSteps } from './plan-run.mjs';
+import { phasePosition, readSteps } from './plan-run.mjs';
 
 export const IDLE_MINUTES = 30;
 const ACTIVE_RUN = new Set(['queued', 'in_progress', 'pending', 'requested']);
@@ -25,7 +25,9 @@ const USAGE = 'Usage: node scripts/worker-progress.mjs --branch <branch> [--wave
 
 /** The in-flight step's start in a wave ledger: its launch or the latest handoff to a replacement. */
 export function launchedAt(text) {
-  return readSteps(text).filter((step) => ['build', 'repair', 'check', 'resume'].includes(step.event)).at(-1)?.at ?? null;
+  const position = phasePosition(text);
+  if (position.action !== 'wait') return null;
+  return readSteps(text).filter((step) => step.phase === position.phase && ['build', 'repair', 'check', 'resume'].includes(step.event)).at(-1)?.at ?? null;
 }
 
 /**
@@ -61,10 +63,10 @@ export function observe({ branch, log }, run = (command, args) => spawnSync(comm
     let runs = [];
     try { runs = JSON.parse(read('gh', ['run', 'list', '--branch', branch, '--limit', '20', '--json', 'status,createdAt,updatedAt']) || '[]'); } catch { /* Unreadable CI is not activity. */ }
     if (Array.isArray(runs) && runs.length) {
-      const latest = runs.map((r) => r.updatedAt).filter((at) => Number.isFinite(Date.parse(at))).sort().at(-1);
+      const newest = (times) => times.filter((at) => Number.isFinite(Date.parse(at))).sort().at(-1);
       // `running` is the newest active run's start, so the launch clock can rule out a stale one.
-      const active = runs.filter((r) => ACTIVE_RUN.has(r.status)).map((r) => r.createdAt).filter((at) => Number.isFinite(Date.parse(at))).sort().at(-1);
-      add('ci', latest, active ? { running: active } : {});
+      const active = newest(runs.filter((r) => ACTIVE_RUN.has(r.status)).map((r) => r.createdAt));
+      add('ci', newest(runs.map((r) => r.updatedAt)), active ? { running: active } : {});
     }
   }
   if (log) { try { add('log', statSync(log).mtime.toISOString()); } catch { /* A missing log is not activity. */ } }

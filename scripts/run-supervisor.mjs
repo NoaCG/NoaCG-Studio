@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
@@ -60,11 +60,6 @@ export function openStore(file, { recoveryGit } = {}) {
   return db;
 }
 
-function transaction(db, fn) {
-  db.exec('BEGIN IMMEDIATE');
-  try { const result = fn(); db.exec('COMMIT'); return result; }
-  catch (error) { db.exec('ROLLBACK'); throw error; }
-}
 
 /** A transition whose checkpoint publication fails leaves the ledger as SQLite leaves its row:
  * unchanged. The file is read under the write lock, so no other admission is undone. A push the

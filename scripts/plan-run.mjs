@@ -114,16 +114,17 @@ function phaseState(steps) {
       continue;
     }
     if (step.event === 'diagnose') diagnosis = diagnosisOf(step.detail) ?? { decision: 'stop', reason: step.detail };
-    if (step.event === 'stop' || (step.event === 'diagnose' && diagnosis.decision === 'stop')) {
-      before = state;
-      state = 'stopped';
+    if (step.event === 'stop' || step.event === 'diagnose') {
+      if (step.event === 'stop' || diagnosis.decision === 'stop') {
+        before = state;
+        state = 'stopped';
+      }
       continue;
     }
-    if (step.event === 'diagnose') continue;
     if (step.event === 'answered') {
       state = before ?? 'new';
-      if (state === 'failed' && fails > limit('repair')) fails = limit('repair');
-      if (state === 'built' && blocked > limit('check')) blocked = limit('check');
+      if (state === 'failed') fails = Math.min(fails, limit('repair'));
+      if (state === 'built') blocked = Math.min(blocked, limit('check'));
       continue;
     }
     if (step.event === 'build' || step.event === 'repair' || step.event === 'check') waiting = step;
@@ -195,7 +196,8 @@ function stepFor(text, now) {
   if (phases.length === 0) return { action: 'no-phases', why: 'copy the plan\'s phases into the wave file under "## Phases" first' };
   const steps = readSteps(text);
   for (let phase = 1; phase <= phases.length; phase += 1) {
-    const { state, expect, waiting, diagnosis } = phaseState(steps.filter((step) => step.phase === phase));
+    const own = steps.filter((step) => step.phase === phase);
+    const { state, expect, waiting, diagnosis } = phaseState(own);
     if (state === 'passed') continue;
     if (state === 'stopped') return { action: 'stopped', phase, why: 'stopped; the owner\'s answer is recorded as `answered`' };
     if (expect.length === 0) {
@@ -218,7 +220,6 @@ function stepFor(text, now) {
     const launch = { action: 'launch', phase, step: expect[0] };
     let carry = launch.step === 'build' ? lastDetail(steps, phase - 1, 'pass') : launch.step === 'repair' ? lastDetail(steps, phase, 'fail') : undefined;
     // The diagnosed repair takes the deciding agent's scope along, until a later failure replaces it.
-    const own = steps.filter((step) => step.phase === phase);
     if (launch.step === 'repair' && diagnosis?.decision === 'repair' && own.findLastIndex((s) => s.event === 'diagnose') > own.findLastIndex((s) => s.event === 'fail')) {
       carry = `${carry ?? ''} (diagnosis: ${diagnosis.reason})`.trim();
     }
@@ -294,11 +295,13 @@ function recordLocked(file, phase, event, detail, now, supervised) {
   if (project && event === 'paused') return { refusal: 'Use supervisor pause/start-block for project control' };
   const refusal = refuseStep(text, phase, event, detail);
   if (refusal) return { refusal };
-  if (['build', 'check', 'repair'].includes(event)) {
-    const next = nextStep(text, now);
-    if (next.action !== 'launch' || next.phase !== phase || next.step !== event) return { refusal: `Ledger refuses launch: ${next.action}` };
+  // A launch, and a diagnosis (whose deciding agent is a launch too), only when next asks for it.
+  if (['build', 'check', 'repair', 'diagnose'].includes(event)) {
+    const next = nextStep(text, now), diagnose = event === 'diagnose';
+    if (next.action !== (diagnose ? 'diagnose' : 'launch') || next.phase !== phase || (!diagnose && next.step !== event)) {
+      return { refusal: `Ledger refuses ${diagnose ? 'diagnosis' : 'launch'}: ${next.action}` };
+    }
   }
-  if (event === 'diagnose' && !(nextStep(text, now).action === 'diagnose' && nextStep(text, now).phase === phase)) return { refusal: `Ledger refuses diagnosis: ${nextStep(text, now).action}` };
   if (project && ['build', 'repair', 'check', 'pass', 'resume', 'diagnose'].includes(event)) {
     let receipt;
     try { receipt = JSON.parse(detail); } catch { return { refusal: 'Project launch/verdict/handoff requires a JSON actor/evidence receipt' }; }
