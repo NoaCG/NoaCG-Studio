@@ -4,9 +4,10 @@ import { generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 import { main, SHEETS } from './production-page-keys.mjs';
 
-const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 1024 });
+const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const SHEET_IDS = Array.from({ length: SHEETS }, (_, i) => `sheet-${i}`);
 const ENV = {
+  VITE_SUPABASE_URL: 'https://prodref.supabase.co',
   SUPABASE_ACCESS_TOKEN: 'sbp_secret-token',
   YOUTUBE_API_KEY: 'yt-secret-key',
   NOACG_TEST_SHEET_IDS: SHEET_IDS.join(', '),
@@ -26,7 +27,8 @@ function fake({ readOnly = [], unshared = [], signIn = 200, down = false } = {})
     if (down) throw new Error(`connect failed ${url}`);
     const { hostname, pathname, searchParams } = new URL(url);
     const bearer = init.headers?.Authorization;
-    if (hostname === 'api.supabase.com') return reply(bearer === `Bearer ${ENV.SUPABASE_ACCESS_TOKEN}` ? 200 : 401);
+    // Only ENV's token is accepted, and it reaches only the production project.
+    if (hostname === 'api.supabase.com') return reply(bearer !== `Bearer ${ENV.SUPABASE_ACCESS_TOKEN}` ? 401 : pathname === '/v1/projects/prodref' ? 200 : 404);
     if (pathname.startsWith('/youtube/')) return reply(!searchParams.has('key') && init.headers?.['x-goog-api-key'] === ENV.YOUTUBE_API_KEY ? 200 : 400);
     if (hostname === 'oauth2.example') {
       const assertion = init.body.get('assertion');
@@ -67,6 +69,13 @@ test('a revoked key fails although it is set', async () => {
   assert.equal(code, 1);
   assert.equal(lines[0], 'SUPABASE_ACCESS_TOKEN: fail (401)');
   assert.equal(lines[1], 'YOUTUBE_API_KEY: fail (400)');
+});
+
+test('the Supabase token must reach the production project, not only some account', async () => {
+  const other = await run({ ...ENV, VITE_SUPABASE_URL: 'https://otherref.supabase.co' });
+  assert.equal(other.code, 1);
+  assert.equal(other.lines[0], 'SUPABASE_ACCESS_TOKEN: fail (404)');
+  assert.equal((await run({ ...ENV, VITE_SUPABASE_URL: '' })).lines[0], 'SUPABASE_ACCESS_TOKEN: fail (VITE_SUPABASE_URL names no project)');
 });
 
 test('the service account must read and may edit every Sheet, not only the first', async () => {

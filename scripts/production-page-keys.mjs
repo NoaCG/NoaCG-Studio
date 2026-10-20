@@ -8,13 +8,15 @@
 //
 //   node scripts/production-page-keys.mjs
 //
-// SUPABASE_ACCESS_TOKEN lists the account's projects. YOUTUBE_API_KEY reads one public video's
+// SUPABASE_ACCESS_TOKEN reads the production project itself (the one `VITE_SUPABASE_URL` names),
+// so a valid token for another account fails. YOUTUBE_API_KEY reads one public video's
 // id (one quota unit). NOACG_TEST_SHEET_IDS names six distinct Sheets; GOOGLE_SERVICE_ACCOUNT_JSON
 // signs in with read-only scopes and, for each, reads it and asks the Drive API whether it may edit it.
 import { createSign } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ambientEnv } from './read-dotenv.mjs';
+import { productionRef } from './supabase-projects.mjs';
 
 export const SHEETS = 6;
 const VIDEO = 'jNQXAC9IVRw'; // public since 2005
@@ -31,9 +33,12 @@ export async function checkKeys(env = process.env, fetchImpl = fetch) {
     return [status === 200, status];
   };
   const ids = [...new Set((env.NOACG_TEST_SHEET_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean))];
+  const project = productionRef(env);
   const checks = {
-    SUPABASE_ACCESS_TOKEN: read('SUPABASE_ACCESS_TOKEN', 'https://api.supabase.com/v1/projects',
-      { headers: { Authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}` } }),
+    SUPABASE_ACCESS_TOKEN: project || !env.SUPABASE_ACCESS_TOKEN
+      ? read('SUPABASE_ACCESS_TOKEN', `https://api.supabase.com/v1/projects/${project}`,
+        { headers: { Authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}` } })
+      : [false, 'VITE_SUPABASE_URL names no project'],
     YOUTUBE_API_KEY: read('YOUTUBE_API_KEY', `https://www.googleapis.com/youtube/v3/videos?part=id&id=${VIDEO}`,
       { headers: { 'x-goog-api-key': env.YOUTUBE_API_KEY } }),
     NOACG_TEST_SHEET_IDS: [ids.length === SHEETS, `${ids.length} distinct IDs`],
