@@ -16,7 +16,9 @@
 // is not activity. Prints { state: progressing | idle | queued | unknown, lastActivity,
 // idleMinutes, sources } and exits 0 when progressing, 1 when idle, 3 when only a run queued for over
 // an hour is left (an infrastructure wait: never replace the worker for it), 2 when nothing could be
-// read (no branch yet, no CI, no log): unknown means reconcile the worker, never replace it.
+// read, or nothing was pushed and no launch time is known: unknown means reconcile the worker, never
+// replace it. A branch not pushed yet counts from the launch, so a worker stalled before its first
+// push turns idle. A time more than five minutes ahead of this clock is ignored.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -28,6 +30,8 @@ export const IDLE_MINUTES = 30;
 /** How long a queued run counts as the worker's activity before the wait is GitHub's. */
 export const QUEUE_MINUTES = 60;
 const QUEUED_RUN = new Set(['queued', 'pending', 'requested']);
+/** How far ahead of this clock a source may be (another machine's clock) before it is ignored. */
+const SKEW_MS = 5 * 60_000;
 const ISO_OFFSET = /^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:\d\d)$/;
 const USAGE = 'Usage: node scripts/worker-progress.mjs --branch <branch> [--wave <file> | --since <ISO>] [--log <file>] [--event-at <ISO>] [--idle-minutes 30]';
 
@@ -45,8 +49,9 @@ export function launchedAt(text) {
 export function progress(sources, now = Date.now(), idleMinutes = IDLE_MINUTES, since = null) {
   if (!sources.length) return { state: 'unknown', lastActivity: null, idleMinutes: null, sources };
   const floor = Date.parse(since ?? '');
-  // A time ahead of now (clock skew) is now, never a promise of future activity.
-  const times = sources.map((s) => Math.min(Date.parse(s.at), now)).filter(Number.isFinite);
+  // A time slightly ahead of now (clock skew) is now; one further ahead is ignored, so a fixed
+  // future time cannot keep a stuck worker looking busy on every poll.
+  const times = sources.map((s) => Date.parse(s.at)).filter((at) => Number.isFinite(at) && at <= now + SKEW_MS).map((at) => Math.min(at, now));
   if (Number.isFinite(floor)) times.push(floor);
   if (!times.length) return { state: 'unknown', lastActivity: null, idleMinutes: null, sources };
   // A run counts only if it started since the launch: a stale one from before is not this worker's.
@@ -77,9 +82,14 @@ export function observe({ branch, log, eventAt, since }, run = (command, args) =
   const add = (source, at, extra = {}) => { if (at) sources.push({ source, at, ...extra }); };
   if (branch) {
     // The remote tip, fetched without moving FETCH_HEAD, which other tools in this checkout read.
-    const tip = read('git', ['ls-remote', 'origin', `refs/heads/${branch}`]).split(/\s+/)[0];
+    const remote = run('git', ['ls-remote', 'origin', `refs/heads/${branch}`]);
+    const tip = remote.status === 0 ? String(remote.stdout).trim().split(/\s+/)[0] : '';
     if (tip && run('git', ['fetch', '--no-tags', '--quiet', '--no-write-fetch-head', 'origin', branch]).status === 0) {
       add('commit', read('git', ['log', '-1', '--format=%cI', tip]));
+    } else if (remote.status === 0 && !tip) {
+      // Read, and nothing pushed yet: no activity time, but the launch clock still runs, so a
+      // worker that stalls before its first push turns idle instead of staying unknown.
+      sources.push({ source: 'branch', at: null });
     }
     const list = (args) => { try { const runs = JSON.parse(read('gh', args) || '[]'); return Array.isArray(runs) ? runs : []; } catch { return []; } };
     // Unreadable CI is not activity. `running` and `queued` are run starts, so the launch clock can rule out a stale one.
