@@ -70,8 +70,10 @@ test('release is due at RELEASE_AFTER consecutive passes and not one earlier', (
 
 test('the status history reads one statuses call per commit for every spec, and stops once each has enough answers', () => {
   const runs = Array.from({ length: 30 }, (_, i) => ({ head_sha: `sha${100 - i}` }));
+  const store = enter(emptyStore(), [A, B], { date: '2026-10-19', run: 'https://github.com/o/r/actions/runs/100' }).store;
   const asked = [];
   const gh = (args) => {
+    if (args[0].includes('/contents/e2e/quarantine.json')) return [{ encoding: 'base64', content: Buffer.from(serializeStore(store)).toString('base64') }];
     asked.push(args[0]);
     if (args[0].includes('/workflows/quarantine.yml/runs')) return runs;
     const n = Number(args[0].match(/commits\/sha(\d+)\/status$/)[1]);
@@ -80,13 +82,59 @@ test('the status history reads one statuses call per commit for every spec, and 
     if (n === 98) return [{ context: statusContext(A), state: 'failure' }, { context: statusContext(B), state: 'success' }];
     return [{ context: statusContext(A), state: 'success' }, { context: statusContext(B), state: 'success' }];
   };
-  const histories = passHistories({ repo: 'o/r', specs: [A, B], gh, need: 5 });
+  const histories = passHistories({ repo: 'o/r', specs: [A, B], store, gh, need: 5 });
   assert.deepEqual(histories.get(A).slice(0, 4), [null, null, 'failure', 'success']);
   assert.equal(consecutivePasses(histories.get(A)), 0, 'the failure at sha98 ends A\'s streak');
   assert.equal(consecutivePasses(histories.get(B)), 5);
   assert.equal(asked.length, 1 + 7, 'one runs call, then one combined-status call per commit until every spec has five answers');
   assert.ok(asked[1].endsWith('/status'), 'the combined endpoint, one latest state per context');
   assert.equal(statusContext('anim-engine.spec.ts'), `noacg/quarantine/${A}`);
+});
+
+function cycleHistory({ fresh = 1, failureAt = -1, duplicate = false, missingSource = false, missingRun = false } = {}) {
+  const run = 'https://github.com/o/r/actions/runs/200';
+  const store = enter(emptyStore(), [A], { date: '2026-10-19', run }).store;
+  store.specs[A].count = 12;
+  if (missingRun) delete store.specs[A].run;
+  // Re-entry on the same calendar day: twenty successes from cycle 11 are not cycle 12.
+  const prior = structuredClone(store);
+  prior.specs[A] = { since: '2026-10-19', count: 11, run: 'https://github.com/o/r/actions/runs/100' };
+  const runs = Array.from({ length: fresh + RELEASE_AFTER }, (_, i) => ({ head_sha: `sha${i}` }));
+  if (duplicate) runs.splice(1, 0, runs[0]);
+  const gh = (args) => {
+    if (args[0].includes('/workflows/quarantine.yml/runs')) return runs;
+    if (args[0].includes('/contents/e2e/quarantine.json')) {
+      if (missingSource) return [];
+      const i = Number(args[0].split('sha')[1]);
+      return [{ encoding: 'base64', content: Buffer.from(serializeStore(i < fresh ? store : prior)).toString('base64') }];
+    }
+    const i = Number(args[0].match(/commits\/sha(\d+)\/status$/)[1]);
+    return [{ context: statusContext(A), state: i === failureAt ? 'failure' : 'success' }];
+  };
+  return { store, histories: passHistories({ repo: 'o/r', specs: [A], store, gh }) };
+}
+
+test('a new quarantine entry cannot release from twenty old successes and one fresh success', () => {
+  const { store, histories } = cycleHistory();
+  assert.equal(consecutivePasses(histories.get(A)), 1);
+  assert.deepEqual(dueForRelease(store, spec => histories.get(spec)), []);
+});
+
+test('release needs twenty unique successes in the current cycle, and a later failure resets it', () => {
+  const ready = cycleHistory({ fresh: RELEASE_AFTER });
+  assert.deepEqual(dueForRelease(ready.store, spec => ready.histories.get(spec)), [A]);
+  const duplicate = cycleHistory({ fresh: RELEASE_AFTER - 1, duplicate: true });
+  assert.deepEqual(dueForRelease(duplicate.store, spec => duplicate.histories.get(spec)), []);
+  const failed = cycleHistory({ fresh: RELEASE_AFTER + 1, failureAt: 1 });
+  assert.equal(consecutivePasses(failed.histories.get(A)), 1);
+  assert.deepEqual(dueForRelease(failed.store, spec => failed.histories.get(spec)), []);
+});
+
+test('an unreadable source boundary or missing triggering run cannot earn an automatic release', () => {
+  for (const fault of [{ missingSource: true }, { missingRun: true }]) {
+    const { store, histories } = cycleHistory({ fresh: RELEASE_AFTER, ...fault });
+    assert.deepEqual(dueForRelease(store, spec => histories.get(spec)), []);
+  }
 });
 
 test('the store round-trips through the serializer with sorted keys, and a newer version is refused', () => {
