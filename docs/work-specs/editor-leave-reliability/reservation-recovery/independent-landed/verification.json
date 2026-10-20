@@ -1,5 +1,5 @@
 {
-  "utc": "2026-10-20T09:59:04.696053+00:00",
+  "utc": "2026-10-20T10:01:33.324641+00:00",
   "testedSource": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
   "testedTree": "ebcba7a8b69d117842dcd29b917dbf6013042a6c",
   "nonce": "p2-revised-independent-12ecc-20261020-0943",
@@ -38,8 +38,8 @@
     "canonical-queue.json": "a949162d812e2944d3eb78de160a050f3172675b1ca04974ed1f72a89b6ac68a",
     "probe-plan.txt": "64efaa431d973f1ad1841bbcf6ec0f227448cb53194ec622b947706543a33002",
     "integrity.json": "c821bb630749164ade2c684b5334993c980bfadb94c5785abb6210e9f9e05db5",
-    "evidence-gates.txt": "9c461c7ee81b9ff8764f40e6bb064cc00ad2bbacc8c3d05da0d0600ac61b864a",
-    "README.md": "0b21b98ccb053f01f1f73498129ba72ad1041670b02fc1a765e4e0cc7a44f950",
+    "evidence-gates.txt": "f7f7f62a56166ba17b6e2aba1d4b3b83fa5b9ccc1bbfb60a4d12caf725cb5b0c",
+    "README.md": "bbd8e246f3c785d4ab7ac20fe17668882cccdfd07928d1c17d23f2260812e5bb",
     "v-reservations-missing.json": "e199ca3e3cd0bdf5489bda9abcbf5ffe7f91e448de2c78544ac830262ecd677c",
     "static-review.json": "af0447af9abb43d05903f9d61428ebb6653c28605dc43bf63d424dce6e778baa",
     "broader-run.txt": "c1248efeafcda0aa47b7851152c794cf34b8e6ff9e8ffba2861fb89f3431cfd2",
@@ -47,5 +47,6 @@
     "maintained-plan.txt": "94069b41186ac7d77bd1b071fb88cae6085f351e97ae119d15ffa2cab7fad000",
     "queue-facts.json": "a97a4529d63ea95b2d1fa06aaba417a724c9825932a6ad4d1903ce77958ffa64",
     "admission-assessment.json": "356121f2e7029242e68b77e175eb85f091a73db1612a0bfdcd08487de1797ecd"
-  }
+  },
+  "rootConfiguredReport": "IN_PROGRESS per successful root read; terminal report pending root; no passing claim or retry"
 }

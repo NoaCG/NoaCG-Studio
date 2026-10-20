@@ -5,7 +5,7 @@ Contract freshness OK: 866 contract file(s), every referenced script, doc and pa
 
 [gates] check:contract-citations: node scripts/check-contract-citations.mjs
 Contract citations OK: 4594 file(s), every cited rule id and contract section exists.
-[gates] check:contract-citations ok (1.4s) - 562 rule ids in contracts/rules, 4594 text files scanned for citations
+[gates] check:contract-citations ok (1.3s) - 562 rule ids in contracts/rules, 4594 text files scanned for citations
 
 [gates] check:docs-index: node scripts/check-docs-index.mjs
 check-docs-index: OK - all 150 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).

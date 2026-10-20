@@ -136,7 +136,9 @@ and is separate from this landed-source run.
 
 Only this bounded fresh engineering leg can pass. Root's separately collected
 PR/main/merge/configured/post-land/deployment results are not independently audited
-or replaced here. The earlier strict-mode and shared-lab failures remain in their
+or replaced here. At receipt close, root confirms exact-source configured run
+`39402553595` remains IN_PROGRESS. Its terminal report is pending root; this
+receipt makes no passing configured-suite claim. No retry or repair follows here. The earlier strict-mode and shared-lab failures remain in their
 original logs; a workflow color, diagnostic baseline pass or controlled failure
 cannot erase them. #1532/#1533 remain held. Step 6 is COMPLETE; #1466 is CLOSED
 through #1528; #1498 is unresolved. All original deferrals and failures remain
