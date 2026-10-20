@@ -388,9 +388,10 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
  * plan has no active project yet. */
 export function continueProject(root, { plan, owner, ...recovery }, { now = Date.now(), recoveryGit: transport } = {}) {
   if (!required(owner)) throw new Error('Continue needs an owner label for the new block');
-  const dir = path.join(path.resolve(root), `${new Date(now).toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
+  // Short names: the worktree holds the whole repository, and Windows paths stop at 260 characters.
+  const dir = path.join(path.resolve(root), randomUUID().slice(0, 8));
   mkdirSync(dir, { recursive: true });
-  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'worktree');
+  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'src');
   let db = openStore(dbFile, { recoveryGit: transport });
   try {
     const id = activeProject(db, recovery, plan, now);
@@ -408,7 +409,11 @@ export function continueProject(root, { plan, owner, ...recovery }, { now = Date
     try {
       updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
     } catch (error) {
-      // This store already owns the project (the restore claimed it); resolve, then start-block.
+      // A recorded wait or uncertain action: this store owns the project (the restore claimed
+      // it), so it resolves that and then starts its block. Any other failure, such as a lost
+      // network after GitHub accepted the block, is answered by running continue again.
+      const { doc } = rowFor(db, id);
+      if (!doc.wait && !doc.pending) throw new Error(`${error.message}; run continue again`, { cause: error });
       return { verdict: 'blocked', why: error.message, ...where, next: nextStep(readFileSync(wave, 'utf8'), now) };
     }
     const text = readFileSync(wave, 'utf8');
