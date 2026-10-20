@@ -1,0 +1,28 @@
+=== j-0015 npm run test:e2e -- e2e/leave-ninth-checker.spec.ts --grep V-reservations --retries=0
+=== cwd /workspace/p2-landed-independent
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/leave-ninth-checker.spec.ts --grep V-reservations --retries=0
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 8759 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:25523) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:25536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 2 workers
+
+(node:25654) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25655) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/leave-ninth-checker.spec.ts:209:3 › ninth V-reservations newer version: R and K refused, the list is a newer version one, reload, save again (7.3s)
+  ✓  2 [chromium] › e2e/leave-ninth-checker.spec.ts:209:3 › ninth V-reservations corrupt: R and K refused, the list is a corrupt one, reload, save again (7.3s)
+  ✓  3 [chromium] › e2e/leave-ninth-checker.spec.ts:209:3 › ninth V-reservations missing: R and K refused, the list is a missing one, reload, save again (4.9s)
+
+  3 passed (17.7s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

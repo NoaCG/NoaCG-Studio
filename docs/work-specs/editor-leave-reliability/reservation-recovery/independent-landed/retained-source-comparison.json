@@ -1,0 +1,31 @@
+{
+  "base": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+  "landed": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
+  "paths": [
+    {
+      "path": "src/model/project.ts",
+      "byteIdenticalToPriorIndependentSource": true
+    },
+    {
+      "path": "src/model/deviceIds.ts",
+      "byteIdenticalToPriorIndependentSource": true
+    },
+    {
+      "path": "src/store/templateStore.ts",
+      "byteIdenticalToPriorIndependentSource": true
+    },
+    {
+      "path": "src/components/home/ProductionPage.tsx",
+      "byteIdenticalToPriorIndependentSource": true
+    },
+    {
+      "path": "playwright.config.ts",
+      "byteIdenticalToPriorIndependentSource": true
+    },
+    {
+      "path": "e2e/_saveMatrix.ts",
+      "byteIdenticalToPriorIndependentSource": true
+    }
+  ],
+  "allSrcPathsUnchanged": true
+}

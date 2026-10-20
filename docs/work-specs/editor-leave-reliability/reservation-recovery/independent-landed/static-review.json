@@ -1,0 +1,18 @@
+{
+  "reviewMode": "independent inline static",
+  "reviewedHead": "5bb8f3fe5517a81eb0b9d5b70b2646d4ae14cf35",
+  "reviewedBase": "ca8a3fe0132782daf931fb4aa2718ad061230a56",
+  "reviewedFiles": [
+    "e2e/import-svg-behaviour.spec.ts",
+    "docs/work-specs/editor-leave-reliability/gate-failure-diagnosis/quiz-targeting/README.md",
+    "docs/work-specs/editor-leave-reliability/gate-failure-diagnosis/quiz-targeting/quiz-original-matching-failure.txt",
+    "docs/work-specs/editor-leave-reliability/gate-failure-diagnosis/quiz-targeting/quiz-fixed-with-matching-fault.txt"
+  ],
+  "findings": [],
+  "landedSource": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
+  "landedQuizMatchesReviewedHead": true,
+  "onlySixLocatorReplacements": true,
+  "behavioralAssertionsPreserved": true,
+  "temporaryFaultPatchPresent": false,
+  "limits": "Logs establish the forced matching ambiguity and one successful fixed challenge. The precise temporary fault expression is described, not retained as a patch in the four-file reviewed artifact; natural-race cause is not independently demonstrated. Original shared-lab App.tsx module-load failure remains unresolved."
+}

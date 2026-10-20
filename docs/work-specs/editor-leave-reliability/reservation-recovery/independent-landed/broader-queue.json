@@ -1,0 +1,22 @@
+{
+ "id": "j-0016",
+ "kind": "gate",
+ "command": "npm run test:e2e -- e2e/save-transaction.spec.ts e2e/editor-groups.spec.ts e2e/save-transaction-holds.spec.ts e2e/save-transaction-leave.spec.ts e2e/save-transaction-leave-modal.spec.ts e2e/save-transaction-leave-shortcut.spec.ts e2e/save-transaction-wizard.spec.ts e2e/import-svg-behaviour.spec.ts --retries=0",
+ "checkout": "/workspace/p2-landed-independent",
+ "branch": "codex/p2-landed-independent-20261020",
+ "after": [],
+ "capMinutes": 12,
+ "verification": {
+  "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
+  "kind": "broader"
+ },
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1792489564824,
+ "state": "done",
+ "startedAt": 1792489566210,
+ "finishedAt": 1792490174267,
+ "exitCode": 0,
+ "pid": 25996,
+ "logPath": "/workspace/NoaCG-Studio/.git/noacg-jobs/logs/j-0016.log"
+}

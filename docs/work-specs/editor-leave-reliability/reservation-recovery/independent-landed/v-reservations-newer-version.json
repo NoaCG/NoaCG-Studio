@@ -1,0 +1,13 @@
+{
+  "shape": "newer version",
+  "listBeforeReload": "{\"version\":2,\"ids\":[\"kept-by-a-newer-build\"]}",
+  "linkAfterReload": {
+    "graphicId": "3984788d-d6d9-42d1-bdfc-d4815137c30a",
+    "dirty": true,
+    "status": "idle"
+  },
+  "named": 0,
+  "records": 1,
+  "mintedHoldsRequested": true,
+  "newerListKept": "{\"version\":2,\"ids\":[\"kept-by-a-newer-build\"]}"
+}

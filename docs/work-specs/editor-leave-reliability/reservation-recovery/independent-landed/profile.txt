@@ -1,0 +1,21 @@
+{
+  "kind": "cloud",
+  "provider": "codex",
+  "limits": {
+    "effectiveCpus": 4,
+    "memoryLimitBytes": 17179869184,
+    "availableMemoryBytes": 9402429440,
+    "limitsObserved": false,
+    "reasons": [
+      "cpu: hidden ancestors above /..",
+      "memory: hidden ancestors above /..",
+      "the machine totals stand in for what could not be read"
+    ]
+  },
+  "known": false,
+  "freeMb": 8966,
+  "workers": 2,
+  "smallMinutes": 5,
+  "broaderMinutes": 12,
+  "buildMinutes": 5
+}

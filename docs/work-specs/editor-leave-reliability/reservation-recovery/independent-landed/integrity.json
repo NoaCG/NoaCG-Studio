@@ -1,0 +1,68 @@
+{
+  "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
+  "tree": "ebcba7a8b69d117842dcd29b917dbf6013042a6c",
+  "startedUtc": "2026-10-20T09:44:08.601965+00:00",
+  "nativeAgentId": "/root/p2_revised_independent",
+  "worktree": "/workspace/p2-landed-independent",
+  "branch": "codex/p2-landed-independent-20261020",
+  "probe": {
+    "source": "9bef784b73fa979d24fe254da1dbc156cb7ba342",
+    "path": "e2e/leave-ninth-checker.spec.ts",
+    "sha256": "2e8fdba7d45b65a67649a4ce13cefe10707db157834b9af183079c1e92e00307",
+    "byteIdentical": true,
+    "filter": "V-reservations"
+  },
+  "maintained": [
+    {
+      "path": "e2e/save-transaction.spec.ts",
+      "sha256": "0fa5a3b7a8c1d989d8378281e1895444555c47737f4d2b983e06f21bae7e66cf",
+      "matchesPriorRetainedHash": true
+    },
+    {
+      "path": "e2e/editor-groups.spec.ts",
+      "sha256": "978d49bee880f4f31bbc73c994c975ce45c3c4415e512dcc7f378c9af2632a78",
+      "matchesPriorRetainedHash": true
+    },
+    {
+      "path": "e2e/save-transaction-holds.spec.ts",
+      "sha256": "888bdaa6dbcaa0b126e2190caf0fbbbd1fc0a52d2a230670d4442156767705c5",
+      "matchesPriorRetainedHash": true
+    },
+    {
+      "path": "e2e/save-transaction-leave.spec.ts",
+      "sha256": "9a682573ad8b79598cfc25ae26ceab5e6c03c4204850f09b54e70f1d0145a2ee",
+      "matchesPriorRetainedHash": true
+    },
+    {
+      "path": "e2e/save-transaction-leave-modal.spec.ts",
+      "sha256": "16c7d5ff6b91840b0b54aa3f0cbcd713497772295d6f8201a124b90a9c019731",
+      "matchesPriorRetainedHash": true
+    },
+    {
+      "path": "e2e/save-transaction-leave-shortcut.spec.ts",
+      "sha256": "c74d19f6776c6569bb1284cd1b616d8545c86a4a77a1b91deac7f0a0bb84ea71",
+      "matchesPriorRetainedHash": true
+    },
+    {
+      "path": "e2e/save-transaction-wizard.spec.ts",
+      "sha256": "0170f1aa78eace3b352f7af0a48b4238402ac769a21ce9953655cbd9763b52da",
+      "matchesPriorRetainedHash": true
+    },
+    {
+      "path": "e2e/import-svg-behaviour.spec.ts",
+      "sha256": "d4485edc792c0e27b22e771198d8831be06f3a2bf0fc7562cb81bfdf80dc8a47",
+      "matchesReviewedRepairHead": true
+    }
+  ],
+  "nonce": "p2-revised-independent-12ecc-20261020-0943",
+  "runtimeEnvironment": "ccarenv_b64_Y2NhcmVudl8zZTEzNGIwYWJkZTg4MTkxOTc1NTlkYmU3NDY4OGQ3OQ",
+  "runtimeScope": "same managed cloud VM; not a separately qualified provider child",
+  "originalOwnerBindingUnchanged": true,
+  "cliEnvironmentMappingClaimed": false,
+  "windowEndUtc": "2026-10-20T10:10:00Z",
+  "windowEndPolicy": "canonical plus one broader job terminal results and receipt, whichever occurs first; no further browser job or retry",
+  "initialDirtyPaths": [],
+  "beforeBroaderDirtyPaths": [],
+  "afterBrowserDirtyPaths": [],
+  "browserCompletedUtc": "2026-10-20T09:57:05.386039+00:00"
+}

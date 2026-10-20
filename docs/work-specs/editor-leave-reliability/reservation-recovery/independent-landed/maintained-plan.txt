@@ -1,0 +1,10 @@
+e2e-affected: 8 path(s) -> 8 spec files:
+  - editor-groups.spec.ts
+  - import-svg-behaviour.spec.ts
+  - save-transaction-holds.spec.ts
+  - save-transaction-leave-modal.spec.ts
+  - save-transaction-leave-shortcut.spec.ts
+  - save-transaction-leave.spec.ts
+  - save-transaction-wizard.spec.ts
+  - save-transaction.spec.ts
+[measured] 233 e2e spec files on disk

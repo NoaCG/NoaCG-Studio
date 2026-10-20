@@ -1,0 +1,18 @@
+{
+ "id": "j-0015",
+ "kind": "gate",
+ "command": "npm run test:e2e -- e2e/leave-ninth-checker.spec.ts --grep V-reservations --retries=0",
+ "checkout": "/workspace/p2-landed-independent",
+ "branch": "codex/p2-landed-independent-20261020",
+ "after": [],
+ "capMinutes": 5,
+ "retryOf": null,
+ "retryCount": 0,
+ "enqueuedAt": 1792489510872,
+ "state": "done",
+ "startedAt": 1792489510994,
+ "finishedAt": 1792489529844,
+ "exitCode": 0,
+ "pid": 25482,
+ "logPath": "/workspace/NoaCG-Studio/.git/noacg-jobs/logs/j-0015.log"
+}

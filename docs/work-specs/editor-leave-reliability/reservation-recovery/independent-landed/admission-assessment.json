@@ -1,0 +1,23 @@
+{
+  "capMinutes": 12,
+  "requestedFiles": [
+    "e2e/save-transaction.spec.ts",
+    "e2e/editor-groups.spec.ts",
+    "e2e/save-transaction-holds.spec.ts",
+    "e2e/save-transaction-leave.spec.ts",
+    "e2e/save-transaction-leave-modal.spec.ts",
+    "e2e/save-transaction-leave-shortcut.spec.ts",
+    "e2e/save-transaction-wizard.spec.ts",
+    "e2e/import-svg-behaviour.spec.ts"
+  ],
+  "plannedCases": 197,
+  "priorSevenFileWallSeconds": 478.55,
+  "sameVmQuizJob": "j-0014",
+  "sameVmQuizWallSeconds": 132,
+  "combinedWallEstimateSeconds": 610.55,
+  "remainingMarginSeconds": 109.45,
+  "selectedAllRequestedFiles": true,
+  "machineWorkers": 2,
+  "noWorkerOverride": true,
+  "basis": "Prior same-VM 159-case maintained run plus just-completed same-VM 38-case quiz run; unchanged seven retained files and exact reviewed quiz source. Timing is an estimate, cap remains enforced."
+}

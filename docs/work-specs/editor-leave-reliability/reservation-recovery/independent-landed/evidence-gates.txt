@@ -1,0 +1,30 @@
+
+[gates] check:contract-freshness: node scripts/check-contract-freshness.mjs
+Contract freshness OK: 866 contract file(s), every referenced script, doc and path exists.
+[gates] check:contract-freshness ok (0.1s) - 866 contract files
+
+[gates] check:contract-citations: node scripts/check-contract-citations.mjs
+Contract citations OK: 4594 file(s), every cited rule id and contract section exists.
+[gates] check:contract-citations ok (1.4s) - 562 rule ids in contracts/rules, 4594 text files scanned for citations
+
+[gates] check:docs-index: node scripts/check-docs-index.mjs
+check-docs-index: OK - all 150 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).
+[gates] check:docs-index ok (0.1s) - 150 top-level docs, 153 docs/README.md index rows
+
+[gates] check:client-secrets: node scripts/check-client-secrets.mjs
+Client secret scan OK (src, e2e, scripts, docs).
+[gates] check:client-secrets ok (0.7s) - 4051 source files scanned
+
+[gates] check:copy: node scripts/check-copy.mjs
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+[gates] check:copy ok (0.4s) - 902 source files scanned, 481 copy baseline rows
+[measured] 866 contract files
+[measured] 562 rule ids in contracts/rules
+[measured] 4594 text files scanned for citations
+[measured] 150 top-level docs
+[measured] 153 docs/README.md index rows
+[measured] 4051 source files scanned
+[measured] 902 source files scanned
+[measured] 481 copy baseline rows
