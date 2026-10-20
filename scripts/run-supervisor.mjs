@@ -409,7 +409,11 @@ export function continueProject(root, { plan, owner, ...recovery }, { now = Date
     try {
       updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
     } catch (error) {
-      // This store already owns the project (the restore claimed it); resolve, then start-block.
+      // A recorded wait or uncertain action: this store owns the project (the restore claimed
+      // it), so it resolves that and then starts its block. Any other failure, such as a lost
+      // network after GitHub accepted the block, is answered by running continue again.
+      const { doc } = rowFor(db, id);
+      if (!doc.wait && !doc.pending) throw new Error(`${error.message}; run continue again`, { cause: error });
       return { verdict: 'blocked', why: error.message, ...where, next: nextStep(readFileSync(wave, 'utf8'), now) };
     }
     const text = readFileSync(wave, 'utf8');

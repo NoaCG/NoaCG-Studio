@@ -160,6 +160,18 @@ test('continue answers open when the plan has no active project; cancelled and e
   assert.equal(projectFixture(t, { id: 'plan-fixture-v2-2030-01-01' }).continueAs('session-d').verdict, 'open');
 });
 
+test('a network failure after the restore claimed the project says to run continue again, which then succeeds', (t) => {
+  const f = projectFixture(t), ref = `refs/noacg-recovery/${f.manifest.id}`;
+  let failNext = true;
+  const flaky = (cwd, args, input) => {
+    if (failNext && args[0] === 'ls-remote' && args[2] === ref) { failNext = false; throw new Error('Could not resolve host: github.com'); }
+    return f.transport(cwd, args, input);
+  };
+  assert.throws(() => continueProject(path.join(f.root, 'state-flaky'), { plan: 'fixture', owner: 'session-b', ...f.manifest.recovery, repository: f.bootstrap() },
+    { now: f.now + 1000, recoveryGit: flaky }), /Could not resolve host[\s\S]*run continue again/);
+  assert.equal(f.continueAs('session-b').verdict, 'continued');
+});
+
 test('a continued project with a recorded wait is owned by the new session, which resolves it and opens its block', (t) => {
   const f = projectFixture(t);
   updateRun(f.db, f.manifest.id, 'wait', { kind: 'owner', reason: 'owner decides the next phase', until: null }, f.now);
@@ -349,7 +361,8 @@ test('durable checkpoints omit adapter configuration while preserving local cred
   assert.ok(!raw.includes(sentinel)); assert.equal(JSON.parse(raw).doc.manifest.adapter, undefined);
   assert.deepEqual(docFor(f.db).manifest.adapter.args, ['--access-token', sentinel]);
   // Checkpoints are not branches: branch-driven deploys and CI never see them.
-  assert.equal(git(f.remote, 'for-each-ref', '--format=%(refname)', 'refs/heads/'), 'refs/heads/codex/test');
+  assert.equal(git(f.remote, 'for-each-ref', '--format=%(refname)', 'refs/heads/noacg-recovery/'), '');
+  assert.match(git(f.remote, 'rev-parse', `refs/noacg-recovery/${f.manifest.id}`), /^[a-f0-9]{40}$/);
 });
 
 test('recovery commits have a machine identity even when the host has none', (t) => {

@@ -195,7 +195,7 @@ export function activeProject(db, config, plan, now = Date.now()) {
   if (!PLAN_RUN_KIND.test(`plan-${plan}`)) throw new Error(`"${plan}" is not a plan name (lowercase words joined by single dashes)`);
   // Project ids are plan-<plan>-<first date>; the date keeps plan "a" from matching plan "a-b".
   const prefix = `${RECOVERY_REFS}plan-${plan}-`;
-  const own = (ref) => Boolean(ref?.startsWith(prefix)) && /^\d{4}-\d\d-\d\d$/.test(ref.slice(prefix.length));
+  const own = (ref) => typeof ref === 'string' && ref.startsWith(prefix) && /^\d{4}-\d\d-\d\d$/.test(ref.slice(prefix.length));
   const refs = git(config.repository, ['ls-remote', config.remote, `${prefix}*`])
     .split('\n').map((line) => line.split(/\s+/)).filter(([, ref]) => own(ref));
   const active = refs.filter(([sha, ref]) => {

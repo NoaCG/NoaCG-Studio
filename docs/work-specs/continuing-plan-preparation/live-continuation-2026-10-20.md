@@ -1,9 +1,10 @@
 # Live continuation receipt, 2026-10-20
 
 One live run of free stop-and-continue against `NoaCG/NoaCG-Studio` on GitHub, before the
-production-page run opens. Code under test: branch `claude/plan-run-continuation-evidence` at
-`4d098b454` (main `69ebf4ac4` plus the recovery-ref move and the short state paths in this PR).
-Machine: the owner's Windows laptop. Local paths below are shortened to `<scratch>`.
+production-page run opens. Branch `claude/plan-run-continuation-evidence` (main `69ebf4ac4`
+plus this PR): session A ran `f2ce46072` (the recovery-ref move); session B and the final check
+ran `4d098b454` (plus the short state paths). Machine: the owner's Windows laptop. Local paths
+below are shortened to `<scratch>`.
 
 Disposable project `plan-continuation-test-2026-10-20`: two phases, three-hour deadline, its own
 recovery ref `refs/noacg-recovery/plan-continuation-test-2026-10-20`, pinned source
@@ -23,9 +24,13 @@ started in a checkout of the repository with no knowledge of A. It ran:
 
     node scripts/run-supervisor.mjs continue <scratch>/ncl-b continuation-test session-b
 
-- First attempt: the restore succeeded and was published (`28ed020`). The new block's
+- An earlier try at `f2ce46072`, with a long state root, failed before publishing: Windows
+  could not check out the repository past 260 characters (see Found by this run).
+- First attempt at `4d098b454`: the restore succeeded and was published (`28ed020`). The new block's
   publication (`36968fc`, epoch 2) reached GitHub, then a DNS failure (`Could not resolve
-  host: github.com`) broke the read-back. `continue` answered `blocked` with that cause.
+  host: github.com`) broke the read-back. `continue` answered `blocked` with that cause. This PR
+  now reports such a failure as an error saying to run continue again, and keeps `blocked`
+  for a recorded wait.
 - The same session typed the same line again once the network was back. It restored `36968fc`
   and answered `continued` with block epoch 3, owner `session-b`, and next `launch build
   phase 2`, carrying phase 1's PASS. B recorded `phase 2 build {"actor":"session-b-builder"}`
