@@ -1,5 +1,9 @@
 # Local Phase 2 acceptance: stopped
 
+Later owner-operated checks are recorded separately in
+[manual-followup.md](manual-followup.md). They do not replace this stopped run,
+its failed queue record or the pending whole-acceptance verdict.
+
 2026-10-20. **STOPPED / INCOMPLETE. No whole Phase 2 PASS.**
 Tested product source `12eccdd8533ba710f0917cb3bcc78101070ecca8`, tree
 `ebcba7a8b69d117842dcd29b917dbf6013042a6c`. Evidence commits are separate

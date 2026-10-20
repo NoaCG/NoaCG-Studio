@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-20",
+  "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
+  "verdict": "PARTIAL / INCOMPLETE",
+  "originalStoppedReceipt": "README.md",
+  "originalQueueJob": "j-4653",
+  "originalQueueVerdictChanged": false,
+  "evidenceClass": "Owner-operated checks reported in this chat, with separate read-only browser observations",
+  "ownerReports": {
+    "escapeClosedLeaveDialogAndRetainedEditor": true,
+    "discardAndReopenRestoredSavedText": "Phase 2 local check",
+    "chromeBrowserZoomPercent": 125,
+    "saveHomeInspectorTimelineVisibleAndUsable": true,
+    "reloadRetainedTextPositionTiltWithoutSavePrompt": true,
+    "spxDownloadFilenameReported": "p2_local_12ecc_spx",
+    "spxDownloadWarningsOrErrorsReported": false,
+    "windowsFilePickerUsedForZipImport": true,
+    "importPreviewRetainedTextPositionTiltWithoutErrors": true
+  },
+  "independentReadOnlyBrowserObservations": {
+    "savedEditorText": "Phase 2 local check",
+    "savedIndicator": true,
+    "nameRotationKeySeconds": 1.26,
+    "importedPreviewText": "Phase 2 local check",
+    "importedResolution": [1920, 1080],
+    "importedFps": 25,
+    "importedOperatorFields": 2,
+    "actualChromeZoomIndependentlyVerified": false,
+    "nativePickerIndependentlyVerified": false
+  },
+  "archive": {
+    "foundInUsualDownloadsFolder": false,
+    "browserDownloadHistoryAccess": "denied by URL policy; no workaround",
+    "bytesInspected": false,
+    "editedSourcePreservationVerified": false,
+    "importedAnimationVerified": false
+  },
+  "sequentialIsolatedProfileHandoff": "not run; isolated test backend remains unavailable",
+  "dockerStarted": false,
+  "headlessSuiteStarted": false,
+  "productionCredentialsUsedOrCopied": false,
+  "accountAuthenticated": false,
+  "physicalDeviceProof": false,
+  "wholePhase2Accepted": false
+}
