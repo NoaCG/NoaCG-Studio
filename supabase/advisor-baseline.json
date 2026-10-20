@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-10-15",
-  "count": 176,
+  "recordedAt": "2026-10-20",
+  "count": 174,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -22,6 +22,11 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_open_round(p_slug text, p_kind text, p_question text, p_options jsonb, p_correct integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_open_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_operator_add_p_slug text, p_items jsonb": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_operator_add(p_slug text, p_items jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_add`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
       "name": "anon_security_definer_function_executable",
@@ -262,6 +267,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_open_round(p_slug text, p_kind text, p_question text, p_options jsonb, p_correct integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_open_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_operator_add_p_slug text, p_items jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_operator_add(p_slug text, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_add`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
       "name": "authenticated_security_definer_function_executable",
@@ -793,20 +803,10 @@
       "level": "INFO",
       "detail": "Table \\`public.user_plans\\` has a foreign key \\`user_plans_assigned_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
-    "unused_index_public_admin_audit_log_admin_audit_created_idx": {
-      "name": "unused_index",
-      "level": "INFO",
-      "detail": "Index \\`admin_audit_created_idx\\` on table \\`public.admin_audit_log\\` has not been used"
-    },
     "unused_index_public_admin_audit_log_admin_audit_target_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`admin_audit_target_idx\\` on table \\`public.admin_audit_log\\` has not been used"
-    },
-    "unused_index_public_agent_deliveries_agent_deliveries_key_idx": {
-      "name": "unused_index",
-      "level": "INFO",
-      "detail": "Index \\`agent_deliveries_key_idx\\` on table \\`public.agent_deliveries\\` has not been used"
     },
     "unused_index_public_agent_keys_agent_keys_user_idx": {
       "name": "unused_index",
@@ -838,11 +838,6 @@
       "level": "INFO",
       "detail": "Index \\`control_shows_team_idx\\` on table \\`public.control_shows\\` has not been used"
     },
-    "unused_index_public_render_jobs_render_jobs_ip_window": {
-      "name": "unused_index",
-      "level": "INFO",
-      "detail": "Index \\`render_jobs_ip_window\\` on table \\`public.render_jobs\\` has not been used"
-    },
     "unused_index_public_team_members_team_members_user_idx": {
       "name": "unused_index",
       "level": "INFO",
@@ -862,11 +857,6 @@
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`template_admin_visibility_idx\\` on table \\`public.template_admin\\` has not been used"
-    },
-    "unused_index_public_user_feedback_user_feedback_status_created_idx": {
-      "name": "unused_index",
-      "level": "INFO",
-      "detail": "Index \\`user_feedback_status_created_idx\\` on table \\`public.user_feedback\\` has not been used"
     },
     "unused_index_public_user_grants_user_grants_user_active_idx": {
       "name": "unused_index",
