@@ -72,6 +72,20 @@ the plan, but the risks behind them were.
 Not taken: recombining the a/b splits (the owner asked for builder-sized phases) and a function
 budget note (already stated).
 
+## Second opinions after the runner PRs, same day
+
+Two reviews (Claude, Astra) of `main` `1b9091537`, after #1540, #1542, #1543, #1545 and #1547.
+Each claim was checked against the code before acting.
+
+| # | Fix | Where |
+| --- | --- | --- |
+| R12 | Counts never go down: a diagnosis, or the owner's answer to a phase out of attempts, grants exactly one more attempt, and any failure after it, product or blocked, stops; diagnose stays `repair` after product failures and `check` after blocked ones; a coordinator resumed at a diagnosis passes preflight | #1549; parent §8 |
+| R13 | Infrastructure that is down is no failure: the checker reports it unavailable and the coordinator records a wait, never `fail blocked:` | #1549 (checker brief); parent §8 |
+| R14 | The progress check counts the worker session's own newest events and its pull request's merge-queue runs; a run queued over an hour is an infrastructure wait, told to the owner after two hours | #1549 |
+| R15 | The preflight checks each landing operation by its own receipt (from a real landing, never a probe that could queue unfinished work), the four keys by presence, the quarantine bot by a recent pull request, other active plan projects by the remote checkpoints' status, and open quarantine pull requests by one REST call; a refused landing gets one replacement builder, then a stop; a stuck quarantine pull request never holds the run | parent §8, §9 |
+| R16 | C2: month-to-date usage is read before the switch goes on, and while it cannot be read the switch stays off; a run with no recorded duration counts as 30 s; refused calls show in the month's usage; the switch holds an expiry at most 48 h ahead (a later one reads as off) that the daily watch moves forward, so a lost coordinator cannot leave the tick running, and the final report says when it turns off; the first-call proof is a recorded run | data-sources C2, matrix, cron note; parent §9.2 |
+| R17 | Phase notes: every phase of the programme, a child spec's included, writes to `evidence/phase-notes.md`; the data-sources spec points there, and the builder brief keeps notes under `## Phase notes` or the file it names. §10 step 6 continues in the same cloud environment as step 3, never from a routine, with the laptop as a fallback that needs the same keys | parent §9, §10; data-sources "Phase notes"; #1549 |
+
 ## Runner check
 
 Read on `331a98a91`: `scripts/plan-run.mjs`, `scripts/run-supervisor.mjs`,
