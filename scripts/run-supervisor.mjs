@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { activeProject, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, SUPERSEDED } from './run-recovery.mjs';
+import { activeProject, assertCurrent, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, SUPERSEDED } from './run-recovery.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { changeProject, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
@@ -125,6 +125,7 @@ export function updateRun(db, id, operation, value, now = Date.now()) {
   return transaction(db, () => {
     const { doc } = rowFor(db, id);
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
+    assertCurrent(db, id); // A superseded coordinator changes nothing, not even its own ledger.
     const text = readFileSync(doc.manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now);
     if (operation === 'wait') doc.wait = validateWait(value);
@@ -160,14 +161,14 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
   return transaction(db, () => {
     const row = rowFor(db, id), { doc } = row;
     if (doc.status !== 'active') throw Error('Terminal run cannot record another phase');
+    // A superseded coordinator is refused here, before it writes the ledger or launches anything.
+    assertCurrent(db, id);
     const text = readFileSync(doc.manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now);
     if (project) {
       checkBlock(project, authority, now);
       if (doc.wait || doc.pending || row.owner) throw Error('Reconcile blocked prerequisite, active lease or uncertain action before phase admission');
     }
-    // A superseded coordinator is refused here, before it writes the ledger or launches anything.
-    if (doc.manifest.recovery) publishRun(db, id);
     const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
     if (result.refusal) throw Error(result.refusal);
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
@@ -263,9 +264,9 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
       }
       return result(doc.status);
     }
+    if (doc.projectState) assertCurrent(db, id); // Stops a superseded coordinator.
     const text = readFileSync(manifest.wave, 'utf8');
     const project = checkedProject(doc, text, now());
-    if (project && manifest.recovery) publishRun(db, id); // Stops a superseded coordinator.
     if (project && projectBoundary(project, now())) {
       const boundary = projectBoundary(project, now());
       if (hasInFlight(text) && !doc.pauseReceipt) {
@@ -396,13 +397,21 @@ export function continueProject(root, { plan, owner, ...recovery }, { now = Date
       db.close(); db = null; rmSync(dir, { recursive: true, force: true });
       return { verdict: 'open', why: `no active ${plan} project: open, register and start-block it` };
     }
-    const { checkpoint } = restoreRun(db, { ...recovery, id, worktree, wave, adapter: { command: process.execPath, args: ['-e', ''], cwd: dir } }, now);
+    // The original adapter is never exported; this one answers every native request with unknown.
+    const adapter = { command: process.execPath, args: ['-e', 'process.stdout.write(\'{"state":"unknown"}\')'], cwd: dir };
+    const { checkpoint } = restoreRun(db, { ...recovery, id, worktree, wave, adapter }, now);
     const project = readProject(readFileSync(wave, 'utf8'), now);
     if (!project) throw new Error('Recovery checkpoint holds no continuing project');
     const deadline = Math.min(now + DAY_MS, Date.parse(project.authorization.deadline));
-    updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
+    const where = { id, db: dbFile, wave, worktree };
+    try {
+      updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
+    } catch (error) {
+      // This store already owns the project (the restore claimed it); resolve, then start-block.
+      return { verdict: 'blocked', why: error.message, ...where, next: nextStep(readFileSync(wave, 'utf8'), now) };
+    }
     const text = readFileSync(wave, 'utf8');
-    return { verdict: 'continued', id, db: dbFile, wave, worktree, block: readProject(text, now).block, next: nextStep(text, now) };
+    return { verdict: 'continued', ...where, block: readProject(text, now).block, next: nextStep(text, now) };
   } finally { db?.close(); }
 }
 
@@ -428,9 +437,8 @@ export async function main(args = process.argv.slice(2), options = {}) {
     let output;
     if (command === 'register') output = registerRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'next') {
-      const { doc } = rowFor(db, id);
-      if (doc.manifest.recovery) publishRun(db, id);
-      output = nextStep(readFileSync(doc.manifest.wave, 'utf8'));
+      assertCurrent(db, id);
+      output = nextStep(readFileSync(rowFor(db, id).doc.manifest.wave, 'utf8'));
     }
     else if (command === 'restore') output = restoreRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'resume') {

@@ -173,18 +173,30 @@ export function publishRun(db, id) {
   return commit;
 }
 
+/** Read-only check before acting: a store whose last publication is no longer the remote
+ * checkpoint has been superseded by a newer coordinator. Nothing is written or pushed. */
+export function assertCurrent(db, id) {
+  const git = transports.get(db) ?? recoveryGit;
+  const config = JSON.parse(db.prepare('SELECT doc FROM runs WHERE id=?').get(id).doc).manifest.recovery;
+  if (!config) return;
+  const head = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha;
+  if (git(config.repository, ['ls-remote', config.remote, refFor(id)]).split(/\s+/)[0] !== head) throw new Error(SUPERSEDED);
+}
+
 /** The id of the plan's one unexpired active project among the shared recovery refs, or null. */
 export function activeProject(db, config, plan, now = Date.now()) {
   const git = transports.get(db) ?? recoveryGit;
   settings(config, git);
   if (!/^[a-z0-9-]+$/.test(plan ?? '')) throw new Error('Plan name must be lowercase letters, digits and dashes');
+  // Project ids are plan-<plan>-<first date>; the date keeps plan "a" from matching plan "a-b".
+  const own = new RegExp(`^refs/heads/noacg-recovery/(plan-${plan}-\\d{4}-\\d\\d-\\d\\d)$`);
   const refs = git(config.repository, ['ls-remote', config.remote, `refs/heads/noacg-recovery/plan-${plan}-*`])
-    .split('\n').filter(Boolean).map((line) => line.split(/\s+/)[1]);
-  const active = refs.filter((ref) => {
+    .split('\n').map((line) => line.split(/\s+/)).filter(([, ref]) => own.test(ref ?? ''));
+  const active = refs.filter(([sha, ref]) => {
     git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
-    const { doc } = JSON.parse(git(config.repository, ['show', 'FETCH_HEAD:checkpoint.json']));
+    const { doc } = JSON.parse(git(config.repository, ['show', `${sha}:checkpoint.json`]));
     return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < Date.parse(doc.manifest.authorization.deadline);
-  }).map((ref) => ref.slice('refs/heads/noacg-recovery/'.length));
+  }).map(([, ref]) => own.exec(ref)[1]);
   if (active.length > 1) throw new Error(`Several active ${plan} projects (${active.join(', ')}); finish or cancel all but one`);
   return active[0] ?? null;
 }

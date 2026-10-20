@@ -58,7 +58,7 @@ Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the int
   `fail product:` gets the existing one repair; `fail blocked:` gets the existing one repeated check. A second failure stops for the owner; limits never reset on restart.
 - **wait**: reconcile the original native worker, PR, jobs and exact tested revision first. Record observed `landed`, or wait for its queue; never start another branch/phase.
   Unknown status or lost acknowledgement is unresolved, never absence. Never sit idle: wait in a running background job or monitor so a cloud machine is not reclaimed.
-  From it run `node scripts/worker-progress.mjs --branch <branch> [--pr <n>]`; `idle` (30 minutes) means nudge the worker, then stop it and relaunch the same step from its pushed branch.
+  From it run `node scripts/worker-progress.mjs --branch <branch>`; on `idle` (30 minutes) nudge the worker, and if still idle stop it and resume the same step in a new session on its pushed branch (the recorded launch stands).
 - **retro**: write the requested `## Midpoint retro` (orchestrator step 6, five lines), then ask `next` again.
 - **stop/stopped**: record the reserved decision and ask the owner as verify.md requires. Record `answered` only from the answer; cancellation cannot be answered away.
 - **pause/block**: `run-supervisor.mjs pause <db> <id> <reason>` or `wait <db> <id> <wait.json>` stops launches immediately, between phases or in flight.

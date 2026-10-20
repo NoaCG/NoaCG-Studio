@@ -89,9 +89,9 @@ const ledgerAt = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/noacg-recov
 
 /** A 72-hour project named as `continue` finds it; `open` starts a block on the original host,
  * `inFlight` also records a build there. */
-function projectFixture(t, { open = true, inFlight = false } = {}) {
+function projectFixture(t, { open = true, inFlight = false, id = 'plan-fixture-2030-01-01' } = {}) {
   const f = fixture(t, ['-e', ''], ({ manifest, wave, now }) => {
-    manifest.id = 'plan-fixture-2030-01-01';
+    manifest.id = id;
     manifest.authorization.deadline = new Date(now + 72 * HOUR).toISOString();
     const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
       status: 'paused', reason: 'restore fixture only', phases: [{ id: 'restore', title: 'Restore and check', dependsOn: [], acceptance: ['restore verified'], environment: 'controlled-fixture' }] };
@@ -156,6 +156,21 @@ test('continue answers open when the plan has no active project; cancelled and e
   const answer = f.continueAs('session-c');
   assert.equal(answer.verdict, 'open');
   assert.deepEqual(readdirSync(path.join(f.root, 'state-session-c')), []);
+  // Another plan whose name starts with this one's is never continued in its place.
+  assert.equal(projectFixture(t, { id: 'plan-fixture-v2-2030-01-01' }).continueAs('session-d').verdict, 'open');
+});
+
+test('a continued project with a recorded wait is owned by the new session, which resolves it and opens its block', (t) => {
+  const f = projectFixture(t);
+  updateRun(f.db, f.manifest.id, 'wait', { kind: 'owner', reason: 'owner decides the next phase', until: null }, f.now);
+  const blocked = f.continueAs('session-b');
+  assert.equal(blocked.verdict, 'blocked');
+  assert.match(blocked.why, /blocked prerequisite/);
+  const db = f.open(path.relative(f.root, blocked.db)), at = f.now + 1000;
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'clear-wait', 'stale session answer', at), /superseded/);
+  updateRun(db, f.manifest.id, 'clear-wait', 'owner answered in session B', at);
+  updateRun(db, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(at + HOUR).toISOString(), evidence: 'wait resolved' }, at);
+  recordRun(db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: at, authority: blockOf(blocked.wave) });
 });
 
 test('whole source/store/ledger loss restores pinned code, hashes, waits and unresolved exact request without replay', async (t) => {

@@ -121,6 +121,8 @@ into a fresh directory under `<state-root>`, opens a new block (at most 24 hours
 never past the original deadline) and prints `db`, `wave`, `block` and `next`. Save
 `block` as the authority receipt and carry on from `next`; failures, repair counts
 and in-flight steps carry over. `open` means no project is active: open one.
+`blocked` means this session now owns the project but its recorded wait must be
+resolved (`clear-wait`) before `start-block`.
 
 The previous coordinator needs nothing. Its next `record`, `next` or `tick` answers
 `superseded: another coordinator continued this project; stop` and launches nothing.
