@@ -101,7 +101,6 @@ async function createProject(page, spec) {
     const template = await formatTemplate(buildDraftTemplate(variant, draft));
     const store = useTemplateStore.getState();
     store.applyTemplate(template, { resetSampleData: true });
-    store.setActiveTab('html');
     useDocKindStore.getState().setKind('spx');
     const made = createLook(`${variant.name} look`, {
       styleTag: variant.styleTag, palette: variant.defaultPalette,

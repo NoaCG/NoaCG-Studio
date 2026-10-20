@@ -1,31 +1,3 @@
-/* ---------- Learn / teaching ---------- */
-.learn-card { border-left: 3px solid var(--border); }
-.learn-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.learn-badge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #0b0e12;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.learn-body { font-size: 13px; line-height: 1.5; margin: 0; }
-.learn-affects {
-  font-size: 12px;
-  margin: 8px 0 0;
-  color: var(--text-dim);
-}
-.learn-affects-label { color: var(--accent); font-weight: 600; }
-.learn-glossary { margin-top: 12px; }
-.learn-gloss-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 0;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-}
-
 /* The footer's brand label. Its select (`.wz-brand-select`) is sized beside `.wz-footer` in
    wizard-and-dialogs.css, because how it shrinks is the footer's one-line rule. */
 .wz-match { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); cursor: pointer; }
@@ -33,4 +5,3 @@
 /* The wizard's main forward action: bigger than its neighbors so the path onward is unmissable
    (the amber fill comes from .primary). */
 .wz-footer button.wz-next { padding: 9px 26px; font-size: 14px; }
-

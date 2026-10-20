@@ -1,18 +1,3 @@
-/* ---------- Editor change highlight (what the last apply touched) ---------- */
-.changed-line { background: rgba(94, 175, 255, 0.10); }
-.changed-gutter {
-  width: 3px !important;
-  margin-left: 3px;
-  background: var(--accent-2, #5eafff);
-  border-radius: 2px;
-}
-
-/* ---------- Panels ---------- */
-.panel-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
-/* Scoped to the side-panel strip only — the bare .tab class is shared with the
-   code editor's HTML/CSS/JS tabs, which stay compact. */
-.panel-tabs .tab { padding: 8px 14px; font-size: 14px; }
-.panel-body { flex: 1; overflow: auto; padding: 12px; }
 .panel-section { margin-bottom: 18px; }
 .panel-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin: 0 0 8px; }
 /* The editor panels write their subtitle as a separate clause ("Rehearse — operator view"),
@@ -102,54 +87,6 @@
 p.color-field-advisory { border-left: 0; padding-left: 0; margin-top: 6px; }
 .field-row input[type='range'] { accent-color: var(--accent); }
 
-.block-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.block-btn { text-align: left; padding: 10px; line-height: 1.3; }
-.block-btn .b-title { font-weight: 600; font-size: 13px; }
-.block-btn .b-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-.block-cat { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin: 14px 0 6px; }
-
-/* Blocks: search, hierarchical menu, toast */
-.block-search {
-  width: 100%;
-  padding: 7px 10px;
-  font-size: 13px;
-}
-.block-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-bottom: 10px; }
-.block-breadcrumb .crumb {
-  background: transparent;
-  border: none;
-  padding: 2px 4px;
-  font-size: 12px;
-  color: var(--accent);
-  cursor: pointer;
-}
-.block-breadcrumb .crumb:hover { text-decoration: underline; background: transparent; }
-.block-breadcrumb .crumb-sep { color: var(--text-dim); font-size: 12px; }
-.block-groups { display: flex; flex-direction: column; gap: 6px; }
-.block-group {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  text-align: left;
-  padding: 11px 12px;
-  font-size: 13px;
-}
-.block-group .bg-name { font-weight: 600; }
-.block-group .bg-count { font-size: 11px; color: var(--text-dim); }
-.block-toast {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 9px 12px;
-  font-size: 13px;
-  background: rgba(246, 166, 35, 0.12);
-  border: 1px solid rgba(246, 166, 35, 0.4);
-  border-radius: 6px;
-}
 kbd {
   font-family: ui-monospace, monospace;
   font-size: 11px;
@@ -159,41 +96,3 @@ kbd {
   border-radius: 4px;
   background: var(--bg);
 }
-
-/* Suggested-property chips */
-.chip-section { margin-top: 14px; }
-.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.prop-chip {
-  font-family: ui-monospace, monospace;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--bg-3);
-}
-.prop-chip:hover { border-color: var(--accent); color: var(--accent); }
-
-/* CSS reference (Learn tab) */
-.ref-group { border-top: 1px solid var(--border); }
-.ref-group-head {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  text-align: left;
-  padding: 9px 2px;
-  background: transparent;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.ref-group-head:hover { background: transparent; color: var(--accent); }
-.ref-props { padding: 2px 0 8px; }
-.ref-prop { padding: 7px 0; border-top: 1px dashed var(--border); }
-.ref-prop-head { display: flex; align-items: center; justify-content: space-between; }
-.ref-mdn { font-size: 11px; color: var(--accent); text-decoration: none; }
-.ref-mdn:hover { text-decoration: underline; }
-.ref-prop-desc { font-size: 12px; color: var(--text-dim); margin: 3px 0; line-height: 1.4; }
-.ref-prop-eg { font-size: 11px; color: #4ec9b0; }
-

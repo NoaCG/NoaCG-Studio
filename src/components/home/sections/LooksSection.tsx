@@ -20,7 +20,6 @@ import BrandEditor from '../../brand/BrandEditor';
 export default function LooksSection({ looks, onChanged, onDone }: { looks: SavedLook[]; onChanged: () => void; onDone: () => void }) {
   const template = useTemplateStore((s) => s.template);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
-  const setActiveTab = useTemplateStore((s) => s.setActiveTab);
   const setSampleValue = useTemplateStore((s) => s.setSampleValue);
   const [newLookName, setNewLookName] = useState('');
   const [editing, setEditing] = useState<SavedLook | 'new' | null>(null);
@@ -115,7 +114,6 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
               // into the live sample data is what puts it on screen.
               const slot = brandSlotField(next);
               if (slot?.value) setSampleValue(slot.field, slot.value);
-              setActiveTab('css'); // land on the retinted :root vars, highlighted like any patch
               setNote(`✓ Applied "${look.name}" to the open graphic. Back in the editor now.`);
               onDone();
             }}

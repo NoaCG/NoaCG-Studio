@@ -217,8 +217,9 @@ test('import graphic: the seed recovers the size and position of REAL typeset te
   await page.evaluate(async (text) => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     useTemplateStore.getState().setSampleValue('f0', text);
-    useTemplateStore.getState().sendControl('update');
+    await new Promise((resolve) => setTimeout(resolve));
   }, TYPESET.text);
+  await expect(editorPreview(page).locator('#f0')).toHaveText(TYPESET.text);
 
   // Where the replacement's glyphs actually render, in the artwork's own pixels. Measured
   // through the font's metrics rather than the element box: the box is the em, the ink is

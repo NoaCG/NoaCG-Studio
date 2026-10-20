@@ -900,6 +900,27 @@ replacement checks passed in j-4624, but partial coverage is insufficient. Keep 
 case, change its row to G with this evidence, and replace only its retired setup with current
 Home, save and production controls. No declaration is removed and no maintenance entry is added.
 
+### Step 6: selective shared retirement (2026-10-20)
+
+Why: retired editor state and styles still obscure the live editor and video workspace.
+Goal: remove only old-editor state, preview probes, obsolete callers and individually
+proven unused CSS rules. The owner released this scope in #1522; Phase 2 stays BLOCKED
+and #1466 is deferred, not fixed. This run executes locally following the owner's latest
+request to use this local session's access.
+
+Non-goals: no save/sync, routing, persisted data/layout/preferences, current runtime,
+selection/history/modal behavior, account enforcement, tests, limits or Phase 3 change.
+
+Decisions: remove SPX-only old state after checking all consumers, preserving the video
+store's independent state; wait for rendered field text before import glyph measurement;
+retain CSS rule bytes and relative cascade order, including live video/mobile rules.
+
+Acceptance: no retired store/probe caller remains; live selection, undo/redo, modal
+gating, brand apply and import geometry keep working; editor, wizard and video render
+correctly at desktop/mobile widths; the two retained keyboard helpers are byte-identical;
+all applicable targeted checks and authoritative Actions pass. Record source/rule/line
+measurements and verification in the final receipt.
+
 ### Remaining order and the #800 exit condition
 
 1. **Classify subjects while the first shell PR proceeds.** Start from the complete case table.
