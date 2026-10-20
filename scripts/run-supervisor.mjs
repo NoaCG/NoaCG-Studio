@@ -388,9 +388,10 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
  * plan has no active project yet. */
 export function continueProject(root, { plan, owner, ...recovery }, { now = Date.now(), recoveryGit: transport } = {}) {
   if (!required(owner)) throw new Error('Continue needs an owner label for the new block');
-  const dir = path.join(path.resolve(root), `${new Date(now).toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
+  // Short names: the worktree holds the whole repository, and Windows paths stop at 260 characters.
+  const dir = path.join(path.resolve(root), randomUUID().slice(0, 8));
   mkdirSync(dir, { recursive: true });
-  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'worktree');
+  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'src');
   let db = openStore(dbFile, { recoveryGit: transport });
   try {
     const id = activeProject(db, recovery, plan, now);

@@ -118,7 +118,8 @@ the same `/plan-run` line first runs, from a checkout of this repository:
     node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>
 
 It finds the plan's active project (`plan-<plan>-*`), restores its latest checkpoint
-into a fresh directory under `<state-root>`, opens a new block (at most 24 hours,
+into a fresh directory under `<state-root>` (on Windows keep it short, e.g.
+`C:\noacg-state`: it holds a full checkout), opens a new block (at most 24 hours,
 never past the original deadline) and prints `db`, `wave`, `block` and `next`. Save
 `block` as the authority receipt and carry on from `next`; failures, repair counts
 and in-flight steps carry over. `open` means no project is active: open one.
