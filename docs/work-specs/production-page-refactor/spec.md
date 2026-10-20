@@ -784,8 +784,8 @@ the final owner block, which waits for him.
 
    It restores the project from its recovery ref, takes over and carries on from the first
    unfinished step; a worker in flight is reconciled, not relaunched. An older coordinator that is
-   still alive is refused at its next step and stops by itself. The runner's watchdog does the
-   same by itself when the heartbeat goes stale; do it by hand also when the morning
+   still alive is refused at its next step and stops by itself. The watchdog from the second
+   runner PR does the same by itself when the heartbeat goes stale; do it by hand also when the morning
    summary does not arrive or the helper reports a stale heartbeat.
 7. Block end: the coordinator opens the next block itself; the worker in flight keeps going.
    Reconcile workers, PRs, exact tested revisions and pending external intents before every
