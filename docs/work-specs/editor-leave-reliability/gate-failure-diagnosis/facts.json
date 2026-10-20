@@ -1,0 +1,63 @@
+{
+  "source": "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1",
+  "repairAttempts": {
+    "quiz": 0,
+    "sharedLab": 0
+  },
+  "quizBaseline": {
+    "job": "j-0007",
+    "result": "1 passed, no retries; original failure not reproduced"
+  },
+  "quizSchedulingChallenges": [
+    {
+      "job": "j-0008",
+      "result": "new diagnostic observation failed at681, not original683:70; ineffective"
+    },
+    {
+      "job": "j-0009",
+      "result": "1 passed; ineffective"
+    },
+    {
+      "job": "j-0010",
+      "result": "1 passed, one matching Reveal correct control observed; ineffective"
+    }
+  ],
+  "sharedLab": "local reproduction not run: pinned stack image registry refused; original artifact shows App module boot failure, underlying cause unproved",
+  "checks": [
+    {
+      "file": "e2e/import-svg-behaviour.spec.ts",
+      "sha256": "31dd2f20a70abd7bcd76253686ab16c7c0acbe323c32673a81456c000c99d0b5",
+      "unchanged": true
+    },
+    {
+      "file": "e2e/configured/shared-lab-computer.spec.ts",
+      "sha256": "a32cbfac3187ccfbfe791401c3f47f3339d5e1be1be419af53c15c7da5f78cec",
+      "unchanged": true
+    },
+    {
+      "file": "e2e/configured/_helpers.ts",
+      "sha256": "6aaa58db8cb399128568c05ef35824648879b51eb50c6e4151533e5ef004c089",
+      "unchanged": true
+    },
+    {
+      "file": "e2e/editor-groups.spec.ts",
+      "sha256": "978d49bee880f4f31bbc73c994c975ce45c3c4415e512dcc7f378c9af2632a78",
+      "unchanged": true
+    },
+    {
+      "file": "playwright.config.ts",
+      "sha256": "73837f5196f76acd0d9abb82bea9df3027153a432599b1b9877fd87321da8cce",
+      "unchanged": true
+    },
+    {
+      "file": "playwright.live.config.ts",
+      "sha256": "0736bd0c22939dfdda33ccfeadd9b05552224b21a543dd050a360103c30a99c6",
+      "unchanged": true
+    },
+    {
+      "file": "e2e/quarantine.json",
+      "sha256": "d66b6552aa2b7ff8a12d0778e7213557a87524666ea62fc3f67e0a155af41cbc",
+      "unchanged": true
+    }
+  ]
+}

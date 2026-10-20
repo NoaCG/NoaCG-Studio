@@ -1,0 +1,25 @@
+=== j-0010 npm run test:e2e -- e2e/import-svg-behaviour.spec.ts --grep 'first option' --retries=0
+=== cwd /workspace/p2-gate-repair
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/import-svg-behaviour.spec.ts --grep first option --retries=0
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 9626 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:17142) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:17157) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:17256) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+P2 matching real named Next [ { testId: 'cue-action-judge', text: '⚡ Reveal correct' } ]
+  ✓  1 [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick (3.4s)
+
+  1 passed (7.9s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

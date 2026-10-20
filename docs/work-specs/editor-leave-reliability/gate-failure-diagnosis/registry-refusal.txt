@@ -1,0 +1,5 @@
+Pinned CLI: 2.111.0
+Command: supabase start -x studio,edge-runtime
+Error response from daemon: Get "https://public.ecr.aws/v2/": Forbidden
+The single CLI invocation emitted repeated internal pull errors; the owned launcher was terminated after identifying the refusal. No second start, registry/proxy bypass, credential change or allowlist edit was attempted.
+No containers are running after stop.

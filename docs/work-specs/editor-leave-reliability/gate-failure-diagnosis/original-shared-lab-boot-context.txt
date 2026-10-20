@@ -1,0 +1,10 @@
+```yaml
+- heading "NoaCG Studio could not finish loading" [level=1]
+- paragraph: Part of the app failed to load - on a managed or filtered network this usually means a proxy blocked one of the app's own files.
+- paragraph: Nothing is wrong with your saved work.
+- paragraph:
+  - button "Try again"
+  - link "Run the connection check":
+    - /url: /app?diag=1
+- paragraph: "Failed to fetch dynamically imported module: http://127.0.0.1:5175/src/App.tsx"
+```
