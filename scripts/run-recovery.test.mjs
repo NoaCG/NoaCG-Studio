@@ -204,7 +204,7 @@ const remoteLedger = (f) => JSON.parse(git(f.remote, 'show', `refs/noacg-recover
 test('a refused checkpoint publication leaves the ledger and the store as they were, so a retry works', (t) => {
   const f = projectFixture(t), block = blockOf(f.manifest.wave), before = readFileSync(f.manifest.wave, 'utf8');
   f.inject((args, call) => { if (pushes(args)) throw new Error('remote: rejected'); return call(); });
-  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /publication unresolved/);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /publication unresolved; retry before acting \(git: remote: rejected\)/);
   assert.equal(readFileSync(f.manifest.wave, 'utf8'), before);
   assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /publication unresolved/);
   assert.equal(readFileSync(f.manifest.wave, 'utf8'), before);

@@ -172,10 +172,12 @@ export function publishRun(db, id) {
   const commit = git(config.repository, ['commit-tree', tree, ...(old ? ['-p', old] : []), '-p', r.revision], `Recovery checkpoint ${id}\n`);
   try {
     git(config.repository, ['push', `--force-with-lease=${ref}:${old}`, config.remote, `${commit}:${ref}`]);
-  } catch {
+  } catch (error) {
     // A transport failure may follow acceptance. Reconcile this exact commit, never force.
     const accepted = remoteHead(git, config, ref);
-    if (accepted !== commit) throw accepted === old ? new Error('Recovery publication unresolved; retry before acting') : superseded();
+    // Name git's own answer: a refused namespace and a lost connection need different fixes.
+    const said = String(error.stderr || error.message).trim().split('\n').filter(Boolean).slice(-3).join(' | ').slice(0, 500);
+    if (accepted !== commit) throw accepted === old ? new Error(`Recovery publication unresolved; retry before acting (git: ${said})`) : superseded();
   }
   db.prepare('INSERT INTO recovery_heads VALUES(?,?) ON CONFLICT(id) DO UPDATE SET sha=excluded.sha').run(id, commit);
   return commit;

@@ -91,6 +91,7 @@ test('a product failure gets one repair; a second failure is diagnosed, and a fa
   // Owner decision 2026-10-20: a second failure goes to one fresh deciding agent, not straight to the owner.
   assert.equal(next(file).action, 'diagnose');
   assert.match(next(file).why, /failed again after a repair/);
+  assert.match(printed(file), /^diagnose phase 1: its check failed again after a repair/);
   assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'repair'), /next event is diagnose/);
   assert.match(refuseStep(readFileSync(file, 'utf8'), 2, 'build'), /phase 1 has not passed/);
   assert.match(refuseStep(readFileSync(file, 'utf8'), 1, 'diagnose', 'the decider looked'), /decision/);

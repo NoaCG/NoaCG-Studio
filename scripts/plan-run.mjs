@@ -329,7 +329,7 @@ function describe(next) {
     lines.push(`launch ${next.step} phase ${next.phase}${next.notes ? ` (land notes: ${next.notes})` : ''}`);
     if (next.carry) lines.push(`  carry: ${next.carry}`);
   } else if (next.action === 'wait') lines.push(`wait ${next.step} phase ${next.phase}${next.launched ? ` (${next.launched})` : ''}`);
-  else if (['retro', 'stop', 'stopped'].includes(next.action)) lines.push(`${next.action} phase ${next.phase}: ${next.why}`);
+  else if (['retro', 'diagnose', 'stop', 'stopped'].includes(next.action)) lines.push(`${next.action} phase ${next.phase}: ${next.why}`);
   else lines.push(`${next.action}: ${next.why}`);
   if (next.closingMinutes !== undefined) {
     lines.push(`window ends in ${next.closingMinutes} min: launch only a step that lands before then, else checkpoint and record paused`);
