@@ -1,4 +1,0 @@
-qualification	Independent marquee and multi-object regression	2026-10-13T17:39:13.5869455Z Running 1 test using 1 worker
-qualification	Independent marquee and multi-object regression	2026-10-13T17:39:14.0203862Z [1/1] [chromium] › e2e/editor-base-edits.spec.ts:144:1 › B02 multi-object drag, marquee and cancel share one undo transaction
-qualification	Independent marquee and multi-object regression	2026-10-13T17:39:20.8703384Z ##[notice]  1 passed (12.5s)
-qualification	Independent marquee and multi-object regression	2026-10-13T17:39:20.8712933Z   1 passed (12.5s)
