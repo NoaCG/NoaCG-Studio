@@ -75,6 +75,7 @@ export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
   if (!reservation || reservation.baseline !== baseline || (!reservation.minting && graphicIdTaken(reservation.id))) {
     reservation = { id: uuid(), baseline, minting: false };
     rememberDeviceId(OWN_RESERVATIONS_KEY, reservation.id);
+    rememberDeviceId(OWN_RESERVATIONS_KEY, reservation.id, true);
   }
   return reservation.id;
 }
@@ -95,30 +96,33 @@ const SUPERSEDED_KEY = 'spx-gfx-superseded';
  *  before a refused link write. */
 const IDS_KEPT = 20;
 /** A list's ids (model/deviceIds.ts owns the format). */
-function readList(key: string): DeviceIdsRead {
+function readList(key: string, tab = false): DeviceIdsRead {
   try {
-    return readDeviceIds(localStorage.getItem(key));
+    return readDeviceIds((tab ? sessionStorage : localStorage).getItem(key));
   } catch {
     return { ids: [], writable: false };
   }
 }
-function deviceIds(key: string): string[] {
-  return readList(key).ids;
+function deviceIds(key: string, tab = false): string[] {
+  return readList(key, tab).ids;
 }
-function rememberDeviceId(key: string, id: string): void {
-  const list = readList(key);
+function rememberDeviceId(key: string, id: string, tab = false): void {
+  const list = readList(key, tab);
   // A newer build's list stays as it wrote it; the id is then not recorded here.
   if (!list.writable) return;
   try {
-    localStorage.setItem(key, writeDeviceIds([id, ...list.ids.filter((kept) => kept !== id)].slice(0, IDS_KEPT)));
+    (tab ? sessionStorage : localStorage).setItem(key, writeDeviceIds([id, ...list.ids.filter((kept) => kept !== id)].slice(0, IDS_KEPT)));
   } catch {
-    // Not recorded: this device's reload treats its own reservation as another device's, so the
-    // draft asks for a name rather than relinking (a second record at worst, nothing overwritten).
+    // If neither local list can record ownership, reload asks for a name rather than trusting
+    // an account-synced reservation (a second record at worst, nothing overwritten).
   }
 }
-/** Did THIS device make the reservation `id`? */
+/** Did THIS device make the reservation `id`? The tab-local mirror survives a reload when the
+ *  device list is lost, damaged or belongs to a newer build. Both lists use the same versioned
+ *  format and neither syncs. A closed tab still needs the device list; the synced slot alone
+ *  never proves ownership. Existing source/mint guards still decide whether to relink. */
 export function isOwnReservation(id: string | undefined): boolean {
-  return !!id && deviceIds(OWN_RESERVATIONS_KEY).includes(id);
+  return !!id && (deviceIds(OWN_RESERVATIONS_KEY).includes(id) || deviceIds(OWN_RESERVATIONS_KEY, true).includes(id));
 }
 /** Boot: the slot's persisted reservation, when it is this device's own, is the document's, so a
  *  reload before its first Save keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
