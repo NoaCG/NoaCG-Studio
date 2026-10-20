@@ -213,10 +213,12 @@ test('import graphic: the seed recovers the size and position of REAL typeset te
   await eraseRect(page, 0.09, 0.55, 0.66, 0.76);
   await finishIntoNewEditor(page);
 
-  // Give the field the SAME string, so the two ink boxes are comparable.
+  // Author the SAME default string the editor renders, so both ink boxes are comparable.
   await page.evaluate(async (text) => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    useTemplateStore.getState().setSampleValue('f0', text);
+    const { setFieldDefault } = await import('/src/blocks/edit.ts');
+    const store = useTemplateStore.getState();
+    store.applyTemplate(setFieldDefault(store.template, 'f0', text));
     await new Promise((resolve) => setTimeout(resolve));
   }, TYPESET.text);
   await expect(editorPreview(page).locator('#f0')).toHaveText(TYPESET.text);

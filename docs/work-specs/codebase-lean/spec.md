@@ -1528,6 +1528,24 @@ Completed checks: client/API TypeScript, targeted ESLint, E2E protection, retain
 checks, contract generation/freshness/citations/evidence, 6 affected Node files / 33 tests,
 and all 528 catalog emits against their committed baseline. Inline review/simplification
 uses the exact branch/base scope; an external CLI review was refused by automatic approval
-review, with no retry or bypass. Browser job j-4638 (five specs, cap 5) is queued behind the
-physical-RAM guard, not passing or failed. Desktop/mobile editor, wizard and video captures
-remain pending. No app production build or full local suite ran. Actions is authoritative.
+review, with no retry or bypass. Browser job j-4638 (five specs, cap 5) ran 45 cases:
+44 passed and the real-typeset import case failed at the new rendered-text assertion
+(expected Alexandra Riva, actual Name). EditorFoundation renders saved field defaults, while
+the old setup only wrote operator sample data. Repair 1 changed only the parsed fields array,
+but applyTemplate reparses HTML: j-4640 again had 44 passes and the same text failure.
+Repair 2 uses the existing setFieldDefault helper, which writes definition and static text,
+then applyTemplate. Every geometry bound and the rendered-text assertion remain unchanged.
+Jobs j-4639 and j-4641 never started because their dependencies failed. The repaired import
+file rerun j-4642 passed all 7 cases (20.3 seconds). The other 38 selected cases passed
+in j-4640; only this import setup changed afterward. Desktop/mobile editor, wizard and
+video capture job j-4643 exited 0 and wrote six images plus facts.json under
+`test-results/step6-visual/`. Visual inspection confirms the styled editor at 1366 and
+1093 widths, desktop video guides/backing, and mobile code controls. Wizard captures
+and the desktop code pane were taken before loading settled, so those images are not
+acceptance evidence for their loaded state. The cloud successor must capture settled
+wizard and video/code views and inspect their console/network; error listeners in this
+local capture script covered the first editor/wizard context only. Its source label
+15bdf729 matches application source; only the import-test setup and this receipt changed. No app production build or full local suite ran. Actions is
+authoritative. The owner requests cloud continuation because the laptop must close; the
+local cleanup heartbeat is paused to prevent competing editors. PR #1526 remains draft,
+with no auto-merge or queue entry until verification and explicit successor ownership.
