@@ -123,3 +123,28 @@ made. The setup was not retried. See [temporary-branch-attempt.json](temporary-b
 Whole acceptance remains incomplete, with imported-animation playback and
 sequential isolated-profile handoff pending. All original failures and attempt
 limits remain; this does not renew the spent shared-lab diagnosis allowance.
+
+## Bounded normal-runner recovery preparation
+
+The owner approved one normal-runner setup recovery with unchanged migrations,
+product, tests and limits, branch-only access, stop at any refusal, and cleanup.
+The cloud executor qualified CLI 2.111.0 and an authenticated branch metadata
+read, but stopped before creating a paid branch: no supported endpoint-specific
+database admission was available in that worker. VPN was disabled and TCP grants
+were empty; the documented CONNECT route was limited to private IPv4. No database
+connection, SQL or migration execution was claimed from HTTPS metadata success.
+
+The coordinator then checked the same normal route locally, without Docker.
+Pinned CLI 2.111.0 was downloaded and its read-only branch listing succeeded using
+the repository's existing credential loader in place. No credential file or value
+was copied to the cloud or printed. Only main was listed. This qualifies that
+metadata read, not database connectivity or migration writes.
+
+Before any new paid creation, a source-only call to the existing migration
+classifier found `0085_community_gallery_retired.sql` blocked for six DROP
+statements. Other files after 0073 classified unblocked. The unchanged 0085 locks
+its two legacy tables, refuses unless both are empty, and checks retained
+community-pack objects after retirement. Its normal wrapper mechanism requires
+an explicit `--allow 0085` decision. The coordinator stopped and asked the owner
+for that branch-only approval; no override was used and no paid branch, account,
+local server or acceptance run was started. See [backend-recovery.json](backend-recovery.json).

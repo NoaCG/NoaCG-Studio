@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-20",
+  "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
+  "verdict": "PREPARATION STOPPED AT MIGRATION GUARD / NO NEW PAID BRANCH",
+  "authorization": "One bounded normal-runner backend recovery; unchanged migrations/tests/limits; branch-only access; stop at refusal; cleanup required",
+  "cloud": {
+    "ownerThread": "01a15836-9bcd-7339-9fac-4d7f6238705c",
+    "turn": "01a15ab5-8e7b-723d-8587-138b96c57046",
+    "ownedWorktree": "/workspace/p2-backend-recovery",
+    "cliVersion": "2.111.0",
+    "existingCredentialMetadataRead": "PASS: branches list",
+    "databaseTransport": "UNQUALIFIED: supported scoped admission unavailable; VPN disabled; TCP grants empty; documented CONNECT limited to private IPv4",
+    "newBranchCreated": false,
+    "sqlOrMigrationsExecuted": false,
+    "credentialsCopied": false
+  },
+  "local": {
+    "cliVersion": "2.111.0",
+    "cliPackagePinned": "supabase@2.111.0",
+    "existingCredentialUsedInPlace": true,
+    "credentialValuesPrintedOrTransferredToCloud": false,
+    "metadataRead": "PASS: branches list --project-ref kprolrchuldgfrzspthy --output json",
+    "metadataListingBranches": ["main"],
+    "dockerStarted": false,
+    "freeMiB": 1971,
+    "databaseTransport": "not tested",
+    "newBranchCreated": false,
+    "sqlOrMigrationsExecuted": false
+  },
+  "migrationPreflight": {
+    "method": "Read-only classifyMigration over unchanged repository files after 0073; no backend accessed",
+    "blockedMigration": "0085_community_gallery_retired.sql",
+    "finding": "DROP statements for two legacy tables and four functions",
+    "normalExplicitApproval": "--allow 0085",
+    "approvalStatusAtReceipt": "owner decision pending; not used",
+    "emptyTableChecksRetained": true,
+    "postMigrationSelfChecksRetained": true,
+    "allOtherPendingFilesClassifiedUnblocked": true,
+    "guardsChangedOrBypassed": false
+  },
+  "temporaryBranchActive": false,
+  "priorBranchDeletionReceipt": "temporary-branch-attempt.json",
+  "accountsCreated": false,
+  "localServerStarted": false,
+  "acceptanceChecksStarted": false,
+  "originalSharedLabDiagnosisResumed": false,
+  "wholePhase2Accepted": false
+}
