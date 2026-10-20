@@ -92,8 +92,8 @@ export function lensWrite(data: AnimData, target: TimelineTarget, edited: AnimDa
  * compute a phase from a step INDEX would each have called the branch's only step 'in' and
  * jumped the preview to the graphic's entrance.
  *
- * One rule, every caller: a branch answers `state:<groupId>:<stateId>`, which PlayoutSimulator
- * resolves through the runtime's own `noacgEnterTimeline`. `pathPhase` is what the caller
+ * One rule, every caller: a branch answers `state:<groupId>:<stateId>`, which the preview simulator runtime
+ * resolves through the graphic's own `noacgEnterTimeline`. `pathPhase` is what the caller
  * would have sent on the default path (phaseIdOf).
  */
 export function scrubPhase(target: TimelineTarget, pathPhase: string): string {

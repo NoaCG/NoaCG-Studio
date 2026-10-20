@@ -8,11 +8,10 @@ owned by the existing Step 6 coordinator. Phase 2 remains BLOCKED; live save/syn
 routing, saved-data/preferences, retained CSS and all assertions/CI gates stay protected.
 No broader product change or Phase 3 work is authorized by the release.
 
-Status: **approved and running. The old shell, timeline/canvas/preview group and singles-a
-through singles-i, the panels and the released editor/account checks have landed. The kept
-Sheet and insertion cases landed in #1492. This branch removes obsolete helpers and updates
-verification docs
-before #800 closes, with step 6 last.**
+Status: **steps 1-5 landed and issue #800 closed. Step 6 is implemented in #1526;
+local browser/visual verification and normal merge-queue landing remain pending.**
+The owner released this cleanup through #1522 while deferring #1466; this is not
+a Phase 2 acceptance claim.
 The owner accepted keeping issue #800 for live-product tests and prioritizes a clean, simple
 codebase over speculative retention. The original inventory is pinned to
 `3010e41134f1e3a6ebf3933582eb9b7e52055241`; the admin assessment and concurrency check use
@@ -1500,3 +1499,35 @@ production build was run for this test/evidence change. No test was removed or s
 no gate, assertion, resource limit, maintenance allowance or budget exception was loosened.
 The additional insertion operator-field journey is tracked separately in #1499; it is not
 claimed here. Step 6's narrow release and editor Phase 2 repair/acceptance remain separate.
+
+### Step 6 implementation receipt (verification in progress)
+
+Source base: `4c69d916fc10239037e44894bab10dc835e6723a`; PR #1526.
+The SPX store loses its unused old panel/tab, hover context, changed-line diff, replay/control/
+scrub, lock, playhead/target, machine-pointer and canvas-gesture/tool state. The only remaining
+old-tab callers were Home's brand apply and acceptance-pack; both now keep their real apply
+behavior without a retired-tab write. The similarly named video-store state stays live.
+The unused `patchCss` store API is removed too: creative-pilot's same spelling is a local
+variable, not a caller. Live selection, undo/redo, modal count, saved links, authorization,
+assets and autosave/sync code are retained. No persisted reader, writer or format changes.
+
+Six CSS sheets lose all 221 audited rules. Mixed sheets lose 124 more, including three
+keyframe steps: 345 rules in total. All 88 retained mixed-sheet rules match their original
+bytes and order after Git line-ending normalization. Video stage/frame/world, guide/background
+controls, mobile code controls, wizard footer, fields, sync/account notices and send-in stay.
+The old preview probes are removed from `e2e/_keys.ts`; both retained keyboard helper bodies
+are byte-identical after line-ending normalization. Import glyph measurement now waits for
+its actual rendered field text. No test declaration, assertion, budget or quarantine changes.
+
+Eight helper/runtime source files only correct retirement comments; comment-free TypeScript
+syntax is identical. The obsolete timeline-target instruction was removed at its source rule
+and compiled guidance regenerated. Handwritten store guidance is narrowed to current state,
+and its evidence allowance is banked from three lines to two by the existing generator.
+
+Completed checks: client/API TypeScript, targeted ESLint, E2E protection, retained-byte/order
+checks, contract generation/freshness/citations/evidence, 6 affected Node files / 33 tests,
+and all 528 catalog emits against their committed baseline. Inline review/simplification
+uses the exact branch/base scope; an external CLI review was refused by automatic approval
+review, with no retry or bypass. Browser job j-4638 (five specs, cap 5) is queued behind the
+physical-RAM guard, not passing or failed. Desktop/mobile editor, wizard and video captures
+remain pending. No app production build or full local suite ran. Actions is authoritative.
