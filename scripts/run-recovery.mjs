@@ -191,14 +191,15 @@ export function activeProject(db, config, plan, now = Date.now()) {
   settings(config, git);
   if (!PLAN_RUN_KIND.test(`plan-${plan}`)) throw new Error(`"${plan}" is not a plan name (lowercase words joined by single dashes)`);
   // Project ids are plan-<plan>-<first date>; the date keeps plan "a" from matching plan "a-b".
-  const own = new RegExp(`^refs/heads/noacg-recovery/(plan-${plan}-\\d{4}-\\d\\d-\\d\\d)$`);
-  const refs = git(config.repository, ['ls-remote', config.remote, `refs/heads/noacg-recovery/plan-${plan}-*`])
-    .split('\n').map((line) => line.split(/\s+/)).filter(([, ref]) => own.test(ref ?? ''));
+  const prefix = `refs/heads/noacg-recovery/plan-${plan}-`;
+  const own = (ref) => Boolean(ref?.startsWith(prefix)) && /^\d{4}-\d\d-\d\d$/.test(ref.slice(prefix.length));
+  const refs = git(config.repository, ['ls-remote', config.remote, `${prefix}*`])
+    .split('\n').map((line) => line.split(/\s+/)).filter(([, ref]) => own(ref));
   const active = refs.filter(([sha, ref]) => {
     git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
     const { doc } = JSON.parse(git(config.repository, ['show', `${sha}:checkpoint.json`]));
     return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < Date.parse(doc.manifest.authorization.deadline);
-  }).map(([, ref]) => own.exec(ref)[1]);
+  }).map(([, ref]) => ref.slice('refs/heads/noacg-recovery/'.length));
   if (active.length > 1) throw new Error(`Several active ${plan} projects (${active.join(', ')}); finish or cancel all but one`);
   return active[0] ?? null;
 }
