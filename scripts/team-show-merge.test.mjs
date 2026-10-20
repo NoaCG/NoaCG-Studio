@@ -149,3 +149,29 @@ test('a merge that keeps every folder whole reports nothing, and settling is ide
   assert.deepEqual(again.doc, doc);
   assert.deepEqual(again.lost, []);
 });
+
+// A PREPARED MESSAGE AND A BINDING ON ITS FIELD, made from one base by two members (audience-flow
+// AC-6). Each side passed the rule on its own copy, and the per-field merge would keep both: a live
+// route into the cue's approved text. The prepared cue owns its values, so the binding goes.
+const qa = { id: 'qa', name: 'House Q&A', layer: 20 };
+const prepared = { id: 'c2', sourceId: 'qa', label: 'Hi', values: { f1: 'Hi' }, stagedFrom: { candidateId: 'm1', fields: ['f1'], at: AT } };
+
+test('our prepared message and their binding on its field: the binding is dropped and reported', () => {
+  const base = show([qa], { cues: [] });
+  const ours = show([qa], { cues: [prepared] });
+  const theirs = show([qa], { cues: [], bindings: { 'House Q&A': { f1: 'feed.question', f2: 'feed.name' } } });
+  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  assert.deepEqual(doc.cues, [prepared]);
+  assert.deepEqual(doc.bindings, { 'House Q&A': { f2: 'feed.name' } });
+  assert.deepEqual(lost, ['the field bindings']);
+});
+
+test('their prepared message and our binding on its field: the binding is dropped and reported', () => {
+  const base = show([qa], { cues: [] });
+  const ours = show([qa], { cues: [], bindings: { 'House Q&A': { f1: 'feed.question' } } });
+  const theirs = show([qa], { cues: [prepared] });
+  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  assert.deepEqual(doc.cues, [prepared]);
+  assert.equal(doc.bindings, undefined);
+  assert.deepEqual(lost, ['the field bindings']);
+});

@@ -711,7 +711,13 @@ export function rebasedDurableSet(
       reportError(key, next.refused, writeSeq);
       return;
     }
-    lsSet(physical(key), next.value);
+    try { lsSet(physical(key), next.value); }
+    catch (e) {
+      const message = isQuotaError(e) ? FULL_MESSAGE : FAILED_MESSAGE;
+      recordReceipt({ sequence: ++writeSeq, key, value: stored, account: namespace, settled: Promise.resolve(message) });
+      reportError(key, message, writeSeq);
+      return;
+    }
     recordReceipt({ sequence: ++writeSeq, key, value: next.value, account: namespace, settled: Promise.resolve(null) });
     return;
   }

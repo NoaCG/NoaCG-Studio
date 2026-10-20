@@ -730,7 +730,7 @@ export function refreshGraphicCopies(
  *  the write lands (`rebasedDurableSet`), so a tab that has not yet heard of another tab's prepare
  *  or binding neither passes the rule on its old copy nor writes that copy back. `mutate` must then
  *  give the same answer for the same record (no fresh ids inside it). A team production is not in
- *  this database and keeps the ordinary write. */
+ *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
 function patchShowChecked(
   showId: string,
   mutate: (show: Show, at: string) => boolean | string,

@@ -219,6 +219,32 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     if (settled.folders.length) doc.folders = settled.folders;
     else delete doc.folders;
   }
+  if (dropBindingsOnPreparedFields(doc as unknown as Show) && !lost.includes(FIELD_LABEL.bindings)) {
+    lost.push(FIELD_LABEL.bindings);
+  }
   doc.updatedAt = at;
   return { doc: doc as unknown as Show, lost, gathered: settled.changed };
+}
+
+/**
+ * A PREPARED CUE OWNS ITS VALUES (docs/work-specs/audience-flow/spec.md AC-6). Each side checked
+ * the rule on its own copy (`preparedMessageField` in model/shows.ts), but one side's prepared cue
+ * and the other's binding on the field it filled merge as two unrelated fields. The binding is the
+ * one live route into the approved text, so it goes, whichever side made it. True when one went.
+ */
+function dropBindingsOnPreparedFields(doc: Show): boolean {
+  if (!doc.bindings) return false;
+  let dropped = false;
+  const bindings: NonNullable<Show['bindings']> = {};
+  for (const [graphic, fields] of Object.entries(doc.bindings)) {
+    const ids = new Set(doc.graphics.filter((g) => g.name === graphic).map((g) => g.id));
+    const prepared = new Set((doc.cues ?? []).filter((c) => ids.has(c.sourceId)).flatMap((c) => c.stagedFrom?.fields ?? []));
+    const kept = Object.fromEntries(Object.entries(fields).filter(([field]) => !prepared.has(field)));
+    if (Object.keys(kept).length !== Object.keys(fields).length) dropped = true;
+    if (Object.keys(kept).length > 0) bindings[graphic] = kept;
+  }
+  if (!dropped) return false;
+  if (Object.keys(bindings).length > 0) doc.bindings = bindings;
+  else delete doc.bindings;
+  return true;
 }
