@@ -628,8 +628,8 @@ the first rehearsal.
   observed merge with PASS waiting for every exact-merge check. Recovery checkpoints now live on
   the branch `claude/noacg-recovery/<id>`, which a cloud session can push (landed: #1545; receipt
   `docs/work-specs/continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`). No
-  watchdog is built: a routine-started session has no `send_message` or `list_events`, so it
-  could not message the workers or read the transcripts of the coordinator it replaced. A stopped
+  watchdog is built: a routine-started session has no `send_message` or `list_events`, so a
+  coordinator it started could not message its workers or read their transcripts. A stopped
   coordinator is continued by typing the same `/plan-run` line (§10 step 6); the laptop helper
   (§9.1 step 4) reports a stale heartbeat, and a missing morning summary shows the same.
   `run-supervisor.mjs record` takes the row number (1-47) of the `extensions.md` table; the
@@ -684,9 +684,9 @@ step 4 prompt whenever the laptop is on, runs beside the cloud coordinator. It n
 pauses, continues or changes the run. The repository is the shared channel:
 
 1. It reads the run's ledger from the recovery branch (`git ls-remote origin
-   'refs/heads/claude/noacg-recovery/*'` lists it) and lists the landed phases whose
-   `extensions.md` row has a laptop entry (speed checks with `scripts/playout-lag-bench.mjs` as §7
-   describes).
+   'refs/heads/claude/noacg-recovery/*'` lists it; the run's is `plan-production-page-<date>`)
+   and lists the landed phases whose `extensions.md` row has a laptop entry (speed checks with
+   `scripts/playout-lag-bench.mjs` as §7 describes).
 2. For each merge SHA that still has no receipt under `evidence/local/` (bench output under
    `evidence/perf/`), it checks that SHA out in its own worktree, runs the check and writes the
    receipt. It lands that pass's receipts as one evidence-only change through `/check` and
@@ -736,7 +736,7 @@ the final owner block, which waits for him.
 | `CRON_SECRET` (existing; do not create or rotate) | Vercel Production | owner | C2 tick | ready | the tick stays off; closed-page continuity is reported unavailable |
 | Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
 | Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
-| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files; this laptop's `gh` token lacks the `workflow` scope (2026-10-20), so the owner either runs `gh auth refresh -s workflow` once or lets a cloud session land it | E4.1, E8.1b | landed (#1536) | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
+| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files | E4.1, E8.1b | landed (#1536) | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
 | Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts: the laptop entries in `extensions.md` | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
 | Physical Stream Deck with Companion | owner's laptop | owner | H0.2 | owner's deck | waits (final owner block) |
 | The real studio: the owner's CasparCG/NoaCG Bridge setup and an OBS/browser source | studio | owner | S | owner's setup | waits (final owner block) |
@@ -766,7 +766,7 @@ the final owner block, which waits for him.
 
    The coordinator reads this spec on `origin/main`, runs the §9 preflight, prepares the project
    record with the exact 47-phase sequence in `extensions.md` (gating ACs, one environment each),
-   opens it with its recovery ref, opens the tracking issue, starts the Q worker (data-sources Q),
+   opens it with its recovery branch, opens the tracking issue, starts the Q worker (data-sources Q),
    sends the laptop-helper item (step 4) and starts a bounded block. These are execution actions,
    not performed by this planning edit. No per-phase start and no routine approval is needed; the
    coordinator stops only on `stop` (§8) and in the final owner block.
@@ -790,7 +790,7 @@ the final owner block, which waits for him.
    /plan-run production-page until <the original deadline>
    ```
 
-   It restores the project from its recovery ref, takes over and carries on from the first
+   It restores the project from its recovery branch, takes over and carries on from the first
    unfinished step; a worker in flight is reconciled, not relaunched. An older coordinator that is
    still alive is refused at its next step and stops by itself. Do this also when the morning
    summary does not arrive or the helper reports a stale heartbeat.
