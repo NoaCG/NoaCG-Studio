@@ -191,3 +191,74 @@ The coordinator stopped again and requested a specific decision to resume via
 the Supabase dashboard, preserving the same scope, price, migration checks and
 cleanup requirement. No alternate creation route, account, migration or local
 acceptance check was started while that decision remained pending.
+
+## Dashboard recovery and bounded manual continuation
+
+The owner approved the dashboard route. It created a fresh, non-persistent,
+data-less preview branch at 20:09:25 UTC. The coordinator used unchanged
+`scripts/db-push.mjs`, pinned CLI 2.111.0, the explicit branch ref and only
+`--allow 0085`. The quiet-window read found no renderer heartbeat. All nineteen
+pending migrations, 0074 through 0094 with the repository's existing number gaps,
+applied without retries. Before/after snapshots and the exact ledger addition
+check passed. A fresh query found 92 migration rows, latest 0094, zero users and
+zero documents. Local database transport and these branch writes are qualified;
+cloud database transport is not. The separate automatic branch deployment later
+reported `MIGRATIONS_FAILED`; that pipeline is not reported as passing. A security
+advisor query returned definer-execution findings, without a completed baseline
+comparison or a clean-advisor claim.
+
+During dashboard sign-in, an accessibility response automatically included
+credential-bearing callback fields before redirect completion. No values were
+copied or reused. Automatic review blocked a further callback-state read, and
+a screenshot safely confirmed the completed sign-in instead. This receipt does
+not claim that the callback's tool output was credential-free, and retains none
+of its values. Source-path and queue-helper mistakes in read-only setup probes
+are also recorded in the JSON receipt; they are not editor acceptance results.
+
+Initial browser readiness was below the recorded manual 1536 MiB admission floor.
+The coordinator attempted cleanup, but MCP deletion failed. The owner then asked
+to wait while freeing memory, so dashboard deletion was paused. After Chrome
+restarted, 2156 MiB was free and no queue runner or live job was present.
+Automatic approval review separately refused the prepared account/server script
+until the owner explicitly authorized its fresh branch service-key read in
+server memory, one confirmed disposable test account with the public fixture
+password and the localhost server. No script execution occurred before that
+approval. No existing credential was copied to the cloud; no privileged key was
+printed, written to a credential file or sent to the browser.
+
+New queue job `j-4660` reserved the browser slot at cost 1 with the same approved
+1536 MiB process-local floor and unchanged twelve-minute cap. This did not restart
+or alter failed `j-4653`. Only Chrome and one sanctioned worktree server ran;
+there was no headless suite, Docker startup or shared-lab diagnosis. The test
+account signed in through Home, which showed an empty, Synced account workspace.
+The verified backup was imported through the supported file chooser. That tool
+operation completed successfully but took 409.4615 seconds, consuming most of
+the allowance; it did not reverify the native picker already reported by the owner.
+
+The imported source timeline retained four layers, the edited text and the Name
+rotation key at 1.26 seconds. Go to beginning showed a blank 0.00-second canvas;
+Play advanced to the rendered artwork and held at 1.26 seconds / 32 frames.
+Both rendered states were inspected in inline screenshots. The graphic was saved
+as `P2 handoff 12ecc`; the editor showed Saved and Home showed one graphic with
+Sync: Synced. An independent database read confirmed that exact graphic name and
+ID under the disposable account. A local Saved label alone was not used as cloud
+proof. The first NoaCG tab was then closed before asking the owner to sign in
+from Chrome Incognito and inspect saved contents without editing.
+
+The allowance expired before a second-profile confirmation arrived. The manual
+lease logged its unchanged twelve-minute cap and exited 1; the preserved queue
+record is failed. Its generated generic `auto-merge refused it` reason does not
+describe this sweep: no merge was attempted. The owner reported `This site can't
+be reached` after the server had stopped. This does not establish a product
+failure, and it does not prove the handoff. No cap extension or retry followed.
+
+Dashboard deletion completed. At 20:31:48 UTC, a fresh branch listing showed only
+main, port 5282 was closed and the queue had no live job. The owned exception
+runner had already exited when its PID and start time were checked; subsequent
+runners use normal defaults. The branch's short prior usage may still be billed.
+See [dashboard-recovery.json](dashboard-recovery.json). Imported animation,
+Save and cloud arrival are now observed; sequential isolated-profile handoff
+remains incomplete. Whole Phase 2 acceptance is not complete. Original failures,
+all assertions and 32 group cases, budgets, skips and deferrals remain intact;
+no further historical diagnosis, quarantine workaround, Phase 3, landing or issue
+closure follows from this result.

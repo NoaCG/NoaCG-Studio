@@ -22,7 +22,10 @@
     "savedIndicator": true,
     "nameRotationKeySeconds": 1.26,
     "importedPreviewText": "Phase 2 local check",
-    "importedResolution": [1920, 1080],
+    "importedResolution": [
+      1920,
+      1080
+    ],
     "importedFps": 25,
     "importedOperatorFields": 2,
     "actualChromeZoomIndependentlyVerified": false,
@@ -35,7 +38,8 @@
     "bytesInspected": true,
     "editedSourcePreservationVerified": true,
     "inspectionReceipt": "archive-inspection.json",
-    "importedAnimationVerified": false
+    "importedAnimationVerified": true,
+    "importedAnimationEvidence": "dashboard-recovery.json: rendered beginning and playback hold observed locally"
   },
   "resumedReadiness": {
     "remoteMain": "1b909153753eb3043092ced7c681592a3d924820",
@@ -56,11 +60,13 @@
     "serverStarted": false,
     "browserAcceptanceRunStarted": false
   },
-  "sequentialIsolatedProfileHandoff": "not run; isolated test backend remains unavailable",
+  "sequentialIsolatedProfileHandoff": "INCOMPLETE: first account save and cloud arrival confirmed; first tab closed; owner reported site cannot be reached after unchanged 12-minute server cap",
   "dockerStarted": false,
   "headlessSuiteStarted": false,
   "productionCredentialsUsedOrCopied": false,
-  "accountAuthenticated": false,
+  "accountAuthenticated": true,
   "physicalDeviceProof": false,
-  "wholePhase2Accepted": false
+  "wholePhase2Accepted": false,
+  "latestContinuationReceipt": "dashboard-recovery.json",
+  "accountAuthenticationQualification": "Disposable branch account only; branch deleted after stopped handoff"
 }
