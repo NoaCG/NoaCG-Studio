@@ -139,6 +139,9 @@ test('a time far ahead of the clock is ignored, not renewed as now on every poll
   // A launch time written by a fast clock is no floor either: an unpushed branch then has nothing to count from.
   const unpushed = observe({ branch: 'feature' }, fake({ 'ls-remote': '' }));
   assert.equal(progress(unpushed, NOW, 30, new Date(NOW + 40 * 60_000).toISOString()).state, 'unknown');
+  // Nor may an old run, from before any real launch, then pass for this worker's activity.
+  const old = observe({ branch: 'feature' }, fake({ ...branchAt(90), ci: runs(['in_progress', 80], ['queued', 85]) }));
+  assert.equal(progress(old, NOW, 30, new Date(NOW + 40 * 60_000).toISOString()).state, 'unknown');
   assert.equal(progress(unpushed, NOW, 30, new Date(NOW + 60_000).toISOString()).state, 'progressing');
 });
 
