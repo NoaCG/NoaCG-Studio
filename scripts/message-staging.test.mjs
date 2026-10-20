@@ -1,4 +1,5 @@
 // guards: src/control/messageStaging.ts
+// guards: src/audience/localAudience.ts
 //
 // PREPARING A MESSAGE (docs/work-specs/data-sources/spec.md C0; audience-flow AC-1, AC-2, AC-6,
 // AC-8), run in Node against fake stores. What is pinned: a message goes only where it fits
@@ -184,6 +185,81 @@ test('a refused write is said, and a cue removed meanwhile is refused, marking n
   assert.equal(gone.reason, 'refused');
   assert.deepEqual(state.used, []);
   assert.equal(state.commits, 0);
+});
+
+test('a cue that landed while marking the message used failed is reported ready, and a retry makes no second cue', async () => {
+  const { state, deps } = harness(show([qa]));
+  deps.markUsed = async () => {
+    throw new Error('network');
+  };
+  const first = await stageMessage(state.show, candidate('m7'), { graphicId: 'g-qa' }, deps);
+  assert.equal(first.ok, true);
+  assert.match(first.warning, /could not be marked as used: network/);
+  const retry = await stageMessage(state.show, candidate('m7'), { graphicId: 'g-qa' }, deps);
+  assert.equal(retry.reason, 'used');
+  assert.equal(state.show.cues.length, 1);
+  const again = await stageMessage(state.show, candidate('m7'), { graphicId: 'g-qa', again: true }, deps);
+  assert.equal(again.ok, true);
+  assert.equal(state.show.cues.length, 2);
+});
+
+// ── The local inbox's stored format (src/audience/localAudience.ts) ──
+
+/** A localStorage stand-in, installed for one test. */
+function withStorage(initial) {
+  const map = new Map(initial === undefined ? [] : [['spx-gfx-audience-inbox', initial]]);
+  globalThis.localStorage = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) };
+  return { raw: () => map.get('spx-gfx-audience-inbox'), restore: () => delete globalThis.localStorage };
+}
+
+const local = await import('../src/audience/localAudience.ts');
+
+test('kept messages are stored versioned, damaged rows are skipped, and a newer store is never rewritten', async () => {
+  const store = withStorage();
+  try {
+    const inbox = local.createLocalAudience({ productionName: 'P', showId: 's1' });
+    await inbox.addCandidates([{ author: 'Ana', body: 'Kept', source: 'Pasted' }]);
+    assert.equal(JSON.parse(store.raw()).v, local.LOCAL_INBOX_VERSION);
+    assert.deepEqual((await inbox.list()).map((r) => r.body), ['Kept']);
+
+    // A damaged row is skipped, not handed to the view.
+    const saved = JSON.parse(store.raw());
+    saved.inbox.s1.push({ id: 'bad', body: 3 });
+    withStorage(JSON.stringify(saved));
+    assert.deepEqual((await local.createLocalAudience({ productionName: 'P', showId: 's1' }).list()).map((r) => r.body), ['Kept']);
+
+    // A store from a newer build: read where it can be, never overwritten.
+    const newer = JSON.stringify({ v: local.LOCAL_INBOX_VERSION + 1, inbox: saved.inbox });
+    const later = withStorage(newer);
+    const readOnly = local.createLocalAudience({ productionName: 'P', showId: 's1' });
+    assert.deepEqual((await readOnly.list()).map((r) => r.body), ['Kept']);
+    await assert.rejects(readOnly.addCandidates([{ body: 'More' }]), /refused/);
+    assert.equal(later.raw(), newer);
+  } finally {
+    store.restore();
+  }
+});
+
+test('publishing moves kept messages into the published inbox once, with their edits and use', async () => {
+  const store = withStorage();
+  try {
+    const inbox = local.createLocalAudience({ productionName: 'P', showId: 's2' });
+    const [a] = await inbox.addCandidates([{ author: 'Ana', body: 'First', source: 'Pasted' }]);
+    await inbox.addCandidates([{ author: 'Ben', body: 'Second', source: 'Pasted' }]);
+    await inbox.update(a.id, { broadcastBody: 'First, tidied', status: 'approved', usedAt: '2026-10-20T12:00:00.000Z' });
+
+    const published = local.createLocalAudience({ productionName: 'P' }); // memory only, as a server
+    await local.moveKeptMessages('s2', published);
+    await local.moveKeptMessages('s2', published); // a second open adds nothing twice
+    const rows = await published.list();
+    assert.deepEqual(rows.map((r) => r.body), ['First', 'Second']);
+    assert.equal(rows[0].broadcastBody, 'First, tidied');
+    assert.equal(rows[0].usedAt, '2026-10-20T12:00:00.000Z');
+    assert.equal(rows[0].source, 'Pasted');
+    assert.deepEqual(await inbox.list(), [], 'moved rows are forgotten locally');
+  } finally {
+    store.restore();
+  }
 });
 
 test('the audience backend interface has no method that airs anything', async () => {

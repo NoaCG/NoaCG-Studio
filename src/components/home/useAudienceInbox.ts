@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Show } from '../../model/shows';
 import type { ObservableAudience } from '../../audience/audienceTypes';
-import { localAudienceFor } from '../../audience/localAudience';
+import { localAudienceFor, moveKeptMessages } from '../../audience/localAudience';
 import { createSupabaseAudience } from '../../audience/audienceData';
 import { isBackendConfigured } from '../../backend/config';
 
@@ -27,6 +27,10 @@ export function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'
     () => (!id ? null : live && slug ? createSupabaseAudience({ controlSlug: slug }) : localAudienceFor(id, name)),
     [live, slug, id, name],
   );
+  // Published: the messages kept in this browser before publishing join the published inbox.
+  useEffect(() => {
+    if (live && id && backend) void moveKeptMessages(id, backend).catch(() => {});
+  }, [live, id, backend]);
   return { live, backend };
 }
 

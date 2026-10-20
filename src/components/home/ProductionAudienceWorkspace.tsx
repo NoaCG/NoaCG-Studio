@@ -232,7 +232,8 @@ function stagingDeps(backend: AudienceBackend, setShows: (shows: Show[]) => void
 
 /** The ✓ said once a message is in a cue: it names the cue and that Take is still needed. */
 function preparedNote(result: Extract<StageResult, { ok: true }>): string {
-  return `✓ Cue “${result.label}” is ready on ${result.graphic}. It airs when you Take it.`;
+  const ready = `✓ Cue “${result.label}” is ready on ${result.graphic}. It airs when you Take it.`;
+  return result.warning ? `${ready} ${result.warning}` : ready;
 }
 
 /**
@@ -747,11 +748,15 @@ export default function ProductionAudienceWorkspace({
   const [preparing, setPreparing] = useState<string | null>(null);
   const [pasteName, setPasteName] = useState('');
   const [pasteBody, setPasteBody] = useState('');
+  /** A paste is being added: on a published production that is a server call, and a second
+   *  press meanwhile would add the message twice. */
+  const [pasting, setPasting] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
   /** Paste: the message joins the inbox as a candidate, like any other, and airs only as a cue. */
   const addPasted = () => {
-    if (!pasteBody.trim()) return;
+    if (!pasteBody.trim() || pasting) return;
+    setPasting(true);
     backend
       .addCandidates([{ author: pasteName, body: pasteBody, source: 'Pasted' }])
       .then(() => {
@@ -760,7 +765,8 @@ export default function ProductionAudienceWorkspace({
         setFilter('inbox');
         setNote(null);
       })
-      .catch((err: Error) => setNote(`The message was not kept: ${err.message}`));
+      .catch((err: Error) => setNote(`The message was not kept: ${err.message}`))
+      .finally(() => setPasting(false));
   };
 
   const chooseTarget = async (graphicId: string | null): Promise<boolean> => {
@@ -882,7 +888,7 @@ export default function ProductionAudienceWorkspace({
           data-testid="message-paste-body"
         />
         <div className="pd-aud-round-actions">
-          <button className="primary" disabled={!pasteBody.trim()} onClick={addPasted} data-testid="message-paste-add">
+          <button className="primary" disabled={!pasteBody.trim() || pasting} onClick={addPasted} data-testid="message-paste-add">
             Add to messages
           </button>
           {/* Where messages go, named and changeable. Only compatible graphics are offered, and

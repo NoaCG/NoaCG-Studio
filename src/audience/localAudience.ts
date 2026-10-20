@@ -14,7 +14,7 @@
 // memory: a rehearsal's invented questions must never accumulate, which was the reason for the old
 // rule and still holds for them.
 
-import { uuid } from '../model/id';
+import { uuid } from '../model/id.ts';
 import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
@@ -27,7 +27,7 @@ import {
   type AudienceTally,
   type JoinView,
   type SubmitResult,
-} from './audienceTypes';
+} from './audienceTypes.ts';
 
 /** Rehearsal names and questions. Deliberately bland and clearly fictional: a simulator that
  *  produced realistic-looking personal material would put words in nobody's mouth by accident,
@@ -66,27 +66,116 @@ export interface LocalAudienceOptions {
  *  reload and be seen by the production's other tab. */
 export const LOCAL_INBOX_KEY = 'spx-gfx-audience-inbox';
 
+/** The stored format's version (`root/version-every-persisted-format-ship-breaking`). A store
+ *  written by a newer build is read-only here: shown when its rows still read, never rewritten. */
+export const LOCAL_INBOX_VERSION = 1;
+
 type InboxStore = Record<string, AudienceSubmission[]>;
 
-function readInbox(): InboxStore {
+const STATUSES = new Set(['new', 'approved', 'rejected']);
+const text = (v: unknown): v is string => typeof v === 'string';
+const optionalText = (v: unknown) => v === undefined || v === null || typeof v === 'string';
+
+/** A stored row that has the shape this build renders, or null. Damaged rows are skipped rather
+ *  than handed to the Messages view, where a missing field would throw mid-show. */
+function readRow(raw: unknown): AudienceSubmission | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (!text(r.id) || !text(r.createdAt) || !text(r.author) || !text(r.body)) return null;
+  if (!text(r.broadcastAuthor) || !text(r.broadcastBody) || !text(r.status) || !STATUSES.has(r.status)) return null;
+  if (!optionalText(r.usedAt) || !optionalText(r.externalId) || !optionalText(r.source) || !optionalText(r.reference)) return null;
+  return {
+    id: r.id,
+    createdAt: r.createdAt,
+    author: r.author,
+    body: r.body,
+    broadcastAuthor: r.broadcastAuthor,
+    broadcastBody: r.broadcastBody,
+    anonymize: r.anonymize === true,
+    status: r.status as AudienceSubmission['status'],
+    shortlisted: r.shortlisted === true,
+    usedAt: (r.usedAt as string | null | undefined) ?? null,
+    externalId: (r.externalId as string | null | undefined) ?? null,
+    source: (r.source as string | null | undefined) ?? null,
+    reference: (r.reference as string | null | undefined) ?? null,
+  };
+}
+
+/** The store, and whether this build may write it. Unreadable is empty and writable, never a
+ *  crash on the way into the Messages view; a newer version is read-only. */
+export function readInbox(): { store: InboxStore; writable: boolean } {
   try {
     const raw = globalThis.localStorage?.getItem(LOCAL_INBOX_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as InboxStore) : {};
+    if (!raw) return { store: {}, writable: true };
+    const parsed = JSON.parse(raw) as { v?: unknown; inbox?: unknown } | null;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { store: {}, writable: true };
+    const writable = parsed.v === LOCAL_INBOX_VERSION;
+    if (typeof parsed.v !== 'number' || parsed.v < LOCAL_INBOX_VERSION) return { store: {}, writable: true };
+    const store: InboxStore = {};
+    const inbox = parsed.inbox && typeof parsed.inbox === 'object' ? (parsed.inbox as Record<string, unknown>) : {};
+    for (const [showId, rows] of Object.entries(inbox)) {
+      if (!Array.isArray(rows)) continue;
+      const read = rows.map(readRow).filter((r): r is AudienceSubmission => r !== null);
+      if (read.length > 0) store[showId] = read;
+    }
+    return { store, writable };
   } catch {
-    // Unreadable is empty, never a crash on the way into the Messages view.
-    return {};
+    return { store: {}, writable: true };
   }
 }
 
-/** False when the browser refused the write (quota, private mode). */
+/** False when the browser refused the write (quota, private mode) or the store is newer. */
 function writeInbox(store: InboxStore): boolean {
   try {
-    if (!globalThis.localStorage) return false;
-    globalThis.localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(store));
+    if (!globalThis.localStorage || !readInbox().writable) return false;
+    globalThis.localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({ v: LOCAL_INBOX_VERSION, inbox: store }));
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Productions whose kept messages are moving to a published inbox right now. */
+const moving = new Set<string>();
+
+/**
+ * PUBLISHING MOVES THE KEPT MESSAGES. Once a production is published its Messages view reads the
+ * published inbox, so the messages kept here before publishing are copied into it through the
+ * operator door (`addCandidates`, at most OPERATOR_ADD_MAX a call), with their broadcast edits and
+ * moderation, then forgotten here. Each carries an external id (`local:<id>` when it had none), so
+ * a second attempt after a failure adds nothing twice. A failure leaves them kept, to move later.
+ */
+export async function moveKeptMessages(showId: string, to: AudienceBackend): Promise<void> {
+  if (moving.has(showId)) return;
+  const rows = readInbox().store[showId] ?? [];
+  if (rows.length === 0) return;
+  moving.add(showId);
+  try {
+    for (let at = 0; at < rows.length; at += OPERATOR_ADD_MAX) {
+      const chunk = rows.slice(at, at + OPERATOR_ADD_MAX).map((r) => ({ ...r, externalId: r.externalId || `local:${r.id}` }));
+      const byExternal = new Map(chunk.map((r) => [r.externalId, r] as const));
+      const added = await to.addCandidates(
+        chunk.map((r) => ({ author: r.author, body: r.body, externalId: r.externalId, source: r.source, reference: r.reference })),
+      );
+      for (const row of added) {
+        const was = row.externalId ? byExternal.get(row.externalId) : undefined;
+        if (!was) continue;
+        const { broadcastAuthor, broadcastBody, anonymize, status, shortlisted, usedAt } = was;
+        if (
+          broadcastAuthor !== row.broadcastAuthor || broadcastBody !== row.broadcastBody || anonymize || status !== 'new' || shortlisted || usedAt
+        ) {
+          await to.update(row.id, { broadcastAuthor, broadcastBody, anonymize, status, shortlisted, usedAt });
+        }
+      }
+      const moved = new Set(chunk.map((r) => r.id));
+      const { store } = readInbox();
+      const left = (store[showId] ?? []).filter((r) => !moved.has(r.id));
+      if (left.length > 0) store[showId] = left;
+      else delete store[showId];
+      writeInbox(store);
+    }
+  } finally {
+    moving.delete(showId);
   }
 }
 
@@ -140,13 +229,13 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
   const changed = () => listeners.forEach((cb) => cb());
   /** The kept rows: browser storage when there is a production to key them by, else memory. */
   let keptInMemory: AudienceSubmission[] = [];
-  const kept = (): AudienceSubmission[] => (options.showId ? readInbox()[options.showId] ?? [] : keptInMemory);
+  const kept = (): AudienceSubmission[] => (options.showId ? readInbox().store[options.showId] ?? [] : keptInMemory);
   const keep = (rows: AudienceSubmission[]): boolean => {
     if (!options.showId) {
       keptInMemory = rows;
       return true;
     }
-    const store = readInbox();
+    const { store } = readInbox();
     if (rows.length > 0) store[options.showId] = rows;
     else delete store[options.showId];
     return writeInbox(store);

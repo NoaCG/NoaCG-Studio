@@ -129,7 +129,7 @@ export function messageLabel(body: string): string {
 }
 
 export type StageResult =
-  | { ok: true; cueId: string; label: string; graphic: string }
+  | { ok: true; cueId: string; label: string; graphic: string; warning?: string }
   | { ok: false; reason: 'pending' | 'used' | 'refused' | 'empty' | 'save'; message: string };
 
 /** What staging needs from its surroundings: the real stores (model/shows.ts `addShowCue` and
@@ -155,6 +155,9 @@ export interface StageDeps {
 
 /** Candidates being prepared right now, across both doors, so a double press makes one cue. */
 const pending = new Set<string>();
+/** Candidates whose cue landed but whose "used" mark did not: this page still treats them as used,
+ *  so a retry cannot make a second cue unless "Prepare again" asks for one. */
+const stagedUnmarked = new Set<string>();
 
 /**
  * Prepare `candidate` on `graphicId`: a new cue at the end of the rundown, or, given `cueId`, the
@@ -169,7 +172,7 @@ export async function stageMessage(
 ): Promise<StageResult> {
   const d: StageDeps = { now: () => new Date().toISOString(), ...deps };
   if (pending.has(candidate.id)) return { ok: false, reason: 'pending', message: 'Already preparing this message.' };
-  if (candidate.usedAt && !target.again) {
+  if ((candidate.usedAt || stagedUnmarked.has(candidate.id)) && !target.again) {
     return { ok: false, reason: 'used', message: 'This message is already in a cue. Choose Prepare again for a second one.' };
   }
   const dest = messageDestinations(show).find((x) => x.graphicId === target.graphicId);
@@ -194,7 +197,14 @@ export async function stageMessage(
     if (failure || !cueId) {
       return { ok: false, reason: 'save', message: `No cue was prepared on “${dest.name}”: ${failure}` };
     }
-    await d.markUsed(candidate.id, at);
+    try {
+      await d.markUsed(candidate.id, at);
+      stagedUnmarked.delete(candidate.id);
+    } catch (err) {
+      // The cue is there and is the result; only the inbox's record of it failed.
+      stagedUnmarked.add(candidate.id);
+      return { ok: true, cueId, label, graphic: dest.name, warning: `The message could not be marked as used: ${(err as Error).message}` };
+    }
     return { ok: true, cueId, label, graphic: dest.name };
   } finally {
     pending.delete(candidate.id);
