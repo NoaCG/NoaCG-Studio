@@ -37,7 +37,8 @@ import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { mainRef } from './main-ref.mjs';
-import { normalize, recoveryCheckpointBranch, worktreeEntries } from './worktree-cleanup-lib.mjs';
+import { normalize, worktreeEntries } from './worktree-cleanup-lib.mjs';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 
 const execFileAsync = promisify(execFile);
 

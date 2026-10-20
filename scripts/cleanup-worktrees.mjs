@@ -78,6 +78,7 @@ import { fileURLToPath } from 'node:url';
 import { closeAbandonedProcesses, worktreeCloser } from './agent-processes.mjs';
 import { primaryCheckout } from './reattach-main.mjs';
 import { pruneStalePorts } from './dev-port.mjs';
+import { RECOVERY_BRANCH_PREFIX } from './recovery-branch.mjs';
 import { jobsDir, pending, readJobs, readLandings } from './jobs-store.mjs';
 import { syncLandings } from './landings.mjs';
 import {
@@ -1533,7 +1534,7 @@ function report(plan, done) {
     L.push('');
     L.push(
       '## Also contained in main and origin/main, NOT deleted ' +
-        `(branches outside ${MANAGED_BRANCH_PREFIXES.map((p) => `${p}*`).join(', ')} - remove manually if unwanted)`,
+        `(branches outside ${MANAGED_BRANCH_PREFIXES.map((p) => `${p}*`).join(', ')} - remove manually if unwanted; ${RECOVERY_BRANCH_PREFIX}* holds plan-run state and is never removed)`,
     );
     for (const n of plan.otherMerged) L.push(`  - ${n}`);
   }

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
 import { digest, immutableProject, readProject, validateAuthorization } from './project-authorization.mjs';
 import { PLAN_RUN_KIND } from './wave-plan-store.mjs';
-import { RECOVERY_BRANCH_PREFIX, recoveryCheckpointBranch } from './worktree-cleanup-lib.mjs';
+import { RECOVERY_BRANCH_PREFIX, recoveryCheckpointBranch } from './recovery-branch.mjs';
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const required = (s) => typeof s === 'string' && s.trim().length > 0;

@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gitCommonDir } from './primary-checkout.mjs';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 
 /** Absolute path with forward slashes, for cross-checkout comparison on Windows. */
 export function normalize(path) {
@@ -98,18 +99,7 @@ export function reapDelegationTrees(worktreePath, { run = spawnSync } = {}) {
  */
 export const MANAGED_BRANCH_PREFIXES = ['claude/', 'codex/', 'worktree-agent-'];
 
-/**
- * A plan run's recovery checkpoints (run-recovery.mjs): the only copy of a continuing project's
- * state, published on a claude/ branch because that is the namespace a cloud session can push.
- * They are never merged, so cleanup must never delete them and branch listings must not count
- * them as unlanded work.
- */
-export const RECOVERY_BRANCH_PREFIX = 'claude/noacg-recovery/';
-
-export function recoveryCheckpointBranch(name) {
-  return String(name ?? '').replace(/^(?:refs\/heads\/|refs\/remotes\/origin\/|origin\/)/, '').startsWith(RECOVERY_BRANCH_PREFIX);
-}
-
+/** A recovery checkpoint branch (recovery-branch.mjs) is never managed, so never deleted. */
 export function managedBranch(name) {
   return !recoveryCheckpointBranch(name) && MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix));
 }

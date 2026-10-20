@@ -39,7 +39,7 @@ import { reviveReviewed } from './cloud-queue.mjs';
 import { spawnRunner } from './queue-pr.mjs';
 import { dispatchRecovery } from './verification-dispatch.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
-import { recoveryCheckpointBranch } from './worktree-cleanup-lib.mjs';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
