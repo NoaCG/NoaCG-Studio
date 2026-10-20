@@ -36,15 +36,55 @@ observations above are attributed to the owner.
 
 ## Remaining boundary
 
-The ZIP was not found by a filename-scoped read of the usual Downloads folder.
-Its bytes, edited-source preservation and imported animation remain unverified.
+The first follow-up did not find the ZIP in the usual Downloads folder.
 Download-history access through the browser interface was denied by URL policy;
-no alternate surface or policy workaround was used. The imported copy remains at
-the wizard preview, unsaved, while the original saved graphic remains in Home.
+no alternate surface or policy workaround was used. At that point the imported
+copy remained at the wizard preview, unsaved, and the saved original remained in
+Home. The server was then stopped at the owner's request for a break.
+
+On resumption at home, the owner supplied `C:\downloads\p2_local_12ecc_spx.zip`.
+Read-only inspection found 285733 bytes, SHA256
+`e3e8fbb191e379f018ff8e63420a138514be70d7f1f1e5841c126e496f55fec4`.
+The HTML retains the edited text and independent author metadata. Original CSS is
+unchanged, followed by the expected Name placement block with x=12px, y=0px,
+relative positioning and scaled left/top offsets. The animation state differs
+from the original fixture only by the intended Name rotation key, 5 degrees at
+1.26 seconds. JavaScript outside that state block is byte-identical, including
+the custom author function. The SVG mark, font, GSAP and flex-gap shim are each
+byte-identical to the fixture. See [archive-inspection.json](archive-inspection.json).
+This is source preservation evidence, not a fresh imported-animation runtime or
+playout-host receipt.
+
+The inspection's first inline command failed before execution because of shell
+quoting. A subsequent ad hoc CSS expectation wrongly assumed the placement block
+contained only x. Inspection of `src/blocks/baseEdits.ts` confirmed the full
+generated block; the corrected check compared all five declarations exactly.
+Neither event is a product failure, and no maintained acceptance assertion,
+source byte or budget was changed. An independent readiness port probe also
+failed before connecting because its inline module format was ambiguous; no
+backend reachability claim is based on that probe.
+
+The resumed Git read and Actions read preflight each passed. REST PR reads passed
+through gh and the GitHub connector; gh GraphQL reads separately passed. These
+reads do not qualify writes or dispatch. Remote main was
+`1b909153753eb3043092ced7c681592a3d924820`; it was not adopted. Both held PRs
+remained OPEN with null auto-merge/queue entries; #1466 remained CLOSED and #1498
+OPEN. No competing editor work was reported by worktree activity; the previous
+repair-owner cloud chat was idle, with terminal duty already complete.
+
+At resumption the browser inventory had no NoaCG authoring tab. No new server,
+authoring tab, profile, account or browser acceptance run was started. Free memory
+was 727 MiB. The current shell could not find Docker or Supabase executables;
+usual Docker installation paths were absent. This updates readiness without
+rewriting the earlier installed-but-unreachable observation. Worktree environment
+file metadata revealed no separate account-test configuration; production env
+contents were not read or copied. The repository's hosted staging ref was found
+in its registry, but the connected Supabase project inventory exposed only
+production. No keys, production data or project settings were read or changed.
 
 Sequential isolated-profile account handoff is still not run. The previously
-identified isolated test backend was unavailable; no further backend diagnosis or
-startup occurred in this follow-up. A ZIP round trip is not account handoff or
+identified isolated test backend remains unavailable; only the readiness reads
+above occurred on resumption. No Docker startup occurred. A ZIP round trip is not account handoff or
 physical-device proof. No authentication/sync repair or renewed diagnostic budget
 is claimed; the original shared-lab module-load cause remains unresolved and its
 three revised diagnostic attempts remain spent.
