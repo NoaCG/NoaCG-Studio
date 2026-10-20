@@ -98,6 +98,17 @@ Argon's review of `main` `1b9091537`, and the automated review comments on #1548
 | R21 | In a cloud session a quarantine is entered on its own branch from main without `--queue` and landed through the cloud path; between phases the coordinator lists open quarantine pull requests and carries a red one through; stale ones close through the GitHub connector or REST | parent §8, §9; queue-merge.md |
 | R22 | A worker refused auto-merge as self-approval (#1408) is covered by the coordinator, which can turn it on with `/queue-merge` step 5's head checks; the start line's permission policy names it and the check branches | parent §8, §10 step 3 |
 
+## Wake test, same day
+
+The owner asked for a live test of whether `send_later` wakes an owner-started cloud coordinator
+after its container is gone, and for a check-in if it does
+(`docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`).
+
+| # | Fix | Where |
+| --- | --- | --- |
+| R23 | It does, with the disk intact and no process left running. A cloud coordinator keeps one `send_later` check-in pending for its own session and carries on from its own store when it fires, never by `continue`, so a lost container needs nothing from the owner and a check-in never takes the run back from a session the owner moved it to; pausing the run deletes it | parent §9, §9.1, §9.2, §10 step 6 |
+| R24 | The preflight checks the keys with `scripts/production-page-keys.mjs`: one harmless authenticated read per key, printing only pass or fail; the service account must read and be able to edit all six distinct Sheets, not only the first (asked on #1550) | parent §9, §9.2 |
+
 ## Runner check
 
 Read on `331a98a91`: `scripts/plan-run.mjs`, `scripts/run-supervisor.mjs`,
