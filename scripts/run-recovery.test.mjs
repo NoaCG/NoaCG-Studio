@@ -10,6 +10,7 @@ import test from 'node:test';
 import { continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
+import { nextStep } from './plan-run.mjs';
 
 // Defense in depth: every child git process is restricted to the temporary file remote.
 process.env.GIT_ALLOW_PROTOCOL = 'file';
@@ -50,8 +51,11 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
         evidence: [{ path: 'evidence.md', sha256: hash(readFileSync(path.join(source, 'evidence.md'))) }],
         native: { provider: 'codex', sessionId: 'native-owner', environmentId: 'original-environment', policySha256: hash('original policy') },
         repairOwners: [{ prNumber: 42, commentId: 123, sessionId: 'native-owner', headSha: revision }] } } };
+  // A fault-injection hook: `fault(args, call)` may throw instead of, or after, calling git.
+  let fault = null;
   const transport = (cwd, args, input) => {
-    const result = recoveryGit(cwd, args, input);
+    const call = () => recoveryGit(cwd, args, input);
+    const result = fault ? fault(args, call) : call();
     // The file-only transport stands in for this exact configured repository. Other
     // effective destinations remain unchanged, so forks/mirrors must still be rejected.
     return args[0] === 'remote' && args[1] === 'get-url'
@@ -73,7 +77,7 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
       adapter: { command: process.execPath, args: ['-e', ''], cwd: repository } };
     return { db: fresh, database, config, result: restoreRun(fresh, config, clock) };
   };
-  return { root, remote, source, manifest, db, now, restore, open, transport, bootstrap };
+  return { root, remote, source, manifest, db, now, restore, open, transport, bootstrap, inject: (hook) => { fault = hook; } };
 }
 
 function receipt(doc, now) {
@@ -183,6 +187,58 @@ test('a continued project with a recorded wait is owned by the new session, whic
   updateRun(db, f.manifest.id, 'clear-wait', 'owner answered in session B', at);
   updateRun(db, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(at + HOUR).toISOString(), evidence: 'wait resolved' }, at);
   recordRun(db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: at, authority: blockOf(blocked.wave) });
+});
+
+const pushes = (args) => args[0] === 'push';
+const remoteLedger = (f) => JSON.parse(git(f.remote, 'show', `refs/noacg-recovery/${f.manifest.id}:checkpoint.json`));
+
+test('a refused checkpoint publication leaves the ledger and the store as they were, so a retry works', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave), before = readFileSync(f.manifest.wave, 'utf8');
+  f.inject((args, call) => { if (pushes(args)) throw new Error('remote: rejected'); return call(); });
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /publication unresolved/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), before);
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /publication unresolved/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), before);
+  f.inject(null);
+  // Neither the ledger nor the project state disagrees with the store: the same step is admitted.
+  assert.equal(nextStep(readFileSync(f.manifest.wave, 'utf8'), f.now).action, 'launch');
+  recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block });
+  updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now);
+  assert.equal(remoteLedger(f).ledger.match(/phase 1 build/g).length, 1);
+  assert.equal(readProject(remoteLedger(f).ledger, f.now).status, 'paused');
+});
+
+test('a push accepted after the network failed is adopted as this store\'s own transition, never as superseded', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave);
+  // The push lands, then the network goes: neither the push result nor a read-back arrives.
+  let down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /Could not resolve host/);
+  assert.doesNotMatch(readFileSync(f.manifest.wave, 'utf8'), /phase 1 build/);
+  assert.match(remoteLedger(f).ledger, /phase 1 build/);
+  f.inject(null);
+  // The next operation adopts it: the build is recorded once and waited on, not launched again.
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder-2"}', { now: f.now, authority: block }), /already launched/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), remoteLedger(f).ledger);
+  recordRun(f.db, f.manifest.id, 1, 'landed', 'merge observed', { now: f.now, authority: block });
+  // The same for a project update: an accepted pause is adopted with its project state.
+  down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /Could not resolve host/);
+  f.inject(null);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /refuses work: paused/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), remoteLedger(f).ledger);
+  // Another session's continuation is still superseding.
+  assert.equal(f.continueAs('session-b').verdict, 'continued');
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /superseded/);
 });
 
 test('whole source/store/ledger loss restores pinned code, hashes, waits and unresolved exact request without replay', async (t) => {

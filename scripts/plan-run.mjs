@@ -16,12 +16,17 @@
 // is not the expected next one, and `next` answers from the ledger rather than from memory.
 //
 // Events, per phase and in order: build -> landed -> check -> pass. A `fail` names its kind in its
-// detail: `fail product:` (the phase misses its outcome) gets one repair -> landed -> check, and a
-// second product fail stops the run; `fail blocked:` (a prerequisite or the infrastructure failed)
-// runs the check again without a repair, and a second blocked fail stops the run. The pass or fail
+// detail: `fail product:` (the phase misses its outcome) gets one repair -> landed -> check;
+// `fail blocked:` (a prerequisite or the infrastructure failed) runs the check again without a
+// repair. A second product or blocked fail is diagnosed (owner decision 2026-10-20): one fresh
+// deciding agent, independent of everyone who built, repaired or checked the phase, records
+// `diagnose` with exactly one decision, `repair:` (one last scoped repair), `check:` (one more
+// check after a blocked prerequisite recovered) or `stop:` (the owner decides); a failure after a
+// diagnosed repair or check stops the run. One diagnosis per phase; no limit resets. The pass or fail
 // detail is the checker's findings: `next` carries them to the next build or repair, and tells the
 // last phase's check, or a check after a fail, to land the notes. `resume` notes that an interrupted
-// step's session was started again in its own worktree and `paused` that a running step was
+// step's session was started again in its own worktree (in a project, the replacement worker's actor
+// receipt, which then owns the in-flight step) and `paused` that a running step was
 // checkpointed at the block's end. Pause stops admission until an explicit reconciled resume;
 // neither counts as another phase launch. `stop` may also
 // end any step that met a decision the owner reserves, and `answered` (his answer) lets the stopped
@@ -33,7 +38,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { projectBoundary, readProject } from './project-authorization.mjs';
 
-export const EVENTS = Object.freeze(['build', 'landed', 'check', 'pass', 'fail', 'repair', 'resume', 'paused', 'stop', 'answered']);
+export const EVENTS = Object.freeze(['build', 'landed', 'check', 'pass', 'fail', 'repair', 'resume', 'paused', 'stop', 'answered', 'diagnose']);
 
 /** A failed check gets this many repairs before the run stops at it. */
 const REPAIRS = 1;
@@ -41,6 +46,30 @@ const REPAIRS = 1;
 /** A `fail` detail starts with its kind. */
 const FAIL_KIND = /^(product|blocked):/i;
 const BLOCKED = /^blocked:/i;
+const DECISION = /^(repair|check|stop):\s*(\S.*)$/i;
+
+/** A diagnosis: a project's JSON receipt `{actor, decision, reason}`, else `<decision>: <reason>`. */
+export function diagnosisOf(detail = '') {
+  let decision, reason;
+  try { ({ decision, reason } = JSON.parse(detail)); } catch { [, decision, reason] = DECISION.exec(detail.trim()) ?? []; }
+  decision = typeof decision === 'string' ? decision.toLowerCase() : '';
+  return ['repair', 'check', 'stop'].includes(decision) && typeof reason === 'string' && reason.trim() ? { decision, reason: reason.trim() } : null;
+}
+
+const actorOf = (detail) => { try { const { actor } = JSON.parse(detail); return typeof actor === 'string' && actor.trim() ? actor : null; } catch { return null; } };
+
+/** Who built, repaired and checked one phase, counting replacements (`resume`) in the step they took over. */
+function phaseActors(steps) {
+  const builders = new Set(), checkers = new Set();
+  let current = null, checker = null;
+  for (const step of steps) {
+    if (['build', 'repair', 'check'].includes(step.event)) current = step.event;
+    const actor = ['build', 'repair', 'check', 'resume'].includes(step.event) && actorOf(step.detail);
+    if (!actor || !current) continue;
+    if (current === 'check') { checkers.add(actor); checker = actor; } else builders.add(actor);
+  }
+  return { builders, checkers, checker };
+}
 
 /** `next` says closing this long before the window ends. */
 const CLOSING_MS = 45 * 60_000;
@@ -74,17 +103,27 @@ function phaseState(steps) {
   let blocked = 0;
   let before = null;
   let waiting = null;
+  let diagnosis = null;
+  // A diagnosed repair or check is one more than the limit allows, once.
+  const limit = (decision) => REPAIRS + (diagnosis?.decision === decision ? 1 : 0);
   for (const step of steps) {
-    if (step.event === 'resume' || step.event === 'paused') continue;
-    if (step.event === 'stop') {
+    if (step.event === 'paused') continue;
+    if (step.event === 'resume') {
+      // The replacement now owns the in-flight step; nothing is launched or counted again.
+      if (waiting && step.detail) waiting = { ...waiting, detail: step.detail };
+      continue;
+    }
+    if (step.event === 'diagnose') diagnosis = diagnosisOf(step.detail) ?? { decision: 'stop', reason: step.detail };
+    if (step.event === 'stop' || (step.event === 'diagnose' && diagnosis.decision === 'stop')) {
       before = state;
       state = 'stopped';
       continue;
     }
+    if (step.event === 'diagnose') continue;
     if (step.event === 'answered') {
       state = before ?? 'new';
-      if (state === 'failed' && fails > REPAIRS) fails = REPAIRS;
-      if (state === 'built' && blocked > REPAIRS) blocked = REPAIRS;
+      if (state === 'failed' && fails > limit('repair')) fails = limit('repair');
+      if (state === 'built' && blocked > limit('check')) blocked = limit('check');
       continue;
     }
     if (step.event === 'build' || step.event === 'repair' || step.event === 'check') waiting = step;
@@ -96,17 +135,19 @@ function phaseState(steps) {
     } else if (step.event === 'fail') fails += 1;
     if (step.event === 'landed' || step.event === 'pass' || step.event === 'fail') waiting = null;
   }
+  // Past its limit, a phase is diagnosed once; after the diagnosis it stops.
+  const spent = diagnosis ? [] : ['diagnose'];
   const expect = {
     new: ['build'],
     building: ['landed'],
     repairing: ['landed'],
-    built: blocked > REPAIRS ? [] : ['check'],
+    built: blocked > limit('check') ? spent : ['check'],
     checking: ['pass', 'fail'],
-    failed: fails > REPAIRS ? [] : ['repair'],
+    failed: fails > limit('repair') ? spent : ['repair'],
     stopped: ['answered'],
     passed: [],
   }[state];
-  return { state, fails, blocked, expect, waiting };
+  return { state, fails, blocked, expect, waiting, diagnosis };
 }
 
 /** The detail of the last `event` line recorded for `phase`, or undefined when there is none or it is empty. */
@@ -126,7 +167,8 @@ function windowEnd(text) {
  *                                      a check lands the plan's notes ('final phase' or 'second check')
  *   { action: 'wait', phase, step, launched }   a launched step's result is out (resume it if its session is gone)
  *   { action: 'retro', phase, why }    the middle phase passed: write `## Midpoint retro`, then ask again
- *   { action: 'stop', phase, why }     a second failed or blocked check: record `stop`, ask the owner, report
+ *   { action: 'diagnose', phase, why } a second failed or blocked check: one fresh deciding agent records `diagnose`
+ *   { action: 'stop', phase, why }     a failure after the diagnosed repair or check: record `stop`, ask the owner, report
  *   { action: 'stopped', phase, why }  stopped and waiting for the owner's answer
  *   { action: 'done' | 'time-limit' | 'no-phases', why }
  * In the window's last 45 minutes a launch, wait or retro also carries `closingMinutes`, the whole minutes left.
@@ -153,11 +195,14 @@ function stepFor(text, now) {
   if (phases.length === 0) return { action: 'no-phases', why: 'copy the plan\'s phases into the wave file under "## Phases" first' };
   const steps = readSteps(text);
   for (let phase = 1; phase <= phases.length; phase += 1) {
-    const { state, expect, waiting } = phaseState(steps.filter((step) => step.phase === phase));
+    const { state, expect, waiting, diagnosis } = phaseState(steps.filter((step) => step.phase === phase));
     if (state === 'passed') continue;
     if (state === 'stopped') return { action: 'stopped', phase, why: 'stopped; the owner\'s answer is recorded as `answered`' };
+    if (expect.includes('diagnose')) {
+      return { action: 'diagnose', phase, why: `${state === 'built' ? 'its check was blocked twice' : 'its check failed again after a repair'}: one fresh agent, independent of the phase's builders, repairers and checkers, records diagnose ${state === 'built' ? 'check' : 'repair'}: or stop: with its reason` };
+    }
     if (expect.length === 0) {
-      return { action: 'stop', phase, why: state === 'built' ? 'its check was blocked twice' : 'its check failed again after a repair' };
+      return { action: 'stop', phase, why: state === 'built' ? 'its check was blocked again after the diagnosis' : 'its check failed again after the diagnosed repair' };
     }
     if (expect.includes('landed') || expect.includes('pass')) {
       return { action: 'wait', phase, step: waiting?.event ?? expect[0], launched: waiting?.detail ?? '' };
@@ -170,7 +215,12 @@ function stepFor(text, now) {
       return { action: 'retro', phase: middle, why: 'the middle phase passed: write ## Midpoint retro (orchestrator.md step 6, at most five lines), then run next again' };
     }
     const launch = { action: 'launch', phase, step: expect[0] };
-    const carry = launch.step === 'build' ? lastDetail(steps, phase - 1, 'pass') : launch.step === 'repair' ? lastDetail(steps, phase, 'fail') : undefined;
+    let carry = launch.step === 'build' ? lastDetail(steps, phase - 1, 'pass') : launch.step === 'repair' ? lastDetail(steps, phase, 'fail') : undefined;
+    // The diagnosed repair takes the deciding agent's scope along, until a later failure replaces it.
+    const own = steps.filter((step) => step.phase === phase);
+    if (launch.step === 'repair' && diagnosis?.decision === 'repair' && own.findLastIndex((s) => s.event === 'diagnose') > own.findLastIndex((s) => s.event === 'fail')) {
+      carry = `${carry ?? ''} (diagnosis: ${diagnosis.reason})`.trim();
+    }
     if (carry) launch.carry = carry;
     if (launch.step === 'check' && phase === phases.length) launch.notes = 'final phase';
     else if (launch.step === 'check' && steps.some((step) => step.phase === phase && step.event === 'fail')) launch.notes = 'second check';
@@ -196,6 +246,12 @@ export function refuseStep(text, phase, event, detail = '') {
     }
   }
   const { state, expect } = phaseState(steps.filter((step) => step.phase === phase));
+  if (event === 'diagnose' && expect.includes('diagnose')) {
+    const allowed = state === 'built' ? ['check', 'stop'] : ['repair', 'stop'];
+    const diagnosis = diagnosisOf(detail);
+    if (!diagnosis) return 'a diagnosis records one decision and its reason: "repair: ...", "check: ..." or "stop: ..." (a project: JSON {"actor","decision","reason"})';
+    return allowed.includes(diagnosis.decision) ? null : `phase ${phase} ${state === 'built' ? 'was blocked' : 'failed'}, so its diagnosis is ${allowed.join(' or ')}, not ${diagnosis.decision}`;
+  }
   if (event === 'resume' || event === 'paused') {
     const paused = steps.filter((step) => ['paused', 'resume'].includes(step.event)).at(-1)?.event === 'paused';
     return (event === 'paused' && state !== 'passed') || (event === 'resume' && paused && detail.trim())
@@ -234,25 +290,29 @@ function recordLocked(file, phase, event, detail, now, supervised) {
   let project;
   try { project = readProject(text, now); } catch (error) { return { refusal: error.message }; }
   if (project && !supervised) return { refusal: 'Project phase admission requires run-supervisor record and its current block authority' };
-  if (project && ['paused', 'resume'].includes(event)) return { refusal: 'Use supervisor pause/start-block for project control' };
+  if (project && event === 'paused') return { refusal: 'Use supervisor pause/start-block for project control' };
   const refusal = refuseStep(text, phase, event, detail);
   if (refusal) return { refusal };
   if (['build', 'check', 'repair'].includes(event)) {
     const next = nextStep(text, now);
     if (next.action !== 'launch' || next.phase !== phase || next.step !== event) return { refusal: `Ledger refuses launch: ${next.action}` };
   }
-  if (project && ['build', 'repair', 'check', 'pass'].includes(event)) {
+  if (project && ['build', 'repair', 'check', 'pass', 'resume', 'diagnose'].includes(event)) {
     let receipt;
-    try { receipt = JSON.parse(detail); } catch { return { refusal: 'Project launch/verdict requires a JSON actor/evidence receipt' }; }
+    try { receipt = JSON.parse(detail); } catch { return { refusal: 'Project launch/verdict/handoff requires a JSON actor/evidence receipt' }; }
     if (typeof receipt.actor !== 'string' || !receipt.actor.trim()) return { refusal: 'Independent actor identity required' };
     const steps = readSteps(text).filter((step) => step.phase === phase);
-    if (event === 'check' && steps.filter((step) => ['build', 'repair'].includes(step.event)).some((step) => JSON.parse(step.detail).actor === receipt.actor)) return { refusal: 'Checker must be independent of every builder/repairer' };
+    const { builders, checkers, checker } = phaseActors(steps);
+    const checking = event === 'check' || (event === 'resume' && phaseState(steps).waiting?.event === 'check');
+    if (checking && builders.has(receipt.actor)) return { refusal: 'Checker must be independent of every builder/repairer' };
+    if (event === 'diagnose' && (builders.has(receipt.actor) || checkers.has(receipt.actor))) return { refusal: 'The deciding agent must be independent of every builder, repairer and checker of the phase' };
     if (event === 'pass') {
-      const checker = JSON.parse(steps.findLast((step) => step.event === 'check').detail).actor;
       const acceptance = project.phases[phase - 1];
       if (checker !== receipt.actor || !Array.isArray(receipt.evidence) || receipt.evidence.length !== acceptance.acceptance.length
           || acceptance.acceptance.some((criterion) => !receipt.evidence.some((e) => e.criterion === criterion
-            && typeof e.evidence === 'string' && e.evidence.trim() && e.environment === acceptance.environment))) return { refusal: 'PASS needs the independent checker evidence for every criterion in its required environment' };
+            && typeof e.evidence === 'string' && e.evidence.trim() && e.environment === acceptance.environment))) return { refusal: 'PASS needs the latest independent checker\'s evidence for every criterion in its required environment' };
+      // The check may start at the merge; PASS waits until every exact-merge check is green.
+      if (typeof receipt.mergeChecks !== 'string' || !receipt.mergeChecks.trim()) return { refusal: 'PASS needs mergeChecks: evidence that every required check on the exact merge SHA is green' };
     }
   }
   const line = `- ${new Date(now).toISOString()} phase ${phase} ${event}${detail ? ` ${detail}` : ''}`;

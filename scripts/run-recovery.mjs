@@ -179,6 +179,35 @@ export function publishRun(db, id) {
   return commit;
 }
 
+/** A push the remote accepted after this store gave up on it (the network failed after
+ * acceptance, so the transition was rolled back locally) is this store's own next checkpoint,
+ * not another coordinator's: same restoration generation, parented on this store's head. Adopt
+ * its ledger and state so the store and the remote agree again. Returns whether it adopted. */
+export function adoptAccepted(db, id) {
+  const row = db.prepare('SELECT doc FROM runs WHERE id=?').get(id);
+  const doc = row && JSON.parse(row.doc), config = doc?.manifest.recovery;
+  if (!config) return false;
+  const git = transports.get(db) ?? recoveryGit, ref = refFor(id);
+  const head = db.prepare('SELECT sha FROM recovery_heads WHERE id=?').get(id)?.sha;
+  const remote = remoteHead(git, config, ref);
+  if (!head || !revision(remote) || remote === head) return false;
+  git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
+  if (git(config.repository, ['rev-list', '--parents', '-n', '1', remote]).split(' ')[1] !== head) return false;
+  const snapshot = JSON.parse(git(config.repository, ['show', `${remote}:checkpoint.json`]));
+  if (snapshot.version !== 1 || snapshot.doc?.manifest?.id !== id
+      || snapshot.doc.restoration?.generation !== doc.restoration?.generation) return false;
+  // The durable copy omits the local adapter and paths; this store's own manifest supplies them.
+  const adopted = { ...snapshot.doc, manifest: doc.manifest, packet: { ...snapshot.doc.packet, workspace: doc.packet.workspace } };
+  writeFileSync(doc.manifest.wave, snapshot.ledger);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(adopted), id);
+    db.prepare('UPDATE recovery_heads SET sha=? WHERE id=?').run(remote, id);
+    db.exec('COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  return true;
+}
+
 /** Read-only check before acting: a store whose last publication is no longer the remote
  * checkpoint has been superseded by a newer coordinator. Nothing is written or pushed. */
 export function assertCurrent(db, id, doc) {
