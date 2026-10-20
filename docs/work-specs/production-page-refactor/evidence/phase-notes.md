@@ -54,11 +54,26 @@ changes a spec's digest.
     `broadcastValues` from the caller instead of importing it.
   - Commit messages in this repo carry no Co-Authored-By trailer; the commit guard refuses one.
 - **Fence.** Files beyond the named list, and why: `src/control/messageStaging.ts` is named;
-  `e2e/_workspace.ts` (a comment naming the old Setup labels), `e2e/production-chat-intake.spec.ts`
+  `src/components/home/useAudienceInbox.ts` (the shared provider choice and a comment the new
+  storage made wrong), `scripts/copy-baseline.json` (re-recorded: the Messages view has fewer em
+  dashes), `e2e/_workspace.ts` (a comment naming the old Setup labels), `e2e/production-chat-intake.spec.ts`
   (it pressed Approve and Send, which moved), `e2e/configured/expected-run.json` (the configured
   test this phase adds), `scripts/audience-operator-migration.test.mjs` (the migration's static
   guard). No stylesheet changed: the paste box reuses `.pd-aud-round` and the popovers use
   `LibMenu`'s default surface.
+- **Check findings.** The delegated review found 10; 7 fixed in the PR: a refused or no-op cue
+  write is now said rather than marking the message used, Prepare reports a failure, Fill stops
+  when the editor's own draft did not save and cannot paste a second copy on retry, the cue editor
+  reads the inbox only while Fill is open, the per-production viewer cap no longer counts the
+  operator's rows (and a viewer may not use the `operator_` device prefix), and the header-count
+  comment follows the new storage. Filed: #1554 (messages pasted before publishing are hidden after
+  publishing) and #1555 (kept local messages outlive their production). Not changed: the Messages
+  workspace keeps its own list effect, which also refreshes the join preview from the same signal.
+  Simplify moved the provider choice into `useAudienceInbox.ts` (`useMessagesBackend`), reused
+  `lastTitled`, `clampSubmission` and `freeName`. Not taken from simplify: letting `stagedFrom`
+  fields win over bindings at resolve time (the spec chose the refusal inside `setFieldBinding`),
+  an `origin` column instead of the `operator_` device prefix (the spec names three columns), and
+  one shared paste component (the two doors lay out differently).
 - **Left for later phases.** `scripts/acceptance-pack.mjs` presses the presenter buttons, which are
   now in the row menu; its clicks are tolerant (`.catch`), so it skips them rather than failing.
   C3 adds the unique `external_id` index this phase's dedupe anticipates.
