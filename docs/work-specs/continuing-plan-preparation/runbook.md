@@ -110,8 +110,10 @@ builder, repairer and checker of the phase, records
 `diagnose {"actor":"<decider>","decision":"repair"|"check"|"stop","reason":"..."}`.
 `repair` (after product failures) buys one last scoped repair, whose launch carries
 the reason; `check` (after blocked checks) one more check once the prerequisite
-recovered; `stop` stops for the owner with the reason. A phase is diagnosed once: a
-failure after the diagnosed repair or check is a real `stop`. Limits never reset.
+recovered; `stop` stops for the owner with the reason. A phase is diagnosed once: any
+failure after the diagnosed repair or check, product or blocked, is a real `stop`.
+Counts never go down; the owner's `answered` to a phase out of attempts grants
+exactly one more, and a failure after that stops it again.
 Record acceptance only after observing it. A ledger receipt cannot prove the
 truth of supplied evidence or qualify a provider by itself.
 

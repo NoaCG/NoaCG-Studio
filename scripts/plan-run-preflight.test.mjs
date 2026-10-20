@@ -98,6 +98,17 @@ test('a resumed wave uses its own deadline and ledger, and is never mutated', (t
   assert.equal(preflight({ context: 'worker', wave, now: Date.parse(UNTIL), run() { assert.fail('expired'); } }).ok, false);
 });
 
+test('a coordinator resumed at a diagnosis qualifies to launch the deciding agent', (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'plan-run-preflight-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const wave = path.join(dir, 'wave.md');
+  const steps = ['build branch', 'landed #1 sha', 'check independent', 'fail product: one', 'repair branch',
+    'landed #2 sha', 'check independent', 'fail product: two'];
+  const log = steps.map((step, i) => `- 2026-10-19T06:0${i}:00Z phase 1 ${step}\n`).join('');
+  writeFileSync(wave, `Window starts: 2026-10-19T06:00:00Z\nWindow ends: ${UNTIL}\n\n## Phases\n1. Example\n\n## Log\n${log}`);
+  assert.equal(preflight({ context: 'coordinator', wave, now: NOW, run: pass }).ok, true);
+});
+
 test('real child IO runs in the selected worktree and parent cleans even after child timeout', (t) => {
   const cwd = mkdtempSync(path.join(tmpdir(), 'plan-run-child-'));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));

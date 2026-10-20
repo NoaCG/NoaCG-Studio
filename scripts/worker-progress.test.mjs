@@ -8,9 +8,10 @@ import { launchedAt, main, observe, progress } from './worker-progress.mjs';
 
 const NOW = Date.parse('2030-01-01T12:00:00Z');
 const minutesAgo = (m) => new Date(NOW - m * 60_000).toISOString();
-// A fake git/gh: each command answers with what it was given, or fails.
+// A fake git/gh: each command answers with what it was given, or fails. `gh api` is the pull
+// request lookup, a merge_group run list the merge queue's runs, any other gh call the branch's runs.
 const fake = (answers) => (command, args) => {
-  const key = command === 'gh' ? 'ci' : args[0];
+  const key = command !== 'gh' ? args[0] : args[0] === 'api' ? 'pr' : args.includes('merge_group') ? 'queue' : 'ci';
   const answer = answers[key];
   return answer === undefined ? { status: 1, stdout: '' } : { status: 0, stdout: `${answer}\n` };
 };
@@ -48,13 +49,18 @@ test('the clock starts at the launch: a fresh branch cut from main is not idle a
   assert.equal(main(['--branch', 'feature', '--since', minutesAgo(5)], { now: NOW, run: fake(branchAt(120)), print() {} }), 0);
 });
 
-test('a queued or running Actions run is activity however long it has run', () => {
-  // A 60-minute endurance run, last updated at its start 40 minutes ago.
+test('a running Actions run is activity however long it has run; a queued one for its first hour', () => {
+  // A 60-minute endurance run, last updated at its start 40 minutes ago, or a run queued as long.
   for (const status of ['in_progress', 'queued']) {
     const sources = observe({ branch: 'feature' }, fake({ ...branchAt(50), ci: runs([status, 40], ['completed', 45]) }));
     const result = progress(sources, NOW, 30, minutesAgo(55));
     assert.deepEqual([result.state, result.idleMinutes, result.lastActivity], ['progressing', 0, minutesAgo(0)], status);
   }
+  // Running for 80 minutes is still the worker's; queued for 80 is GitHub's capacity, not the worker.
+  const long = (status) => progress(observe({ branch: 'feature' }, fake({ ...branchAt(85), ci: runs([status, 80]) })), NOW, 30, minutesAgo(90));
+  assert.equal(long('in_progress').state, 'progressing');
+  assert.deepEqual([long('queued').state, long('queued').idleMinutes], ['queued', 80]);
+  assert.equal(main(['--branch', 'feature', '--since', minutesAgo(90)], { now: NOW, run: fake({ ...branchAt(85), ci: runs(['queued', 80]) }), print() {} }), 3);
   // One waiting for approval, or queued since before the launch, is not this worker's activity.
   for (const ci of [runs(['waiting', 40]), runs(['queued', 40, 90])]) {
     assert.equal(progress(observe({ branch: 'feature' }, fake({ ...branchAt(50), ci })), NOW, 30, minutesAgo(55)).state, 'idle');
@@ -87,6 +93,25 @@ test('commit, CI and session log times are all observed', (t) => {
   const sources = observe({ branch: 'feature', log }, fake({ ...branchAt(50), ci: runs(['completed', 40]) }));
   assert.deepEqual(sources.map((s) => s.source), ['commit', 'ci', 'log']);
   assert.equal(progress(sources, NOW).state, 'progressing');
+});
+
+test('the session\'s newest event and the pull request\'s merge-queue run are activity too', () => {
+  // The worker has pushed nothing for 50 minutes, but its session answered 5 minutes ago.
+  const session = observe({ branch: 'feature', eventAt: minutesAgo(5) }, fake(branchAt(50)));
+  assert.deepEqual(session.map((s) => s.source), ['commit', 'session']);
+  assert.equal(progress(session, NOW, 30, minutesAgo(55)).state, 'progressing');
+  assert.equal(main(['--event-at', minutesAgo(5), '--since', minutesAgo(55)], { now: NOW, run: fake({}), print() {} }), 0);
+  assert.equal(main(['--branch', 'feature', '--event-at', 'soon'], { now: NOW, run: fake(branchAt(50)), print() {} }), 2);
+  // Its pull request #42 waits in the merge queue: the queue's run is running, another PR's is not this worker's.
+  const queue = JSON.stringify([
+    { headBranch: 'gh-readonly-queue/main/pr-42-abc', status: 'in_progress', createdAt: minutesAgo(10), updatedAt: minutesAgo(10) },
+    { headBranch: 'gh-readonly-queue/main/pr-421-abc', status: 'in_progress', createdAt: minutesAgo(10), updatedAt: minutesAgo(10) },
+  ]);
+  const queued = observe({ branch: 'feature' }, fake({ ...branchAt(50), ci: runs(['completed', 45]), pr: '42', queue }));
+  assert.deepEqual(queued.map((s) => [s.source, s.running ?? null]), [['commit', null], ['ci', null], ['merge-queue', minutesAgo(10)]]);
+  assert.equal(progress(queued, NOW, 30, minutesAgo(55)).state, 'progressing');
+  const other = observe({ branch: 'feature' }, fake({ ...branchAt(50), pr: '7', queue }));
+  assert.deepEqual(other.map((s) => s.source), ['commit']);
 });
 
 test('the command exits 1 for an idle worker, 0 for a progressing one, 2 for bad input', () => {
