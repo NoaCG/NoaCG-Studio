@@ -1,6 +1,10 @@
 # E7 — Installable election graphics and cue-specific live candidates
 
 Status: agreed planning scope, 19 October 2026; implementation and acceptance unstarted.
+Revised 2026-10-20 for the owner's decisions
+([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)): phases pass on
+criteria an agent checks on a cloud worker or in Actions; owner-only items wait only in the
+final owner block; human trials are kits.
 Reconciled against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`.
 
 ## Shared execution contract
@@ -21,11 +25,14 @@ not a substitute for the E4/E5 integration acceptance. Four agent-authored nativ
 party board, candidate card, count bug and ticker, with starter data, assets and installation
 instructions. Keep SVG import unchanged. Use fictional candidates and labelled synthetic results.
 
-Owned seams: new `src/control/keyedSelection.ts`, versioned source/selection metadata in
-`src/model/shows.ts`, existing production-data/session and extracted cue/air ownership seams,
+Owned seams: keyed selectors in `src/control/sourceMapping.ts` (the one shared evaluator E4.2
+creates and E5.1 extends; no separate selection evaluator), versioned source/selection metadata
+in `src/model/shows.ts`, existing production-data/session and extracted cue/air ownership seams,
 package fixtures and affected tests. Reuse the native graphic source/export format; the research
 folder's existing fixtures are inputs, not production-qualified packages. No seat projection
 from national vote shares, licensed photos, newsroom scraping or implicit real-provider claim.
+Results come from E4's authenticated election replay server (`scripts/election-replay-server.mjs`),
+never an external provider.
 
 ## Selection contract
 
@@ -53,6 +60,14 @@ manual override semantics remain unchanged. Reconnecting a detached cue is expli
 
 Version the persisted selector additively; unsupported clients must refuse editing/Taking the
 new selection mode and preserve its data, rather than flatten it into legacy shared bindings.
+**Read gate first (2026-10-20).** E7.1 lands the reader and the refusal: a page that meets a
+`selection` record or recipe version it does not support shows that cue read-only, refuses
+Take/Update/edit with a reason and keeps the record byte for byte (precedent `readShowProfile`,
+enforced at both write doors in `src/model/shows.ts`). Only E7.2a, a later deploy, lands the
+writer that creates selection records, so every page loaded after E7.1 already refuses rather
+than flattens. Outputs receive resolved values only; if the builder finds the output payload
+carries selector metadata, the output reader follows the same gate under the CasparCG 2.3
+Chromium 71 rule of `src/control/payloadVersion.ts`.
 Exported rehearsal packs contain resolved defaults, schema/recipe, selector metadata and assets,
 never credentials. Offline installation operates in explicitly labelled replay/manual mode.
 
@@ -77,20 +92,25 @@ network recovery and app restart do not Take/advance/reset a running graphic. He
 its age are visible off air. Recovered program uses the aired selector, not current selection.
 
 ### AC-4: Actual election rehearsal has an honest qualification verdict
-Run the four graphics through hosted production data to actual CasparCG/Bridge and OBS/browser,
-using authenticated E4 replay acquisition and E5 mapping. Record source/package/version hashes,
-clock/cadence, manual recovery and operating limits. Grade separately: software/replay rehearsal
-(required for this phase), official live-feed access/contract and production feed qualification
-(unverified until obtained). February is rehearsal; the researched election date is 18 April
+Run the four graphics through hosted production data to outputs, using authenticated E4 replay
+acquisition and E5 mapping. Record source/package/version hashes, clock/cadence, manual recovery
+and operating limits. Grade separately: software/replay rehearsal on browser outputs (E7.2b,
+gating), actual CasparCG/Bridge and OBS/browser in the real studio (parent phase S), official
+live-feed access/contract and production feed qualification (unverified until obtained). February is rehearsal; the researched election date is 18 April
 2027. No Yle readiness claim from a loopback demo. Missing live access does not invalidate the
 honestly labelled simulator product, but forbids claiming election-day feed qualification.
 
 ## Phases and verification
 
+Every gating criterion is checked on a cloud worker or in Actions (owner, 2026-10-20, A).
+
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
-| E7.1 | Persisted selection, coherent resolver, instance capture and old-show compatibility; AC-2/3 | Cloud: new `scripts/keyed-selection.test.mjs`, `e2e/configured/election-selection.spec.ts`; hold responses, change productions, reload and inspect renderer payloads. |
-| E7.2 | Four-graphic installable package, starter files and actual rehearsal; AC-1–4 | Cloud package/export tests; local Windows CasparCG/Bridge and OBS/browser footage plus operation runbook. New custom deck actions are E6, not a dependency cycle here. |
+| E7.1 | Read gate, keyed selectors in `sourceMapping.ts`, coherent resolver, instance capture and old-show compatibility; AC-2/3 | Cloud: new `scripts/keyed-selection.test.mjs`, `e2e/configured/election-selection.spec.ts` with selection records written by fixtures; hold responses, change productions, reload and inspect renderer payloads; an older-format page refuses read-only. |
+| E7.2a | The selection writer and the four-graphic installable package with starter files; AC-1 | Cloud package/export tests; install into an empty rehearsal production, import starter files, preview and Take on browser outputs, export/reimport with assets and fonts. |
+| E7.2b | Replay rehearsal through E4 and E5 to hosted production data and outputs; AC-4 software/replay grade | Cloud: the replay server, the trusted agent and E5 mapping driving the four graphics on the published production; renderer payloads and browser-output captures; the operation runbook. Non-gating: the laptop helper's scratch CasparCG/Bridge and OBS walks on E7.2b's merge SHA. The real-studio grade is parent phase S. |
+
+New custom deck actions are E6, not a dependency cycle here.
 
 Rollback: disable new selection mode and leave program on its validated last state. Restore a
 rehearsal backup or explicitly use a detached manual cue; do not silently reinterpret selectors

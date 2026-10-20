@@ -50,8 +50,9 @@ fixed platform fee. Review it when Vercel changes pricing or before enabling ano
 
 - Keep Fluid Compute enabled and retain explicit maximum durations. Waiting on network I/O is
   cheaper than active CPU, but abandoned work must still time out.
-- Keep the repository's 12-function budget even though Pro permits more. Consolidated routers
-  reduce cold starts, configuration drift, and accidental function growth.
+- Keep the repository's own function budget (13, `scripts/check-function-budget.mjs`; 12 in use
+  at `331a98a91`) even though Pro permits more. Consolidated routers reduce cold starts,
+  configuration drift, and accidental function growth.
 - Use runtime logs and the included Observability surface before buying Speed Insights or another
   monitoring add-on.
 

@@ -17,6 +17,12 @@ human trial; that trial now runs at parent phase 14 after the remaining refactor
 and thresholds are unchanged. Whole-graphic data connections must enforce the same prepared
 message refusal as individual connections. No implementation or run starts from this update.
 
+Owner decisions, 2026-10-20 ([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)):
+the trials of AC-7 are a trial kit and an early paste pilot the owner runs when he can, never a
+gate; Q's YouTube receipt is agent-run with the owner's key; Twitch is checked against recorded
+fixtures; C0 adds an operator insert RPC and reverses the local inbox's no-persistence decision;
+the YouTube quota is budgeted and the remaining live-chat runtime is shown.
+
 ## What the reconciliation changed here
 
 The shared changes are listed once in the data-sources spec. For this document: the Audience view
@@ -103,9 +109,14 @@ graphic shows on its layer; the other cue's text is still in its cue.
 
 **Persistence.** The local provider keeps operator-authored and imported candidates in browser
 storage keyed by production (the `productionState.ts` pattern); simulated rows stay in memory.
-On a published production, paste and imports go through the production's audience backend so
-other operators see them; the table gains nullable `external_id`, `source` and `reference` in C0
-and a unique index per show on `external_id` in C3. Message sources are `Show.sources` entries.
+This reverses `src/audience/localAudience.ts`'s documented decision to hold nothing durable,
+because a forgotten inbox is problem 5; keeping simulated rows in memory keeps that decision's
+reason. On a published production, paste and imports go through the production's audience
+backend so other operators see them, through a new operator RPC, `audience_operator_add`, keyed on
+the control slug (the viewer door `audience_submit` keeps its join-slug gate and viewer caps; the
+operator RPC has its own bound of 100 items per call, each clamped to the existing limits). The
+table gains nullable `external_id`, `source` and `reference` in C0 and a unique index per show on
+`external_id` in C3. Message sources are `Show.sources` entries.
 
 **Identity.** A Sheet row's identity is the hash of its Name, Message, Source and Reference
 cells plus an occurrence index for identical rows; never its position. Reordering changes
@@ -120,16 +131,22 @@ their platform id. A late read after disconnect revives nothing.
 Two modes, named plainly: "Comments on a video" and "Live chat of a stream". Both ask for the
 video link and the operator's own key, with "Remember on this browser" unticked by default and
 the quota cost in one line (comments: 1 unit a fetch; live chat: about 3,600 units an hour at the
-5-second floor against a 10,000-unit daily default). Comments: one call, the newest 100, refresh
+5-second floor, so the 10,000-unit daily default lasts about 2 hours 45 minutes). While live chat
+runs, the line shows the estimated runtime left today, counted from this browser's own spend since
+the quota's daily reset (midnight Pacific time); it says that other users of the same key are not
+counted, because the API offers no way to read the remaining quota. Comments: one call, the newest 100, refresh
 is a press, no polling. Live chat: the existing reader, the first page delivered marked
 "earlier", `pollingIntervalMillis` honoured with the 5-second floor, Pause and Remove as today.
 The source (video and mode) is remembered with the production; on reload it reconnects when the
 key is remembered and asks for the key otherwise. A disconnect, ended chat, missing authorization
 or quota refusal shows a useful next action. Whether a key alone authorizes public content is
-confirmed by a receipt in track Q before C3 promises it.
+confirmed by Q's agent-run receipt before C3 promises it. The agents' shared key
+(`YOUTUBE_API_KEY`) is budgeted: Q spends at most 2,000 units, C7 at most one 10-minute live smoke
+(about 600 units), and automated tests use recorded responses.
 
 Twitch: `src/audience/twitchChat.ts` is untouched; its existing behaviour gets a regression check
-in C7; no new persistent Twitch work is required.
+in C7 against recorded fixtures; a live Twitch check is a non-blocking owner-list item; no new
+persistent Twitch work is required.
 
 ## Join, presenter and votes
 
@@ -181,7 +198,8 @@ function; the card offer lives in Messages. Setup always lists "Messages…". La
 Comments and live chat are two named modes; comments arrive on one press; the live chat's first
 page is shown as earlier; the key is kept in memory unless the operator remembers it; the source
 is remembered with the production and reconnects or asks for the key on reload; quota and errors
-show a next action; nothing runs server-side. Layer: Node tests with recorded responses in
+show a next action, and running live chat shows its estimated runtime left today; nothing runs
+server-side. Layer: Node tests with recorded responses in
 `scripts/youtube-comments.test.mjs` and `scripts/youtube-chat.test.mjs`;
 `e2e/production-chat-intake.spec.ts`; Q's provider receipts.
 
@@ -206,11 +224,13 @@ published production in `e2e/configured/audience-live.spec.ts`.
 Fresh unpublished production with one scoreboard; a raw message in a chat window on the same
 screen. The participant pastes it, strips the phone number, edits name and text, accepts the
 card, previews, prepares and Takes; then a second message while the first is on air (the program
-must not change). These two tasks run early in Q on C0's build. The third task, a link-shared
-message Sheet with the second message aired without the surname while a proctor edits and
-reorders the Sheet, runs at parent phase 14's final trial with the first two repeated. Pass: four of five complete
-unaided and answer the three comprehension questions (data-sources AC-14); medians reported, no
-time target. Layer: `evidence/trial-paste.md` (Q) and `evidence/trial.md` (parent phase 14; prepared in C7).
+must not change). These two tasks are an early pilot on C0's build. The third task, a
+link-shared message Sheet with the second message aired without the surname while a proctor
+edits and reorders the Sheet, is in the content trial kit with the first two repeated. Pass: four
+of five complete unaided and answer the three comprehension questions (data-sources AC-14);
+medians reported, no time target. Layer (owner, 2026-10-20): a kit, not a gate; the owner runs
+the pilot and the kit when he can and reports in `evidence/trial-paste.md` and `evidence/trial.md`;
+findings become issues. No phase waits for either.
 
 ### AC-8: Candidates are first-class content
 A pasted body works with no name, reference, login or integration. Sheet starter rows carry Name,
@@ -225,16 +245,17 @@ reorder, delete and add, identical text, reload and an already on-air cue; the p
 in `e2e/configured/audience-live.spec.ts`.
 
 ### AC-9: Provider support and deferral are honest
-Q records, with receipts, what a key alone returns for comments and for live chat, what the
-first page holds, pagination and quota. A promised route needs its own receipt; manual copying is
-not proof of a connector. Twitch's existing reader is regression-checked; no new Twitch work
-blocks the run. Layer: `evidence/youtube.md`; C7's separately labeled results.
+Q's agent records, with receipts, what a key alone returns for comments and for live chat, what
+the first page holds, pagination and quota. A promised route needs its own receipt; manual
+copying is not proof of a connector. Twitch's existing reader is regression-checked against
+recorded fixtures; no new Twitch work blocks the run. Layer: `evidence/youtube.md`; C7's
+separately labeled results.
 
 ## Phases
 
-In the data-sources schedule: C0 (AC-1/2/3/6/8 paste half), Q (AC-7 paste tasks, AC-9), C3
-(AC-4/8/9), C7 (AC-5/9 and AC-7 trial preparation), parent phase 14 (AC-7 final trial and
-revalidation after later changes). The old phases 21, 23, 24 and 25 map to the content work
+In the data-sources schedule: C0 (AC-1/2/3/6/8 paste half), Q (AC-9 receipts), C3 (AC-4/8/9),
+C7 (AC-5/9 and the AC-7 trial kit), parent phase 14 (revalidation after later changes). The AC-7
+pilot and kit run whenever the owner can and never hold a phase. The old phases 21, 23, 24 and 25 map to the content work
 (synthesis §5); the final trial placement follows the owner's 19 October full-project scope.
 
 ## Phase notes

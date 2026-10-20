@@ -17,6 +17,11 @@ starter data for custom native graphics, and optional per-field repair are now i
 data-sources spec owns the exact matching, identity and format rules. This is a planning update;
 the final whole-plan review and separate start instruction remain pending.
 
+Owner decisions, 2026-10-20 ([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)):
+Q's Sheet measurements are agent-run on six owner-owned test Sheets the agent edits itself; a
+miss against D3 is reported and handled, not a stop; C1 is split into C1a-C1c; the newcomer
+trial (AC-12) is a trial kit the owner runs when he can, not a gate.
+
 ## What the reconciliation changed here
 
 The shared changes are listed once in the data-sources spec. For this document: the journey
@@ -44,8 +49,8 @@ on 2026-10-16 (local dev server, signed out, a new production with one scoreboar
 
 What already works and is kept: a bound field shows its source and is locked in the cue editor;
 values follow on air without a new Take; a name with spaces is a valid path. A ± press on a bound
-field moves the shared value, but its test (`e2e/production-data.spec.ts` 749) is skipped under
-`skipOldEditor()` and counts as no coverage; C1 asserts it in a test that runs.
+field moves the shared value; its test (`e2e/production-data.spec.ts` 741 at `331a98a91`) runs
+again now that `skipOldEditor()` is gone, and C1b extends it to a Sheet-connected value.
 
 ## Goal
 
@@ -72,7 +77,7 @@ when operator pages close, at the server tick's cadence.
 - `/gviz/tq?tqx=out:csv` is also readable cross-origin and faster (about 0.3 s), but guesses a
   type per column and blanks cells of the minority type. Not used.
 - Not yet measured: how often Google lets one browser read the same sheet before refusing, and how
-  soon an edit is visible. Track Q measures both before C1 fixes the interval.
+  soon an edit is visible. Q (agent-run) measures both before C1b fixes the interval.
 
 ## Behaviour
 
@@ -172,17 +177,21 @@ claim production Pause controls an embedded poller. C6 targets the current
 - **D3. How fresh.** Answer: an edit on screen within 10 seconds, read every 5 seconds, verified
   with real edits before anything promises it, server cost measured, a miss stops the plan.
   **Kept while a page is open.** Agreed revision (2026-10-18, synthesis §7 decision 2): with every page
-  closed the figure is the tick's, about a minute, reported as measured. The stop rule stays.
+  closed the figure is the tick's, about a minute, reported as measured. **Revised 2026-10-20
+  (owner decision A):** a miss no longer stops the run. Its purpose, never promising a freshness
+  the export cannot deliver, is kept: C1b states the measured figure instead of ten seconds, also
+  offers the "Publish to the web" CSV, and the coordinator records it and notifies the owner.
 - **D4. One number, several buttons.** Answer: the ± and Goal buttons change the shared value;
   no write back; the manual value holds until the cell changes; Pause keeps it. Kept for values.
 
 ## Sequencing
 
-Not a run of its own. In the data-sources schedule: Q measures the export; C1 builds paste rows,
-starter rows, local connections, the browser reader and the local timed run; C2 the published
-lease, tick, Pause and cost; C3 the message Sheet; C6 retires the graphic-level panel for new
-graphics; C7 technically rehearses and prepares the trial; parent phase 14 runs the full trial
-and final acceptance after all refactors. The readers and their rules live in `src/control/` and
+Not a run of its own. In the data-sources schedule: Q measures the export; C1a builds paste rows
+and starter rows, C1b local connections and the browser reader, C1c the overview, sources line and
+the local timed run; C2 the published lease, tick, Pause and cost; C3 the message Sheet; C6
+retires the graphic-level panel for new graphics; C7 technically rehearses and lands the trial
+kit; parent phase 14 reconciles final acceptance in software after all refactors and phase S
+covers the real studio. The readers and their rules live in `src/control/` and
 are Node-tested; page changes wire them.
 
 ## Acceptance criteria
@@ -192,7 +201,7 @@ A production accepts a share link ("Anyone with the link can view") through the 
 previews the selected tab on the graphic within 10 seconds, with no "Publish to web", sign-in,
 OAuth or code. Lists lead; values and selected rows stay available. Layer: Node link and CSV
 tests; a journey in `e2e/production-data.spec.ts` against a stub sheet; one real-Sheet receipt
-from C1.
+from C1c.
 
 ### AC-2: Previewed connections only affect the selected destination
 The preview shows the chosen graphic's fields, matched/unmatched counts, samples and "Used by N cues";
@@ -206,9 +215,9 @@ live binding through both bulk and individual doors. Layer: Node contracts; the 
 With a connected graphic on air and a page open, a cell edit changes the output within 10
 seconds, measured over at least 20 real edits with the slowest reported; nothing is taken,
 advanced or removed. Unpublished it changes the local program; published it changes the published
-output exactly once. Layer: Q times 20 edits to the export; C1 runs the timed real-Sheet run
-against the local program; C2 repeats it against the published output; a Node diff test with a
-fake clock; the configured scenario.
+output exactly once. Layer: Q times 20 edits the agent makes itself to a test Sheet; C1c runs
+the timed real-Sheet run against the local program; C2 repeats it against the published output;
+a Node diff test with a fake clock; the configured scenario.
 
 ### AC-4: Published, the output keeps following with no page open
 With every operator page closed, an edited cell reaches the published output at the tick's
@@ -269,7 +278,8 @@ A newcomer pastes rows onto a ticker, then connects a Sheet list and puts a chan
 without documentation; also download a custom graphic's template, fill it and connect all its
 fields once, then repair one unmatched field. The message-Sheet task of audience AC-7 runs in the same trial. Pass:
 four of five complete unaided and answer the comprehension questions; medians reported, no time
-target. Layer: final trial at parent phase 14 (`evidence/trial.md`), with its setup prepared in C7.
+target. Layer (owner, 2026-10-20): the content trial kit C7 lands; the owner runs it when he can
+and reports in `evidence/trial.md`; findings become issues. It never holds a phase.
 
 ## Historical six-phase breakdown (not executable)
 

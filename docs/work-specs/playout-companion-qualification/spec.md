@@ -1,6 +1,10 @@
 # H0 — Qualify the existing Companion and Stream Deck route
 
 Status: agreed planning scope, 19 October 2026; implementation and acceptance unstarted.
+Revised 2026-10-20 for the owner's decisions
+([receipt](../production-page-refactor/evidence/owner-decisions-2026-10-20.md)): phases pass on
+criteria an agent checks on a cloud worker or in Actions; owner-only items wait only in the
+final owner block; human trials are kits.
 Reconciled against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`.
 
 ## Shared execution contract
@@ -25,8 +29,10 @@ No new score/quiz/graphic-clock action belongs here (E6 owns those); clip transp
 Owned changes: module packaging/help/presets, hardware-panel and lease documentation, affected
 panel tests; a demonstrated runtime defect gets its own named fix and regression, coordinated
 with the current page owner. Never rebuild the lease, bypass the relay or change CI policy.
-H0.1 follows C0. H0.2 follows C7 and precedes the remaining refactors; baseline 14 and E8 recheck
-any subsequently affected route. Hardware unavailability is blocked evidence, not a pass.
+H0.1 follows C0. H0.2 is the first phase of the final owner block, after E8.2 (owner,
+2026-10-20, C): one physical deck requalification that also covers E6's custom and foreign
+buttons and sets up the operator's buttons on the deck at the same time. Missing hardware holds
+only H0.2; it is blocked evidence, never a pass.
 
 ## Contract
 
@@ -46,6 +52,9 @@ Trigger without changing selection, and clip versus graphic-clock Pause.
 On a clean Companion connection, follow only the guide to install, pair and add the starter
 buttons. Archive manifest versions match the packaged module/base; no obsolete answer switch.
 Record elapsed time and wrong turns. HELP, protocol, action list and actual 14 verbs agree.
+H0.1 checks the archive, the guide against the module and a headless guide walk on a scratch
+Companion; in H0.2 the owner follows the guide on his own Companion. A walk by a new operator is
+a task in H0.1's trial kit, never a gate (owner, 2026-10-20, D).
 
 ### AC-2: Existing actions and feedback traverse the real route
 Exercise every declared transport/selection verb through the relay, including retake, update,
@@ -70,8 +79,8 @@ this criterion. Provide a recovery runbook, previous known-good package and reve
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
-| H0.1 | Inspect current code/receipts, fix guide/protocol/presets and package delivery; AC-1 packaging portion plus automated AC-2/3 | Cloud: module's own lint/test/package commands, archive inspection, existing panel-feedback and configured relay/lease tests as affected. Package evidence is distinct from the app build. |
-| H0.2 | Finish AC-1–4, including current hosted credential/feedback gaps and operator guide walk | Owner Windows/Companion/deck and actual CasparCG/Bridge + OBS; hosted service available. Existing configured panel specs support, but do not replace, physical evidence. |
+| H0.1 | Inspect current code/receipts, fix guide/protocol/presets and package delivery, and land the Companion trial kit; AC-1 packaging and guide portion plus automated AC-2/3 | Cloud: module's own lint/test/package commands, archive inspection, a headless guide walk on a scratch Companion where qualified, existing panel-feedback and configured relay/lease tests as affected. Package evidence is distinct from the app build. |
+| H0.2 | Final owner block: AC-1 (owner's guide walk), AC-4, and E6 AC-4; the operator's buttons set up on the deck | The owner's Windows laptop, Companion and physical deck with CasparCG/Bridge and OBS in the real studio, an agent session beside him recording receipts; hosted service available. Existing configured panel specs support, but do not replace, physical evidence. |
 
 Failure recovery: stop sending, restore the prior module and answering-page setup, revoke a
 compromised rehearsal key; do not clear the show or replay buffered presses. Package/publication
