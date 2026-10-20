@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';
 const require = createRequire(process.env.MOCKUP_PLAYWRIGHT_PACKAGE || path.resolve('package.json'));
 const {chromium} = require('playwright');
 const dir = path.dirname(fileURLToPath(import.meta.url));
+await fs.mkdir(path.join(dir,'screens'), {recursive:true});
 const browser = await chromium.launch({headless:true, args:['--no-sandbox']});
 const page = await browser.newPage({viewport:{width:1600,height:1000}, deviceScaleFactor:1});
 const errors=[];

@@ -1,6 +1,6 @@
 # Walkthroughs: artwork, data, operator, air
 
-Read the [election walkthrough](election/README.md) first for the concrete data-collection example. Open [the annotated visual index](index.html) alongside this document. All UI screens are proposals; the four election output captures are actual local rehearsal renders.
+Read the [election walkthrough](election/README.md) first for the concrete data-collection example. Open [the annotated screens](NoaCG-election-and-custom-workflow.pdf) alongside this document. All UI screens are proposals; the four election output captures are actual local rehearsal renders.
 
 ## A — Harbour Cup, custom Top 16 bracket
 

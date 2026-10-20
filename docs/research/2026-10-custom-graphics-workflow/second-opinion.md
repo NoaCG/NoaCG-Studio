@@ -110,4 +110,4 @@ Proposed amendments belong in C1/C2/C6/C7 and the named authoring plans; keep C0
 4. Does the proof overclaim anything? Which next hosted/provider/output test would most efficiently close the remaining risk?
 5. Are the eleven annotated mockups understandable, especially the handoff from source files to field mappings to Take?
 
-Full package: docs/research/2026-10-custom-graphics-workflow/. Start with election/README.md, then the seven numbered documents, index.html and election/evidence/report.json.
+Full package: docs/research/2026-10-custom-graphics-workflow/. Start with election/README.md, then the seven numbered documents, NoaCG-election-and-custom-workflow.pdf and election/evidence/report.json.

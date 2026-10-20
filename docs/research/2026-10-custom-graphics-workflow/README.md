@@ -36,10 +36,10 @@ For the concrete use case, open the [Finnish election walkthrough](election/READ
 ## Review artifacts
 
 - [Pasteable second-opinion brief](second-opinion.md): self-contained review request with examples and evidence limits.
-- [Annotated visual index](index.html) and [11-page mockup PDF](NoaCG-election-and-custom-workflow.pdf).
-- [Contact sheet](screens/contact-sheet.png) and [all static screens](mockups.html).
+- [11-page annotated mockup PDF](NoaCG-election-and-custom-workflow.pdf).
+- [Static HTML source](mockups.html); regenerate the local election captures before viewing it. The PDF includes those captures without setup.
 - [Actual local experiment report](election/evidence/report.json), [publication gates](election/evidence/publish-gates.json), and [HTTP transcript](election/evidence/http-transcript.json).
-- Actual local outputs: [party board](election/evidence/election-party-board.png), [candidate card](election/evidence/election-candidate-card.png), [count bug](election/evidence/election-count-bug.png), [ticker](election/evidence/election-ticker.png).
+- Actual local output captures are reproduced by the election rehearsal in `election/evidence/`; representative captures are included on page 10 of the PDF.
 
 ## Requested research documents
 
@@ -62,17 +62,17 @@ The [nine established general Sheet-connection screens](https://github.com/NoaCG
 
 | Screen | User action and visible verification |
 |---|---|
-| [01 SVG fields/behavior](screens/01-svg-fields-behaviour.png) | Select score/image nodes; confirm types and roles; proposed numeric bounds are distinguished from current native support. |
-| [02 Custom column mapper](screens/02-custom-column-mapper.png) | Map arbitrary columns with samples/assets; choose Fill or Connect deliberately. |
-| [03 Mixed ownership](screens/03-mixed-ownership.png) | See cue fields, shared scalar override, Return to Sheet value, and read-only list together. |
-| [04 Top 16 bracket](screens/04-bracket-data-actions.png) | Inspect keyed source matches beside the graphic; use operator Highlight/Crown separately. |
-| [05 Field recovery](screens/05-schema-image-recovery.png) | Repair renamed Score column and missing crest while the last validated picture stays on air. |
-| [06 Export/reuse](screens/06-export-reuse.png) | Keep resolved values, export a native pack, and explicitly rebind in another production. |
-| [07 Election source](screens/07-election-data-origin.png) | Follow Ministry/distributor → adapter → NoaCG and identify the separate newsroom asset job. |
-| [08 Election files](screens/08-election-files.png) | Open the concrete roster/snapshots and compare the ordinary update with a correction. |
-| [09 Election bindings](screens/09-election-bindings.png) | Trace KOK votes and Aino's candidate key to specific fN fields. |
-| [10 Election operation](screens/10-election-on-air.png) | See actual local output captures inside a proposed operator shell; separate incoming updates from Take. |
-| [11 Qualification/runbook](screens/11-election-runbook.png) | Distinguish 14 local checks from the real-provider/hosted/output rehearsal still needed. |
+| [01 SVG fields/behavior](NoaCG-election-and-custom-workflow.pdf#page=1) | Select score/image nodes; confirm types and roles; proposed numeric bounds are distinguished from current native support. |
+| [02 Custom column mapper](NoaCG-election-and-custom-workflow.pdf#page=2) | Map arbitrary columns with samples/assets; choose Fill or Connect deliberately. |
+| [03 Mixed ownership](NoaCG-election-and-custom-workflow.pdf#page=3) | See cue fields, shared scalar override, Return to Sheet value, and read-only list together. |
+| [04 Top 16 bracket](NoaCG-election-and-custom-workflow.pdf#page=4) | Inspect keyed source matches beside the graphic; use operator Highlight/Crown separately. |
+| [05 Field recovery](NoaCG-election-and-custom-workflow.pdf#page=5) | Repair renamed Score column and missing crest while the last validated picture stays on air. |
+| [06 Export/reuse](NoaCG-election-and-custom-workflow.pdf#page=6) | Keep resolved values, export a native pack, and explicitly rebind in another production. |
+| [07 Election source](NoaCG-election-and-custom-workflow.pdf#page=7) | Follow Ministry/distributor → adapter → NoaCG and identify the separate newsroom asset job. |
+| [08 Election files](NoaCG-election-and-custom-workflow.pdf#page=8) | Open the concrete roster/snapshots and compare the ordinary update with a correction. |
+| [09 Election bindings](NoaCG-election-and-custom-workflow.pdf#page=9) | Trace KOK votes and Aino's candidate key to specific fN fields. |
+| [10 Election operation](NoaCG-election-and-custom-workflow.pdf#page=10) | See actual local output captures inside a proposed operator shell; separate incoming updates from Take. |
+| [11 Qualification/runbook](NoaCG-election-and-custom-workflow.pdf#page=11) | Distinguish 14 local checks from the real-provider/hosted/output rehearsal still needed. |
 
 ## Evidence level
 
@@ -85,4 +85,8 @@ The earlier arbitrary hosted-page screen is superseded; see the corrected four p
 
 ## Reproduction
 
-With the repository's normal dependencies installed, run `node docs/research/2026-10-custom-graphics-workflow/design-source.mjs`, then queue `node docs/research/2026-10-custom-graphics-workflow/render.mjs` with the repository jobs tool and `--cap 5`. The election walkthrough supplies the separate prepare/rehearsal commands. All outputs stay inside this research folder. See [render-check.json](render-check.json) and [validation.md](validation.md).
+First reproduce the election captures using the prepare/rehearsal commands in the election walkthrough. With the repository's normal dependencies installed, run `node docs/research/2026-10-custom-graphics-workflow/design-source.mjs`, then queue `node docs/research/2026-10-custom-graphics-workflow/render.mjs` with the repository jobs tool and `--cap 5`. The election walkthrough supplies the separate prepare/rehearsal commands. All outputs stay inside this research folder. See [render-check.json](render-check.json) and [validation.md](validation.md).
+
+### Generated review artifacts
+
+PNG captures, contact sheets and `index.html` are local generated outputs, excluded from Git under the repository screenshot policy. The committed PDF preserves the reviewed visuals. Reproduce captures with the documented renderer; for the election workflow, run its prepare/rehearsal first to supply the embedded output images. Render reports record the original review, not a new runtime acceptance.
