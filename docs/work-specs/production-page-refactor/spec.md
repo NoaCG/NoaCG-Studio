@@ -543,11 +543,13 @@ deploy-verify run, and the exact revert command.
 - A failed post-merge check: `fail` -> `repair` (one) -> `landed` -> `check` -> `pass`. A second
   failure is diagnosed, not an automatic owner stop (owner, 2026-10-20, decision 17): one fresh
   deciding agent, independent of the phase's builders, repairers and checkers, either makes one
-  last scoped repair (never loosening a test, check or limit), re-checks once after an
-  infrastructure failure has cleared, or concludes that a genuine owner decision is needed; only
-  then does the coordinator record `stop` and notify him, and only his real answer is recorded as
-  `answered`. Infrastructure and capacity failures are waits and re-checks, never spent failures
-  (runner PR, below).
+  last scoped repair after product failures (never loosening a test, check or limit), re-checks
+  once after blocked checks whose prerequisite has recovered, or concludes that a genuine owner
+  decision is needed; only then does the coordinator record `stop` and notify him, and only his
+  real answer is recorded as `answered`. Any failure after the diagnosed attempt, product or
+  blocked, stops; counts never go down, and his answer to a phase out of attempts grants exactly
+  one more. Infrastructure and capacity outages are no failures at all: the checker reports the
+  infrastructure unavailable and the coordinator records a wait (runner PRs, below).
 - A product regression found after `pass` (a laptop receipt, the landing's configured run,
   deploy-verify, a later main run attributed to the phase, an owner report) becomes a repair
   (owner, 2026-10-20, B): the coordinator uses the helper's issue, or files one with the failing
@@ -580,6 +582,11 @@ deploy-verify run, and the exact revert command.
   green. Any other red main that blocks a phase's pull request, or that re-landing, is fixed by
   the repair owner of the landing that broke it (AGENTS.md). The phase waits as for an
   infrastructure outage, spending nothing, and the coordinator tells the owner after two hours.
+- **A refused landing.** A phase pull request the queue still refuses after its builder's repairs
+  is the phase's `fail product:` (repair, then diagnosis). A quarantine pull request that cannot
+  land (its own CI red, or an owner hold) never holds the run: decision 18 already keeps that
+  spec from failing a phase, the owner hold is an owner-list item, and a red bot pull request is
+  carried through by a session outside the phase ledger, as #1546 did for #1544.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its
@@ -663,16 +670,36 @@ the first rehearsal.
   range without deploy-affecting paths, so that SHA has no deploy-verify run), the last real
   deploy-verify pass on main whose SHA equals
   `node scripts/deploy-affecting-paths.mjs --last-affecting origin/main` (deploy-verify's own
-  rule), recorded with that judgement; the runner change
-  and its live-test receipt on main; a local Supabase stack can start or the configured-suite
-  dispatch route is confirmed; `gh` authenticated; `.github/workflows/endurance.yml` on main;
-  the current runner's builder/checker interfaces qualified; one test phone notification received
-  from the coordinator session; no open wave or plan run other than this project (`scripts/wave-plan-store.mjs`, never assumed
-  from a document); open quarantine pull requests reconciled by an agent (stale ones closed, a
-  fresh fail-then-pass left to the quarantine flow, a spec this plan names repaired first); the
-  owner has supplied the finite project deadline in Helsinki time
-  with its offset and the actual permission policy. A missing item is one configuration request
-  to the owner before opening, never a gate during the run.
+  rule), recorded with that judgement; the runner changes and their live-test receipts on main;
+  a local Supabase stack can start or the configured-suite dispatch route is confirmed;
+  `.github/workflows/endurance.yml` on main; the current runner's builder/checker interfaces
+  qualified; one test phone notification received from the coordinator session; the owner has
+  supplied the finite project deadline in Helsinki time with its offset and the actual permission
+  policy. From a fresh cloud session, each checked by its own receipt, never assumed from a
+  document:
+  - **Keys:** `SUPABASE_ACCESS_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `NOACG_TEST_SHEET_IDS` and
+    `YOUTUBE_API_KEY` are set (presence only, `node -e "process.exit(process.env.<NAME> ? 0 :
+    1)"`, never printing a value).
+  - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`); a
+    whole failed-job log (the GitHub connector's job-log read); a workflow dispatch on main
+    (`cloud-queue-merge.yml`); a re-run of failed jobs; auto-merge turned on for a pull request;
+    a pull request opened and commented on. gh's GraphQL commands (`gh pr view`, `gh pr merge`)
+    are refused in cloud sessions, so the cloud path in `/queue-merge` is used, never `gh pr`.
+  - **Remote tools:** `create_session`, `get_session`, `send_message`, `list_events` and
+    `send_later` are present.
+  - **Quarantine bot:** it has opened a quarantine pull request on main's behalf within the last
+    week (its pull request is the receipt), so a flake on main reaches quarantine unattended.
+  - **No other plan project:** `git ls-remote origin 'refs/heads/claude/noacg-recovery/*'` lists
+    nothing, or only this plan's `plan-production-page-*`; a fresh container's local wave store
+    is empty and proves nothing.
+  - **Open quarantine pull requests reconciled:** `gh api
+    'repos/NoaCG/NoaCG-Studio/pulls?state=open&per_page=100' --jq '.[] |
+    select(.head.ref | startswith("quarantine/")) | .number'` lists them; stale ones are closed, a
+    fresh fail-then-pass is left to the quarantine flow, and a spec this plan names is repaired
+    first.
+
+  A missing item is one configuration request to the owner before opening, never a gate during
+  the run.
 - **Placement (owner, 2026-10-20, A and B):** qualified cloud workers for implementation, review,
   targeted software checks and Q's Sheet/feed/YouTube/API records; authoritative full suites in
   Actions. Those are the only places a gating criterion is checked. The laptop helper (§9.1)
@@ -748,8 +775,9 @@ the final owner block, which waits for him.
 | Runner change (free continuation, progress check) and its live test | `main` | agents, separate PR | run opening | landed (#1535, #1539; receipt `continuing-plan-preparation/live-continuation-2026-10-20.md`) | - |
 | Second runner PR (handoff, progress since launch, consistent publication, diagnosis step, check from the merge) | `main` | agents, separate PR | run opening | landed (#1543) | - |
 | Recovery checkpoints on a branch a cloud session can push (`claude/noacg-recovery/<id>`) | `main` | agents, separate PR | run opening | landed (#1545; receipt `continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`) | - |
+| Third runner PR (counts never go down, a resumed diagnosis qualifies, queued and merge-queue runs and session events in the progress check) | `main` | agents, separate PR | run opening | queued (#1549) | the run does not open: preflight item |
 | Restart watchdog | - | - | - | not built: a routine-started session has no `send_message` or `list_events` | a stopped coordinator is continued by typing the same `/plan-run` line; the laptop helper reports a stale heartbeat, and a missing morning summary shows the same |
-| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch); Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); preflight checks that it is set | the tick stays off; the follow-ups join the owner list with exact steps |
+| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch) and a readable month-to-date Vercel usage figure (the Vercel connector or the owner's dashboard); without that figure the switch stays off; Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); preflight checks that it is set | the tick stays off; the follow-ups join the owner list with exact steps |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Claude cloud environment, the local env file, Vercel | owner | Q Sheet records (gate C1b), C1c, C2 | ready: the service account signs in | Q times reads on the public CSV export and records edit latency as unmeasured; C1b states the measured read figure; the timed edit run joins the owner list |
 | `NOACG_TEST_SHEET_IDS`: six owner-owned Sheets, comma-separated | same | owner | same | ready: the service account reads and writes each; each public CSV export works | as above |
 | `YOUTUBE_API_KEY` | same | owner | Q `youtube` (gates C3), C7 live smoke | ready: works | C3 builds and checks against recorded responses; the live receipt joins the owner list |
@@ -804,8 +832,10 @@ the final owner block, which waits for him.
    merge safeguards.
 6. **Stop and continue anywhere (13).** To stop, stop or close the coordinator's session. To
    continue, after a stop, a lost container, an account usage limit, or to move between cloud
-   and laptop, open a new session in any environment with the repository and type the same line
-   with the original deadline:
+   and laptop, open a new Claude Code session as in step 3 (the cloud, environment NoaCG, from
+   the desktop app or claude.ai/code, never a routine, which lacks the follow-up and transcript
+   tools) or on the laptop in the NoaCG-Studio folder, and type the same line with the original
+   deadline:
 
    ```
    /plan-run production-page until <the original deadline>
