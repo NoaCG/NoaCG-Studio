@@ -156,6 +156,12 @@ and in-flight steps carry over. `open` means no project is active: open one.
 `blocked` means this session now owns the project but its recorded wait must be
 resolved (`clear-wait`) before `start-block`.
 
+Known limit (2026-10-20, `cloud-recovery-probe-2026-10-20.md`): a Claude cloud
+session's git connection drops pushes to `refs/noacg-recovery/*`, so `continue`
+there fails with `Recovery publication unresolved ... (git: send-pack: unexpected
+disconnect ...)`. Until the owner picks a fallback, run the coordinator where that
+push works (the laptop); cloud workers are unaffected.
+
 The previous coordinator needs nothing. Its next `record`, `next` or `tick` answers
 `superseded: another coordinator continued this project; stop` and launches nothing.
 
