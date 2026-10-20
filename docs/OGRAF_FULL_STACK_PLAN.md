@@ -303,6 +303,76 @@ must agree on the shared contract before branching. E is a focused extension of 
 control model. F/G/H remain the existing ladder, not a newly authorized competing programme.
 No outreach, release or production deployment is part of these research changes.
 
+### Production-page execution mapping, 2026-10-19
+
+The owner has now selected the relevant A/E/F work for the expanded production-page programme:
+[E1 typed contract](work-specs/playout-ograf-contract/spec.md),
+[E2 controls/steps](work-specs/playout-ograf-controls/spec.md), and
+[E3 normal rundown](work-specs/playout-ograf-rundown/spec.md), followed by
+[E8 final acceptance](work-specs/playout-expanded-acceptance/spec.md).
+These child specs implement the milestones below once execution is separately started; do not
+launch duplicate A/E/F workers. C0–C7 scope is unchanged. G/H/J, the full Server API/outward
+adapter/native output engine, remain outside this selected run. Runtime acceptance remains open.
+
+### 8.1 Typed controls and foreign-package acceptance refinement, 2026-10-19
+
+The owner-supplied competitor research inspected baseline
+`86e795dc9f66183633d7c99a73bea8c27e4e32f6`. These are **source-level gaps**, not results of a new
+runtime conformance suite. They refine existing packages A/E/F; they neither authorize a build
+nor expand the production-page C0–C7 tranche. See its
+[integration receipt](work-specs/production-page-refactor/evidence/research-integration-2026-10-19.md).
+
+**E: preserve schemas and values through the complete path.** `src/control/ografContract.ts`
+currently skips object/array properties with notes, stringifies enum values/toggle defaults and
+reduces custom-action schemas to property-name payload lists. Retain numeric/boolean/string
+enums, nested objects/arrays, required/default values and full typed action arguments through
+generated forms, validation, saved data, command dispatch and renderer calls. Inspect downstream
+string conversion as well as this adapter; define compatibility/migration before changing any
+native string-valued contract. Supported schema limits must be precise and testable; no
+plausible-looking control may send the wrong type. Reuse GDD fallback and existing editor/data
+contracts, not a parallel model.
+
+Audit generic URI handling (a URI is not necessarily an image) and `hidden` against the pinned
+EBU revision: the supplied research identifies generated display-name semantics, not a general
+instruction to remove form controls. The current skip-by-default behavior is a gap to resolve,
+not a standard requirement. Preserve full generated controls and intentional presentation hiding
+as separate concerns. An external form library is a comparison tool with its own unsupported
+features, not the sole conformance oracle.
+
+**F: distinguish actions, steps, state and animation.** The current `ografCallFor` maps Play at
+step 0, Next at delta 1, Stop, Update and Custom. It does not provide general backward/relative
+steps, Goto or skip-animation controls; native `snap` has no defined foreign equivalent. Specify
+each supported mapping and report unsupported operations, rather than inventing equivalence.
+An operator-held step can contain animation; steps are not the whole application state graph.
+Custom action results and vendor fields are not a standardized state subscription or recoverable
+snapshot. Native machine legality remains structural; foreign legality can be unknown and must
+never be labeled confirmed safe. Action target, command acceptance, action completion and actual
+rendered output remain distinguishable. Normal library/cue/rundown integration is required beyond
+manifest parsing and isolated output-stage rendering.
+
+**Scheduled evidence (A/E/F, not executed here):**
+
+- Pin one matching EBU specification/schema/TypeScript revision and the fixture/package hashes.
+  Test unfamiliar packages with nested fields, typed numeric/boolean enums, defaults/required
+  values, URI assets, hidden metadata and typed action arguments. Assert the payload at the
+  renderer as well as visible results and validation failures.
+- Exercise dynamic step count, relative backward steps, Goto, supported animation options,
+  rejected actions, assets, target selection, reload/reconnect and same-layer replacement.
+  Record precise unsupported capabilities and uncertain outcomes; HTTP success alone is no pass.
+- Export a native graphic and operate it in an independent controller with NoaCG-specific
+  metadata removed. Record which conveniences disappear (for example native legality hints)
+  and prove portable lifecycle/data/action behavior remains. Do not require foreign controllers
+  to infer native state machines.
+- Extend recorded SuperFlyTV server checks; use OGraf devtool/form and third-party OGraf Studio
+  fixtures where suitable. Pixotope Discovery is an optional commercial interoperability check
+  with evaluation/output restrictions, not live-I/O qualification. No vendor contact is implied.
+
+**Ready conditions:** E requires the end-to-end typed round trip and precise unsupported notes;
+F additionally requires ordinary rundown use, isolated hosting and actual output/recovery
+evidence. Broad foreign-template support cannot be declared before both. A failed schema shape
+may define an explicitly bounded supported subset, never a claim of generic completeness.
+The full Server API and native SDI/NDI output remain G/J with their existing separate gates.
+
 ## 9. Decision gates and validation receipts
 
 Every later work package must attach a receipt with NoaCG commit, source/package hash, tool and

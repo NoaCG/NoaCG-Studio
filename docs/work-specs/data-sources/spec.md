@@ -15,6 +15,15 @@ Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both*
 and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
 planning update does not start `/plan-run production-page`; the owner explicitly said not to.
 
+Owner refinement, 2026-10-19: incorporate the accepted custom-data refinements into this actual
+plan. Whole-graphic connections and downloadable starter data are included in C1/C5, alongside
+the earlier P1–P6 additions. The parent now includes all 22 steps in one project. This authorizes
+planning edits only. The supplied 19 October Pixotope and broader competitor research now
+sharpens source/output feedback and acceptance below; the final whole-plan second opinion
+has been reconciled. The owner subsequently selected E4/E5/E7 as separate later child phases
+of the same production-page programme; see [the extension contract](../production-page-refactor/extensions.md).
+C0–C7 and Q below retain their scope and order. No run is opened by this update.
+
 ## What the reconciliation changed
 
 The owner's outcomes are fixed (`docs/research/2026-10-data-sources/external-review-prompt.md`,
@@ -24,12 +33,13 @@ Sheets, feeds and YouTube as parts of one workflow; messages as another kind of 
 message from anywhere, edited, previewed, put in the rundown, Taken; later arrivals never replace
 it; reliability. Against those, the reviews changed:
 
-- **The home of the task is the cue editor**, not a shared content workspace. "Fill from…" and
-  "Connect…" on the field; the graphic is the destination by construction. Messages (today's
+- **The home of the task is the existing control panel beneath the monitors.** One graphic-level
+  "Connect data…" action opens source setup and reveals optional field connectors. "Fill from…"
+  stays with its field; the graphic is the destination by construction. Messages (today's
   Audience view) and Data stay as views; no new workspace or store.
 - **Paste lands first (C0)**, before the refactor, as a declared feature change.
-- **Only refactor phases 1, 2+7 and a props-only cue editor move run in this window**; the rest
-  move to a later window.
+- **Refactor phases 1, 2+7 and a props-only cue editor move precede C1**; the remaining refactors
+  follow C7 in the same project. Final acceptance covers the completed build (parent phase 14).
 - **Protection is destination hygiene**, enforced at both doors: a message destination has no
   binding on its body or name field, and no binding is added to a field that prepared cues use.
   The earlier field-level snapshot flag and `/update` protection are dropped.
@@ -73,7 +83,10 @@ system, sees the rendered result, and saves. A live connection follows changing 
 message or table row becomes a cue the operator Takes. The source alone never decides which
 behaviour applies, and nothing a viewer sends airs by itself.
 
-## Non-goals
+## Non-goals of C0–C7
+
+These are tranche boundaries, not a prohibition on the separately selected E4/E5/E7 and
+E1–E3 phases later in the same programme. Their executable child specs own those additions.
 
 - Data operating the show: no source takes, advances, clears or removes a graphic.
 - Writing back to a Sheet or a feed; a formula or general mapping language.
@@ -81,9 +94,17 @@ behaviour applies, and nothing a viewer sends airs by itself.
 - Private Sheets through Google sign-in or new platform OAuth without a reviewed access design.
 - Automatic airing of a message or vote; a new renderer, command log or API wire format.
 - A new general data store, a shared content workspace, a docked message tray, grid editors or
-  a scoreboard preset in this run.
+  a scoreboard preset in C0–C7.
 - Server-side YouTube intake, new persistent Twitch support, JSON address mapping, repairing
   name-keyed bindings on a graphic rename.
+- SVG import or custom-action authoring redesign, a general relational mapper, the installable
+  election package and per-cue live candidate selection. Preserve existing SVG text, quiz,
+  scoreboard and operator-control behavior. Election selection/package and foreign OGraf are
+  now owned by E7 and E1–E3 after the baseline. A NoaCG OGraf server, native SDI/NDI outputs
+  and Bridge packaging changes remain outside this programme.
+- Excel Online and local TXT/CSV/JSON/XLSX source readers: tracked in
+  [#1507](https://github.com/NoaCG/NoaCG-Studio/issues/1507). CSV starter downloads are in scope;
+  live local-file reading is not. RSS/Atom remains C4.
 
 ## The model
 
@@ -92,16 +113,22 @@ Two words on the default surface:
 | Word | What it does | Afterwards |
 | --- | --- | --- |
 | **Fill** | Copies content into this cue once: paste a message, pick a message, load a table row, paste rows into a list field | The cue owns the values; nothing outside changes them |
-| **Connect** | Makes this graphic's field follow a Sheet tab, a news feed, another system or an existing value | Every cue of the graphic follows; the dialog says "Used by N cues" |
+| **Connect** | Makes the reviewed fields of this graphic follow a Sheet tab/table, a news feed, another system or existing values | Every cue of the graphic follows; the dialog says "Used by N cues" |
 
-Both live in the **cue editor**, where the field is. A list or value field offers "Fill from…
-Paste rows" and "Connect…"; a message body field offers "Fill from… Paste a message" and
-"… Pick a message". A connected field is read-only with its source named and "Edit in the
-source, or Disconnect to edit here". The Data view is an overview of the production's values,
+Both live in the **cue editor**, keeping the current production-page layout and appearance.
+The graphic header has one "Connect data…" action, not a large connection button beside every
+input. It opens whole-graphic setup and reveals small field connectors for exceptions or a
+deliberate subset. Done hides those editing controls without pausing data. Connected-source
+indicators and meaningful stale/error states remain visible. A list or value field offers
+"Fill from… Paste rows"; a message body offers "Fill from… Paste a message" and "… Pick a
+message". Connected lists are read-only with "Edit in the source, or Disconnect to edit here";
+scalar values retain Sheet D4 and the existing API write semantics. The Data view is an overview of the production's values,
 lists and tables, their sources and the graphics using them, with Pause; paths, seed, Raw JSON
 and per-field binding rows sit behind one Advanced disclosure and keep working. The Messages view
 (today's Audience view) holds candidates and message sources. The Playout tab shows one line per
-source with status and Pause. Setup always lists "Messages…" and "Data…"; the switcher keeps
+source with status and a working Pause where supported. Unsupported Pause explains the actual
+fallback (for API intake, stop the sender); it never presents an ineffective button.
+Setup always lists "Messages…" and "Data…"; the switcher keeps
 today's rule (views in use, and the view you stand on).
 
 **Where content arrives and how a graphic uses it stay independent.** A Sheet tab can feed a
@@ -146,6 +173,75 @@ audience spec follows from these and from "a prepared cue is plain values".
 - Today's view switcher rule and own-tab views (`PLAYOUT_DASHBOARD.md` §2).
 - Sheet D4 (the operator wins with one shared value) as agreed.
 
+## Operator feedback and behavior boundaries
+
+Keep the current panel and compact text/icons alongside color. Selection, preview, staged values,
+readiness, pending command and last confirmed output answer different questions; no single green
+indicator stands for all of them. A staged cue edit waits for its declared Update/Take path;
+Connect follows source updates under the source's policy. Show the intended target of actions.
+Label a local simulation separately from actual target output; an accepted HTTP/command-log
+write is not proof of rendered pixels. On connection loss, a retained image/status is visibly
+last-confirmed/stale, or unknown where no confirmation exists. This uses existing observations;
+it does not add a new renderer acknowledgement protocol or promise unavailable telemetry.
+
+Organizational folders, All together batches, exclusive replacement groups and output
+layers/channels stay distinct. Inspect batch children and report failures, uncertain results and
+known layer collisions; do not collapse partial success to a green group. State the applicable
+replacement policy. Composite preview is explicitly unavailable when unsupported; implementing
+new composite rendering is not part of this refinement. Unknown vendor groups are not native
+folders. No routine confirmation is added to Take, Out or score presses; existing destructive
+action safeguards and legality checks remain.
+
+Native machine groups and declared capabilities own behavior. A question/reveal region and an
+independent clock do not need every combined state enumerated. Data may animate a changed number
+inside the current state, but cannot implicitly Take, advance, reveal, clear or reset it. Profiles
+label and arrange declared actions; they never implement their behavior. Clock state/time origin
+uses the existing route; a new high-rate transport requires measured need, not a competitor claim.
+
+C6 owns any bounded status/target presentation changes needed here, separately reviewed as product
+behavior. Refactor phases only preserve them. C7 and parent phase 14 collect actual-output and
+human evidence; unsupported foreign capabilities remain in the OGraf roadmap.
+
+## Whole-graphic matching and starter data
+
+From "Connect data…", choose an existing source or add a Sheet/Another system source. Select
+the relevant tab/table or API subtree once, not every cell. Reuse one source reader for its
+consumers. A workbook link does not silently subscribe to all its tabs.
+
+Automatically **propose**, never silently apply, mappings for all compatible fields of the
+selected graphic. Prefer an explicit mapping or generated field key tied to this graphic
+version; otherwise reuse unique normalized title/path matches within the selected source.
+Existing `matchTitle`/`suggestPath` and bulk binding behavior are the starting point. Never
+guess ambiguous names, cross into another source/graphic, or replace existing bindings without
+review. Show matched/unmatched counts, sample values, the rendered result and "Used by N cues".
+One confirmation applies the reviewed mapping through the shared binding write path, including
+prepared-message refusal. A source's first arrival never creates bindings. Per-field repair
+uses this same path. Cancellation applies no mapping.
+
+**Download data template** generates CSV from the custom native graphic's declared editable
+fields and current/default content, without requiring a catalogue match. For scalar fields,
+use `Field ID,Label,Value`: IDs map to the existing field contract; labels remain readable and
+values editable. Parse all rows before applying; duplicate keys, unknown/incompatible fields
+and missing required keys are diagnosed, not redirected. An explicitly empty Value is a valid
+clear; a missing mapped row is an error and holds its last good value. Existing list formats
+retain their adapter-specific starter rows and empty-list behavior. No new template engine,
+manifest format or guessing of undeclared SVG controls is required.
+
+The source configuration retains the selected graphic's expected field identities/types so
+an incompatible graphic replacement requires review. `fN` identifies a field within that
+graphic version; it is not a universal semantic identity. Editing a display label or reordering
+keyed rows must not change destinations. A blank scalar file is missing mappings, not a command
+to clear every field. CSV quoting, Unicode, leading zeros and literal formula-looking strings
+must survive the supported Sheet round trip as text; starter instructions explain text import
+where the spreadsheet would otherwise coerce values. A download does not create a Google Sheet
+or require Google OAuth. Any additive source configuration follows the existing compatibility rule.
+
+An authored bracket can expose distinct slot fields and use the generated template without
+manual cell wiring. A richer `match_id,home_team,away_team,home_score,away_score` table requires
+a supplied structured mapping/recipe; building a general bracket-table interpreter is outside
+this run. Team names and row positions never imply bracket slots. Package-specific layouts and
+the election package are separate work; the generic scalar and existing list routes are tested here.
+
 ## Formats
 
 Five small adapters, beside data resolution, each turning rows into the text its graphic already
@@ -163,8 +259,10 @@ adapter carry no header.
 | credits | end credits | "Role \| Name"; a first cell starting with `#` is a heading with trailing empty cells trimmed; a role with an empty name becomes "Role:"; an interior blank row is a section break and is kept; trailing blank rows trimmed | `.lines` | `src/templates/endCredits/shared.ts` 203-243 |
 | rows | guest tables, message Sheets | one row is one table row or one candidate; never joined | a `ShowDataset` or candidates | `src/control/cueData.ts`; audience spec |
 
-Values (Name, Value rows into named values) stay available behind "Connect… Google Sheet" for a
-scoreboard, not promoted. Adapters write strings, never arrays; a valid read with no rows writes
+Values (Name, Value rows into named values) stay supported for existing Sheets; generated custom
+graphic templates also accept the keyed scalar format above. This scalar mapping is alongside
+the five list/table adapters, not an inferred list format. Adapters write strings, never arrays;
+a valid list read with no rows writes
 `""`, which clears the field on air with an ordinary update row; a failed or malformed read
 writes nothing. The ticker's colon convention is the template's and is shown in the preview, not
 altered by any reader. Node fixtures: a credits heading with a trailing empty cell, a role-only
@@ -195,6 +293,14 @@ what was last dispatched; Resume diffs and appends one row per graphic; held `/u
 a per-graphic last-write map applied after. If C5 finds that disproportionate, the card states
 today's doctrine ("to freeze, stop the sender") and Pause ships for Sheets and feeds only.
 
+The same source is reachable through the graphic's "Connect data…" action, with whole-graphic
+mapping review and optional field repair. Show the acquisition boundary explicitly in docs and
+the runnable example: external source → collector/connector → NoaCG `/patch` → saved fields.
+The NoaCG API receives normalized values; it does not scrape sites itself. C5 supplies a prepared
+sample sender using synthetic input, generated request/bindings for an unfamiliar custom graphic,
+receipt feedback, a later correction, and a failed-read case that sends no replacement. Label
+synthetic input honestly; no real election supplier or polling of arbitrary URLs is required.
+
 **YouTube and join.** Browser-side with the operator's own key; candidates only. The audience spec
 owns the details and the quota figures.
 
@@ -204,8 +310,8 @@ The owner answered DS1-DS20 by accepting the recommendations. Each is kept here 
 "Now:" marks what the 2026-10-17 reconciliation supersedes. Reviews may challenge any of them.
 
 - **DS1. The model and its words.** Answer: values, lists and tables, each from one source,
-  fields connected by name. Now: "Fill" and "Connect" on the cue field; names never connect
-  anything by themselves.
+  fields connected by name. Now: graphic-level "Connect data…", automatic mapping suggestions
+  with one confirmation, and optional field repair; names never connect anything by themselves.
 - **DS2. The first Sheet shape.** Answer: lists first, values in the same phase, tables last; the
   operator picks the shape. Kept.
 - **DS3. A row with several cells.** Answer: join with " | ". Now: per adapter (Formats above);
@@ -222,8 +328,8 @@ The owner answered DS1-DS20 by accepting the recommendations. Each is kept here 
 - **DS8. Pushing to a local production.** Answer: no; publishing stays the step. Kept.
 - **DS9. Two sources writing one name.** Answer: later write wins; warn. Now: sources write
   source-scoped paths, so two sources cannot write one name; sharing is explicit (AC-8).
-- **DS10. Where a field connects.** Answer: both the data view and the field. Now: the field is
-  the home; the Data view is an overview.
+- **DS10. Where a field connects.** Answer: both the data view and the field. Now: the existing
+  cue editor is home, through one graphic-level action and optional field controls; Data is an overview.
 - **DS11. Is the audience another data source?** Answer: C, one intake, two destinations. Kept:
   the inbox has no writer.
 - **DS12. How a picked message reaches air.** Answer: as a cue the operator takes. Kept.
@@ -281,12 +387,15 @@ a credits tab keeps headings, "Role:" groups and section breaks; an update while
 continues the scroll. Layer: Node fixtures per adapter; a journey in `e2e/production-data.spec.ts`
 against a stub sheet; the ticker's update behaviour pinned by its existing tests.
 
-### AC-3: A field connects where it is
-In the cue editor a list or value field offers "Connect…"; the operator sees the rendered result
+### AC-3: A graphic connects where it is
+The existing cue editor offers one "Connect data…" action. The operator connects the whole
+graphic or a subset, sees matched/unmatched fields, sample values, the rendered result
 and "Used by N cues" before saving; the saved connection affects only that graphic (sheet AC-2
 for the Sheet case). On a published production it persists and moves the output without a new
 publish. Layer: production-data journey; configured scenario for the published half
-(`e2e/configured/production-data-key.spec.ts` extended).
+(`e2e/configured/production-data-key.spec.ts` extended). With connection editing closed, manual
+fields have no repeated connection buttons; existing source health remains visible. Done does
+not pause an active connection. The current production-page appearance is preserved.
 
 ### AC-4: Pasted rows fill a list without a Sheet
 "Fill from… Paste rows" on a ticker, schedule, standings or credits field accepts cells pasted
@@ -314,7 +423,10 @@ the selected destinations. A push shows last receipt within 5 s and only moves s
 Local setup explains publishing with Publish one press away. When C5 ships Pause, it holds
 `/patch` and `/update` writes, its response says so, operator presses still air, and Resume
 appends exactly the final values once. Layer: journey; configured scenarios for first push; C5's
-database conformance cases.
+database conformance cases. A prepared sample sender demonstrates acquisition, normalization,
+one confirmed whole-graphic mapping, receipt, update and correction for unfamiliar custom fields.
+A failed acquisition sends no replacement; input never triggers Take, Continue, Reset or custom
+machine events. The tested Pause behavior or stop-sender fallback is named explicitly.
 
 ### AC-8: Content has an honest source and explicit sharing
 The Data view and the connected field name the actual source. Sharing a source with a second
@@ -325,7 +437,11 @@ journey.
 ### AC-9: Sources and content are discoverable
 Setup always offers "Messages…" and "Data…"; the Data view lists the production's values, lists
 and tables with their sources and the graphics using them; Playout shows active sources with
-status and Pause; native content is labeled as local content with no freshness warning. The
+status and functional Pause or its explicit fallback; native content is labeled as local content
+with no freshness warning. Source details show the active reader, effective cadence, last checked
+and last changed. For Sheets, browser reads are about every five seconds and server reads about
+once a minute when all pages close; other providers show their own effective cadence. The Sheet
+server mode is continuity at slower cadence, not equivalent latency. The
 default surface's vocabulary is sheet AC-9's. Layer: journey in `e2e/production-views.spec.ts`
 and `e2e/production-data.spec.ts`; owner look in the pull request.
 
@@ -337,11 +453,18 @@ interface has no airing method, from C0; a source's inbox consumer has no writer
 cross-source journey.
 
 ### AC-11: Failure, empty content, override and ownership have distinct outcomes
-For every source kind: a failed or malformed read holds the last good value; a valid empty read
-clears its managed field; legacy missing paths and empty arrays keep their behaviour; a late read
-cannot write after disconnect or handover. Pause stops a source's writes and Resume uses the last
-applied snapshot. The Sheet reader's lease, override and staleness rules are sheet AC-5, AC-6 and
-AC-7. Layer: Node reader-state tests with a fake clock per source kind; the sheet spec's layers
+For every source kind: a failed or malformed read holds the last good value; a valid empty list
+or explicit empty scalar clears its managed field; a missing keyed scalar row holds its last good
+value and reports an error; legacy missing paths and empty arrays keep their behaviour; a late read
+cannot write after disconnect or handover, including an old owner's response arriving after the
+new owner's newer write. A successful unchanged read is not stale merely because values did not
+change. Last checked proves a transport read, not the age of an upstream event; provider timestamps
+or sequences can support a separate later source-age capability, not a requirement for every Sheet.
+Sheet manual scalar changes last until that source cell changes; Pause holds them and Resume
+writes only cells changed while paused. Lists stay read-only while connected. API Pause uses
+C5's suppress-and-diff/held-update policy or stop-sender fallback, not the Sheet policy. The
+Sheet reader's lease, override and staleness rules are sheet AC-5, AC-6 and AC-7.
+Layer: Node reader-state tests with a fake clock per source kind; the sheet spec's layers
 for the Sheet case.
 
 ### AC-12: Connections stay correct when names collide or change
@@ -353,22 +476,34 @@ every phase that adds a persisted field. Layer: Node contracts; `scripts/show-fi
 over a fixture saved by the current build, added in C1 and extended by each later phase; the
 production-data journey.
 
-### AC-13: Starter rows fit the graphic and the selected tab
+### AC-13: Starter data fits the whole graphic and the selected tab
 Generated starter rows carry the field's current content and the adapter's header where the
 adapter has one. A tab link previews that tab; a missing `gid` shows the returned tab and asks the
 operator to confirm it; one tab used by two graphics or by a graphic and the inbox has one
 reader; a renamed tab keeps its identity; a missing tab holds the last good value and asks for
 reconnection; malformed rows are diagnosed, not rearranged. Layer: Node fixtures per adapter; the
-Sheet journey; one real-Sheet receipt in `evidence/` from C1.
+Sheet journey; one real-Sheet receipt in `evidence/` from C1. Additionally, download a custom
+graphic's scalar CSV, import it into Sheets, edit values and connect the whole graphic in one
+confirmation without manually mapping each cell. Use unfamiliar labels and a fixed-slot bracket
+fixture; reorder rows and edit labels while preserving IDs, and verify only the intended slots
+change. Diagnose duplicate/missing keys, incompatible replacements and ambiguous name matches;
+cancel leaves bindings unchanged and existing bindings need explicit review before replacement.
+Cover CSV escaping, Unicode and text-preserving import. Layer: Node mapping/round-trip tests,
+the Sheet journey and the real-Sheet receipt. No rich bracket recipe is needed for this proof.
 
 ### AC-14: A newcomer does each journey unaided
 On a fresh production, without documentation, a student pastes rows onto a ticker, connects a
 Sheet list and changes a line, connects a feed, and (with a prepared sender) pushes a score; the
-message tasks are audience AC-7 and the Sheet task is sheet AC-12. Pass: four of five participants
+message tasks are audience AC-7 and the Sheet task is sheet AC-12. Include downloading and filling
+a custom graphic's starter data, connecting it as a unit and repairing one unmatched field.
+Pass: four of five participants
 complete each task unaided and answer the comprehension questions ("What happens when you press
 Take?", "If someone edits the Sheet now, what changes on air?", "If someone adds a row, what
-happens to the cue you prepared?") correctly; medians are reported without a time target. Layer:
-one trial in C7 on the real build; the paste tasks also run early in Q on C0's build.
+happens to the cue you prepared?", "Where did this value come from?", "Which target will this
+button affect?", "What is confirmed on air, and what is only preview or pending?") correctly;
+medians are reported without a time target. Layer:
+one full trial at parent phase 14 on the completed build, prepared during C7; the paste tasks
+also run early in Q on C0's build. Earlier pilots do not replace final acceptance after changes.
 
 ### AC-15: Prepared messages are independent of source changes
 Audience AC-1, AC-2, AC-6 and AC-8: a prepared message airs exactly as approved; source edits,
@@ -381,10 +516,22 @@ In one rehearsal production: pasted rows, a Sheet ticker, schedule, standings an
 a pushed score, a guest row, pasted messages, Sheet messages, YouTube comments and live chat, and
 a staged vote. PROGRAM is checked after source edit and delete, duplicate arrival, Pause,
 disconnect, reload and operator-page closure. A ticker, a schedule, a standings board and credits
-are watched updating on a real player (an OBS browser source at least). The unaided tasks of
-AC-14 run. Each route is recorded separately; Twitch's existing behaviour is checked for
+are watched updating through the actual CasparCG/NoaCG Bridge route and an ordinary OBS/browser
+source. Include the custom-graphic whole-Sheet and API examples of AC-7/13, manual scalar override,
+reader handover, unchanged/changed cells, delayed responses and Pause/Resume. Record app revision,
+Bridge/CasparCG versions, channels/layers, fonts/assets, Take/Update/Continue/Out where supported,
+stacked graphics and restart/reconnect; observe the actual consumer if used in production.
+Exercise a quiz reveal while its independent clock continues; a bound value update neither
+resets the clock nor advances the quiz. Exercise All together with a failed child and conflicting
+layers; child outcomes and replacement policy remain inspectable. Distinguish selection, staged
+edits, pending commands and confirmed output; disconnect leaves no apparently fresh live image.
+Record simulation versus target capture, and unknown status where confirmation is unavailable.
+Expanded vMix/SPX qualification is later; existing regressions remain required. The unaided tasks of
+AC-14 are prepared in C7 and run at final close-out. Each route is recorded separately; Twitch's existing behaviour is checked for
 regression; a blocked YouTube route is recorded as unverified, never as a pass. Layer: C7's
-receipts in `evidence/`.
+receipts in `evidence/`. An unavailable required route is unverified and blocks a production-ready
+claim. C7 is an intermediate rehearsal; parent phase 14 records final acceptance after the
+remaining refactors, reusing evidence only under the parent's material-input rules.
 
 ## Phases
 
@@ -420,12 +567,16 @@ Records in `evidence/` (`sheet-latency.md`, `sheet-endurance.md`, `feeds.md`, `y
 at C1 and asks (D3).
 
 **C1. Native lists and local Sheets** (AC-1/2/3/4/8/9/10/11/12/13; sheet AC-1/2/3 local/5/6/7/8/9).
-After refactor 2+7 and 13a. The five adapters and starter rows; "Fill from… Paste rows";
-"Connect… Google Sheet" with tab preview, "Used by N cues" and explicit sharing; `Show.sources`;
+After refactor 2+7 and 13a. The five adapters and starter rows, custom scalar CSV generation and
+keyed matching, and "Fill from… Paste rows"; the graphic-level "Connect data…" action with
+Google Sheet tab preview, whole-graphic mapping confirmation, optional field repair, "Used by
+N cues" and explicit sharing; `Show.sources`;
 the browser reader with lease, states, Pause and the Playout sources line; the Data view as
 overview with Advanced; the cue editor's connected-field state; the fixture compatibility test;
-one real-Sheet receipt and the timed 20-edit run against the local program. Files:
+one real-Sheet receipt and the timed 20-edit run against the local program. Refuse connecting
+a detected legacy embedded poller until C6 provides its explicit migration choice. Files:
 `src/control/contentFormats.ts` (new), `src/control/sheetSource.ts` (new),
+`src/model/productionData.ts` (reuse matching; one reviewed binding path),
 `src/control/productionDataSession.ts` (the writer entry), `src/model/shows.ts` (`sources`),
 `src/components/home/CueEditor.tsx`, `src/components/home/ProductionPage.tsx`,
 `src/components/home/ProductionDataWorkspace.tsx`, `src/components/home/ProductionDataPanel.tsx`,
@@ -442,7 +593,7 @@ with the browser closed, latency reported as measured. Files: `src/control/hoste
 a function), one additive migration (`control_shows.sources`, read state), `vercel.json`, tests.
 
 **C3. Sheet messages and YouTube** (AC-10/15; sheet AC-11; audience AC-4/8/9). Depends on C1
-only; may run in a parallel session to C2. A message Sheet is a `sheet` source with `inbox: true`
+only; scheduled after C2 to preserve one sequential project owner. A message Sheet is a `sheet` source with `inbox: true`
 through the rows adapter and the audience spec's identity rules; "Fill from… Pick a message" in
 the cue editor; the two YouTube modes as `Show.sources` entries, as the audience spec defines
 them; the unique index per show on `external_id`. Files: `src/audience/sheetMessages.ts` (new),
@@ -455,22 +606,38 @@ additive migration, tests.
 Files: `api/_lib/feedFetch.ts` (new), `api/data/[...path].ts`, `src/control/feedSource.ts` (new),
 `src/components/home/CueEditor.tsx`, tests; one real feed receipt.
 
-**C5. "Another system" card and Pause** (AC-7/8). The card with the generated example and
-receipt; "Connect… Another system" on a field; Pause by suppress-and-diff for `/patch` and a held
+**C5. "Another system" card and Pause** (AC-3/7/8). The card with the generated
+example, prepared sample sender and receipt; "Another system" in the same whole-graphic connection
+flow and optional field controls; Pause by suppress-and-diff for `/patch` and a held
 per-graphic map for `/update`, or the documented fallback; `DATA_API.md` and `/docs` lead with
 `/patch`. Files: `src/components/home/ProductionDataWorkspace.tsx` (the card),
 `src/components/home/CueEditor.tsx`, `api/data/[...path].ts`, one migration (`data_paused`,
-`dispatched`, held updates), `docs/DATA_API.md`, tests.
+`dispatched`, held updates), `docs/DATA_API.md`, a documented sample sender under `scripts/`, tests.
 
-**C6. Compatibility and docs** (sheet AC-10). New graphics are no longer offered the
+**C6. Compatibility, truthful operation and docs** (sheet AC-10; AC-9/16). New graphics are no longer offered the
 graphic-level Sheet panel; existing blocks keep running; exports unchanged; `/docs` and
-`docs/PRODUCTION_DATA_PLAN.md` carry the supersession. Files: `src/components/ControlPanel.tsx`,
+`docs/PRODUCTION_DATA_PLAN.md` carry the supersession. Connecting a legacy graphic via the new
+flow requires an explicit migration choice so two pollers cannot silently write the same field.
+Production Pause must not claim to stop an embedded poller. Reuse existing command/status and
+folder-child results for the operator-feedback contract above; add only missing presentation of
+target, pending/confirmed/unknown state, stale monitor and partial group results. Record which
+observations the output route supplies. Product changes and their focused regression checks are
+separate from refactor extractions; no new confirmation protocol or composite renderer is implied.
+Files: `src/components/home/CueEditor.tsx`, `src/components/home/PlayoutMonitors.tsx`,
+`src/components/home/CueRundown.tsx`, `src/components/home/FolderEditor.tsx`,
+`src/components/home/ProductionPage.tsx` (presentation wiring only),
+`src/components/editorFoundation/LiveDataControls.tsx`
+(reconcile its current location before editing; the former `ControlPanel.tsx` has been removed),
 docs, tests.
 
-**C7. Combined rehearsal and trial** (AC-14/16; sheet AC-12; audience AC-5/7/9). The rehearsal
-production of AC-16 on the local stack; the output-player check recorded by the owner; the one
-full trial of AC-14; the join, presenter and vote walks (audience AC-5); the Twitch regression
-check; blocking defects fixed and retested, others filed with scope. Files: fixes only; evidence.
+**C7. Combined technical rehearsal and trial preparation** (AC-16 technical half; AC-14 trial
+preparation; audience AC-5/9). The rehearsal production of AC-16 on the local stack; actual
+CasparCG/Bridge and browser-source checks; the join, presenter and vote walks (audience AC-5);
+the Twitch regression check; prepare the full unaided tasks, fixtures and participant schedule.
+Blocking defects are fixed and retested, others filed with scope. C7 PASS requires these technical
+results and trial preparation, not a claim that AC-14, sheet AC-12 or audience AC-7's full trial
+has passed. Those remain open acceptance assigned to parent phase 14, after the remaining
+refactors; all thresholds and tasks stay unchanged. Files: fixes only; evidence.
 
 Refactor steps between C0 and C1 (phases 1, 2+7, 13a) follow the parent spec's own matrix.
 
@@ -491,21 +658,54 @@ fence. A = assessment by a fresh read-only `wave-row` session with the `/so` bri
 | C4 | `feed-fetch` (fake resolver and fetch: public then private name, redirects, caps, conditional requests, cache), `feed-source`; `show-fixture-compat` extended | `production-data` (connect a stub feed; failed fetch keeps the list) | `feed-route` (new, small; `expected-run.json` raised) | one real feed receipt | A |
 | C5 | `data-pause` contracts; `show-fixture-compat` extended | `production-data` (the card, the example, receipt) | `production-data-key` extended (push, Pause, push with a null, `/update` while paused, Resume emits the final values once) | conformance cases in the migration's self-check | A |
 | C6 | a Node test that an existing graphic's `liveData` block still emits in its template output | `production-data` (no panel for new graphics; existing block still updates) | none | none | A |
-| C7 | none | the full offline suite on CI | the whole configured suite | `evidence/rehearsal.md` per route; the owner's player check; `evidence/trial.md` | A+ |
+| C7 | none | the full offline suite on CI | the whole configured suite | `evidence/rehearsal.md` per route; actual output receipts; `evidence/trial-plan.md` (full trial at parent 14) | A+ |
 
 Revalidation, evidence-only commits and mappings follow the parent §6. A configured spec added
 raises `e2e/configured/expected-run.json` in the same pull request.
 
+The existing matrix rows also require the following refinement coverage; these are part of
+their named checks, not a second suite to rerun on unchanged inputs:
+
+| Phase | Additional cases and receipt |
+| --- | --- |
+| C1 | Scalar template generation and Sheet round trip; scoped bulk suggestions; duplicate/missing IDs, ambiguous labels and incompatible types; row reorder and label edit; existing binding review, cancel and prepared-message refusal; header action/Done behavior; real custom scalar/fixed-slot fixture receipt (AC-3/13) |
+| C2 | Shared scalar override survives unchanged-cell handover and Pause/Resume; changed cell wins; delayed/missing data cannot replace a newer value; published bulk mapping persists without republish (AC-3/11, sheet AC-5/7) |
+| C5 | Prepared collector/sender, unfamiliar fields, confirmed bulk mapping, receipt and correction; failed acquisition sends nothing; explicit API freeze policy; no lifecycle events (AC-7) |
+| C6 | Both retained legacy poller and explicit migration; no competing writers or misleading Pause. Extend existing production-control, monitor and folder journeys for staged/live distinction, target labels, pending/confirmed/unknown status, stale image after disconnect and child failure/collision visibility (AC-9/16); reuse existing Node status/folder contracts, adding a case only where behavior changes |
+| C7 | Actual CasparCG/Bridge and OBS/browser receipts with versions/revision; custom Sheet/API examples; independent quiz/clock and group-failure scenarios; complete final-trial script and fixtures. Full human trial remains assigned to parent phase 14 |
+| Parent 14 | Final AC-14/16, sheet AC-12 and audience AC-7 human trial; reconcile all content/output evidence against the completed build and rerun affected walks under parent §6 |
+
 ## Readiness
 
-The owner agreed the reconciled plan and all four synthesis §7 decisions on 2026-10-18.
+The owner agreed the reconciled plan and all four synthesis §7 decisions on 2026-10-18, then
+authorized incorporating the 19 October refinements and completed competitor findings. The
+Argon review has been reconciled and the selected extensions now have separate executable
+child specs under the parent. No extension changes the C0–C7 acceptance below.
 Before a run: the parent's run preflight and a separate owner start instruction. C0 needs no
 refactor phase before it. This update does not start the run.
 
 Before C1: refactor phases 1, 2+7 and 13a checked PASS on `main`; Q recorded with the Sheet
 measurement inside D3 or the plan stopped and asked; this spec and the audience spec agreed;
-digests current and `work-spec.mjs status` clean.
+digests current and `work-spec.mjs status` structurally valid (open runtime criteria are expected).
 
 Before C2: the tick's cost estimate from Q reviewed; the hosting plan's cron confirmed.
+
+## External-API connection slice: selected extension, outside C0–C7
+
+The former later proposal is now selected by the owner for the same programme after baseline
+close-out. [E4](../playout-external-connectors/spec.md) owns trusted JSON acquisition, credential
+references, bounded reads, fencing and Pause. [E5](../playout-api-mapping/spec.md) owns sample-first
+bounded mapping in Connect data. [E7](../playout-election-package/spec.md) owns stable cue-specific
+candidate selection and the installable election package. Their exact order is in the parent's
+[extension contract](../production-page-refactor/extensions.md). C5 remains the existing API
+and prepared sender, not a generic scraper; the baseline no-JSON-mapping boundary is preserved.
+
+Those children supersede the earlier proposal's unresolved provider/transform/identity questions:
+the first required source is a controlled authenticated JSON election replay provider, using the
+existing production-data route; source JSON stays typed before the destination adapter. No secret
+travels in a downloaded template or ordinary show export. Actual official-feed access remains a
+separate qualification, never inferred from the replay provider. Private Sheets/OAuth, local
+Excel/files (#1507), licensed sports providers and high-rate transport still need their own scope
+and access decision. RSS/Atom remains C4. No implementation or run starts from this specification.
 
 ## Phase notes

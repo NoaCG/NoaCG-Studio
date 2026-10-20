@@ -1,0 +1,778 @@
+{
+  "39233650524": [
+    {
+      "name": "Configured E2E (authenticated, local Supabase)",
+      "conclusion": "success",
+      "duration_min": 27.93,
+      "slow_steps": [
+        {
+          "name": "Start the local Supabase stack",
+          "minutes": 2.0
+        },
+        {
+          "name": "Configured E2E suite",
+          "minutes": 25.47
+        }
+      ]
+    },
+    {
+      "name": "Configured quarantine",
+      "conclusion": "success",
+      "duration_min": 0.22,
+      "slow_steps": []
+    }
+  ],
+  "39233650555": [
+    {
+      "name": "Vercel accepted the commit",
+      "conclusion": "success",
+      "duration_min": 0.08,
+      "slow_steps": []
+    },
+    {
+      "name": "E2E plan",
+      "conclusion": "success",
+      "duration_min": 0.25,
+      "slow_steps": []
+    },
+    {
+      "name": "Build",
+      "conclusion": "success",
+      "duration_min": 4.67,
+      "slow_steps": [
+        {
+          "name": "Build (typecheck + lint + bundle)",
+          "minutes": 3.75
+        }
+      ]
+    },
+    {
+      "name": "Factory gates",
+      "conclusion": "success",
+      "duration_min": 1.7,
+      "slow_steps": [
+        {
+          "name": "Factory-tier tests",
+          "minutes": 1.02
+        }
+      ]
+    },
+    {
+      "name": "Reviewed",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "E2E 10/15 (full)",
+      "conclusion": "success",
+      "duration_min": 11.88,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 11.57
+        }
+      ]
+    },
+    {
+      "name": "E2E 2/15 (full)",
+      "conclusion": "success",
+      "duration_min": 13.88,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 13.62
+        }
+      ]
+    },
+    {
+      "name": "E2E 7/15 (full)",
+      "conclusion": "success",
+      "duration_min": 15.07,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 14.75
+        }
+      ]
+    },
+    {
+      "name": "E2E 11/15 (full)",
+      "conclusion": "success",
+      "duration_min": 13.87,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 13.5
+        }
+      ]
+    },
+    {
+      "name": "E2E 8/15 (full)",
+      "conclusion": "success",
+      "duration_min": 13.42,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 12.98
+        }
+      ]
+    },
+    {
+      "name": "E2E 3/15 (full)",
+      "conclusion": "success",
+      "duration_min": 15.2,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 14.93
+        }
+      ]
+    },
+    {
+      "name": "E2E 15/15 (full)",
+      "conclusion": "success",
+      "duration_min": 17.45,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 17.05
+        }
+      ]
+    },
+    {
+      "name": "E2E 13/15 (full)",
+      "conclusion": "success",
+      "duration_min": 14.58,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 14.15
+        }
+      ]
+    },
+    {
+      "name": "E2E 9/15 (full)",
+      "conclusion": "success",
+      "duration_min": 16.7,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 16.32
+        }
+      ]
+    },
+    {
+      "name": "E2E 5/15 (full)",
+      "conclusion": "success",
+      "duration_min": 13.27,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 12.88
+        }
+      ]
+    },
+    {
+      "name": "E2E 14/15 (full)",
+      "conclusion": "success",
+      "duration_min": 12.27,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 11.97
+        }
+      ]
+    },
+    {
+      "name": "E2E 12/15 (full)",
+      "conclusion": "success",
+      "duration_min": 16.2,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 15.68
+        }
+      ]
+    },
+    {
+      "name": "E2E 1/15 (full)",
+      "conclusion": "success",
+      "duration_min": 16.28,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 15.88
+        }
+      ]
+    },
+    {
+      "name": "E2E 4/15 (full)",
+      "conclusion": "success",
+      "duration_min": 10.4,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 10.05
+        }
+      ]
+    },
+    {
+      "name": "E2E 6/15 (full)",
+      "conclusion": "success",
+      "duration_min": 12.33,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 12.03
+        }
+      ]
+    },
+    {
+      "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "Catalog calibration gate",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "Re-run (failed Build or Factory job, same commit)",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "Combined E2E report",
+      "conclusion": "success",
+      "duration_min": 0.38,
+      "slow_steps": []
+    },
+    {
+      "name": "CI gate",
+      "conclusion": "success",
+      "duration_min": 0.12,
+      "slow_steps": []
+    },
+    {
+      "name": "E2E retry (failed specs, same commit)",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "After the gate",
+      "conclusion": "success",
+      "duration_min": 0.22,
+      "slow_steps": []
+    }
+  ],
+  "39243729232": [
+    {
+      "name": "E2E plan",
+      "conclusion": "success",
+      "duration_min": 0.25,
+      "slow_steps": []
+    },
+    {
+      "name": "Reviewed",
+      "conclusion": "success",
+      "duration_min": 1.28,
+      "slow_steps": [
+        {
+          "name": "Wait for the review status on the pull request head",
+          "minutes": 1.17
+        }
+      ]
+    },
+    {
+      "name": "Build",
+      "conclusion": "success",
+      "duration_min": 4.48,
+      "slow_steps": [
+        {
+          "name": "Build (typecheck + lint + bundle)",
+          "minutes": 3.63
+        }
+      ]
+    },
+    {
+      "name": "Factory gates",
+      "conclusion": "success",
+      "duration_min": 1.38,
+      "slow_steps": []
+    },
+    {
+      "name": "Vercel accepted the commit",
+      "conclusion": "skipped",
+      "duration_min": -0.02,
+      "slow_steps": []
+    },
+    {
+      "name": "E2E 5/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.05,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 2.68
+        }
+      ]
+    },
+    {
+      "name": "E2E 1/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 4.55,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 4.27
+        }
+      ]
+    },
+    {
+      "name": "E2E 4/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.47,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.23
+        }
+      ]
+    },
+    {
+      "name": "E2E 13/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.97,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.57
+        }
+      ]
+    },
+    {
+      "name": "E2E 7/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 5.0,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 4.52
+        }
+      ]
+    },
+    {
+      "name": "E2E 14/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.68,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.27
+        }
+      ]
+    },
+    {
+      "name": "E2E 8/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 4.3,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.98
+        }
+      ]
+    },
+    {
+      "name": "E2E 2/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.43,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.17
+        }
+      ]
+    },
+    {
+      "name": "E2E 12/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 4.02,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.57
+        }
+      ]
+    },
+    {
+      "name": "E2E 9/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.78,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.35
+        }
+      ]
+    },
+    {
+      "name": "E2E 3/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 2.77,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 2.32
+        }
+      ]
+    },
+    {
+      "name": "E2E 15/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.77,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.42
+        }
+      ]
+    },
+    {
+      "name": "E2E 11/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.88,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.48
+        }
+      ]
+    },
+    {
+      "name": "E2E 10/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 3.97,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 3.58
+        }
+      ]
+    },
+    {
+      "name": "E2E 6/15 (subset)",
+      "conclusion": "success",
+      "duration_min": 2.73,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 2.47
+        }
+      ]
+    },
+    {
+      "name": "Catalog calibration gate",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "Re-run (failed Build or Factory job, same commit)",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "Combined E2E report",
+      "conclusion": "success",
+      "duration_min": 0.42,
+      "slow_steps": []
+    },
+    {
+      "name": "CI gate",
+      "conclusion": "success",
+      "duration_min": 0.13,
+      "slow_steps": []
+    },
+    {
+      "name": "E2E retry (failed specs, same commit)",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "After the gate",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    }
+  ],
+  "39243785986": [
+    {
+      "name": "E2E plan",
+      "conclusion": "success",
+      "duration_min": 0.18,
+      "slow_steps": []
+    },
+    {
+      "name": "Factory gates",
+      "conclusion": "success",
+      "duration_min": 1.63,
+      "slow_steps": []
+    },
+    {
+      "name": "Build",
+      "conclusion": "success",
+      "duration_min": 3.82,
+      "slow_steps": [
+        {
+          "name": "Build (typecheck + lint + bundle)",
+          "minutes": 3.03
+        }
+      ]
+    },
+    {
+      "name": "Reviewed",
+      "conclusion": "success",
+      "duration_min": 1.3,
+      "slow_steps": []
+    },
+    {
+      "name": "Vercel accepted the commit",
+      "conclusion": "skipped",
+      "duration_min": -0.02,
+      "slow_steps": []
+    },
+    {
+      "name": "Catalog calibration gate",
+      "conclusion": "success",
+      "duration_min": 10.65,
+      "slow_steps": [
+        {
+          "name": "Catalog calibration tripwire",
+          "minutes": 10.15
+        }
+      ]
+    },
+    {
+      "name": "Guided mod (Claude Code 2.1.287)",
+      "conclusion": "success",
+      "duration_min": 0.25,
+      "slow_steps": []
+    },
+    {
+      "name": "Guided mod (Claude Code 2.1.295)",
+      "conclusion": "success",
+      "duration_min": 0.22,
+      "slow_steps": []
+    },
+    {
+      "name": "E2E 14/15 (full)",
+      "conclusion": "success",
+      "duration_min": 7.4,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 7.03
+        }
+      ]
+    },
+    {
+      "name": "E2E 8/15 (full)",
+      "conclusion": "success",
+      "duration_min": 10.03,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 9.77
+        }
+      ]
+    },
+    {
+      "name": "E2E 9/15 (full)",
+      "conclusion": "success",
+      "duration_min": 8.83,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 8.58
+        }
+      ]
+    },
+    {
+      "name": "E2E 7/15 (full)",
+      "conclusion": "success",
+      "duration_min": 14.38,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 13.95
+        }
+      ]
+    },
+    {
+      "name": "E2E 3/15 (full)",
+      "conclusion": "success",
+      "duration_min": 10.7,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 10.45
+        }
+      ]
+    },
+    {
+      "name": "E2E 12/15 (full)",
+      "conclusion": "success",
+      "duration_min": 11.22,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 10.78
+        }
+      ]
+    },
+    {
+      "name": "E2E 2/15 (full)",
+      "conclusion": "success",
+      "duration_min": 9.35,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 8.92
+        }
+      ]
+    },
+    {
+      "name": "E2E 6/15 (full)",
+      "conclusion": "success",
+      "duration_min": 10.83,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 10.48
+        }
+      ]
+    },
+    {
+      "name": "E2E 4/15 (full)",
+      "conclusion": "success",
+      "duration_min": 9.93,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 9.43
+        }
+      ]
+    },
+    {
+      "name": "E2E 11/15 (full)",
+      "conclusion": "success",
+      "duration_min": 10.28,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 9.88
+        }
+      ]
+    },
+    {
+      "name": "E2E 1/15 (full)",
+      "conclusion": "success",
+      "duration_min": 11.8,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 11.27
+        }
+      ]
+    },
+    {
+      "name": "E2E 13/15 (full)",
+      "conclusion": "success",
+      "duration_min": 11.85,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 11.57
+        }
+      ]
+    },
+    {
+      "name": "E2E 15/15 (full)",
+      "conclusion": "success",
+      "duration_min": 10.08,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 9.82
+        }
+      ]
+    },
+    {
+      "name": "E2E 5/15 (full)",
+      "conclusion": "success",
+      "duration_min": 6.2,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 5.9
+        }
+      ]
+    },
+    {
+      "name": "E2E 10/15 (full)",
+      "conclusion": "success",
+      "duration_min": 12.05,
+      "slow_steps": [
+        {
+          "name": "E2E shard",
+          "minutes": 11.6
+        }
+      ]
+    },
+    {
+      "name": "Re-run (failed Build or Factory job, same commit)",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "Combined E2E report",
+      "conclusion": "success",
+      "duration_min": 0.42,
+      "slow_steps": []
+    },
+    {
+      "name": "CI gate",
+      "conclusion": "success",
+      "duration_min": 0.07,
+      "slow_steps": []
+    },
+    {
+      "name": "E2E retry (failed specs, same commit)",
+      "conclusion": "skipped",
+      "duration_min": 0.0,
+      "slow_steps": []
+    },
+    {
+      "name": "After the gate",
+      "conclusion": "skipped",
+      "duration_min": -0.02,
+      "slow_steps": []
+    }
+  ]
+}

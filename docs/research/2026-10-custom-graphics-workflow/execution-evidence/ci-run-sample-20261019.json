@@ -1,0 +1,306 @@
+{
+  "ci.yml": [
+    {
+      "id": 39245690239,
+      "event": "workflow_dispatch",
+      "branch": "codex/reduce-ci-trace-overhead",
+      "sha": "299ee5fd9afe",
+      "status": "in_progress",
+      "conclusion": null,
+      "created_at": "2026-10-19T11:35:06Z",
+      "elapsed_to_last_update_min": null
+    },
+    {
+      "id": 39243785986,
+      "event": "workflow_dispatch",
+      "branch": "codex/reduce-ci-trace-overhead",
+      "sha": "299ee5fd9afe",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T11:19:17Z",
+      "elapsed_to_last_update_min": 15.1
+    },
+    {
+      "id": 39243729232,
+      "event": "pull_request",
+      "branch": "codex/reduce-ci-trace-overhead",
+      "sha": "299ee5fd9afe",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T11:18:48Z",
+      "elapsed_to_last_update_min": 5.8
+    },
+    {
+      "id": 39242520291,
+      "event": "pull_request",
+      "branch": "bot/e2e-durations",
+      "sha": "78604cc27725",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-19T11:08:54Z",
+      "elapsed_to_last_update_min": 4.8
+    },
+    {
+      "id": 39233650555,
+      "event": "push",
+      "branch": "main",
+      "sha": "c9f1769c2147",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:55:16Z",
+      "elapsed_to_last_update_min": 22.8
+    },
+    {
+      "id": 39232998199,
+      "event": "merge_group",
+      "branch": "gh-readonly-queue/main/pr-1502-15eac818ef2d01ee5fe9fd3a34dc735d2020af27",
+      "sha": "c9f1769c2147",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:49:59Z",
+      "elapsed_to_last_update_min": 5.3
+    },
+    {
+      "id": 39230861350,
+      "event": "pull_request",
+      "branch": "codex/plan-run-local-diagnostics",
+      "sha": "f989d7c878c3",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:32:39Z",
+      "elapsed_to_last_update_min": 4.7
+    },
+    {
+      "id": 39229559815,
+      "event": "push",
+      "branch": "main",
+      "sha": "15eac818ef2d",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:22:22Z",
+      "elapsed_to_last_update_min": 37.4
+    },
+    {
+      "id": 39229270233,
+      "event": "push",
+      "branch": "main",
+      "sha": "bce9541598de",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:20:05Z",
+      "elapsed_to_last_update_min": 19.9
+    },
+    {
+      "id": 39228880132,
+      "event": "merge_group",
+      "branch": "gh-readonly-queue/main/pr-1500-bce9541598de83bd8d05d36fd2cd0dafa3a5479f",
+      "sha": "15eac818ef2d",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:17:00Z",
+      "elapsed_to_last_update_min": 5.2
+    },
+    {
+      "id": 39228648746,
+      "event": "merge_group",
+      "branch": "gh-readonly-queue/main/pr-1501-6e63f9a1581f95177692725bab60d36801b1c203",
+      "sha": "bce9541598de",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:15:12Z",
+      "elapsed_to_last_update_min": 5.0
+    },
+    {
+      "id": 39228362194,
+      "event": "pull_request",
+      "branch": "codex/fix-800-final-coverage",
+      "sha": "79e294d83644",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:12:55Z",
+      "elapsed_to_last_update_min": 3.6
+    },
+    {
+      "id": 39227970905,
+      "event": "pull_request",
+      "branch": "codex/improve-plan-run-preflight-local",
+      "sha": "222ad2425cb6",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:09:46Z",
+      "elapsed_to_last_update_min": 4.9
+    },
+    {
+      "id": 39227701412,
+      "event": "pull_request",
+      "branch": "codex/fix-800-final-coverage",
+      "sha": "ee3c09ed69c4",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-19T09:07:33Z",
+      "elapsed_to_last_update_min": 3.6
+    },
+    {
+      "id": 39203683212,
+      "event": "push",
+      "branch": "main",
+      "sha": "6e63f9a1581f",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T05:16:25Z",
+      "elapsed_to_last_update_min": 19.9
+    }
+  ],
+  "configured-suite.yml": [
+    {
+      "id": 39233650524,
+      "event": "push",
+      "branch": "main",
+      "sha": "c9f1769c2147",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:55:16Z",
+      "elapsed_to_last_update_min": 28.2
+    },
+    {
+      "id": 39229559878,
+      "event": "push",
+      "branch": "main",
+      "sha": "15eac818ef2d",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:22:22Z",
+      "elapsed_to_last_update_min": 31.8
+    },
+    {
+      "id": 39229271384,
+      "event": "push",
+      "branch": "main",
+      "sha": "bce9541598de",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T09:20:06Z",
+      "elapsed_to_last_update_min": 31.8
+    },
+    {
+      "id": 39207712333,
+      "event": "schedule",
+      "branch": "main",
+      "sha": "6e63f9a1581f",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T06:03:13Z",
+      "elapsed_to_last_update_min": 32.3
+    },
+    {
+      "id": 39203683225,
+      "event": "push",
+      "branch": "main",
+      "sha": "6e63f9a1581f",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-19T05:16:25Z",
+      "elapsed_to_last_update_min": 32.0
+    },
+    {
+      "id": 39168286265,
+      "event": "push",
+      "branch": "main",
+      "sha": "bb82c4dfc309",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T21:32:25Z",
+      "elapsed_to_last_update_min": 31.9
+    },
+    {
+      "id": 39162530869,
+      "event": "push",
+      "branch": "main",
+      "sha": "4569b9622923",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T20:16:12Z",
+      "elapsed_to_last_update_min": 26.3
+    },
+    {
+      "id": 39161469851,
+      "event": "push",
+      "branch": "main",
+      "sha": "eccb018d4552",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T20:02:23Z",
+      "elapsed_to_last_update_min": 26.4
+    },
+    {
+      "id": 39158121046,
+      "event": "push",
+      "branch": "main",
+      "sha": "63b3e00b9ff2",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T19:17:54Z",
+      "elapsed_to_last_update_min": 32.0
+    },
+    {
+      "id": 39157244757,
+      "event": "push",
+      "branch": "main",
+      "sha": "e1b3f302dacc",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T19:06:37Z",
+      "elapsed_to_last_update_min": 31.1
+    },
+    {
+      "id": 39154087771,
+      "event": "push",
+      "branch": "main",
+      "sha": "25384c35d66f",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T18:25:29Z",
+      "elapsed_to_last_update_min": 30.4
+    },
+    {
+      "id": 39153957750,
+      "event": "push",
+      "branch": "main",
+      "sha": "f79b9b5176aa",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T18:23:44Z",
+      "elapsed_to_last_update_min": 32.2
+    },
+    {
+      "id": 39153808626,
+      "event": "push",
+      "branch": "main",
+      "sha": "edc451f17696",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T18:21:47Z",
+      "elapsed_to_last_update_min": 30.6
+    },
+    {
+      "id": 39150461649,
+      "event": "workflow_dispatch",
+      "branch": "codex/codebase-lean-editor-gaps",
+      "sha": "d0c5c2d5079f",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-18T17:37:42Z",
+      "elapsed_to_last_update_min": 31.5
+    },
+    {
+      "id": 39150411280,
+      "event": "push",
+      "branch": "main",
+      "sha": "2c36ba0be224",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-18T17:37:01Z",
+      "elapsed_to_last_update_min": 31.7
+    }
+  ]
+}

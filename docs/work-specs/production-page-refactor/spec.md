@@ -4,8 +4,10 @@ Baseline: main `70fad3a94`, 2026-10-11; every line number below is of that revis
 owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen refactor
 phases, each built by one session and checked by another on `main`, and the content continuation
 C0-C7 of `docs/work-specs/data-sources/spec.md`. The run order reconciled on 2026-10-17 (see
-"Run order") runs refactor phases 1, 2+7 and 13a in this window with the content phases, and the
-other refactor phases in a later window; the owner agreed that order on 2026-10-18. Replaces
+"Run order") was agreed on 2026-10-18 and expanded by the owner on 2026-10-19: all 22 execution
+steps plus qualification Q belong to one project, with remaining refactors after C7. The owner
+now selects H0 and E1–E8 as executable planning scope; the [extension contract](extensions.md)
+adds their child specs and exact 40-phase sequence without dropping baseline work. Replaces
 the phase map of
 [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) (its phases 0-2 are done; its old
 phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
@@ -14,6 +16,60 @@ Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both*
 (run order; Sheet reader model; destination hygiene with `/update` allowed; opt-in key storage
 and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
 planning update does not start `/plan-run production-page`; the owner explicitly said not to.
+
+Owner refinement, 2026-10-19: incorporate the accepted P1–P6 and whole-graphic data-connection
+refinements into the actual plan; keep all refactor phases, use qualified cloud execution where
+equivalent, and local hardware/performance/human acceptance where required. Target start:
+20 October. The owner's latest instruction makes Friday 23 October a progress/testing checkpoint,
+not a completion deadline: unfinished work stays open and no phase or acceptance gate is dropped
+to fit that date. Pixotope and the broader 19 October competitor findings are incorporated below;
+the Argon second opinion has now been reconciled and the owner selected the extensions below.
+This is planning authorization only; execution remains a separate start.
+The current UI stays the design baseline; research mockups show logic only.
+
+The baseline 22-step tranche remains unchanged in scope. The expanded programme additionally
+includes H0 Companion qualification and E1–E8: external acquisition/mapping, keyed election
+cues/package, declared Companion actions, typed OGraf controls, foreign rundown hosting and final
+acceptance. [Executable child specs and exact order](extensions.md) are part of this authority.
+SVG/custom-action import redesign, a NoaCG OGraf Server API/native output system, Bridge packaging,
+custom form designer and Excel/local-file providers (#1507) remain outside this run.
+
+Selected on 2026-10-19 after [Argon reconciliation](../../research/2026-10-custom-graphics-workflow/14-argon-review-reconciliation.md),
+against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`. All runtime acceptance remains open.
+[Reconciliation receipt](evidence/extension-reconciliation-2026-10-19.md) records main changes,
+scope promotion, preserved decisions and planning verification.
+
+## Research integration, 2026-10-19
+
+The owner supplied completed research against `86e795dc9f66183633d7c99a73bea8c27e4e32f6`.
+**Code** is source inspection, **Plan** is an unshipped commitment, **Documented** is vendor
+technical documentation, **Claim** is marketing, and **Recommendation** is judgment. No commercial
+system was installed or exercised in that research; there is no measured usability/performance
+ranking. [Integration receipt and sources](evidence/research-integration-2026-10-19.md).
+
+| Finding | Existing support / commitment | Necessary refinement and owner | Priority | Acceptance evidence to collect |
+| --- | --- | --- | --- | --- |
+| Contextual, sample-first data setup | Code: shared tree/bindings; Plan: C0–C7 Fill/Connect, bulk mapping, starter CSV | Preserve the whole-graphic entry and field exceptions; reuse sources, preview sample/rendered result and affected cues; diagnose malformed columns rather than emptying them (C1/C5) | P0 | Data AC-4/7/13: paste schedule; custom Sheet/API round trip; repair/cancel without unintended bindings |
+| Freshness and recovery must be truthful | Plan: last-good hold, last checked/changed, leases, Sheet D4 and API Pause fallback | Show active reader/cadence; unchanged successful reads are healthy; reject late old-owner results (C1/C2). Provider event-age support is a later capability | P0 | Sheet AC-4/5/6/7: closed-controller cadence, old-owner delayed result, two-graphic override through Pause/Resume; data AC-11 malformed versus valid empty |
+| Selection, staging and confirmed output differ | Code: command log, output status and folder operations; Plan: C7 actual-output rehearsal | C6 explicitly owns bounded status/target presentation changes; label simulation and unconfirmed/stale output, inspect child failures/collisions; no new acknowledgement protocol or routine Take dialog | P0 | Data AC-16/C6 cases: staged edit versus live update, failed group child, conflicting layers and connection loss; actual CasparCG/Bridge and OBS receipts |
+| Independent behavior must stay independent | Code: native machine groups, legal events and origin-based clocks; Plan: editor named steps/segments | Reuse these in rehearsal; keep data writes separate from lifecycle actions. No node editor, macro composer or second state owner | P0 preservation | Data AC-7/16: quiz reveal with independent running clock; source update changes values without reset/Take/advance |
+| Foreign OGraf types and controls have real gaps | Code: scalar adapter and isolated host; Plan: full-stack packages A/E/F | Extend existing E/F completion contracts for typed fields/actions, schema semantics and step controls, then normal rundown hosting | P1 selected E1–E3 | Full-stack §8.1 and child specs: unfamiliar package typed round trip and actual rendered actions; native export in an independent controller |
+| A generic API mapper is a separate capability | Code: bearer-authenticated production-data API; Plan: C5 prepared sender | Selected E4/E5 after baseline; sample selection and bounded transforms upstream of target adapter, trusted credentials and connector policy | P1 selected extension | E4/E5 sample/validation/error/credential checks; no arbitrary JSON mapper or wire migration in C5 |
+| Generated controls precede bespoke layouts | Code: ARRANGE/profile, More and pinning; COMBINE removed | Use existing profile; later responsive presets need stable references and reversible generated fallback; sports/quiz prototypes must prove need | P2 proposal | Control-panel road §3: narrow-panel tasks, missing-reference report, saved layout retained, shared state unchanged |
+| Competitive claims must match evidence | Older documents claimed only Singular generates controls | Correct Erizos/Pixotope comparison; keep documented capabilities distinct from MXMZ claims and untested interoperability | Documentation | Traceable source links and evidence labels; no superiority or qualification claim from screenshots |
+
+**Execution boundary.** The October 18 baseline phase order and Q remain. Refactor phases
+preserve behavior; C0–C6 and the selected extension implementation phases declare product
+changes explicitly. C6 owns its status refinement, C7 rehearses, and parent phase 14 closes the
+baseline build/human trial. H0 interleaves at the documented boundaries; E8 closes the expanded
+programme. Evidence reuse follows §6, never redundant runs on unchanged material inputs.
+
+**Complete roadmap, selected scope.** There is no arbitrary phase or project-duration cap.
+The [extension contract](extensions.md) selects E4/E5 acquisition/mapping and E7 election work,
+plus the A/E/F portions of the [OGraf full-stack plan](../../OGRAF_FULL_STACK_PLAN.md) through
+E1/E2/E3. Server/native output, the [responsive layout gate](../../CONTROL_PANEL_ROAD.md#3-capability-vs-workflow---the-production-control-profile),
+private Sheets/OAuth, provider-specific sports/high-rate feeds and import/editor redesign remain
+outside this run. Selection for planning does not start execution or qualify a provider.
 
 ## Verdict
 
@@ -147,11 +203,12 @@ keeping today's numbers; fixing behaviour inside an extraction (§1.3).
 
 Each row is justified by a maintenance or testing benefit, not by size. ProductionPage keeps:
 selection and range state, the session hook, the wires, the derived view, the render. Required
-for the testing benefit: phases 1, 2, 5, 7, 10, 11, 12, 13, 14. Maintenance-only and individually
-droppable before a window is authorised: 3, 4, 6, 8, 9 (each later phase takes the callbacks it
-needs from the page instead, see Phases). In the reconciled run order only 1, 2+7 and the
-props-only half of 13 run in this window; 5, 10, 11, 12, the draft half of 13 and 14 keep their
-testing benefit and wait for the later window ("Run order").
+for the testing benefit: phases 1, 2, 5, 7, 10, 11, 12, 13, 14. Phases 3, 4, 6, 8 and 9 have
+maintenance benefits and are included by the owner's 19 October full-project direction.
+Before each phase, reconcile its outcome with current main: reuse an already-satisfied result
+with evidence and the independent check rather than performing an unnecessary move. Do not
+silently drop a phase or mark an unmet outcome complete. The content phases need only 1, 2+7
+and the props-only half of 13 first; the remaining refactors follow C7 ("Run order").
 
 | Module | Responsibility | Owns | Runtime imports / injected IO | Interface | Benefit |
 |---|---|---|---|---|---|
@@ -350,8 +407,8 @@ minutes; the run's JSON must meet `expected-run.json`, whose `minTests` the pull
 for every configured spec it adds, with nothing skipped outside the allowlist; a run that exits 0
 with a new spec skipped is not a pass; record the run URL and its `headSha`).
 Independent assessment: A = a fresh read-only session with the `/so` brief
-(`.agent-workflows/so.md`) by `wave-row` (Opus, high); A+ = the same by `wave-row-deciding`
-(Opus, xhigh). Every phase also runs `/check`, `npm run depcruise`, `node scripts/gates.mjs run
+(`.agent-workflows/so.md`); A/A+ keep their established ordinary/deeper assessment depth,
+with builder/checker routing selected by the current landed runner. Every phase also runs `/check`, `npm run depcruise`, `node scripts/gates.mjs run
 --changed origin/main` and AC-8's scope fence. Broad affected suites stay on GitHub Actions.
 
 | Phase | Local targeted specs | Node | Configured dispatch | Assessment | Perf |
@@ -369,7 +426,7 @@ Independent assessment: A = a fresh read-only session with the `/so` brief
 | 11 | every playout and production offline spec named in §5.3 | air-state, playout-session (parts, apply order, dispose), session-wire (scripted wire; production switch mid-flight) | yes (whole suite) | A+ | repeat |
 | 12 | as 11 plus panel-production-page | graphic-verbs (every §4.2 row), verb-dispatch, verb-view | yes (whole suite) | A+ | - |
 | 13 | playout-air-contract, production-persistence, production-data, playout-drills | cue-draft (edit, flush, cancel, dispose, the unsent selector) | yes (whole suite) | A+ | repeat |
-| 14 | the full offline suite on CI; the automated rehearsal | - | yes (whole suite) | A | final |
+| 14 | the full offline suite on CI; automated rehearsal and final content acceptance (data-sources AC-14/16) | - | yes (whole suite); actual outputs/human trial under AC-14 | A | final |
 
 Evidence (`evidence/phase-<n>.md`): the candidate sha, each command and its summary, the
 configured run URL with its tested sha, the assessor's verdict with the reviewed sha.
@@ -460,41 +517,63 @@ staging project only.
 
 **Final automated completion** (phase 14): the production path on the built app against the
 local stack with the fake Bridge, published output on a second page, All out, folders, timed
-cues, panel keys, recorded in `evidence/rehearsal-automated.md`. Distinct from it: a hardware
-rehearsal on the owner's CasparCG, Bridge, Stream Deck, OBS and vMix, which this plan cannot run;
-each stays unverified until the owner records a walk. The next real show is not the first
-rehearsal; this spec names no show date and claims no waiting period makes it safe.
+cues, panel keys, recorded in `evidence/rehearsal-automated.md`. Phase 14 also closes the content
+acceptance from data-sources AC-16 on the completed candidate, after all remaining refactors.
+Required local output acceptance is the owner's actual CasparCG/NoaCG Bridge setup plus an
+ordinary OBS/browser source. Record the app revision, installed versions, assets/fonts, layers,
+supported verbs, stacked graphics, restart/reconnect and the physical consumer when used.
+Stream Deck/panel behavior is exercised if used in the production; expanded vMix/SPX acceptance
+is later, with existing regressions retained. Cloud/fake-Bridge checks cannot substitute for
+these receipts. C7 evidence is reused only where material inputs are unchanged under §6;
+changed playout/data behavior requires the affected final walks again. An unavailable required
+route remains blocked/unverified, never a production-ready pass. The next real show is not
+the first rehearsal.
 
 ## 9. Execution settings
 
 - **Coordinator:** `/plan-run`, sequential; the wave file lists the remaining spec phases as
   `N. Phase <k> of the spec: <name> (AC-...)`, `<k>` being a number for this spec's phases and
-  `C0`..`C7` for the data-sources spec's; the ledger numbers them 1..N per run; a later
-  window is a new run whose list starts at the first unfinished spec phase (a wave file cannot be
-  stretched past 24 hours from its recorded start, `scripts/wave-plan-store.mjs` `openWave`).
-- **Builders and ordinary checks:** `wave-row` (Opus, high). One builder owns the page in any
-  phase.
+  `C0`..`C7` for the data-sources spec's, with `2+7`, `13a` and `13b` preserved as phase IDs.
+  The continuing project retains all 22 baseline steps plus the H0/E1–E8 child phases in
+  `extensions.md`, with their dependencies and acceptance in the same ledger
+  across bounded work blocks. No project-level 24-hour ceiling; the landed runner still bounds
+  individual blocks. Q's prerequisite evidence is recorded before C1, not miscounted as a
+  completed implementation phase.
+- **Builders and ordinary checks:** use the current landed runner's qualified native
+  worker selection and independent checker procedure; existing `wave-row` roles are fallback
+  roles where that procedure selects them. One builder owns the page in any phase.
 - **`wave-row-deciding`** (Opus, xhigh): the pre-merge assessments of phases 11-13 (A+), and any
-  narrow state or lifetime decision a builder meets that this spec does not settle (the builder
+  narrow state or lifetime decision a builder meets that this spec does not settle; use the
+  current runner's qualified native equivalent where selected (the builder
   records the question and the decision in the phase notes; it never widens scope).
 - **Optional review mechanisms** (explicit opt-in; none is stacked by default): the Workflow
   tool (multi-agent scripts; needs the owner's opt-in per run), `/code-review ultra` (user
   triggered, billed), `/so`. At most one additional mechanism for phases 11-13:
   `/code-review ultra <PR#>` when the owner triggers it; otherwise none.
-- **Runner readiness is an external prerequisite.** A separate session is improving
-  `/plan-run`'s deadline, checkpoint and continuation handling. This spec does not specify or
-  depend on those changes and does not assume them done; the coordinator revalidates the runner
-  (the ledger commands in `.agent-workflows/plan-run.md` as they stand then) when a run is
-  authorised.
+- **Runner readiness is an external prerequisite.** The continuing-project procedure is now
+  landed on main (reconciled at `4e067b656`); follow `.agent-workflows/plan-run.md` and
+  `docs/work-specs/continuing-plan-preparation/runbook.md`. Revalidate actual launch, result,
+  checkpoint and recovery capabilities when execution is authorized. The landed local protocol
+  does not establish durable cloud wakes, remote exclusion or cross-machine continuation.
 - **Preflight before the run's first step** (C0 in the reconciled order; recorded in the wave
   file): `node scripts/work-spec.mjs status
-  docs/work-specs/production-page-refactor/work.json` clean and the plan listed under "Runnable
+  docs/work-specs/production-page-refactor/work.json` structurally valid (open runtime acceptance
+  is expected) and the plan listed under "Runnable
   plans"; `origin/main` CI green and the latest `configured-suite` and `deploy-verify` runs on
   main green (`gh run list --workflow <file> --limit 1`); a local Supabase stack can start or
   the dispatch route is confirmed, the browser queue is idle enough (`npm run test:e2e:runs`),
-  `gh` is authenticated, `wave-row` and `wave-row-deciding` are available; no open wave or plan
+  `gh` is authenticated and the current runner's selected builder/checker interfaces are qualified; no open wave or plan
   run (`scripts/wave-plan-store.mjs`, never assumed from a document); the owner has supplied the
-  window in Helsinki time with its offset.
+  finite project deadline in Helsinki time with its offset and the actual permission policy.
+- **Placement:** qualified cloud workers for implementation, review, targeted software checks
+  and accessible Sheet/feed/YouTube/API qualification; authoritative full suites in Actions.
+  Windows performance baselines/repeats (1, 11, 13b, 14), actual CasparCG/Bridge and browser-source
+  walks, and human trials stay in their required local environment. Dependent phases wait for
+  those receipts. Do not equate a cloud VM remaining up with a qualified unattended coordinator.
+- **Verification lookup:** follow the landed observation-only procedure referenced by
+  `.agent-workflows/plan-run.md` before manual dispatches. Preserve the GitHub Teams measurement
+  process, required checks and failure/retry rules. Reuse existing evidence only as §6 and the
+  shared verification policy already permit; no new CI skipping or cache policy is introduced here.
 - **Preflight before phase 2** (recorded in phase 1's notes): phase 1's tests green on main; S1
   and S3 decided with evidence and any fix landed; two baselines within tolerance or the widened
   tolerance recorded.
@@ -506,10 +585,10 @@ rehearsal; this spec names no show date and claims no waiting period makes it sa
    after the landing, its independent checker (`.agent-workflows/plan-run.md` §2), and advances
    to the next phase by itself when the check passes. The merge safeguards stay: every builder
    lands through `/check` and `/queue-merge`; only the merge queue writes `main`.
-2. The deadline comes from the owner at the start, from when the computer must be closed. This
-   spec carries no date. A start instruction without a deadline is answered with one question
-   for it before the run is opened. The runner's ceiling is 24 hours from the recorded start; a
-   longer window is refused.
+2. The finite project deadline comes from the owner at the start, separately from a local
+   computer's work-block end. Before opening, record the current authorization, stable project
+   ID, scope, phases, acceptance and environments using the continuing-project runbook. If the
+   deadline is missing, ask once. Do not invent it from the planning targets above.
 3. Start template, once the plan is registered under "Runnable plans":
 
    ```
@@ -518,25 +597,25 @@ rehearsal; this spec names no show date and claims no waiting period makes it sa
 
    The coordinator reads this spec on `origin/main`, runs the §9 preflight before the run's
    first step (and the phase-2 prerequisites, recorded in phase 1's notes, before phase 2),
-   opens the run, copies the unfinished phases into the wave file and starts at the first
-   unfinished one. It continues through the
-   following phases inside the authorised window. No per-phase start and no routine approval is
+   prepares the project record with the exact 40-phase sequence in `extensions.md`, child-spec
+   AC references and Q prerequisites, opens it paused,
+   registers the existing supervisor and starts an authorized bounded block. These are execution
+   actions, not performed by this planning edit. It continues from the first unfinished phase
+   inside the authorized project/block boundaries. No per-phase start and no routine approval is
    needed from the owner; the coordinator stops only on `stop` (§8) and asks him then.
 4. Permission mode is a harness setting, not an execution step. Switching a session to auto mode
    never replaces invoking `/plan-run`, supplying the deadline, passing the preflight, or the
    merge safeguards.
-5. Continuation in a fresh session: open the same run again (`wave-plan-store.mjs --open` with
-   the date the run started), read the ledger with `node scripts/plan-run.mjs next <wave file>`,
-   reconcile the step it names (a merged pull request is recorded as `landed`; a queued one is
-   waited for; a step whose session is gone is started again in its recorded worktree with the
-   same brief and recorded as `resume`), and continue from that step. An expired window is a new
-   run with a new authorised window whose phase list starts at the first unfinished spec phase.
-   The plan is never restarted from phase 1 and no active step is launched twice.
-6. At the window's end the coordinator writes the `## Report` in the wave file (needs-you first,
-   each phase's pull requests and verdicts, where it stopped, what was not checked), sends it to
-   the owner, and adds a self-contained continuation prompt built from the runner's own handoff
-   (the wave file path, the ledger's next step and the start template with a new window). Runner
-   improvements are a separate session's task and are neither specified nor assumed here.
+5. Continuation follows the runbook: retain the same project identity, original deadline,
+   phase ledger and failure history, including child phases. Reconcile workers, PRs, exact tested revisions and pending
+   external intents before opening another block; unknown worker status is not proof of absence.
+   Use the supervisor's fenced admission for project events, not direct ledger writes. Cross-host
+   restore or unattended replacement stays refused until its required ownership/recovery path
+   is qualified. An expired or cancelled project is not silently renewed.
+6. At a block's end checkpoint in-flight work with acknowledgement, preserve pending actions,
+   and report the next unfinished step, PRs/verdicts and unverified prerequisites. The same project
+   resumes only through its authorized continuation path. Report complete only when all required
+   phases and final acceptance pass; a paused block is not a completed project.
 
 ## 11. Acceptance criteria
 
@@ -592,7 +671,12 @@ the superseded note; covers and guards mappings are updated; #766 is closed.
 A session constructs with no optional capability (Node test); no hosted page code changes.
 
 ### AC-14: Completion evidence names what stays unverified
-`evidence/rehearsal-automated.md` exists and lists the hardware the plan did not exercise.
+`evidence/rehearsal-automated.md` and `evidence/final-acceptance.md` identify the completed
+candidate, required automated/content criteria, performance results and actual CasparCG/Bridge
+and OBS/browser-source receipts. Reconcile C7 against later changes and rerun affected walks;
+record allowed evidence reuse with its material-input comparison. Required unavailable evidence
+blocks completion; optional deferred routes are named separately. Friday's owner testing and
+resulting fixes are recorded against the revisions actually tested.
 
 ### AC-15: Suspected defects are decided on evidence
 S1 and S3 are reproduced or refuted in phase 1; a confirmed one is fixed in its own pull
@@ -657,17 +741,18 @@ state; each is removed in the phase that moves that state.
     subscription), `PlayoutMonitors.tsx` (its own draft subscription for `settleData`, D12),
     tests. Removes the last temporary interfaces. Reconciled 2026-10-17: split into **13a**, a
     props-only move of the cue editor JSX into `CueEditor.tsx` in the phase-3 style (derives
-    nothing, moves no state; the Fill and Connect menus of C0 and C1 live there), run in this
-    window after 2+7. Files for 13a: `src/components/home/CueEditor.tsx` (new) and
+    nothing, moves no state; the Fill and Connect menus of C0 and C1 live there), run before C1
+    after 2+7. Files for 13a: `src/components/home/CueEditor.tsx` (new) and
     `src/components/home/ProductionPage.tsx` only; matrix: phase 3's row plus `production-data`
     and `playout-air-contract`, assessment A. **13b**, the draft part as written here with the
-    file list above, runs in the later window.
+    file list above, runs later in the same project, after phase 12.
 14. **Close-out** (AC-9 final, AC-11, AC-12, AC-14). Files: `ProductionPage.tsx` (imports),
     `contracts/rules/...` through `npm run learn`,
     `src/components/home/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CLIP_PLAYBACK_PLAN.md`,
-    `e2e/*` covers headers, evidence. `Closes #766`.
+    `e2e/*` covers headers, evidence. Reconcile all data-sources acceptance after the refactors,
+    including final real-output receipts and human findings under AC-14. `Closes #766`.
 
-### Run order (reconciled 2026-10-17; agreed 2026-10-18)
+### Run order (reconciled 2026-10-17; expanded by owner 2026-10-19)
 
 History. The owner made the playout dashboard the top priority with its data and audience flows
 and ruled on 2026-10-16 "production page cleanup first, then Sheet data, then audience, all in
@@ -678,7 +763,9 @@ content work needs the data session and a props-only cue editor move, not the pr
 reconciliation (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`) replaces the
 "cleanup first" order with the one below. The refactor's safety contracts (§4-§8) are unchanged.
 
-One `/plan-run production-page`, sequential; the wave file names each step in §9's format:
+One `/plan-run production-page`, sequential; the table below retains the 22 **baseline** steps.
+The normative full admission sequence, including H0 and E1–E8 subphases, is in
+[extensions.md](extensions.md). The wave file names each phase in §9's format:
 
 | Step | Phase | Spec | Result |
 | --- | --- | --- | --- |
@@ -686,48 +773,73 @@ One `/plan-run production-page`, sequential; the wave file names each step in §
 | 2 | 1 | this spec | Safety net, S1 and S3 decided, two perf baselines |
 | 3 | 2+7 | this spec | Store part, session skeleton, the production-data session (one phase; both §6 rows run in full: phase 2's targeted specs, Node tests and configured dispatch, and phase 7's) |
 | 4 | 13a | this spec | Props-only cue editor extraction |
-| 5 | C1 | data-sources | Native lists (paste rows), starter rows, local Sheets, the browser reader, the sources line, the Data overview with Advanced |
+| 5 | C1 | data-sources | Native lists, whole-graphic Sheet matching, downloadable scalar/list starter data, optional field repair, local reader and source status |
 | 6 | C2 | data-sources | Published ownership: bindings and sources persist at once, the lease, the server tick, Pause, cost |
-| 7 | C3 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat (may run in a parallel session to C2) |
+| 7 | C3 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat |
 | 8 | C4 | data-sources | Feeds |
-| 9 | C5 | data-sources | The another-system card and Pause |
-| 10 | C6 | data-sources | Journeys, compatibility, docs |
-| 11 | C7 | data-sources | Combined rehearsal, trials, Twitch and output-player checks |
+| 9 | C5 | data-sources | Whole-graphic API connection, prepared collector/sender example, receipt and explicit Pause/fallback |
+| 10 | C6 | data-sources | Compatibility, truthful source/target/output and group status, docs (declared product changes) |
+| 11 | C7 | data-sources | Technical rehearsal, Twitch and actual outputs; prepare the full human trial for phase 14 |
+| 12 | 3 | this spec | ProductionShell and CueActions, props-only |
+| 13 | 4 | this spec | Production publish/slot/link hook |
+| 14 | 5 | this spec | Take blockers and server verbs modules |
+| 15 | 6 | this spec | Bridge watch |
+| 16 | 8 | this spec | Rundown authoring hook |
+| 17 | 9 | this spec | Cue arm engine |
+| 18 | 10 | this spec | Folder playout |
+| 19 | 11 | this spec | Air state and session wire; liveCue ownership move, alone |
+| 20 | 12 | this spec | Graphic verbs, dispatch and view |
+| 21 | 13b | this spec | Cue draft ownership and final editor subscriptions |
+| 22 | 14 | this spec | Baseline close-out, final baseline performance and acceptance including content and actual outputs; E8 closes the expanded programme |
 
 Track Q (qualification and the trial) runs beside step 1 in its own session and is recorded
-before step 5. The later window, its own run with its own authorised time: phases 3, 4, 5, 6, 8,
-9, 10, 11, 12, 13b and 14 as written above, in that order, 11 alone.
+before step 5; its early human trial requires C0's landed build. Baseline order is preserved;
+H0.1 is inserted after C0 and H0.2 after C7. All phases follow the exact sequential admission
+table in `extensions.md`, plus C1 on Q and C2 on the reviewed tick estimate.
+The project manifest prepared at start copies these IDs, acceptance references and required
+environments. Q remains a prerequisite track, not a 23rd implementation phase. No phase is dropped
+to fit a work block; the block can end and the same project continue through the supported path.
 
 Each content phase uses §8 and §9 of this spec and the verification matrix in the data-sources
-spec; §6 here covers steps 2-4. The D3 stop rule holds. Required manual, Sheet and YouTube
-outcomes are reported separately from optional Twitch deferral and hardware checks. No run starts
+spec; §6 here covers steps 2-4 and 12-22 (phase 13a uses its stated row, 13b phase 13's).
+The D3 stop rule holds. Required manual, Sheet, YouTube and CasparCG/Bridge/browser outcomes
+are reported separately from optional Twitch and expanded vMix/SPX work. No run starts
 from this documentation update.
 
-## What the plan can demonstrate, and what stays uncertain
+## What the baseline can demonstrate, and what stays uncertain
 
 Demonstrable: behaviour identical on every pinned scenario (the offline suite, the configured
 suite on the local stack, Node contracts with held and reordered answers); one owner for liveCue
 within the page and its modules; the core running in Node; wire-side and monitor latency and
 render comparisons on the owner's machine under §7's rule; a compiled rule that sends new playout
 behaviour to `src/control/`.
-Uncertain: real CasparCG, Bridge-on-server and hardware panel behaviour; hosted-staging latency
+Requires actual local qualification: CasparCG/Bridge and OBS/browser behavior on the final
+candidate. Other uncertainties: hardware panel behavior outside the chosen setup; hosted-staging latency
 (twice-weekly runs, not per phase); output-side render latency (excluded); timings the held
 answers do not reproduce; the hosted page's fitness for the core (not in scope).
 
+The expanded programme's additional capabilities, operating envelope and final evidence are
+owned by `extensions.md` and E8; the baseline limitations above are not its final verdict.
+
 ## Readiness
 
-The planning review gate is satisfied: the two independent reviews are reconciled
+The 18 October planning review gate was satisfied: the two independent reviews were reconciled
 (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`), and on 2026-10-18 the owner agreed
 the resulting plan, including the run order above and all four synthesis §7 decisions.
-The owner explicitly instructed not to start the plan run; the start preflight below still applies.
+The Argon review is reconciled and the owner has selected H0/E1–E8 for executable specification
+and main reconciliation. Their child specs and `extensions.md` now define that expanded scope.
+The earlier baseline reviews do not constitute runtime acceptance of new features. The owner
+still starts execution separately; no run, deadline or completed acceptance is invented here.
 
 Before the run's first step (the start instruction; C0 in the reconciled order, then phase 1):
 this spec and `work.json` landed on `main`,
-`work-spec.mjs status` clean and the "Runnable plans" line present; `origin/main` CI, the latest
+`work-spec.mjs status` has no structural problems (runtime criteria remain open) and the
+"Runnable plans" line is present; `origin/main` CI, the latest
 configured-suite run and deploy-verify green; the local Supabase stack or the dispatch route
 confirmed, `gh auth status` ok, the browser queue idle, `wave-row` and `wave-row-deciding`
-available; no open wave or plan run and the runner revalidated as it stands then; the owner's
-window supplied.
+or the qualified native equivalents required by the current runner; no open wave or plan run
+and the runner revalidated as it stands then; the owner's finite project authorization supplied.
+All selected child specs/work records and `extensions.md` must also be landed and structurally valid.
 
 Added 2026-10-16: the phase 1 builder reads `evidence/reconcile-2026-10-16.md` first: line numbers
 here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reused. The owner
