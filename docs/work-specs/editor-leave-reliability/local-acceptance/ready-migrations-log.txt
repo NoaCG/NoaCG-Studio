@@ -1,0 +1,259 @@
+Pending on ymagdmrebzurjcqrmxif: 19 migration(s)
+
+  0074_seq_log_index.sql  (12 statements)
+    LIVE-PATH: adds the index control_events_show_seq_idx, built concurrently, and control_tail_seq_for reads through it (same signature, same answers)  [touches control_events_show_seq_idx, control_events, control_tail_seq_for]
+  0075_cue_arms.sql  (21 statements)
+    LIVE-PATH: a new table control_cue_arms (keyed to control_shows by a foreign key, added last, which locks it for an instant) and new control_* functions beside the old ones; no existing function, table, policy, trigger or topic changes  [touches control_cue_arms, control_cue_spec, control_cue_arm_wire, control_cue_arm, control_cue_arms_for, control_cue_arms_show_fk, control_shows]
+  0076_production_sound_assets.sql  (10 statements)
+    LIVE-PATH: additive audio-owner stamp on control_shows and a service-only read capability;  [touches control_shows, control_stamp_audio_owner, control_output_audio_manifest]
+  0077_direct_cue_trigger.sql  (4 statements)
+  0078_community_gallery_closed.sql  (7 statements)
+  0079_community_packs.sql  (32 statements)
+  0080_community_pack_update.sql  (23 statements)
+  0081_panel_lease.sql  (18 statements)
+  0082_community_pack_submit_open.sql  (7 statements)
+  0085_community_gallery_retired.sql  (10 statements)
+    REFUSED at line 42: DROP removes an object this migration does not put back
+      drop function if exists public.community_list(text, text, int, int)
+    REFUSED at line 44: DROP removes an object this migration does not put back
+      drop function if exists public.community_get(text)
+    REFUSED at line 45: DROP removes an object this migration does not put back
+      drop table if exists public.community_reports
+    REFUSED at line 46: DROP removes an object this migration does not put back
+      drop table if exists public.community_templates
+    REFUSED at line 47: DROP removes an object this migration does not put back
+      drop function if exists public.community_moderation_guard()
+    REFUSED at line 48: DROP removes an object this migration does not put back
+      drop function if exists public.community_report_guard()
+  0086_community_pack_reports.sql  (20 statements)
+  0087_community_pack_submit_for.sql  (10 statements)
+  0088_control_link_and_suspension_guards.sql  (14 statements)
+    LIVE-PATH: control_data_patch_by_slug gets a stricter guard (same signature, same grants, every press the product sends still lands); no table, trigger, topic or other control_* function changes  [touches control_data_patch_by_slug]
+  0089_connector_token_role.sql  (7 statements)
+  0090_connector_grants.sql  (11 statements)
+  0091_connector_token_account_lock.sql  (6 statements)
+  0092_agent_deliveries.sql  (16 statements)
+  0093_agent_graphic_sets.sql  (13 statements)
+  0094_agent_production_delivery.sql  (7 statements)
+
+  --allow 0085: accepting the 6 refusal(s) above.
+
+Quiet window on ymagdmrebzurjcqrmxif: no renderer heartbeat in the last 10 minutes.
+
+Snapshotting before…
+
+Linking to ymagdmrebzurjcqrmxif and pushing…
+
+{"project_ref":"ymagdmrebzurjcqrmxif","message":""}
+{"upToDate":false,"dryRun":false,"migrations":["0074_seq_log_index.sql","0075_cue_arms.sql","0076_production_sound_assets.sql","0077_direct_cue_trigger.sql","0078_community_gallery_closed.sql","0079_community_packs.sql","0080_community_pack_update.sql","0081_panel_lease.sql","0082_community_pack_submit_open.sql","0085_community_gallery_retired.sql","0086_community_pack_reports.sql","0087_community_pack_submit_for.sql","0088_control_link_and_suspension_guards.sql","0089_connector_token_role.sql","0090_connector_grants.sql","0091_connector_token_account_lock.sql","0092_agent_deliveries.sql","0093_agent_graphic_sets.sql","0094_agent_production_delivery.sql"],"seeds":[],"roles":[],"message":"Finished supabase db push."}
+
+Snapshotting after…
+
+── What changed on ymagdmrebzurjcqrmxif ──────────────────────────────────────────
+  ledger: +19 -0
+    + 0074 seq_log_index
+    + 0075 cue_arms
+    + 0076 production_sound_assets
+    + 0077 direct_cue_trigger
+    + 0078 community_gallery_closed
+    + 0079 community_packs
+    + 0080 community_pack_update
+    + 0081 panel_lease
+    + 0082 community_pack_submit_open
+    + 0085 community_gallery_retired
+    + 0086 community_pack_reports
+    + 0087 community_pack_submit_for
+    + 0088 control_link_and_suspension_guards
+    + 0089 connector_token_role
+    + 0090 connector_grants
+    + 0091 connector_token_account_lock
+    + 0092 agent_deliveries
+    + 0093 agent_graphic_sets
+    + 0094 agent_production_delivery
+  columns: +63 -20
+    + agent_deliveries.created_at timestamp with time zone not null
+    + agent_deliveries.id uuid not null
+    + agent_deliveries.key_id uuid
+    + agent_deliveries.kind text not null
+    + agent_deliveries.operation_id uuid not null
+    + agent_deliveries.position integer
+    + agent_deliveries.production_id uuid
+    + agent_deliveries.resource_id uuid not null
+    + agent_deliveries.state text not null
+    + agent_deliveries.updated_at timestamp with time zone not null
+    + agent_deliveries.user_id uuid not null
+    + agent_operations.created_at timestamp with time zone not null
+    + agent_operations.item_count integer not null
+    + agent_operations.key_id uuid
+    + agent_operations.operation_id uuid not null
+    + agent_operations.payload_hash text not null
+    + agent_operations.user_id uuid not null
+    + community_pack_reports.created_at timestamp with time zone not null
+    + community_pack_reports.dismissed_at timestamp with time zone
+    + community_pack_reports.dismissed_by uuid
+    + community_pack_reports.id uuid not null
+    + community_pack_reports.pack_id uuid not null
+    + community_pack_reports.reason text not null
+    + community_pack_reports.reporter_id uuid not null
+    + community_packs.author_id uuid not null
+    + community_packs.author_name text not null
+    + community_packs.decided_at timestamp with time zone
+    + community_packs.decided_by uuid
+    + community_packs.description text not null
+    + community_packs.graphics integer not null
+    + community_packs.id uuid not null
+    + community_packs.lineage uuid not null
+    + community_packs.name text not null
+    + community_packs.pack jsonb not null
+    + community_packs.reason text
+    + community_packs.state text not null
+    + community_packs.submitted_at timestamp with time zone not null
+    + community_packs.version integer not null
+    + connector_grants.client_id text not null
+    + connector_grants.client_name text not null
+    + connector_grants.created_at timestamp with time zone not null
+    + connector_grants.id uuid not null
+    + connector_grants.last_used_at timestamp with time zone
+    + connector_grants.permissions ARRAY not null
+    + connector_grants.revoked_at timestamp with time zone
+    + connector_grants.user_id uuid not null
+    + control_cue_arms.action text not null
+    + control_cue_arms.cue text not null
+    + control_cue_arms.ended text
+    + control_cue_arms.fired_by text
+    + control_cue_arms.from_at timestamp with time zone
+    + control_cue_arms.held_ms integer
+    + control_cue_arms.lane text not null
+    + control_cue_arms.missed_at timestamp with time zone
+    + control_cue_arms.ms integer not null
+    + control_cue_arms.next_cue text
+    + control_cue_arms.rev bigint not null
+    + control_cue_arms.show_id uuid not null
+    + control_cue_arms.take_at timestamp with time zone not null
+    + control_cue_arms.take_seq bigint not null
+    + control_cue_arms.updated_at timestamp with time zone not null
+    + control_shows.audio_owner_id uuid
+    + panel_rooms.lease_until timestamp with time zone
+    - community_reports.created_at timestamp with time zone not null
+    - community_reports.id uuid not null
+    - community_reports.reason text not null
+    - community_reports.reporter_id uuid
+    - community_reports.template_id uuid not null
+    - community_templates.author_id uuid not null
+    - community_templates.author_name text not null
+    - community_templates.body jsonb not null
+    - community_templates.category text
+    - community_templates.created_at timestamp with time zone not null
+    - community_templates.id uuid not null
+    - community_templates.kind text not null
+    - community_templates.moderation_note text
+    - community_templates.name text not null
+    - community_templates.reviewed_at timestamp with time zone
+    - community_templates.reviewed_by uuid
+    - community_templates.slug text not null
+    - community_templates.status text not null
+    - community_templates.summary text not null
+    - community_templates.updated_at timestamp with time zone not null
+  policies: +4 -9
+    + public.agent_deliveries agent_deliveries_select_own SELECT {authenticated} a1fc7aa105a1b503f03297d4c928519f
+    + public.teams teams_not_suspended_update UPDATE {authenticated} 068e0d9aeac831398e2fc8854104dcbc
+    + storage.objects community_assets_closed INSERT {authenticated} cd2034cf91193b87e4a9a0e29dca5fe2
+    + storage.objects user_assets_not_suspended_update UPDATE {authenticated} 618fa26de4769ca28ccfb93c776f6b3f
+    - public.community_reports community_reports_insert INSERT {authenticated} 5be273a83f8bfd9b26f5eb0aae14f139
+    - public.community_reports community_reports_read SELECT {authenticated} 1e2715b3cf07c8064d4779e1068f22b2
+    - public.community_templates community_moderate UPDATE {authenticated} 1765d6243da35923119b9861b277af97
+    - public.community_templates community_moderator_read SELECT {authenticated} 1e2715b3cf07c8064d4779e1068f22b2
+    - public.community_templates community_not_suspended_insert INSERT {authenticated} eb9c499f8be0fa4e86e135b2da98cfa8
+    - public.community_templates community_not_suspended_update UPDATE {authenticated} 068e0d9aeac831398e2fc8854104dcbc
+    - public.community_templates community_owner_all ALL {authenticated} c41925541a68afb23a5b78dc6f9bea89
+    - public.community_templates community_templates_publish_insert INSERT {authenticated} e0f8c41e6dde7d67f298f202faed4100
+    - public.community_templates community_templates_publish_update UPDATE {authenticated} f90476390aba488dcc3e4607ae2612dd
+  table_grants: +35 -20
+    + authenticated SELECT on agent_deliveries
+    + service_role DELETE on community_pack_reports
+    + service_role DELETE on community_packs
+    + service_role INSERT on agent_deliveries
+    + service_role INSERT on agent_operations
+    + service_role INSERT on community_pack_reports
+    + service_role INSERT on community_packs
+    + service_role INSERT on connector_grants
+    + service_role REFERENCES on agent_deliveries
+    + service_role REFERENCES on agent_operations
+    + service_role REFERENCES on community_pack_reports
+    + service_role REFERENCES on community_packs
+    + service_role REFERENCES on connector_grants
+    + service_role REFERENCES on control_cue_arms
+    + service_role SELECT on agent_deliveries
+    + service_role SELECT on agent_operations
+    + service_role SELECT on community_pack_reports
+    + service_role SELECT on community_packs
+    + service_role SELECT on connector_grants
+    + service_role TRIGGER on agent_deliveries
+    + service_role TRIGGER on agent_operations
+    + service_role TRIGGER on community_pack_reports
+    + service_role TRIGGER on community_packs
+    + service_role TRIGGER on connector_grants
+    + service_role TRIGGER on control_cue_arms
+    + service_role TRUNCATE on agent_deliveries
+    + service_role TRUNCATE on agent_operations
+    + service_role TRUNCATE on community_pack_reports
+    + service_role TRUNCATE on community_packs
+    + service_role TRUNCATE on connector_grants
+    + service_role TRUNCATE on control_cue_arms
+    + service_role UPDATE on agent_deliveries
+    + service_role UPDATE on community_pack_reports
+    + service_role UPDATE on community_packs
+    + service_role UPDATE on connector_grants
+    - authenticated DELETE on community_templates
+    - authenticated INSERT on community_reports
+    - authenticated INSERT on community_templates
+    - authenticated SELECT on community_reports
+    - authenticated SELECT on community_templates
+    - authenticated UPDATE on community_templates
+    - service_role DELETE on community_reports
+    - service_role DELETE on community_templates
+    - service_role INSERT on community_reports
+    - service_role INSERT on community_templates
+    - service_role REFERENCES on community_reports
+    - service_role REFERENCES on community_templates
+    - service_role SELECT on community_reports
+    - service_role SELECT on community_templates
+    - service_role TRIGGER on community_reports
+    - service_role TRIGGER on community_templates
+    - service_role TRUNCATE on community_reports
+    - service_role TRUNCATE on community_templates
+    - service_role UPDATE on community_reports
+    - service_role UPDATE on community_templates
+  function_grants: +28 -2
+    + anon execute on community_pack_file(p_id uuid)
+    + anon execute on community_pack_shelf()
+    + anon execute on control_cue_arm(p_slug text, p_lane text, p_cue text, p_op text, p_by text)
+    + anon execute on control_cue_arms_for(p_slug text)
+    + anon execute on panel_lease(p_slug text, p_page text, p_where text, p_label text, p_move boolean)
+    + anon execute on panel_renew(p_slug text, p_page text, p_claim bigint)
+    + authenticated execute on community_pack_decide(p_id uuid, p_state text, p_reason text)
+    + authenticated execute on community_pack_file(p_id uuid)
+    + authenticated execute on community_pack_mine()
+    + authenticated execute on community_pack_report(p_id uuid, p_reason text)
+    + authenticated execute on community_pack_reported()
+    + authenticated execute on community_pack_reports_dismiss(p_id uuid, p_until timestamp with time zone)
+    + authenticated execute on community_pack_shelf()
+    + authenticated execute on community_pack_submit(p_name text, p_description text, p_author text, p_pack jsonb, p_update_of uuid)
+    + authenticated execute on community_pack_waiting()
+    + authenticated execute on community_pack_withdraw(p_id uuid)
+    + authenticated execute on control_cue_arm(p_slug text, p_lane text, p_cue text, p_op text, p_by text)
+    + authenticated execute on control_cue_arms_for(p_slug text)
+    + authenticated execute on panel_lease(p_slug text, p_page text, p_where text, p_label text, p_move boolean)
+    + authenticated execute on panel_renew(p_slug text, p_page text, p_claim bigint)
+    + service_role execute on agent_deliver_graphics(p_user_id uuid, p_key_id uuid, p_operation_id uuid, p_payload_hash text, p_graphics jsonb)
+    + service_role execute on agent_deliver_production(p_user_id uuid, p_key_id uuid, p_operation_id uuid, p_payload_hash text, p_graphics jsonb, p_production jsonb)
+    + service_role execute on agent_package_settle(p_user_id uuid, p_package_id uuid, p_production_id uuid)
+    + service_role execute on community_pack_submit_for(p_uid uuid, p_name text, p_description text, p_author text, p_pack jsonb, p_update_of uuid)
+    + service_role execute on connector_grant_resolve(p_user_id uuid, p_client_id text)
+    + service_role execute on control_output_audio_manifest(p_output_slug text, p_version text)
+    + service_role execute on production_data_is_value(p_value jsonb)
+    + service_role execute on production_data_may_replace(p_old jsonb, p_new jsonb)
+    - authenticated execute on community_get(p_slug text)
+    - authenticated execute on community_list(p_kind text, p_category text, p_limit integer, p_offset integer)
+
+Applied 19 migration(s): 0074, 0075, 0076, 0077, 0078, 0079, 0080, 0081, 0082, 0085, 0086, 0087, 0088, 0089, 0090, 0091, 0092, 0093, 0094.

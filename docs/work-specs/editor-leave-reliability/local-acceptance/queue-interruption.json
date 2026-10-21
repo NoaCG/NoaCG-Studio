@@ -1,0 +1,19 @@
+{
+  "id": "j-4653",
+  "kind": "sweep",
+  "command": "node p2-local-acceptance.local/manual-lease.mjs",
+  "checkout": "C:\\Users\\ahonemi\\.codex\\worktrees\\0ae2\\NoaCG-Studio",
+  "branch": "codex/p2-local-acceptance-12ecc",
+  "after": [],
+  "capMinutes": 12,
+  "retryOf": null,
+  "retryCount": 0,
+  "enqueuedAt": 1792493414375,
+  "state": "failed",
+  "startedAt": 1792493508995,
+  "finishedAt": 1792493521686,
+  "exitCode": null,
+  "pid": 128736,
+  "logPath": "C:\\claude\\NoaCG-Studio\\.git\\noacg-jobs\\logs\\j-4653.log",
+  "reapedAsDead": true
+}

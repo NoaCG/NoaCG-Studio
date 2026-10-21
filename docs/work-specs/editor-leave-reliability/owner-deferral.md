@@ -1,5 +1,14 @@
 # Owner deferral of #1466 and the Phase 2 acceptance blocker
 
+Current disposition, 2026-10-21: the owner approved
+[bounded single-device Phase 2 closure](scoped-closure/README.md) on
+`12eccdd8533ba710f0917cb3bcc78101070ecca8`, explicitly deferring further diagnosis
+of the original shared-lab module-load failure. The operating restriction below
+remains effective. Step 6 is COMPLETE; GitHub reports #1466 closed via #1528 and
+#1498 externally closed at another source. The dated closure records those
+qualifications. The October 20 decision and its then-current issue states below
+are preserved as history, not rewritten into a passing original campaign.
+
 ## Decision, 2026-10-20
 
 The owner instructed the independent checker: “Lets move onfrom this issue. Create a

@@ -1,5 +1,13 @@
 # Phase 2 single-device acceptance
 
+Current disposition, 2026-10-21: **ACCEPTED under the bounded single-device scope**
+on `12eccdd8533ba710f0917cb3bcc78101070ecca8`, after explicit owner approval of the
+[dated closure](../scoped-closure/README.md). That record adds final repair/local
+evidence and the approved shared-lab diagnosis deferral. It supersedes the current
+disposition only. The October 20 receipt, table, original failures and budgets
+below remain historical, unchanged evidence; no original multi-device PASS,
+auth/sync fix, physical-device proof, newer-main qualification or Phase 3 is claimed.
+
 Maintained receipt, 2026-10-20. **Verdict: BLOCKED.** The owner now requires one
 active authoring tab/device per account, with serialized device handoffs. This
 narrows acceptance; it does not mean that the original multi-device criteria
