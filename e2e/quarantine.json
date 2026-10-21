@@ -17,6 +17,11 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
     },
+    "e2e/configured/community-pack-review.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
+    },
     "e2e/configured/dashboard-hosted-walk.spec.ts": {
       "since": "2026-10-21",
       "count": 6,
@@ -32,10 +37,20 @@
       "count": 13,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39509585350"
     },
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
+    },
     "e2e/configured/playout-both-roads.spec.ts": {
       "since": "2026-10-21",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
+    },
+    "e2e/configured/playout-switch-mid-flight.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
     },
     "e2e/configured/publish-output-default.spec.ts": {
       "since": "2026-10-21",
@@ -46,6 +61,11 @@
       "since": "2026-10-20",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253761"
+    },
+    "e2e/configured/sync-one-pass-per-edit.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
     },
     "e2e/configured/take-behind-out.spec.ts": {
       "since": "2026-10-21",
