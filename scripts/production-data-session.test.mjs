@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPlayoutSession } from '../src/control/playoutSession.ts';
 import { createProductionDataSession } from '../src/control/productionDataSession.ts';
+import { resolveBindings } from '../src/model/productionData.ts';
 
 /** A promise the test settles by hand, so an answer can arrive late, or after disposal. */
 function held() {
@@ -86,21 +87,38 @@ function setup(opts) {
 
 const bindings = { Score: { f0: 'home', f1: 'away' } };
 
+/** Dispatch as the page does after a render: what the part's tree resolves to, with that tree. */
+function dispatchNow(t, b) {
+  const tree = t.session.data.get().liveData;
+  t.data.dispatch(resolveBindings(tree, b), tree, t.send);
+}
+
 test('unpublished: the local tree seeds, its changes dispatch once each, and only the changes', () => {
   const t = setup({ local: { 'prod-1': { home: 1, away: 0 } } });
   t.data.published(null);
   assert.deepEqual(t.session.data.get(), { liveData: { home: 1, away: 0 }, dataKey: null, treeRead: false });
   assert.deepEqual(t.calls.keyReads, [], 'an unpublished production reads no key');
 
-  t.data.dispatch(bindings, t.send);
+  dispatchNow(t, bindings);
   assert.deepEqual(t.sent, [{ label: 'Data', batches: [[{ graphic: 'Score', msg: { t: 'update', data: { f0: '1', f1: '0' } } }]] }]);
-  t.data.dispatch(bindings, t.send);
+  dispatchNow(t, bindings);
   assert.equal(t.sent.length, 1, 'nothing moved, nothing sent');
 
   t.data.setLiveData({ home: 2, away: 0 });
   assert.deepEqual(t.calls.saved, [['prod-1', { home: 2, away: 0 }]], 'the local road saves');
-  t.data.dispatch(bindings, t.send);
+  dispatchNow(t, bindings);
   assert.deepEqual(t.sent[1].batches, [[{ graphic: 'Score', msg: { t: 'update', data: { f0: '2' } } }]], 'one moving value is one field');
+});
+
+test('a render\'s older tree is passed over, so it cannot pair with a newer key', () => {
+  const t = setup({ local: { 'prod-1': { home: 1 } } });
+  t.data.published('slug-1');
+  const published = t.session.data.get().liveData;
+  t.data.published(null); // unpublished: the key is null now, and the tree is the local one
+  t.data.dispatch(resolveBindings({ home: 7 }, { Score: { f0: 'home' } }), published, t.send);
+  assert.deepEqual(t.sent, [], 'the tree the render resolved is not the one the part holds');
+  dispatchNow(t, { Score: { f0: 'home' } });
+  assert.deepEqual(t.sent[0].batches, [[{ graphic: 'Score', msg: { t: 'update', data: { f0: '1' } } }]]);
 });
 
 test('unpublished: a write in another tab moves this tab\'s tree', () => {
@@ -121,20 +139,20 @@ test('dataKey undefined: while the key is being read nothing dispatches, whateve
   // copy); it still must not reach the wire.
   t.data.setLiveData({ home: 3, away: 1 });
   assert.deepEqual(t.session.data.get().liveData, { home: 3, away: 1 });
-  t.data.dispatch(bindings, t.send);
+  dispatchNow(t, bindings);
   assert.deepEqual(t.sent, [], 'an unread key is not "unpublished"');
 
   // The key arrives: published, the server dispatches, so this page still sends nothing.
   t.answers.keys[0].resolve('key-1');
   await flush();
   assert.equal(t.session.data.get().dataKey, 'key-1');
-  t.data.dispatch(bindings, t.send);
+  dispatchNow(t, bindings);
   assert.deepEqual(t.sent, []);
   assert.deepEqual(t.calls.fetched, ['key-1'], 'the key brings the server\'s tree');
   t.answers.fetches[0].resolve({ data: { home: 4, away: 2 } });
   await flush();
   assert.deepEqual(t.session.data.get(), { liveData: { home: 4, away: 2 }, dataKey: 'key-1', treeRead: true });
-  t.data.dispatch(bindings, t.send);
+  dispatchNow(t, bindings);
   assert.deepEqual(t.sent, []);
 });
 
@@ -146,7 +164,7 @@ test('a published production whose key read finds none is dispatched here', asyn
   assert.equal(t.session.data.get().dataKey, null);
   assert.deepEqual(t.calls.fetched, []);
   t.data.setLiveData({ home: 1 });
-  t.data.dispatch({ Score: { f0: 'home' } }, t.send);
+  dispatchNow(t, { Score: { f0: 'home' } });
   assert.equal(t.sent.length, 1);
 });
 
@@ -238,7 +256,7 @@ test('the slug road: a refused press says so and re-reads; unpublished, a press 
 test('a mode change re-seeds the tree and the baseline, and an answer from the old mode is ignored', async () => {
   const t = setup({ local: { 'prod-1': { home: 1 } } });
   const stopLocal = t.data.published(null);
-  t.data.dispatch({ Score: { f0: 'home' } }, t.send);
+  dispatchNow(t, { Score: { f0: 'home' } });
   assert.equal(t.sent.length, 1);
   stopLocal();
   assert.equal(t.storage.size, 0, 'the other-tab listener goes with its mode');
@@ -251,7 +269,7 @@ test('a mode change re-seeds the tree and the baseline, and an answer from the o
   await flush();
   assert.equal(t.session.data.get().dataKey, null, 'the published mode\'s late key does not land');
   assert.deepEqual(t.calls.fetched, []);
-  t.data.dispatch({ Score: { f0: 'home' } }, t.send);
+  dispatchNow(t, { Score: { f0: 'home' } });
   assert.equal(t.sent.length, 2, 'the new mode reconciles every bound field from scratch');
 });
 
@@ -263,7 +281,7 @@ test('dispose: late answers change nothing, nothing more is sent, and the listen
   assert.equal(t.storage.size, 0, 'disposal stops the mode');
   t.otherTab('prod-1', { home: 9 });
   assert.deepEqual(t.session.data.get().liveData, { home: 1 });
-  t.data.dispatch({ Score: { f0: 'home' } }, t.send);
+  dispatchNow(t, { Score: { f0: 'home' } });
   assert.deepEqual(t.sent, [], 'a disposed session sends nothing');
   assert.equal(typeof t.data.published('slug-1'), 'function');
   assert.deepEqual(t.calls.keyReads, [], 'a disposed session enters no mode');

@@ -53,6 +53,6 @@ test('the hosted control module still offers the same folds', async () => {
   // the type check and the browser suites, so here only the source's re-export line is read.
   const { readFile } = await import('node:fs/promises');
   const source = await readFile(new URL('../src/control/hostedControl.ts', import.meta.url), 'utf8');
-  assert.match(source, /export \{ leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent \};/);
+  assert.match(source, /export \{ leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent \} from '\.\/liveCue';/);
   assert.doesNotMatch(source, /export function (leftAlone|readLiveCue|withLiveCue)\b/, 'one definition, in liveCue.ts');
 });

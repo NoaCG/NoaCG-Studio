@@ -51,10 +51,10 @@ import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
-import { leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
+import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
 // The live map's folds live in ./liveCue.ts, which Node can import; re-exported for every caller.
-export { leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent };
+export { leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
 export function controlPageUrl(slug: string): string {

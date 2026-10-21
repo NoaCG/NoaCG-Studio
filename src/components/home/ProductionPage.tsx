@@ -2196,11 +2196,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
-   *  unpublished only (control/productionDataSession.ts `dispatch` says why). It runs whenever the
-   *  tree, its key or the bindings move. */
+   *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
   useEffect(() => {
-    dataSession.dispatch(bindings, runVerb);
-  }, [dataSession, liveData, dataKey, bindings, runVerb]);
+    dataSession.dispatch(resolved, liveData, runVerb);
+  }, [dataSession, resolved, liveData, dataKey, runVerb]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer

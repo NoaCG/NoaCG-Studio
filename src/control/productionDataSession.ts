@@ -15,8 +15,9 @@
 // operator's door, localStorage and the other tabs' `storage` event. Only pure `.ts` modules are
 // imported, so `scripts/production-data-session.test.mjs` drives it with fakes.
 
-import { diffResolved, replacementPatch, resolveBindings, withTreeWrites, type JsonObject, type ProductionBindings, type TreeWrite } from '../model/productionData.ts';
+import { diffResolved, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
 import type { ControlSendItem } from './hostedControl';
+import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
 
 export interface ProductionDataIo {
@@ -24,11 +25,11 @@ export interface ProductionDataIo {
   backendConfigured: boolean;
   loadLiveData: (productionId: string) => JsonObject;
   saveLiveData: (productionId: string, data: JsonObject) => void;
-  /** The owner's own data key, or null (control/productionDataApi.ts). */
-  productionDataKey: (productionId: string) => Promise<string | null>;
-  fetchProductionData: (key: string) => Promise<{ data: Record<string, unknown> } | null>;
-  patchProductionData: (key: string, patch: JsonObject) => Promise<Record<string, unknown>>;
-  patchProductionDataBySlug: (slug: string, patch: JsonObject) => Promise<Record<string, unknown>>;
+  /** The doors of control/productionDataApi.ts, as they are there. */
+  productionDataKey: typeof productionDataKey;
+  fetchProductionData: typeof fetchProductionData;
+  patchProductionData: typeof patchProductionData;
+  patchProductionDataBySlug: typeof patchProductionDataBySlug;
   /** Hear the live tree written in another tab; answers the unsubscribe. */
   onStorage: (listener: () => void) => () => void;
   /** Tell the operator something went wrong (the page's note line). */
@@ -48,8 +49,9 @@ export interface ProductionDataSession {
   patchBoundValues: (writes: TreeWrite[]) => Promise<void>;
   /** Pull the server's tree in: at the key's arrival, and whenever a feed row says it moved. */
   refresh: () => Promise<void>;
-  /** Put the bound fields' CHANGES on the wire, unpublished only. */
-  dispatch: (bindings: ProductionBindings | undefined, send: DataSend) => void;
+  /** Put the bound fields' CHANGES on the wire, unpublished only. `resolved` is what `tree` resolves
+   *  to; a tree the part no longer holds is passed over, since the render for the newer one follows. */
+  dispatch: (resolved: ResolvedValues, tree: JsonObject, send: DataSend) => void;
 }
 
 export function createProductionDataSession(session: PlayoutSession, io: ProductionDataIo): ProductionDataSession {
@@ -60,7 +62,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
   let mode = 0;
   /** What was last put on the wire, per graphic per field: the dispatch's baseline. Nothing renders
    *  from it, so it is held here and not in the part. */
-  let lastResolved: Record<string, Record<string, string>> = {};
+  let lastResolved: ResolvedValues = {};
 
   const write = (from: number, patch: Partial<DataPart>) => {
     if (from !== mode) return;
@@ -86,6 +88,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       const from = mode;
       slug = next;
       const id = session.key;
+      const local = Boolean(id) && !next;
       const readsKey = Boolean(next) && io.backendConfigured;
       // The local tree seeds an UNPUBLISHED production only. Published, the server's copy is the
       // authority and arrives a moment later: seeding from localStorage first would show the
@@ -97,28 +100,29 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       // resolved, nothing may dispatch the local tree to air. A published production opened cold
       // would otherwise spend a moment believing it was offline and push the last LOCAL tree.
       lastResolved = {};
-      write(from, { liveData: id && !next ? io.loadLiveData(id) : {}, dataKey: readsKey ? undefined : null, treeRead: false });
+      write(from, { liveData: local ? io.loadLiveData(id) : {}, dataKey: readsKey ? undefined : null, treeRead: false });
 
       // THE LIVE TREE, WRITTEN IN ANOTHER TAB. The Data workspace opens in its own browser tab, and
       // an unpublished production's tree lives in localStorage; this page is the one sender, so a
       // value typed on Data has to reach it. `storage` fires in the OTHER tabs only, which is
       // exactly the ones that need telling. Published, the server's copy is the authority and the
       // API answer is what this page holds.
-      const stopStorage = id && !next ? io.onStorage(() => write(from, { liveData: io.loadLiveData(id) })) : () => {};
+      const stopStorage = local ? io.onStorage(() => write(from, { liveData: io.loadLiveData(id) })) : () => {};
       if (readsKey) {
         void io.productionDataKey(id).then((key) => {
           write(from, { dataKey: key });
           if (from === mode && key) void refresh();
         });
       }
-      let off = () => {};
-      const stop = () => {
+      const end = () => {
         stopStorage();
         if (from === mode) mode += 1;
-        off();
       };
-      off = session.onDispose(stop);
-      return stop;
+      const off = session.onDispose(end);
+      return () => {
+        off();
+        end();
+      };
     },
 
     /**
@@ -208,18 +212,18 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      * tick. The baseline starts empty on purpose: the first pass after a mode change reconciles
      * every bound field once, which is safe because these are absolute values.
      *
-     * The values are resolved here from the part's own tree, so the tree and the key a dispatch
-     * reads are always one moment's: a render's older tree can never pair with a newer key.
+     * The tree and the key a dispatch reads are one moment's: a render's older tree is passed over,
+     * so it can never pair with a newer key (a mode change sets both at once).
      */
-    dispatch: (bindings, send) => {
+    dispatch: (resolved, tree, send) => {
       if (!session.alive()) return;
       const { liveData, dataKey } = part.get();
+      if (tree !== liveData) return;
       // PUBLISHED, the SERVER does this half: control_data_patch resolves the bindings and appends
       // the update rows itself, and the log follower brings them back. Dispatching locally too
       // would double every write. `undefined` = the key has not resolved yet, so we do not know
       // which world we are in and must not guess: guessing "offline" airs the stale local tree.
       if (dataKey !== null) return;
-      const resolved = resolveBindings(liveData, bindings);
       const changes = diffResolved(lastResolved, resolved);
       const graphics = Object.keys(changes);
       if (graphics.length === 0) return;
