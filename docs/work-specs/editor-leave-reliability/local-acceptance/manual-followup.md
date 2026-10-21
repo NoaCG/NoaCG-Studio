@@ -317,3 +317,66 @@ restart is armed. The isolated-profile handoff remains incomplete, so whole
 Phase 2 is not accepted. All earlier results, original failures, assertions,
 32 group cases, budgets, skips and deferrals remain preserved. No issue was
 closed and no source change was landed. Keep this chat for a later resumption.
+
+## Morning continuation on October 21
+
+The owner resumed the already-approved local leg in this chat. The source pin,
+all assertions and 32 group cases, original failures, skips, budgets and existing
+deferrals remained unchanged. Current main was observed through GraphQL as
+`7ac4b22159ef3cb120271123599f70fda9fa559f`; it was not adopted or qualified.
+The Git preflight timed out, while the separate Actions API read passed.
+Supported repository REST and repository/PR GraphQL reads passed independently;
+no write or dispatch access followed from them. The prior cloud repair owner
+was idle; no relevant competing editor paths appeared in the current activity
+scan. The 5282 reservation remained owned by this checkout, with an empty queue.
+
+GitHub reported #1466 CLOSED and #1532/#1533 CLOSED UNMERGED. It now reports
+#1498 CLOSED by `github-actions` at 05:10:38 UTC on October 21. This session
+changed no issue state and does not infer an original-nightly-failure repair,
+completed deferral or qualification of pinned 12ecc from that external closure.
+
+Memory initially remained below 1536 MiB. After the owner closed unused apps,
+it reached 2946 MiB; admission later measured 2986 MiB. The dashboard created
+`codex-p2-handoff-12ecc-20261021` without production data, at the unchanged
+USD 0.01344/hour compute quote. The installed CLI was now 2.112.0 and the
+earlier cache shim was unavailable. The official pinned npm package 2.111.0
+was restored and qualified; the unchanged normal migration wrapper used its
+package PATH and only the already-approved branch-only `--allow 0085`.
+All nineteen pending migrations applied once, with exact ledger addition
++19/-0, a quiet window, and fresh readback of 92 migration rows through 0094,
+zero users and zero documents. The separate automatic deployment reported
+`MIGRATIONS_FAILED`; no automatic-pipeline repair or clean-advisor verdict
+is claimed. No SQL, guard, product or maintained test was edited.
+
+Fresh manual job `j-4662`, sweep cost 1 and cap twelve minutes, created one
+disposable fixture account and started the sanctioned local server. Fresh
+privileged keys remained in server memory, with no credential file, printed key
+or privileged browser value. One visible sign-in submission reached an empty
+account workspace with `Sync: Synced`. The owner was asked to select the existing
+backup in the Windows picker. The final observed page still had an empty file
+input; no completion reply arrived during this admission. No backup import,
+new Save or isolated-profile inspection completed.
+
+The queue marked the run **timed-out** at its original cap, with null exit code.
+The server and its privileged helper stopped, the first authoring tab was closed,
+and the queue had no live jobs. The exact owned exception runner had already
+exited when checked. No cap extension, assertion retry, older job restart,
+historical shared-lab diagnosis or new product defect is claimed.
+
+Cleanup reached the exact disposable branch's deletion warning. A dashboard
+announcement initially covered its actions; a screenshot identified that
+obstruction and closing the banner exposed the correct menu. Automatic approval
+review then rejected permanent deletion despite the owner's earlier cleanup
+instruction, requiring fresh confirmation after the unrecoverability warning.
+No alternate deletion route was attempted. The confirmation request names the
+branch and irreversible loss of its test account/data; its dashboard warning
+is retained open. **The temporary branch remains active and billed until that
+confirmation and deletion.** See [morning-handoff.json](morning-handoff.json),
+[terminal queue record](morning-handoff-queue-final.json) and
+[log](morning-handoff-log.txt).
+
+Whole Phase 2 remains incomplete. Earlier native/125%, persistence, animation,
+Save and cloud-arrival observations remain recorded separately; they do not
+prove the missing isolated-profile inspection. Step 6 remains COMPLETE. No
+quarantine workaround, historical campaign restart, Phase 3, issue closure,
+passing whole-acceptance stamp or landing followed.
