@@ -17,8 +17,10 @@ import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, 
 import { hasLiveData } from '../../control/liveData';
 import { uuid } from '../../model/id';
 import {
+  connectedFields,
   fieldValue,
   isSourcePath,
+  pathValue,
   offeredValues,
   parseSheetLink,
   readSheet,
@@ -216,6 +218,7 @@ function CueConnectReview({
   values,
   bound,
   store,
+  fieldsOf,
   onPreview,
   onClose,
   onRefused,
@@ -228,6 +231,8 @@ function CueConnectReview({
   values: Record<string, string>;
   bound: Record<string, string>;
   store: SourceStatusStore;
+  /** A pool graphic's fields as drawn (the page's lookup, shared with the reader). */
+  fieldsOf: (graphic: string) => FieldDescriptor[] | null;
   onPreview: (values: Record<string, string> | null) => void;
   onClose: () => void;
   onRefused: (text: string | null) => void;
@@ -280,10 +285,16 @@ function CueConnectReview({
 
   // The preview monitor shows the reviewed mapping on the real graphic while the review is open,
   // and nothing of it once the review closes, fails to read, or leaves with its graphic.
+  // What each chosen path will write, by the reader's own rule: the bindings as this review would
+  // leave them, every field on the path, one form for all of them (sheetSource `pathValue`).
+  const proposed = { ...(show.bindings ?? {}), [poolGraphic.name]: { ...bound, ...Object.fromEntries(entries.map((e) => [e.fieldId, e.path ?? ''])) } };
+  const writes = (path: string): string | null =>
+    pathValue(connectedFields(proposed, path, (g) => (g === poolGraphic.name ? descriptors : fieldsOf(g))), sample.get(path) ?? '');
   const previewValues: Record<string, string> = {};
   for (const row of mapping) {
     const path = chosen(row);
-    if (path !== null && row.status !== 'refused' && sample.has(path)) previewValues[row.fieldId] = sample.get(path)!;
+    const value = path !== null && row.status !== 'refused' && sample.has(path) ? writes(path) : null;
+    if (value !== null) previewValues[row.fieldId] = value;
   }
   const previewKey = content ? JSON.stringify(previewValues) : null;
   useEffect(() => {
@@ -467,8 +478,10 @@ function CueConnectReview({
                       ? 'several match: pick one'
                       : row.current !== null && row.path !== null && row.current !== row.path && chosen(row) === row.current
                         ? 'connected elsewhere: pick to replace'
-                        : chosen(row) !== null && sample.has(chosen(row)!)
-                          ? sample.get(chosen(row)!)!.split('\n')[0]
+                        : chosen(row) !== null && sample.has(chosen(row)!) && writes(chosen(row)!) === null
+                          ? 'its other fields need it in another form: it would hold'
+                          : chosen(row) !== null && sample.has(chosen(row)!)
+                          ? writes(chosen(row)!)!.split('\n')[0]
                           : row.status === 'unmatched'
                             ? 'no match'
                             : ''}
@@ -612,6 +625,7 @@ export default function CueEditor({
   endsRow,
   sounds,
   sourceStatus,
+  fieldsOf,
   onConnectPreview,
 }: {
   show: Show;
@@ -675,6 +689,8 @@ export default function CueEditor({
   sounds: ReactNode;
   /** What each source's reader last found (control/sheetSource.ts), read by the lines that show it. */
   sourceStatus: SourceStatusStore;
+  /** A pool graphic's fields as drawn: the same lookup the Sheet reader converts cells with. */
+  fieldsOf: (graphic: string) => FieldDescriptor[] | null;
   /** Show a Connect review's values on the PREVIEW monitor, or stop (null). */
   onConnectPreview: (values: Record<string, string> | null) => void;
 }) {
@@ -732,6 +748,7 @@ export default function CueEditor({
           values={currentValues}
           bound={bound}
           store={sourceStatus}
+          fieldsOf={fieldsOf}
           onPreview={onConnectPreview}
         />
         {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the

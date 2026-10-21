@@ -293,6 +293,29 @@ export const fieldValue: (d: FieldDescriptor, text: string) => string | null = v
  * "TRUE"), no single value is right for both and the cell is held and reported, never decided by
  * whichever field happens to come last.
  */
+/**
+ * Every field connected to one path, across the production's graphics. `fieldsOf` answers a pool
+ * graphic's fields as the editor draws them (its library version), or null when it has none. The
+ * reader and the Connect review both ask this, so they agree on what a cell becomes.
+ */
+export function connectedFields(
+  bindings: Record<string, Record<string, string>> | undefined,
+  path: string,
+  fieldsOf: (graphic: string) => FieldDescriptor[] | null,
+): FieldDescriptor[] {
+  const out: FieldDescriptor[] = [];
+  for (const [graphic, fields] of Object.entries(bindings ?? {})) {
+    const ids = Object.keys(fields).filter((fieldId) => fields[fieldId] === path);
+    if (ids.length === 0) continue;
+    const declared = fieldsOf(graphic) ?? [];
+    for (const id of ids) {
+      const d = declared.find((f) => f.key === id);
+      if (d) out.push(d);
+    }
+  }
+  return out;
+}
+
 export function pathValue(fields: FieldDescriptor[], text: string): string | null {
   const forms = new Set(fields.map((d) => fieldValue(d, text)));
   if (forms.has(null)) return null;

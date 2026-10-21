@@ -23,6 +23,7 @@ const {
   createSheetReader,
   fieldValue,
   pathValue,
+  connectedFields,
   parseSheetLink,
   readSheet,
   sheetContent,
@@ -594,4 +595,15 @@ test('one value feeding a toggle and a text field: TRUE is not decided by whiche
   assert.equal(pathValue([toggle, caption], '1'), '1', 'a form both take is written');
   assert.equal(pathValue([{ kind: 'number' }, { kind: 'number' }], ' 3 '), '3');
   assert.equal(pathValue([], 'x'), 'x');
+});
+
+test('the fields on a path are read from each graphic as it is drawn now, and decide one value for all', () => {
+  const bindings = { Board: { f1: 'sheet.s1.values.Live', f2: 'sheet.s1.values.Other' }, Caption: { f0: 'sheet.s1.values.Live' }, Gone: { f0: 'sheet.s1.values.Live' } };
+  // Board's library version made f1 a toggle after it was pooled; the lookup is what the editor draws.
+  const drawn = { Board: [{ key: 'f1', kind: 'toggle' }, { key: 'f2', kind: 'text' }], Caption: [{ key: 'f0', kind: 'text' }] };
+  const fieldsOf = (g) => drawn[g] ?? null;
+  const fields = connectedFields(bindings, 'sheet.s1.values.Live', fieldsOf);
+  assert.deepEqual(fields.map((f) => f.kind), ['toggle', 'text'], 'a graphic that is gone adds nothing');
+  assert.equal(pathValue(fields, 'TRUE'), null, 'the review and the reader both hold it');
+  assert.equal(pathValue(connectedFields({ Board: bindings.Board }, 'sheet.s1.values.Live', fieldsOf), 'TRUE'), '1', 'the toggle alone takes 1');
 });

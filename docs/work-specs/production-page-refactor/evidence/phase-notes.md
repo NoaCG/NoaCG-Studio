@@ -104,7 +104,10 @@ changes a spec's digest.
   thresholds are unchanged. The `-win32` pair could not be recorded on this Linux worker; the
   laptop helper re-records it from this merge (they gate nothing in Actions). A last review
   round made one Sheet value that feeds fields needing different forms (a toggle's "1", a
-  caption's "TRUE") held and reported (`pathValue`).
+  caption's "TRUE") held and reported (`pathValue`). The reader and the Connect review now
+  share one rule: `connectedFields` reads each graphic's fields as the editor draws them (the
+  library version, `templateForSavedGraphic`) and `pathValue` decides the value, so the review
+  previews exactly what the reader will write, held cells included.
   `src/model/teamShowMerge.ts` gains one label (`sources: 'the data sources'`) so a team merge
   conflict on the new field reads in words.
 - **Traps.**

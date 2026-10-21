@@ -92,7 +92,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
-import { createSheetReader, createSourceStatusStore, pathValue, type SheetLease } from '../../control/sheetSource';
+import { createSheetReader, connectedFields, createSourceStatusStore, pathValue, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -1571,20 +1571,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   bindingsRef.current = bindings;
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;
-  /** `text` in the one form every field connected to `path` takes ("TRUE" is "1" for a toggle), or
-   *  null when one cannot hold it or they need different forms (control/sheetSource.ts `pathValue`). */
-  const sourceAccept = useCallback((path: string, text: string): string | null => {
-    const fields: FieldDescriptor[] = [];
-    for (const [graphic, bound] of Object.entries(bindingsRef.current ?? {})) {
-      const template = graphicsRef.current?.find((g) => g.name === graphic)?.template;
-      if (!template) continue;
-      for (const [fieldId, p] of Object.entries(bound)) {
-        const d = p === path ? fieldDescriptors(template.fields).find((f) => f.key === fieldId) : undefined;
-        if (d) fields.push(d);
-      }
-    }
-    return pathValue(fields, text);
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
+  /** A pool graphic's fields as the editor draws them: its library version, not the snapshot. */
+  const fieldsOf = useCallback((name: string): FieldDescriptor[] | null => {
+    const graphic = graphicsRef.current?.find((g) => g.name === name);
+    return graphic ? fieldDescriptors(templateForSavedGraphic(graphic, libraryRef.current).fields) : null;
   }, []);
+  /** `text` in the one form every field connected to `path` takes ("TRUE" is "1" for a toggle), or
+   *  null when one cannot hold it or they need different forms (control/sheetSource.ts). */
+  const sourceAccept = useCallback(
+    (path: string, text: string): string | null => pathValue(connectedFields(bindingsRef.current, path, fieldsOf), text),
+    [fieldsOf],
+  );
   const readerPlan = JSON.stringify((show?.sources ?? []).map((s) => [s.id, s.config]));
   useEffect(() => {
     const plan = JSON.parse(readerPlan) as [string, NonNullable<Show['sources']>[number]['config']][];
@@ -5010,6 +5009,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             setAdvancedFor={setAdvancedFor}
             clashFix={clashFix}
             sourceStatus={sourceStatus}
+            fieldsOf={fieldsOf}
             onConnectPreview={(values) => setConnectPreview(values ? { graphic: poolGraphic.name, values } : null)}
             endsRow={() => {
               const auto = readAuto(editingCue);
