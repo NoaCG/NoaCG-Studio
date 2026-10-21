@@ -209,7 +209,7 @@ import {
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
 import { airedAfter, type AiredMap, type ReplayItem } from '../../control/outputRecovery';
-import { RESEND_WINDOW_MS, createSendDebts } from '../../control/failedSends';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
@@ -538,8 +538,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Folder Takes still being sent: what dispatch reads (a ref, never a stale render), and whether
    *  Out or All out has stopped each since. */
   const folderRuns = useRef(new Map<string, { stop: null | 'out' | 'all-out' }>());
-  /** The last ⚡ press moving a bound field still being handled on each graphic, which the next such
-   *  press waits for (`fireEvent`). */
+  /** The last press moving a bound field still being handled on each graphic, which the next one
+   *  waits for (`afterBoundPress`). */
   const boundPresses = useRef(new Map<string, Promise<void>>());
   /** The same, for the verb bar to draw: a folder still being sent counts as up, so Out and SPACE can
    *  stop it even before anything of it has landed. */
@@ -1645,6 +1645,38 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const resolved = useMemo(() => resolveBindings(liveData, bindings), [liveData, bindings]);
   const resolvedRef = useRef<ResolvedValues>(resolved);
   resolvedRef.current = resolved;
+  /** One graphic's bound values from the newest tree: the ref a press's write moves at once, where
+   *  `resolved` waits for the next render. */
+  const boundNow = (graphic: string): Record<string, string> => resolveBindings(liveDataRef.current, bindings)[graphic] ?? {};
+
+  /**
+   * A PRESS MOVING A BOUND FIELD WAITS FOR THE ONE BEFORE IT on its graphic, then counts from the
+   * tree that press left (`boundNow`). The ⚡ press writes its figure only once its event has gone,
+   * a round trip after the press, and the ± press's answer replaces the tree, so a second press in
+   * that round trip counted from the same tree and wrote the same figure: two goals, one point
+   * (production-page refactor S1, e2e/configured/playout-adjust-race.spec.ts). The wait ends when
+   * the press before it has had a send's whole window and an attempt's time for its write
+   * (failedSends.ts), so a link that never answers cannot hold the next press; past it, the press
+   * counts from the tree as it stands.
+   */
+  const afterBoundPress = (graphic: string, press: () => Promise<void>): Promise<void> => {
+    const before = boundPresses.current.get(graphic);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const waited = before
+      ? Promise.race([before, new Promise<void>((resolve) => (timer = setTimeout(resolve, RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS)))])
+      : Promise.resolve();
+    const run = waited.then(() => {
+      clearTimeout(timer);
+      return press();
+    });
+    // The next press waits for this one whether or not it failed.
+    const settled = run.catch(() => {});
+    boundPresses.current.set(graphic, settled);
+    void settled.then(() => {
+      if (boundPresses.current.get(graphic) === settled) boundPresses.current.delete(graphic);
+    });
+    return run;
+  };
 
   /**
    * The values a Take, an Update or the PREVIEW must carry for one graphic — bound fields
@@ -3214,14 +3246,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const bumpLive = async (fieldKey: string, delta: number) => {
     if (!editingCue || !selectedGraphic || !editingIsLive) return;
-    await flushDraft(); await history.closeGroup();
-    const path = boundFields(selectedGraphic)[fieldKey];
+    const graphic = selectedGraphic;
+    const path = boundFields(graphic)[fieldKey];
     if (path) {
-      if (!boundPressReady()) return;
-      const base = resolvedRef.current[selectedGraphic]?.[fieldKey];
-      await patchBoundValues([{ path, text: adjustedValue(base, delta), verb: 'adjust' }]);
+      await afterBoundPress(graphic, async () => {
+        await flushDraft(); await history.closeGroup();
+        if (!boundPressReady()) return;
+        await patchBoundValues([{ path, text: adjustedValue(boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
+      });
       return;
     }
+    await flushDraft(); await history.closeGroup();
     const base = airedData[selectedGraphic]?.[fieldKey] ?? cueView(editingCue).values[fieldKey] ?? '0';
     const next = adjustedValue(base, delta);
     setShows(updateShowCueChecked(id, editingCue.id, { values: { [fieldKey]: next } }).shows);
@@ -3948,36 +3983,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  base the ± live-number bump counts from - and the new figure is mirrored into the on-air
    *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it.
    *
-   *  A PRESS MOVING A BOUND FIELD WAITS FOR THE ONE BEFORE IT on its graphic. The new figure is
-   *  written only once the event has gone, a round trip after the press, so a second Goal pressed
-   *  inside that round trip counted from the same tree and wrote the same figure: two goals, one
-   *  point (production-page refactor S1, e2e/configured/playout-adjust-race.spec.ts). It counts
-   *  from the tree the press before it left. The wait ends with a send's own window
-   *  (failedSends.ts), so a link that never answers cannot hold the next press: past it the press
-   *  counts from the tree as it stands. A press moving no bound field never waits. */
+   *  A press moving a bound field waits for the one before it on its graphic (`afterBoundPress`). */
   const fireEvent = (button: ControlButton): Promise<void> => {
     if (!selectedGraphic || !selectedLayerLive) return Promise.resolve();
     const graphic = selectedGraphic;
     const bound = boundFields(graphic);
-    if (!movedKeys(button).some((key) => bound[key])) return pressEvent(button, graphic);
-    const before = boundPresses.current.get(graphic);
-    const waited = before ? Promise.race([before, new Promise<void>((resolve) => setTimeout(resolve, RESEND_WINDOW_MS))]) : Promise.resolve();
-    const press = waited.then(() => pressEvent(button, graphic));
-    // The next press waits for this one whether or not it failed.
-    const settled = press.catch(() => {});
-    boundPresses.current.set(graphic, settled);
-    void settled.then(() => {
-      if (boundPresses.current.get(graphic) === settled) boundPresses.current.delete(graphic);
-    });
-    return press;
+    if (!movedKeys(button).some((key) => bound[key])) return pressEvent(button, graphic, bound);
+    return afterBoundPress(graphic, () => pressEvent(button, graphic, bound));
   };
-  const pressEvent = async (button: ControlButton, selectedGraphic: string) => {
+  const pressEvent = async (button: ControlButton, selectedGraphic: string, bound: Record<string, string>) => {
     await flushDraft(); await history.closeGroup();
     const values = airValues();
-    const bound = boundFields(selectedGraphic);
-    // The newest tree, through the ref the previous press's write already moved: `resolved` is a
-    // render behind it.
-    const boundNow = resolveBindings(liveDataRef.current, bindings)[selectedGraphic] ?? {};
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it: a
     // graphic playing its goal animation while the figure the production follows stayed put is
     // worse than a press that plainly did not happen.
@@ -3987,9 +4003,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // field is neither: it reads from the production tree, because that is the one figure every
     // graphic bound to the path is showing (plan §2.7).
     const moved = new Set(movedKeys(button));
+    const boundValues = boundNow(selectedGraphic);
     const { payload, fields: adjusted, tree } = pressSend(button, bound, (key) =>
       bound[key]
-        ? boundNow[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
+        ? boundValues[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
         : moved.has(key)
           ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : ''))
           : values[key],
