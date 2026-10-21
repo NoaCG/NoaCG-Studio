@@ -72,8 +72,21 @@ changes a spec's digest.
   - Not in this phase (C2): writing `bindings`/`sources` to the published row at connect. A field
     connected after publishing reaches air after the next publish, as every binding does today;
     until then the reader's writes are refused by the door and the page notes it.
+  - `/check` review fixes: a pasted link mints a new source each read (a second Connect never
+    reuses the first source's record); a read answering after the review closed or after a newer
+    read is dropped; the PREVIEW overlay clears when the review closes or unmounts; a reader whose
+    lease lapsed mid-read (a sleeping laptop) keeps reading instead of stopping; an answer that
+    arrives after Pause writes nothing; a source no field follows is dropped by the one binding
+    write whichever door unbound it; `/spreadsheets/u/<n>/d/<id>` links parse. Simplify moved the
+    source-path helpers (`sourcePrefix`, `isSourcePath`, `sourceIdOf`, `sourcePaths`) and the
+    review's choice rule (`chosenPath`) into `productionData.ts`, put the field-kind check into
+    `proposeMapping`, and mounts the review only while it is open.
+  - Not changed (simplify reports, judged not worth it here): the lease is a few small
+    localStorage reads per source per read; moving the lease storage into model/ would add a file.
 - **Extra files.** `e2e/configured/production-data-key-sheet.spec.ts` (new) and
   `e2e/configured/expected-run.json` (110 to 111) are the configured row's files.
+  `src/model/teamShowMerge.ts` gains one label (`sources: 'the data sources'`) so a team merge
+  conflict on the new field reads in words.
 - **Traps.**
   - A button inside `.pd-bound-mark` is unclickable: the mark is clipped to its column with an
     ellipsis. Keep the mark short and put actions under the field.
