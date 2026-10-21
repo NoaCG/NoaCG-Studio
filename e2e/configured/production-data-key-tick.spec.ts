@@ -134,7 +134,9 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
     if (error) throw new Error(error.message);
     // The other page wins the race: the row is written before this page's first write runs.
     let held: (() => void) | null = null;
-    await page.route(/\/rest\/v1\/control_shows\?.*sources=is\.null/, async (route) => {
+    // The page's only write of the row on opening is its first sources.
+    await page.route(/\/rest\/v1\/control_shows\?/, async (route) => {
+      if (route.request().method() !== 'PATCH') return route.continue();
       await new Promise<void>((resolve) => (held = resolve));
       await route.continue();
     });
@@ -145,7 +147,7 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
     held!();
     await page.waitForTimeout(2_000);
     expect((await row(showId)).sources.map((s) => (s as { label?: string }).label)).toEqual(['Set by another page']);
-    await page.unroute(/\/rest\/v1\/control_shows\?.*sources=is\.null/);
+    await page.unroute(/\/rest\/v1\/control_shows\?/);
   }
 
   // A row still without sources gets this page's once, and its reader reads under the row's lease.

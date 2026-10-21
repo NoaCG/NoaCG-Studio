@@ -92,7 +92,9 @@ changes a spec's digest.
     `canonical`), since a record read back from the server reorders its keys.
   - `control_shows.sources` is NULL until first written (0097 adds it with no default): a row
     published before it holds no sources, and the page opening it writes its own once
-    (`publishedSourcesUnwritten`); a written row, even an empty one, is never overwritten on open.
+    (`firstPublishedSources`, an update conditional on sources still being NULL, retried under the
+    same condition), so it never replaces sources another page wrote meanwhile; a written row, even
+    an empty one, is never overwritten on open.
   - Trap: React runs each effect twice in development with its refs kept, so "skip the first
     value" must treat that first value, seen again before any change, as no change. Without it the
     dev server wrote the opening value at once and hid both this and the never-written case from
