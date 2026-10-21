@@ -1,4 +1,5 @@
-import type { Dispatch, ReactNode, Ref, SetStateAction } from 'react';
+import { useState, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
+import { saveAs } from 'file-saver';
 import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, nextFreeLayer, setShowGraphicLayer, type Show, type ShowCue } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
@@ -9,6 +10,8 @@ import { FieldRow, type FieldImage } from '../fields/FieldControl';
 import CueOverflowNote from './CueOverflowNote';
 import { nameList } from './CueRundown';
 import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspace';
+import LibMenu from './LibMenu';
+import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
 
 /** The edited cue's text, as the page's draft shows it. */
 export interface CueEditorView {
@@ -17,10 +20,80 @@ export interface CueEditorView {
   values: Record<string, string>;
 }
 
+/** A file name a spreadsheet will not argue with, from the graphic's own name. */
+function csvName(graphic: string, what: string): string {
+  return `${graphic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'graphic'}-${what}.csv`;
+}
+
+const downloadCsv = (text: string, name: string) => saveAs(new Blob([text], { type: 'text/csv;charset=utf-8' }), name);
+
+/**
+ * "Fill from… Paste rows" on a list field (data-sources C1a, AC-4): cells pasted from a
+ * spreadsheet or lines from a document, read by the field's format adapter
+ * (control/contentFormats.ts) into the text the graphic parses. The rows are listed with any
+ * malformed one flagged before anything changes; Fill writes the cue's draft in one edit (both
+ * fields of a standings board), so the preview shows it and the draft saves it as any edit. No
+ * account and no source record. The starter download is the same rows the other way: the field's
+ * current content, with the adapter's header.
+ */
+function CueRowsFill({
+  format,
+  values,
+  graphicName,
+  onFill,
+}: {
+  format: ListFormat;
+  values: Record<string, string>;
+  graphicName: string;
+  onFill: (values: Record<string, string>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const fill = text.trim() ? fillList(format, pastedCells(text)) : null;
+  return (
+    <span className="lib-menu-host pd-fill-from">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="cue-rows-from">
+        Fill from…
+      </button>
+      <LibMenu open={open} onClose={() => setOpen(false)} testid="cue-rows-menu" role="dialog">
+        <p className="hint">Paste rows</p>
+        <textarea value={text} rows={5} aria-label="Rows" onChange={(e) => setText(e.target.value)} data-testid="cue-rows-paste" />
+        {fill && (
+          <ol className="hint" data-testid="cue-rows-preview">
+            {fill.rows.map((r, i) => (
+              <li key={i} className={r.problem ? 'status-warn' : undefined} data-testid={r.problem ? 'cue-rows-flag' : 'cue-rows-row'}>
+                {r.text || '·'}
+                {r.problem && ` - ${r.problem}`}
+              </li>
+            ))}
+          </ol>
+        )}
+        <button
+          type="button"
+          disabled={!fill}
+          onClick={() => {
+            if (!fill) return;
+            onFill(fill.values);
+            setText('');
+            setOpen(false);
+          }}
+          data-testid="cue-rows-fill"
+        >
+          Fill this cue
+        </button>
+        <button type="button" onClick={() => downloadCsv(starterCsv(format, values), csvName(graphicName, 'rows'))} data-testid="cue-rows-starter">
+          ⬇ Starter rows
+        </button>
+      </LibMenu>
+    </span>
+  );
+}
+
 /**
  * THE CUE EDITOR of a graphic cue: its title, the unsent line, the setup fold, the data-row
- * loader, the field bands (with the message body's "Fill from…" menu, data-sources C0), the
- * operator note, how the cue ends, the playout layer and the sound.
+ * loader, the field bands (with the message body's "Fill from…" menu, data-sources C0, and a
+ * list field's "Fill from… Paste rows", C1a), the operator note, how the cue ends, the playout
+ * layer, the graphic's data template and the sound.
  *
  * Props only: the page derives every value and owns every piece of state, the draft included;
  * edits go back through `editDraft`, `setShows` and the setters handed in. The ends row and the
@@ -139,6 +212,10 @@ export default function CueEditor({
   /** The cue's sound (home/ProductionSounds), built by the page. */
   sounds: ReactNode;
 }) {
+  // What the cue shows now, field by field, as the band headings read it: starter rows and the
+  // data template both start from it. A bound field is not a cue value, so a fill skips it.
+  const currentValues = Object.fromEntries(Object.entries(headingValues).map(([k, v]) => [k, String(v)]));
+  const bound = boundFields(selectedGraphic);
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
       onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
@@ -345,6 +422,23 @@ export default function CueEditor({
                       }
                     />
                   );
+                  // A LIST FIELD offers "Fill from… Paste rows" (data-sources C1a). A standings
+                  // board's two fields fill together, from its rows field.
+                  const format = listFormatFor(poolGraphic, d.key);
+                  if (editingCue && format?.main === d.key) {
+                    return (
+                      <div className="pd-field-with-fill" key={d.key}>
+                        {field}
+                        <CueRowsFill
+                          key={editingCue.id}
+                          format={format}
+                          values={currentValues}
+                          graphicName={poolGraphic.name}
+                          onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !bound[k])) })}
+                        />
+                      </div>
+                    );
+                  }
                   // A MESSAGE BODY offers "Fill from…": paste or pick a message into this
                   // cue, through the same staging Messages uses (data-sources C0).
                   if (!editingCue || !isMessageBodyField(show, poolGraphic.id, d.key)) return field;
@@ -418,6 +512,19 @@ export default function CueEditor({
                 data-testid="graphic-layer"
               />
             </label>
+            {/* THE DATA TEMPLATE (data-sources C1a, AC-13): every value of this graphic as
+                `Field ID,Label,Value`, keyed by id so a reordered row or a renamed label still
+                reaches its field. A spreadsheet coerces "007" and "=1+1" unless told not to. */}
+            <div className="row" style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => downloadCsv(scalarTemplateCsv(scalarFields(poolGraphic, descriptors), currentValues), csvName(poolGraphic.name, 'data-template'))}
+                data-testid="cue-data-template"
+              >
+                ⬇ Data template
+              </button>
+              <span className="muted">In Google Sheets, import it with “Convert text to numbers, dates and formulas” off.</span>
+            </div>
             {sharingLayer && (
               <p className="status-warn pd-layer-clash" data-testid="layer-clash">
                 {nameList(sharingLayer.map((g) => g.name))} share layer {editedLayer}. On air

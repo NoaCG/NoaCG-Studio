@@ -5,6 +5,68 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 6, data-sources C1a: format adapters, Paste rows, starter data
+
+- **Previous verified `main` sha:** `66c5f81948e7d37b2b8a0557e61c0b65c43206f5` (row 5, phase 13a,
+  #1575).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No persisted format changes. Migration 0096
+  is a self-check only (no table, column, function, grant or row), so a revert leaves it applied
+  and harmless; nothing has to be undone in the database.
+- **Decisions.**
+  - The adapters live in `src/control/contentFormats.ts`, pure and Node-importable (they import
+    `model/csv.ts` with its `.ts` extension, §5.2). They take rows of cells, so C1b's Sheet CSV
+    and this phase's paste go through the same functions. Pasted text with a tab is read as a
+    spreadsheet selection; without a tab, each line is one cell. A quoted cell is unquoted only
+    when its closing quote ends the cell (and, without tabs, only when it spans a line break, as
+    one copied column brings it), so a headline that opens with a quotation stays as typed.
+    Review and assessment A each found a paste-reading defect here; both are fixed and tested. A single cell holding a pipe ("20:00 | News") is
+    split for schedule and standings, so lines copied from a document work too.
+  - A field's adapter is decided by what the graphic is, never by a field title the operator can
+    rename: `ticker` f0 lines, `end-credits` f0 credits, an `infographic` whose runtime draws
+    `.infographic-time` (the shared schedule runtime) f0 schedule, a `results-board` whose
+    runtime draws `-row-cells` (the shared standings runtime) f2 rows and f3 headers.
+  - Choices the spec left open: a third cell on a ticker row, or on a schedule row, is flagged
+    and dropped rather than joined; a schedule row missing a half is written as it is and flagged,
+    so the board drops it on air as its parser always has; credits read the raw cell count, so
+    "Camera<TAB>" is "Camera:" while a lone "Camera" line from a document passes through in the
+    credits grammar; the standings starter's first header cell is "Name"; blank rows at the ends
+    are trimmed, interior blank rows kept for lines and credits (they close a kicker, break a
+    section) and dropped for schedule and standings.
+  - "Fill from… Paste rows" is a small component in `CueEditor.tsx` beside C0's message Fill.
+    It lists the resulting lines with malformed rows flagged and changes nothing until Fill; Fill
+    is one `editDraft` with every field the adapter owns (both standings fields in one edit), so
+    the preview shows it and the draft saves it like any edit. A bound field shows no Fill (it is
+    read-only, as before). The same menu downloads starter rows: the field's current content with
+    the adapter's header.
+  - The data template (`Field ID,Label,Value`) is downloaded from the cue editor's Advanced
+    section (graphic-level, closed by default; C1b's header "Connect data…" is where the import
+    lands). It carries every scalar field except pictures and the list fields an adapter owns,
+    with the cue's value, the bound value where bound, else the default. The parser is
+    `parseScalarCsv`; nothing in the UI reads a template back yet (that is C1b's Connect).
+  - **Extra files.** `supabase/migrations/0096_merge_patch_empty_list.sql` and
+    `scripts/production-data-migration.test.mjs`: the gate puts the `""`-over-a-list case in
+    `scripts/merge-patch-conformance.mjs`, and that table must be answered by the plpgsql merge
+    too. 0048 embeds the table and is applied history (never edited), so 0096 calls
+    `jsonb_merge_patch` on the added case, and `production_data_format('""')` (an empty string
+    writes, an empty array does not). The binding test now reads 0048's cases followed by those
+    of each later conformance migration it lists. `scripts/fixtures/show-saved-before-c1a.json`
+    is the fixture the spec names.
+  - The fixture was made by driving this branch's app with Playwright (a temporary spec, not
+    committed): Hairline with an embedded Sheet block appended through `liveDataBlock` and f0
+    bound to `guest.name`, News Strip with a tab kicker, a seed and the live tree (`saveLiveData`,
+    what Reset to seed does), a roster table, then Take on both and the PROGRAM text read back.
+    This branch changes no persisted code, so it is what `main` at `66c5f81` saves.
+    `show-fixture-compat` type-checks the record against `Show` with the compiler (an unknown or
+    retyped field fails, checked by mutation), resolves it to the text PROGRAM showed, and checks
+    the adapters leave its saved list exactly as it is. Later phases extend it.
+- **Traps.**
+  - The cloud machine refuses a direct `npx playwright test`; every browser run goes through
+    `node scripts/jobs.mjs add … --cap`.
+  - Commit messages here must not carry `Co-Authored-By` trailers (the commit hook refuses them).
+  - A program-monitor locator needs the graphic's `iframe[title=…]`: with several graphics on
+    air, `[data-testid="program-stage"] iframe` matches one frame per layer.
+
 ## Row 5, phase 13a: props-only cue editor extraction
 
 - **Previous verified `main` sha:** `7ac4b22159ef3cb120271123599f70fda9fa559f` (row 4, phase 2+7,
