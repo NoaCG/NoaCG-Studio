@@ -142,8 +142,8 @@ test('Data opens on an overview of sources and values in the one vocabulary, and
   await expect(name.getByTestId('data-item-value')).toHaveValue('Ann Lee');
   await expect(name.getByTestId('data-item-users')).toHaveText('Shown by Hairline');
   // A cell with a line break is read here, never typed into a one-line box that would flatten it.
-  const title = overview.getByTestId(/^data-item-sheet\..*\.values\.Title$/);
-  await expect(title.getByTestId('data-item-value')).toHaveText('2 lines: Chief … · edit it in the Sheet');
+  const lines = overview.getByTestId(/^data-item-sheet\..*\.values\.Title$/);
+  await expect(lines.getByTestId('data-item-value')).toHaveText('2 lines: Chief … · edit it in the Sheet');
 
   // The default surface speaks the one vocabulary.
   const words = await data.getByTestId('production-data').evaluate((el) => (el as HTMLElement).innerText);
