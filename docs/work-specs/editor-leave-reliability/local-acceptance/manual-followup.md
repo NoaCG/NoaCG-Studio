@@ -1,6 +1,10 @@
 # Owner-operated local follow-up
 
-2026-10-20. **PARTIAL / INCOMPLETE. Whole Phase 2 acceptance remains pending.**
+2026-10-20 through 2026-10-21. **Approved local leg COMPLETE on pinned 12ecc;
+owner-operated profile handoff PASS.** The parent Phase 2 contract and its
+historical qualifications are not rewritten here. The chronology below preserves
+all earlier failed and incomplete admissions; the latest local result is
+[ready-handoff.json](ready-handoff.json).
 Product source remains `12eccdd8533ba710f0917cb3bcc78101070ecca8`.
 This follows the [stopped automation receipt](README.md); its original failure,
 queue record, deadline and retry count are unchanged. These are later manual
@@ -390,3 +394,77 @@ The cleanup tab was closed and a local ignored deletion screenshot retained.
 No alternate route was used after the automatic refusal. Usage before deletion
 may still be billed; no zero-invoice claim is made. The stopped run and missing
 profile proof remain unchanged, and no new admission was started by cleanup.
+
+## Owner-present profile handoff completed
+
+The owner explicitly resumed with time to perform the browser steps. Current
+worktree, queue, port and owner audits found no competing editor work or active
+authoring tab. Git and Actions reads passed separately; supported repository/PR
+GraphQL reads pinned #1537's merge to 12ecc. Main was now `66c5f81948e7d37b2b8a0557e61c0b65c43206f5`
+and was not adopted or qualified. Product, maintained tests, scripts, workflows,
+migrations and packages remained identical to 12ecc. All 32 group cases retain
+their original Git blob. No write/dispatch qualification follows from reads.
+
+At 2348 MiB free, the dashboard created the new disposable branch
+`codex-p2-handoff-ready-12ecc-20261021`, without production data. The normal
+unchanged wrapper with official pinned CLI 2.111.0 and branch-only 0085 allowance
+applied all nineteen pending migrations once. Quiet-window and exact ledger
+addition checks passed, with +19/-0 rows; readback showed 92 migrations through
+0094, zero users and zero documents. The separate automatic deployment remained
+`MIGRATIONS_FAILED`, not a successful pipeline repair. No SQL or guard changed.
+
+Fresh job `j-4663` used the same sweep cost 1, twelve-minute cap and approved
+1536 MiB process-local manual admission floor. Admission measured 2195 MiB;
+setup recorded 2294 MiB. One fresh disposable account was created, with the
+privileged key confined to server memory. No credential file, printed key,
+privileged browser value, production targeting, Docker or headless suite followed.
+
+One visible sign-in reached an empty Synced workspace. A `Page.getFrameTree`
+observation timed out; screenshot and fresh accessibility read confirmed that
+successful state without repeating sign-in. The owner selected the existing ZIP
+through the Windows picker and reported `Imported`. The browser independently
+showed the expected text, source format and two operator fields. The imported
+editor retained four layers and its Name rotation key at 1.26 seconds.
+
+An initial numeric Save click produced no visible result while the editor header
+hydrated and the window layout differed from the earlier screenshot. Read-only
+inspection showed `Not saved`, with no naming dialog. Retargeting the current
+Save button by its accessible name opened naming; one modal Save settled to
+`Saved`. Both input interactions remain recorded, with no established product
+cause for the no-effect action. No maintained test or profile assertion was rerun.
+Home then showed one graphic and `Sync: Synced`. Cloud readback independently
+found the exact graphic and associated project under this disposable account.
+The first authoring tab was closed before the second profile was requested.
+
+The owner opened Chrome Incognito, signed into that same fresh account, opened
+`P2 handoff ready 12ecc` from Home and chose Edit graphic. Asked to inspect before
+editing, the owner replied **`All three confirmed`**: text `Phase 2 local check`
+in the same position and tilt, Name rotation key at 1.26 seconds, and no error.
+This is owner-operated and reported local profile evidence; the controller did
+not independently observe Incognito. It is not physical-device proof, and no ZIP
+reimport in the second profile substituted for opening the saved cloud graphic.
+
+The coordinator immediately requested successful finish at 10:38:40.376 UTC.
+The queue recorded **done, exit 0**, after 469473 ms, within the original cap.
+The server stopped, the queue had no live jobs and the exact owned runner had
+already exited when checked. Original jobs j-4653/j-4660/j-4661/j-4662 and their
+failed or incomplete results are unchanged; this successful owner-present
+handoff is not a repair of their controller failures or timeouts.
+
+At this specific branch's dashboard unrecoverability warning, the owner replied
+`Closed Incognito; approve deletion`. The same dashboard route deleted the branch.
+At 10:44:59 UTC, fresh connector listing returned only main and the dashboard
+showed no preview branches. The cleanup tab was closed and a local ignored
+deletion screenshot retained. Usage before deletion may still be billed; no
+zero-invoice claim follows. See [ready-handoff.json](ready-handoff.json),
+[terminal queue record](ready-handoff-queue-final.json),
+[manual log](ready-handoff-log.txt) and
+[normal migration stdout](ready-migrations-log.txt).
+
+This completes the approved local checklist on 12ecc using the earlier native,
+125%, cumulative editing, archive-preservation, animation, Save/leave and
+reload/reopen evidence plus this sequential profile result. It does not change
+the parent contract, close an issue, qualify newer main, claim a physical host,
+erase original failures, restart historical diagnosis, activate quarantine,
+authorize Phase 3 or land this evidence. The final whole-phase scope/contract
+decision must retain those qualifications and the already approved deferrals.
