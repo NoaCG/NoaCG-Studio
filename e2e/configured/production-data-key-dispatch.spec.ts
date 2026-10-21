@@ -1,4 +1,5 @@
 // covers: src/components/home/ProductionPage.tsx, src/control/productionDataApi.ts
+// covers: src/components/home/CueEditor.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // A PUBLISHED PRODUCTION OPENED COLD DOES NOT PUSH ITS LOCAL TREE WHILE ITS DATA KEY IS UNREAD

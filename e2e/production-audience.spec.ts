@@ -1,5 +1,6 @@
 // covers: src/components/home/ProductionAudienceWorkspace.tsx
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// covers: src/components/home/CueEditor.tsx
 // focus
 //
 // The readable audience name is minted by the publish path but READ on the audience surfaces, and

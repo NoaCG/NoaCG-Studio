@@ -8,6 +8,7 @@
 // table, the clash door and the list following the air. The stylesheet half reaches it through the
 // focus set, like the fixed-panes spec.
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // THE RUNDOWN'S WIDTH AND ITS ONE-LINE ROWS (docs/CLIP_PLAYBACK_PLAN.md phase 1). The row layout

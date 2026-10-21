@@ -1,4 +1,5 @@
 // covers: src/control/cueAuto.ts, src/components/home/{CueTiming,CueRundown,ProductionPage,PlayoutMonitors}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/components/playoutKeys.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts

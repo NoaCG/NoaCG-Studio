@@ -11,6 +11,7 @@
 // test follows the clip clock a panel counts down while a server clip plays, with NoaCG Bridge and
 // CasparCG faked at the network layer (e2e/_fakeBridge.ts) and only the relay real.
 // covers: src/components/home/ProductionPage.tsx, src/components/control/PanelControl.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/control/panelRelay.ts, src/control/panelFeedback.ts, src/control/serverPlayoutStore.ts
 // covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 

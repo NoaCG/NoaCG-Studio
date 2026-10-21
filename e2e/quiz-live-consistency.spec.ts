@@ -1,4 +1,5 @@
 // covers: src/components/{home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer},HostedControlPage}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/templates/**
 //
 // THE QUIZ ON AIR across every board: the Reveal's carried key, the two answer models, and
