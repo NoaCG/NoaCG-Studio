@@ -301,7 +301,15 @@ jobs:
       # stops a shard that runs long while it can still write that report and its traces: tests
       # it never reached come back as not run, a verdict, where the job's own timeout would cancel
       # the shard with nothing uploaded.
+      #
+      # TMPDIR ON THE RUNNER'S DISK. The runner's /tmp is a 7.9 GB tmpfs, and Playwright starts
+      # Chromium with --disable-dev-shm-usage, so Chromium's shared memory lives in TMPDIR. A dev
+      # server page load holds 1 to 1.5 GB of it for a few seconds, and back-to-back loads stack;
+      # with traces and the CLI's own browser in the same tmpfs it ran out, and module loads
+      # failed with ERR_INSUFFICIENT_RESOURCES (issue 1574).
       - name: Configured E2E suite against staging
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: >-
           npm run test:e2e:live -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
           --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure || true
