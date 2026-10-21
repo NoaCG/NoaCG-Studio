@@ -11,14 +11,15 @@
 // stale local tree on this machine, holds the key's read, moves the server's tree as a feed would,
 // and reads the log: no row without `src` at any point, and the feed's rows after the release.
 //
-// Measured 2026-10-21: removing the guard fails this walk (16 rows of the page's own after the
-// release). Reading `undefined` as unpublished does not, because a published page also holds an
-// empty tree until its key and the server's tree have both been read, so the held window has
-// nothing to send; the walk pins that window by its outcome either way.
+// The held window has something to send only if the tree moves on a page whose key is unread: a
+// published page holds an empty tree until its key and the server's tree are read. An edit on the
+// Data workspace does it, since that tab takes an unread key as unpublished and holds the edit.
+// Mutation-tested: removing the guard, or reading `undefined` as unpublished, fails this walk.
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { openWorkspace } from '../_workspace';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
@@ -86,7 +87,8 @@ test('while the data key is unread, the page appends no update of its own; the f
   let keyReads = 0;
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
-  await page.route(/\/rest\/v1\/control_shows\?[^#]*select=data_key/, async (route) => {
+  // On the CONTEXT, so the Data workspace's own tab, opened below, waits for its key as well.
+  await page.context().route(/\/rest\/v1\/control_shows\?[^#]*select=data_key/, async (route) => {
     keyReads += 1;
     await released;
     await route.continue().catch(() => {});
@@ -94,6 +96,16 @@ test('while the data key is unread, the page appends no update of its own; the f
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => keyReads, { message: 'the page asked for its data key' }).toBeGreaterThan(0);
+
+  // The operator edits the tree on the Data workspace while its key is unread there too. That
+  // tab holds the edit as its tree (`setLiveData` takes an unread key as unpublished), so its
+  // bindings resolve to a value, and only the dispatch guard keeps it off the log.
+  const data = await openWorkspace(page, 'data');
+  await expect.poll(() => keyReads, { message: 'the Data tab asked for its data key' }).toBeGreaterThan(1);
+  await data.getByTestId('data-new-path').fill(PATH);
+  await data.getByTestId('data-new-value').fill('5');
+  await data.getByTestId('data-add').click();
+  await expect(data.getByTestId(`data-row-${PATH}`)).toBeVisible();
 
   // The feed moves the tree while the key is still unread here.
   await page.evaluate(async (key) => {
@@ -106,6 +118,7 @@ test('while the data key is unread, the page appends no update of its own; the f
   expect(held.some((row) => row.src !== null), 'the feed row is on the log').toBe(true);
 
   release();
+  await data.close();
   // The key and the server's tree are read: the bound box shows the feed's figure.
   const bound = page.getByTestId('cue-bound-f1').locator('input');
   await expect(bound).toHaveValue('2', { timeout: 20_000 });
@@ -118,6 +131,8 @@ test('while the data key is unread, the page appends no update of its own; the f
   const all = (await updates()).filter((row) => row.id > afterId);
   expect(all.filter((row) => row.src === null), 'no update row of the page own after the key resolved either').toEqual([]);
   expect(all.filter((row) => row.src !== null).length, 'both feed moves are on the log').toBeGreaterThanOrEqual(2);
-  expect(all.flatMap((row) => Object.values(row.data)).map(String), 'the stale local figure never reached the log').not.toContain('77');
+  const figures = all.flatMap((row) => Object.values(row.data)).map(String);
+  expect(figures, 'the stale local figure never reached the log').not.toContain('77');
+  expect(figures, 'the edit made while the key was unread never reached the log as the page own').not.toContain('5');
 
 });

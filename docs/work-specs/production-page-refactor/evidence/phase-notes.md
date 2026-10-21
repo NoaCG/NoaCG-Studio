@@ -32,9 +32,11 @@ changes a spec's digest.
     seeded value (`cue-bound-<field>`) before Take, or the Take carries the tree it held.
   - Holding a resolve's REQUEST lets the read reach the server after the Take, so the answer is
     not stale; hold the ANSWER (`route.fetch()`, then fulfil late).
-  - A published page holds an empty tree until its data key and the server tree are read, so the
-    `dataKey === undefined` dispatch guard is backed twice; mutate the whole guard to see a walk
-    fail.
+  - A published page holds an empty tree until its data key and the server tree are read, so a
+    walk that only holds the key has nothing to dispatch. An edit on the Data workspace while its
+    key is unread moves that tab's tree (`setLiveData` takes an unread key as unpublished), which is
+    what makes `production-data-key-dispatch` fail when `undefined` is read as unpublished. Hold the
+    key on the context, so the workspace tab waits too.
   - Two graphics on PROGRAM are two iframes: read each layer's frame, never the bare locator.
   - Offline, a click or a key from outside the cue editor blurs it first and saves the draft; to
     walk inside the save wait, press SPACE from a checkbox field and hold IndexedDB writes open by
