@@ -1,4 +1,5 @@
 // covers: src/templates/**, src/components/{home,save}/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 //
 // WHICH GRAPHICS BELONG TO WHICH PRODUCTION. It reads the pool's `graphicId` back-link, so the
 // change most likely to break it is one to model/shows.ts - which escalates to the focus set rather

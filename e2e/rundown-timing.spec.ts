@@ -1,5 +1,6 @@
 // covers: src/control/cueAuto.ts, src/components/home/{CueTiming,CueRundown,ProductionPage,PlayoutMonitors}.tsx
 // covers: src/components/playoutKeys.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';

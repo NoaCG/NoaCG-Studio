@@ -8,6 +8,7 @@
 // shapes, and production-data.spec.ts pins the button's absence; both are different claims.
 // covers: src/control/productionDataApi.ts, src/components/home/ProductionDataPanel.tsx
 // covers: api/data/**, scripts/dataDevPlugin.mjs
+// covers: src/control/productionDataSession.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';

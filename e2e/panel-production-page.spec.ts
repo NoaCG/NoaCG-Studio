@@ -1,5 +1,6 @@
 // covers: src/components/control/{PanelControl.tsx,panel.css}
 // covers: src/components/home/ProductionPage.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // HARDWARE PANELS ON THE PRODUCTION PAGE, OFFLINE (docs/work-specs/hardware-panel-control/spec.md
 // D6; protocol.md §6): what can be checked without a backend. The Panel door is in the header's

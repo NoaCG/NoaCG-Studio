@@ -55,3 +55,25 @@ test('apply runs its fold while alive and is a no-op after disposal', () => {
   });
   assert.equal(folds, 1);
 });
+
+test('a new session holds the data part at "not yet known", with no optional capability', async () => {
+  const { NO_DATA } = await import('../src/control/playoutSession.ts');
+  const session = createPlayoutSession('prod-1');
+  assert.equal(session.data.get(), NO_DATA);
+  assert.deepEqual(NO_DATA, { liveData: {}, dataKey: undefined, treeRead: false });
+});
+
+test('apply moves the parts in one fold, and a part\'s listeners hear only its own change', () => {
+  const session = createPlayoutSession('prod-1');
+  let heard = 0;
+  session.data.subscribe(() => (heard += 1));
+  session.apply((parts) => parts);
+  assert.equal(heard, 0, 'a fold that moves nothing is heard by nobody');
+  session.apply((parts) => ({ ...parts, data: { ...parts.data, dataKey: null } }));
+  assert.equal(heard, 1);
+  assert.equal(session.data.get().dataKey, null);
+  session.dispose();
+  session.apply((parts) => ({ ...parts, data: { ...parts.data, dataKey: 'late' } }));
+  assert.equal(session.data.get().dataKey, null, 'a fold after disposal changes nothing');
+  assert.equal(heard, 1);
+});

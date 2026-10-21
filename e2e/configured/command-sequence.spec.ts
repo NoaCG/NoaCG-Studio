@@ -10,6 +10,7 @@
 // covers: src/output/main.ts, src/components/HostedControlPage.tsx, src/control/commandRoads.ts
 // covers: supabase/migrations/0069_control_heads.sql, supabase/migrations/0070_seq_topic.sql
 // covers: supabase/migrations/0071_command_sequence.sql
+// covers: src/control/liveCue.ts, src/control/cueItems.ts
 //
 // Measured before this existed (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.6): a Take held 6 s on its
 // way to the database, with the Out pressed 1.5 s behind it, aired AFTER the Out, and air ended

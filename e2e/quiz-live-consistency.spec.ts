@@ -5,6 +5,7 @@
 // which road a clock-free graphic's events take. Its sources are the two control lists, the
 // imported quiz recipe, the road rule and its clock test, and the two pages that send.
 // covers: src/{templates/{types/{answerBoard,quizShow},behaviours/quiz},control/{hostedControl,matchClockWire}}.ts
+// covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // Every catalog quiz and the imported docs quiz: a key corrected on air lights with Reveal,
 // the two answer models stay what they are, and a clock-free event takes the fast road.

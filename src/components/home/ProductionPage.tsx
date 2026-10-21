@@ -94,6 +94,8 @@ import {
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { createPlayoutSession } from '../../control/playoutSession';
+import { createProductionDataSession } from '../../control/productionDataSession';
+import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
@@ -101,15 +103,7 @@ import { folderStep, stepFace, type FolderStep, type StepMember } from '../../co
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
-import {
-  diffResolved,
-  replacementPatch,
-  resolveBindings,
-  withTreeWrites,
-  type JsonObject,
-  type ResolvedValues,
-  type TreeWrite,
-} from '../../model/productionData';
+import { resolveBindings, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, saveLiveData, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import {
   fetchProductionData,
@@ -1449,194 +1443,34 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
-  // Held on THIS page rather than in the Data workspace, because the one sender lives here and
-  // the Data tab unmounts the playout surface. Runtime state: it is read from and written to
-  // productionState.ts, never to the show record, which syncs and would churn per tick. The
-  // DISPATCH half sits further down, beside `runVerb`.
-  const [liveData, setLiveDataState] = useState<JsonObject>({});
-  /** The tree as it is RIGHT NOW, for callbacks that must not close over a stale render. */
-  const liveDataRef = useRef<JsonObject>(liveData);
-  liveDataRef.current = liveData;
-  /** The server re-read, reachable from the log follower — which is declared above the callback
-   *  it needs, because the follower must be in place before the wire's first row arrives. */
-  const refreshRef = useRef<() => Promise<void>>(async () => {});
-  /** What was last put on the wire, per graphic per field — the diff baseline (see the effect). */
-  const lastResolved = useRef<ResolvedValues>({});
-  useEffect(() => {
-    // The local tree seeds an UNPUBLISHED production only. Published, the server's copy is the
-    // authority and arrives a moment later - seeding from localStorage first would show the
-    // operator a stale tree and then swap it under them.
-    setLiveDataState(id && !hostedSlug ? loadLiveData(id) : {});
-    // A different production is a different tree AND a different baseline, so the next dispatch
-    // reconciles the new production from scratch rather than against the old one's values.
-    lastResolved.current = {};
-  }, [id, hostedSlug]);
-
-  /**
-   * THE LIVE TREE, WRITTEN IN ANOTHER TAB.
-   *
-   * The Data workspace opens in its own browser tab, and an UNPUBLISHED production's tree lives
-   * in localStorage (model/productionState.ts - deliberately not on the synced Show record).
-   * This page is the ONE sender: it holds the tree, resolves the bindings and dispatches the
-   * changes, precisely because the workspace has no route to air of its own. Split across tabs,
-   * a value typed on Data reached storage and stopped there - the operator watched PROGRAM keep
-   * the old score.
-   *
-   * `storage` fires in the OTHER tabs only, which is exactly the ones that need telling, and it
-   * carries the key so an unrelated write costs nothing. Published productions are untouched:
-   * there the server's copy is the authority and the API answer is what this page holds.
-   */
-  useEffect(() => {
-    if (!id || hostedSlug) return;
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== null && e.key !== PRODUCTION_DATA_KEY) return;
-      setLiveDataState(loadLiveData(id));
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [id, hostedSlug]);
-
-  /**
-   * PUBLISHED = the SERVER owns the tree. `control_shows.data` is what a feed writes and what
-   * the patch RPC merges against, so keeping a second copy in localStorage would be two truths
-   * with no tiebreak. The key is the owner's own, read over RLS (control/productionDataApi.ts
-   * says why that is not the "never a web page" case the integrator doc warns about).
-   *
-   * `undefined` means NOT YET KNOWN, and that is load-bearing: until the key has resolved, this
-   * page must not dispatch the local tree to air. A published production opened cold would
-   * otherwise spend one render believing it was offline and push the last LOCAL tree - stale
-   * values, briefly, on air.
-   */
-  const [dataKey, setDataKey] = useState<string | null | undefined>(undefined);
-  useEffect(() => {
-    let alive = true;
-    if (!hostedSlug || !backendConfigured) {
-      setDataKey(null);
-      return;
-    }
-    void productionDataKey(id).then((key) => {
-      if (alive) setDataKey(key);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [id, hostedSlug, backendConfigured]);
-
-  /**
-   * WHETHER THIS PAGE HOLDS THE PRODUCTION'S SHARED VALUES YET.
-   *
-   * Unpublished it is immediate: the tree comes out of localStorage in the effect above. Published
-   * it takes a key read and then a fetch, and until both have landed `liveData` is an empty object
-   * while `bindings` - which live on the show record - are already here.
-   *
-   * That gap is harmless for READING (a bound box shows nothing for a moment) and not harmless at
-   * all for a PRESS, because a press computes an ABSOLUTE value from what the tree says (plan
-   * §2.5). A `+1` fired in that window reads the score as missing, counts from zero, and writes 1
-   * to every graphic bound to the path - so opening the playout tab mid-show and pressing + would
-   * have put the whole production's score back to 1.
-   */
-  const [treeRead, setTreeRead] = useState(false);
-  useEffect(() => {
-    setTreeRead(false);
-  }, [id, hostedSlug]);
-
-  /** Pull the server's tree in - at mount, and whenever a FEED row says it moved. */
-  const refreshServerData = useCallback(async () => {
-    if (!dataKey) return;
-    const current = await fetchProductionData(dataKey);
-    if (current) {
-      setLiveDataState(current.data as JsonObject);
-      setTreeRead(true);
-    }
-  }, [dataKey]);
-  refreshRef.current = refreshServerData;
-  useEffect(() => {
-    void refreshServerData();
-  }, [refreshServerData]);
-
-  /**
-   * ONE CALL, ONE WRITE. This charges a persist - and, published, an HTTP PATCH against the
-   * production's ingest budget - every time it is called, and it deliberately does not coalesce:
-   * every caller it has is one deliberate gesture (a stepper, Apply JSON, Reset, Clear, Move
-   * numbers, a finished edit). A CALLER THAT FIRES AT KEYSTROKE RATE IS THE BUG, not this
-   * function's missing debounce. Deferring belongs at the box, because only the box knows which
-   * text a person currently owns - the three paths that replace `liveData` (the cross-tab
-   * `storage` listener, a PATCH answer, the failure handler's refresh) would otherwise land in
-   * whatever is being typed. `components/home/useDeferredEdits.ts` is that mechanism.
-   */
-  const setLiveData = useCallback(
-    (next: JsonObject) => {
-      // Optimistic either way, so typing stays immediate.
-      setLiveDataState(next);
-      if (!dataKey) {
-        saveLiveData(id, next);
-        return;
-      }
-      // Published: say the change as a PATCH - including the removals, which a merge patch can
-      // only express by naming them (model/productionData.ts replacementPatch). The ANSWER is
-      // what we then hold: a feed tick that landed in the same moment is already merged into
-      // it, so the operator's edit cannot silently overwrite the feed's.
-      const patch = replacementPatch(liveDataRef.current, next);
-      if (Object.keys(patch).length === 0) return;
-      void patchProductionData(dataKey, patch)
-        .then((server) => setLiveDataState(server as JsonObject))
-        .catch((error: Error) => {
-          setNote(`Production data not saved: ${error.message}`);
-          void refreshServerData();
-        });
-    },
-    [id, dataKey, refreshServerData],
+  // The tree, its key and its two write roads are the session's `data` part, written only by
+  // control/productionDataSession.ts, which says the rules. The page hands it the browser doors,
+  // enters the mode the show is in, and reads the part. The DISPATCH sits further down, beside
+  // `runVerb`, the sender it is handed.
+  const dataSession = useMemo(
+    () =>
+      createProductionDataSession(session, {
+        backendConfigured,
+        loadLiveData,
+        saveLiveData,
+        productionDataKey,
+        fetchProductionData,
+        patchProductionData,
+        patchProductionDataBySlug,
+        onStorage: (listener) => {
+          const onStorage = (e: StorageEvent) => {
+            if (e.key === null || e.key === PRODUCTION_DATA_KEY) listener();
+          };
+          window.addEventListener('storage', onStorage);
+          return () => window.removeEventListener('storage', onStorage);
+        },
+        note: setNote,
+      }),
+    [session, backendConfigured],
   );
-
-  /**
-   * A PRESS MOVING THE SHARED VALUE — the ± stepper and an event's `adjust` on a BOUND field
-   * (docs/PRODUCTION_DATA_PLAN.md §2.9's Phase 3, AC-7).
-   *
-   * It is a second door beside `setLiveData` rather than a flag on it, because the two are
-   * different actors with different budgets. `setLiveData` is the OWNER editing the tree on the
-   * Data tab, and it goes through the documented integrator endpoint with the owner's own data
-   * key. This is the OPERATOR pressing a button on the dashboard, and it goes through
-   * `control_data_patch_by_slug` (migration 0060) on the control slug they already hold — which
-   * writes its rows without the `src:'api'` mark, so an operator's `+1` spends the production's
-   * ordinary 50-per-5-s command budget and never the feed's 25-per-5-s ingest budget. "The
-   * operator keeps priority" is the reason that second cap exists; routing a press through it
-   * would have let a saturated feed refuse the operator's own score.
-   *
-   * WHICH WORLD WE ARE IN IS THE SLUG, not the key. A published production's tree lives on the
-   * server whether or not this page has managed to read its data key, so testing the key would
-   * have a failed key read (`productionDataKey` answers null on any error) quietly write a
-   * published production's shared values into localStorage, where nothing would ever air them.
-   * The unread case cannot reach here at all: `boundPressReady` below refuses the press first.
-   */
-  const patchBoundValues = useCallback(
-    async (writes: TreeWrite[]): Promise<void> => {
-      if (writes.length === 0) return;
-      const before = liveDataRef.current;
-      const next = withTreeWrites(before, writes);
-      const patch = replacementPatch(before, next);
-      if (Object.keys(patch).length === 0) return;
-      // Optimistic on both roads, so the figure on screen moves with the press - and through the
-      // ref as well as the state, because the NEXT press counts from it and a round trip is long
-      // enough for several.
-      liveDataRef.current = next;
-      setLiveDataState(next);
-      if (!hostedSlug) {
-        saveLiveData(id, next);
-        return;
-      }
-      try {
-        // The ANSWER is what we hold: a feed tick that landed in the same moment is already
-        // merged into it, so the press cannot silently overwrite the feed's write.
-        const server = (await patchProductionDataBySlug(hostedSlug, patch)) as JsonObject;
-        liveDataRef.current = server;
-        setLiveDataState(server);
-      } catch (error) {
-        setNote(`The shared value did not move: ${(error as Error).message}`);
-        void refreshServerData();
-      }
-    },
-    [id, hostedSlug, refreshServerData],
-  );
+  useEffect(() => dataSession.published(hostedSlug), [dataSession, hostedSlug]);
+  const { liveData, dataKey, treeRead } = useStorePart(session.data);
+  const { setLiveData, patchBoundValues } = dataSession;
 
   /** Refuse a press on a shared value this page cannot count from yet, and say why. Bound presses
    *  are the only thing that has to wait: everything else on this surface reads the cue. */
@@ -1653,7 +1487,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   resolvedRef.current = resolved;
   /** One graphic's bound values from the newest tree: the ref a press's write moves at once, where
    *  `resolved` waits for the next render. */
-  const boundNow = (graphic: string): Record<string, string> => resolveBindings(liveDataRef.current, bindings)[graphic] ?? {};
+  const boundNow = (graphic: string): Record<string, string> => resolveBindings(session.data.get().liveData, bindings)[graphic] ?? {};
 
   /**
    * A PRESS MOVING A BOUND FIELD WAITS FOR THE ONE BEFORE IT on its graphic, then counts from the
@@ -1924,7 +1758,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           // Durable only, and for a sharper reason: the patch RPC appends server-side and
           // broadcasts nothing.
           else if (msg.t !== 'staged' && msg.t !== 'cue' && typeof (msg as { src?: string }).src === 'string') {
-            void refreshRef.current();
+            void dataSession.refresh();
           }
           const entry = describeLogRow(row, cueLabel, eventLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
@@ -2353,32 +2187,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [sendVerb],
   );
 
-  /**
-   * PRODUCTION DATA, the dispatch half: put the CHANGES on the wire, and nothing else.
-   *
-   * Diffing is not an optimisation. The log caps a production at 50 commands per 5 s (migration
-   * 0008) and every row fans out over Realtime to the renderer and to every open operator page,
-   * so a tree with one moving value must cost ONE row rather than one per bound graphic per
-   * tick. The baseline starts empty on purpose: the first pass after opening the page (or after
-   * switching production) reconciles every bound field once, which is safe precisely because
-   * these are absolute values and re-sending one changes nothing.
-   */
+  /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
+   *  unpublished only (control/productionDataSession.ts `dispatch` says why). It runs whenever the
+   *  tree, its key or the bindings move. */
   useEffect(() => {
-    // PUBLISHED, the SERVER does this half: control_data_patch resolves the bindings and appends
-    // the update rows itself, and the log follower above brings them back here. Dispatching
-    // locally too would double every write - one row from the API, one from this page.
-    // `undefined` = the key has not resolved yet, so we do not know which world we are in and
-    // must not guess: guessing "offline" airs the stale local tree for a moment.
-    if (dataKey !== null) return;
-    const changes = diffResolved(lastResolved.current, resolved);
-    const graphics = Object.keys(changes);
-    if (graphics.length === 0) return;
-    lastResolved.current = resolved;
-    void runVerb(
-      [graphics.map((graphic) => ({ graphic, msg: { t: 'update' as const, data: changes[graphic] } }))],
-      'Data',
-    );
-  }, [resolved, runVerb, dataKey]);
+    dataSession.dispatch(bindings, runVerb);
+  }, [dataSession, liveData, dataKey, bindings, runVerb]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer

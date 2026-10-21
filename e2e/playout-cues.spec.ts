@@ -26,6 +26,7 @@
 // it goes out with the Take, the loop rule of the record, audio on its own layer, and a cue a Bridge
 // or server cannot honour kept off air with the reason.
 // covers: src/control/cuePlayback.ts
+// covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
