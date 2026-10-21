@@ -17,8 +17,10 @@ changes a spec's digest.
   - The adapters live in `src/control/contentFormats.ts`, pure and Node-importable (they import
     `model/csv.ts` with its `.ts` extension, §5.2). They take rows of cells, so C1b's Sheet CSV
     and this phase's paste go through the same functions. Pasted text with a tab is read as a
-    spreadsheet selection (`parseDelimited` with tab, so a quoted cell with a line break stays one
-    cell); without a tab, each line is one cell. A single cell holding a pipe ("20:00 | News") is
+    spreadsheet selection; without a tab, each line is one cell. A quoted cell is unquoted only
+    when its closing quote ends the cell (and, without tabs, only when it spans a line break, as
+    one copied column brings it), so a headline that opens with a quotation stays as typed.
+    Review and assessment A each found a paste-reading defect here; both are fixed and tested. A single cell holding a pipe ("20:00 | News") is
     split for schedule and standings, so lines copied from a document work too.
   - A field's adapter is decided by what the graphic is, never by a field title the operator can
     rename: `ticker` f0 lines, `end-credits` f0 credits, an `infographic` whose runtime draws

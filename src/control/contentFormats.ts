@@ -89,14 +89,16 @@ export function listFormatFor(graphic: Pick<SavedGraphic, 'type'> & { template: 
  */
 export function pastedCells(text: string): string[][] {
   const src = text.replace(/\r\n?/g, '\n');
-  if (!src.includes('\t')) return src.split('\n').map((line) => [line]);
+  // One copied column has no tabs, but still quotes a cell holding a line break; a document line
+  // that is merely in quotes keeps them.
+  const multilineOnly = !src.includes('\t');
   const rows: string[][] = [];
   let row: string[] = [];
   let i = 0;
   while (i <= src.length) {
     let cell = '';
     const quoted = src[i] === '"' ? quotedCell(src, i) : null;
-    if (quoted) {
+    if (quoted && (!multilineOnly || quoted.text.includes('\n'))) {
       cell = quoted.text;
       i = quoted.end;
     } else {

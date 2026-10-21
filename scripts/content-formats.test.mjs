@@ -50,6 +50,10 @@ test('a graphic field takes the adapter of what the graphic is, never of its tit
 test('pasted cells: a spreadsheet selection splits at tabs, a document gives one cell per line', () => {
   assert.deepEqual(pastedCells('a\tb\r\nc\td\n'), [['a', 'b'], ['c', 'd']]);
   assert.deepEqual(pastedCells('one\ntwo | three'), [['one'], ['two | three']]);
+  // One copied column: no tabs, but a cell with a line break still comes quoted.
+  assert.deepEqual(pastedCells('"Line one\nline two"\nNext'), [['Line one\nline two'], ['Next']]);
+  // A document line that is merely in quotes keeps them.
+  assert.deepEqual(pastedCells('"Quoted headline"\nNext'), [['"Quoted headline"'], ['Next']]);
   // A cell holding a line break comes quoted from a spreadsheet, and stays one cell.
   assert.deepEqual(pastedCells('"two\nlines"\tx'), [['two\nlines', 'x']]);
   assert.deepEqual(pastedCells('"say ""hi"""\tx'), [['say "hi"', 'x']]);
