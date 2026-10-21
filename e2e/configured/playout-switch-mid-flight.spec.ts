@@ -13,9 +13,16 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
+
+// Cleanup runs whatever the walk's outcome: the account is shared by the whole configured suite.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await clearPublishedShows(page).catch(() => {});
+  await wipeMyGraphics(page).catch(() => {});
+});
 
 /** How long the Take's answer is held: under the page's 1.5 s attempt deadline (failedSends.ts). */
 const ANSWER_MS = 900;
@@ -62,10 +69,13 @@ test('a Take answered after a switch to another production stands there and leav
     const body = route.request().postDataJSON() as { p_items?: { msg?: { t?: string } }[] } | null;
     if (!(body?.p_items ?? []).some((item) => item.msg?.t === 'play')) return route.continue();
     takesSeen += 1;
-    const response = await route.fetch();
-    await new Promise((resolve) => setTimeout(resolve, ANSWER_MS));
-    await route.fulfill({ response }).catch(() => {});
-    answered();
+    try {
+      const response = await route.fetch();
+      await new Promise((resolve) => setTimeout(resolve, ANSWER_MS));
+      await route.fulfill({ response }).catch(() => {});
+    } finally {
+      answered();
+    }
   });
 
   await page.getByTestId('verb-take').click();
@@ -91,13 +101,4 @@ test('a Take answered after a switch to another production stands there and leav
   }, slug as string);
   expect(plays, 'the first production log holds the Take').toBe(1);
 
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
-  await page.evaluate(async (id) => {
-    const { useRouter } = await import('/src/app/router.ts');
-    useRouter.getState().navigate({ view: 'production', id });
-    await new Promise((resolve) => setTimeout(resolve));
-  }, first);
-  await unpublishForCleanup(page);
-  await clearPublishedShows(page);
-  await wipeMyGraphics(page);
 });

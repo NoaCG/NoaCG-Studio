@@ -14,9 +14,16 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
+
+// Cleanup runs whatever the walk's outcome: the account is shared by the whole configured suite.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await clearPublishedShows(page).catch(() => {});
+  await wipeMyGraphics(page).catch(() => {});
+});
 
 test('a Take pressed while the first resolve is out stays on air here, as one entrance', async ({ page }) => {
   test.setTimeout(240_000);
@@ -32,6 +39,7 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
   // THE HOLD: the resolve the reloaded page sends first is answered by the server at once, and the
   // page hears that answer only after the Take: an answer older than the screen.
   let held = 0;
+  let answered = 0;
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
   await page.route(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/, async (route) => {
@@ -39,6 +47,7 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
     const response = await route.fetch();
     await released;
     await route.fulfill({ response }).catch(() => {});
+    answered += 1;
   });
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
@@ -52,7 +61,7 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
   await page.getByTestId('verb-take').click();
   await expect(chip).toContainText('on air:');
   const taken = (await chip.textContent()) ?? '';
-  expect(held, 'the resolve is still out when the Take is pressed').toBeGreaterThan(0);
+  expect(answered, 'the resolve is still out when the Take is pressed').toBe(0);
 
   // The answer arrives, older than the Take: nothing on air, as far as it knows.
   const answered = page.waitForResponse(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/);
@@ -63,8 +72,4 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
   await expect(page.getByTestId('verb-out')).toBeEnabled();
   await expect(stage, 'one entrance, and no replay over it').toHaveAttribute('data-plays', '1');
 
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
-  await unpublishForCleanup(page);
-  await clearPublishedShows(page);
-  await wipeMyGraphics(page);
 });

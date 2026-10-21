@@ -19,15 +19,22 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
+// Cleanup runs whatever the walk's outcome: the account is shared by the whole configured suite.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await clearPublishedShows(page).catch(() => {});
+  await wipeMyGraphics(page).catch(() => {});
+});
+
 const GRAPHIC = 'House Score';
 const PATH = 'match.home.score';
-/** How long the first event's request waits before it goes: long enough for the second press to
- *  land inside it, short of the 1.5 s attempt deadline with the round trip on top. */
-const HOLD_MS = 700;
+/** The longest the first event's request is held if the walk never lets it go: short of the page's
+ *  1.5 s attempt deadline (failedSends.ts), so nothing is abandoned and resent. */
+const HOLD_MS = 1_000;
 
 /** A published production with House Score on air, its home score bound to PATH and seeded at 2.
  *  Hands back the server's figure, PROGRAM's frame and a hold on the event sends. */
@@ -77,26 +84,23 @@ async function scoreOnAir(page: Page, name: string) {
   const program = page.frameLocator('[data-testid="program-stage"] iframe').first();
   await expect(program.locator('#f1')).toHaveText('2', { timeout: 20_000 });
 
-  // THE HOLD: every event request waits HOLD_MS before it goes. Counted, so a walk can say the
-  // next press really landed while the first was out.
-  const events = { seen: 0, inFlight: 0 };
+  // THE HOLD: the first event request waits until the walk lets it go (`events.release`), or
+  // HOLD_MS at most; the ones after it go straight through. Counted, so a walk can say the next
+  // press really landed while the first was out.
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  const events = { seen: 0, inFlight: 0, release };
   await page.route('**/rest/v1/rpc/control_send_seq', async (route) => {
     const body = route.request().postDataJSON() as { p_items?: { msg?: { t?: string } }[] } | null;
     if (!(body?.p_items ?? []).some((item) => item.msg?.t === 'event')) return route.continue();
     events.seen += 1;
+    if (events.seen > 1) return route.continue();
     events.inFlight += 1;
-    await new Promise((resolve) => setTimeout(resolve, HOLD_MS));
+    await Promise.race([released, new Promise((resolve) => setTimeout(resolve, HOLD_MS))]);
     events.inFlight -= 1;
     await route.continue().catch(() => {});
   });
   return { serverScore, program, events };
-}
-
-async function cleanUp(page: Page): Promise<void> {
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
-  await unpublishForCleanup(page);
-  await clearPublishedShows(page);
-  await wipeMyGraphics(page);
 }
 
 test('two Goal presses inside one round trip move the bound score by two', async ({ page }) => {
@@ -105,17 +109,17 @@ test('two Goal presses inside one round trip move the bound score by two', async
 
   const goal = page.getByTestId('cue-action-goalA');
   await goal.click();
-  await expect.poll(() => events.seen, { message: 'the first Goal reached the wire' }).toBe(1);
+  await expect.poll(() => events.seen, { message: 'the first Goal reached the wire', intervals: [20] }).toBe(1);
   expect(events.inFlight, 'the first event is still on its way').toBe(1);
   await goal.click();
   expect(events.inFlight, 'the second Goal was pressed inside the first one round trip').toBe(1);
+  events.release();
 
   // Both events go (one send in flight per graphic, so the second follows the first).
   await expect.poll(() => events.seen, { timeout: 10_000 }).toBe(2);
   // Two goals: the shared figure moves by two, on the server and on air.
   await expect.poll(serverScore, { timeout: 20_000, message: 'the server tree after two Goal presses' }).toBe(4);
   await expect(program.locator('#f1')).toHaveText('4', { timeout: 20_000 });
-  await cleanUp(page);
 });
 
 test('a Goal and a + on the same bound score inside one round trip both count', async ({ page }) => {
@@ -123,13 +127,13 @@ test('a Goal and a + on the same bound score inside one round trip both count', 
   const { serverScore, program, events } = await scoreOnAir(page, 'Adjust and bump');
 
   await page.getByTestId('cue-action-goalA').click();
-  await expect.poll(() => events.seen, { message: 'the Goal reached the wire' }).toBe(1);
+  await expect.poll(() => events.seen, { message: 'the Goal reached the wire', intervals: [20] }).toBe(1);
   expect(events.inFlight, 'the Goal event is still on its way').toBe(1);
   // The ± stepper moves the same shared value with no event of its own.
   await page.getByTestId('live-number-f1-up').click();
   expect(events.inFlight, 'the + was pressed inside the Goal round trip').toBe(1);
+  events.release();
 
   await expect.poll(serverScore, { timeout: 20_000, message: 'the server tree after a Goal and a +' }).toBe(4);
   await expect(program.locator('#f1')).toHaveText('4', { timeout: 20_000 });
-  await cleanUp(page);
 });

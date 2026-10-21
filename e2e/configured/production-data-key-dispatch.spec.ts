@@ -19,9 +19,16 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
+
+// Cleanup runs whatever the walk's outcome: the account is shared by the whole configured suite.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await clearPublishedShows(page).catch(() => {});
+  await wipeMyGraphics(page).catch(() => {});
+});
 
 const GRAPHIC = 'House Score';
 const PATH = 'match.home.score';
@@ -99,19 +106,18 @@ test('while the data key is unread, the page appends no update of its own; the f
   expect(held.some((row) => row.src !== null), 'the feed row is on the log').toBe(true);
 
   release();
-  await expect.poll(async () => (await updates()).filter((row) => row.id > afterId).length >= held.length).toBe(true);
+  // The key and the server's tree are read: the bound box shows the feed's figure.
+  const bound = page.getByTestId('cue-bound-f1').locator('input');
+  await expect(bound).toHaveValue('2', { timeout: 20_000 });
   await page.evaluate(async (key) => {
     const { patchProductionData } = await import('/src/control/productionDataApi.ts');
     await patchProductionData(key, { match: { home: { score: 3 } } });
   }, key as string);
+  await expect(bound).toHaveValue('3', { timeout: 20_000 });
   await page.waitForTimeout(2_000);
   const all = (await updates()).filter((row) => row.id > afterId);
   expect(all.filter((row) => row.src === null), 'no update row of the page own after the key resolved either').toEqual([]);
   expect(all.filter((row) => row.src !== null).length, 'both feed moves are on the log').toBeGreaterThanOrEqual(2);
-  expect(JSON.stringify(all), 'the stale local figure never reached the log').not.toContain('77');
+  expect(all.flatMap((row) => Object.values(row.data)).map(String), 'the stale local figure never reached the log').not.toContain('77');
 
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
-  await unpublishForCleanup(page);
-  await clearPublishedShows(page);
-  await wipeMyGraphics(page);
 });

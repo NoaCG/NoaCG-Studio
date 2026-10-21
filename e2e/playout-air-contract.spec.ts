@@ -189,15 +189,19 @@ const textFields = (page: Page) =>
     boxes.map((box) => (box as HTMLElement).dataset.testid!.slice('cue-field-'.length)),
   );
 
-test('typed then taken at once: the typed value airs, as one entrance', async ({ page }) => {
-  // spec §5.3, "type then Take at once": the Take lands inside the 300 ms draft flush and must
-  // carry the draft, once.
+test('typed then taken at once: the typed value airs while its save is still landing, as one entrance', async ({ page }) => {
+  // spec §5.3, "type then Take at once": the Take comes inside the 300 ms draft flush. The click
+  // blurs the editor, which starts the save; with the disk held the save is still out when the
+  // Take reads the cue, so what airs must be the draft, once.
+  await installWriteHold(page);
   await production(page, 'Type then take');
   await cue(page, 'Hairline').getByTestId('select-cue').click();
   const before = await plays(page);
+  await holdWrites(page, true);
   await page.getByTestId('cue-field-f0').fill('Typed then taken');
   await page.getByTestId('verb-take').click();
   await onProgram(page, '#f0', 'Typed then taken');
+  await holdWrites(page, false);
   await expect(page.getByTestId('cue-unsent')).toBeEmpty();
   await page.waitForTimeout(500);
   expect(await plays(page), 'one entrance').toBe(before + 1);
@@ -210,6 +214,8 @@ test('Update sends every field, and u is the same press', async ({ page }) => {
   await cue(page, 'Hairline').getByTestId('select-cue').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('Hairline');
+  // The chip can render a frame before the stage counts the entrance.
+  await expect.poll(() => plays(page)).toBeGreaterThan(0);
   const before = await plays(page);
   const ids = await textFields(page);
   expect(ids.length, 'Hairline has text fields').toBeGreaterThan(1);
