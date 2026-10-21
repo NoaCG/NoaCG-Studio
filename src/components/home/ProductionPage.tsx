@@ -183,6 +183,7 @@ import {
   controlPingSeq,
   outputPageUrl,
   publishControlShow,
+  publishedLeaseDoor,
   PublishBehind,
   sendControlVerbs,
   staleSentence,
@@ -194,6 +195,7 @@ import {
   verbSentItems,
   leftAlone,
   withLiveCue,
+  writePublishedSources,
   type ControlEventRow,
   type ControlFollowStatus,
   type ControlSendItem,
@@ -1606,6 +1608,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             fetch: (url, init) => fetch(url, init),
             readLease: readSheetLease,
             writeLease: writeSheetLease,
+            // Published, the lease lives on the row, shared with the other pages and the tick.
+            door: hostedSlug
+              ? publishedLeaseDoor({ slug: hostedSlug, sourceId, owner: readerTab, hold: dataSession.holdServerTree, note: setNote })
+              : undefined,
           },
           connected: () => new Set(sourcePaths(bindingsRef.current, sourceId).map((p) => p.path)),
           accept: sourceAccept,
@@ -1623,6 +1629,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
     };
   }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
+  // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
+  // the operator door then takes the new path, the tick honours the Pause with every page closed,
+  // and nothing waits for the next publish. The first value is the one the publish wrote.
+  const sourcesPlan = hostedSlug ? JSON.stringify([bindings ?? {}, show?.sources ?? []]) : null;
+  const writtenPlan = useRef<string | null>(null);
+  useEffect(() => {
+    if (!sourcesPlan || !hostedSlug) {
+      writtenPlan.current = null;
+      return;
+    }
+    if (writtenPlan.current === null || writtenPlan.current === sourcesPlan) {
+      writtenPlan.current = sourcesPlan;
+      return;
+    }
+    writtenPlan.current = sourcesPlan;
+    const [planBindings, planSources] = JSON.parse(sourcesPlan) as [Show['bindings'], Show['sources']];
+    writePublishedSources(id, { bindings: planBindings, sources: planSources })
+      .then(() => {
+        for (const source of planSources ?? []) sourceStatus.poke(source.id);
+      })
+      .catch((error: Error) => setNote(`The change has not reached the published production: ${error.message}`));
+  }, [sourcesPlan, hostedSlug, id, sourceStatus]);
   /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
   const [connectPreview, setConnectPreview] = useState<{ graphic: string; values: Record<string, string> } | null>(null);
 

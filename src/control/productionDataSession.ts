@@ -15,14 +15,10 @@
 // operator's door, localStorage and the other tabs' `storage` event. Only pure `.ts` modules are
 // imported, so `scripts/production-data-session.test.mjs` drives it with fakes.
 
-import { applyPatch, diffResolved, getPath, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
+import { applyPatch, diffResolved, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
 import type { ControlSendItem } from './hostedControl';
 import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
-
-/** How long a path the published row refused stays out of source writes before it is tried
- *  again: a minute, so a republish that binds it resumes it without a reload. */
-const UNBOUND_RETRY_MS = 60_000;
 
 export interface ProductionDataIo {
   /** False in a build with no backend: then no production has a key to read. */
@@ -51,10 +47,14 @@ export interface ProductionDataSession {
   setLiveData: (next: JsonObject) => void;
   /** An operator press moving a bound value (the ± stepper, an event's `adjust`). */
   patchBoundValues: (writes: TreeWrite[]) => Promise<void>;
-  /** A SOURCE READER's write (control/sheetSource.ts): a merge patch of the connected paths that
-   *  changed. Answers true when it landed, false when nothing did (it is tried again), or the
-   *  paths the published row does not bind yet, which were left out while the rest landed. */
-  applySourcePatch: (patch: JsonObject) => Promise<boolean | string[]>;
+  /** An UNPUBLISHED source reader's write (control/sheetSource.ts): a merge patch of the connected
+   *  paths that changed. Answers true when it landed, false when nothing did (it is tried again).
+   *  Published, a reader writes under its lease on the row instead (`holdServerTree`). */
+  applySourcePatch: (patch: JsonObject) => Promise<boolean>;
+  /** Hold the tree a published source write answered with (control/hostedControl.ts
+   *  `publishedLeaseDoor`), when it is this mode's slug's: the server's answer, never an
+   *  optimistic tree, so a value the row refused cannot reach PREVIEW or a Take. */
+  holdServerTree: (slug: string, tree: JsonObject) => void;
   /** Pull the server's tree in: at the key's arrival, and whenever a feed row says it moved. */
   refresh: () => Promise<void>;
   /** Put the bound fields' CHANGES on the wire, unpublished only. `resolved` is what `tree` resolves
@@ -71,13 +71,6 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
   /** What was last put on the wire, per graphic per field: the dispatch's baseline. Nothing renders
    *  from it, so it is held here and not in the part. */
   let lastResolved: ResolvedValues = {};
-  /** Paths the published row refused as unbound, each until when it is left out of source writes:
-   *  a field connected after publishing reaches the row at the next publish (C2 writes it at once),
-   *  and a republish keeps the slug, so the memory lapses by itself rather than waiting for a mode
-   *  change. Meanwhile one such field never holds back the connections that already work. */
-  let unbound = new Map<string, number>();
-  /** Which of them the operator has been told about, so the note is said once a mode. */
-  let noted = new Set<string>();
 
   const write = (from: number, patch: Partial<DataPart>) => {
     if (from !== mode) return;
@@ -137,8 +130,6 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       // resolved, nothing may dispatch the local tree to air. A published production opened cold
       // would otherwise spend a moment believing it was offline and push the last LOCAL tree.
       lastResolved = {};
-      unbound = new Map();
-      noted = new Set();
       write(from, { liveData: local ? io.loadLiveData(id) : {}, dataKey: readsKey ? undefined : null, treeRead: false });
 
       // THE LIVE TREE, WRITTEN IN ANOTHER TAB. The Data workspace opens in its own browser tab, and
@@ -224,54 +215,18 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     },
 
     /**
-     * THE SHEET READER'S WRITER (data-sources C1b). The same road as a press, because both write
-     * values the operator's production already connected: the local tree when unpublished, and
-     * published the operator's door on the control slug, which takes only bound paths and whose
-     * rows spend the ordinary command budget. A reader therefore writes only connected paths,
-     * and only those whose cell changed (control/sheetSource.ts `sheetWrites`).
-     *
-     * A merge patch onto the NEWEST tree, never a replacement: a press or a feed that landed since
-     * the read began keeps its own paths.
+     * THE SHEET READER'S WRITER, unpublished (data-sources C1b): the same road as a press, the local
+     * tree. A reader writes only connected paths, and only those whose cell changed
+     * (control/sheetSource.ts `sheetWrites`). A merge patch onto the NEWEST tree, never a
+     * replacement: a press that landed since the read began keeps its own paths.
      */
     applySourcePatch: async (patch) => {
-      if (!session.alive()) return false;
-      const from = mode;
-      if (!slug) return operatorWrite(from, applyPatch(part.get().liveData, patch), patch, 'The Sheet’s change was not written');
-      const skipped: string[] = [];
-      let send = patch;
-      for (const [path, until] of unbound) {
-        if (until <= Date.now()) unbound.delete(path);
-        if (until <= Date.now() || getPath(send, path) === undefined) continue;
-        send = withoutPath(send, path);
-        skipped.push(path);
-      }
-      // Published, the server's ANSWER is all this page holds, with no optimistic tree: a path the
-      // row refuses must never sit in the local tree, where PREVIEW shows it and a Take airs it.
-      // A reader is not a press, and waiting one round trip costs it nothing.
-      while (Object.keys(send).length > 0) {
-        try {
-          const server = await io.patchProductionDataBySlug(slug, send);
-          write(from, { liveData: server as JsonObject });
-          break;
-        } catch (error) {
-          if (!session.alive() || from !== mode) return false;
-          // The whole path: a Name/Value key may hold spaces ("Home score").
-          const stray = /not a bound path: (.+)$/.exec((error as Error).message)?.[1]?.trim();
-          if (stray && getPath(send, stray) !== undefined) {
-            unbound.set(stray, Date.now() + UNBOUND_RETRY_MS);
-            skipped.push(stray);
-            if (!noted.has(stray)) io.note(`A field connected after publishing follows the Sheet once the production is published again (${stray}).`);
-            noted.add(stray);
-            send = withoutPath(send, stray);
-            continue;
-          }
-          io.note(`The Sheet’s change was not written: ${(error as Error).message}`);
-          void refresh();
-          return false;
-        }
-      }
-      if (from !== mode) return false;
-      return skipped.length > 0 ? skipped : true;
+      if (!session.alive() || slug) return false;
+      return operatorWrite(mode, applyPatch(part.get().liveData, patch), patch, 'The Sheet’s change was not written');
+    },
+
+    holdServerTree: (from, tree) => {
+      if (session.alive() && slug !== null && from === slug) write(mode, { liveData: tree });
     },
 
     refresh,
@@ -304,20 +259,4 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       void send([graphics.map((graphic) => ({ graphic, msg: { t: 'update' as const, data: changes[graphic] } }))], 'Data');
     },
   };
-}
-
-/** A merge patch without one of its paths, and without the branches that leaves empty: an empty
- *  object is itself a value to the operator door, which would refuse it. */
-function withoutPath(patch: JsonObject, path: string): JsonObject {
-  const [head, ...rest] = path.split('.');
-  if (!(head in patch)) return patch;
-  const out = { ...patch };
-  const child = out[head];
-  if (rest.length === 0 || typeof child !== 'object' || child === null || Array.isArray(child)) delete out[head];
-  else {
-    const inner = withoutPath(child, rest.join('.'));
-    if (Object.keys(inner).length > 0) out[head] = inner;
-    else delete out[head];
-  }
-  return out;
 }

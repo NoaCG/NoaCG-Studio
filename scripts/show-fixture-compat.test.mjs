@@ -17,11 +17,24 @@
 // what the page reads is checked through its types and the pure modules it resolves with.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { registerHooks } from 'node:module';
 import ts from 'typescript';
+
+// The Sheet reader's modules are the server tick's too (api/_lib/dataTick.ts), so they import each
+// other by `.js`, as the functions' emit needs; Node strips the types but keeps the extension.
+registerHooks({
+  resolve(spec, ctx, next) {
+    if (ctx.parentURL?.includes('/src/') && /^\.\.?\/.*\.js$/.test(spec)) {
+      const ts = new URL(spec.replace(/\.js$/, '.ts'), ctx.parentURL);
+      if (existsSync(fileURLToPath(ts))) return next(ts.href, ctx);
+    }
+    return next(spec, ctx);
+  },
+});
 
 const { resolveBindings } = await import('../src/model/productionData.ts');
 const { hasLiveData } = await import('../src/control/liveData.ts');

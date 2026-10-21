@@ -15,6 +15,21 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerHooks } from 'node:module';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// The Sheet reader's modules are the server tick's too (api/_lib/dataTick.ts), so they import each
+// other by `.js`, as the functions' emit needs; Node strips the types but keeps the extension.
+registerHooks({
+  resolve(spec, ctx, next) {
+    if (ctx.parentURL?.includes('/src/') && /^\.\.?\/.*\.js$/.test(spec)) {
+      const ts = new URL(spec.replace(/\.js$/, '.ts'), ctx.parentURL);
+      if (existsSync(fileURLToPath(ts))) return next(ts.href, ctx);
+    }
+    return next(spec, ctx);
+  },
+});
 
 const {
   SHEET_LEASE_MS,
@@ -22,6 +37,8 @@ const {
   SHEET_TIMEOUT_MS,
   createSheetReader,
   fieldValue,
+  initialStatus,
+  missedStatus,
   pathValue,
   connectedFields,
   parseSheetLink,
@@ -618,4 +635,148 @@ test('the fields on a path are read from each graphic as it is drawn now, and de
   assert.deepEqual(fields.map((f) => f.kind), ['toggle', 'text'], 'a graphic that is gone adds nothing');
   assert.equal(pathValue(fields, 'TRUE'), null, 'the review and the reader both hold it');
   assert.equal(pathValue(connectedFields({ Board: bindings.Board }, 'sheet.s1.values.Live', fieldsOf), 'TRUE'), '1', 'the toggle alone takes 1');
+});
+
+// ── Published: the lease on the row, shared with the server tick (data-sources C2) ─────────────
+// `row` stands in for migration 0097's read state behind control/hostedControl.ts
+// `publishedLeaseDoor`, with the same rules: one owner, a claim that a handover changes, and a write
+// that is refused in the same step once the claim has moved. The database half of these rules is
+// the migration's own self-check and production-data-key-tick.spec.ts.
+
+function row(clock) {
+  const r = { owner: null, claim: null, until: 0, snapshot: {}, content: null, status: {}, tick: true, writes: [], n: 0, hold: null };
+  const reader = () => (r.owner === 'tick' ? 'server' : 'other');
+  r.door = (owner) => ({
+    claim: async (claim) => {
+      if (r.owner !== owner && r.until > clock.now()) return { held: false, status: { ...initialStatus(reader()), ...r.status, reader: reader() }, reader: reader() };
+      const mine = r.owner === owner && r.claim === claim && r.until > clock.now();
+      if (!mine) {
+        r.owner = owner;
+        r.claim = `${owner}:${(r.n += 1)}`;
+      }
+      r.until = clock.now() + SHEET_LEASE_MS;
+      return {
+        held: true,
+        claim: r.claim,
+        state: { snapshot: { ...r.snapshot }, content: r.content, status: { ...initialStatus('this'), ...r.status, reader: 'this', closedPage: r.tick } },
+      };
+    },
+    settle: async (claim, writes, _patch, next) => {
+      if (r.hold) await r.hold.promise;
+      if (r.claim !== claim || r.until <= clock.now()) return false;
+      if (Object.keys(writes).length > 0) r.writes.push({ owner, writes });
+      Object.assign(r, { snapshot: next.snapshot, content: next.content, status: next.status });
+      return true;
+    },
+    release: () => {
+      if (r.owner === owner) r.until = clock.now();
+    },
+  });
+  return r;
+}
+
+/** A published page's reader of s1, its lease on `r`. */
+function page(b, r, name, { paths = ['sheet.s1.lines'] } = {}) {
+  const t = { statuses: [], paused: false, connected: new Set(paths) };
+  t.reader = createSheetReader({
+    key: 'prod-1:s1',
+    sourceId: 's1',
+    link: { sheetId: ID, gid: '0' },
+    shape: 'lines',
+    tab: name,
+    world: 'slug-1',
+    io: { ...b.io, door: r.door(name) },
+    connected: () => t.connected,
+    paused: () => t.paused,
+    write: async () => assert.fail('published, a reader writes through its lease, never the unpublished writer'),
+    onStatus: (s) => t.statuses.push(s),
+  });
+  t.status = () => t.statuses.at(-1);
+  return t;
+}
+
+test('published: the page reads under the row lease, writes changed cells once by path, and keeps its status on the row', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  assert.deepEqual(r.writes, [{ owner: 'tab-a', writes: { 'sheet.s1.lines': 'one\ntwo' } }]);
+  assert.equal(r.status.state, 'ok');
+  assert.equal(a.status().reader, 'this');
+  assert.equal(a.status().closedPage, true, 'the switch is on: the server reads once the pages close');
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(r.writes.length, 1, 'unchanged: nothing written');
+  assert.equal(r.status.checkedAt, b.clock.now(), 'checked is on the row, for a reload and the tick');
+  a.reader.stop();
+  assert.equal(r.until, b.clock.now(), 'stopping lets the row lease go, so the tick reads at its next minute');
+});
+
+test('published: a page while the tick holds the lease reads nothing and says the server reads it; the switch off says closed-page reading is off', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  Object.assign(r, { owner: 'tick', claim: 'tick:1', until: b.clock.now() + 30_000, status: { ...initialStatus('server'), state: 'ok', checkedAt: b.clock.now() - 40_000 } });
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  assert.equal(b.sheet.fetches, 0);
+  assert.equal(a.status().reader, 'server');
+  assert.equal(a.status().checkedAt, b.clock.now() - 40_000, 'the tick’s own read, not one invented by the handover');
+  // The tick lets go: the page takes over at its next read.
+  r.until = b.clock.now();
+  r.tick = false;
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(b.sheet.fetches, 1);
+  assert.equal(a.status().reader, 'this');
+  assert.equal(a.status().closedPage, false);
+  a.reader.stop();
+});
+
+test('published handover from the tick: an unchanged cell keeps the operator’s override, a changed cell wins', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  // The tick wrote "one\ntwo" last; the operator has since typed over it in the tree.
+  Object.assign(r, { snapshot: { 'sheet.s1.lines': 'one\ntwo' }, content: JSON.stringify({ lines: 'one\ntwo' }), owner: 'tick', claim: 'tick:1', until: 0 });
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  assert.equal(b.sheet.fetches, 1);
+  assert.deepEqual(r.writes, [], 'the unchanged cell writes nothing over the override');
+  b.sheet.csv = 'one\nchanged\n';
+  await b.clock.advance(SHEET_READ_MS);
+  assert.deepEqual(r.writes, [{ owner: 'tab-a', writes: { 'sheet.s1.lines': 'one\nchanged' } }]);
+  a.reader.stop();
+});
+
+test('published: an old owner’s write held across a handover is refused, writes nothing and cannot replace the new owner’s snapshot or status', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  // A's next write is held in flight.
+  let release;
+  r.hold = { promise: new Promise((resolve) => (release = resolve)) };
+  b.sheet.csv = 'old answer\n';
+  await b.clock.advance(SHEET_READ_MS);
+  // The lease moves to the tick, which writes a newer value.
+  r.hold = null;
+  r.until = 0;
+  const tick = r.door('tick');
+  const held = await tick.claim(null);
+  assert.equal(await tick.settle(held.claim, { 'sheet.s1.lines': 'newer' }, {}, { snapshot: { 'sheet.s1.lines': 'newer' }, content: 'n', status: { ...initialStatus('server'), state: 'ok' } }), true);
+  const before = structuredClone({ snapshot: r.snapshot, status: r.status, content: r.content });
+  const shown = a.statuses.length;
+  release();
+  await b.clock.advance(0);
+  assert.deepEqual(r.writes.map((w) => w.owner), ['tab-a', 'tick'], 'the old owner’s answer wrote nothing');
+  assert.deepEqual({ snapshot: r.snapshot, status: r.status, content: r.content }, before);
+  assert.equal(a.statuses.length, shown, 'and the page invents no read it did not keep');
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(a.status().reader, 'server', 'at its next read it shows who holds the lease');
+  a.reader.stop();
+});
+
+test('the status rules the tick shares: three missed minutes are stale, the time failing began is kept', () => {
+  let status = { ...initialStatus('server'), state: 'ok', checkedAt: 1 };
+  for (let i = 0; i < 3; i += 1) status = missedStatus(status, { error: 'can’t read it', fix: 'Share it.' }, 60_000 * (i + 1), 'server');
+  assert.equal(status.stale, true);
+  assert.equal(status.failingSince, 60_000);
+  assert.equal(status.reader, 'server');
 });

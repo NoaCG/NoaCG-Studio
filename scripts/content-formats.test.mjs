@@ -12,6 +12,21 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerHooks } from 'node:module';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// The Sheet reader's modules are the server tick's too (api/_lib/dataTick.ts), so they import each
+// other by `.js`, as the functions' emit needs; Node strips the types but keeps the extension.
+registerHooks({
+  resolve(spec, ctx, next) {
+    if (ctx.parentURL?.includes('/src/') && /^\.\.?\/.*\.js$/.test(spec)) {
+      const ts = new URL(spec.replace(/\.js$/, '.ts'), ctx.parentURL);
+      if (existsSync(fileURLToPath(ts))) return next(ts.href, ctx);
+    }
+    return next(spec, ctx);
+  },
+});
 
 const {
   fillList,
