@@ -5,6 +5,47 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 2, H0.1: Companion package, guide, protocol and presets
+
+- **Previous verified `main` sha:** `046a74598c96b0f161507954511e70bf799407a9` (P1R, #1558,
+  checked). Built on `5d533e6cb7b8bd764e724e227953a3e16aca3163` (a quarantine entry on top).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration. A reverted guide and module go
+  back to 0.1.1, which is also the previous known-good package for H0.2's recovery runbook.
+- **Decisions.**
+  - The module is 0.1.2: the guide (`companion/HELP.md`) in Companion 5.1's own words, with
+    install by **Import module package**, the lease instead of the answer switch, "refused, never
+    queued", and all 14 actions by the names Companion shows. `guide.test.ts` pins HELP.md to
+    the action list and the 14 verbs. Trigger keys per cue in the presets; `last_press` says
+    "Sent, waiting for the operator page" while a press is unanswered, so pending is its own
+    state. Green means selected (what Take acts on), not PREVIEW.
+  - No preview tally: protocol v1 publishes only what Take does next (`space`). A tally would
+    bump the protocol, which extensions.md gives to E6 once; E6 should decide it there.
+  - Spec and protocol drift fixed in place: D5 names `trigger-cue`, the stale table and `blocked`
+    cover it, the switch requirement is marked superseded by the lease, the hosted page refuses
+    only the clip verbs, the lease spec says it is built. `hardware-panel-control/work.json` is
+    re-recorded against the edited spec (`reconciliation-2026-10-21.md`); AC-11 stays failed for
+    the missing operator page in the app's docs.
+  - Companion is qualified headless from the official image's own files (no Docker daemon
+    needed), fresh `--config-dir` per walk, pressed through its HTTP API; the walk script stays
+    in the scratchpad, since a suite spec would need Companion on every runner.
+- **Traps.**
+  - Two queue jobs of half a budget each run at once. Mutation runs that patch source must go
+    one at a time, or one patch leaks into the other's run (here a "Take dispatched twice" showed
+    up in an unrelated run and looked like a product defect).
+  - Playwright's offline mode leaves open WebSockets alone, and stubbing `setInterval` after a
+    page started leaves its running intervals alone. A cut-off or hidden page must be faked by
+    routing the Realtime sockets and wrapping timers from the first script; the first version
+    of the test passed with the guard removed.
+  - The page has two ways to learn it lost the panel (the `claim` broadcast and the refused
+    renewal). A mutation of one is hidden by the other unless the sockets are cut.
+  - In a cloud worker: Yarn comes from npm (`COREPACK_NPM_REGISTRY` and
+    `YARN_NPM_REGISTRY_SERVER` set to `https://registry.npmjs.org`, `NODE_USE_ENV_PROXY=1`);
+    the Supabase CLI binary is the npm package `@supabase/cli-linux-x64`; `dockerd` starts.
+- **Left for later:** hardware-panel AC-8, AC-11 and AC-12 on this merge's SHA (laptop helper);
+  the trial kit (`playout-companion-qualification/evidence/trial-kit.md`) on the owner list; the
+  app docs page ([#1560](https://github.com/NoaCG/NoaCG-Studio/issues/1560)).
+
 ## Row 1 repair, P1R: the two findings of C0's check
 
 - **Previous verified `main` sha:** `cc3500f2d93359dc8add228d50c2353ec5d46f30`. Previous merge

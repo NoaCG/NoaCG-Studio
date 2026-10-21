@@ -36,6 +36,9 @@ export type Status = 'pairing' | 'connecting' | 'ok' | 'no-page' | 'revoked' | '
 export const SILENCE_MS = 12_000
 /** How long a press waits for the page's `result`. */
 export const RESULT_MS = 1_500
+/** What the last-press variable says while a press waits for the page's answer. */
+export const PENDING_SENTENCE = 'Sent, waiting for the operator page'
+
 /** How long a refused key flashes. */
 export const FLASH_MS = 1_200
 /** The rejoin backoff, then every 8 s. */
@@ -106,6 +109,8 @@ export class PanelClient {
 	#waits = new Map<string, (r: PressResult) => void>()
 	#flash: Flash | null = null
 	#lastPress = ''
+	/** The newest press made; only it may write the last-press sentence. */
+	#pressSeq = 0
 
 	constructor(opts: PanelOptions) {
 		this.#opts = opts
@@ -364,9 +369,14 @@ export class PanelClient {
 
 	/** Press a verb. Resolves when the page answered, or with the reason it was not run. */
 	async press(verb: PanelVerb, row = ''): Promise<PressOutcome> {
+		const seq = ++this.#pressSeq
+		// An older press answered after a newer one was made must not overwrite the newer one's sentence.
+		const tell = (sentence: string) => {
+			if (seq === this.#pressSeq) this.#lastPress = sentence
+		}
 		const refused = (sentence: string, result?: PressResult): PressOutcome => {
 			this.#flash = { verb, row, until: this.#clock.now() + FLASH_MS }
-			this.#lastPress = sentence
+			tell(sentence)
 			this.#opts.onChange?.()
 			return { ok: false, sentence, ...(result ? { result } : {}) }
 		}
@@ -390,6 +400,9 @@ export class PanelClient {
 				resolve(r)
 			})
 		})
+		// Sent and not yet answered: the last-press variable says so, apart from done and refused.
+		tell(PENDING_SENTENCE)
+		this.#opts.onChange?.()
 		let answer
 		try {
 			answer = await this.#relay.press(this.#key, press)
@@ -416,8 +429,9 @@ export class PanelClient {
 		const result = await answered
 		if (!result) return refused('No answer from the operator page')
 		if (result.outcome !== 'ran') return refused(outcomeSentence(result), result)
-		this.#lastPress = outcomeSentence(result)
+		const sentence = outcomeSentence(result)
+		tell(sentence)
 		this.#opts.onChange?.()
-		return { ok: true, sentence: this.#lastPress, result }
+		return { ok: true, sentence, result }
 	}
 }

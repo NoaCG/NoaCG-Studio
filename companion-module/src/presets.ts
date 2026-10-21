@@ -36,8 +36,9 @@ function verbFeedbacks(verb: PanelVerb, row = ''): Feedback[] {
 }
 
 /**
- * The ready keys an operator drags onto the grid: the transport, the clip clock, and one Take and
- * one Select key per rundown row, rebuilt whenever the production's rows change.
+ * The ready keys an operator drags onto the grid: the transport, the clip clock, one Take and one
+ * Select key per rundown row, and one Trigger key per cue, rebuilt whenever the production's rows
+ * change.
  */
 export function buildPresets(
 	label: string,
@@ -76,7 +77,7 @@ export function buildPresets(
 		'14',
 	)
 	key('retake', 'Re-take', 'RE-TAKE', 'retake')
-	key('update', 'Update', 'UPDATE', 'update')
+	key('update', 'Update', 'UPDATE', 'update', [], '14')
 	key('next', 'Next', 'NEXT', 'next')
 	key('out', 'Out', 'OUT', 'out')
 	key('select_prev', 'Previous cue', 'CUE\\nUP', 'select-prev')
@@ -107,25 +108,39 @@ export function buildPresets(
 
 	const takeIds: string[] = []
 	const selectIds: string[] = []
+	const triggerIds: string[] = []
 	for (const row of rows) {
 		const name = row.kind === 'folder' ? `Folder: ${row.label}` : row.label
 		const tally: Feedback[] = [
 			{ feedbackId: 'selected', options: { row: row.id }, style: { bgcolor: GREEN, color: WHITE } },
 			{ feedbackId: 'on_air', options: { row: row.id }, style: { bgcolor: RED, color: WHITE } },
 		]
-		for (const [verb, ids, prefix] of [
-			['take-cue', takeIds, 'take'],
-			['select-cue', selectIds, 'select'],
-		] as const) {
+		// Trigger plays or restarts a cue by its own row id and leaves the selection alone; a folder
+		// has nothing to play, so only cues get one.
+		const keys = [
+			{ verb: 'take-cue', ids: takeIds, prefix: 'take', title: 'Take', action: 'take_cue', text: row.label },
+			{ verb: 'select-cue', ids: selectIds, prefix: 'select', title: 'Select', action: 'select_cue', text: row.label },
+			...(row.kind === 'cue'
+				? [
+						{
+							verb: 'trigger-cue',
+							ids: triggerIds,
+							prefix: 'trigger',
+							title: 'Trigger',
+							action: 'trigger_cue',
+							text: `\u25B6 ${row.label}`,
+						} as const,
+					]
+				: []),
+		] as const
+		for (const { verb, ids, prefix, title, action, text } of keys) {
 			const id = `${prefix}_${row.id}`
 			ids.push(id)
 			presets[id] = {
 				type: 'simple',
-				name: `${verb === 'take-cue' ? 'Take' : 'Select'} ${name}`,
-				style: { text: row.label, size: 'auto', color: WHITE, bgcolor: BLACK },
-				steps: [
-					{ down: [{ actionId: verb === 'take-cue' ? 'take_cue' : 'select_cue', options: { row: row.id } }], up: [] },
-				],
+				name: `${title} ${name}`,
+				style: { text, size: 'auto', color: WHITE, bgcolor: BLACK },
+				steps: [{ down: [{ actionId: action, options: { row: row.id } }], up: [] }],
 				feedbacks: [...tally, ...verbFeedbacks(verb, row.id), ...statusFeedbacks(label)],
 			}
 		}
@@ -148,11 +163,12 @@ export function buildPresets(
 			id: 'cues',
 			name: 'Cues',
 			description: rows.length
-				? "One key per cue of this production's rundown: red on air, green selected."
+				? "Take, Select and Trigger keys for each cue of this production's rundown: red on air, green selected."
 				: 'The cues appear here once an operator page answers the panel.',
 			definitions: [
 				{ id: 'take_cues', type: 'simple', name: 'Take a cue', presets: takeIds },
 				{ id: 'select_cues', type: 'simple', name: 'Select a cue', presets: selectIds },
+				{ id: 'trigger_cues', type: 'simple', name: 'Trigger a cue', presets: triggerIds },
 			],
 		},
 	]
