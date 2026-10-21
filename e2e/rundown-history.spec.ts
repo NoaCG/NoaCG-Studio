@@ -1,5 +1,6 @@
 // covers: src/components/home/{ProductionPage,useRundownHistory,CueRundown}.ts*, src/components/playoutKeys.ts
 // covers: src/model/{rundownHistory,shows,durableStore}.ts, src/backend/teamProductions.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls, holdKeyRepeats } from './_keys';

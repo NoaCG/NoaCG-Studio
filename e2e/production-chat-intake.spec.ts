@@ -6,6 +6,7 @@
 // the local provider, so the offline suite really does cover it - which is why the seam was
 // built before the backend.
 // covers: src/audience/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';

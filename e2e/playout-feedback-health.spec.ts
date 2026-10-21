@@ -3,6 +3,7 @@
 // covers: src/control/{playoutStatus,prepareLive,prepareBridge,readiness}.ts, src/model/{readyMemory,outputSetup}.ts
 // covers: src/components/home/{ProductionPage,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx, src/components/control/PrepareForLive.tsx
 // covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // focus
 
 import { test, expect } from '@playwright/test';

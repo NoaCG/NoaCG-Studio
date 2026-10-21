@@ -23,6 +23,7 @@
 // change that moves the dashboard would pass its own gate and turn main red. Six screenshots.
 // The third production draws a rundown's folders (phase 4): its header row, its panel and its tags.
 // covers: src/components/home/{FolderRow,FolderEditor}.tsx, src/control/folderAir.ts
+// covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts
 // focus
 
 import { test, expect, type Page, type Route } from '@playwright/test';

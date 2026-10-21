@@ -1,5 +1,6 @@
 // covers: src/components/home/ProductionPage.tsx, src/components/home/useRundownHistory.ts
 // covers: src/components/playoutKeys.ts, src/model/durableStore.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // THE PRODUCTION PAGE'S AIR CONTRACT, pinned before the page is split (production-page refactor,
 // phase 1; docs/work-specs/production-page-refactor/spec.md §5.3 and §1.3). Each test presses

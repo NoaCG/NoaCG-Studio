@@ -51,6 +51,10 @@ import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
+import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
+
+// The live map's folds live in ./liveCue.ts, which Node can import; re-exported for every caller.
+export { leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
 export function controlPageUrl(slug: string): string {
@@ -200,18 +204,6 @@ export type LiveReportMap = Record<
     seq?: number;
   }
 >;
-
-/**
- * Which cue is on air ON EACH LAYER — the row-persisted snapshot, keyed by the graphic NAME
- * (the 0008 wire key, which is also the layer identity). An absent key means that layer is off
- * air; a production with three graphics up has three entries.
- *
- * Format 2 (migration 0034). A pre-0034 row carries 0031's single `{cue, graphic}` snapshot and
- * MIGRATES ON READ into the one-entry map it describes, so an unupgraded server still reports
- * its one live layer correctly (rule 6). An empty map is the honest reading of both "nothing on
- * air" and "no snapshot yet" — the cue rows on the log correct it either way.
- */
-export type LiveCueMap = Record<string, string>;
 
 export interface ResolvedControlShow {
   id: string;
@@ -884,42 +876,6 @@ function readResolvedShow(row: Record<string, unknown>, seq: SeqPlan | undefined
 }
 
 /**
- * Normalize the row-persisted cue snapshot into the per-layer map (docs/CLOUD_PLAYOUT.md §4).
- * Three shapes reach this: format 2 (`{v:2, layers:{…}}`, migration 0034), format 1 (0031's
- * single `{cue, graphic}`, migrated here into the one entry it means), and nothing at all
- * (a pre-0031 server, or a production that has never taken a cue). An unrecognised version
- * degrades to an empty map rather than throwing — the log's cue rows repopulate it.
- */
-export function readLiveCue(value: unknown): LiveCueMap {
-  if (!value || typeof value !== 'object') return {};
-  const v = value as { v?: number; layers?: unknown; cue?: string | null; graphic?: string | null };
-  if ((v.v ?? 1) >= 2) {
-    const layers = v.layers;
-    if (!layers || typeof layers !== 'object') return {};
-    const out: LiveCueMap = {};
-    for (const [graphic, entry] of Object.entries(layers as Record<string, unknown>)) {
-      const cue = (entry as { cue?: unknown } | null)?.cue;
-      if (typeof cue === 'string' && cue) out[graphic] = cue;
-    }
-    return out;
-  }
-  return v.graphic && v.cue ? { [v.graphic]: v.cue } : {};
-}
-
-/** Apply one cue marker to the per-layer map: a cue id puts that layer on air, `null` takes it
- *  off. Off air is an ABSENT key, never a stored null, so "is this layer up" is one question.
- *  Returns the SAME map when nothing changed, so a repeated marker re-renders nothing. */
-export function withLiveCue(map: LiveCueMap, graphic: string, cue: string | null): LiveCueMap {
-  if (!cue) {
-    if (!(graphic in map)) return map;
-    const next = { ...map };
-    delete next[graphic];
-    return next;
-  }
-  return map[graphic] === cue ? map : { ...map, [graphic]: cue };
-}
-
-/**
  * AN RPC EITHER ANSWERED - possibly with nothing - OR FAILED, and the two must never collapse
  * into one value. "No such production" and "the request never arrived" look identical as a null,
  * and a caller that concludes from a failure puts a live graphic off air: the renderer's boot
@@ -1356,27 +1312,6 @@ export async function sendControlVerb(opts: {
   return sent;
 }
 
-/**
- * WHAT A VERB'S SEND CAME TO, beyond landing (protocol 2 only; every list is empty on protocol 1).
- * A caller that writes a picture after the answer (a chip, a cue marked on or off air) must not
- * write it for any list (`leftAlone`): what stands there is this page's LATER press, which moved
- * the picture when it was pressed, and a write now would overwrite it with this older one.
- */
-export interface VerbSent {
-  /** Graphics the server left as this page's later press left them, the rest of the batch applied. */
-  skipped: string[];
-  /** Graphics of a batch refused whole: this page pressed it before its own All out. */
-  superseded: string[];
-  /** Graphics this page pressed again while the send was on its way: the batch landed, and the
-   *  later press, applied after it, is what stands (seqSend.ts `createPressBook`). */
-  pressedAgain: string[];
-}
-
-/** Every graphic a send left alone, for a caller about to write what the send changed. */
-export function leftAlone(sent: VerbSent): string[] {
-  return [...sent.skipped, ...sent.superseded, ...sent.pressedAgain];
-}
-
 /** Per control slug and graphic, the newest press this page has numbered. */
 const presses = createPressBook();
 
@@ -1560,62 +1495,10 @@ export async function sendHostedControlBatch(slug: string, items: WireItem[], si
   if (error) throw rpcFailure('control_send_many', error, status);
 }
 
-// ── The cue verbs (docs/CLOUD_PLAYOUT.md §4) — ONE author for the wire sequence. ─────────────
+// ── The cue verbs (docs/CLOUD_PLAYOUT.md §4) — ONE author for the wire sequence, in ./cueItems.ts. ─
 
-// Each verb is defined ONCE, as the list of commands it is — and then either sent to the log or
-// applied to a local rehearsal stage (docs/CLOUD_PLAYOUT.md §4a). Keeping the sequence as DATA
-// is what makes a rehearsal faithful: rehearsing and airing are the same commands in the same
-// order, not two implementations that have to be kept in step by hand.
+export { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems';
 
-/**
- * Take a cue: its data, its graphic in, and the shared cue status row. It touches ONE LAYER,
- * its own. Taking a lower third leaves the bug and the ticker on air, because those are other
- * graphics and therefore other layers (docs/CLOUD_PLAYOUT.md §4); taking a second cue on the
- * SAME graphic re-airs that one instance, which is what makes two cues over one lower third
- * replace each other and not stack.
- *
- * Clearing another layer is the operator's own verb (`clearCueItems` / `clearAllCueBatches`),
- * never a side effect of taking this one — an implicit stop is exactly what made a production
- * single-layer.
- */
-export function takeCueItems(cue: {
-  direct?: boolean;
-  id: string;
-  graphic: string;
-  values: Record<string, string>;
-  /** A timed cue's arm (control/cueAuto.ts `markerAuto`), carried on its marker so every follower
-   *  learns the countdown from the Take's own row. */
-  auto?: MarkerAuto | null;
-}): ControlSendItem[] {
-  return [
-    { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
-    { graphic: cue.graphic, msg: { t: 'play' } },
-    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id, ...(cue.direct ? { direct: true } : {}), ...(cue.auto ? { auto: cue.auto } : {}) } },
-  ];
-}
-
-/** Out ONE layer: play that graphic off and clear its cue status. */
-export function clearCueItems(liveGraphic: string): ControlSendItem[] {
-  return [
-    { graphic: liveGraphic, msg: { t: 'stop' } },
-    { graphic: liveGraphic, msg: { t: 'cue', cue: null } },
-  ];
-}
-
-/**
- * THE MOST ITEMS ONE `control_send_many` CALL TAKES (migration 0029: a count outside 1..8 raises
- * `not a command batch` and the WHOLE insert is refused). It is a verb, not an ingest API.
- */
-const COMMAND_BATCH_MAX = 8;
-
-/** An all-layers clear pays two items per layer, so it goes out in batches of four layers. */
-const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;
-
-/**
- * Out EVERY live layer: the "clear the screen" verb a multi-layer production needs, since no
- * single Take does it any more. One batch per four layers, so a production bigger than that
- * clears in log order rather than not at all.
- */
 /** Per graphic, whether the server's heads last called it on, as this page heard them; null where
  *  it follows no head (the id road, or not resolved yet). */
 export function headsSay(slug: string): ReadonlyMap<string, boolean> | null {
@@ -1630,15 +1513,6 @@ export async function headsStillOn(slug: string, graphics: readonly string[], ms
   const deadline = Date.now() + ms;
   while (stillOn().length > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
   return stillOn();
-}
-
-export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] {
-  const batches: ControlSendItem[][] = [];
-  for (let i = 0; i < liveGraphics.length; i += LAYERS_PER_CLEAR_BATCH) {
-    batches.push(liveGraphics.slice(i, i + LAYERS_PER_CLEAR_BATCH).flatMap(g => clearCueItems(g).map(item =>
-      item.msg.t === 'stop' ? { ...item, msg: { ...item.msg, sound: false as const } } : item)));
-  }
-  return batches;
 }
 
 /**

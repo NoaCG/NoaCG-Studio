@@ -22,6 +22,7 @@
 // bridge-connect drives the form through a fake Bridge; playout-nav owns the header door and the
 // Back/Home pair beside it.
 // covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
+// covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // CasparCG Connect is a NICE-TO-HAVE over routes that already air (docs/BRIDGE.md),
 // so it earns a place here for one reason only: it puts a control on the production page and a

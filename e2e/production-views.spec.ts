@@ -1,5 +1,6 @@
 // covers: src/components/home/{ProductionSetupMenu.tsx,useAudienceInbox.ts}
 // covers: src/components/home/ProductionPage.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // THE PRODUCTION HEADER, DECLUTTERED (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03: "the
 // playout page is getting crowded"). What is pressed live stays in the header; the doors opened

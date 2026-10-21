@@ -1,4 +1,5 @@
 // covers: src/control/{allOut,seqSend}.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // ALL OUT CLEARS WHAT THE SERVER SAYS IS ON (docs/work-specs/playout-workflow-simplification D11,
 // AC-13). The production page used to clear only the graphics its own list had a cue marker for,

@@ -16,6 +16,7 @@
 // join.html or src/join/ touches no module the app imports, and would otherwise map to
 // nothing at all.
 // covers: {join.html,src/join/**}
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';

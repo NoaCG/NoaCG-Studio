@@ -6,6 +6,7 @@
 // through it: splitting the logo and Home into two controls changed both walks while every spec
 // named after the wizard stayed green.
 // covers: src/components/wizard/**, !src/components/wizard/import/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, finishIntoNewEditor, openWorkingGraphicInEditor } from './_create';

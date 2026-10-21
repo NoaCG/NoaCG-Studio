@@ -12,6 +12,7 @@
 // failure. It is mapped separately because the failure mode it guards - a door that saves
 // nothing and says nothing - reads as "worked" to every other spec in the suite.
 // covers: src/{model/{library.ts,shows.ts,prefs.ts,storageHealth.ts},store/{saveActions.ts,storageAlert.ts},ai/settings.ts}
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { armStorageFailure, fillStorage } from './_storage';

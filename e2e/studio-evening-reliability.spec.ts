@@ -3,6 +3,7 @@
 // covers: src/components/home/useDeferredEdits.ts, src/packs/graphicsPack.ts, src/components/wizard/CreationWizard.tsx
 // covers: src/model/shows.ts
 // covers: src/styles/{app-shell,wizard-and-dialogs,template-gallery,mobile,playout-dashboard,inspector}.css
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 import { test, expect, type Page } from '@playwright/test';
 import { seedSettings, fakeBridge } from './_fakeBridge';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
