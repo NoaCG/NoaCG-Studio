@@ -77,7 +77,7 @@ export function buildPresets(
 		'14',
 	)
 	key('retake', 'Re-take', 'RE-TAKE', 'retake')
-	key('update', 'Update', 'UPDATE', 'update')
+	key('update', 'Update', 'UPDATE', 'update', [], '14')
 	key('next', 'Next', 'NEXT', 'next')
 	key('out', 'Out', 'OUT', 'out')
 	key('select_prev', 'Previous cue', 'CUE\\nUP', 'select-prev')
@@ -163,7 +163,7 @@ export function buildPresets(
 			id: 'cues',
 			name: 'Cues',
 			description: rows.length
-				? "One key per cue of this production's rundown: red on air, green selected."
+				? "Take, Select and Trigger keys for each cue of this production's rundown: red on air, green selected."
 				: 'The cues appear here once an operator page answers the panel.',
 			definitions: [
 				{ id: 'take_cues', type: 'simple', name: 'Take a cue', presets: takeIds },

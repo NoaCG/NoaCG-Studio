@@ -6,14 +6,14 @@ Each press is run by the NoaCG operator page that answers the panel, exactly as 
 
 ### Install
 
-Companion 4.3 or later. If the **NoaCG Studio** connection is not in Companion's list yet, install the module file you were given (`noacg-studio-<version>.tgz`): open **Modules**, press **Import module package** and choose the file. To go back to an earlier version, import that version's file the same way.
+Companion 4.3 or later. If **NoaCG: NoaCG Studio** is not in Companion's list of connections yet, install the module file you were given (`noacg-studio-<version>.tgz`): open **Modules**, press **Import module package** and choose the file. To go back to an earlier version, import that version's file the same way. A new Companion first shows its own welcome and What's New windows; finish or close them.
 
 ### Set it up
 
 1. Publish the production in NoaCG once. On the production page open **Setup**, then **Panel** (on the hosted control page, **Panel** is in the header). Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
-2. In Companion, open **Connections**, add **NoaCG Studio**, type the code into **Pairing code**, give the panel a name, and save. The code field clears and the panel appears in the page's list.
+2. In Companion, open **Connections**, type `NoaCG` in the search box on the right, press **Add** beside **NoaCG: NoaCG Studio**, then **Add** again. Type the code into **Pairing code**, give the panel a name in **Panel name**, and press **Save**. The code field clears and the panel appears in the page's list.
 3. Keep the production page open. It answers the panel by itself; the header shows **Panel ✓**.
-4. Open **Buttons**, then the **Presets** tab, and drag keys onto your surface: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), and **Cues** (Take, Select and Trigger keys for each cue of your rundown).
+4. Open **Buttons**, then the **Presets** tab, press **NoaCG**, open a section and drag keys onto your buttons: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), and **Cues** (Take, Select and Trigger keys for each cue of your rundown).
 
 To stop a panel, press **Revoke** beside it in the page's panel list. To pair again, clear **Panel key** and type a new code.
 
