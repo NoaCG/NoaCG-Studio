@@ -33,4 +33,12 @@ Sheet AC-1 holds on a real Sheet: the share link previews the chosen tab on the 
 one second. AC-13's real-Sheet half holds for a list: generated starter rows round-trip through a
 real tab, a link with a tab previews that tab, a link without one shows the returned first tab and
 asks, a renamed tab keeps its identity, and a missing tab holds the last good value and asks for
-reconnection. Malformed and duplicated keyed rows are in `sheet-custom-slots.md`.
+reconnection. Malformed and duplicated keyed rows are in `sheet-custom-slots.md`. One clause is not
+re-proved here: one tab used by two graphics, or by a graphic and the inbox, has one reader. That
+rests on C1b's Node lease tests and the "one Sheet score on two boards" journey; the reader does
+not change with a real Sheet.
+
+The receipts were made before the `/check` review fixes to the overview (who shows a value, value
+names, problems on the overview). Those fixes are presentation on the Data view, covered by the
+journeys; the reader, Connect and the Playout line the receipts exercised did not change after
+them.

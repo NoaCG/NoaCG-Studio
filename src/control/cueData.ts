@@ -64,13 +64,6 @@ function matchDescriptors(descriptors: { key: string; label: string }[], side: s
 }
 
 /**
- * Every row this graphic can load, in dataset then row order.
- *
- * A dataset with no column matching any field title contributes nothing - offering its rows
- * would be offering a load that changes nothing. On a sided board each row appears once per
- * side, because which side it fills is the operator's choice, not the data's.
- */
-/**
  * Whether a graphic can load this dataset's rows at all: some column is named like one of its
  * fields. On a sided board that includes both sideless forms, or a "Team"/"Score" table would be
  * judged against "Team A" and dropped.
@@ -83,6 +76,13 @@ export function datasetMatches(descriptors: { key: string; label: string }[], ds
   return gate.some((d) => labels.has(d.label.trim().toLowerCase()));
 }
 
+/**
+ * Every row this graphic can load, in dataset then row order.
+ *
+ * A dataset with no column matching any field title contributes nothing - offering its rows
+ * would be offering a load that changes nothing. On a sided board each row appears once per
+ * side, because which side it fills is the operator's choice, not the data's.
+ */
 export function cueDataRows(
   descriptors: { key: string; label: string }[],
   datasets: ShowDataset[],
