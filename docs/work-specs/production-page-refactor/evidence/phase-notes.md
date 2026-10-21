@@ -40,6 +40,9 @@ changes a spec's digest.
   - The draft still lives in the page, so typing still re-renders the page; this phase is not
     meant to change that (13b does, AC-9).
   - The StrictMode session fix of phase 2+7 (b12dd74) is untouched: this phase moves no effect.
+  - The sound slot keys on the draft's `f0` (a picture cue's sound re-keys on its picture). When
+    13b moves the draft out of the page, that slot has to move into the editor too, or the page
+    reads a stale `f0`.
   - The moved markup keeps `editingCue` null checks that the prop type now rules out. They are
     left in to keep the move verbatim; 13b can drop them.
 

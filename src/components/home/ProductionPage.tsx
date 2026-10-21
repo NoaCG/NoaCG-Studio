@@ -258,7 +258,7 @@ import {
 import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import RailResizer, { useRailWidth } from './RailResizer';
-import CueEditor from './CueEditor';
+import CueEditor, { type CueEditorView } from './CueEditor';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
 import { isImageAsset } from '../../assets/assetUtils';
@@ -303,12 +303,9 @@ import { usePrepareForLive } from '../control/PrepareForLive';
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
  *  full template snapshots, so that is a visible input-lag class of cost). */
-interface CueDraft {
+interface CueDraft extends CueEditorView {
   productionId: string;
   cueId: string;
-  label: string;
-  note: string;
-  values: Record<string, string>;
 }
 
 /** How far behind the log head the action log seeds its history. Global ids mean this is a
