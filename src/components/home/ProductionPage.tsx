@@ -91,7 +91,8 @@ import {
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
-import { createSheetReader, createSourceStatusStore, fieldValue, type SheetLease } from '../../control/sheetSource';
+import type { FieldDescriptor } from '../../model/fieldModel';
+import { createSheetReader, createSourceStatusStore, pathValue, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -1570,22 +1571,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   bindingsRef.current = bindings;
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;
-  /** `text` in the form the fields connected to `path` take it ("TRUE" is "1" for a toggle), or
-   *  null when one of them cannot hold it: a score never takes "abc". */
+  /** `text` in the one form every field connected to `path` takes ("TRUE" is "1" for a toggle), or
+   *  null when one cannot hold it or they need different forms (control/sheetSource.ts `pathValue`). */
   const sourceAccept = useCallback((path: string, text: string): string | null => {
-    let out: string | null = text;
-    for (const [graphic, fields] of Object.entries(bindingsRef.current ?? {})) {
+    const fields: FieldDescriptor[] = [];
+    for (const [graphic, bound] of Object.entries(bindingsRef.current ?? {})) {
       const template = graphicsRef.current?.find((g) => g.name === graphic)?.template;
       if (!template) continue;
-      for (const [fieldId, bound] of Object.entries(fields)) {
-        if (bound !== path) continue;
-        const d = fieldDescriptors(template.fields).find((f) => f.key === fieldId);
-        const value = d ? fieldValue(d, text) : text;
-        if (value === null) return null;
-        out = value;
+      for (const [fieldId, p] of Object.entries(bound)) {
+        const d = p === path ? fieldDescriptors(template.fields).find((f) => f.key === fieldId) : undefined;
+        if (d) fields.push(d);
       }
     }
-    return out;
+    return pathValue(fields, text);
   }, []);
   const readerPlan = JSON.stringify((show?.sources ?? []).map((s) => [s.id, s.config]));
   useEffect(() => {

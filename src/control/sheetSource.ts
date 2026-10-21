@@ -287,6 +287,19 @@ export function sheetWrites(
  *  `valueFor`, which the data template's importer uses). Empty always clears. */
 export const fieldValue: (d: FieldDescriptor, text: string) => string | null = valueFor;
 
+/**
+ * The one value a path writes for every field connected to it, or null. A path is one value in
+ * the tree, so when its fields need different forms of the cell (a toggle's "1" and a caption's
+ * "TRUE"), no single value is right for both and the cell is held and reported, never decided by
+ * whichever field happens to come last.
+ */
+export function pathValue(fields: FieldDescriptor[], text: string): string | null {
+  const forms = new Set(fields.map((d) => fieldValue(d, text)));
+  if (forms.has(null)) return null;
+  if (forms.size > 1) return null;
+  return forms.size === 1 ? [...forms][0] : text;
+}
+
 // ── The reader ────────────────────────────────────────────────────────────────
 
 /** What a source's line says. `reader` is whether THIS page reads it or another tab does. */
@@ -517,7 +530,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     const problems = [
       ...content.problems,
       ...writes.missing.map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`),
-      ...writes.unfit.map((leaf) => `${leaf.replace(/^values\./, '')} holds “${content.leaves[leaf]}”, which its field cannot show, so it keeps its value`),
+      ...writes.unfit.map((leaf) => `${leaf.replace(/^values\./, '')} holds “${content.leaves[leaf]}”, which not every field connected to it can show, so it keeps its value`),
     ];
     const status: SheetStatus = {
       ...initialStatus('this'),

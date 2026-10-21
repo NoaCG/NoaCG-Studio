@@ -22,6 +22,7 @@ const {
   SHEET_TIMEOUT_MS,
   createSheetReader,
   fieldValue,
+  pathValue,
   parseSheetLink,
   readSheet,
   sheetContent,
@@ -561,7 +562,7 @@ test('a cell its field cannot hold writes nothing and is reported; what is writt
   b.sheet.csv = 'Field ID,Label,Value\nf1,Score,abc\nf2,Live,true\n';
   await b.clock.advance(SHEET_READ_MS);
   assert.equal(t.writes.length, 1, 'the bad cell wrote nothing, and "true" is still on');
-  assert.match(t.statuses.at(-1).problems[0], /f1 holds “abc”, which its field cannot show, so it keeps its value/);
+  assert.match(t.statuses.at(-1).problems[0], /f1 holds “abc”, which not every field connected to it can show, so it keeps its value/);
   b.sheet.csv = 'Field ID,Label,Value\nf1,Score,4\nf2,Live,1\n';
   await b.clock.advance(SHEET_READ_MS);
   assert.deepEqual(t.writes.at(-1), { sheet: { s1: { values: { f1: '4' } } } });
@@ -581,4 +582,16 @@ test('storage that refuses the lease does not silence the only open page: it kee
   await b.clock.advance(SHEET_READ_MS);
   assert.deepEqual(a.writes.at(-1), { sheet: { s1: { lines: 'three' } } }, 'its snapshot lives in memory too');
   a.reader.stop();
+});
+
+test('one value feeding a toggle and a text field: TRUE is not decided by whichever field comes last', () => {
+  const toggle = { kind: 'toggle' };
+  const caption = { kind: 'text' };
+  assert.equal(pathValue([toggle], 'TRUE'), '1');
+  assert.equal(pathValue([caption], 'TRUE'), 'TRUE');
+  assert.equal(pathValue([toggle, caption], 'TRUE'), null, 'their forms differ: held and reported');
+  assert.equal(pathValue([caption, toggle], 'TRUE'), null, 'in either order');
+  assert.equal(pathValue([toggle, caption], '1'), '1', 'a form both take is written');
+  assert.equal(pathValue([{ kind: 'number' }, { kind: 'number' }], ' 3 '), '3');
+  assert.equal(pathValue([], 'x'), 'x');
 });
