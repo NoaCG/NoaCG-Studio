@@ -11,6 +11,7 @@ import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownC
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
+import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import { publishAudio } from '../backend/productionAudio';
 import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
@@ -50,6 +51,8 @@ import {
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
+import { SHEET_LEASE_MS, initialStatus, type SheetLeaseDoor, type SheetReadState, type SheetStatus } from './sheetSource';
+import type { JsonObject } from '../model/productionData';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
@@ -548,6 +551,12 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     // and moves no graphic. The live TREE is deliberately not sent: it is runtime state and
     // the server's own column is its authority once published.
     bindings: show.bindings ?? {},
+    // The DATA SOURCES travel with them (migration 0097), so the server tick knows what to read
+    // with every page closed. Connect, Disconnect and Pause write both again at once
+    // (`writePublishedSources`), so neither waits for the next publish. Only the operators' row
+    // policy reads the column: a Sheet link grants reading, and no output or audience function
+    // selects it.
+    sources: show.sources ?? [],
     // The control PROFILE travels at publish for the same reason the bindings do: how this
     // production arranges its controls is AUTHORED state, like the panel and the
     // payload, and the hosted surfaces must not have to guess it (migration 0058,
@@ -570,7 +579,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
   // KEY UPDATE, which a Take passes (migration 0071, review finding ordering:F1).
   const error = await writeControlShow(sb, published, expected);
-  // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
+  // AN INSTANCE THAT HAS NOT RUN 0058 (or 0097, for `sources`) MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
   // would take the panel, the payload and the bindings down with it — every publish failing for
   // the window between this bundle going out and `db:push` applying the migration, and forever on
@@ -580,7 +589,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // extra round trip, only on the instances that need it, and only until they are migrated.
   if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
-    const { profile: _dropped, ...withoutProfile } = published;
+    const { profile: _dropped, sources: _unknown, ...withoutProfile } = published;
     const retry = await writeControlShow(sb, withoutProfile, expected);
     if (retry === 'moved') throw new PublishBehind(RACED);
     // The retry failing means the error was never about this column — report the ORIGINAL, which
@@ -638,6 +647,167 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     presenterSlug: row.presenterSlug,
     version,
     record: publishedRecordDigest(show),
+  };
+}
+
+/**
+ * CONNECT, DISCONNECT AND PAUSE ON A PUBLISHED PRODUCTION (data-sources C2, AC-3): the row's
+ * `bindings` and `sources` written at once, so a field connected after publishing moves the
+ * output with no new publish, the server's operator door accepts its path, and the tick honours
+ * a Pause with the page closed. Only these two columns: the panel and the payload stay as last
+ * published. Throws on a refusal, or when it matched no row, so the page can say the change has not
+ * reached the server and try again.
+ */
+export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<void> {
+  const sb = await getSupabase();
+  if (!sb) return;
+  const write = (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).select('id');
+  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] });
+  // PGRST204: an instance that has not run 0097 has no `sources` column; the bindings still go.
+  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {} }));
+  if (error) throw new Error(error.message);
+  // Signed out, or no longer this account's row: the write matches nothing and says nothing.
+  if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
+}
+
+/**
+ * A row published before migration 0097 has never had its sources written (NULL): give it this
+ * page's, and only while it is still NULL, so it can never replace sources another page wrote in
+ * the meantime. Answers whether this write set them; false when the row had them already (or has
+ * no such column). Throws when the write itself failed, so the caller can try the same again.
+ */
+export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<boolean> {
+  const sb = await getSupabase();
+  if (!sb) return false;
+  const { data, error } = await sb
+    .from('control_shows')
+    .update({ bindings: show.bindings ?? {}, sources: show.sources ?? [] })
+    .eq('id', showId)
+    .is('sources', null)
+    .select('id');
+  if (error?.code === 'PGRST204' || error?.code === '42703') return false;
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+/** What `control_source_lease` and `control_source_commit` answer (migration 0097). */
+interface LeaseRow {
+  ok: boolean;
+  claim?: string;
+  owner?: string | null;
+  gone?: boolean;
+  paused?: boolean;
+  snapshot?: Record<string, string>;
+  content?: string | null;
+  status?: Partial<SheetStatus> | null;
+  tick?: boolean;
+}
+interface CommitRow {
+  ok: boolean;
+  moved?: boolean;
+  paused?: boolean;
+  data?: JsonObject | null;
+  skipped?: string[];
+}
+
+/** A status the row holds, as this page shows it: an empty one (never read) is waiting. */
+function rowStatus(status: Partial<SheetStatus> | null | undefined, reader: SheetStatus['reader'], tick: boolean): SheetStatus {
+  const known = status && typeof status === 'object' && typeof status.state === 'string';
+  return { ...initialStatus(reader), ...(known ? status : {}), reader, closedPage: tick };
+}
+
+/**
+ * A PUBLISHED SOURCE'S LEASE, on the row (control/sheetSource.ts `SheetLeaseDoor`): the one lease
+ * the browser readers, the server tick and later E4's agent share (migration 0097). Claim takes or
+ * renews it on the control slug; settle writes a read through the operator's door and keeps the
+ * snapshot and status, in one step the database refuses once the claim has moved, the source is
+ * paused, or a path is no longer connected (that path alone is left out, and kept for later).
+ * `hold` takes the tree the write answered with (productionDataSession.holdServerTree). A read that
+ * changed nothing is kept on the row at most once a lease (its "checked" time), not every 5 s.
+ * Letting go is a keepalive request, so it still leaves when the page is going away.
+ */
+export function publishedLeaseDoor(o: {
+  slug: string;
+  sourceId: string;
+  owner: string;
+  hold: (slug: string, tree: JsonObject) => void;
+  note: (text: string) => void;
+}): SheetLeaseDoor {
+  let tick = false;
+  /** The claim this page last held, which letting go names. */
+  let held: string | null = null;
+  /** What the row last kept from this page, without its checked time, and when. */
+  let kept: { claim: string; state: string; at: number } | null = null;
+  const unchecked = (next: SheetReadState) => JSON.stringify({ ...next, status: { ...next.status, checkedAt: null } });
+  const args = (claim: string | null, ttl: number) => ({ p_slug: o.slug, p_source: o.sourceId, p_owner: o.owner, p_claim: claim, p_ttl_ms: ttl });
+  const said = new Set<string>();
+  const sayOnce = (text: string) => {
+    if (said.has(text)) return;
+    said.add(text);
+    o.note(text);
+  };
+  const lease = async (claim: string | null, ttl: number): Promise<LeaseRow> => {
+    const sb = await getSupabase();
+    if (!sb) throw new Error('offline');
+    const { data, error } = await sb.rpc('control_source_lease', args(claim, ttl));
+    // PGRST202: the function is not there (an instance behind on migrations). The reader then
+    // falls back to this browser's own lease (control/sheetSource.ts).
+    if (error) throw Object.assign(new Error(error.message), error.code === 'PGRST202' ? { code: 'no_lease' } : {});
+    return data as LeaseRow;
+  };
+  return {
+    claim: async (claim) => {
+      const row = await lease(claim, SHEET_LEASE_MS);
+      tick = row.tick === true;
+      held = row.ok && row.claim ? row.claim : null;
+      if (!row.ok || !row.claim) {
+        // A source the row does not list yet (its connection is on its way) waits.
+        const reader = row.owner === 'tick' ? 'server' : 'other';
+        return { held: false, status: row.gone ? null : rowStatus(row.status, reader, tick), reader };
+      }
+      const state: SheetReadState = {
+        snapshot: row.snapshot && typeof row.snapshot === 'object' ? row.snapshot : {},
+        content: typeof row.content === 'string' ? row.content : null,
+        status: rowStatus(row.status, 'this', tick),
+      };
+      return { held: true, claim: row.claim, state, paused: row.paused === true };
+    },
+    settle: async (claim, writes, next) => {
+      const state = unchecked(next);
+      if (Object.keys(writes).length === 0 && kept?.claim === claim && kept.state === state && Date.now() - kept.at < SHEET_LEASE_MS) return true;
+      const sb = await getSupabase();
+      if (!sb) return false;
+      const { data, error } = await sb.rpc('control_source_commit', {
+        p_slug: o.slug,
+        p_source: o.sourceId,
+        p_claim: claim,
+        p_writes: writes,
+        p_state: { ...next, status: { ...next.status, closedPage: tick } },
+      });
+      if (error) {
+        sayOnce(`The Sheet’s change was not written: ${error.message}`);
+        return false;
+      }
+      const row = data as CommitRow;
+      if (!row.ok) return false;
+      kept = { claim, state, at: Date.now() };
+      if (row.data) o.hold(o.slug, row.data);
+      for (const path of row.skipped ?? []) sayOnce(`A connected field has not reached the published production yet (${path}); it follows the Sheet once it has.`);
+      return true;
+    },
+    release: () => {
+      const claim = held;
+      held = null;
+      const cfg = loadBackendConfig();
+      if (!claim || !isBackendConfigured(cfg)) return;
+      // Not through the client: a reload or a closed tab cancels an ordinary request.
+      void fetch(`${cfg.url}/rest/v1/rpc/control_source_lease`, {
+        method: 'POST',
+        keepalive: true,
+        headers: { apikey: cfg.anonKey, authorization: `Bearer ${cfg.anonKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify(args(claim, 0)),
+      }).catch(() => {});
+    },
   };
 }
 

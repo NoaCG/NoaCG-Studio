@@ -33,12 +33,11 @@
 // Pure and Node-importable (production-page spec §5.2): every door arrives through `io`, so
 // scripts/sheet-source.test.mjs drives it with a fake clock, fetch and storage.
 
-import { fillList, listFormatFor, valueFor, type FilledRow, type ListAdapter, type ListFormat } from './contentFormats.ts';
-import { parseDelimited } from '../model/csv.ts';
-import { mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.ts';
+import { fillList, listFormatFor, valueFor, type FilledRow, type GraphicShape, type ListAdapter, type ListFormat } from './contentFormats.js';
+import { parseDelimited } from '../model/csv.js';
+import { mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.js';
 
-export { isSourcePath, sourceIdOf, sourcePrefix } from '../model/productionData.ts';
-import type { SavedGraphic } from '../model/packets';
+export { isSourcePath, sourceIdOf, sourcePaths, sourcePrefix } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
@@ -109,6 +108,8 @@ export async function readSheet(fetcher: SheetFetch, link: SheetLink, signal: Ab
     text = await response.text();
   } catch (error) {
     if (signal.aborted) return { ok: false, error: 'Google did not answer in 10 seconds', fix: 'Reading carries on by itself.' };
+    // The server tick reads at most so many bytes of a tab (api/_lib/dataTick.ts READ_BYTES).
+    if ((error as { code?: string }).code === 'too_large') return { ok: false, error: 'the tab is too large to read', fix: 'Keep the tab under 1 MB, or move older rows to another tab.' };
     // An unshared Sheet answers with a redirect to Google's sign-in, which a browser refuses to
     // read from another origin: it arrives here as a network error, like being offline.
     void error;
@@ -132,7 +133,7 @@ export async function readSheet(fetcher: SheetFetch, link: SheetLink, signal: Ab
 export type SheetShape = ListAdapter | 'values';
 
 /** The shape a graphic's connection reads, decided by what the graphic is (contentFormats). */
-export function sheetShapeFor(graphic: Pick<SavedGraphic, 'type'> & { template: { js?: string } }): SheetShape {
+export function sheetShapeFor(graphic: GraphicShape): SheetShape {
   for (const field of ['f0', 'f2']) {
     const format = listFormatFor(graphic, field);
     if (format) return format.adapter;
@@ -329,10 +330,11 @@ export function pathValue(fields: FieldDescriptor[], text: string): string | nul
 
 // ── The reader ────────────────────────────────────────────────────────────────
 
-/** What a source's line says. `reader` is whether THIS page reads it or another tab does. */
+/** What a source's line says. `reader` is whether THIS page reads it, another tab does, or the
+ *  server tick does (published, with every page that could read it closed). */
 export interface SheetStatus {
   state: 'waiting' | 'ok' | 'empty' | 'failing' | 'paused';
-  reader: 'this' | 'other';
+  reader: 'this' | 'other' | 'server';
   /** The last good read, and the last read that changed what the tab holds (ms). */
   checkedAt: number | null;
   changedAt: number | null;
@@ -345,16 +347,13 @@ export interface SheetStatus {
   stale: boolean;
   /** Rows the last good read could not use, or connected rows it no longer carries. */
   problems: string[];
+  /** Published only: whether the server reads this source once every page is closed. Absent
+   *  when unpublished, where nothing reads with the page closed. */
+  closedPage?: boolean;
 }
 
-/** One source's claim and memory in this browser, shared by its tabs. */
-export interface SheetLease {
-  owner: string;
-  /** A new claim's id: renewing keeps it, a handover changes it. */
-  claim: string;
-  until: number;
-  /** Which tree the snapshot was written into: an unpublished tree, or a published slug's. */
-  world: string;
+/** What a reader keeps between reads, wherever its lease lives. */
+export interface SheetReadState {
   /** Connected path -> the text last written there. */
   snapshot: Record<string, string>;
   /** The tab content's fingerprint, for "last changed". */
@@ -362,15 +361,49 @@ export interface SheetLease {
   status: SheetStatus;
 }
 
+/** One source's claim and memory in this browser, shared by its tabs. */
+export interface SheetLease extends SheetReadState {
+  owner: string;
+  /** A new claim's id: renewing keeps it, a handover changes it. */
+  claim: string;
+  until: number;
+  /** Which tree the snapshot was written into: an unpublished tree, or a published slug's. */
+  world: string;
+}
+
+/**
+ * Where a source's lease and read state live, and the one road its reads write by: this
+ * browser's storage while unpublished, the published row once published (migration 0097, through
+ * control/hostedControl.ts), so the browser readers and the server tick share one lease.
+ */
+export interface SheetLeaseDoor {
+  /** Take or renew the lease. `held` false: another reader has it, and this is what it says. */
+  claim: (claim: string | null) => Promise<
+    | { held: true; claim: string; state: SheetReadState; paused?: boolean }
+    | { held: false; status: SheetStatus | null; reader: 'other' | 'server' }
+  >;
+  /**
+   * Write a read's changed paths (text by path) and keep `next`, under the claim, in one step.
+   * `false`: the claim moved, or the source was paused or let go, and nothing was written or kept.
+   * A path the destination refused keeps its earlier snapshot.
+   */
+  settle: (claim: string, writes: Record<string, string>, next: SheetReadState) => Promise<boolean>;
+  /** Let the lease go, so another reader takes over at once. */
+  release: () => void;
+}
+
 export interface SheetReaderIo {
   now: () => number;
   setTimer: (run: () => void, ms: number) => unknown;
   clearTimer: (timer: unknown) => void;
   fetch: SheetFetch;
-  /** The browser's shared lease storage, keyed per production and source. */
+  /** The browser's shared lease storage, keyed per production and source (unpublished). */
   readLease: (key: string) => SheetLease | null;
   /** False when the storage refused the write (full, or unavailable). */
   writeLease: (key: string, lease: SheetLease) => boolean | void;
+  /** The published row's lease (control/hostedControl.ts `publishedLeaseDoor`): when given, the
+   *  storage above is not used. */
+  door?: SheetLeaseDoor;
 }
 
 export interface SheetReaderOptions {
@@ -390,8 +423,8 @@ export interface SheetReaderOptions {
    *  it; absent, every text is written as it is. */
   accept?: (path: string, text: string) => string | null;
   paused: () => boolean;
-  /** The writer (productionDataSession.applySourcePatch): true when the write landed, false when
-   *  nothing did, or the paths it left out while the rest landed. */
+  /** The writer behind this browser's own lease (productionDataSession.applySourcePatch): true when
+   *  the write landed, false when nothing did, or the paths it left out while the rest landed. */
   write: (patch: JsonObject) => Promise<boolean | string[]>;
   /** The message-candidate consumer: rows only, and no way to write. */
   inbox?: (rows: readonly (readonly string[])[]) => void;
@@ -403,9 +436,12 @@ export interface SheetReader {
   poke: () => void;
   /** Stop for good: an answer still in flight writes nothing, and the lease is let go. */
   stop: () => void;
+  /** Let the lease go now and claim it again at the next read: the page is going away (a reload
+   *  or a closed tab runs no cleanup), so the next page or the tick need not wait out the lease. */
+  release: () => void;
 }
 
-const initialStatus = (reader: SheetStatus['reader']): SheetStatus => ({
+export const initialStatus = (reader: SheetStatus['reader']): SheetStatus => ({
   state: 'waiting',
   reader,
   checkedAt: null,
@@ -418,14 +454,82 @@ const initialStatus = (reader: SheetStatus['reader']): SheetStatus => ({
   problems: [],
 });
 
+/** A missed read: the values hold, and three in a row mark the data stale (sheet AC-6). */
+export function missedStatus(before: SheetStatus, read: { error: string; fix: string }, now: number, reader: SheetStatus['reader']): SheetStatus {
+  const missed = before.missed + 1;
+  return {
+    ...before,
+    state: 'failing',
+    reader,
+    failingSince: before.failingSince ?? now,
+    error: read.error,
+    fix: read.fix,
+    missed,
+    stale: missed >= SHEET_STALE_MISSES,
+  };
+}
+
+/** A good read: checked now, changed now only when the tab's content moved, and what it could
+ *  not use said plainly. Clears stale, even when nothing changed. */
+export function readStatus(
+  before: SheetReadState,
+  content: SheetContent,
+  writes: Pick<ReturnType<typeof sheetWrites>, 'missing' | 'unfit'>,
+  now: number,
+  reader: SheetStatus['reader'],
+): { status: SheetStatus; fingerprint: string } {
+  const fingerprint = JSON.stringify(content.leaves);
+  const problems = [
+    ...content.problems,
+    ...writes.missing.filter((leaf) => !content.doubled?.includes(leaf)).map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`),
+    ...writes.unfit.map((leaf) => `${leaf.replace(/^values\./, '')} holds “${content.leaves[leaf]}”, which not every field connected to it can show, so it keeps its value`),
+  ];
+  const status: SheetStatus = {
+    ...initialStatus(reader),
+    state: content.empty ? 'empty' : 'ok',
+    checkedAt: now,
+    changedAt: before.content === fingerprint ? before.status.changedAt ?? now : now,
+    problems,
+    ...(before.status.closedPage === undefined ? {} : { closedPage: before.status.closedPage }),
+  };
+  return { status, fingerprint };
+}
+
+/**
+ * What one read comes to, for the browser reader and the server tick alike: the state to keep and
+ * the changed paths as text by path. A failed read keeps the snapshot and counts a miss.
+ */
+export function nextReadState(
+  held: SheetReadState,
+  result: SheetRead,
+  source: { sourceId: string; shape: SheetShape; connected: ReadonlySet<string>; accept?: (path: string, text: string) => string | null },
+  now: number,
+  reader: SheetStatus['reader'],
+): { next: SheetReadState; writes: Record<string, string> } {
+  if (!result.ok) return { next: { ...held, status: missedStatus(held.status, result, now, reader) }, writes: {} };
+  const content = sheetContent(source.shape, result.rows);
+  const written = sheetWrites(source.sourceId, content, source.connected, held.snapshot, source.accept);
+  const { status, fingerprint } = readStatus(held, content, written, now, reader);
+  const writes: Record<string, string> = {};
+  for (const [path, text] of Object.entries(written.snapshot)) if (held.snapshot[path] !== text) writes[path] = text;
+  return { next: { snapshot: written.snapshot, content: fingerprint, status }, writes };
+}
+
+/** Text by path as one merge patch. */
+function patchOf(writes: Record<string, string>): JsonObject {
+  let patch: JsonObject = {};
+  for (const [path, text] of Object.entries(writes)) {
+    const one = patchForPath(path, text);
+    if (one) patch = mergePatch(patch, one) as JsonObject;
+  }
+  return patch;
+}
+
 let claims = 0;
 
-export function createSheetReader(o: SheetReaderOptions): SheetReader {
+/** The unpublished lease: this browser's storage, shared by its tabs. */
+function localLeaseDoor(o: SheetReaderOptions, alive: () => boolean): SheetLeaseDoor {
   const { io } = o;
-  let stopped = false;
-  let timer: unknown = null;
-  let busy = false;
-  let last: string | null = null;
   // When the browser's storage refuses the lease (full, or private mode), this page keeps its lease
   // in memory and goes on reading: an open page never stands down silently. Tabs then cannot see
   // each other's lease, so two such tabs may both read; their writes are the same values.
@@ -434,9 +538,76 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   const writeLease = (lease: SheetLease): void => {
     if (memory || io.writeLease(o.key, lease) === false) memory = lease;
   };
+  /** Still ours, unstopped, with this claim. */
+  const ours = (claimId: string): SheetLease | null => {
+    if (!alive()) return null;
+    const lease = readLease();
+    return lease && lease.owner === o.tab && lease.claim === claimId && lease.until > io.now() ? lease : null;
+  };
+  return {
+    claim: async () => {
+      const now = io.now();
+      const held = readLease();
+      if (held && held.owner !== o.tab && held.until > now) return { held: false, status: held.status, reader: 'other' };
+      const mine = held?.owner === o.tab && held.until > now;
+      const fresh = held && held.world === o.world;
+      const lease: SheetLease = {
+        owner: o.tab,
+        claim: mine ? held.claim : `${o.tab}:${(claims += 1)}`,
+        until: now + SHEET_LEASE_MS,
+        world: o.world,
+        snapshot: fresh ? held.snapshot : {},
+        content: fresh ? held.content : null,
+        status: { ...(fresh ? held.status : initialStatus('this')), reader: 'this' },
+      };
+      writeLease(lease);
+      // Two tabs claiming in one moment: the storage holds one of them, and the other stands down.
+      if (readLease()?.claim !== lease.claim) return { held: false, status: readLease()?.status ?? null, reader: 'other' };
+      return { held: true, claim: lease.claim, state: lease };
+    },
+    settle: async (claimId, writes, next) => {
+      let held = ours(claimId);
+      if (!held) return false;
+      let snapshot = next.snapshot;
+      if (Object.keys(writes).length > 0) {
+        const landed = await o.write(patchOf(writes));
+        held = ours(claimId);
+        if (!held) return false;
+        // What did not land is tried again: the snapshot keeps what was there before for it.
+        if (!landed) snapshot = { ...held.snapshot };
+        else if (Array.isArray(landed)) {
+          snapshot = { ...snapshot };
+          for (const path of landed) {
+            if (held.snapshot[path] === undefined) delete snapshot[path];
+            else snapshot[path] = held.snapshot[path];
+          }
+        }
+      }
+      writeLease({ ...held, until: io.now() + SHEET_LEASE_MS, ...next, snapshot });
+      return true;
+    },
+    release: () => {
+      const lease = readLease();
+      if (lease?.owner === o.tab) writeLease({ ...lease, until: 0 });
+    },
+  };
+}
+
+export function createSheetReader(o: SheetReaderOptions): SheetReader {
+  const { io } = o;
+  let stopped = false;
+  let timer: unknown = null;
+  let busy = false;
+  let last: string | null = null;
+  let door = io.door ?? localLeaseDoor(o, () => !stopped);
+  /** The claim this page holds, as far as it knows: renewed at every read. */
+  let claimId: string | null = null;
+  /** What the line last said, for a lease the door could not reach. */
+  let shown: SheetStatus | null = null;
 
   const report = (status: SheetStatus) => {
     const text = JSON.stringify(status);
+    shown = status;
     if (text === last) return;
     last = text;
     o.onStatus(status);
@@ -451,123 +622,81 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     }, ms);
   };
 
-  /** This tab's claim on the source, taken or renewed; null when another tab holds it. */
-  const claim = (): SheetLease | null => {
-    const now = io.now();
-    const held = readLease();
-    if (held && held.owner !== o.tab && held.until > now) return null;
-    const mine = held?.owner === o.tab && held.until > now;
-    const fresh = held && held.world === o.world;
-    const lease: SheetLease = {
-      owner: o.tab,
-      claim: mine ? held.claim : `${o.tab}:${(claims += 1)}`,
-      until: now + SHEET_LEASE_MS,
-      world: o.world,
-      snapshot: fresh ? held.snapshot : {},
-      content: fresh ? held.content : null,
-      status: { ...(fresh ? held.status : initialStatus('this')), reader: 'this' },
-    };
-    writeLease(lease);
-    // Two tabs claiming in one moment: the storage holds one of them, and the other stands down.
-    return readLease()?.claim === lease.claim ? lease : null;
-  };
-
-  /** Still ours, unstopped, with the claim the read began under. */
-  const ours = (claimId: string): SheetLease | null => {
-    if (stopped) return null;
-    const lease = readLease();
-    return lease && lease.owner === o.tab && lease.claim === claimId && lease.until > io.now() ? lease : null;
-  };
-
   const tick = async () => {
     if (stopped || busy) return;
-    const started = io.now();
-    const lease = claim();
-    if (!lease) {
-      const held = readLease();
-      report({ ...(held?.status ?? initialStatus('other')), reader: 'other' });
-      schedule(SHEET_READ_MS);
-      return;
-    }
-    if (o.paused()) {
-      // Paused keeps the snapshot as it was, so Resume writes only what changed meanwhile.
-      const status: SheetStatus = { ...lease.status, state: 'paused', reader: 'this' };
-      writeLease({ ...lease, status });
-      report(status);
-      schedule(SHEET_READ_MS);
-      return;
-    }
     busy = true;
-    const abort = new AbortController();
-    const cut = io.setTimer(() => abort.abort(), SHEET_TIMEOUT_MS);
-    let read: SheetRead;
     try {
-      read = await readSheet(io.fetch, o.link, abort.signal);
+      await read();
     } finally {
-      io.clearTimer(cut);
       busy = false;
     }
-    const now = io.now();
-    let held = ours(lease.claim);
-    // Handed over, disconnected or stopped meanwhile, or paused while it was in flight: this
-    // answer writes nothing. The reader carries on (a stopped one schedules nothing), so a page
-    // that slept past its lease claims again or shows the other tab's status.
-    if (!held || o.paused()) {
-      schedule(held ? 0 : SHEET_READ_MS);
+  };
+
+  const read = async () => {
+    const started = io.now();
+    const answer = await door.claim(claimId).catch((error: Error) => error);
+    if (stopped) return;
+    if (answer instanceof Error && (answer as { code?: string }).code === 'no_lease') {
+      // An instance that has not run migration 0097 (or holds it back while outputs are live):
+      // this browser's own lease and the operator door, as before published leases existed.
+      door = localLeaseDoor(o, () => !stopped);
+      claimId = null;
+      schedule(0);
       return;
     }
-    if (!read.ok) {
-      const missed = held.status.missed + 1;
-      const status: SheetStatus = {
-        ...held.status,
-        state: 'failing',
-        reader: 'this',
-        failingSince: held.status.failingSince ?? now,
-        error: read.error,
-        fix: read.fix,
-        missed,
-        stale: missed >= SHEET_STALE_MISSES,
-      };
-      writeLease({ ...held, until: now + SHEET_LEASE_MS, status });
-      report(status);
-      schedule(Math.max(0, started + SHEET_READ_MS - now));
+    if (answer instanceof Error) {
+      // The published lease could not be reached (offline, or an instance behind on its
+      // migrations): a missed read, said as one, so the line goes stale rather than silent.
+      claimId = null;
+      const fix = 'Reading carries on by itself.';
+      report(missedStatus(shown ?? initialStatus('this'), { error: `the published production did not answer (${answer.message})`, fix }, io.now(), 'this'));
+      schedule(SHEET_READ_MS);
       return;
     }
-    if (o.inbox) o.inbox(read.rows.map((r) => Object.freeze([...r])));
-    const content = sheetContent(o.shape, read.rows);
-    const fingerprint = JSON.stringify(content.leaves);
-    const writes = sheetWrites(o.sourceId, content, o.connected(), held.snapshot, o.accept);
-    let snapshot = writes.snapshot;
-    if (Object.keys(writes.patch).length > 0) {
-      const landed = await o.write(writes.patch);
-      held = ours(lease.claim);
-      if (!held) {
-        schedule(SHEET_READ_MS);
-        return;
-      }
-      // What did not land is tried again: the snapshot keeps what was there before for it.
-      if (!landed) snapshot = { ...held.snapshot };
-      else if (Array.isArray(landed)) {
-        for (const path of landed) {
-          if (held.snapshot[path] === undefined) delete snapshot[path];
-          else snapshot[path] = held.snapshot[path];
-        }
-      }
+    if (!answer.held) {
+      claimId = null;
+      report({ ...(answer.status ?? initialStatus(answer.reader)), reader: answer.reader });
+      schedule(SHEET_READ_MS);
+      return;
     }
-    const problems = [
-      ...content.problems,
-      ...writes.missing.filter((leaf) => !content.doubled?.includes(leaf)).map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`),
-      ...writes.unfit.map((leaf) => `${leaf.replace(/^values\./, '')} holds “${content.leaves[leaf]}”, which not every field connected to it can show, so it keeps its value`),
-    ];
-    const status: SheetStatus = {
-      ...initialStatus('this'),
-      state: content.empty ? 'empty' : 'ok',
-      checkedAt: now,
-      changedAt: held.content === fingerprint ? held.status.changedAt ?? now : now,
-      problems,
-    };
-    writeLease({ ...held, until: io.now() + SHEET_LEASE_MS, snapshot, content: fingerprint, status });
-    report(status);
+    claimId = answer.claim;
+    const held = answer.state;
+    // Paused here, or on the published row by another page.
+    if (o.paused() || answer.paused) {
+      // Paused keeps the snapshot as it was, so Resume writes only what changed meanwhile.
+      const status: SheetStatus = { ...held.status, state: 'paused', reader: 'this' };
+      await door.settle(answer.claim, {}, { ...held, status }).catch(() => false);
+      if (!stopped) report(status);
+      schedule(SHEET_READ_MS);
+      return;
+    }
+    const abort = new AbortController();
+    const cut = io.setTimer(() => abort.abort(), SHEET_TIMEOUT_MS);
+    let result: SheetRead;
+    try {
+      result = await readSheet(io.fetch, o.link, abort.signal);
+    } finally {
+      io.clearTimer(cut);
+    }
+    // Stopped or paused while the read was in flight: this answer writes nothing. A handover
+    // meanwhile is the door's to find, in the same step as the write.
+    if (stopped) return;
+    if (o.paused()) {
+      schedule(0);
+      return;
+    }
+    if (result.ok && o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
+    const { next, writes } = nextReadState(held, result, { ...o, connected: o.connected() }, io.now(), 'this');
+    const kept = await door.settle(answer.claim, writes, next).catch(() => false);
+    if (stopped) return;
+    if (!kept) {
+      // Handed over, disconnected or let go meanwhile: claim again at the next read, and show the
+      // owner's status then rather than inventing one now.
+      claimId = null;
+      schedule(SHEET_READ_MS);
+      return;
+    }
+    report(next.status);
     schedule(Math.max(0, started + SHEET_READ_MS - io.now()));
   };
 
@@ -578,9 +707,62 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       if (stopped) return;
       stopped = true;
       if (timer !== null) io.clearTimer(timer);
-      // Let the lease go at once, so another open tab takes over at its next read.
-      const lease = readLease();
-      if (lease?.owner === o.tab) writeLease({ ...lease, until: 0 });
+      // Let the lease go at once, so another open tab, or the tick, takes over at its next read.
+      door.release();
+    },
+    release: () => {
+      if (stopped) return;
+      claimId = null;
+      door.release();
+    },
+  };
+}
+
+/**
+ * ONE WRITE AT A TIME, THE NEWEST VALUE LAST: how a page keeps a published row's sources in step
+ * with its own (ProductionPage, data-sources C2). A value pushed while a write is in flight waits
+ * for it and replaces any value still waiting, so a slow Pause can never land after the Resume
+ * that followed it. A failed write is tried again after `retryMs`, unless a newer value is waiting.
+ */
+export function latestWriter<T>(
+  write: (value: T) => Promise<void>,
+  io: Pick<SheetReaderIo, 'setTimer' | 'clearTimer'> & { retryMs: number; failed: (error: Error) => void },
+): { push: (value: T) => void; stop: () => void } {
+  let waiting: { value: T } | null = null;
+  let busy = false;
+  let stopped = false;
+  let timer: unknown = null;
+  const pump = () => {
+    if (busy || stopped || !waiting) return;
+    const { value } = waiting;
+    waiting = null;
+    busy = true;
+    write(value).then(
+      () => {
+        busy = false;
+        pump();
+      },
+      (error: Error) => {
+        busy = false;
+        if (stopped) return;
+        waiting ??= { value };
+        io.failed(error);
+        if (timer !== null) io.clearTimer(timer);
+        timer = io.setTimer(() => {
+          timer = null;
+          pump();
+        }, io.retryMs);
+      },
+    );
+  };
+  return {
+    push: (value) => {
+      waiting = { value };
+      pump();
+    },
+    stop: () => {
+      stopped = true;
+      if (timer !== null) io.clearTimer(timer);
     },
   };
 }

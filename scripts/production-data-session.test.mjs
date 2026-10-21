@@ -416,3 +416,20 @@ test('the source writer, published: a value the row refuses never enters the loc
   assert.deepEqual(t.session.data.get().liveData, { match: 1 }, 'PREVIEW and Take cannot see the refused value');
   assert.equal(t.calls.slugPatched.length, 1, 'nothing left to send');
 });
+
+test('a published lease write: the page holds only the server tree its own slug answered', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.answers.fetches[0].resolve({ data: { home: 1 } });
+  await flush();
+  t.data.holdServerTree('slug-1', { home: 1, sheet: { s1: { lines: 'a' } } });
+  assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: { s1: { lines: 'a' } } });
+  // An answer for another slug, or after the production left the slug, is not held.
+  t.data.holdServerTree('slug-2', { other: 1 });
+  t.data.published(null);
+  t.data.holdServerTree('slug-1', { late: 1 });
+  assert.equal(t.session.data.get().liveData.other, undefined);
+  assert.equal(t.session.data.get().liveData.late, undefined);
+});

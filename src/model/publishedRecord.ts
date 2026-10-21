@@ -29,7 +29,7 @@ const NOT_PUBLISHED = new Set(['updatedAt', 'publishedAt', 'publishedRecord', 'h
 
 /** JSON with every object's keys sorted, so a record read back from the server (Postgres jsonb
  *  re-orders keys) or rewritten by a mutator digests the same. */
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((v) => (v === undefined ? 'null' : canonical(v))).join(',')}]`;
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>;

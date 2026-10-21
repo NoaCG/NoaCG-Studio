@@ -14,7 +14,9 @@
 //
 // The catch-all routes exactly ONE segment on this deployment (scripts/check-api-route-depth
 // .mjs - measured, not inferred), so every verb lives one segment deep: /api/data/update
-// today, siblings later at no function cost. Function 11 of the 12 budget.
+// today, siblings later at no function cost. Function 11 of the 12 budget. `/api/data/tick` is the
+// server tick (data-sources C2), the one-minute cron's target: vercel.json gives this function
+// `maxDuration` 30 for it.
 
 import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
 import { checkDataIngestBudget, checkDataIpRateLimit } from '../_lib/rateLimit.js';
@@ -29,6 +31,9 @@ import {
   resolveTargetGraphic,
   sendDataUpdate,
 } from '../_lib/dataIngest.js';
+import { adminConfigured, adminDb } from '../_lib/adminAuth.js';
+import { dataTickOn } from '../_lib/systemSettings.js';
+import { cappedFetch, cronAuthorized, runDataTick, TICK_OWNER, type DueSource } from '../_lib/dataTick.js';
 
 /** Field values, not uploads: a whole scoreboard of labels fits in a few hundred bytes. */
 const MAX_BODY_BYTES = 16_384;
@@ -209,6 +214,45 @@ function patchFailure(error: unknown): Response {
   return apiError('internal', 'The patch could not be written.', 500);
 }
 
+/**
+ * THE SERVER TICK (api/_lib/dataTick.ts): GET from the project's one-minute cron. Without the
+ * exact `Bearer <CRON_SECRET>` it answers 401 before it reads or writes anything, so a caller
+ * outside cannot write to the database. With it and the switch off (or unreadable) it answers at
+ * once and records nothing; on, it reads the due sources and records the run.
+ */
+async function tick(req: Request): Promise<Response> {
+  const guard = methodGuard(req, 'GET');
+  if (guard) return guard;
+  if (!cronAuthorized(req)) return apiError('unauthorized', 'bad cron secret', 401);
+  if (!adminConfigured()) return apiError('unavailable', 'The data API is not configured on this deployment.', 503);
+  if (!(await dataTickOn())) return json({ ok: true, on: false });
+  const db = await adminDb();
+  const rpc = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
+    const { data, error } = await db.rpc(name, args);
+    if (error) throw new Error(error.message);
+    return data as T;
+  };
+  try {
+    const run = await runDataTick({
+      now: Date.now,
+      due: (limit) => rpc<DueSource[]>('control_data_tick_due', { p_limit: limit }),
+      lease: (slug, source, claim, ttlMs) =>
+        rpc('control_source_lease', { p_slug: slug, p_source: source, p_owner: TICK_OWNER, p_claim: claim, p_ttl_ms: ttlMs }),
+      commit: (slug, source, claim, writes, state) =>
+        rpc('control_source_tick_commit', { p_slug: slug, p_source: source, p_claim: claim, p_writes: writes, p_state: state }),
+      record: (startedAt, durationMs, sources) =>
+        rpc('control_data_tick_record', { p_started: new Date(startedAt).toISOString(), p_duration_ms: durationMs, p_sources: sources }),
+      fetch: cappedFetch(fetch),
+      setTimer: (run, ms) => setTimeout(run, ms),
+      clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+    });
+    return json({ ok: true, on: true, durationMs: run.durationMs, sources: run.sources });
+  } catch (error) {
+    console.error('Data tick failed:', error instanceof Error ? error.message : error);
+    return apiError('internal', 'The tick could not run.', 500);
+  }
+}
+
 interface Handler {
   fetch(req: Request): Promise<Response>;
 }
@@ -217,6 +261,7 @@ const ROUTES: Record<string, Handler> = {
   update: { fetch: update },
   patch: { fetch: patch },
   state: { fetch: state },
+  tick: { fetch: tick },
 };
 
 export default {

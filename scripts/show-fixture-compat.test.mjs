@@ -22,6 +22,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import './lib/tsResolve.mjs';
 
 const { resolveBindings } = await import('../src/model/productionData.ts');
 const { hasLiveData } = await import('../src/control/liveData.ts');

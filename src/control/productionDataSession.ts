@@ -53,8 +53,14 @@ export interface ProductionDataSession {
   patchBoundValues: (writes: TreeWrite[]) => Promise<void>;
   /** A SOURCE READER's write (control/sheetSource.ts): a merge patch of the connected paths that
    *  changed. Answers true when it landed, false when nothing did (it is tried again), or the
-   *  paths the published row does not bind yet, which were left out while the rest landed. */
+   *  paths the published row does not bind yet, which were left out while the rest landed.
+   *  Published, a reader writes under its lease on the row instead (`holdServerTree`); this road is
+   *  its fallback on an instance that has not run migration 0097. */
   applySourcePatch: (patch: JsonObject) => Promise<boolean | string[]>;
+  /** Hold the tree a published source write answered with (control/hostedControl.ts
+   *  `publishedLeaseDoor`), when it is this mode's slug's: the server's answer, never an
+   *  optimistic tree, so a value the row refused cannot reach PREVIEW or a Take. */
+  holdServerTree: (slug: string, tree: JsonObject) => void;
   /** Pull the server's tree in: at the key's arrival, and whenever a feed row says it moved. */
   refresh: () => Promise<void>;
   /** Put the bound fields' CHANGES on the wire, unpublished only. `resolved` is what `tree` resolves
@@ -272,6 +278,10 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       }
       if (from !== mode) return false;
       return skipped.length > 0 ? skipped : true;
+    },
+
+    holdServerTree: (from, tree) => {
+      if (session.alive() && slug !== null && from === slug) write(mode, { liveData: tree });
     },
 
     refresh,

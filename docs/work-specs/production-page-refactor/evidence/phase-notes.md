@@ -5,6 +5,129 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 9, data-sources C2: published ownership and the server tick
+
+- **Previous verified `main` sha:** `63edc790b8bf0dccee0b82c93fc776baaae39c5e` (row 8, C1c,
+  #1585). This branch starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0097 is additive and stays applied:
+  a reverted build no longer writes `control_shows.sources` or calls the lease functions (the
+  column keeps its last value and nothing reads it), and its browser readers go back to the
+  localStorage lease. Turn the tick off first if it is on
+  (delete the `data_tick_until` system setting): a reverted `vercel.json` drops the cron anyway.
+- **Q record used.** `docs/work-specs/data-sources/evidence/tick-cost-estimate.md`: its ceiling
+  ($55.53 to $79.78 a month if every tick burned 30 s of CPU) is above the $20 credit, so the
+  safety rests on four guards, each in code and each tested: the 10-second read timeout
+  (`SHEET_TIMEOUT_MS`, `data-tick` "cut at 10 s"), no read started after 20 seconds
+  (`NO_NEW_READ_MS`, "no read starts after 20 seconds"), `maxDuration` 30 for
+  `api/data/[...path].ts` in `vercel.json`, and the switch's expiry, at most 48 hours ahead
+  (`dataTickOnAt`, `data_tick_on()`; the record bounds a runaway 48-hour window at about $5). Its
+  advice is also taken: reads run four at a time, and a tab over 1 MB is not read. One more guard
+  came from the review: a read started late gets only the time left before 26 s
+  (`READS_END_MS`), so its write, the release and the run's record still fit inside the 30 s.
+- **Receipts** (`docs/work-specs/data-sources/evidence/sheet-timed-published.md`), on the local
+  stack with the owner's sixth test Sheet through the service account, at `169b090`: with an
+  operator page open, 20 of 20 API edits on the published output within 10 s, median 3.4 s,
+  slowest 5.6 s (sheet AC-3 published); with every operator page closed and the tick called on the
+  minute, 6 of 6 edits on the published output in 25.6 to 60.0 s (sheet AC-4); each recorded tick
+  run took 1.1 to 1.4 s for one to three sources. Nothing was taken, advanced or removed.
+- **Decisions.**
+  - The row carries `sources` (0097) beside `bindings`. Publish writes both; Connect, Disconnect
+    and Pause write both again at once (`writePublishedSources`, from one effect in
+    `ProductionPage.tsx` that skips the value the page opened with or published), so a field connected after
+    publishing moves the output with no new publish. A direct column write through the owner's
+    row policy, as DS17 says: no RPC.
+  - The published lease is on the row: `control_source_reads` holds the owner, claim, expiry,
+    snapshot, content fingerprint and status of each published source. `control_source_lease` is
+    the one lease function the browser readers (on the control slug), the tick (service role) and
+    later E4 call. The claim decides, not the owner's name: a live lease is renewed only with its
+    own claim and let go (ttl 0) only with it, so a duplicated cron call, which shares the name
+    `tick`, can neither take over nor release the other run's lease. The lease answer also carries
+    the row's Pause, so a Pause made on another device holds this page's reader too. The write is `control_source_commit` (browser, through
+    `control_data_patch_by_slug` with all its guards) or `control_source_tick_commit` (service
+    role only, `control_data_apply` labelled `'sheet'`), both through `control_source_settle`,
+    which checks the claim and writes under one row lock. That closes C1b's low note: an old
+    owner's write in flight across a handover is refused by the database, not by a browser check.
+    The write takes changed paths as text by path; a path the row does not bind yet, or one that
+    0088's rules for a press would refuse (an object a feed wrote there, a branch above it that is
+    not an object), is left out and keeps its earlier snapshot, for both labels, so the tick can
+    never erase what the operator's door protects. That replaced C1b's
+    "not a bound path" strip-and-retry in `productionDataSession.applySourcePatch`, whose published
+    branch is gone (`holdServerTree` takes the server's answer instead).
+  - `control_data_apply` accepts the label `'sheet'` (0071's body, one word wider): the tick's rows
+    ride the ordinary 50-per-5-s cap, never the API's ingest budget.
+  - The reader (`sheetSource.ts`) now talks to a `SheetLeaseDoor`: this browser's storage while
+    unpublished (C1b's rules, unchanged and still tested), the row once published
+    (`publishedLeaseDoor` in `hostedControl.ts`). The status rules (`missedStatus`, `readStatus`)
+    and `changedTexts` are exported so the tick (`api/_lib/dataTick.ts`) uses the same core:
+    read, adapters, diff against the shared snapshot, staleness after three misses. Only the
+    panel's ftype to field-kind map is restated in the tick (the converter lives in a client
+    module), without hidden fields as the browser reads them; `data-tick` pins the two against
+    `fieldDescriptors`.
+  - `sheetSource.ts` and `contentFormats.ts` import each other by `.js`, because the function's
+    emit keeps the specifier; the Node tests that load them import `scripts/lib/tsResolve.mjs`
+    first, one resolve hook for `.js` and extensionless specifiers under `src/` and `api/`. Their type imports moved off `model/packets` to
+    `model/types` so the function's typecheck does not pull in browser storage code.
+  - The tick (`/api/data/tick`, GET): 401 before anything else without the exact
+    `Bearer <CRON_SECRET>` (as `api/render/cleanup.ts`), then the switch, read uncached and off on
+    any error; on, it takes up to 50 due sources (published, Sheet, unpaused, no live lease, least
+    recently read first), reads each under its own 30-second lease, writes what changed, keeps the
+    status, lets the lease go, and records the run (start, wall-clock duration, each source's
+    outcome) through `control_data_tick_record`, which keeps seven days.
+  - The switch is the `data_tick_until` system setting, `{ "until": "<ISO>" }`; nothing writes it
+    in this PR, so it ships off. `data_tick_on()` restates the rule in SQL for the sources line.
+  - The sources line says `read by the server` when the tick holds the lease, and
+    `closed-page reading off` while published with the switch off; the source details say about
+    once a minute by the server, or that closed-page reading is off.
+  - A page going away (`pagehide`) lets its leases go: the reload journey found a reloaded page
+    showing "read in another tab" for up to 15 s, its own previous page's lease. Published, the
+    release is a keepalive request straight to the RPC, because a reload cancels an ordinary one.
+  - The value a page opens with (or publishes) is never written to the row, so a page holding an
+    older copy cannot overwrite newer sources (assessment A, medium); every change after it is,
+    including a return to that first value. Comparing later values with the first one dropped a
+    Resume back to it and left the row paused (review, fixed; the configured walk pauses and
+    resumes around it). One writer per published production (`latestWriter` in `sheetSource.ts`)
+    sends one write at a time with the newest value last, so a slow Pause cannot land after the
+    Resume that followed it. Plans are compared as canonical JSON (`publishedRecord.ts`
+    `canonical`), since a record read back from the server reorders its keys.
+  - `control_shows.sources` is NULL until first written (0097 adds it with no default): a row
+    published before it holds no sources, and the page opening it writes its own once
+    (`firstPublishedSources`, an update conditional on sources still being NULL, retried under the
+    same condition), so it never replaces sources another page wrote meanwhile; a written row, even
+    an empty one, is never overwritten on open.
+  - Trap: React runs each effect twice in development with its refs kept, so "skip the first
+    value" must treat that first value, seen again before any change, as no change. Without it the
+    dev server wrote the opening value at once and hid both this and the never-written case from
+    the configured walk (found by mutation). A failed write is
+    tried again every 10 s while the page shows it (said once); a write that matches no row (signed
+    out) counts as failed. A change whose write was lost to a reload reaches the row at the next
+    publish.
+  - A lease the page cannot reach (offline, or an instance that has not run 0097) is a missed read
+    with its reason, so the line goes stale rather than silent.
+  - The advisor baseline gains the six findings the migration adds by design (deny-all on the two
+    tables, the two slug functions callable by the client roles, like every `control_*` slug
+    function). If the hosted advisor words one differently, post-land reports it once and the
+    baseline is re-recorded.
+  - Not done: a field bound after publishing to a path that already holds its value (explicit
+    sharing through "Use existing content…") shows it at the next Take or Update, or when the cell
+    next changes; the server writes update rows on a data change, not on a binding change. Every
+    new connection's own source paths are written at once.
+- **Extra files.** `src/components/home/ProductionPage.tsx` (the published door, the at-once write,
+  `pagehide`), `src/components/home/SourcesLine.tsx` (the server reader and the switch-off words,
+  sheet AC-4), `src/control/productionDataSession.ts` (the writer entry: `holdServerTree`, the
+  published branch removed), `src/control/contentFormats.ts` (two import specifiers),
+  `scripts/content-formats.test.mjs` and `scripts/show-fixture-compat.test.mjs` (the resolve hook),
+  `scripts/lib/tsResolve.mjs` (the hook itself, shared), `src/model/publishedRecord.ts` (exports
+  `canonical`), `scripts/production-data-session.test.mjs`,
+  `supabase/advisor-baseline.json`, and the receipt `evidence/sheet-timed-published.md`.
+- **Traps.**
+  - A `Request` trims a header's trailing whitespace, so `Bearer <secret> ` reaches the handler as
+    the exact Bearer; that is the platform, not the check.
+  - The configured tick is driven in the Playwright process with the stack's test secret: the dev
+    server carries no `CRON_SECRET`, and only this process can answer the tick's own Sheet fetch.
+  - The receipt drivers ran from the scratchpad with their own Playwright config: a broader queue
+    job refuses an untracked spec in the tree and a second admission on the same source state.
+
 ## Row 8, data-sources C1c: Data overview, sources line, real-Sheet receipts
 
 - **Previous verified `main` sha:** `ebbdc78` (row 7, C1b, #1578). This branch starts from

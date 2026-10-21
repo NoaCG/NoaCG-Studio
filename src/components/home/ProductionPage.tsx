@@ -92,7 +92,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
-import { createSheetReader, connectedFields, createSourceStatusStore, pathValue, type SheetLease } from '../../control/sheetSource';
+import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -138,6 +138,7 @@ import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceW
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox } from './useAudienceInbox';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
+import { canonical } from '../../model/publishedRecord';
 import { setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
@@ -183,6 +184,8 @@ import {
   controlPingSeq,
   outputPageUrl,
   publishControlShow,
+  publishedLeaseDoor,
+  firstPublishedSources,
   PublishBehind,
   sendControlVerbs,
   staleSentence,
@@ -194,6 +197,7 @@ import {
   verbSentItems,
   leftAlone,
   withLiveCue,
+  writePublishedSources,
   type ControlEventRow,
   type ControlFollowStatus,
   type ControlSendItem,
@@ -366,6 +370,8 @@ const wallClock = () => Date.now();
 /** A Sheet source's reader lease and memory, shared by this browser's tabs (control/sheetSource.ts).
  *  Runtime state like the live tree: localStorage, never the show record. */
 const SHEET_LEASE_KEY = 'spx-gfx-sheet-reader:';
+/** How soon a published production's sources are written again after a write failed. */
+const SOURCES_RETRY_MS = 10_000;
 function readSheetLease(key: string): SheetLease | null {
   try {
     const raw = localStorage.getItem(SHEET_LEASE_KEY + key);
@@ -1606,6 +1612,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             fetch: (url, init) => fetch(url, init),
             readLease: readSheetLease,
             writeLease: writeSheetLease,
+            // Published, the lease lives on the row, shared with the other pages and the tick.
+            door: hostedSlug
+              ? publishedLeaseDoor({ slug: hostedSlug, sourceId, owner: readerTab, hold: dataSession.holdServerTree, note: setNote })
+              : undefined,
           },
           connected: () => new Set(sourcePaths(bindingsRef.current, sourceId).map((p) => p.path)),
           accept: sourceAccept,
@@ -1616,13 +1626,92 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       ]),
     );
     sourceStatus.onPoke((sourceId) => readers.get(sourceId)?.poke());
+    // A reload or a closed tab runs no cleanup: let the leases go as the page leaves, so the
+    // next page (or, published, the tick) reads at once instead of waiting the lease out.
+    const leave = () => {
+      for (const reader of readers.values()) reader.release();
+    };
+    window.addEventListener('pagehide', leave);
     return () => {
+      window.removeEventListener('pagehide', leave);
       for (const [sourceId, reader] of readers) {
         reader.stop();
         sourceStatus.set(sourceId, undefined);
       }
     };
   }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
+  // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
+  // the operator door then takes the new path, the tick honours the Pause with every page closed,
+  // and nothing waits for the next publish. One writer per published production, one write at a
+  // time with the newest value last (control/sheetSource.ts `latestWriter`). The value the page
+  // opens with (or publishes) is not written, so a page holding an older copy cannot overwrite
+  // newer sources, unless the row has never had any (published before migration 0097); every
+  // change after it is, a return to that first value included.
+  // Keys sorted: a record read back from the server (jsonb reorders keys) is not a change.
+  const sourcesPlan = hostedSlug ? canonical([bindings ?? {}, show?.sources ?? []]) : null;
+  const sourcesPlanRef = useRef(sourcesPlan);
+  sourcesPlanRef.current = sourcesPlan;
+  const sourcesWriter = useRef<ReturnType<typeof latestWriter<string>> | null>(null);
+  useEffect(() => {
+    if (!hostedSlug) return;
+    let noted = false;
+    const writer = latestWriter(
+      async (plan: string) => {
+        const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
+        await writePublishedSources(id, { bindings: planBindings, sources: planSources });
+        for (const source of planSources ?? []) sourceStatus.poke(source.id);
+      },
+      {
+        setTimer: (run, ms) => setTimeout(run, ms),
+        clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+        retryMs: SOURCES_RETRY_MS,
+        failed: (error) => {
+          if (!noted) setNote(`The change has not reached the published production: ${error.message}`);
+          noted = true;
+        },
+      },
+    );
+    sourcesWriter.current = writer;
+    // A row published before migration 0097 has no sources yet: this page's become its first, by a
+    // write that lands only while the row is still without them, retried as the same condition.
+    let live = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const first = () => {
+      const plan = sourcesPlanRef.current;
+      if (!live || !plan) return;
+      const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
+      if (!planSources?.length) return;
+      firstPublishedSources(id, { bindings: planBindings, sources: planSources })
+        .then((wrote) => {
+          if (live && wrote) for (const source of planSources) sourceStatus.poke(source.id);
+        })
+        .catch(() => {
+          if (live) retry = setTimeout(first, SOURCES_RETRY_MS);
+        });
+    };
+    first();
+    return () => {
+      live = false;
+      clearTimeout(retry);
+      writer.stop();
+      if (sourcesWriter.current === writer) sourcesWriter.current = null;
+    };
+  }, [hostedSlug, id, sourceStatus]);
+  /** The first value seen for this slug, and whether the page has changed it since: the first
+   *  value seen again before any change is no change (an effect run twice, as React does in
+   *  development, or a reload), and after one it is (Resume back to it). */
+  const firstFor = useRef<{ slug: string; plan: string; changed: boolean } | null>(null);
+  useEffect(() => {
+    if (!sourcesPlan || !hostedSlug) return;
+    const first = firstFor.current;
+    if (first?.slug !== hostedSlug) {
+      firstFor.current = { slug: hostedSlug, plan: sourcesPlan, changed: false };
+      return;
+    }
+    if (!first.changed && first.plan === sourcesPlan) return;
+    first.changed = true;
+    sourcesWriter.current?.push(sourcesPlan);
+  }, [sourcesPlan, hostedSlug]);
   /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
   const [connectPreview, setConnectPreview] = useState<{ graphic: string; values: Record<string, string> } | null>(null);
 

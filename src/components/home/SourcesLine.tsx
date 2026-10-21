@@ -27,12 +27,14 @@ export function useSourceStatus(store: SourceStatusStore, sourceId: string): { s
 export function statusWords(paused: boolean | undefined, status: SheetStatus | undefined, now: number, withReader = true): string {
   if (paused) return 'paused';
   if (!status || status.state === 'waiting') return 'reading…';
-  const where = withReader && status.reader === 'other' ? 'read in another tab · ' : '';
+  const where = !withReader ? '' : status.reader === 'other' ? 'read in another tab · ' : status.reader === 'server' ? 'read by the server · ' : '';
+  // Published with the server tick switched off, nothing reads once the pages close: say so.
+  const closed = withReader && status.closedPage === false ? ' · closed-page reading off' : '';
   if (status.state === 'paused') return `${where}paused`;
-  if (status.state === 'failing') return `${where}${status.error} since ${clock(status.failingSince ?? now)}`;
+  if (status.state === 'failing') return `${where}${status.error} since ${clock(status.failingSince ?? now)}${closed}`;
   const checked = status.checkedAt !== null ? `checked ${ago(status.checkedAt, now)}` : 'reading…';
   const changed = status.changedAt !== null ? ` · changed ${ago(status.changedAt, now)}` : '';
-  return `${where}${status.state === 'empty' ? 'empty · ' : ''}${checked}${changed}`;
+  return `${where}${status.state === 'empty' ? 'empty · ' : ''}${checked}${changed}${closed}`;
 }
 
 /** Who reads a source and how often (data-sources AC-9's source details). */
@@ -40,7 +42,10 @@ export function readerWords(paused: boolean | undefined, status: SheetStatus | u
   if (paused) return 'Paused: not read until Resume';
   if (!status) return 'Waiting for the first read';
   const every = `about every ${SHEET_READ_MS / 1000} s`;
-  return status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
+  if (status.reader === 'server') return 'Read by the server about once a minute, while every page is closed';
+  const page = status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
+  if (status.closedPage === undefined) return page;
+  return status.closedPage ? `${page}; about once a minute by the server once every page is closed` : `${page}; closed-page reading is off`;
 }
 
 /** Pause or Resume a source, and read at once on Resume so the line does not wait an interval. */
