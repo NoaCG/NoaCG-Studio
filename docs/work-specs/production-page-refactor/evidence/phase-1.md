@@ -40,7 +40,7 @@ Mutation checks (each patch local, never committed, one at a time):
 | --- | --- | --- |
 | resolve seed (`liveCueMoves`) | inverted | `playout-resolve-race` fails: chip "nothing on air" after the stale answer |
 | published dispatch (`dataKey !== null`) | removed | `production-data-key-dispatch` fails: 16 update rows of the page's own after the release |
-| published dispatch, the `undefined` half | `if (dataKey) return` | passes: a published page holds an empty tree until its key and the server's tree are read, so the held window has nothing to send. The walk pins the window by its outcome. |
+| published dispatch, the `undefined` half | `if (dataKey) return` | first version passed (a published page holds an empty tree until its key and tree are read, so the held window had nothing to send; review finding on #1568). The walk now edits the tree on the Data workspace while that tab's key is unread too (the hold is on the context): with the mutation it fails with the page's own row `{ f1: "5" }` (`src` null) during the hold; with the real guard it passes (queue j-0034, j-0033). |
 | folder run registration | 300 ms window injected | `playout-air-contract` S3 fails with two takes |
 | S1 (main's code) | none | `playout-adjust-race` fails 3 for 4, twice |
 
