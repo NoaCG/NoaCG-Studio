@@ -36,6 +36,9 @@ export type Status = 'pairing' | 'connecting' | 'ok' | 'no-page' | 'revoked' | '
 export const SILENCE_MS = 12_000
 /** How long a press waits for the page's `result`. */
 export const RESULT_MS = 1_500
+/** What the last-press variable says while a press waits for the page's answer. */
+export const PENDING_SENTENCE = 'Sent, waiting for the operator page'
+
 /** How long a refused key flashes. */
 export const FLASH_MS = 1_200
 /** The rejoin backoff, then every 8 s. */
@@ -390,6 +393,9 @@ export class PanelClient {
 				resolve(r)
 			})
 		})
+		// Sent and not yet answered: the last-press variable says so, apart from done and refused.
+		this.#lastPress = PENDING_SENTENCE
+		this.#opts.onChange?.()
 		let answer
 		try {
 			answer = await this.#relay.press(this.#key, press)

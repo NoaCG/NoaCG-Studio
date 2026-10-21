@@ -29,7 +29,7 @@ To stop a panel, press **Revoke** beside it in the page's panel list. To pair ag
 | Look                                | Meaning                                                    |
 | ----------------------------------- | ---------------------------------------------------------- |
 | Red                                 | the cue is on air                                          |
-| Green                               | the cue is selected (what PREVIEW shows)                   |
+| Green                               | the cue is selected: what Take, Next and Out act on        |
 | Grey text                           | the page would not run this action now                     |
 | Amber flash                         | the press was refused or not answered                      |
 | Clip clock amber, then blinking red | 10 seconds left, then 5                                    |
