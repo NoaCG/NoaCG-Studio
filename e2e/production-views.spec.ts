@@ -116,7 +116,7 @@ test('a production with an audience graphic lists Messages, which counts the mes
 test('Data opens on an overview of sources and values in the one vocabulary, and Advanced holds the rest', async ({ page }) => {
   test.setTimeout(120_000);
   await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
-    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: 'Name,Value\nName,Ann Lee\n' }),
+    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: 'Name,Value\nName,Ann Lee\nTitle,"Chief\nEditor"\n' }),
   );
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Overview Night');
@@ -141,6 +141,9 @@ test('Data opens on an overview of sources and values in the one vocabulary, and
   await expect(name).toContainText('Name');
   await expect(name.getByTestId('data-item-value')).toHaveValue('Ann Lee');
   await expect(name.getByTestId('data-item-users')).toHaveText('Shown by Hairline');
+  // A cell with a line break is read here, never typed into a one-line box that would flatten it.
+  const title = overview.getByTestId(/^data-item-sheet\..*\.values\.Title$/);
+  await expect(title.getByTestId('data-item-value')).toHaveText('2 lines: Chief … · edit it in the Sheet');
 
   // The default surface speaks the one vocabulary.
   const words = await data.getByTestId('production-data').evaluate((el) => (el as HTMLElement).innerText);

@@ -595,8 +595,9 @@ function DataOverview({
         leaf={leaf}
         name={key === null ? leaf.path : nameOf(show, key.replace(/^values\./, ''), users)}
         users={[...new Set(users.map((u) => u.graphic))]}
-        // A Sheet's lines and rows are lists by shape, even emptied; a local value by its type.
-        list={key === null ? Array.isArray(leaf.value) || leaf.text.includes('\n') : !key.startsWith('values.')}
+        // A Sheet's lines and rows are lists by shape, even emptied; a local value by its type. Text
+        // with line breaks is read here, never typed: a one-line box would flatten it on air.
+        list={leaf.text.includes('\n') || (key === null ? Array.isArray(leaf.value) : !key.startsWith('values.'))}
         connected={key !== null}
         edits={edits}
       />
