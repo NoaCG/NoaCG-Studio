@@ -168,5 +168,22 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
   // A reload shows the Pause the row holds.
   await page.goto(productionUrl);
   await expect(status).toHaveText(/paused$/, { timeout: 20_000 });
+
+  // Resume reaches the row, and so does a Pause that returns to what the page opened with.
+  const pause = page.getByTestId(`source-line-${sourceId}`).getByTestId('source-pause');
+  await pause.click();
+  await expect.poll(async () => (await row(showId)).sources[0].paused ?? false, { timeout: 10_000 }).toBe(false);
+  await pause.click();
+  await expect.poll(async () => (await row(showId)).sources[0].paused, { timeout: 10_000 }).toBe(true);
+  await pause.click();
+  await expect.poll(async () => (await row(showId)).sources[0].paused ?? false, { timeout: 10_000 }).toBe(false);
+
+  // Resumed with every page gone, the tick reads it again.
+  await leave(page);
+  await expireLease(showId);
+  tab.csv = 'Fourth line\n';
+  run = await tick(`Bearer ${SECRET}`);
+  expect(run.body.sources?.find((s) => s.source === sourceId)?.outcome).toBe('read');
+  expect((await lines(showId)).map((l) => l.text)).toContain('Fourth line');
   await switchTick(null);
 });

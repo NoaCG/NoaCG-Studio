@@ -1640,15 +1640,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
   // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
   // the operator door then takes the new path, the tick honours the Pause with every page closed,
-  // and nothing waits for the next publish. Only a change made on this page is written, never the
-  // value it opened with (or published), so a page holding an older copy cannot overwrite newer
-  // sources on the row; a failed write is tried again while the page shows it.
+  // and nothing waits for the next publish. The value the page opens with (or publishes) is never
+  // written, so a page holding an older copy cannot overwrite newer sources on the row; every
+  // change after it is, a return to that first value included (Resume after a Pause). A failed
+  // write is tried again while the page shows it.
   const sourcesPlan = hostedSlug ? JSON.stringify([bindings ?? {}, show?.sources ?? []]) : null;
-  const openedPlan = useRef<{ slug: string; plan: string } | null>(null);
+  const firstFor = useRef<string | null>(null);
   useEffect(() => {
     if (!sourcesPlan || !hostedSlug) return;
-    if (openedPlan.current?.slug !== hostedSlug) openedPlan.current = { slug: hostedSlug, plan: sourcesPlan };
-    if (openedPlan.current.plan === sourcesPlan) return;
+    if (firstFor.current !== hostedSlug) {
+      firstFor.current = hostedSlug;
+      return;
+    }
     const [planBindings, planSources] = JSON.parse(sourcesPlan) as [Show['bindings'], Show['sources']];
     let live = true;
     let noted = false;
