@@ -200,18 +200,13 @@ function CueSourceLine({
   );
 }
 
-/** A connected field's mark: where it comes from, stale after three missed reads, and for a
- *  list where to edit it (sheet "The operator wins": a connected list is read-only here). */
-function CueConnectedMark({ source, store, list, onDisconnect }: { source: ShowSource; store: SourceStatusStore; list: boolean; onDisconnect: () => void }) {
+/** A connected field's mark: where it comes from, and stale after three missed reads. Short, as
+ *  the mark beside a field label is clipped to its column. */
+function CueConnectedMark({ source, store }: { source: ShowSource; store: SourceStatusStore }) {
   const status = useSyncExternalStore(store.subscribe, () => store.get(source.id));
   return (
     <span className="pd-bound-mark" title={`Connected to Sheet: ${source.label}`} data-testid="cue-connected-mark" data-stale={status?.stale ? 'true' : undefined}>
-      🔗 Connected to Sheet: {source.label}
-      {status?.stale && <strong className="status-warn"> · stale</strong>}
-      {list ? '. Edit in the Sheet, or ' : ' · '}
-      <button type="button" className="link-inline" onClick={onDisconnect} data-testid="cue-disconnect">
-        {list ? 'Disconnect to edit here' : 'Disconnect'}
-      </button>
+      {status?.stale ? '⚠ stale · ' : '🔗 '}Sheet: {source.label}
     </span>
   );
 }
@@ -865,19 +860,29 @@ export default function CueEditor({
                             {d.key.toUpperCase()} · {d.label}
                           </label>
                           {source ? (
-                            <CueConnectedMark
-                              source={source}
-                              store={sourceStatus}
-                              list={listFormatFor(poolGraphic, d.key) !== null}
-                              onDisconnect={() => disconnect([d.key])}
-                            />
+                            <CueConnectedMark source={source} store={sourceStatus} />
                           ) : (
                             <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
                               🔗 {path}
                             </span>
                           )}
                         </div>
-                        <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" readOnly tabIndex={-1} />
+                        {/* A list keeps its lines: an <input> would join them into one. */}
+                        {listFormatFor(poolGraphic, d.key) ? (
+                          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" rows={3} readOnly tabIndex={-1} />
+                        ) : (
+                          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" readOnly tabIndex={-1} />
+                        )}
+                        {/* The operator wins for values (±, a typed value on Data); a connected
+                            list is read-only here and says where to edit it (sheet spec). */}
+                        {source && (
+                          <span className="hint" data-testid="cue-connected-note">
+                            {listFormatFor(poolGraphic, d.key) ? `Connected to Sheet: ${source.label}. Edit in the Sheet, or ` : ''}
+                            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
+                              {listFormatFor(poolGraphic, d.key) ? 'Disconnect to edit here' : 'Disconnect'}
+                            </button>
+                          </span>
+                        )}
                       </div>
                     );
                   }

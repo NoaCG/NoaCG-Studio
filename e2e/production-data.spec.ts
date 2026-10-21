@@ -1312,7 +1312,7 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   expect(stored.sources).toHaveLength(1);
   const sourceId = stored.sources[0].id;
   expect(stored.bindings).toEqual({ Hairline: { f0: `sheet.${sourceId}.values.Name`, f1: `sheet.${sourceId}.values.Role` } });
-  await expect(page.getByTestId('cue-bound-f0')).toContainText('Connected to Sheet: News desk');
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: News desk');
   await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Ann Lee');
   await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Chief Editor');
   await expect(page.getByTestId(`cue-source-${sourceId}`)).toContainText(/Sheet: News desk · checked \d+ s ago/);
@@ -1334,7 +1334,7 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   review = await reuseSource(page);
   await review.getByTestId('cue-connect-label').fill('Studio guests');
   await review.getByTestId('cue-connect-confirm').click();
-  await expect(page.getByTestId('cue-bound-f0')).toContainText('Connected to Sheet: Studio guests');
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: Studio guests');
   expect((await storedBindings(page, showId)).bindings.Hairline.f0).toBe(`sheet.${sourceId}.values.Name`);
 
   // ── Pause holds the values; Resume brings the change. ──
@@ -1392,6 +1392,7 @@ test('twelve Sheet rows reach a ticker on air without a new entrance, and an emp
   await expect.poll(async () => ((await program.locator('#f0').textContent()) ?? '').split('\n').length, { timeout: 12_000 }).toBe(12);
   await expect(program.locator('#ticker-track')).toContainText('Headline 12');
   await expect(program.locator('#f0')).toHaveText(twelve);
+  await expect(page.getByTestId('cue-bound-f0').locator('textarea')).toHaveValue(twelve);
   // It updated the running strip: no new entrance was played, nothing was taken.
   expect(await stage.getAttribute('data-plays')).toBe(plays);
 

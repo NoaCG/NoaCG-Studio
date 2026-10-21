@@ -5,6 +5,82 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 7, data-sources C1b: Sheet source, reader, Connect data
+
+- **Previous verified `main` sha:** `1e81bfed1cd7345de84c3c160c4570a906e82bba` (row 6, C1a, #1576).
+  This branch starts from `95078eb` (#1577, an evidence-only Phase 2 acceptance on top of it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration. `Show.sources` is additive
+  optional: a reverted build keeps the field on the record untouched and no longer reads it; the
+  connected fields stay bound to their `sheet.<id>.…` paths and hold their last value (nothing
+  writes them). Browser leases live under `spx-gfx-sheet-reader:<production>:<source>` in
+  localStorage and are ignored by a reverted build.
+- **Q records used.** `sheet-latency.md`: an edit is in the export within 441 to 1,011 ms, so the
+  ten-second wording stands and no "Publish to the web" fallback is needed for freshness (it is
+  still accepted as a link). `sheet-endurance.md`: 720 of 720 five-second reads answered, slowest
+  855 ms. Hence `SHEET_READ_MS` 5 s, `SHEET_TIMEOUT_MS` 10 s, stale after 3 misses (15 s), lease
+  15 s; an edit reaches the graphic in about 5.9 s at worst while a page is open.
+- **Decisions.**
+  - `src/control/sheetSource.ts` is the whole reader, pure and Node-tested with a fake clock:
+    link parse (share, tab, export and published links; the export address is built from the
+    stored id and tab, never fetched as pasted), CSV through `model/csv.ts`, rows through C1a's
+    adapters (`fillList`) or keyed values (`Field ID,Label,Value` by id, `Name,Value` by name),
+    and the diff. The diff is against the reader's OWN snapshot of what it wrote, never against
+    the tree: that is what makes D4 hold (a ± on a connected value stays until its cell changes)
+    and makes Resume write only cells changed while paused. Only connected paths are written,
+    because the published operator door refuses any path that is not bound (0060).
+  - Tree layout: `sheet.<id>.lines` for lines, schedule and credits; `sheet.<id>.rows` and
+    `.headers` for standings; `sheet.<id>.values.<key>` for keyed values. A key with a dot loses
+    the dot, an all-digit key is reported (it would index an array).
+  - One reader per source per browser: a lease in localStorage holding owner, claim id, expiry,
+    the world it wrote (unpublished, or the published slug), the snapshot and the status. A second
+    tab shows the owner's status and does not read. An expired lease is taken with its snapshot,
+    so an unchanged cell after handover does not undo an override. An answer that comes back
+    after the claim moved, after Disconnect or after `stop` writes nothing and cannot replace the
+    new owner's status or snapshot. Publishing changes the world and so starts a fresh snapshot:
+    the server's tree is written in full once.
+  - The writer is `productionDataSession.applySourcePatch`: the same road as a ± press (local tree
+    unpublished, `control_data_patch_by_slug` published), refactored into one private
+    `operatorWrite` both use. It answers whether the write landed; a refused write keeps the
+    snapshot so the next read tries again.
+  - The one binding write moved into `productionData.ts` as `withBindings(bindings, entries,
+    refuses)`; `setFieldBinding`, `setFieldBindings` and `connectShowSource` all call it through
+    `applyBindings` in `shows.ts`, which supplies the prepared-message refusal. `proposeMapping`
+    (a supplied key first, then one unique name match through `matchTitle`, ambiguous never
+    guessed, refused fields marked) and `mappingEntries` (an existing different binding is kept
+    until the operator picks a replacement) are the review's contract.
+  - "Connect data…" sits in the cue editor's header (`CueConnectData`, on `LibMenu` like Paste
+    rows). The review shows the tab's lines, every field's proposal with a picker for repair,
+    "N connected · N need attention · Used by N cues", and the proposed values on the real
+    PREVIEW monitor (the page overlays them on `settleData` while the review is open). Connect is
+    one `connectShowSource` write; Cancel and closing write nothing. A proposal a field cannot hold
+    (a number field and "abc") is not made. Reuse is the explicit "Use existing content…" choice;
+    its Name box renames the source, which keeps its id and every connection.
+  - A link with no tab reads the first tab and requires "Use it?" before Connect. The stored tab
+    stays `null` ("the first tab"): the export does not expose the tab's gid to the browser.
+  - A graphic whose own code carries the legacy Sheet block (`hasLiveData`) is refused with a plain
+    reason until C6's migration, so no field gets two readers.
+  - Connected fields stay read-only. The field mark says "🔗 Sheet: <name>" ("⚠ stale" after three
+    misses); under the box, a list says "Connected to Sheet: <name>. Edit in the Sheet, or
+    Disconnect to edit here." and a value offers Disconnect. Disconnect writes the last shown
+    value into every cue of that graphic and removes a source no field follows any more.
+  - One source line per source under the editor head: name, checked N s ago, paused, empty, or
+    the failure since a time with its fix, stale, Pause/Resume, missing keyed rows, and a
+    connected field the graphic no longer has (with Disconnect). The status lives in a small
+    store outside React (`createSourceStatusStore`) so a read re-renders only the lines. C1c moves
+    the sources line to Playout and adds checked versus changed.
+  - Not in this phase (C2): writing `bindings`/`sources` to the published row at connect. A field
+    connected after publishing reaches air after the next publish, as every binding does today;
+    until then the reader's writes are refused by the door and the page notes it.
+- **Extra files.** `e2e/configured/production-data-key-sheet.spec.ts` (new) and
+  `e2e/configured/expected-run.json` (110 to 111) are the configured row's files.
+- **Traps.**
+  - A button inside `.pd-bound-mark` is unclickable: the mark is clipped to its column with an
+    ellipsis. Keep the mark short and put actions under the field.
+  - `react-hooks/purity` refuses `Math.random` inside `useMemo`; a `useState` initializer is fine.
+  - The `""` database case is carried by C1a's 0096 self-check and `production-data-migration`;
+    the configured spec now walks it end to end (an emptied tab is an update row with `f0: ""`).
+
 ## Row 6, data-sources C1a: format adapters, Paste rows, starter data
 
 - **Previous verified `main` sha:** `66c5f81948e7d37b2b8a0557e61c0b65c43206f5` (row 5, phase 13a,
