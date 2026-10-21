@@ -1278,7 +1278,7 @@ async function storedBindings(page: Page, showId: string) {
 }
 
 test('Connect data previews the whole graphic, connects it in one confirmation and follows the Sheet; cancel, repair, rename, Pause and Disconnect', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(120_000);
   const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\nRole,Chief Editor\n');
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await productionFor(page, 'Sheet Night');
@@ -1403,7 +1403,7 @@ test('twelve Sheet rows reach a ticker on air without a new entrance, and an emp
 });
 
 test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(120_000);
   const tab = await stubSheet(page, 'Field ID,Label,Value\nf1,Home score,0\n');
   await bootstrapGraphic(page, { name: 'House Score' });
   const showId = await productionFor(page, 'Sheet Derby');
