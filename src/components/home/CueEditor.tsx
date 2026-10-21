@@ -45,7 +45,7 @@ export default function CueEditor({
   authoringAllowed,
   editDraft,
   flushDraft,
-  history,
+  rundownHistory,
   updateLive,
   hasUnsent,
   unsentFields,
@@ -99,7 +99,7 @@ export default function CueEditor({
   editDraft: (patch: Partial<Pick<CueEditorView, 'label' | 'note'>> & { values?: Record<string, string> }) => void;
   flushDraft: () => Promise<unknown>;
   /** The rundown history, whose group closes when focus leaves the editor. */
-  history: { closeGroup: () => Promise<boolean> };
+  rundownHistory: { closeGroup: () => Promise<boolean> };
   updateLive: () => Promise<void>;
   hasUnsent: boolean;
   unsentFields: string[];
@@ -133,14 +133,15 @@ export default function CueEditor({
   advancedOpen: boolean;
   setAdvancedFor: (graphicId: string | null) => void;
   clashFix: Ref<HTMLButtonElement>;
-  /** How the cue ends (home/CueTiming's CueEndsRow), built by the page. */
-  endsRow: ReactNode;
+  /** How the cue ends (home/CueTiming's CueEndsRow), built by the page when the setup fields
+   *  are open. */
+  endsRow: () => ReactNode;
   /** The cue's sound (home/ProductionSounds), built by the page. */
   sounds: ReactNode;
 }) {
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
-      onBlurCapture={() => { void flushDraft(); void history.closeGroup(); }}>
+      onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
       <div className="pd-editor-head">
         {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
             same name and the same tally, so "EDITING ON-AIR CUE" over an editable title
@@ -376,7 +377,7 @@ export default function CueEditor({
         </label>
         {/* HOW THE CUE ENDS (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, §2.1): by hand, or after so many
             seconds on air, then Out, the next cue, or both. Phase 1 runs it unpublished only. */}
-        {endsRow}
+        {endsRow()}
       </div>
 
 

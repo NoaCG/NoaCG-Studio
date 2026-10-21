@@ -4887,7 +4887,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             authoringAllowed={authoringAllowed}
             editDraft={editDraft}
             flushDraft={flushDraft}
-            history={history}
+            rundownHistory={history}
             updateLive={updateLive}
             hasUnsent={hasUnsent}
             unsentFields={unsentFields}
@@ -4918,7 +4918,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             advancedOpen={advancedOpen}
             setAdvancedFor={setAdvancedFor}
             clashFix={clashFix}
-            endsRow={(() => {
+            endsRow={() => {
               const auto = readAuto(editingCue);
               const nextId = nextGraphicCue(cues, editingCue.id);
               const nextCue = nextId ? cues.find((c) => c.id === nextId) : undefined;
@@ -4950,7 +4950,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   }}
                 />
               );
-            })()}
+            }}
             sounds={
               <ProductionSounds
                 key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}

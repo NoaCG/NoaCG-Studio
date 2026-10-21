@@ -5,6 +5,7 @@
 // `timeline` covers line.
 // covers: src/blocks/animData.ts
 // covers: src/export/**, src/components/home/{ProductionPage,PlayoutMonitors,ProgramStage,PayloadStage}.tsx, src/components/fields/FieldControl.tsx
+// covers: src/components/home/CueEditor.tsx
 //
 // This spec iterates the CATALOG, so a design added anywhere under src/templates/ must select it.
 // Until 2026-08-08 it was reachable from no template path and ten designs landed with every

@@ -1,4 +1,5 @@
 // covers: src/components/home/CueShortcutDialog.tsx, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx, src/components/home/CueRundown.tsx, src/components/home/ServerDiagnostics.tsx, src/model/cueShortcuts.ts, src/model/teamOutbox.ts, src/model/durableStore.ts, src/store/templateStore.ts, src/assets/svgImport.ts, src/control/productionAdmission.ts, src/output/prepare.ts, src/components/AccountAuthoringGate.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/components/AccountSaveNotice.tsx, src/components/SyncStatus.tsx, src/backend/{auth,accountLibrary,syncController,sync,supabaseProvider,teamProductions}.ts
 // covers: src/components/home/useDeferredEdits.ts, src/packs/graphicsPack.ts, src/components/wizard/CreationWizard.tsx
 // covers: src/model/shows.ts

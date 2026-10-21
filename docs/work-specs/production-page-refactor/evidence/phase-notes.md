@@ -5,6 +5,44 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 5, phase 13a: props-only cue editor extraction
+
+- **Previous verified `main` sha:** `7ac4b22159ef3cb120271123599f70fda9fa559f` (row 4, phase 2+7,
+  #1573).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. A move of markup only: no state, storage key
+  or persisted format changes.
+- **Decisions.**
+  - The graphic cue's editor (`data-testid="cue-editor"`) moves verbatim into
+    `home/CueEditor.tsx`; a text diff of the moved block against the old one differs only at the
+    two slots and the history prop below. Every value it shows is still derived in the page and
+    every piece of state stays there (`advancedFor`, `foldedFields`, `lastLoaded`, `loadSide`,
+    `editTarget` and the draft): the component gets them and their setters as props. 13b moves
+    the four editor-only states (`advancedFor`, `foldedFields`, `lastLoaded`, `loadSide`) and the
+    draft in. `editTarget` stays in the page: it picks `editingCue`, which Take and ✎ Update read.
+  - The ends row (`CueEndsRow` with its next-cue hint) and the sound (`ProductionSounds` with its
+    save) are built by the page, because both compute from page state (`cueArms`, `cueView`,
+    `armsServer`) and write the record through page-owned verbs. The editor itself stays a
+    renderer. The ends row is a render function (`endsRow()`), so it is built only while the
+    setup fields are open, as the inline code was; the sound is an element, as it always
+    rendered. Both keep their keys and their place in the tree.
+  - The data-sources C0 "Fill from…" menu (`CueMessageFill`) renders inside the component, so
+    C1's Connect menu lands there too. There is no Connect menu yet.
+  - The component has no `key`, so its subtree persists across cue changes exactly as the inline
+    markup did.
+  - The page's rundown history arrives as `rundownHistory`, not `history`, so it never shadows
+    `window.history` in the component.
+  - **Extra files:** 23 e2e specs gain one comment line, `// covers: src/components/home/CueEditor.tsx`
+    (no assertion or selector changes). These are the specs that drive the editor's test ids and
+    already covered the page by name, so a later change to `CueEditor.tsx` alone (13b, C1's
+    Connect menu) still selects them. Phase 2+7 did the same for its modules.
+- **Traps.**
+  - The draft still lives in the page, so typing still re-renders the page; this phase is not
+    meant to change that (13b does, AC-9).
+  - The StrictMode session fix of phase 2+7 (b12dd74) is untouched: this phase moves no effect.
+  - The moved markup keeps `editingCue` null checks that the prop type now rules out. They are
+    left in to keep the move verbatim; 13b can drop them.
+
 ## Row 4, phase 2+7: store part, session skeleton, the production-data session
 
 - **Previous verified `main` sha:** `304a440a121c51d650f78437496ffc2e1bd56d0a` (row 3, phase 1,

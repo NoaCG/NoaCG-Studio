@@ -1,4 +1,5 @@
 // covers: src/components/home/ProductionPage.tsx, src/components/home/useRundownHistory.ts
+// covers: src/components/home/CueEditor.tsx
 // covers: src/components/playoutKeys.ts, src/model/durableStore.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //

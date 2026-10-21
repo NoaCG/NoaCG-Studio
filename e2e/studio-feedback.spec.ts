@@ -1,5 +1,6 @@
 // covers: src/components/{AccountSaveNotice,SyncStatus,PlayoutSettingsDialog}.tsx
 // covers: src/components/playoutKeys.ts, src/components/home/{ProductionPage,CueRundown,RundownColors,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/model/{shows,outputSetup}.ts
 // covers: src/styles/wizard-and-dialogs.css
 // covers: e2e/_publish.ts

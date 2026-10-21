@@ -1,4 +1,5 @@
 // covers: src/components/home/{ProductionPage,ActionArranger}.tsx, src/components/HostedControlPage.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/styles/playout-dashboard.css
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // focus
