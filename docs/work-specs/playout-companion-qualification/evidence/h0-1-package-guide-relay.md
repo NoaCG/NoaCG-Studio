@@ -37,9 +37,12 @@ bundle), `companion/manifest.json`, `companion/HELP.md`, `LICENSE`, `package.jso
   "NoaCG: NoaCG Studio"; the Presets tab counted 19 presets for two cues (13 fixed, then Take,
   Select and Trigger per cue).
 
-Module commands, in `companion-module/`: `yarn test` 34 of 34 pass; `yarn lint` clean; `yarn
+Module commands, in `companion-module/`: `yarn test` 35 of 35 pass; `yarn lint` clean; `yarn
 package` as above. Mutations: putting back the old HELP.md fails the two guide tests; removing the
-pending sentence fails "selected, on air, allowed, pending and stale stay apart".
+pending sentence fails "selected, on air, allowed, pending and stale stay apart". Review fix on #1561: two quick presses shared `last_press`, so the first one's answer could
+say Done while the second still waited; only the newest press now writes it, and letting any
+press write it again fails "an older press answered after a newer one leaves the newer one
+pending".
 
 ## The headless guide walk (AC-1)
 

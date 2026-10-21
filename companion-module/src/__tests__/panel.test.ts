@@ -165,6 +165,22 @@ test('selected, on air, allowed, pending and stale stay apart', async () => {
 	assert.notEqual(panel.lastPress, PENDING_SENTENCE)
 })
 
+test('an older press answered after a newer one leaves the newer one pending', async () => {
+	const { panel, relay } = await answering()
+	relay.autoResult = null
+	const first = panel.press('take')
+	await settle()
+	const second = panel.press('select-next')
+	await settle()
+	const [a, b] = relay.presses()
+	relay.emit('result', { v: 1, id: a.id, panel: 'k1', outcome: 'ran' })
+	assert.equal((await first).ok, true)
+	assert.equal(panel.lastPress, PENDING_SENTENCE)
+	relay.emit('result', { v: 1, id: b.id, panel: 'k1', outcome: 'ran' })
+	assert.equal((await second).ok, true)
+	assert.notEqual(panel.lastPress, PENDING_SENTENCE)
+})
+
 test('no answer from the page in 1.5 s says so; nothing is retried or queued', async () => {
 	const { panel, relay, clock } = await answering()
 	relay.autoResult = null
