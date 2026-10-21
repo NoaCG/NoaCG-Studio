@@ -6,7 +6,7 @@
     "source": "the owner's answers of 2026-10-01 to docs/HARDWARE_CONTROL_RESEARCH.md section 11 (recorded in docs/backlog/companion-and-stream-deck.md), the build prompt of 2026-10-02, and the owner's ruling of 2026-10-02 that take-cue leaves the selection where the operator put it on both pages (spec D4, commit e64b91d22); trigger-cue joined D5 with docs/work-specs/studio-evening-reliability/spec.md (migration 0077), and the answer switch gave way to docs/work-specs/panel-ownership-lease/spec.md (owner decision 12 and P1, 2026-10-08), both recorded in the spec on 2026-10-21"
   },
   "review": {
-    "revision": "b8217b2b6a4d4546c63951ff58aae4fbb9cc7436",
+    "revision": "45d290c8390ed0028fb3c44a082c0ff45e5c5fa6",
     "specSha256": "0686c66538c80bb7c54d01c8aa9551ad622fc7c3f0e3880c4f8d866e03abb29f",
     "evidence": [
       {

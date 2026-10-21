@@ -6,12 +6,12 @@
     "source": "Owner, 2026-10-19: \"Yes, please turn the selected extensions into precise executable specs and reconcile the complete plan with current main.\" Adopts H0 and E1–E8 from the reconciled full-run proposal for the production-page programme. Authorizes planning/documentation and main reconciliation, not feature implementation, opening a run, deployment or claiming acceptance. Execution requires the separate parent start instruction and finite project authorization. 2026-10-20, owner: \"Update the production-page plan so the run never stops for an owner check that agents can do themselves. Planning only: no product code (a runner change, if needed, goes in its own verified PR).\" Decisions A-H, review fixes 1-12 and additions 13-16 of the same day are recorded in production-page-refactor/evidence/owner-decisions-2026-10-20.md. This authorizes the plan update only: no implementation, run opening or completed acceptance."
   },
   "review": {
-    "revision": "b8217b2b6a4d4546c63951ff58aae4fbb9cc7436",
+    "revision": "45d290c8390ed0028fb3c44a082c0ff45e5c5fa6",
     "specSha256": "7faa87ce90708a986bc04e23ad80c019709ec42216fb056124bc9408d379b4c5",
     "evidence": [
       {
         "path": "docs/work-specs/playout-companion-qualification/evidence/h0-1-package-guide-relay.md",
-        "sha256": "8ac2492ec223b370a1cf730efe32b67dff7e98401aa06e2759483282ffd9cd35"
+        "sha256": "60f4f4d1340a7bc4cd166ff755feeb7b7e064c177eb9a4dcd8796048e5bafe26"
       }
     ],
     "criteria": [
@@ -21,7 +21,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/playout-companion-qualification/evidence/h0-1-package-guide-relay.md",
-            "sha256": "8ac2492ec223b370a1cf730efe32b67dff7e98401aa06e2759483282ffd9cd35"
+            "sha256": "60f4f4d1340a7bc4cd166ff755feeb7b7e064c177eb9a4dcd8796048e5bafe26"
           },
           {
             "path": "docs/work-specs/playout-companion-qualification/evidence/trial-kit.md",
@@ -35,7 +35,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/playout-companion-qualification/evidence/h0-1-package-guide-relay.md",
-            "sha256": "8ac2492ec223b370a1cf730efe32b67dff7e98401aa06e2759483282ffd9cd35"
+            "sha256": "60f4f4d1340a7bc4cd166ff755feeb7b7e064c177eb9a4dcd8796048e5bafe26"
           }
         ]
       },
@@ -45,7 +45,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/playout-companion-qualification/evidence/h0-1-package-guide-relay.md",
-            "sha256": "8ac2492ec223b370a1cf730efe32b67dff7e98401aa06e2759483282ffd9cd35"
+            "sha256": "60f4f4d1340a7bc4cd166ff755feeb7b7e064c177eb9a4dcd8796048e5bafe26"
           }
         ]
       },
@@ -55,7 +55,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/playout-companion-qualification/evidence/h0-1-package-guide-relay.md",
-            "sha256": "8ac2492ec223b370a1cf730efe32b67dff7e98401aa06e2759483282ffd9cd35"
+            "sha256": "60f4f4d1340a7bc4cd166ff755feeb7b7e064c177eb9a4dcd8796048e5bafe26"
           }
         ]
       }
