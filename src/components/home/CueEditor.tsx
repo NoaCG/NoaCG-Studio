@@ -528,7 +528,8 @@ function CueConnectData(props: Omit<Parameters<typeof CueConnectReview>[0], 'onC
   const close = () => setOpen(false);
   return (
     <span className="lib-menu-host pd-connect-host">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="cue-connect">
+      {/* The head's compact button, as the switch beside it: the head keeps its height. */}
+      <button type="button" className="pd-editor-switch" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="cue-connect">
         Connect data…
       </button>
       {refusal && (
