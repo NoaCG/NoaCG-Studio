@@ -245,8 +245,10 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
         send = withoutPath(send, path);
         skipped.push(path);
       }
+      // Published, the server's ANSWER is all this page holds, with no optimistic tree: a path the
+      // row refuses must never sit in the local tree, where PREVIEW shows it and a Take airs it.
+      // A reader is not a press, and waiting one round trip costs it nothing.
       while (Object.keys(send).length > 0) {
-        write(from, { liveData: applyPatch(part.get().liveData, send) });
         try {
           const server = await io.patchProductionDataBySlug(slug, send);
           write(from, { liveData: server as JsonObject });

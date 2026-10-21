@@ -107,7 +107,9 @@ changes a spec's digest.
   caption's "TRUE") held and reported (`pathValue`). The reader and the Connect review now
   share one rule: `connectedFields` reads each graphic's fields as the editor draws them (the
   library version, `templateForSavedGraphic`) and `pathValue` decides the value, so the review
-  previews exactly what the reader will write, held cells included.
+  previews exactly what the reader will write, held cells included. Published, a Sheet write
+  holds only the server's answer, never an optimistic tree, so a value the row refuses cannot
+  reach PREVIEW or a Take.
   `src/model/teamShowMerge.ts` gains one label (`sources: 'the data sources'`) so a team merge
   conflict on the new field reads in words.
 - **Traps.**

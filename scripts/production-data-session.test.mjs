@@ -401,3 +401,18 @@ test('the source writer: a refused path with spaces is left out whole, and is tr
     Date.now = realNow;
   }
 });
+
+test('the source writer, published: a value the row refuses never enters the local tree, even when every path is refused', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.answers.fetches[0].resolve({ data: { match: 1 } });
+  await flush();
+  const write = t.data.applySourcePatch({ sheet: { s1: { values: { Score: '9' } } } });
+  assert.deepEqual(t.session.data.get().liveData, { match: 1 }, 'nothing optimistic while the row decides');
+  t.answers.slugPatches[0].reject(new Error('not a bound path: sheet.s1.values.Score'));
+  assert.deepEqual(await write, ['sheet.s1.values.Score']);
+  assert.deepEqual(t.session.data.get().liveData, { match: 1 }, 'PREVIEW and Take cannot see the refused value');
+  assert.equal(t.calls.slugPatched.length, 1, 'nothing left to send');
+});
