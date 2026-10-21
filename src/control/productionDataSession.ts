@@ -64,7 +64,11 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
 
   const write = (from: number, patch: Partial<DataPart>) => {
     if (from !== mode) return;
-    session.apply((parts) => ({ ...parts, data: { ...parts.data, ...patch } }));
+    session.apply((parts) => {
+      const moved = (Object.keys(patch) as (keyof DataPart)[]).some((field) => !Object.is(parts.data[field], patch[field]));
+      // Nothing moved is no new object, so the part's listeners hear nothing.
+      return moved ? { ...parts, data: { ...parts.data, ...patch } } : parts;
+    });
   };
 
   const refresh = async (): Promise<void> => {
@@ -144,7 +148,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
         .patchProductionData(dataKey, patch)
         .then((server) => write(from, { liveData: server as JsonObject }))
         .catch((error: Error) => {
-          if (from !== mode) return;
+          if (!session.alive()) return;
           io.note(`Production data not saved: ${error.message}`);
           void refresh();
         });
@@ -187,7 +191,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
         const server = await io.patchProductionDataBySlug(slug, patch);
         write(from, { liveData: server as JsonObject });
       } catch (error) {
-        if (from !== mode) return;
+        if (!session.alive()) return;
         io.note(`The shared value did not move: ${(error as Error).message}`);
         void refresh();
       }

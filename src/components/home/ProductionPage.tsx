@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
 import SyncStatus from '../SyncStatus';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
@@ -598,10 +598,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [serverPlayout] = useState(createServerPlayoutStore);
   /** This production's playout session (control/playoutSession.ts): one per production id, ended
    *  when the id changes or the page goes. The route already keys the page by production
-   *  (src/App.tsx), so in practice that is the unmount. */
-  const session = useMemo(() => createPlayoutSession(id), [id]);
-  useEffect(() => () => session.dispose(), [session]);
-  const serverOwnership = useSyncExternalStore(serverPlayout.ownership.subscribe, serverPlayout.ownership.get);
+   *  (src/App.tsx), so in practice that is the unmount. Created and ended by the same effect: a
+   *  disposed session is never revived, so when the effect finds one disposed (StrictMode's extra
+   *  cleanup in development) or keyed on another id, it makes the next one. */
+  const [session, setSession] = useState(() => createPlayoutSession(id));
+  useEffect(() => {
+    if (session.key !== id || !session.alive()) {
+      setSession(createPlayoutSession(id));
+      return;
+    }
+    return () => session.dispose();
+  }, [id, session]);
+  const serverOwnership = useStorePart(serverPlayout.ownership);
   const serverOnAir = serverOwnership.onAir;
   /** How many times this page has rendered - published on its root as `data-renders`, which is how
    *  e2e/playout-clock.spec.ts proves the server's readings do not re-render it. */
