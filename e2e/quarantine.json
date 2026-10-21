@@ -27,11 +27,6 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
     },
-    "e2e/configured/late-send-abandoned.spec.ts": {
-      "since": "2026-10-20",
-      "count": 13,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39509585350"
-    },
     "e2e/configured/operator-outage-not-unpublished.spec.ts": {
       "since": "2026-10-21",
       "count": 1,
@@ -94,6 +89,10 @@
     "e2e/configured/deep-link-boot.spec.ts": {
       "count": 1,
       "last": "2026-10-19"
+    },
+    "e2e/configured/late-send-abandoned.spec.ts": {
+      "count": 13,
+      "last": "2026-10-21"
     },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 3,
