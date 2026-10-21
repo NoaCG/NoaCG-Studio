@@ -107,7 +107,7 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
     sockets.push(ws);
     ws.connectToServer();
   });
-  await publishTwoCues(page, `Panel Offline ${Date.now()}`);
+  const slug = await publishTwoCues(page, `Panel Offline ${Date.now()}`);
   const op = page;
   await shutStatusPanel(op);
   const deck = await pairPanel(op);
@@ -143,10 +143,6 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   expect((await deck.press('select-prev', '', onBen.ver as number)).outcome).toBe('ran');
   const shown = await deck.state((s) => s.selected === anna, 'Anna selected again');
   expect(shown.claim).toBe(before.claim);
-  const slug = await op.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    return loadShows().find((x) => x.hostedSlug)?.hostedSlug ?? '';
-  });
 
   // The phone, in a browser of its own, sees who has the panel and takes nothing.
   const phoneContext = await browser.newContext();
