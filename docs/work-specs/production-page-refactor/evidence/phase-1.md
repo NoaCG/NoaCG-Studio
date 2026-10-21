@@ -1,8 +1,9 @@
 # Phase 1 (row 3): safety net and baseline
 
 Gating acceptance: AC-1, AC-15 and the phase 1 row of the §6 matrix. Built on `main`
-`995272d56` (H0.1, #1561), then on `4c1ae76` (the S1 fix, #1564) and CANDIDATE_BASE (the S4 fix,
-#1566). Candidate sha: CANDIDATE_SHA. No `src/` file in this phase's pull request.
+`995272d56` (H0.1, #1561), then on `4c1ae76` (the S1 fix, #1564) and `5476ff687` (the S4 fix,
+#1566). Candidate code sha: `a0682c7c55070d1163db73af9c633ba5507d256e`; commits after it touch
+only this `evidence/` directory. No `src/` file in this phase's pull request.
 
 ## AC-15: the suspected defects
 
@@ -51,14 +52,17 @@ answer.
 
 | Item | Command | Result |
 | --- | --- | --- |
-| Local targeted | `npx playwright test e2e/dashboard-operator-walk.spec.ts e2e/playout-air-contract.spec.ts` (queue j-0027) | 8 passed |
+| Local targeted | `npx playwright test e2e/dashboard-operator-walk.spec.ts e2e/playout-air-contract.spec.ts` (queue j-0027), then the contract spec again after the review fixes (j-0030) | 8 passed; 6 passed |
 | Node | `node --test scripts/command-roads.test.mjs` | 9 passed |
 | The gate's test | `node --test scripts/gates.test.mjs scripts/check-file-budgets.test.mjs` | 18 passed. D8 withdrew the size gate, so there is no new gate; this runs the existing gate and budget tests the matrix line once named. |
-| Configured, local stack | `npx playwright test --config=playwright.live.config.ts` on the four new specs (Supabase CLI 2.111.0, `supabase start -x studio,edge-runtime`) | 5 passed on LOCAL_SHA |
-| Configured dispatch | `configured-suite.yml` on `claude/plan-production-page-p3-build` | CONFIGURED_RUN |
+| Configured, local stack | `npx playwright test --config=playwright.live.config.ts` on the four new specs (Supabase CLI 2.111.0, `supabase start -x studio,edge-runtime`) | 5 passed on `a0682c7` (queue j-0032) |
+| Configured dispatch | `configured-suite.yml` on `claude/plan-production-page-p3-build` | [run 39540143070](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39540143070), `headSha` `a0682c7c55070d1163db73af9c633ba5507d256e`: success, 118 passed, 0 failed, 0 flaky, 3 skipped (`bridge-real-server` twice and `connector-grants`, all on the allowlist); floor 110 met. An earlier dispatch on `22f9c07` (run 39540010785) was cancelled: that commit did not parse. |
 | Assessment | none for phase 1 | - |
 | Perf | laptop helper, two baselines on this merge's sha | not run here (non-gating, owner list) |
-| `/check`, depcruise, gates, AC-8 | see the pull request | CHECK_RESULT |
+| `/check` | review delegated (10 findings on the specs and this file, 9 fixed: holds released by the walk, cleanup in `afterEach`, waits on what the page shows, value-level reads, the save held open in the type-then-Take walk; the tenth was this file's placeholders, filled here); simplify inline, nothing to change; verify inline | pass |
+| depcruise | `npm run depcruise` | no violations (1336 modules) |
+| gates | `node scripts/gates.mjs run --changed origin/main` | exit 0, the new Node test among them |
+| AC-8 | `git diff --name-only origin/main...HEAD -- src` | empty |
 
 Not checked here: the panel snapshot's `allowed` map against the bar's disabled states (§5.3
 names it "read through the existing panel dialog"). Offline the dialog shows only "Publish this

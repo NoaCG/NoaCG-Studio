@@ -44,7 +44,7 @@ changes a spec's digest.
     the admin API as `configured-suite.yml` does; jobs take the env from the shell that queues them.
 - **Preflight before phase 2.** Phase 1's tests green on `main` (the offline spec, the four
   configured specs, the Node file, the gate test); S1 and S3 decided with evidence, S1's fix
-  landed in #1564 and S4's in #1566; S2 characterised. See `phase-1.md` for the configured run.
+  landed in #1564 and S4's in #1566; S2 characterised. Configured run 39540143070 on `a0682c7`: 118 passed, floor 110.
 - **Left for later:** the two perf baselines on this merge's sha (laptop helper, non-gating).
 
 ## Row 2, H0.1: Companion package, guide, protocol and presets
