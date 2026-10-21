@@ -93,6 +93,7 @@ import {
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
+import { createPlayoutSession } from '../../control/playoutSession';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
@@ -601,6 +602,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  must not re-render the whole surface (control/serverPlayoutStore.ts) - the clip clock and the
    *  rows' remaining times subscribe to it themselves. */
   const [serverPlayout] = useState(createServerPlayoutStore);
+  /** This production's playout session (control/playoutSession.ts): one per production id, ended
+   *  when the id changes or the page goes. The route already keys the page by production
+   *  (src/App.tsx), so in practice that is the unmount. */
+  const session = useMemo(() => createPlayoutSession(id), [id]);
+  useEffect(() => () => session.dispose(), [session]);
   const serverOwnership = useSyncExternalStore(serverPlayout.ownership.subscribe, serverPlayout.ownership.get);
   const serverOnAir = serverOwnership.onAir;
   /** How many times this page has rendered - published on its root as `data-renders`, which is how
