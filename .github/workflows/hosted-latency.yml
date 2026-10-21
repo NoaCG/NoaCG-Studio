@@ -5,6 +5,9 @@ on:
       source_ref:
         required: true
         type: string
+      inspect_traces:
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -12,6 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   reproduce:
+    if: ${{ !inputs.inspect_traces }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -56,3 +60,49 @@ jobs:
           p.write_text(s.replace(needle, needle + '\n' + fixture))
           result = subprocess.run(['timeout', '300s', 'npm', 'run', 'test:e2e:live', '--', 'e2e/configured/playout-switch-mid-flight.spec.ts', '--trace=retain-on-failure'])
           raise SystemExit(result.returncode)
+  inspect:
+    if: ${{ inputs.inspect_traces }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 39565846898
+          github-token: ${{ github.token }}
+          pattern: hosted-results-*
+          path: evidence
+      - name: Read failed UI state and browser errors from historical traces
+        shell: python
+        run: |
+          import json, pathlib, re, zipfile
+          def scrub(text):
+              text = re.sub(r'https?://\S+', '<url>', text)
+              text = re.sub(r'eyJ[A-Za-z0-9_.-]+|sb_(?:secret|publishable)_[A-Za-z0-9_-]+', '<token>', text)
+              text = re.sub(r'[\w.+-]+@[\w.-]+', '<email>', text)
+              return text[:400]
+          def leaves(v):
+              if isinstance(v, str): return v
+              if isinstance(v, list): return ' '.join(leaves(c) for c in v[2:])
+              return ''
+          def state(v):
+              if not isinstance(v, list): return
+              if len(v) > 1 and isinstance(v[1], dict):
+                  cls = v[1].get('class', '')
+                  if re.search('sync-status|auth-error|account-save-notice|pd-auto|panel-status', cls):
+                      print('UI', cls, scrub(leaves(v)))
+              for child in v: state(child)
+          for trace in sorted(pathlib.Path('evidence').rglob('trace.zip')):
+              print('\nTRACE', trace.parent.name)
+              with zipfile.ZipFile(trace) as z:
+                  seen = set()
+                  for name in z.namelist():
+                      if not name.endswith('.trace'): continue
+                      for line in z.read(name).decode().splitlines():
+                          e = json.loads(line)
+                          if e.get('type') == 'console' and e.get('messageType') in ['error', 'warning']:
+                              msg = scrub(e.get('text', ''))
+                              if msg not in seen: print('CONSOLE', msg); seen.add(msg)
+                          if e.get('type') == 'frame-snapshot':
+                              state(e.get('snapshot', {}).get('html'))
