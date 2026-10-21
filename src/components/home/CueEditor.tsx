@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
 import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, setShowSourcePaused, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
@@ -13,12 +13,15 @@ import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspac
 import LibMenu from './LibMenu';
 import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
 import { hasLiveData } from '../../control/liveData';
+import { uuid } from '../../model/id';
 import {
+  isSourcePath,
   offeredValues,
   parseSheetLink,
   readSheet,
   sheetContent,
   sheetShapeFor,
+  sourceIdOf,
   SHEET_TIMEOUT_MS,
   type SheetLink,
   type SheetStatus,
@@ -103,7 +106,7 @@ function CueRowsFill({
 
 /** The source a connected path follows, when it is a source's (`sheet.<id>.…`). */
 function sourceOf(show: Pick<Show, 'sources'>, path: string | undefined): ShowSource | null {
-  const id = path?.startsWith('sheet.') ? path.split('.')[1] : null;
+  const id = sourceIdOf(path);
   return (id && show.sources?.find((s) => s.id === id)) || null;
 }
 
@@ -251,7 +254,12 @@ function CueConnectData({
   const [label, setLabel] = useState('');
   const [choices, setChoices] = useState<Record<string, string | null>>({});
   const [refusal, setRefusal] = useState<string | null>(null);
-  const [sourceId] = useState(() => `s${(globalThis.crypto?.randomUUID?.() ?? Math.random().toString(16).slice(2)).replace(/-/g, '').slice(0, 10)}`);
+  /** A new source's id, minted per read of a pasted link, so a second Connect is a second source. */
+  const [sourceId, setSourceId] = useState('');
+  /** Which read is current: an older answer, or one arriving after the review closed, is dropped. */
+  const readNo = useRef(0);
+  const previewRef = useRef(onPreview);
+  previewRef.current = onPreview;
 
   const legacy = hasLiveData(poolGraphic.template.js ?? '');
   const shape = reuse?.config.shape ?? sheetShapeFor(poolGraphic);
@@ -273,9 +281,8 @@ function CueConnectData({
   const entries = mappingEntries(poolGraphic.name, mapping, choices);
   const matched = mapping.filter((r) => r.status !== 'refused' && chosen(r) !== null).length;
   const attention = mapping.filter((r) => r.status === 'ambiguous' || r.status === 'unmatched' || (r.current !== null && r.current !== r.path && r.path !== null)).length;
-  const prefix = `sheet.${id}.`;
   const users = Object.entries(show.bindings ?? {})
-    .filter(([g, f]) => g !== poolGraphic.name && Object.values(f).some((p) => p.startsWith(prefix)))
+    .filter(([g, f]) => g !== poolGraphic.name && Object.values(f).some((p) => isSourcePath(id, p)))
     .map(([g]) => g);
   const usedBy = (show.cues ?? []).filter((c) => {
     const g = show.graphics.find((x) => x.id === c.sourceId);
@@ -285,19 +292,18 @@ function CueConnectData({
   // A link that names no tab reads the first tab, which the operator confirms before connecting.
   const noTab = Boolean(read && 'link' in read && read.link.gid === null);
 
-  // The preview monitor shows the reviewed mapping on the real graphic while the review is open.
-  const previewKey = JSON.stringify(mapping.map((r) => [r.fieldId, chosen(r)]));
+  // The preview monitor shows the reviewed mapping on the real graphic while the review is open,
+  // and nothing of it once the review closes, fails to read, or leaves with its graphic.
+  const previewValues: Record<string, string> = {};
+  for (const row of mapping) {
+    const path = chosen(row);
+    if (path !== null && row.status !== 'refused' && sample.has(path)) previewValues[row.fieldId] = sample.get(path)!;
+  }
+  const previewKey = open && content ? JSON.stringify(previewValues) : null;
   useEffect(() => {
-    if (!open || !content) return;
-    const values: Record<string, string> = {};
-    for (const row of mapping) {
-      const path = chosen(row);
-      if (path !== null && row.status !== 'refused' && sample.has(path)) values[row.fieldId] = sample.get(path)!;
-    }
-    onPreview(values);
-    // previewKey carries what the values are made of.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, previewKey]);
+    previewRef.current(previewKey === null ? null : (JSON.parse(previewKey) as Record<string, string>));
+  }, [previewKey]);
+  useEffect(() => () => previewRef.current(null), []);
 
   const reset = () => {
     setLinkText('');
@@ -308,15 +314,19 @@ function CueConnectData({
     setLabel('');
   };
   const close = () => {
+    readNo.current += 1;
     reset();
+    setReading(false);
     setOpen(false);
-    onPreview(null);
   };
   const readTab = async (link: SheetLink) => {
+    const no = (readNo.current += 1);
     setReading(true);
+    setRead(null);
     setChoices({});
     setFirstTab(false);
     const answer = await readSheet((url, init) => fetch(url, init), link, AbortSignal.timeout(SHEET_TIMEOUT_MS));
+    if (no !== readNo.current) return;
     setReading(false);
     setRead(answer.ok ? { link, rows: answer.rows } : { error: answer.error, fix: answer.fix });
   };
@@ -350,8 +360,7 @@ function CueConnectData({
       <LibMenu open={open} onClose={close} testid="cue-connect-menu" role="dialog">
         {legacy ? (
           <p className="hint status-warn" data-testid="cue-connect-legacy">
-            This graphic reads a Sheet in its own code. Connecting it here as well would give its fields two readers, so it
-            waits for the step that moves that code here.
+            This graphic reads a Sheet in its own code, so it can’t be connected here yet.
           </p>
         ) : (
           <>
@@ -376,6 +385,7 @@ function CueConnectData({
                   if ('error' in parsed) setRead({ error: parsed.error, fix: 'Copy the link from the Sheet’s Share button.' });
                   else {
                     setLabel((l) => l || poolGraphic.name);
+                    setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
                     void readTab(parsed.link);
                   }
                 }}
@@ -393,7 +403,11 @@ function CueConnectData({
                   setLabel(source?.label ?? '');
                   setLinkText('');
                   if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
-                  else setRead(null);
+                  else {
+                    readNo.current += 1;
+                    setReading(false);
+                    setRead(null);
+                  }
                 }}
                 aria-label="Use existing content"
                 data-testid="cue-connect-reuse"
@@ -652,7 +666,7 @@ export default function CueEditor({
     void flushDraft().then(() => setShows(disconnectShowFields(show.id, poolGraphic, last)));
   };
   // The sources this graphic follows, and connected fields it no longer has.
-  const fed = (show.sources ?? []).filter((source) => Object.values(bound).some((path) => path.startsWith(`sheet.${source.id}.`)));
+  const fed = (show.sources ?? []).filter((source) => Object.values(bound).some((path) => isSourcePath(source.id, path)));
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
       onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
@@ -724,7 +738,7 @@ export default function CueEditor({
           setShows={setShows}
           source={source}
           store={sourceStatus}
-          missing={Object.keys(bound).filter((f) => bound[f].startsWith(`sheet.${source.id}.`) && !descriptorByKey.has(f))}
+          missing={Object.keys(bound).filter((f) => isSourcePath(source.id, bound[f]) && !descriptorByKey.has(f))}
           onDisconnect={disconnect}
         />
       ))}

@@ -38,6 +38,8 @@ test('a share link, a tab address, an export and a published CSV each become an 
   assert.deepEqual(parseSheetLink(`https://docs.google.com/spreadsheets/d/${ID}/edit#gid=1234`), { link: { sheetId: ID, gid: '1234' } });
   assert.deepEqual(parseSheetLink(` https://docs.google.com/spreadsheets/d/${ID}/edit?gid=7#gid=7 `), { link: { sheetId: ID, gid: '7' } });
   assert.deepEqual(parseSheetLink(`https://docs.google.com/spreadsheets/d/${ID}/export?format=csv&gid=0`), { link: { sheetId: ID, gid: '0' } });
+  // Signed in to several Google accounts, the address bar carries `/u/<n>`.
+  assert.deepEqual(parseSheetLink(`https://docs.google.com/spreadsheets/u/1/d/${ID}/edit#gid=3`), { link: { sheetId: ID, gid: '3' } });
   assert.deepEqual(parseSheetLink(`https://docs.google.com/spreadsheets/d/e/2PACX-${ID}/pub?gid=5&single=true&output=csv`), {
     link: { sheetId: `2PACX-${ID}`, gid: '5', published: true },
   });
@@ -483,4 +485,40 @@ test('the inbox consumer receives rows and has no writer: a source that only fee
   assert.equal(shared.length, 1);
   a.reader.stop();
   t2.reader.stop();
+});
+
+test('Pause pressed while a read is in flight: its answer writes nothing, and the reader says paused', async () => {
+  const b = browser();
+  const a = tab(b, 'A');
+  await b.clock.advance(0);
+  let release;
+  b.sheet.hold = { promise: new Promise((r) => (release = r)) };
+  b.sheet.csv = 'changed\n';
+  await b.clock.advance(SHEET_READ_MS);
+  a.paused = true;
+  release();
+  await b.clock.advance(0);
+  assert.equal(a.writes.length, 1, 'the held value stays');
+  assert.equal(a.status().state, 'paused');
+  a.reader.stop();
+});
+
+test('a page that slept past its lease with a read in flight writes nothing, and reads again by itself', async () => {
+  const b = browser();
+  const a = tab(b, 'A');
+  await b.clock.advance(0);
+  let release;
+  b.sheet.hold = { promise: new Promise((r) => (release = r)) };
+  b.sheet.csv = 'changed\n';
+  await b.clock.advance(SHEET_READ_MS);
+  // The lease lapses while the read is held (a sleeping laptop).
+  const lease = b.leases.get('prod-1:s1');
+  b.leases.set('prod-1:s1', { ...lease, until: 0 });
+  b.sheet.hold = null;
+  release();
+  await b.clock.advance(0);
+  assert.equal(a.writes.length, 1, 'the answer under the lapsed claim wrote nothing');
+  await b.clock.advance(SHEET_READ_MS);
+  assert.deepEqual(a.writes.at(-1), { sheet: { s1: { lines: 'changed' } } }, 'the reader claimed again and read');
+  a.reader.stop();
 });

@@ -91,7 +91,7 @@ import {
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
-import { createSheetReader, createSourceStatusStore, type SheetLease } from '../../control/sheetSource';
+import { createSheetReader, createSourceStatusStore, isSourcePath, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -1589,7 +1589,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             writeLease: writeSheetLease,
           },
           connected: () =>
-            new Set(Object.values(bindingsRef.current ?? {}).flatMap((fields) => Object.values(fields)).filter((path) => path.startsWith(`sheet.${sourceId}.`))),
+            new Set(Object.values(bindingsRef.current ?? {}).flatMap((fields) => Object.values(fields)).filter((path) => isSourcePath(sourceId, path))),
           paused: () => Boolean(sourcesRef.current?.find((s) => s.id === sourceId)?.paused),
           write: dataSession.applySourcePatch,
           onStatus: (status) => sourceStatus.set(sourceId, status),

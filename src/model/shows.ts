@@ -1697,13 +1697,19 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
 
 /** The one binding write (`withBindings`), with this record's refusal: a path on a field prepared
  *  messages use. Shared by every setter below, so the Advanced rows, Bind all by title and
- *  Connect data cannot differ. */
+ *  Connect data cannot differ. A source no field follows any more, and that feeds no inbox, goes
+ *  with its last field whichever door unbound it, so no reader keeps reading for nothing. */
 function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
   const before = show.bindings ?? {};
   const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId));
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
   else delete show.bindings;
+  if (show.sources) {
+    const sources = show.sources.filter((s) => s.inbox || sourceInUse(show, s.id));
+    if (sources.length > 0) show.sources = sources;
+    else delete show.sources;
+  }
   return { changed: true, refused };
 }
 
@@ -1730,7 +1736,8 @@ export function setFieldBindings(
   return patchShowChecked(showId, (show) => entries.length > 0 && applyBindings(show, entries).changed, true).shows;
 }
 
-/** The tree prefix a source writes under (control/sheetSource.ts `sourcePrefix`). */
+/** The tree prefix a source writes under, with its dot (control/sheetSource.ts `sourcePrefix`,
+ *  which model/ cannot import). */
 const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}.`;
 
 /** Whether any field still follows this source. */
@@ -1751,14 +1758,16 @@ export function connectShowSource(
 ): { shows: Show[]; error: string | null; refused: BindingEntry[] } {
   let refused: BindingEntry[] = [];
   const result = patchShowChecked(showId, (show) => {
-    const applied = applyBindings(show, entries);
-    refused = applied.refused;
-    if (!sourceInUse(show, source.id) && !source.inbox) return applied.changed;
-    const sources = show.sources ?? [];
-    const at = sources.findIndex((s) => s.id === source.id);
-    // A reused source keeps its record: its label, Pause and inbox are its own.
-    if (at < 0) show.sources = [...sources, source];
-    return applied.changed || at < 0;
+    const before = JSON.stringify([show.bindings, show.sources]);
+    // A reused source keeps its record: its label, Pause and inbox are its own. A new one is
+    // added first, so the binding write below keeps it exactly when a field follows it.
+    if (!show.sources?.some((s) => s.id === source.id)) show.sources = [...(show.sources ?? []), source];
+    refused = applyBindings(show, entries).refused;
+    if (show.sources && !show.sources.some((s) => s.id === source.id && (s.inbox || sourceInUse(show, s.id)))) {
+      show.sources = show.sources.filter((s) => s.id !== source.id);
+      if (show.sources.length === 0) delete show.sources;
+    }
+    return JSON.stringify([show.bindings, show.sources]) !== before;
   }, true);
   return { ...result, refused };
 }
@@ -1793,7 +1802,7 @@ export function renameShowSource(showId: string, sourceId: string, label: string
 /**
  * DISCONNECT fields of one pool graphic: each returns to the cue holding the value it last
  * showed, in every cue of that graphic, so nothing on screen jumps (sheet "The operator wins").
- * A source no field follows any more, and that feeds no inbox, is removed with its last field.
+ * A source no field follows any more goes with its last field (`applyBindings`).
  */
 export function disconnectShowFields(showId: string, graphic: Pick<SavedGraphic, 'id' | 'name'>, last: Record<string, string>): Show[] {
   return patchShowChecked(showId, (show) => {
@@ -1801,9 +1810,6 @@ export function disconnectShowFields(showId: string, graphic: Pick<SavedGraphic,
     const applied = applyBindings(show, fieldIds.map((fieldId) => ({ graphic: graphic.name, fieldId, path: null })));
     if (!applied.changed) return false;
     show.cues = (show.cues ?? []).map((c) => (c.sourceId === graphic.id ? { ...c, values: { ...c.values, ...last } } : c));
-    const sources = (show.sources ?? []).filter((s) => s.inbox || sourceInUse(show, s.id));
-    if (sources.length > 0) show.sources = sources;
-    else delete show.sources;
     return true;
   }, true).shows;
 }

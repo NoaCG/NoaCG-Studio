@@ -67,8 +67,10 @@ export function parseSheetLink(text: string): { link: SheetLink } | { error: str
     return notSheet;
   }
   if (url.hostname !== 'docs.google.com') return notSheet;
-  const published = /^\/spreadsheets\/d\/e\/([A-Za-z0-9_-]{10,})\//.exec(url.pathname + '/');
-  const shared = /^\/spreadsheets\/d\/([A-Za-z0-9_-]{10,})(?:\/|$)/.exec(url.pathname);
+  // A browser signed in to several Google accounts puts `/u/<n>` before the id.
+  const path = url.pathname.replace(/^\/spreadsheets\/u\/\d+\//, '/spreadsheets/');
+  const published = /^\/spreadsheets\/d\/e\/([A-Za-z0-9_-]{10,})\//.exec(path + '/');
+  const shared = /^\/spreadsheets\/d\/([A-Za-z0-9_-]{10,})(?:\/|$)/.exec(path);
   const id = published?.[1] ?? (shared && shared[1] !== 'e' ? shared[1] : null);
   if (!id) return notSheet;
   const gid = /(?:^|[#&?])gid=(\d+)/.exec(`${url.search}${url.hash}`)?.[1] ?? null;
@@ -241,6 +243,12 @@ function keyedValues(rows: string[][]): Omit<SheetContent, 'empty'> {
 
 /** The tree prefix a source writes under. */
 export const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}`;
+
+/** Whether a connected path is one this source writes. */
+export const isSourcePath = (sourceId: string, path: string): boolean => path.startsWith(`${sourcePrefix(sourceId)}.`);
+
+/** The source a connected path follows, or null for a path no source writes. */
+export const sourceIdOf = (path: string | undefined): string | null => (path?.startsWith('sheet.') ? path.split('.')[1] || null : null);
 
 /**
  * What one read writes: the connected paths whose text differs from what this reader last
@@ -444,7 +452,13 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     }
     const now = io.now();
     let held = ours(lease.claim);
-    if (!held) return; // handed over, disconnected or stopped meanwhile: this answer writes nothing
+    // Handed over, disconnected or stopped meanwhile, or paused while it was in flight: this
+    // answer writes nothing. The reader carries on (a stopped one schedules nothing), so a page
+    // that slept past its lease claims again or shows the other tab's status.
+    if (!held || o.paused()) {
+      schedule(held ? 0 : SHEET_READ_MS);
+      return;
+    }
     if (!read.ok) {
       const missed = held.status.missed + 1;
       const status: SheetStatus = {
@@ -470,7 +484,10 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     if (Object.keys(writes.patch).length > 0) {
       const landed = await o.write(writes.patch);
       held = ours(lease.claim);
-      if (!held) return;
+      if (!held) {
+        schedule(SHEET_READ_MS);
+        return;
+      }
       // A write that did not land is tried again: the snapshot keeps what was there before.
       if (!landed) snapshot = { ...held.snapshot };
     }
