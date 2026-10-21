@@ -9,8 +9,10 @@
 // expiry passes and while it lies more than 48 hours ahead; a tick reads due sources under the
 // lease, writes a changed cell once and an unchanged one never (so an override kept on the row
 // survives the handover), skips a source a page leased first, lets every lease go, keeps the
-// 10-second read timeout, starts no read after 20 seconds, and records its start, duration and
-// outcomes; a field's own form is written (TRUE is 1 for a toggle); an oversized tab is not read.
+// 10-second read timeout, starts no read after 20 seconds, ends every read by 26 seconds, and
+// records its start, duration and outcomes; a field's own form is written (TRUE is 1 for a
+// toggle); an oversized tab is not read; vercel.json keeps the function's 30 s cap and the
+// once-a-minute cron.
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
