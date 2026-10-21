@@ -150,6 +150,8 @@ export interface SheetContent {
   preview: FilledRow[];
   /** Rows the read could not use, said plainly. Nothing in them is written. */
   problems: string[];
+  /** Keyed leaves the tab names on more than one row: said once in `problems`, never again as missing. */
+  doubled?: string[];
   /** A valid read with no rows. */
   empty: boolean;
   /** Keyed by the data template's Field ID, so each key names a field of the graphic. */
@@ -232,16 +234,18 @@ function keyedValues(rows: string[][]): Omit<SheetContent, 'empty'> {
   }
   const leaves: Record<string, string> = {};
   const labels: Record<string, string> = {};
+  const doubled: string[] = [];
   for (const [key, { rows: at, value, label }] of seen) {
     if (at.length > 1) {
       problems.push(`${key} is on rows ${at.join(' and ')}, so it keeps its value`);
+      doubled.push(`values.${key}`);
       continue;
     }
     leaves[`values.${key}`] = value;
     labels[`values.${key}`] = label;
   }
   const preview = Object.keys(leaves).map((leaf) => ({ text: `${labels[leaf]}: ${leaves[leaf]}` }));
-  return { leaves, labels, preview, problems, byFieldId: template };
+  return { leaves, labels, preview, problems, doubled, byFieldId: template };
 }
 
 /**
@@ -552,7 +556,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     }
     const problems = [
       ...content.problems,
-      ...writes.missing.map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`),
+      ...writes.missing.filter((leaf) => !content.doubled?.includes(leaf)).map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`),
       ...writes.unfit.map((leaf) => `${leaf.replace(/^values\./, '')} holds “${content.leaves[leaf]}”, which not every field connected to it can show, so it keeps its value`),
     ];
     const status: SheetStatus = {

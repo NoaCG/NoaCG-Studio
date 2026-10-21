@@ -5,6 +5,74 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 8, data-sources C1c: Data overview, sources line, real-Sheet receipts
+
+- **Previous verified `main` sha:** `ebbdc78` (row 7, C1b, #1578). This branch starts from
+  `b9a32b8` (#1582, two hosted-latency fixes on top of it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no persisted format change:
+  the overview, the Advanced disclosure and the sources line are presentation only, and the reader
+  change only stops one duplicate report. A reverted build shows C1b's line in the cue editor again.
+- **Receipts** (`docs/work-specs/data-sources/evidence/`), made in this cloud session against the
+  owner's test Sheets 3 to 5 through the service account, the app's offline dev server and
+  Playwright Chromium through the session's egress proxy; no Sheet ID is recorded:
+  - `sheet-real-receipt.md` (data AC-13 real-Sheet half, sheet AC-1): a non-first tab previews on
+    the ticker 871 ms after Read; starter rows round-trip; a renamed tab keeps reading; a link with
+    no tab asks; a deleted tab says so with the fix, goes stale, and the values on air hold.
+  - `sheet-timed-local.md` (sheet AC-3 local program): 20 of 20 API edits on the local PROGRAM
+    within 10 s, median 3.2 s, slowest 5.25 s; no new entrance, nothing taken, advanced or removed.
+  - `sheet-custom-slots.md` (AC-13 custom scalar part): a nine-slot custom bracket's own data
+    template, imported as text, reordered and relabelled, connects every slot by Field ID in one
+    confirmation; text is kept exactly (`007`, `=1+1`, quotes, Unicode, an emoji); one cell changes
+    one slot; duplicated and missing keys are diagnosed and held.
+  The receipt drivers were scratch Playwright specs run through the job queue and are not
+  committed: the evidence files carry the method. The receipts' tabs were deleted afterwards.
+- **Decisions.**
+  - The Data view opens on an overview (`DataOverview` in `ProductionDataPanel.tsx`): one block per
+    source (Sheet name, checked and changed, who reads it and how often, the graphics following it,
+    Pause) with its values by the Sheet's own names, then "Local content" with no freshness words,
+    since nothing reads it. Scalars are typed into there (the same deferred box and one write as
+    Advanced, so D4's typed value is on the default surface); a list shows its line count and is
+    edited in the Sheet or under Advanced. Each table says which graphics load it.
+  - Everything that speaks of paths, the seed, Raw JSON or bindings sits behind one closed
+    `<details>` "Advanced" (`data-advanced`, toggle `data-advanced-toggle`), unchanged inside. The
+    data key stays in the header: it is the API source's credential, not a path tool. The Tables
+    copy no longer says "bind".
+  - `SourcesLine.tsx` owns the line's words (`statusWords`: checked N s ago · changed N s ago,
+    paused, empty, the failure since a time; `readerWords`: this page or another tab, about every
+    5 s) and Pause (`toggleSourcePause`, which reads at once on Resume). It renders one line per
+    source of the production at the top of the Playout control area, whichever cue is selected,
+    and nothing without sources (so the playout baselines, which have none, do not move). The
+    overview reuses the same words.
+  - The cue editor keeps only what belongs to the graphic: a connected field it no longer has,
+    with Disconnect. The source's own health moved to the line, so it is not drawn twice.
+  - Not done: a sticky line. At 720 px tall the control area can scroll the line out of sight
+    (Connect left it 42 px scrolled once); the connected-field marks still say stale. Sticky would
+    cover the editor while scrolling and needs a stylesheet change outside this phase.
+- **Extra files.** `src/components/home/CueEditor.tsx` (the line moved out of it; the phase text
+  says C1c moves it). `src/control/sheetSource.ts` and `scripts/sheet-source.test.mjs`: the custom
+  slot receipt found a duplicated Field ID reported twice, the second time as missing; it is now
+  reported once (`SheetContent.doubled`), mutation-tested. `e2e/production-audience.spec.ts` and
+  `e2e/configured/production-data-key-dispatch.spec.ts` open Advanced before using the per-field
+  table and the add-a-value row. `src/control/cueData.ts` exports `datasetMatches`, the cue loader's own
+  column test, so a table's "Loads into" can never disagree with what a cue offers.
+- **`/check` review fixes.** Only graphics still in the pool are named as showing or following a
+  value (bindings outlive a removed graphic); a data template's Field ID reads as the field's title;
+  a Sheet's lines stay a list when emptied; the overview shows a read's problems; values a
+  disconnected Sheet left in the tree are not called local; a source not read yet says it waits for
+  the first read. Not taken: a `FieldControl` box on the overview (the overview mirrors the
+  Advanced rows, which are tree values, not graphic fields); generalising `doubled` into a map of
+  withheld leaves (one cause today); memoising the overview's scans (tens of values).
+- **Traps.**
+  - The graphic's fields sit in a shadow root: `document.querySelector('#f0')` in an iframe finds
+    nothing, a Playwright locator does. Time a field with a locator polled in Node.
+  - `.pd-bind-graphic h4` now also matches the overview's blocks; scope helpers to
+    `production-bindings`.
+  - Cloud browser runs go through `node scripts/jobs.mjs add`, and a queued job does not inherit
+    the environment of the `add` call that queued it when another job started the runner: write
+    outputs to a fixed path.
+  - A commit message here carries no `Co-Authored-By` trailer (the command guard refuses it).
+
 ## Row 7, data-sources C1b: Sheet source, reader, Connect data
 
 - **Previous verified `main` sha:** `1e81bfed1cd7345de84c3c160c4570a906e82bba` (row 6, C1a, #1576).

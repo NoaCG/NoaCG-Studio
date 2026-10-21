@@ -410,6 +410,19 @@ test('the empty workspace carries the doors and names the columns that would bin
 // ── PRODUCTION DATA: the live tree, the bindings, and the rules that make them safe on air
 // (docs/PRODUCTION_DATA_PLAN.md). Everything below is Phase 1: local, manual, no API.
 
+/** The Data view with Advanced open: the tree by its paths, the seed, Raw JSON and the per-field
+ *  table sit there, closed by default (sheet-data-flow AC-9). */
+async function openData(page: Page): Promise<Page> {
+  const data = await openWorkspace(page, 'data');
+  await openAdvanced(data);
+  return data;
+}
+
+/** Open the Data view's Advanced part, unless it is open already. */
+async function openAdvanced(data: Page): Promise<void> {
+  if (!(await data.getByTestId('data-advanced').evaluate((d) => (d as HTMLDetailsElement).open))) await data.getByTestId('data-advanced-toggle').click();
+}
+
 /** Add one value to the production's live tree from the Data tab. */
 async function addValue(page: Page, path: string, value: string): Promise<void> {
   await page.getByTestId('data-new-path').fill(path);
@@ -420,7 +433,7 @@ async function addValue(page: Page, path: string, value: string): Promise<void> 
 
 /** The pool graphic's name, as the bindings table prints it. */
 async function firstGraphicName(page: Page): Promise<string> {
-  const heading = await page.locator('.pd-bind-graphic h4').first().textContent();
+  const heading = await page.getByTestId('production-bindings').locator('.pd-bind-graphic h4').first().textContent();
   return (heading ?? '').trim();
 }
 
@@ -429,7 +442,7 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
   await productionFor(page, 'Match Night');
 
   // ── The playground: a nested tree, typed by what was written rather than by a schema. ──
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await expect(data.getByTestId('production-live-data')).toBeVisible();
   await addValue(data, 'match.home.name', 'Finland');
   await addValue(data, 'match.home.score', '1');
@@ -487,6 +500,7 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
   // ── Reload: the live tree is runtime state and survives, and it is NOT on the show record. ──
   await data.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await openAdvanced(data);
   await expect(data.getByTestId('data-value-match.home.name')).toHaveValue('Sweden');
   // The seed was never written, because saving one is a deliberate act - this is the whole
   // anti-churn rule (plan 2.1): live values must not touch the synced Show record.
@@ -505,7 +519,7 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
 test('the seed is the reset target, and unbinding hands the field back to the cue', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Seed Show');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'counter', '5');
 
   // Save as seed, move the value, reset - the seed is what Reset returns to.
@@ -543,7 +557,7 @@ test('the seed is the reset target, and unbinding hands the field back to the cu
 test('an unpublished production offers no data key, because it has none', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Key Yet');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // The key is minted at PUBLISH into the production's row (docs/DATA_API.md), so offline there
   // is nothing to reveal. A button that could never do anything is worse than no button, and
@@ -559,7 +573,7 @@ test('an unpublished production offers no data key, because it has none', async 
 test('nested trees, arrays and a missing path each behave as the contract says', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Shapes');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // A whole payload pasted as JSON - the same shape the future ingress API will accept, which
   // is what makes this panel the API's documentation as well as its playground.
@@ -608,7 +622,7 @@ test('nested trees, arrays and a missing path each behave as the contract says',
 test('one value moves every graphic bound to it, and only the graphics bound to it', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Two Graphics');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'shared.title', 'First');
 
   // The one binding this pool offers, bound - then the value moves and the preview follows
@@ -634,14 +648,14 @@ test('production data is scoped to its production, never shared between two', as
   // EACH PRODUCTION GETS ITS OWN WORKSPACE TAB, because the workspaces open in their own tab
   // now and a tab is opened onto ONE production. Re-using the first production's tab for the
   // second would be asking a question about that tab, not about the scoping.
-  const dataOne = await openWorkspace(page, 'data');
+  const dataOne = await openData(page);
   await addValue(dataOne, 'shared.value', 'one');
 
   // A second production, from its own project. Same path, its own tree - the store is keyed by
   // production id, so nothing about "shared.value" is global.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Show Two');
-  const dataTwo = await openWorkspace(page, 'data');
+  const dataTwo = await openData(page);
   await expect(dataTwo.getByTestId('production-live-data')).toBeVisible();
   await expect(dataTwo.getByTestId('data-row-shared.value')).toHaveCount(0);
   await addValue(dataTwo, 'shared.value', 'two');
@@ -649,6 +663,7 @@ test('production data is scoped to its production, never shared between two', as
   // The first production's own tab still holds its own value - and it is still 'one' even
   // though the second tab wrote the same PATH a moment ago.
   await dataOne.reload();
+  await openAdvanced(dataOne);
   await expect(dataOne.getByTestId('data-value-shared.value')).toHaveValue('one');
   // …and reaching it by its own URL says the same (deterministic - no card hunting).
   await page.goto(showOneUrl);
@@ -681,7 +696,7 @@ test('SPACE on the Data tab cannot put a graphic on air', async ({ page }) => {
   // them: the workspaces open in their own browser tab now (see `openWorkspace`), so this is
   // the ordinary way to be standing on Data. The guard is the same one either way - the shell
   // binds the verb keys only while playout is the surface on screen.
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // Space belongs to a focused button by design, so say where focus is rather than inherit it.
   await parkFocusOffControls(data);
@@ -715,7 +730,7 @@ test('SPACE on the Data tab cannot put a graphic on air', async ({ page }) => {
 test('the playout column stays hidden behind the Data workspace, rundown included', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // Back to Playout IN THIS TAB (the one tab control that is a button, not a link), which is
   // what builds the playout column in the workspace's tab in the first place.
@@ -758,7 +773,7 @@ test('a ± press on a bound field moves the shared value, and every graphic boun
   await expect(cues).toHaveCount(2);
 
   // ── ONE value, bound on BOTH graphics ──
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.home.score', '0');
   await data.getByTestId('bind-House Score-f1').fill('match.home.score');
   await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
@@ -811,7 +826,7 @@ test('an adjust on a bound field patches the tree, and the event still fires', a
   await addSecondGraphic(page, 'Club Scorebug', showId);
   const cues = page.getByTestId('cue-list').locator('.pd-cue');
 
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.home.score', '2');
   await data.getByTestId('bind-House Score-f1').fill('match.home.score');
   await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
@@ -859,7 +874,7 @@ test('Bind all by title binds every unambiguous title in one press, and leaves t
   const showId = await productionFor(page, 'Derby Bindings');
   await addSecondGraphic(page, 'Club Scorebug', showId);
 
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   // The tab explains itself before anything is pressed: a closed drawer for the three blocks,
   // and the button's rule on the line under the heading it sits beside. Both are copy a student
   // reads once, so the spec pins that they are there and what they claim, not their wording.
@@ -1017,7 +1032,7 @@ test('typing a value costs ONE persist for the whole edit, not one per character
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Rate Budget');
   await countPersists(page);
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.home.name', 'Suomi');
 
   // The gesture: select the whole value and retype it, character by character, the way an
@@ -1044,7 +1059,7 @@ test('an operator who types and walks away still has the value persisted', async
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Walk Away');
   await countPersists(page);
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.clock', '12:31');
 
   const box = data.getByTestId('data-value-match.clock');
@@ -1072,7 +1087,7 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   // be a race against this panel's own settle timer; typing THROUGH the write is not.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Mid Word');
-  const dataOne = await openWorkspace(page, 'data');
+  const dataOne = await openData(page);
   await addValue(dataOne, 'match.home.name', 'Suomi');
 
   const box = dataOne.getByTestId('data-value-match.home.name');
@@ -1316,7 +1331,7 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: News desk');
   await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Ann Lee');
   await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Chief Editor');
-  await expect(page.getByTestId(`cue-source-${sourceId}`)).toContainText(/Sheet: News desk · checked \d+ s ago/);
+  await expect(page.getByTestId(`source-line-${sourceId}`)).toContainText(/Sheet: News desk · checked \d+ s ago/);
 
   // ── The equal title on the other graphic stays the cue's own. ──
   await cues.nth(1).locator('.pd-cue-label').click();
@@ -1339,21 +1354,21 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   expect((await storedBindings(page, showId)).bindings.Hairline.f0).toBe(`sheet.${sourceId}.values.Name`);
 
   // ── Pause holds the values; Resume brings the change. ──
-  const line = page.getByTestId(`cue-source-${sourceId}`);
-  await line.getByTestId('cue-source-pause').click();
+  const line = page.getByTestId(`source-line-${sourceId}`);
+  await line.getByTestId('source-pause').click();
   await expect(line).toContainText('paused');
   tab.csv = 'Name,Value\nName,Cy Dale\nRole,Chief Editor\n';
   const reads = tab.reads;
   await page.waitForTimeout(7_000);
   expect(tab.reads, 'paused: nothing is read').toBe(reads);
   await expect(program.locator('#f0')).toHaveText('Bo Chen');
-  await line.getByTestId('cue-source-pause').click();
+  await line.getByTestId('source-pause').click();
   await expect(program.locator('#f0')).toHaveText('Cy Dale', { timeout: 10_000 });
 
   // ── A failed read keeps the values and names the fix. ──
   tab.status = 403;
   await expect(line).toContainText('can’t read it (not shared)', { timeout: 10_000 });
-  await expect(line.getByTestId('cue-source-fix')).toContainText('Anyone with the link');
+  await expect(line.getByTestId('source-fix')).toContainText('Anyone with the link');
   await expect(program.locator('#f0')).toHaveText('Cy Dale');
   tab.status = 200;
   await expect(line).toContainText('checked', { timeout: 10_000 });
@@ -1367,6 +1382,51 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await expect(page.getByTestId('cue-field-f1')).toHaveValue('Chief Editor');
   expect(await storedBindings(page, showId), 'the last field gone, the source goes too').toEqual({ bindings: {}, sources: [] });
   await expect(line).toHaveCount(0);
+});
+
+test('the Playout sources line stays whichever cue is selected, tells checked from changed, and pauses there', async ({ page }) => {
+  test.setTimeout(120_000);
+  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Sheet Status');
+  await addCatalogGraphic(page, showId, 'Underline');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-label').fill('Guests');
+  await review.getByTestId('cue-connect-confirm').click();
+  const { sources } = await storedBindings(page, showId);
+  const line = page.getByTestId(`source-line-${sources[0].id}`);
+  const status = line.getByTestId('source-status');
+  await expect(status).toHaveText(/^Sheet: Guests · checked \d+ s ago · changed \d+ s ago$/);
+
+  // The line is the production's: a graphic that follows no source still shows it.
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-connect')).toBeVisible();
+  await expect(line).toBeVisible();
+
+  // Unchanged reads move "checked" and leave "changed" behind, and that is healthy, not stale.
+  const ages = async () => {
+    const m = /checked (\d+) s ago · changed (\d+) s ago/.exec((await status.textContent()) ?? '');
+    return m ? Number(m[2]) - Number(m[1]) : null;
+  };
+  await expect.poll(ages, { timeout: 15_000 }).toBeGreaterThanOrEqual(5);
+  await expect(line).not.toHaveAttribute('data-stale', 'true');
+  // A changed cell brings "changed" back to the read that saw it.
+  tab.csv = 'Name,Value\nName,Bo Chen\n';
+  await expect.poll(ages, { timeout: 12_000 }).toBeLessThanOrEqual(1);
+
+  // Pause and Resume on the line itself.
+  await line.getByTestId('source-pause').click();
+  await expect(status).toHaveText('Sheet: Guests · paused');
+  await expect(line).toHaveAttribute('data-state', 'paused');
+  const reads = tab.reads;
+  await page.waitForTimeout(6_000);
+  expect(tab.reads, 'paused: nothing is read').toBe(reads);
+  await line.getByTestId('source-pause').click();
+  await expect(status).toHaveText(/checked \d+ s ago/, { timeout: 10_000 });
+  expect(tab.reads).toBeGreaterThan(reads);
 });
 
 test('twelve Sheet rows reach a ticker on air without a new entrance, and an emptied tab clears it', async ({ page }) => {
@@ -1399,7 +1459,7 @@ test('twelve Sheet rows reach a ticker on air without a new entrance, and an emp
 
   tab.csv = '';
   await expect(program.locator('#f0')).toHaveText('', { timeout: 12_000 });
-  await expect(page.locator('[data-testid^="cue-source-"]').first()).toContainText('empty');
+  await expect(page.getByTestId('sources-line')).toContainText('empty');
   expect(await stage.getAttribute('data-plays')).toBe(plays);
 });
 
@@ -1473,7 +1533,7 @@ test('a connected field the graphic lacks is flagged, a removed graphic is named
   );
   await cues.nth(0).locator('.pd-cue-label').click();
   const missing = page.getByTestId('cue-source-missing');
-  await expect(missing).toContainText('F9 is connected, but this graphic has no F9');
+  await expect(missing).toContainText('F9 is connected to Sheet: Hairline, but this graphic has no F9');
   await missing.getByTestId('cue-disconnect-f9').click();
   await expect(missing).toHaveCount(0);
 

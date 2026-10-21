@@ -104,6 +104,7 @@ test('while the data key is unread, the page appends no update of its own; the f
   // bindings resolve to a value, and only the dispatch guard keeps it off the log.
   const data = await openWorkspace(page, 'data');
   await expect.poll(() => keyReads, { message: 'the Data tab asked for its data key' }).toBeGreaterThan(1);
+  await data.getByTestId('data-advanced-toggle').click();
   await data.getByTestId('data-new-path').fill(PATH);
   await data.getByTestId('data-new-value').fill('5');
   await data.getByTestId('data-add').click();

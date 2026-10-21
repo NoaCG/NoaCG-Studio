@@ -133,6 +133,7 @@ import { groupCueFields } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
+import SourcesLine from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceWorkspace';
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox } from './useAudienceInbox';
@@ -4690,6 +4691,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           setLiveData={setLiveData}
           resolved={resolved}
           dataKey={dataKey ?? null}
+          sourceStatus={sourceStatus}
         />
         </AccountAuthoringGate>
       )}
@@ -4909,6 +4911,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         <div className="pd-control-area" data-testid="control-area">
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
+        {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
+        <SourcesLine show={show} setShows={setShows} store={sourceStatus} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&

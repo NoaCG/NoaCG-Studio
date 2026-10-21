@@ -19,6 +19,9 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { parseTableFile, serializeCsv } from '../../model/csv';
 import type { JsonObject, ResolvedValues } from '../../model/productionData';
 import ProductionDataPanel from './ProductionDataPanel';
+import { datasetMatches } from '../../control/cueData';
+import { fieldDescriptors } from '../../control/controlModel';
+import type { SourceStatusStore } from '../../control/sheetSource';
 
 /** A file name a spreadsheet will not argue with, from the table type's own name. */
 function templateFileName(label: string): string {
@@ -61,6 +64,7 @@ export default function ProductionDataWorkspace({
   setLiveData,
   resolved,
   dataKey,
+  sourceStatus,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
@@ -70,6 +74,7 @@ export default function ProductionDataWorkspace({
   /** The production's own data key, passed straight through to the live panel - the page owns
    *  it because the page is the one that reads it (control/productionDataApi.ts). */
   dataKey?: string | null;
+  sourceStatus: SourceStatusStore;
 }) {
   const [newKind, setNewKind] = useState<ShowDataset['kind']>('quiz');
   const [importNote, setImportNote] = useState<string | null>(null);
@@ -196,13 +201,14 @@ export default function ProductionDataWorkspace({
         setLiveData={setLiveData}
         resolved={resolved}
         dataKey={dataKey}
+        sourceStatus={sourceStatus}
       />
       <div className="pd-data-head">
         <h2>Tables</h2>
         <p className="hint">
-          Tables this production owns — a question bank, a line-up, a roster. Column names bind
-          to graphic fields: on the Playout tab, a cue whose field titles match a table's columns
-          can load any row — into PREVIEW, never straight to air.
+          Tables this production owns — a question bank, a line-up, a roster. On the Playout tab,
+          a cue whose field titles match a table's column names can load any row — into PREVIEW,
+          never straight to air.
         </p>
         {datasets.length > 0 && actions}
       </div>
@@ -279,7 +285,7 @@ function EmptyState({ show, actions }: { show: Show; actions: ReactNode }) {
           </>
         ) : (
           <p className="hint" data-testid="bindable-columns-none">
-            This production has no graphics yet, so no column name binds to anything. Add one on
+            This production has no graphics yet, so no column name matches a field. Add one on
             the Playout tab and its field names appear here.
           </p>
         )}
@@ -301,6 +307,8 @@ function DatasetCard({
    *  any of them disarms the rest and the card can never show two pending confirms at once. */
   const [armed, setArmed] = useState<string | null>(null);
   const [newColumn, setNewColumn] = useState('');
+  // The cue's own test (control/cueData.ts), so the card and the cue's loader never disagree.
+  const users = show.graphics.filter((g) => datasetMatches(fieldDescriptors(g.template.fields ?? []), ds)).map((g) => g.name);
 
   return (
     <div className="pd-dataset" data-testid={`dataset-${ds.id}`}>
@@ -313,6 +321,10 @@ function DatasetCard({
           data-testid="dataset-name"
         />
         <span className="muted">{ds.rows.length} row{ds.rows.length === 1 ? '' : 's'}</span>
+        {/* The graphics using it (data-sources AC-9): the ones a cue of which can load its rows. */}
+        <span className="muted" data-testid="dataset-users">
+          {users.length > 0 ? `Loads into ${users.join(', ')}` : 'No graphic loads it yet'}
+        </span>
         <div className="spacer" />
         {/* Two-step delete: a table of typed-in questions has no undo behind it. */}
         <button
