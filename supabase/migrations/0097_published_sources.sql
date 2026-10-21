@@ -72,6 +72,8 @@ create table if not exists public.control_data_ticks (
 alter table public.control_data_ticks enable row level security;
 revoke all on table public.control_data_ticks from public, anon, authenticated;
 grant select, insert, delete on table public.control_data_ticks to service_role;
+-- The record keeps seven days, pruned on every run.
+create index if not exists control_data_ticks_started on public.control_data_ticks (started_at);
 
 -- ── 4. The switch, as the sources line needs it ────────────────────────────────────────────────
 -- api/_lib/systemSettings.ts `dataTickOnAt` is the tick's rule; this is the same rule: on only

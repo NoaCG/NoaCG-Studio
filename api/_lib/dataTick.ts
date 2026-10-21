@@ -20,14 +20,10 @@ import {
   SHEET_TIMEOUT_MS,
   connectedFields,
   initialStatus,
-  missedStatus,
+  nextReadState,
   pathValue,
   readSheet,
-  readStatus,
-  changedTexts,
-  sheetContent,
-  sheetWrites,
-  sourcePrefix,
+  sourcePaths,
   type SheetFetch,
   type SheetReadState,
   type SheetShape,
@@ -185,25 +181,16 @@ async function readOne(io: TickIo, due: DueSource, startedAt: number): Promise<T
     } finally {
       io.clearTimer(cut);
     }
-    const now = io.now();
-    let next: SheetReadState;
-    let writes: Record<string, string> = {};
-    if (!result.ok) {
-      next = { ...held, status: missedStatus(held.status, result, now, 'server') };
-    } else {
-      const prefix = `${sourcePrefix(due.source.id)}.`;
-      const connected = new Set<string>();
-      for (const fields of Object.values(due.bindings ?? {})) {
-        for (const path of Object.values(fields ?? {})) if (typeof path === 'string' && path.startsWith(prefix)) connected.add(path);
-      }
-      const fieldsOf = (graphic: string) => (due.fields[graphic] ? descriptorsOf(due.fields[graphic]) : null);
-      const accept = (path: string, text: string) => pathValue(connectedFields(due.bindings, path, fieldsOf), text);
-      const content = sheetContent(due.source.config.shape, result.rows);
-      const written = sheetWrites(due.source.id, content, connected, held.snapshot, accept);
-      const { status, fingerprint } = readStatus(held, content, written, now, 'server');
-      writes = changedTexts(written.snapshot, held.snapshot);
-      next = { snapshot: written.snapshot, content: fingerprint, status };
-    }
+    const connected = new Set(sourcePaths(due.bindings, due.source.id).map((p) => p.path));
+    const descriptors = new Map<string, FieldDescriptor[]>();
+    const fieldsOf = (graphic: string) => {
+      if (!due.fields[graphic]) return null;
+      if (!descriptors.has(graphic)) descriptors.set(graphic, descriptorsOf(due.fields[graphic]));
+      return descriptors.get(graphic)!;
+    };
+    const accept = (path: string, text: string) => pathValue(connectedFields(due.bindings, path, fieldsOf), text);
+    const shape = due.source.config.shape;
+    const { next, writes } = nextReadState(held, result, { sourceId: due.source.id, shape, connected, accept }, io.now(), 'server');
     const kept = await io.commit(due.slug, due.source.id, claim, writes, next);
     const ms = io.now() - at;
     if (!kept.ok) return { ...base, outcome: 'moved', ms };

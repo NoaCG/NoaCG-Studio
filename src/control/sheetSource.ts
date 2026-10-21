@@ -33,12 +33,11 @@
 // Pure and Node-importable (production-page spec §5.2): every door arrives through `io`, so
 // scripts/sheet-source.test.mjs drives it with a fake clock, fetch and storage.
 
-import { fillList, listFormatFor, valueFor, type FilledRow, type ListAdapter, type ListFormat } from './contentFormats.js';
+import { fillList, listFormatFor, valueFor, type FilledRow, type GraphicShape, type ListAdapter, type ListFormat } from './contentFormats.js';
 import { parseDelimited } from '../model/csv.js';
 import { mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.js';
 
-export { isSourcePath, sourceIdOf, sourcePrefix } from '../model/productionData.js';
-import type { TemplateType } from '../model/types';
+export { isSourcePath, sourceIdOf, sourcePaths, sourcePrefix } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
@@ -134,7 +133,7 @@ export async function readSheet(fetcher: SheetFetch, link: SheetLink, signal: Ab
 export type SheetShape = ListAdapter | 'values';
 
 /** The shape a graphic's connection reads, decided by what the graphic is (contentFormats). */
-export function sheetShapeFor(graphic: { type: TemplateType } & { template: { js?: string } }): SheetShape {
+export function sheetShapeFor(graphic: GraphicShape): SheetShape {
   for (const field of ['f0', 'f2']) {
     const format = listFormatFor(graphic, field);
     if (format) return format.adapter;
@@ -384,11 +383,11 @@ export interface SheetLeaseDoor {
     | { held: false; status: SheetStatus | null; reader: 'other' | 'server' }
   >;
   /**
-   * Write a read's changed paths (as text by path, and as one merge patch) and keep `next`, under
-   * the claim, in one step. `false`: the claim moved, or the source was paused or let go, and
-   * nothing was written or kept. A path the destination refused keeps its earlier snapshot.
+   * Write a read's changed paths (text by path) and keep `next`, under the claim, in one step.
+   * `false`: the claim moved, or the source was paused or let go, and nothing was written or kept.
+   * A path the destination refused keeps its earlier snapshot.
    */
-  settle: (claim: string, writes: Record<string, string>, patch: JsonObject, next: SheetReadState) => Promise<boolean>;
+  settle: (claim: string, writes: Record<string, string>, next: SheetReadState) => Promise<boolean>;
   /** Let the lease go, so another reader takes over at once. */
   release: () => void;
 }
@@ -424,9 +423,8 @@ export interface SheetReaderOptions {
    *  it; absent, every text is written as it is. */
   accept?: (path: string, text: string) => string | null;
   paused: () => boolean;
-  /** The unpublished writer (productionDataSession.applySourcePatch): true when the write landed,
-   *  false when nothing did, or the paths it left out while the rest landed. */
-  write: (patch: JsonObject) => Promise<boolean | string[]>;
+  /** The unpublished writer (productionDataSession.applySourcePatch): true when the write landed. */
+  write: (patch: JsonObject) => Promise<boolean>;
   /** The message-candidate consumer: rows only, and no way to write. */
   inbox?: (rows: readonly (readonly string[])[]) => void;
   onStatus: (status: SheetStatus) => void;
@@ -496,11 +494,34 @@ export function readStatus(
   return { status, fingerprint };
 }
 
-/** The changed paths of a read as text by path: what `sheetWrites` patches, flat. */
-export function changedTexts(next: Readonly<Record<string, string>>, before: Readonly<Record<string, string>>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [path, text] of Object.entries(next)) if (before[path] !== text) out[path] = text;
-  return out;
+/**
+ * What one read comes to, for the browser reader and the server tick alike: the state to keep and
+ * the changed paths as text by path. A failed read keeps the snapshot and counts a miss.
+ */
+export function nextReadState(
+  held: SheetReadState,
+  result: SheetRead,
+  source: { sourceId: string; shape: SheetShape; connected: ReadonlySet<string>; accept?: (path: string, text: string) => string | null },
+  now: number,
+  reader: SheetStatus['reader'],
+): { next: SheetReadState; writes: Record<string, string> } {
+  if (!result.ok) return { next: { ...held, status: missedStatus(held.status, result, now, reader) }, writes: {} };
+  const content = sheetContent(source.shape, result.rows);
+  const written = sheetWrites(source.sourceId, content, source.connected, held.snapshot, source.accept);
+  const { status, fingerprint } = readStatus(held, content, written, now, reader);
+  const writes: Record<string, string> = {};
+  for (const [path, text] of Object.entries(written.snapshot)) if (held.snapshot[path] !== text) writes[path] = text;
+  return { next: { snapshot: written.snapshot, content: fingerprint, status }, writes };
+}
+
+/** Text by path as one merge patch. */
+function patchOf(writes: Record<string, string>): JsonObject {
+  let patch: JsonObject = {};
+  for (const [path, text] of Object.entries(writes)) {
+    const one = patchForPath(path, text);
+    if (one) patch = mergePatch(patch, one) as JsonObject;
+  }
+  return patch;
 }
 
 let claims = 0;
@@ -543,23 +564,16 @@ function localLeaseDoor(o: SheetReaderOptions, alive: () => boolean): SheetLease
       if (readLease()?.claim !== lease.claim) return { held: false, status: readLease()?.status ?? null, reader: 'other' };
       return { held: true, claim: lease.claim, state: lease };
     },
-    settle: async (claimId, _writes, patch, next) => {
+    settle: async (claimId, writes, next) => {
       let held = ours(claimId);
       if (!held) return false;
       let snapshot = next.snapshot;
-      if (Object.keys(patch).length > 0) {
-        const landed = await o.write(patch);
+      if (Object.keys(writes).length > 0) {
+        const landed = await o.write(patchOf(writes));
         held = ours(claimId);
         if (!held) return false;
-        // What did not land is tried again: the snapshot keeps what was there before for it.
+        // What did not land is tried again: the snapshot keeps what was there before.
         if (!landed) snapshot = { ...held.snapshot };
-        else if (Array.isArray(landed)) {
-          snapshot = { ...snapshot };
-          for (const path of landed) {
-            if (held.snapshot[path] === undefined) delete snapshot[path];
-            else snapshot[path] = held.snapshot[path];
-          }
-        }
       }
       writeLease({ ...held, until: io.now() + SHEET_LEASE_MS, ...next, snapshot });
       return true;
@@ -635,7 +649,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     if (o.paused() || answer.paused) {
       // Paused keeps the snapshot as it was, so Resume writes only what changed meanwhile.
       const status: SheetStatus = { ...held.status, state: 'paused', reader: 'this' };
-      await door.settle(answer.claim, {}, {}, { ...held, status }).catch(() => false);
+      await door.settle(answer.claim, {}, { ...held, status }).catch(() => false);
       if (!stopped) report(status);
       schedule(SHEET_READ_MS);
       return;
@@ -655,22 +669,9 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       schedule(0);
       return;
     }
-    const now = io.now();
-    let next: SheetReadState;
-    let writes: Record<string, string> = {};
-    let patch: JsonObject = {};
-    if (!result.ok) {
-      next = { ...held, status: missedStatus(held.status, result, now, 'this') };
-    } else {
-      if (o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
-      const content = sheetContent(o.shape, result.rows);
-      const written = sheetWrites(o.sourceId, content, o.connected(), held.snapshot, o.accept);
-      const { status, fingerprint } = readStatus(held, content, written, now, 'this');
-      writes = changedTexts(written.snapshot, held.snapshot);
-      patch = written.patch;
-      next = { snapshot: written.snapshot, content: fingerprint, status };
-    }
-    const kept = await door.settle(answer.claim, writes, patch, next).catch(() => false);
+    if (result.ok && o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
+    const { next, writes } = nextReadState(held, result, { ...o, connected: o.connected() }, io.now(), 'this');
+    const kept = await door.settle(answer.claim, writes, next).catch(() => false);
     if (stopped) return;
     if (!kept) {
       // Handed over, disconnected or let go meanwhile: claim again at the next read, and show the

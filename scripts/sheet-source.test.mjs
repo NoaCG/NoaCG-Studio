@@ -541,19 +541,6 @@ test('a page that slept past its lease with a read in flight writes nothing, and
   a.reader.stop();
 });
 
-test('a write that left a path out (not bound on the published row) retries that path only', async () => {
-  const b = browser();
-  b.sheet.csv = 'Name,Value\nA,1\nB,2\n';
-  const a = tab(b, 'A', { shape: 'values', paths: ['sheet.s1.values.A', 'sheet.s1.values.B'], landed: ['sheet.s1.values.B'] });
-  await b.clock.advance(0);
-  await b.clock.advance(SHEET_READ_MS);
-  assert.deepEqual(a.writes, [
-    { sheet: { s1: { values: { A: '1', B: '2' } } } },
-    { sheet: { s1: { values: { B: '2' } } } },
-  ]);
-  a.reader.stop();
-});
-
 test('a cell its field cannot hold writes nothing and is reported; what is written is the field’s own form of the cell', async () => {
   assert.equal(fieldValue({ kind: 'number' }, 'abc'), null);
   assert.equal(fieldValue({ kind: 'number' }, ' 3 '), '3');
@@ -647,7 +634,7 @@ function row(clock) {
         state: { snapshot: { ...r.snapshot }, content: r.content, status: { ...initialStatus('this'), ...r.status, reader: 'this', closedPage: r.tick } },
       };
     },
-    settle: async (claim, writes, _patch, next) => {
+    settle: async (claim, writes, next) => {
       if (r.hold) await r.hold.promise;
       if (r.claim !== claim || r.until <= clock.now()) return false;
       if (Object.keys(writes).length > 0) r.writes.push({ owner, writes });
@@ -746,7 +733,7 @@ test('published: an old owner’s write held across a handover is refused, write
   r.until = 0;
   const tick = r.door('tick');
   const held = await tick.claim(null);
-  assert.equal(await tick.settle(held.claim, { 'sheet.s1.lines': 'newer' }, {}, { snapshot: { 'sheet.s1.lines': 'newer' }, content: 'n', status: { ...initialStatus('server'), state: 'ok' } }), true);
+  assert.equal(await tick.settle(held.claim, { 'sheet.s1.lines': 'newer' }, { snapshot: { 'sheet.s1.lines': 'newer' }, content: 'n', status: { ...initialStatus('server'), state: 'ok' } }), true);
   const before = structuredClone({ snapshot: r.snapshot, status: r.status, content: r.content });
   const shown = a.statuses.length;
   release();

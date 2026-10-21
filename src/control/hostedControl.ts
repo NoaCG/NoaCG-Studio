@@ -703,8 +703,9 @@ function rowStatus(status: Partial<SheetStatus> | null | undefined, reader: Shee
  * renews it on the control slug; settle writes a read through the operator's door and keeps the
  * snapshot and status, in one step the database refuses once the claim has moved, the source is
  * paused, or a path is no longer connected (that path alone is left out, and kept for later).
- * `hold` takes the tree the write answered with (productionDataSession.holdServerTree). Letting go
- * is a keepalive request, so it still leaves when the page is going away.
+ * `hold` takes the tree the write answered with (productionDataSession.holdServerTree). A read that
+ * changed nothing is kept on the row at most once a lease (its "checked" time), not every 5 s.
+ * Letting go is a keepalive request, so it still leaves when the page is going away.
  */
 export function publishedLeaseDoor(o: {
   slug: string;
@@ -716,6 +717,10 @@ export function publishedLeaseDoor(o: {
   let tick = false;
   /** The claim this page last held, which letting go names. */
   let held: string | null = null;
+  /** What the row last kept from this page, without its checked time, and when. */
+  let kept: { claim: string; state: string; at: number } | null = null;
+  const unchecked = (next: SheetReadState) => JSON.stringify({ ...next, status: { ...next.status, checkedAt: null } });
+  const args = (claim: string | null, ttl: number) => ({ p_slug: o.slug, p_source: o.sourceId, p_owner: o.owner, p_claim: claim, p_ttl_ms: ttl });
   const said = new Set<string>();
   const sayOnce = (text: string) => {
     if (said.has(text)) return;
@@ -725,13 +730,7 @@ export function publishedLeaseDoor(o: {
   const lease = async (claim: string | null, ttl: number): Promise<LeaseRow> => {
     const sb = await getSupabase();
     if (!sb) throw new Error('offline');
-    const { data, error } = await sb.rpc('control_source_lease', {
-      p_slug: o.slug,
-      p_source: o.sourceId,
-      p_owner: o.owner,
-      p_claim: claim,
-      p_ttl_ms: ttl,
-    });
+    const { data, error } = await sb.rpc('control_source_lease', args(claim, ttl));
     if (error) throw new Error(error.message);
     return data as LeaseRow;
   };
@@ -752,7 +751,9 @@ export function publishedLeaseDoor(o: {
       };
       return { held: true, claim: row.claim, state, paused: row.paused === true };
     },
-    settle: async (claim, writes, _patch, next) => {
+    settle: async (claim, writes, next) => {
+      const state = unchecked(next);
+      if (Object.keys(writes).length === 0 && kept?.claim === claim && kept.state === state && Date.now() - kept.at < SHEET_LEASE_MS) return true;
       const sb = await getSupabase();
       if (!sb) return false;
       const { data, error } = await sb.rpc('control_source_commit', {
@@ -768,6 +769,7 @@ export function publishedLeaseDoor(o: {
       }
       const row = data as CommitRow;
       if (!row.ok) return false;
+      kept = { claim, state, at: Date.now() };
       if (row.data) o.hold(o.slug, row.data);
       for (const path of row.skipped ?? []) sayOnce(`A connected field has not reached the published production yet (${path}); it follows the Sheet once it has.`);
       return true;
@@ -781,8 +783,8 @@ export function publishedLeaseDoor(o: {
       void fetch(`${cfg.url}/rest/v1/rpc/control_source_lease`, {
         method: 'POST',
         keepalive: true,
-        headers: { apikey: cfg.anonKey, 'content-type': 'application/json' },
-        body: JSON.stringify({ p_slug: o.slug, p_source: o.sourceId, p_owner: o.owner, p_claim: claim, p_ttl_ms: 0 }),
+        headers: { apikey: cfg.anonKey, authorization: `Bearer ${cfg.anonKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify(args(claim, 0)),
       }).catch(() => {});
     },
   };
