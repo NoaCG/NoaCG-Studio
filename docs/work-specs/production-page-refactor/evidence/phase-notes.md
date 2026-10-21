@@ -7,6 +7,15 @@ changes a spec's digest.
 
 ## Row 9, data-sources C2: published ownership and the server tick
 
+- **Repair, 2026-10-21 (P9 repair 1, the check's FAIL on `b05bd28`).** The Q record bullet below
+  said each guard was tested; two were not. `maxDuration` 30 for `api/data/[...path].ts` and the
+  `* * * * *` `/api/data/tick` cron were checked by nothing, and the 26 s cut-off was asserted
+  against `READS_END_MS` itself. `data-tick` now reads `vercel.json` and pins both values, and the
+  late-read test expects a literal 7 000 ms (26 s less 19 s). Mutation-verified red: 30 to 300,
+  the cron removed, the cron to `*/5 * * * *`, and `READS_END_MS` 26 000 to 29 000. Still tested
+  by nothing, holding by reading only: the no-`sources`-column fallback in `hostedControl.ts`
+  (`PGRST204` in `writePublishedSources`, `PGRST204`/`42703` in `firstPublishedSources`); a Node
+  test would need a stub Supabase client for a browser module, more than this repair should add.
 - **Previous verified `main` sha:** `63edc790b8bf0dccee0b82c93fc776baaae39c5e` (row 8, C1c,
   #1585). This branch starts there.
 - **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
@@ -17,7 +26,8 @@ changes a spec's digest.
   (delete the `data_tick_until` system setting): a reverted `vercel.json` drops the cron anyway.
 - **Q record used.** `docs/work-specs/data-sources/evidence/tick-cost-estimate.md`: its ceiling
   ($55.53 to $79.78 a month if every tick burned 30 s of CPU) is above the $20 credit, so the
-  safety rests on four guards, each in code and each tested: the 10-second read timeout
+  safety rests on four guards, each in code and each tested (`maxDuration`, and the 26 s cut-off
+  below, only since the repair above): the 10-second read timeout
   (`SHEET_TIMEOUT_MS`, `data-tick` "cut at 10 s"), no read started after 20 seconds
   (`NO_NEW_READ_MS`, "no read starts after 20 seconds"), `maxDuration` 30 for
   `api/data/[...path].ts` in `vercel.json`, and the switch's expiry, at most 48 hours ahead
