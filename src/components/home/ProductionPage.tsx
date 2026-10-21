@@ -538,6 +538,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Folder Takes still being sent: what dispatch reads (a ref, never a stale render), and whether
    *  Out or All out has stopped each since. */
   const folderRuns = useRef(new Map<string, { stop: null | 'out' | 'all-out' }>());
+  /** The last ⚡ press still being handled on each graphic, which the next one waits for (`fireEvent`). */
+  const eventPresses = useRef(new Map<string, Promise<void>>());
   /** The same, for the verb bar to draw: a folder still being sent counts as up, so Out and SPACE can
    *  stop it even before anything of it has landed. */
   const [sendingFolders, setSendingFolders] = useState<ReadonlySet<string>>(() => new Set());
@@ -3943,12 +3945,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  land only if the machine accepts the event (the structural guard). An `adjust` field (a
    *  goal's +1 on that side's score) rides moved by its delta from what AIR shows - the same
    *  base the ± live-number bump counts from - and the new figure is mirrored into the on-air
-   *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it. */
-  const fireEvent = async (button: ControlButton) => {
-    if (!selectedGraphic || !selectedLayerLive) return;
+   *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it.
+   *
+   *  ONE PRESS AT A TIME PER GRAPHIC. A bound field's new figure is written only once the event
+   *  has gone, a round trip after the press, so a second Goal pressed inside that round trip
+   *  counted from the same tree and wrote the same figure: two goals, one point (production-page
+   *  refactor S1, e2e/configured/playout-adjust-race.spec.ts). Each press waits for the one
+   *  before it on its graphic and counts from the tree that press left. */
+  const fireEvent = (button: ControlButton): Promise<void> => {
+    if (!selectedGraphic || !selectedLayerLive) return Promise.resolve();
+    const graphic = selectedGraphic;
+    const before = eventPresses.current.get(graphic) ?? Promise.resolve();
+    const press = before.then(() => pressEvent(button, graphic));
+    // The next press waits for this one whether or not it failed.
+    const settled = press.catch(() => {});
+    eventPresses.current.set(graphic, settled);
+    void settled.then(() => {
+      if (eventPresses.current.get(graphic) === settled) eventPresses.current.delete(graphic);
+    });
+    return press;
+  };
+  const pressEvent = async (button: ControlButton, selectedGraphic: string) => {
     await flushDraft(); await history.closeGroup();
     const values = airValues();
     const bound = boundFields(selectedGraphic);
+    // The newest tree, through the ref the previous press's write already moved: `resolved` is a
+    // render behind it.
+    const boundNow = resolveBindings(liveDataRef.current, bindings)[selectedGraphic] ?? {};
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it: a
     // graphic playing its goal animation while the figure the production follows stayed put is
     // worse than a press that plainly did not happen.
@@ -3960,7 +3983,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const moved = new Set(movedKeys(button));
     const { payload, fields: adjusted, tree } = pressSend(button, bound, (key) =>
       bound[key]
-        ? resolvedRef.current[selectedGraphic]?.[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
+        ? boundNow[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
         : moved.has(key)
           ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : ''))
           : values[key],
