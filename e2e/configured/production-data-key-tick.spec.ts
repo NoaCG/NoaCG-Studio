@@ -125,8 +125,30 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
   expect((await row(showId)).bindings['News Strip']?.f0).toBe(`sheet.${sourceId}.lines`);
   await expect.poll(async () => (await lines(showId)).map((l) => l.text), { timeout: 20_000 }).toContain('First line');
 
-  // A row published before migration 0097 holds no sources (NULL): the page opening it writes its
-  // own once, and its reader reads under the row's lease.
+  // A row published before migration 0097 holds no sources (NULL). If another page has given it
+  // sources by the time this page opens, this page's first write leaves them alone.
+  {
+    const ours = (await row(showId)).sources;
+    const theirs = ours.map((s) => ({ ...s, label: 'Set by another page' }));
+    const { error } = await admin().from('control_shows').update({ sources: null }).eq('id', showId);
+    if (error) throw new Error(error.message);
+    // The other page wins the race: the row is written before this page's first write runs.
+    let held: (() => void) | null = null;
+    await page.route(/\/rest\/v1\/control_shows\?.*sources=is\.null/, async (route) => {
+      await new Promise<void>((resolve) => (held = resolve));
+      await route.continue();
+    });
+    await page.reload();
+    await expect.poll(() => held !== null, { timeout: 15_000 }).toBe(true);
+    const { error: other } = await admin().from('control_shows').update({ sources: theirs }).eq('id', showId);
+    if (other) throw new Error(other.message);
+    held!();
+    await page.waitForTimeout(2_000);
+    expect((await row(showId)).sources.map((s) => (s as { label?: string }).label)).toEqual(['Set by another page']);
+    await page.unroute(/\/rest\/v1\/control_shows\?.*sources=is\.null/);
+  }
+
+  // A row still without sources gets this page's once, and its reader reads under the row's lease.
   {
     const { error } = await admin().from('control_shows').update({ sources: null }).eq('id', showId);
     if (error) throw new Error(error.message);

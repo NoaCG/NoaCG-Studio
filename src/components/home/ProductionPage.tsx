@@ -185,7 +185,7 @@ import {
   outputPageUrl,
   publishControlShow,
   publishedLeaseDoor,
-  publishedSourcesUnwritten,
+  firstPublishedSources,
   PublishBehind,
   sendControlVerbs,
   staleSentence,
@@ -1672,11 +1672,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       },
     );
     sourcesWriter.current = writer;
-    // A row published before migration 0097 has no sources yet: this page's become its first.
-    void publishedSourcesUnwritten(id).then((unwritten) => {
-      if (unwritten && sourcesWriter.current === writer && sourcesPlanRef.current) writer.push(sourcesPlanRef.current);
-    });
+    // A row published before migration 0097 has no sources yet: this page's become its first, by a
+    // write that lands only while the row is still without them, retried as the same condition.
+    let live = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const first = () => {
+      const plan = sourcesPlanRef.current;
+      if (!live || !plan) return;
+      const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
+      if (!planSources?.length) return;
+      firstPublishedSources(id, { bindings: planBindings, sources: planSources })
+        .then((wrote) => {
+          if (live && wrote) for (const source of planSources) sourceStatus.poke(source.id);
+        })
+        .catch(() => {
+          if (live) retry = setTimeout(first, SOURCES_RETRY_MS);
+        });
+    };
+    first();
     return () => {
+      live = false;
+      clearTimeout(retry);
       writer.stop();
       if (sourcesWriter.current === writer) sourcesWriter.current = null;
     };

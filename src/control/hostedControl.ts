@@ -670,14 +670,24 @@ export async function writePublishedSources(showId: string, show: Pick<Show, 'bi
   if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
 }
 
-/** Whether a published row has never had its sources written (NULL, migration 0097): a row
- *  published before it. Unknown (an error, or an instance without the column) is false, so the
- *  page never overwrites a row it could not read. */
-export async function publishedSourcesUnwritten(showId: string): Promise<boolean> {
+/**
+ * A row published before migration 0097 has never had its sources written (NULL): give it this
+ * page's, and only while it is still NULL, so it can never replace sources another page wrote in
+ * the meantime. Answers whether this write set them; false when the row had them already (or has
+ * no such column). Throws when the write itself failed, so the caller can try the same again.
+ */
+export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<boolean> {
   const sb = await getSupabase();
   if (!sb) return false;
-  const { data, error } = await sb.from('control_shows').select('sources').eq('id', showId).maybeSingle();
-  return !error && !!data && (data as { sources: unknown }).sources === null;
+  const { data, error } = await sb
+    .from('control_shows')
+    .update({ bindings: show.bindings ?? {}, sources: show.sources ?? [] })
+    .eq('id', showId)
+    .is('sources', null)
+    .select('id');
+  if (error?.code === 'PGRST204' || error?.code === '42703') return false;
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
 
 /** What `control_source_lease` and `control_source_commit` answer (migration 0097). */
