@@ -73,7 +73,9 @@ changes a spec's digest.
     connected after publishing reaches air after the next publish, as every binding does today.
     The operator door refuses a whole patch for one unbound path, so the writer leaves such a path
     out (said once), writes the rest, and the reader retries only that path; without this, one new
-    connection froze every working one on the same source (assessment A, medium, fixed).
+    connection froze every working one on the same source (assessment A, medium, fixed). The
+    refused path is read whole (a Name/Value key may hold spaces) and is left out for a minute at
+    a time, because a republish keeps the slug and so is no mode change (second review round).
   - Assessment A (fresh read-only session on `c5b9028`): PASS WITH NOTES. Its three low notes
     stay: a published write in flight is not cancelled by a handover (bounded by the 15 s lease);
     rename on reuse is a second write after Connect (nothing is lost); the writer now answers

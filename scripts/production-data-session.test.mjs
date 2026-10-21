@@ -376,3 +376,28 @@ test('the source writer, published: a path the row does not bind yet is left out
   assert.equal(t.calls.slugPatched.length, 3);
   assert.equal(t.calls.notes.length, 1, 'said once');
 });
+
+test('the source writer: a refused path with spaces is left out whole, and is tried again after a minute (a republish keeps the slug)', async () => {
+  const realNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+  try {
+    const t = setup();
+    t.data.published('slug-1');
+    const write = t.data.applySourcePatch({ sheet: { s1: { values: { 'Home score': '3', Away: '1' } } } });
+    t.answers.slugPatches[0].reject(new Error('not a bound path: sheet.s1.values.Home score'));
+    await flush();
+    assert.deepEqual(t.calls.slugPatched[1], ['slug-1', { sheet: { s1: { values: { Away: '1' } } } }]);
+    t.answers.slugPatches[1].resolve({});
+    assert.deepEqual(await write, ['sheet.s1.values.Home score']);
+    // A minute on, the production was published again: the path is tried, and now it lands.
+    now += 61_000;
+    const later = t.data.applySourcePatch({ sheet: { s1: { values: { 'Home score': '4' } } } });
+    assert.deepEqual(t.calls.slugPatched[2], ['slug-1', { sheet: { s1: { values: { 'Home score': '4' } } } }]);
+    t.answers.slugPatches[2].resolve({ sheet: { s1: { values: { 'Home score': '4' } } } });
+    assert.equal(await later, true);
+    assert.equal(t.calls.notes.length, 1);
+  } finally {
+    Date.now = realNow;
+  }
+});

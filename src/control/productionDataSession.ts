@@ -20,6 +20,10 @@ import type { ControlSendItem } from './hostedControl';
 import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
 
+/** How long a path the published row refused stays out of source writes before it is tried
+ *  again: a minute, so a republish that binds it resumes it without a reload. */
+const UNBOUND_RETRY_MS = 60_000;
+
 export interface ProductionDataIo {
   /** False in a build with no backend: then no production has a key to read. */
   backendConfigured: boolean;
@@ -67,10 +71,13 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
   /** What was last put on the wire, per graphic per field: the dispatch's baseline. Nothing renders
    *  from it, so it is held here and not in the part. */
   let lastResolved: ResolvedValues = {};
-  /** Paths the published row refused as unbound in this mode: a field connected after publishing
-   *  reaches the row at the next publish (C2 writes it at once). Left out of later source writes,
-   *  so one such field never holds back the connections that already work. */
-  let unbound = new Set<string>();
+  /** Paths the published row refused as unbound, each until when it is left out of source writes:
+   *  a field connected after publishing reaches the row at the next publish (C2 writes it at once),
+   *  and a republish keeps the slug, so the memory lapses by itself rather than waiting for a mode
+   *  change. Meanwhile one such field never holds back the connections that already work. */
+  let unbound = new Map<string, number>();
+  /** Which of them the operator has been told about, so the note is said once a mode. */
+  let noted = new Set<string>();
 
   const write = (from: number, patch: Partial<DataPart>) => {
     if (from !== mode) return;
@@ -130,7 +137,8 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       // resolved, nothing may dispatch the local tree to air. A published production opened cold
       // would otherwise spend a moment believing it was offline and push the last LOCAL tree.
       lastResolved = {};
-      unbound = new Set();
+      unbound = new Map();
+      noted = new Set();
       write(from, { liveData: local ? io.loadLiveData(id) : {}, dataKey: readsKey ? undefined : null, treeRead: false });
 
       // THE LIVE TREE, WRITTEN IN ANOTHER TAB. The Data workspace opens in its own browser tab, and
@@ -231,8 +239,9 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       if (!slug) return operatorWrite(from, applyPatch(part.get().liveData, patch), patch, 'The Sheet’s change was not written');
       const skipped: string[] = [];
       let send = patch;
-      for (const path of unbound) {
-        if (getPath(send, path) === undefined) continue;
+      for (const [path, until] of unbound) {
+        if (until <= Date.now()) unbound.delete(path);
+        if (until <= Date.now() || getPath(send, path) === undefined) continue;
         send = withoutPath(send, path);
         skipped.push(path);
       }
@@ -244,11 +253,13 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
           break;
         } catch (error) {
           if (!session.alive() || from !== mode) return false;
-          const stray = /not a bound path: (\S+)/.exec((error as Error).message)?.[1];
+          // The whole path: a Name/Value key may hold spaces ("Home score").
+          const stray = /not a bound path: (.+)$/.exec((error as Error).message)?.[1]?.trim();
           if (stray && getPath(send, stray) !== undefined) {
-            unbound.add(stray);
+            unbound.set(stray, Date.now() + UNBOUND_RETRY_MS);
             skipped.push(stray);
-            io.note(`A field connected after publishing follows the Sheet once the production is published again (${stray}).`);
+            if (!noted.has(stray)) io.note(`A field connected after publishing follows the Sheet once the production is published again (${stray}).`);
+            noted.add(stray);
             send = withoutPath(send, stray);
             continue;
           }
