@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, setShowSourcePaused, type Show, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
@@ -11,7 +11,6 @@ import CueOverflowNote from './CueOverflowNote';
 import { nameList } from './CueRundown';
 import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspace';
 import LibMenu from './LibMenu';
-import { useNow } from './ClipClock';
 import { commitDurableWrites } from '../../model/durableStore';
 import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
 import { hasLiveData } from '../../control/liveData';
@@ -29,7 +28,6 @@ import {
   sourceIdOf,
   SHEET_TIMEOUT_MS,
   type SheetLink,
-  type SheetStatus,
   type SourceStatusStore,
 } from '../../control/sheetSource';
 
@@ -115,77 +113,17 @@ function sourceOf(show: Pick<Show, 'sources'>, path: string | undefined): ShowSo
   return (id && show.sources?.find((s) => s.id === id)) || null;
 }
 
-/** "3 s ago", "2 min ago", from a time in ms. */
-function ago(at: number, now: number): string {
-  const s = Math.max(0, Math.round((now - at) / 1000));
-  return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`;
-}
-
-const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-/** A source's status, re-rendering only its reader, and ticking for "checked N s ago". */
-function useSourceStatus(store: SourceStatusStore, sourceId: string): { status: SheetStatus | undefined; now: number } {
-  const status = useSyncExternalStore(store.subscribe, () => store.get(sourceId));
-  // Ticks only while the line shows an age; paused, failing or waiting text does not move.
-  const ticking = (status?.state === 'ok' || status?.state === 'empty') && status.checkedAt !== null;
-  return { status, now: useNow(ticking, 1000, Date.now) };
-}
-
-/** What a source's line says: the one vocabulary of the sheet spec (checked, paused, empty). */
-function statusWords(status: SheetStatus | undefined, now: number): string {
-  if (!status || status.state === 'waiting') return 'reading…';
-  const where = status.reader === 'other' ? 'read in another tab · ' : '';
-  if (status.state === 'paused') return `${where}paused`;
-  if (status.state === 'failing') return `${where}${status.error} since ${clock(status.failingSince ?? now)}`;
-  const checked = status.checkedAt !== null ? `checked ${ago(status.checkedAt, now)}` : 'reading…';
-  return `${where}${status.state === 'empty' ? 'empty · ' : ''}${checked}`;
-}
-
 /**
- * ONE LINE PER SOURCE this graphic follows (sheet spec, "Status and Pause"): its name, what its
- * reader last found, the fix when it fails, stale after three missed reads, and Pause. It stays
- * when connection editing is done: Done hides controls, not source health. A connected field
- * this graphic no longer has is flagged here, never redirected.
+ * A connected field this graphic no longer has (its template changed under it), flagged where the
+ * graphic is edited, never redirected. The source's own health is the Playout sources line's
+ * (home/SourcesLine): it is the production's, whichever graphic is selected.
  */
-function CueSourceLine({
-  show,
-  setShows,
-  source,
-  store,
-  missing,
-  onDisconnect,
-}: {
-  show: Show;
-  setShows: (shows: Show[]) => void;
-  source: ShowSource;
-  store: SourceStatusStore;
-  missing: string[];
-  onDisconnect: (fieldIds: string[]) => void;
-}) {
-  const { status, now } = useSourceStatus(store, source.id);
+function CueSourceMissing({ source, missing, onDisconnect }: { source: ShowSource; missing: string[]; onDisconnect: (fieldIds: string[]) => void }) {
   return (
-    <div className="pd-source-line hint" data-testid={`cue-source-${source.id}`} data-state={status?.state ?? 'waiting'} data-stale={status?.stale ? 'true' : undefined}>
-      <span data-testid="cue-source-status">
-        Sheet: {source.label} · {source.paused ? 'paused' : statusWords(status, now)}
-        {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
-      </span>{' '}
-      <button
-        type="button"
-        onClick={() => {
-          setShows(setShowSourcePaused(show.id, source.id, !source.paused));
-          if (source.paused) store.poke(source.id);
-        }}
-        data-testid="cue-source-pause"
-      >
-        {source.paused ? 'Resume' : 'Pause'}
-      </button>
-      {status?.state === 'failing' && status.fix && <span className="status-warn" data-testid="cue-source-fix"> {status.fix}</span>}
-      {status?.problems.map((p) => (
-        <span key={p} className="status-warn" data-testid="cue-source-problem"> {p}.</span>
-      ))}
+    <div className="pd-source-line hint" data-testid={`cue-source-${source.id}`}>
       {missing.map((fieldId) => (
         <span key={fieldId} className="status-warn" data-testid="cue-source-missing">
-          {' '}{fieldId.toUpperCase()} is connected, but this graphic has no {fieldId.toUpperCase()}.{' '}
+          {fieldId.toUpperCase()} is connected to Sheet: {source.label}, but this graphic has no {fieldId.toUpperCase()}.{' '}
           <button type="button" onClick={() => onDisconnect([fieldId])} data-testid={`cue-disconnect-${fieldId}`}>
             Disconnect
           </button>
@@ -770,17 +708,10 @@ export default function CueEditor({
         )}
       </div>
 
-      {fed.map((source) => (
-        <CueSourceLine
-          key={source.id}
-          show={show}
-          setShows={setShows}
-          source={source}
-          store={sourceStatus}
-          missing={Object.keys(bound).filter((f) => isSourcePath(source.id, bound[f]) && !descriptorByKey.has(f))}
-          onDisconnect={disconnect}
-        />
-      ))}
+      {fed.map((source) => {
+        const missing = Object.keys(bound).filter((f) => isSourcePath(source.id, bound[f]) && !descriptorByKey.has(f));
+        return missing.length > 0 && <CueSourceMissing key={source.id} source={source} missing={missing} onDisconnect={disconnect} />;
+      })}
 
       {/* THE SETUP FOLD, offered only under live actions: a scorebug's team names and a
           quiz's words are set before the cue airs, and once they are the operator works

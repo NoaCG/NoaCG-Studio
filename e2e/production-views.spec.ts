@@ -1,5 +1,6 @@
 // covers: src/components/home/{ProductionSetupMenu.tsx,useAudienceInbox.ts}
 // covers: src/components/home/ProductionPage.tsx
+// covers: src/components/home/{ProductionDataPanel,ProductionDataWorkspace,SourcesLine}.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // THE PRODUCTION HEADER, DECLUTTERED (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03: "the
@@ -13,7 +14,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
-import { expectPlayoutStillOpen } from './_workspace';
+import { expectPlayoutStillOpen, openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 
 test('a plain production shows Playout alone, and Setup holds every other door one press away', async ({ page }) => {
@@ -106,4 +107,67 @@ test('a production with an audience graphic lists Messages, which counts the mes
   await audience.locator('.pd-aud-row').first().getByTestId('audience-more').click();
   await audience.getByTestId('audience-approve').click();
   await expect(audience.getByTestId('tab-audience-count')).toHaveText('2');
+});
+
+// THE DATA OVERVIEW (data-sources C1c, AC-9; sheet-data-flow AC-9): Data opens on what the
+// production uses, in the one vocabulary - every source with who reads it, how often, last checked
+// and last changed, and Pause; every value under where it comes from with the graphics showing
+// it. Paths, the seed, Raw JSON and the per-field table sit behind Advanced, and still work.
+test('Data opens on an overview of sources and values in the one vocabulary, and Advanced holds the rest', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: 'Name,Value\nName,Ann Lee\n' }),
+  );
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Overview Night');
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill('https://docs.google.com/spreadsheets/d/1NoaCGStubSheet0000000000/edit#gid=0');
+  await review.getByTestId('cue-connect-read').click();
+  await review.getByTestId('cue-connect-label').fill('Guests');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(page.getByTestId('sources-line')).toContainText('checked');
+
+  const data = await openWorkspace(page, 'data');
+  const overview = data.getByTestId('data-overview');
+  // The source: what it is, who reads it and how often, checked versus changed, who follows it.
+  const source = overview.getByTestId(/^data-source-s[0-9a-f]+$/);
+  await expect(source.locator('h4')).toHaveText('Sheet: Guests');
+  await expect(source.getByTestId('data-source-reader')).toHaveText('Read by another tab of this production, about every 5 s');
+  await expect(source.getByTestId('data-source-status')).toHaveText(/^checked \d+ s ago · changed \d+ s ago$/);
+  await expect(source.getByTestId('data-source-users')).toHaveText('Followed by Hairline');
+  // Its value, by the name the Sheet gives it, and the graphic showing it.
+  const name = overview.getByTestId(/^data-item-sheet\..*\.values\.Name$/);
+  await expect(name).toContainText('Name');
+  await expect(name.getByTestId('data-item-value')).toHaveValue('Ann Lee');
+  await expect(name.getByTestId('data-item-users')).toHaveText('Shown by Hairline');
+
+  // The default surface speaks the one vocabulary.
+  const words = await data.getByTestId('production-data').evaluate((el) => (el as HTMLElement).innerText);
+  expect(words).not.toMatch(/\bpaths?\b|\bseed\b|raw json|\bbindings?\b/i);
+
+  // Advanced holds the tree by its paths, and it still works: a value added there is local
+  // content on the overview, with no freshness to report because nothing reads it.
+  await data.getByTestId('data-advanced-toggle').click();
+  await expect(data.getByTestId('data-raw-toggle')).toBeVisible();
+  await expect(data.getByTestId('production-bindings')).toBeVisible();
+  await data.getByTestId('data-new-path').fill('show.title');
+  await data.getByTestId('data-new-value').fill('Helsinki');
+  await data.getByTestId('data-add').click();
+  const local = data.getByTestId('data-local');
+  const title = local.getByTestId('data-item-show.title');
+  await expect(title.getByTestId('data-item-value')).toHaveValue('Helsinki');
+  await expect(title.getByTestId('data-item-users')).toHaveText('Not shown by any graphic');
+  await expect(local).not.toContainText('checked');
+  // A value typed on the overview is the same value Advanced shows.
+  await title.getByTestId('data-item-value').fill('Tampere');
+  await title.getByTestId('data-item-value').press('Enter');
+  await expect(data.getByTestId('data-value-show.title')).toHaveValue('Tampere');
+
+  // Pause from the overview reaches the Playout line; Resume reads again.
+  await source.getByTestId('data-source-pause').click();
+  await expect(source.getByTestId('data-source-reader')).toHaveText('Paused: not read until Resume');
+  await expect(page.getByTestId('sources-line')).toContainText('Sheet: Guests · paused');
+  await source.getByTestId('data-source-pause').click();
+  await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 10_000 });
 });

@@ -1,0 +1,93 @@
+import { useSyncExternalStore } from 'react';
+import { setShowSourcePaused, type Show, type ShowSource } from '../../model/shows';
+import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
+import { useNow } from './ClipClock';
+
+/** "3 s ago", "2 min ago", from a time in ms. */
+function ago(at: number, now: number): string {
+  const s = Math.max(0, Math.round((now - at) / 1000));
+  return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`;
+}
+
+const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+/** A source's status, re-rendering only its reader, and ticking for "checked N s ago". */
+export function useSourceStatus(store: SourceStatusStore, sourceId: string): { status: SheetStatus | undefined; now: number } {
+  const status = useSyncExternalStore(store.subscribe, () => store.get(sourceId));
+  // Ticks only while the line shows an age; paused, failing or waiting text does not move.
+  const ticking = (status?.state === 'ok' || status?.state === 'empty') && status.checkedAt !== null;
+  return { status, now: useNow(ticking, 1000, Date.now) };
+}
+
+/**
+ * What a source's line says, in the sheet spec's one vocabulary (checked, changed, paused, empty).
+ * Last checked and last changed are two facts: a tab nobody edits is checked every read and
+ * changed long ago, and that is healthy, not stale.
+ */
+export function statusWords(paused: boolean | undefined, status: SheetStatus | undefined, now: number, withReader = true): string {
+  if (paused) return 'paused';
+  if (!status || status.state === 'waiting') return 'reading…';
+  const where = withReader && status.reader === 'other' ? 'read in another tab · ' : '';
+  if (status.state === 'paused') return `${where}paused`;
+  if (status.state === 'failing') return `${where}${status.error} since ${clock(status.failingSince ?? now)}`;
+  const checked = status.checkedAt !== null ? `checked ${ago(status.checkedAt, now)}` : 'reading…';
+  const changed = status.changedAt !== null ? ` · changed ${ago(status.changedAt, now)}` : '';
+  return `${where}${status.state === 'empty' ? 'empty · ' : ''}${checked}${changed}`;
+}
+
+/** Who reads a source and how often (data-sources AC-9's source details). */
+export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined): string {
+  if (paused) return 'Paused: not read until Resume';
+  if (!status) return 'Not read: no page of this production is open';
+  const every = `about every ${SHEET_READ_MS / 1000} s`;
+  return status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
+}
+
+/** Pause or Resume a source, and read at once on Resume so the line does not wait an interval. */
+export function toggleSourcePause(show: Show, setShows: (shows: Show[]) => void, store: SourceStatusStore, source: ShowSource) {
+  setShows(setShowSourcePaused(show.id, source.id, !source.paused));
+  if (source.paused) store.poke(source.id);
+}
+
+/** One source's line: name, status, stale, the fix when it fails, and Pause. */
+function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore }) {
+  const { status, now } = useSourceStatus(store, source.id);
+  return (
+    <div
+      className="pd-source-line hint"
+      title={readerWords(source.paused, status)}
+      data-testid={`source-line-${source.id}`}
+      data-state={source.paused ? 'paused' : (status?.state ?? 'waiting')}
+      data-stale={status?.stale && !source.paused ? 'true' : undefined}
+    >
+      <span data-testid="source-status">
+        Sheet: {source.label} · {statusWords(source.paused, status, now)}
+        {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
+      </span>{' '}
+      <button type="button" onClick={() => toggleSourcePause(show, setShows, store, source)} data-testid="source-pause">
+        {source.paused ? 'Resume' : 'Pause'}
+      </button>
+      {status?.state === 'failing' && status.fix && <span className="status-warn" data-testid="source-fix"> {status.fix}</span>}
+      {status?.problems.map((p) => (
+        <span key={p} className="status-warn" data-testid="source-problem"> {p}.</span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * THE PLAYOUT SOURCES LINE (sheet spec, "Status and Pause on the Playout tab"): one line per
+ * source of the production, whichever cue is selected, so a failing or stale Sheet is in sight
+ * while the show runs and Pause is one press. Nothing at all without sources.
+ */
+export default function SourcesLine({ show, setShows, store }: { show: Show; setShows: (shows: Show[]) => void; store: SourceStatusStore }) {
+  const sources = show.sources ?? [];
+  if (sources.length === 0) return null;
+  return (
+    <div className="pd-sources" data-testid="sources-line">
+      {sources.map((source) => (
+        <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} />
+      ))}
+    </div>
+  );
+}

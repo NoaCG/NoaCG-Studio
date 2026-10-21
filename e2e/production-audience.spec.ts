@@ -580,6 +580,7 @@ test('a binding on the card\'s Question is refused once messages are prepared, a
 
   // The Data view says why, and offers the separate card that can follow data.
   const data = await openWorkspace(page, 'data');
+  await data.getByTestId('data-advanced-toggle').click();
   const refused = data.getByTestId(`bind-refused-House Q&A-${question}`);
   await expect(refused).toContainText('Prepared messages use this field');
   await expect(data.getByTestId(`bind-House Q&A-${question}`)).toHaveAttribute('readonly', '');
