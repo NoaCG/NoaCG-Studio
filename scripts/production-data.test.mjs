@@ -42,10 +42,12 @@ const {
   flattenLeaves,
   formatValue,
   getPath,
+  mappingEntries,
   mergePatch,
   parseLiteral,
   parsePath,
   patchForPath,
+  proposeMapping,
   reparseLeaf,
   replacementPatch,
   resolveBindings,
@@ -53,6 +55,7 @@ const {
   setPath,
   splitBoundWrites,
   suggestPath,
+  withBindings,
   withTreeWrites,
 } = mod;
 
@@ -334,4 +337,71 @@ test('a production that has bound nothing splits nothing - the old road, exactly
   }
   // A graphic name or a field id is somebody's typed text: an inherited key is not a binding.
   assert.deepEqual(splitBoundWrites({ constructor: '5' }, {}, () => 'adjust').fields, { constructor: '5' });
+});
+
+// ── Connect data: the mapping proposal and its one confirmation (data-sources C1b, AC-2/12/13) ──
+
+const scoreFields = [
+  { key: 'f0', label: 'Team A' },
+  { key: 'f1', label: 'Score A' },
+  { key: 'f2', label: 'Team B' },
+  { key: 'f3', label: 'Score B' },
+  { key: 'f4', label: 'Name' },
+];
+const never = () => false;
+
+test('the proposal prefers a supplied key, then one name match; two names are ambiguous and nothing is guessed', () => {
+  const offered = [
+    { path: 'sheet.s1.values.f0', label: 'Home', sample: 'HOME', key: 'f0' },
+    { path: 'sheet.s1.values.Score A', label: 'Score A', sample: '3' },
+    { path: 'sheet.s1.values.Name', label: 'Name', sample: 'Ann' },
+    { path: 'sheet.s1.values.name', label: 'NAME', sample: 'Bo' },
+  ];
+  const rows = proposeMapping(scoreFields, offered, {}, never);
+  const by = Object.fromEntries(rows.map((r) => [r.fieldId, r]));
+  assert.equal(by.f0.status, 'key');
+  assert.equal(by.f0.path, 'sheet.s1.values.f0', 'a Field ID wins although the label says Home, not Team A');
+  assert.equal(by.f1.status, 'name');
+  assert.equal(by.f1.path, 'sheet.s1.values.Score A');
+  assert.equal(by.f2.status, 'unmatched');
+  assert.equal(by.f4.status, 'ambiguous');
+  assert.equal(by.f4.path, null);
+  assert.deepEqual(by.f4.candidates.sort(), ['sheet.s1.values.Name', 'sheet.s1.values.name']);
+});
+
+test('a field prepared messages use is refused in the proposal, and the one binding write refuses it too', () => {
+  const offered = [{ path: 'sheet.s1.values.Name', label: 'Name', sample: 'Ann' }];
+  const rows = proposeMapping(scoreFields, offered, {}, (f) => f === 'f4');
+  assert.equal(rows.find((r) => r.fieldId === 'f4').status, 'refused');
+  assert.deepEqual(mappingEntries('Card', rows, { f4: 'sheet.s1.values.Name' }), [], 'not even by an explicit choice');
+  const { bindings, refused } = withBindings({}, [{ graphic: 'Card', fieldId: 'f4', path: 'sheet.s1.values.Name' }, { graphic: 'Card', fieldId: 'f1', path: 'p' }], (g, f) => f === 'f4');
+  assert.deepEqual(bindings, { Card: { f1: 'p' } });
+  assert.deepEqual(refused, [{ graphic: 'Card', fieldId: 'f4', path: 'sheet.s1.values.Name' }]);
+  // Unbinding is always allowed.
+  assert.deepEqual(withBindings({ Card: { f4: 'x' } }, [{ graphic: 'Card', fieldId: 'f4', path: null }], () => true).bindings, {});
+});
+
+test('one confirmation binds every matched field of ONE graphic; an existing binding needs review; repair and "not connected" are choices', () => {
+  const offered = [
+    { path: 'sheet.s1.values.f1', label: 'Score A', sample: '3', key: 'f1' },
+    { path: 'sheet.s1.values.f3', label: 'Score B', sample: '1', key: 'f3' },
+    { path: 'sheet.s1.values.Away name', label: 'Away name', sample: 'AWAY' },
+  ];
+  const current = { f3: 'match.away.score' };
+  const rows = proposeMapping(scoreFields, offered, current, never);
+  // Unreviewed: f1 binds; f3 keeps its existing binding until the operator replaces it.
+  assert.deepEqual(mappingEntries('Board', rows, {}), [{ graphic: 'Board', fieldId: 'f1', path: 'sheet.s1.values.f1' }]);
+  // Reviewed: replace f3, repair the unmatched f2 by hand, and leave f1 out.
+  const reviewed = mappingEntries('Board', rows, { f3: 'sheet.s1.values.f3', f2: 'sheet.s1.values.Away name', f1: null });
+  assert.deepEqual(reviewed, [
+    { graphic: 'Board', fieldId: 'f2', path: 'sheet.s1.values.Away name' },
+    { graphic: 'Board', fieldId: 'f3', path: 'sheet.s1.values.f3' },
+  ]);
+  // Applied once, they touch this graphic only: another graphic with the same titles is untouched.
+  const before = { Other: { f1: 'match.home.score' }, Board: { f3: 'match.away.score' } };
+  const { bindings } = withBindings(before, reviewed, never);
+  assert.deepEqual(bindings, { Other: { f1: 'match.home.score' }, Board: { f2: 'sheet.s1.values.Away name', f3: 'sheet.s1.values.f3' } });
+  // Cancel is no call at all; a confirmation that changes nothing returns the same object.
+  assert.equal(withBindings(bindings, [], never).bindings, bindings);
+  assert.equal(withBindings(bindings, reviewed, never).bindings, bindings, 'the same review again writes nothing');
 });

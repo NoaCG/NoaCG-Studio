@@ -8,7 +8,7 @@
 import type { SpxTemplate, ProductionSounds } from './types';
 import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
-import type { JsonObject, ProductionBindings } from './productionData';
+import { withBindings, type BindingEntry, type JsonObject, type ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
@@ -221,6 +221,33 @@ export interface DatasetRow {
 }
 
 /**
+ * A production's DATA SOURCE (docs/work-specs/data-sources/spec.md, "Sources"): a Google Sheet tab
+ * today. Production state, never graphic code: the fields it feeds are the binding entries whose
+ * path starts with its prefix, `sheet.<id>.`, so it changes no template and no export. Its id is
+ * its identity; `label` is only what the operator reads, so a rename keeps every connection.
+ * ADDITIVE OPTIONAL like `datasets`. It is not published: a link grants reading, so the output
+ * and audience pages never see it.
+ */
+export interface ShowSource {
+  id: string;
+  kind: 'sheet';
+  label: string;
+  config: {
+    sheetId: string;
+    /** The tab; null is "the first tab", which the operator confirmed because the link named none. */
+    gid: string | null;
+    /** A "Publish to the web" CSV address rather than an ordinary share link. */
+    published?: boolean;
+    /** How its rows become values: a list adapter, or keyed values (control/sheetSource.ts). */
+    shape: 'lines' | 'schedule' | 'standings' | 'credits' | 'values';
+  };
+  /** Paused: nothing is read, and the values hold. Absent = reading. */
+  paused?: boolean;
+  /** Its rows are message candidates as well (data-sources C3). Absent = not. */
+  inbox?: boolean;
+}
+
+/**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question
  * bank, a match's teams, a roster — the show's working data, editable in the Data workspace
  * and loaded into cues by DELIBERATE operator action, never a live wire. Lives inside the
@@ -295,6 +322,9 @@ export interface Show {
    *  value from the live tree at Take and on every change, never from a stored cue value
    *  (docs/PRODUCTION_DATA_PLAN.md §2.7). ADDITIVE OPTIONAL. */
   bindings?: ProductionBindings;
+  /** The production's DATA SOURCES (ShowSource): what its connected fields follow. ADDITIVE
+   *  OPTIONAL; absent = none connected. */
+  sources?: ShowSource[];
   /**
    * The production's CONTROL PROFILE (model/profile.ts; docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e) —
    * how THIS production arranges the controls its graphics already declare: order, section,
@@ -1665,18 +1695,16 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
   return `“${graphic.name}” follows live data on its message or name, so a prepared message could change on air. Add a separate card for messages.`;
 }
 
-/** One field's binding write - a path to set, or `null` to unbind it. Shared by the single-field
- *  setter below and the bulk one "Bind all by title" uses so both write through the same rule,
- *  which refuses a path on a field prepared messages use (unbinding is always allowed). */
-function applyFieldBinding(show: Show, bindings: ProductionBindings, graphic: string, fieldId: string, path: string | null): ProductionBindings {
-  if (path && path.trim() !== '' && preparedMessageField(show, graphic, fieldId)) return bindings;
-  const forGraphic = { ...(bindings[graphic] ?? {}) };
-  if (path && path.trim() !== '') forGraphic[fieldId] = path.trim();
-  else delete forGraphic[fieldId];
-  const next = { ...bindings };
-  if (Object.keys(forGraphic).length > 0) next[graphic] = forGraphic;
-  else delete next[graphic];
-  return next;
+/** The one binding write (`withBindings`), with this record's refusal: a path on a field prepared
+ *  messages use. Shared by every setter below, so the Advanced rows, Bind all by title and
+ *  Connect data cannot differ. */
+function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
+  const before = show.bindings ?? {};
+  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId));
+  if (bindings === before) return { changed: false, refused };
+  if (Object.keys(bindings).length > 0) show.bindings = bindings;
+  else delete show.bindings;
+  return { changed: true, refused };
 }
 
 /** Bind a field to a production-data path, or unbind it with `null` — the operator's one and
@@ -1687,14 +1715,7 @@ export function setFieldBinding(
   fieldId: string,
   path: string | null,
 ): Show[] {
-  return patchShowChecked(showId, (show) => {
-    const before = show.bindings ?? {};
-    const bindings = applyFieldBinding(show, before, graphic, fieldId, path);
-    if (bindings === before) return false;
-    if (Object.keys(bindings).length > 0) show.bindings = bindings;
-    else delete show.bindings;
-    return true;
-  }, true).shows;
+  return patchShowChecked(showId, (show) => applyBindings(show, [{ graphic, fieldId, path }]).changed, true).shows;
 }
 
 /** Bind several fields, possibly across several graphics, in ONE read-mutate-write cycle — what
@@ -1706,14 +1727,83 @@ export function setFieldBindings(
   showId: string,
   entries: { graphic: string; fieldId: string; path: string }[],
 ): Show[] {
+  return patchShowChecked(showId, (show) => entries.length > 0 && applyBindings(show, entries).changed, true).shows;
+}
+
+/** The tree prefix a source writes under (control/sheetSource.ts `sourcePrefix`). */
+const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}.`;
+
+/** Whether any field still follows this source. */
+function sourceInUse(show: Pick<Show, 'bindings'>, sourceId: string): boolean {
+  const prefix = sourcePrefix(sourceId);
+  return Object.values(show.bindings ?? {}).some((fields) => Object.values(fields).some((path) => path.startsWith(prefix)));
+}
+
+/**
+ * CONNECT DATA's one confirmation (data-sources C1b, AC-3): the source, new or reused, and the
+ * reviewed mapping, in ONE write through the one binding path. A refused field (prepared messages
+ * use it) is reported, never bound; when every entry is refused nothing is written at all.
+ */
+export function connectShowSource(
+  showId: string,
+  source: ShowSource,
+  entries: BindingEntry[],
+): { shows: Show[]; error: string | null; refused: BindingEntry[] } {
+  let refused: BindingEntry[] = [];
+  const result = patchShowChecked(showId, (show) => {
+    const applied = applyBindings(show, entries);
+    refused = applied.refused;
+    if (!sourceInUse(show, source.id) && !source.inbox) return applied.changed;
+    const sources = show.sources ?? [];
+    const at = sources.findIndex((s) => s.id === source.id);
+    // A reused source keeps its record: its label, Pause and inbox are its own.
+    if (at < 0) show.sources = [...sources, source];
+    return applied.changed || at < 0;
+  }, true);
+  return { ...result, refused };
+}
+
+/** Pause or resume a source: paused, nothing is read and every value holds. */
+export function setShowSourcePaused(showId: string, sourceId: string, paused: boolean): Show[] {
   return patchShowChecked(showId, (show) => {
-    if (entries.length === 0) return false;
-    const before = show.bindings ?? {};
-    let bindings = before;
-    for (const { graphic, fieldId, path } of entries) bindings = applyFieldBinding(show, bindings, graphic, fieldId, path);
-    if (bindings === before) return false;
-    if (Object.keys(bindings).length > 0) show.bindings = bindings;
-    else delete show.bindings;
+    const source = show.sources?.find((s) => s.id === sourceId);
+    if (!source || Boolean(source.paused) === paused) return false;
+    show.sources = show.sources!.map((s) => {
+      if (s.id !== sourceId) return s;
+      const next = { ...s };
+      if (paused) next.paused = true;
+      else delete next.paused;
+      return next;
+    });
+    return true;
+  }, true).shows;
+}
+
+/** Rename a source for the operator. Its id, and so every connection, stays. */
+export function renameShowSource(showId: string, sourceId: string, label: string): Show[] {
+  const name = label.trim();
+  return patchShowChecked(showId, (show) => {
+    const source = show.sources?.find((s) => s.id === sourceId);
+    if (!source || name === '' || source.label === name) return false;
+    show.sources = show.sources!.map((s) => (s.id === sourceId ? { ...s, label: name } : s));
+    return true;
+  }, true).shows;
+}
+
+/**
+ * DISCONNECT fields of one pool graphic: each returns to the cue holding the value it last
+ * showed, in every cue of that graphic, so nothing on screen jumps (sheet "The operator wins").
+ * A source no field follows any more, and that feeds no inbox, is removed with its last field.
+ */
+export function disconnectShowFields(showId: string, graphic: Pick<SavedGraphic, 'id' | 'name'>, last: Record<string, string>): Show[] {
+  return patchShowChecked(showId, (show) => {
+    const fieldIds = Object.keys(last);
+    const applied = applyBindings(show, fieldIds.map((fieldId) => ({ graphic: graphic.name, fieldId, path: null })));
+    if (!applied.changed) return false;
+    show.cues = (show.cues ?? []).map((c) => (c.sourceId === graphic.id ? { ...c, values: { ...c.values, ...last } } : c));
+    const sources = (show.sources ?? []).filter((s) => s.inbox || sourceInUse(show, s.id));
+    if (sources.length > 0) show.sources = sources;
+    else delete show.sources;
     return true;
   }, true).shows;
 }

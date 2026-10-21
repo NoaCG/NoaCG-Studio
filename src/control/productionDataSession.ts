@@ -15,7 +15,7 @@
 // operator's door, localStorage and the other tabs' `storage` event. Only pure `.ts` modules are
 // imported, so `scripts/production-data-session.test.mjs` drives it with fakes.
 
-import { diffResolved, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
+import { applyPatch, diffResolved, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
 import type { ControlSendItem } from './hostedControl';
 import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
@@ -47,6 +47,9 @@ export interface ProductionDataSession {
   setLiveData: (next: JsonObject) => void;
   /** An operator press moving a bound value (the ± stepper, an event's `adjust`). */
   patchBoundValues: (writes: TreeWrite[]) => Promise<void>;
+  /** A SOURCE READER's write (control/sheetSource.ts): a merge patch of the connected paths that
+   *  changed. Answers whether it landed, so a write that did not is tried again. */
+  applySourcePatch: (patch: JsonObject) => Promise<boolean>;
   /** Pull the server's tree in: at the key's arrival, and whenever a feed row says it moved. */
   refresh: () => Promise<void>;
   /** Put the bound fields' CHANGES on the wire, unpublished only. `resolved` is what `tree` resolves
@@ -79,6 +82,28 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     if (!key) return;
     const current = await io.fetchProductionData(key);
     if (current) write(from, { liveData: current.data as JsonObject, treeRead: true });
+  };
+
+  /** The operator's road for a tree change: optimistic on both, so the figure on screen moves at
+   *  once and the next press counts from it. Answers whether it landed. */
+  const operatorWrite = async (from: number, next: JsonObject, patch: JsonObject, failed: string): Promise<boolean> => {
+    write(from, { liveData: next });
+    if (!slug) {
+      io.saveLiveData(session.key, next);
+      return true;
+    }
+    try {
+      // The ANSWER is what we hold: a feed tick that landed in the same moment is already merged
+      // into it, so this write cannot silently overwrite the feed's.
+      const server = await io.patchProductionDataBySlug(slug, patch);
+      write(from, { liveData: server as JsonObject });
+      return from === mode;
+    } catch (error) {
+      if (!session.alive()) return false;
+      io.note(`${failed}: ${(error as Error).message}`);
+      void refresh();
+      return false;
+    }
   };
 
   return {
@@ -177,28 +202,26 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      */
     patchBoundValues: async (writes) => {
       if (writes.length === 0) return;
-      const from = mode;
       const before = part.get().liveData;
       const next = withTreeWrites(before, writes);
       const patch = replacementPatch(before, next);
       if (Object.keys(patch).length === 0) return;
-      // Optimistic on both roads, so the figure on screen moves with the press, and the NEXT press
-      // counts from it: a round trip is long enough for several.
-      write(from, { liveData: next });
-      if (!slug) {
-        io.saveLiveData(session.key, next);
-        return;
-      }
-      try {
-        // The ANSWER is what we hold: a feed tick that landed in the same moment is already merged
-        // into it, so the press cannot silently overwrite the feed's write.
-        const server = await io.patchProductionDataBySlug(slug, patch);
-        write(from, { liveData: server as JsonObject });
-      } catch (error) {
-        if (!session.alive()) return;
-        io.note(`The shared value did not move: ${(error as Error).message}`);
-        void refresh();
-      }
+      await operatorWrite(mode, next, patch, 'The shared value did not move');
+    },
+
+    /**
+     * THE SHEET READER'S WRITER (data-sources C1b). The same road as a press, because both write
+     * values the operator's production already connected: the local tree when unpublished, and
+     * published the operator's door on the control slug, which takes only bound paths and whose
+     * rows spend the ordinary command budget. A reader therefore writes only connected paths,
+     * and only those whose cell changed (control/sheetSource.ts `sheetWrites`).
+     *
+     * A merge patch onto the NEWEST tree, never a replacement: a press or a feed that landed since
+     * the read began keeps its own paths.
+     */
+    applySourcePatch: (patch) => {
+      if (Object.keys(patch).length === 0 || !session.alive()) return Promise.resolve(true);
+      return operatorWrite(mode, applyPatch(part.get().liveData, patch), patch, 'The Sheet’s change was not written');
     },
 
     refresh,

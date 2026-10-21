@@ -303,3 +303,56 @@ test('dispose: late answers change nothing, nothing more is sent, and the listen
   assert.deepEqual(p.calls.notes, [], 'and say nothing');
   assert.equal(p.calls.fetched.length, 1, 'nor re-read');
 });
+
+// ── The Sheet reader's writer (data-sources C1b): applySourcePatch ─────────────────────────────
+
+test('the source writer, unpublished: merges onto the newest tree, saves it, and the dispatch sends one update', async () => {
+  const t = setup({ local: { 'prod-1': { home: 4, sheet: { s1: { lines: 'old' } } } } });
+  t.data.published(null);
+  const b = { Ticker: { f0: 'sheet.s1.lines' }, Score: { f1: 'home' } };
+  dispatchNow(t, b);
+  t.sent.length = 0;
+  const landed = await t.data.applySourcePatch({ sheet: { s1: { lines: 'one\ntwo' } } });
+  assert.equal(landed, true);
+  // A merge, never a replacement: the operator's own value is untouched.
+  assert.deepEqual(t.session.data.get().liveData, { home: 4, sheet: { s1: { lines: 'one\ntwo' } } });
+  assert.deepEqual(t.calls.saved.at(-1), ['prod-1', { home: 4, sheet: { s1: { lines: 'one\ntwo' } } }]);
+  dispatchNow(t, b);
+  assert.deepEqual(t.sent.map((s) => s.batches), [[[{ graphic: 'Ticker', msg: { t: 'update', data: { f0: 'one\ntwo' } } }]]]);
+  // An empty list read writes "", which is a value: it goes on the wire and clears the field.
+  await t.data.applySourcePatch({ sheet: { s1: { lines: '' } } });
+  dispatchNow(t, b);
+  assert.deepEqual(t.sent.at(-1).batches, [[{ graphic: 'Ticker', msg: { t: 'update', data: { f0: '' } } }]]);
+});
+
+test('the source writer, published: goes through the operator door by slug and holds the answer; a refusal is reported as not landed', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.answers.fetches[0].resolve({ data: { home: 1 } });
+  await flush();
+  const write = t.data.applySourcePatch({ sheet: { s1: { lines: 'a' } } });
+  assert.deepEqual(t.calls.slugPatched, [['slug-1', { sheet: { s1: { lines: 'a' } } }]]);
+  assert.deepEqual(t.calls.patched, [], 'never the owner key road: a reader is the operator');
+  t.answers.slugPatches[0].resolve({ home: 1, sheet: { s1: { lines: 'a' } }, feed: 9 });
+  assert.equal(await write, true);
+  assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: { s1: { lines: 'a' } }, feed: 9 });
+
+  const refused = t.data.applySourcePatch({ sheet: { s1: { lines: 'b' } } });
+  t.answers.slugPatches[1].reject(new Error('not a bound path: sheet.s1.lines'));
+  assert.equal(await refused, false, 'the reader keeps its snapshot and tries again');
+  assert.match(t.calls.notes.at(-1), /Sheet’s change was not written: not a bound path/);
+});
+
+test('the source writer: an answer from an earlier mode is not landed, and an empty patch writes nothing', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  const write = t.data.applySourcePatch({ sheet: { s1: { lines: 'a' } } });
+  t.data.published(null); // unpublished meanwhile
+  t.answers.slugPatches[0].resolve({ sheet: { s1: { lines: 'a' } } });
+  assert.equal(await write, false);
+  assert.deepEqual(t.session.data.get().liveData, {}, 'the old mode’s answer is not held');
+  assert.equal(await t.data.applySourcePatch({}), true);
+  assert.equal(t.calls.slugPatched.length, 1);
+});
