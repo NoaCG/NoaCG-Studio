@@ -24,6 +24,7 @@ const {
   createSheetReader,
   fieldValue,
   initialStatus,
+  latestWriter,
   missedStatus,
   pathValue,
   connectedFields,
@@ -837,4 +838,71 @@ test('published on an instance without the row lease: the page falls back to its
   assert.deepEqual(writes, [{ sheet: { s1: { lines: 'one\ntwo' } } }]);
   assert.equal(b.leases.get('prod-1:s1').owner, 'tab-a', 'this browser holds the lease');
   reader.stop();
+});
+
+// ── The page's writer of the published row's sources (data-sources C2) ────────────────────────
+
+test('the sources writer sends one write at a time and the newest value last: Pause then Resume ends resumed', async () => {
+  const clock = fakeClock();
+  const row = { value: null, sent: [], release: [] };
+  const w = latestWriter(
+    (value) =>
+      new Promise((resolve) => {
+        row.sent.push(value);
+        row.release.push(() => {
+          row.value = value;
+          resolve();
+        });
+      }),
+    { setTimer: clock.setTimer, clearTimer: clock.clearTimer, retryMs: 10_000, failed: () => {} },
+  );
+  w.push('paused');
+  w.push('resumed');
+  assert.deepEqual(row.sent, ['paused'], 'the second waits for the first');
+  row.release[0]();
+  await clock.advance(0);
+  assert.deepEqual(row.sent, ['paused', 'resumed']);
+  row.release[1]();
+  await clock.advance(0);
+  assert.equal(row.value, 'resumed', 'the row ends on the newest value');
+  // Values pushed while one is in flight collapse to the newest.
+  w.push('a');
+  w.push('b');
+  w.push('c');
+  row.release[2]();
+  await clock.advance(0);
+  assert.deepEqual(row.sent.slice(2), ['a', 'c']);
+  w.stop();
+});
+
+test('the sources writer tries a failed write again, and a newer value waiting replaces it', async () => {
+  const clock = fakeClock();
+  const sent = [];
+  const failures = [];
+  let fail = true;
+  const w = latestWriter(
+    async (value) => {
+      sent.push(value);
+      if (fail) throw new Error('offline');
+    },
+    { setTimer: clock.setTimer, clearTimer: clock.clearTimer, retryMs: 10_000, failed: (e) => failures.push(e.message) },
+  );
+  w.push('one');
+  await clock.advance(0);
+  assert.deepEqual(failures, ['offline']);
+  // Before the retry, the operator changes it again: the newest goes at once, and the retry that
+  // follows has nothing older to send.
+  fail = false;
+  w.push('two');
+  await clock.advance(10_000);
+  assert.deepEqual(sent, ['one', 'two']);
+  // Failing with nothing newer waiting, the same value is tried again after the interval.
+  fail = true;
+  w.push('three');
+  await clock.advance(0);
+  fail = false;
+  await clock.advance(10_000);
+  assert.deepEqual(sent, ['one', 'two', 'three', 'three']);
+  assert.deepEqual(failures, ['offline', 'offline']);
+  w.stop();
 });

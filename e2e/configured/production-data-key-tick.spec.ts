@@ -125,6 +125,16 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
   expect((await row(showId)).bindings['News Strip']?.f0).toBe(`sheet.${sourceId}.lines`);
   await expect.poll(async () => (await lines(showId)).map((l) => l.text), { timeout: 20_000 }).toContain('First line');
 
+  // A row published before migration 0097 holds no sources (NULL): the page opening it writes its
+  // own once, and its reader reads under the row's lease.
+  {
+    const { error } = await admin().from('control_shows').update({ sources: null }).eq('id', showId);
+    if (error) throw new Error(error.message);
+    await page.reload();
+    await expect.poll(async () => (await row(showId)).sources?.map((s) => s.id) ?? [], { timeout: 15_000 }).toEqual([sourceId]);
+    await expect(page.getByTestId(`source-line-${sourceId}`).getByTestId('source-status')).toHaveText(/checked \d+ s ago/, { timeout: 15_000 });
+  }
+
   // The switch is off: the line says nothing reads once the page closes. On, it stops saying so.
   const status = page.getByTestId(`source-line-${sourceId}`).getByTestId('source-status');
   await expect(status).toContainText('closed-page reading off', { timeout: 10_000 });

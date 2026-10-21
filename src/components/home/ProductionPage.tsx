@@ -92,7 +92,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
-import { createSheetReader, connectedFields, createSourceStatusStore, pathValue, type SheetLease } from '../../control/sheetSource';
+import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -184,6 +184,7 @@ import {
   outputPageUrl,
   publishControlShow,
   publishedLeaseDoor,
+  publishedSourcesUnwritten,
   PublishBehind,
   sendControlVerbs,
   staleSentence,
@@ -1640,11 +1641,44 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
   // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
   // the operator door then takes the new path, the tick honours the Pause with every page closed,
-  // and nothing waits for the next publish. The value the page opens with (or publishes) is never
-  // written, so a page holding an older copy cannot overwrite newer sources on the row; every
-  // change after it is, a return to that first value included (Resume after a Pause). A failed
-  // write is tried again while the page shows it.
+  // and nothing waits for the next publish. One writer per published production, one write at a
+  // time with the newest value last (control/sheetSource.ts `latestWriter`). The value the page
+  // opens with (or publishes) is not written, so a page holding an older copy cannot overwrite
+  // newer sources, unless the row has never had any (published before migration 0097); every
+  // change after it is, a return to that first value included.
   const sourcesPlan = hostedSlug ? JSON.stringify([bindings ?? {}, show?.sources ?? []]) : null;
+  const sourcesPlanRef = useRef(sourcesPlan);
+  sourcesPlanRef.current = sourcesPlan;
+  const sourcesWriter = useRef<ReturnType<typeof latestWriter<string>> | null>(null);
+  useEffect(() => {
+    if (!hostedSlug) return;
+    let noted = false;
+    const writer = latestWriter(
+      async (plan: string) => {
+        const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
+        await writePublishedSources(id, { bindings: planBindings, sources: planSources });
+        for (const source of planSources ?? []) sourceStatus.poke(source.id);
+      },
+      {
+        setTimer: (run, ms) => setTimeout(run, ms),
+        clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+        retryMs: SOURCES_RETRY_MS,
+        failed: (error) => {
+          if (!noted) setNote(`The change has not reached the published production: ${error.message}`);
+          noted = true;
+        },
+      },
+    );
+    sourcesWriter.current = writer;
+    // A row published before migration 0097 has no sources yet: this page's become its first.
+    void publishedSourcesUnwritten(id).then((unwritten) => {
+      if (unwritten && sourcesWriter.current === writer && sourcesPlanRef.current) writer.push(sourcesPlanRef.current);
+    });
+    return () => {
+      writer.stop();
+      if (sourcesWriter.current === writer) sourcesWriter.current = null;
+    };
+  }, [hostedSlug, id, sourceStatus]);
   const firstFor = useRef<string | null>(null);
   useEffect(() => {
     if (!sourcesPlan || !hostedSlug) return;
@@ -1652,27 +1686,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       firstFor.current = hostedSlug;
       return;
     }
-    const [planBindings, planSources] = JSON.parse(sourcesPlan) as [Show['bindings'], Show['sources']];
-    let live = true;
-    let noted = false;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    const attempt = () =>
-      writePublishedSources(id, { bindings: planBindings, sources: planSources })
-        .then(() => {
-          if (live) for (const source of planSources ?? []) sourceStatus.poke(source.id);
-        })
-        .catch((error: Error) => {
-          if (!live) return;
-          if (!noted) setNote(`The change has not reached the published production: ${error.message}`);
-          noted = true;
-          retry = setTimeout(attempt, SOURCES_RETRY_MS);
-        });
-    void attempt();
-    return () => {
-      live = false;
-      clearTimeout(retry);
-    };
-  }, [sourcesPlan, hostedSlug, id, sourceStatus]);
+    sourcesWriter.current?.push(sourcesPlan);
+  }, [sourcesPlan, hostedSlug]);
   /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
   const [connectPreview, setConnectPreview] = useState<{ graphic: string; values: Record<string, string> } | null>(null);
 

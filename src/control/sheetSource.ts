@@ -718,6 +718,55 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   };
 }
 
+/**
+ * ONE WRITE AT A TIME, THE NEWEST VALUE LAST: how a page keeps a published row's sources in step
+ * with its own (ProductionPage, data-sources C2). A value pushed while a write is in flight waits
+ * for it and replaces any value still waiting, so a slow Pause can never land after the Resume
+ * that followed it. A failed write is tried again after `retryMs`, unless a newer value is waiting.
+ */
+export function latestWriter<T>(
+  write: (value: T) => Promise<void>,
+  io: Pick<SheetReaderIo, 'setTimer' | 'clearTimer'> & { retryMs: number; failed: (error: Error) => void },
+): { push: (value: T) => void; stop: () => void } {
+  let waiting: { value: T } | null = null;
+  let busy = false;
+  let stopped = false;
+  let timer: unknown = null;
+  const pump = () => {
+    if (busy || stopped || !waiting) return;
+    const { value } = waiting;
+    waiting = null;
+    busy = true;
+    write(value).then(
+      () => {
+        busy = false;
+        pump();
+      },
+      (error: Error) => {
+        busy = false;
+        if (stopped) return;
+        waiting ??= { value };
+        io.failed(error);
+        if (timer !== null) io.clearTimer(timer);
+        timer = io.setTimer(() => {
+          timer = null;
+          pump();
+        }, io.retryMs);
+      },
+    );
+  };
+  return {
+    push: (value) => {
+      waiting = { value };
+      pump();
+    },
+    stop: () => {
+      stopped = true;
+      if (timer !== null) io.clearTimer(timer);
+    },
+  };
+}
+
 // ── The page's view of its readers ────────────────────────────────────────────
 
 /** Each source's status, held outside React so a read every 5 s re-renders only the lines that

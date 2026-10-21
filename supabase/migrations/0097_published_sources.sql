@@ -6,7 +6,8 @@
 -- `control_shows.sources` is the production's `Show.sources` (src/model/shows.ts), written at
 -- publish and again at once on connect, disconnect and Pause, beside `bindings`, by the owner's
 -- page through the owner's row policy. Like `bindings` it is the operators' only: no output or
--- audience function selects it, and the row has no anon read.
+-- audience function selects it, and the row has no anon read. NULL is "never written": a row
+-- published before this migration, whose page then writes its own sources once on opening.
 --
 -- `control_source_reads` is a published source's READ STATE, one row per source: the lease (who
 -- reads it, under which claim, until when), the snapshot the diff runs against (connected path ->
@@ -34,7 +35,7 @@
 -- here, so it ships off. `data_tick_on()` restates the switch's rule for the sources line, which
 -- must say when closed-page reading is off; the tick itself reads the switch in TypeScript.
 --
--- Additive and live-safe: a column with a constant default, two new tables, new functions, and
+-- Additive and live-safe: a nullable column, two new tables, new functions, and
 -- `control_data_apply` widened by one label. Revert: drop the six functions, `data_tick_on`, the
 -- two tables and the column, and restore 0071's `control_data_apply`.
 
@@ -43,7 +44,7 @@ set statement_timeout = '30s';
 
 -- ── 1. The sources on the row ──────────────────────────────────────────────────────────────────
 alter table public.control_shows
-  add column if not exists sources jsonb not null default '[]'::jsonb;
+  add column if not exists sources jsonb;
 
 -- ── 2. A published source's read state ─────────────────────────────────────────────────────────
 create table if not exists public.control_source_reads (

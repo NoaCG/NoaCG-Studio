@@ -670,6 +670,16 @@ export async function writePublishedSources(showId: string, show: Pick<Show, 'bi
   if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
 }
 
+/** Whether a published row has never had its sources written (NULL, migration 0097): a row
+ *  published before it. Unknown (an error, or an instance without the column) is false, so the
+ *  page never overwrites a row it could not read. */
+export async function publishedSourcesUnwritten(showId: string): Promise<boolean> {
+  const sb = await getSupabase();
+  if (!sb) return false;
+  const { data, error } = await sb.from('control_shows').select('sources').eq('id', showId).maybeSingle();
+  return !error && !!data && (data as { sources: unknown }).sources === null;
+}
+
 /** What `control_source_lease` and `control_source_commit` answer (migration 0097). */
 interface LeaseRow {
   ok: boolean;
