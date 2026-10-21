@@ -1,4 +1,4 @@
--- live-path: control_shows gains `sources`; two new control_* tables (a published source's read state and the tick's run record) and five new control_* functions; control_data_apply accepts the source label 'sheet' (same signature, same grants, every existing caller unchanged)
+-- live-path: control_shows gains `sources`; two new control_* tables (a published source's read state and the tick's run record) and six new control_* functions plus data_tick_on(); control_data_apply accepts the source label 'sheet' (same signature, same grants, every existing caller unchanged)
 --
 -- PUBLISHED SOURCES AND THE SERVER TICK (docs/work-specs/data-sources/spec.md, phase C2;
 -- docs/work-specs/sheet-data-flow/spec.md, "While the show runs" and "Status and Pause").
@@ -33,7 +33,7 @@
 -- must say when closed-page reading is off; the tick itself reads the switch in TypeScript.
 --
 -- Additive and live-safe: a column with a constant default, two new tables, new functions, and
--- `control_data_apply` widened by one label. Revert: drop the five functions, `data_tick_on`, the
+-- `control_data_apply` widened by one label. Revert: drop the six functions, `data_tick_on`, the
 -- two tables and the column, and restore 0071's `control_data_apply`.
 
 set lock_timeout = '2s';
