@@ -16,7 +16,9 @@ checkpoint commit (`88701bd`). Candidate code sha: `CANDIDATE`; commits after it
 | `src/control/playoutSession.ts` | new | `createPlayoutSession(id)`: `key`, `alive`, `data`, `apply`, `onDispose`, `dispose` |
 | `src/control/productionDataSession.ts` | `ProductionPage.tsx` (the tree, its key, tree-read, the two write roads, the dispatch) | `published(slug)`, `setLiveData`, `patchBoundValues`, `refresh`, `dispatch(resolved, tree, send)` |
 
-`ProductionPage.tsx` holds the session in state, ends it in the same effect, enters the data mode
+`ProductionPage.tsx` makes the session with `useMemo` on the id and ends it one task after its
+effect's cleanup (a re-run of that effect cancels the end, which keeps one session through
+StrictMode's extra cleanup in development), enters the data mode
 from `hostedSlug`, reads the `data` part through `useStorePart`, and hands `runVerb` to the dispatch
 (the temporary interface). `ProductionDataWorkspace.tsx` is unchanged: its props are the same.
 Decisions, one departure and the traps: `phase-notes.md`, row 4.
