@@ -6,7 +6,8 @@ is `sheet-timed-local.md` (C1c).
 Made by the C2 builder of the production-page plan run on 2026-10-21, 18:00:35 to 18:11:00 UTC,
 from a Claude cloud session: the configured local stack (Supabase CLI 2.111.0, every migration
 through 0097), the app's dev server in configured mode, Playwright Chromium and Node reading Google
-through the session's egress proxy; branch `claude/plan-production-page-p9-build` at `169b090`.
+through the session's egress proxy; branch `claude/plan-production-page-p9-build` at `169b090`. The later simplify and review commits on the branch change no timing
+rule; the configured scenario `production-data-key-tick.spec.ts` was re-run and passed on them.
 The Sheet is the sixth of the owner's test Sheets (`NOACG_TEST_SHEET_IDS`); its ID is not recorded.
 Each run used a new tab, written through the Sheets API as the owner's service account and deleted
 afterwards. The tick's switch was on in the local database only, and the tick was called with the

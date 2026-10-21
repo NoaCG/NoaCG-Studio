@@ -1640,11 +1640,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
   // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
   // the operator door then takes the new path, the tick honours the Pause with every page closed,
-  // and nothing waits for the next publish. Written when the page opens too, so a change whose
-  // write was lost (offline, a reload) still arrives, and tried again while it fails.
+  // and nothing waits for the next publish. Only a change made on this page is written, never the
+  // value it opened with (or published), so a page holding an older copy cannot overwrite newer
+  // sources on the row; a failed write is tried again while the page shows it.
   const sourcesPlan = hostedSlug ? JSON.stringify([bindings ?? {}, show?.sources ?? []]) : null;
+  const openedPlan = useRef<{ slug: string; plan: string } | null>(null);
   useEffect(() => {
-    if (!sourcesPlan) return;
+    if (!sourcesPlan || !hostedSlug) return;
+    if (openedPlan.current?.slug !== hostedSlug) openedPlan.current = { slug: hostedSlug, plan: sourcesPlan };
+    if (openedPlan.current.plan === sourcesPlan) return;
     const [planBindings, planSources] = JSON.parse(sourcesPlan) as [Show['bindings'], Show['sources']];
     let live = true;
     let noted = false;
@@ -1665,7 +1669,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       live = false;
       clearTimeout(retry);
     };
-  }, [sourcesPlan, id, sourceStatus]);
+  }, [sourcesPlan, hostedSlug, id, sourceStatus]);
   /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
   const [connectPreview, setConnectPreview] = useState<{ graphic: string; values: Record<string, string> } | null>(null);
 

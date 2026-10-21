@@ -1,4 +1,4 @@
-// covers: api/_lib/dataTick.ts, api/_lib/systemSettings.ts, api/data/[...path].ts
+// covers: api/_lib/dataTick.ts, api/_lib/systemSettings.ts, api/data/?...path?.ts
 // covers: src/control/sheetSource.ts, src/control/hostedControl.ts
 // covers: src/components/home/SourcesLine.tsx, src/components/home/ProductionPage.tsx
 //

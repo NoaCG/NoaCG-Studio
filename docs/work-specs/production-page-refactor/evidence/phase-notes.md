@@ -34,7 +34,7 @@ changes a spec's digest.
 - **Decisions.**
   - The row carries `sources` (0097) beside `bindings`. Publish writes both; Connect, Disconnect
     and Pause write both again at once (`writePublishedSources`, from one effect in
-    `ProductionPage.tsx` that skips the value the publish wrote), so a field connected after
+    `ProductionPage.tsx` that skips the value the page opened with or published), so a field connected after
     publishing moves the output with no new publish. A direct column write through the owner's
     row policy, as DS17 says: no RPC.
   - The published lease is on the row: `control_source_reads` holds the owner, claim, expiry,
@@ -82,9 +82,11 @@ changes a spec's digest.
   - A page going away (`pagehide`) lets its leases go: the reload journey found a reloaded page
     showing "read in another tab" for up to 15 s, its own previous page's lease. Published, the
     release is a keepalive request straight to the RPC, because a reload cancels an ordinary one.
-  - The row's sources are written when a published page opens and after every change, and a failed
-    write is tried again every 10 s (said once), so a change made offline or lost to a reload still
-    reaches the row. A write that matches no row (signed out) counts as failed.
+  - Only a change made on the page is written to the row, never the value it opened with, so a page
+    holding an older copy cannot overwrite newer sources (assessment A, medium). A failed write is
+    tried again every 10 s while the page shows it (said once); a write that matches no row (signed
+    out) counts as failed. A change whose write was lost to a reload reaches the row at the next
+    publish.
   - A lease the page cannot reach (offline, or an instance that has not run 0097) is a missed read
     with its reason, so the line goes stale rather than silent.
   - The advisor baseline gains the six findings the migration adds by design (deny-all on the two
