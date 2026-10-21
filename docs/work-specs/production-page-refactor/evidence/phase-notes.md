@@ -97,6 +97,14 @@ changes a spec's digest.
   field form as a data-template row (third review round: "TRUE" is "1" for a toggle, a padded
   select option is the option). In the same round the reader keeps its lease in memory when
   localStorage refuses the write, so the only open page still reads instead of standing down.
+  `e2e/playout-baseline.spec.ts-snapshots/graphics-only-{1366x768,1920x1080}-chromium-linux.png`
+  are re-recorded by `rerecord-screenshots.yml` (run 39602862082 on `8105c2f`): the cue editor's
+  head now carries "Connect data…", drawn with the head's compact button class so the head keeps
+  its 28 px and nothing below it moves; the other four pictures came back byte-identical. Masks and
+  thresholds are unchanged. The `-win32` pair could not be recorded on this Linux worker; the
+  laptop helper re-records it from this merge (they gate nothing in Actions). A last review
+  round made one Sheet value that feeds fields needing different forms (a toggle's "1", a
+  caption's "TRUE") held and reported (`pathValue`).
   `src/model/teamShowMerge.ts` gains one label (`sources: 'the data sources'`) so a team merge
   conflict on the new field reads in words.
 - **Traps.**
