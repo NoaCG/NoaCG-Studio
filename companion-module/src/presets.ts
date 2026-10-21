@@ -36,8 +36,9 @@ function verbFeedbacks(verb: PanelVerb, row = ''): Feedback[] {
 }
 
 /**
- * The ready keys an operator drags onto the grid: the transport, the clip clock, and one Take and
- * one Select key per rundown row, rebuilt whenever the production's rows change.
+ * The ready keys an operator drags onto the grid: the transport, the clip clock, one Take and one
+ * Select key per rundown row, and one Trigger key per cue, rebuilt whenever the production's rows
+ * change.
  */
 export function buildPresets(
 	label: string,
@@ -107,6 +108,7 @@ export function buildPresets(
 
 	const takeIds: string[] = []
 	const selectIds: string[] = []
+	const triggerIds: string[] = []
 	for (const row of rows) {
 		const name = row.kind === 'folder' ? `Folder: ${row.label}` : row.label
 		const tally: Feedback[] = [
@@ -127,6 +129,19 @@ export function buildPresets(
 					{ down: [{ actionId: verb === 'take-cue' ? 'take_cue' : 'select_cue', options: { row: row.id } }], up: [] },
 				],
 				feedbacks: [...tally, ...verbFeedbacks(verb, row.id), ...statusFeedbacks(label)],
+			}
+		}
+		// Trigger plays or restarts a cue by its own row id and leaves the selection alone; a folder
+		// has nothing to play, so only cues get one.
+		if (row.kind === 'cue') {
+			const id = `trigger_${row.id}`
+			triggerIds.push(id)
+			presets[id] = {
+				type: 'simple',
+				name: `Trigger ${name}`,
+				style: { text: `\u25B6 ${row.label}`, size: 'auto', color: WHITE, bgcolor: BLACK },
+				steps: [{ down: [{ actionId: 'trigger_cue', options: { row: row.id } }], up: [] }],
+				feedbacks: [...tally, ...verbFeedbacks('trigger-cue', row.id), ...statusFeedbacks(label)],
 			}
 		}
 	}
@@ -153,6 +168,7 @@ export function buildPresets(
 			definitions: [
 				{ id: 'take_cues', type: 'simple', name: 'Take a cue', presets: takeIds },
 				{ id: 'select_cues', type: 'simple', name: 'Select a cue', presets: selectIds },
+				{ id: 'trigger_cues', type: 'simple', name: 'Trigger a cue', presets: triggerIds },
 			],
 		},
 	]
