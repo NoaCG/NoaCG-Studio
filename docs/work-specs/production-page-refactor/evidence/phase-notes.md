@@ -86,7 +86,17 @@ changes a spec's digest.
     older copy cannot overwrite newer sources (assessment A, medium); every change after it is,
     including a return to that first value. Comparing later values with the first one dropped a
     Resume back to it and left the row paused (review, fixed; the configured walk pauses and
-    resumes around it). A failed write is
+    resumes around it). One writer per published production (`latestWriter` in `sheetSource.ts`)
+    sends one write at a time with the newest value last, so a slow Pause cannot land after the
+    Resume that followed it. Plans are compared as canonical JSON (`publishedRecord.ts`
+    `canonical`), since a record read back from the server reorders its keys.
+  - `control_shows.sources` is NULL until first written (0097 adds it with no default): a row
+    published before it holds no sources, and the page opening it writes its own once
+    (`publishedSourcesUnwritten`); a written row, even an empty one, is never overwritten on open.
+  - Trap: React runs each effect twice in development with its refs kept, so "skip the first
+    value" must treat that first value, seen again before any change, as no change. Without it the
+    dev server wrote the opening value at once and hid both this and the never-written case from
+    the configured walk (found by mutation). A failed write is
     tried again every 10 s while the page shows it (said once); a write that matches no row (signed
     out) counts as failed. A change whose write was lost to a reload reaches the row at the next
     publish.
@@ -105,7 +115,8 @@ changes a spec's digest.
   sheet AC-4), `src/control/productionDataSession.ts` (the writer entry: `holdServerTree`, the
   published branch removed), `src/control/contentFormats.ts` (two import specifiers),
   `scripts/content-formats.test.mjs` and `scripts/show-fixture-compat.test.mjs` (the resolve hook),
-  `scripts/lib/tsResolve.mjs` (the hook itself, shared), `scripts/production-data-session.test.mjs`,
+  `scripts/lib/tsResolve.mjs` (the hook itself, shared), `src/model/publishedRecord.ts` (exports
+  `canonical`), `scripts/production-data-session.test.mjs`,
   `supabase/advisor-baseline.json`, and the receipt `evidence/sheet-timed-published.md`.
 - **Traps.**
   - A `Request` trims a header's trailing whitespace, so `Bearer <secret> ` reaches the handler as

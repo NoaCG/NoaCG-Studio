@@ -138,6 +138,7 @@ import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceW
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox } from './useAudienceInbox';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
+import { canonical } from '../../model/publishedRecord';
 import { setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
@@ -1646,7 +1647,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // opens with (or publishes) is not written, so a page holding an older copy cannot overwrite
   // newer sources, unless the row has never had any (published before migration 0097); every
   // change after it is, a return to that first value included.
-  const sourcesPlan = hostedSlug ? JSON.stringify([bindings ?? {}, show?.sources ?? []]) : null;
+  // Keys sorted: a record read back from the server (jsonb reorders keys) is not a change.
+  const sourcesPlan = hostedSlug ? canonical([bindings ?? {}, show?.sources ?? []]) : null;
   const sourcesPlanRef = useRef(sourcesPlan);
   sourcesPlanRef.current = sourcesPlan;
   const sourcesWriter = useRef<ReturnType<typeof latestWriter<string>> | null>(null);
@@ -1679,13 +1681,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (sourcesWriter.current === writer) sourcesWriter.current = null;
     };
   }, [hostedSlug, id, sourceStatus]);
-  const firstFor = useRef<string | null>(null);
+  /** The first value seen for this slug, and whether the page has changed it since: the first
+   *  value seen again before any change is no change (an effect run twice, as React does in
+   *  development, or a reload), and after one it is (Resume back to it). */
+  const firstFor = useRef<{ slug: string; plan: string; changed: boolean } | null>(null);
   useEffect(() => {
     if (!sourcesPlan || !hostedSlug) return;
-    if (firstFor.current !== hostedSlug) {
-      firstFor.current = hostedSlug;
+    const first = firstFor.current;
+    if (first?.slug !== hostedSlug) {
+      firstFor.current = { slug: hostedSlug, plan: sourcesPlan, changed: false };
       return;
     }
+    if (!first.changed && first.plan === sourcesPlan) return;
+    first.changed = true;
     sourcesWriter.current?.push(sourcesPlan);
   }, [sourcesPlan, hostedSlug]);
   /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
