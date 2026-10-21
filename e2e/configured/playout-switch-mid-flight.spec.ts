@@ -14,7 +14,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, watchLogReads, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
@@ -30,6 +30,7 @@ const ANSWER_MS = 900;
 
 test('a Take answered after a switch to another production stands there and leaves the new one alone', async ({ page }) => {
   test.setTimeout(240_000);
+  const logReady = watchLogReads(page);
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
@@ -61,6 +62,10 @@ test('a Take answered after a switch to another production stands there and leav
     if (failure) throw new Error(failure);
     return show.id;
   }, `Switch to ${stamp}`);
+
+  // Publishing enables Take before the initial resolve has established its numbered session.
+  // Wait for its log read, or the Take can use control_send_many and miss the hold below.
+  await logReady();
 
   // THE HOLD: the Take's request goes through at once; its answer comes back late.
   let takesSeen = 0;
