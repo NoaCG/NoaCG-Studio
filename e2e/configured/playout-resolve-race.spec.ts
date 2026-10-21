@@ -39,7 +39,7 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
   // THE HOLD: the resolve the reloaded page sends first is answered by the server at once, and the
   // page hears that answer only after the Take: an answer older than the screen.
   let held = 0;
-  let answered = 0;
+  let fulfilled = 0;
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
   await page.route(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/, async (route) => {
@@ -47,7 +47,7 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
     const response = await route.fetch();
     await released;
     await route.fulfill({ response }).catch(() => {});
-    answered += 1;
+    fulfilled += 1;
   });
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
@@ -61,7 +61,7 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
   await page.getByTestId('verb-take').click();
   await expect(chip).toContainText('on air:');
   const taken = (await chip.textContent()) ?? '';
-  expect(answered, 'the resolve is still out when the Take is pressed').toBe(0);
+  expect(fulfilled, 'the resolve is still out when the Take is pressed').toBe(0);
 
   // The answer arrives, older than the Take: nothing on air, as far as it knows.
   const answered = page.waitForResponse(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/);
