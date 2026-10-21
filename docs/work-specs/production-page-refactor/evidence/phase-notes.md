@@ -5,6 +5,48 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 3, phase 1: safety net and baseline
+
+- **Previous verified `main` sha:** `995272d56215f6e218da22a2b94baba6adec801f` (H0.1, #1561).
+  Built on `4c1ae76` (S1 fix #1564) and the S4 fix #1566. Receipt: `phase-1.md`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Tests and evidence only, no migration. The two
+  fixes revert on their own (`git revert -m 1 <#1564 merge sha>`, `<#1566 merge sha>`); reverting
+  either turns its walk red.
+- **Decisions.**
+  - S1 confirmed and fixed (#1564): a press moving a bound field waits for the one before it on
+    its graphic and counts from the newest tree; the ± stepper joins the same wait. The wait ends
+    after a send's window plus an attempt, so a dead link cannot hold every later press.
+  - S3 refuted: a held folder has no cue editor and holding it saves the draft, so the save wait
+    in a folder Take is empty. Recorded with a fault-injection check.
+  - S2 characterised and retained: only a press that does not blur the editor (SPACE from a
+    checkbox field, a panel key) waits on the save.
+  - S4 found and fixed (#1566): the route keys the page by production, so a production opened
+    from another starts with nothing up. This is the per-production disposal phase 11 plans, done
+    early by remounting; phase 11's session must keep that outcome.
+  - The panel snapshot check of §5.3 is not offline-readable; left to the configured panel spec
+    and phase 12 (`phase-1.md`).
+  - Hosted control page has S1 too: #1567, outside this plan's fence.
+- **Traps.**
+  - A configured walk that seeds the tree through the data key must wait for the page to show the
+    seeded value (`cue-bound-<field>`) before Take, or the Take carries the tree it held.
+  - Holding a resolve's REQUEST lets the read reach the server after the Take, so the answer is
+    not stale; hold the ANSWER (`route.fetch()`, then fulfil late).
+  - A published page holds an empty tree until its data key and the server tree are read, so the
+    `dataKey === undefined` dispatch guard is backed twice; mutate the whole guard to see a walk
+    fail.
+  - Two graphics on PROGRAM are two iframes: read each layer's frame, never the bare locator.
+  - Offline, a click or a key from outside the cue editor blurs it first and saves the draft; to
+    walk inside the save wait, press SPACE from a checkbox field and hold IndexedDB writes open by
+    issuing reads from the transaction's own success callback.
+  - Local configured stack in a cloud worker: Supabase CLI from the npm package
+    `@supabase/cli-linux-x64@2.111.0`, `dockerd` started by hand, the two accounts made through
+    the admin API as `configured-suite.yml` does; jobs take the env from the shell that queues them.
+- **Preflight before phase 2.** Phase 1's tests green on `main` (the offline spec, the four
+  configured specs, the Node file, the gate test); S1 and S3 decided with evidence, S1's fix
+  landed in #1564 and S4's in #1566; S2 characterised. Configured run 39540143070 on `a0682c7`: 118 passed, floor 110.
+- **Left for later:** the two perf baselines on this merge's sha (laptop helper, non-gating).
+
 ## Row 2, H0.1: Companion package, guide, protocol and presets
 
 - **Previous verified `main` sha:** `046a74598c96b0f161507954511e70bf799407a9` (P1R, #1558,

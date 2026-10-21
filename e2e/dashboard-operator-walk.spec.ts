@@ -1,5 +1,8 @@
-// covers: none - no source path selected this spec when coverage moved into spec headers
-// (2026-09-27); it runs when edited, on a full escalation and at night
+// covers: src/components/home/{ProductionPage,PlayoutMonitors,CueRundown}.tsx
+// covers: src/control/{controlModel,hostedControl}.ts
+//
+// It presses Take, Update, Next and Out on the production page, so a change there runs it
+// (production-page refactor phase 1, AC-1).
 
 import { test, expect, type Page } from '@playwright/test';
 import { dropSvg, intoExistingProduction, intoProduction, QUIZ_SVG, SCOREBUG_SVG } from './_svg-import';
