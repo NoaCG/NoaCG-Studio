@@ -93,7 +93,7 @@ import {
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
-import { createPlayoutSession } from '../../control/playoutSession';
+import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
@@ -598,17 +598,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [serverPlayout] = useState(createServerPlayoutStore);
   /** This production's playout session (control/playoutSession.ts): one per production id, ended
    *  when the id changes or the page goes. The route already keys the page by production
-   *  (src/App.tsx), so in practice that is the unmount. Created and ended by the same effect: a
-   *  disposed session is never revived, so when the effect finds one disposed (StrictMode's extra
-   *  cleanup in development) or keyed on another id, it makes the next one. */
-  const [session, setSession] = useState(() => createPlayoutSession(id));
+   *  (src/App.tsx), so in practice that is the unmount. The end waits one task and a re-run of the
+   *  effect cancels it: StrictMode's extra cleanup in development (src/main.tsx) must not end the
+   *  session, because effects that never restart (the log follower) keep the one they first saw. */
+  const session = useMemo(() => createPlayoutSession(id), [id]);
+  const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
   useEffect(() => {
-    if (session.key !== id || !session.alive()) {
-      setSession(createPlayoutSession(id));
-      return;
-    }
-    return () => session.dispose();
-  }, [id, session]);
+    if (sessionEnd.current?.session === session) clearTimeout(sessionEnd.current.timer);
+    return () => {
+      sessionEnd.current = { session, timer: setTimeout(() => session.dispose()) };
+    };
+  }, [session]);
   const serverOwnership = useStorePart(serverPlayout.ownership);
   const serverOnAir = serverOwnership.onAir;
   /** How many times this page has rendered - published on its root as `data-renders`, which is how

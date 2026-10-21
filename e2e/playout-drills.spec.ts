@@ -6,6 +6,7 @@
 // page. This is the spec that actually presses them, and it is in neither surface's own list.
 // covers: src/components/playoutKeys.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
+// covers: src/control/liveCue.ts, src/control/cueItems.ts
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';

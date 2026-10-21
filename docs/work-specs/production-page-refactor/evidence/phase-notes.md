@@ -17,12 +17,15 @@ changes a spec's digest.
     `onDispose` and `dispose`. `onDispose` is the one place a module registers its stop, so
     disposal runs every stop once and a stop registered late runs at once. It is the hook the
     later watchers (bridge, wire, arms) register with.
-  - The page holds the session in state and the same effect ends it. When the effect finds the
-    session disposed or keyed on another id it makes the next one. `src/main.tsx` renders under
-    `React.StrictMode`, whose extra cleanup in development disposes the first session; a session
-    held in `useMemo` stayed dead after it (review finding on this branch). The route keys the page
-    by production (S4, #1566), so in production builds the session lives exactly as long as the
-    page.
+  - The page makes the session with `useMemo` on the id, and its end waits one task: the effect's
+    cleanup schedules `dispose`, and a re-run of the same effect for the same session cancels it.
+    `src/main.tsx` renders under `React.StrictMode`, whose extra cleanup in development would
+    otherwise end the session the page goes on using. Two earlier versions on this branch failed
+    review: `useMemo` with a plain dispose left the page holding a dead session, and replacing the
+    dead session with a new one left the log follower (an effect that never restarts) refreshing
+    the old one, so a feed row's re-read did nothing on a page opened while published. The route
+    keys the page by production (S4, #1566), so in a production build the session lives exactly
+    as long as the page.
   - The `data` part holds `liveData`, `dataKey` and `treeRead`. The dispatch baseline
     (`lastResolved`) stays private to `productionDataSession`: nothing renders from it, and in the
     part every dispatch would re-render the page.
@@ -48,10 +51,14 @@ changes a spec's digest.
     lines only, 57 specs), so `e2e-affected --files <new module>` selects them.
 - **Traps.**
   - `src/main.tsx` uses `React.StrictMode`. Any session, watcher or engine a later phase creates
-    must survive mount, cleanup and mount again in development; `useMemo` plus a cleanup does not.
-  - A disposed session is final by design: create the next one rather than revive it.
-  - The local e2e selection passed on the `useMemo` version too, so the StrictMode defect was found
-    by review, not by the suite. Do not read a green local run as evidence of lifetime.
+    must survive mount, cleanup and mount again in development without being replaced: an effect
+    that never restarts (the log follower, eslint-disabled deps) keeps the objects of the first
+    render. Keep one session per page and defer its end, as the page does now.
+  - A disposed session is final by design: never revive one.
+  - The local offline selection passed on both broken versions, so neither lifetime defect shows
+    there: the first was found by review, the second by the independent assessment.
+    `e2e/configured/production-data-key-dispatch.spec.ts` (a reload of a published page, then a
+    feed row) is the walk that exercises the follower's re-read.
 - **Left for later:** `ClipClock.tsx` still reads its two store parts with `useSyncExternalStore`
   directly rather than `useStorePart` (outside this phase's files). Answers from one mode that land
   out of order (two refreshes, two PATCHes) can still replace a newer tree with an older one, as
