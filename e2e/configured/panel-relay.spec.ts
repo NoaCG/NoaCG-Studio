@@ -360,3 +360,58 @@ test('feedback travels page to panels on its topic; nobody but the database writ
   expect(listener.got.filter((m) => m.event === 'press')).toEqual([]);
   console.log(`a client's broadcast on the press topic answered "${sent}" and reached nobody`);
 });
+
+test('a panel key cannot write the command log or reach another production', async () => {
+  // H0 AC-3 (docs/work-specs/playout-companion-qualification/spec.md): the actual routes a module
+  // could try with what it holds - its key, the publishable key and the feedback topic - against
+  // the command log's real doors, and a second production's press topic.
+  const slugA = await production();
+  const showA = shows.at(-1)!;
+  const slugB = await production();
+  const a = await pair(slugA, 'Deck A');
+  await pair(slugB, 'Deck B');
+  const pageB = client();
+  const leasedB = await rpc(pageB, 'panel_lease', { p_slug: slugB, p_page: 'pagepagepage00bb', p_where: 'production', p_label: 'B page', p_move: false });
+  const heardB = await listen(pageB, leasedB.press_topic as string);
+  expect(heardB.status).toBe('SUBSCRIBED');
+  const pageA = client();
+  const leasedA = await rpc(pageA, 'panel_lease', { p_slug: slugA, p_page: 'pagepagepage00aa', p_where: 'production', p_label: 'A page', p_move: false });
+  const heardA = await listen(pageA, leasedA.press_topic as string);
+  const logRows = async () => (await admin.from('control_events').select('id', { count: 'exact', head: true }).eq('show_id', showA)).count ?? 0;
+  const before = await logRows();
+
+  const module = client();
+  const item = { graphic: 'g1', msg: { t: 'play' } };
+  // The key is not a control slug: every command door refuses it.
+  for (const [name, args] of [
+    ['control_send', { p_slug: a.key, p_graphic: 'g1', p_msg: { t: 'play' } }],
+    ['control_send_many', { p_slug: a.key, p_items: [item] }],
+    ['control_send_seq', { p_slug: a.key, p_items: [item], p_sender: { id: 'x', n: 1 } }],
+    ['control_stage', { p_slug: a.key, p_graphic: 'g1', p_data: {} }],
+    ['panel_list', { p_slug: a.key }],
+    ['panel_lease', { p_slug: a.key, p_page: 'pagepagepage00cc', p_where: 'production', p_label: 'x', p_move: true }],
+  ] as const) {
+    const { data, error } = await module.rpc(name, args);
+    expect(error, `${name} with a panel key must be refused, answered ${JSON.stringify(data)}`).not.toBeNull();
+  }
+  // Reading the log with it reveals nothing.
+  const { data: tail } = await module.rpc('control_tail', { p_slug: a.key, p_graphic: null, p_after: 0 });
+  expect(tail ?? []).toEqual([]);
+  // Nor is it a data key.
+  const { data: dataSend, error: dataErr } = await module.rpc('control_data_send', { p_key: a.key, p_graphic: 'g1', p_data: { x: 'y' } });
+  expect(dataErr !== null || (dataSend as Json | null)?.ok !== true, `control_data_send answered ${JSON.stringify(dataSend)}`).toBe(true);
+  // And the table itself is closed to it, for writing and for reading.
+  const { error: insertErr } = await module.from('control_events').insert({ show_id: showA, graphic: 'g1', msg: { t: 'play' } });
+  expect(insertErr?.message ?? '').toMatch(/permission denied|row-level security/);
+  const { data: read } = await module.from('control_events').select('id').eq('show_id', showA);
+  expect(read ?? []).toEqual([]);
+  expect(await logRows()).toBe(before);
+
+  // A press with A's key reaches A's answering page only, never B's.
+  expect(await rpc(module, 'panel_press', { p_key: a.key, p_press: press('crossa:1', { verb: 'all-out', target: '' }) })).toEqual({ ok: true, claim: leasedA.claim });
+  await heardA.next('press');
+  await new Promise((r) => setTimeout(r, 1_500));
+  expect(heardB.got.filter((m) => m.event === 'press')).toEqual([]);
+  // And B's page answering under its own claim never sees A's numbers either.
+  expect(Number(leasedB.claim)).toBeGreaterThan(0);
+});

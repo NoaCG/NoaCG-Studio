@@ -145,8 +145,8 @@ In this order, on each `press`:
 1. `claim` is not this page's: ignore. If it is higher, this page has been replaced: switch off.
 2. `press_id` handled in the last 10 minutes (memory of the last 256 ids): publish the remembered
    `result` again with `outcome: duplicate`. Runs nothing.
-3. A verb this surface does not run (the hosted control page has no server clips, folders or All
-   out): `not-here`.
+3. A verb this surface does not run (the hosted control page has no server clips, so no
+   `pause`, `resume` or `pause-toggle`): `not-here`.
 4. Target and direction, against the page's last 64 published states (a ring keyed by `ver`):
 
    | Verb | Refused `stale` when |
@@ -155,12 +155,14 @@ In this order, on each `press`:
    | `take` | also: what `take` does now (`space`) differs from what it did at `seen`, or `seen` is no longer in the ring |
    | `take-cue` | `target` is not a row now, or whether it is on air differs from at `seen` |
    | `select-cue` | `target` is not a row now |
+   | `trigger-cue` | `target` is not a cue row now, or was not one at `seen`, or `seen` is no longer in the ring |
    | `pause-toggle` | the clip the clock follows, or whether it is paused, differs from at `seen` |
    | `select-prev`, `select-next`, `all-out` | never: walking airs nothing, and All out is always meant |
 
 5. Not allowed now, by the page's own enabled state (`allowed` in the state, `blocked` for
-   `take-cue`): `not-allowed`, with the page's own sentence when it has one.
-6. Run `onVerb(verb, {repeat: false, cue: target})`: `ran`. "Ran" means dispatched; what aired
+   `take-cue` and `trigger-cue`): `not-allowed`, with the page's own sentence when it has one.
+6. Run `onVerb(verb, {repeat: false, cue: target})`: `ran`. `trigger-cue` plays or restarts that
+   cue and leaves the selection and PREVIEW where they are. "Ran" means dispatched; what aired
    shows in the next `state`. A Take the dispatcher sends carries the page's own Step 2 sender
    protocol, so the server's duplicate and stale refusals still apply after this.
 
@@ -216,7 +218,7 @@ again. `moved` or a `beat` whose `ver` or `rowsVer` it has not seen also calls `
 ### 7.3 A press
 
 Build `{verb, target, seen: the current ver, id}`; `target` is the selected row for the selected-row
-verbs, the action's own row for `select-cue` and `take-cue`, the clock's cue for `pause-toggle`.
+verbs, the action's own row for `select-cue`, `take-cue` and `trigger-cue`, the clock's cue for `pause-toggle`.
 Refuse locally when not `ok`. Call `panel_press`; on a network error (not a refusal) retry once
 within 1 s with the same `id`. Wait up to 1.5 s for the `result` with that `id`; with none, flash
 the key and set the status line to "No answer from the operator page". Never queue a press.
@@ -267,8 +269,8 @@ per-second message is needed. The variables tick every 250 ms while a clip runs.
 | `selected` | the row id PREVIEW and the verbs act on, or null |
 | `space` | what `take` does now: `take`, `take-off` or `preview`; null with nothing selected |
 | `live` | the cue ids on air now, graphics and server cues |
-| `allowed` | each panel verb's enabled state as the page draws it; `select-cue` and `take-cue` are per row |
-| `blocked` | row ids whose `take-cue` would be refused now |
+| `allowed` | each panel verb's enabled state as the page draws it; `select-cue`, `take-cue` and `trigger-cue` are per row |
+| `blocked` | row ids whose `take-cue` or `trigger-cue` would be refused now |
 | `clip` | null, or the clip the clock follows: `phase` is `counting`, `holding`, `paused` or `looping`; `start` and `end` in the page's clock (ms) or null when unknown; `remaining` in seconds at `at` |
 | `bridge` | `ok`, `down`, or `off` when this page has no Bridge configured |
 
