@@ -8,6 +8,9 @@ on:
       inspect_traces:
         type: boolean
         default: false
+      evidence_run:
+        type: string
+        default: '39565846898'
 permissions:
   contents: read
 concurrency:
@@ -69,7 +72,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          run-id: 39565846898
+          run-id: ${{ inputs.evidence_run }}
           github-token: ${{ github.token }}
           pattern: hosted-results-*
           path: evidence
@@ -77,6 +80,7 @@ jobs:
         shell: python
         run: |
           import json, pathlib, re, zipfile
+          from urllib.parse import urlsplit
           def scrub(text):
               text = re.sub(r'https?://\S+', '<url>', text)
               text = re.sub(r'eyJ[A-Za-z0-9_.-]+|sb_(?:secret|publishable)_[A-Za-z0-9_-]+', '<token>', text)
@@ -97,6 +101,17 @@ jobs:
               print('\nTRACE', trace.parent.name)
               with zipfile.ZipFile(trace) as z:
                   seen = set()
+                  timings = []
+                  for name in z.namelist():
+                      if not name.endswith('.network'): continue
+                      for line in z.read(name).decode().splitlines():
+                          s = json.loads(line).get('snapshot', {})
+                          u = urlsplit(s.get('request', {}).get('url', ''))
+                          if not (u.hostname or '').endswith('.supabase.co'): continue
+                          code = s.get('response', {}).get('status', 0)
+                          if code == 101: continue
+                          timings.append((round(s.get('time', 0)), u.path, code))
+                  print('SLOW_HTTP', sorted(timings, reverse=True)[:6])
                   for name in z.namelist():
                       if not name.endswith('.trace'): continue
                       for line in z.read(name).decode().splitlines():
