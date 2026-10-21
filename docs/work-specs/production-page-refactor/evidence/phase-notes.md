@@ -22,7 +22,15 @@ changes a spec's digest.
   (`NO_NEW_READ_MS`, "no read starts after 20 seconds"), `maxDuration` 30 for
   `api/data/[...path].ts` in `vercel.json`, and the switch's expiry, at most 48 hours ahead
   (`dataTickOnAt`, `data_tick_on()`; the record bounds a runaway 48-hour window at about $5). Its
-  advice is also taken: reads run four at a time, and a tab over 1 MB is not read.
+  advice is also taken: reads run four at a time, and a tab over 1 MB is not read. One more guard
+  came from the review: a read started late gets only the time left before 26 s
+  (`READS_END_MS`), so its write, the release and the run's record still fit inside the 30 s.
+- **Receipts** (`docs/work-specs/data-sources/evidence/sheet-timed-published.md`), on the local
+  stack with the owner's sixth test Sheet through the service account, at `169b090`: with an
+  operator page open, 20 of 20 API edits on the published output within 10 s, median 3.4 s,
+  slowest 5.6 s (sheet AC-3 published); with every operator page closed and the tick called on the
+  minute, 6 of 6 edits on the published output in 25.6 to 60.0 s (sheet AC-4); each recorded tick
+  run took 1.1 to 1.4 s for one to three sources. Nothing was taken, advanced or removed.
 - **Decisions.**
   - The row carries `sources` (0097) beside `bindings`. Publish writes both; Connect, Disconnect
     and Pause write both again at once (`writePublishedSources`, from one effect in
@@ -32,13 +40,18 @@ changes a spec's digest.
   - The published lease is on the row: `control_source_reads` holds the owner, claim, expiry,
     snapshot, content fingerprint and status of each published source. `control_source_lease` is
     the one lease function the browser readers (on the control slug), the tick (service role) and
-    later E4 call; ttl 0 lets go. The write is `control_source_commit` (browser, through
+    later E4 call. The claim decides, not the owner's name: a live lease is renewed only with its
+    own claim and let go (ttl 0) only with it, so a duplicated cron call, which shares the name
+    `tick`, can neither take over nor release the other run's lease. The lease answer also carries
+    the row's Pause, so a Pause made on another device holds this page's reader too. The write is `control_source_commit` (browser, through
     `control_data_patch_by_slug` with all its guards) or `control_source_tick_commit` (service
     role only, `control_data_apply` labelled `'sheet'`), both through `control_source_settle`,
     which checks the claim and writes under one row lock. That closes C1b's low note: an old
     owner's write in flight across a handover is refused by the database, not by a browser check.
-    The write takes changed paths as text by path; a path the row does not bind yet is left out
-    and keeps its earlier snapshot, so it is written once bound. That replaced C1b's
+    The write takes changed paths as text by path; a path the row does not bind yet, or one that
+    0088's rules for a press would refuse (an object a feed wrote there, a branch above it that is
+    not an object), is left out and keeps its earlier snapshot, for both labels, so the tick can
+    never erase what the operator's door protects. That replaced C1b's
     "not a bound path" strip-and-retry in `productionDataSession.applySourcePatch`, whose published
     branch is gone (`holdServerTree` takes the server's answer instead).
   - `control_data_apply` accepts the label `'sheet'` (0071's body, one word wider): the tick's rows
@@ -49,10 +62,11 @@ changes a spec's digest.
     and `changedTexts` are exported so the tick (`api/_lib/dataTick.ts`) uses the same core:
     read, adapters, diff against the shared snapshot, staleness after three misses. Only the
     panel's ftype to field-kind map is restated in the tick (the converter lives in a client
-    module), with a comment naming `kindForField`.
+    module), without hidden fields as the browser reads them; `data-tick` pins the two against
+    `fieldDescriptors`.
   - `sheetSource.ts` and `contentFormats.ts` import each other by `.js`, because the function's
-    emit keeps the specifier; the three Node tests that load them register a small `.js` to `.ts`
-    resolve hook (the `output-reload` precedent). Their type imports moved off `model/packets` to
+    emit keeps the specifier; the Node tests that load them import `scripts/lib/tsResolve.mjs`
+    first, one resolve hook for `.js` and extensionless specifiers under `src/` and `api/`. Their type imports moved off `model/packets` to
     `model/types` so the function's typecheck does not pull in browser storage code.
   - The tick (`/api/data/tick`, GET): 401 before anything else without the exact
     `Bearer <CRON_SECRET>` (as `api/render/cleanup.ts`), then the switch, read uncached and off on
@@ -66,7 +80,13 @@ changes a spec's digest.
     `closed-page reading off` while published with the switch off; the source details say about
     once a minute by the server, or that closed-page reading is off.
   - A page going away (`pagehide`) lets its leases go: the reload journey found a reloaded page
-    showing "read in another tab" for up to 15 s, its own previous page's lease.
+    showing "read in another tab" for up to 15 s, its own previous page's lease. Published, the
+    release is a keepalive request straight to the RPC, because a reload cancels an ordinary one.
+  - The row's sources are written when a published page opens and after every change, and a failed
+    write is tried again every 10 s (said once), so a change made offline or lost to a reload still
+    reaches the row. A write that matches no row (signed out) counts as failed.
+  - A lease the page cannot reach (offline, or an instance that has not run 0097) is a missed read
+    with its reason, so the line goes stale rather than silent.
   - The advisor baseline gains the six findings the migration adds by design (deny-all on the two
     tables, the two slug functions callable by the client roles, like every `control_*` slug
     function). If the hosted advisor words one differently, post-land reports it once and the
@@ -80,7 +100,8 @@ changes a spec's digest.
   sheet AC-4), `src/control/productionDataSession.ts` (the writer entry: `holdServerTree`, the
   published branch removed), `src/control/contentFormats.ts` (two import specifiers),
   `scripts/content-formats.test.mjs` and `scripts/show-fixture-compat.test.mjs` (the resolve hook),
-  `scripts/production-data-session.test.mjs`, `supabase/advisor-baseline.json`.
+  `scripts/lib/tsResolve.mjs` (the hook itself, shared), `scripts/production-data-session.test.mjs`,
+  `supabase/advisor-baseline.json`, and the receipt `evidence/sheet-timed-published.md`.
 - **Traps.**
   - A `Request` trims a header's trailing whitespace, so `Bearer <secret> ` reaches the handler as
     the exact Bearer; that is the platform, not the check.
