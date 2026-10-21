@@ -82,8 +82,8 @@ is a task in E6.2's trial kit, not a gate (owner, 2026-10-20, D).
 
 | ID | Deliverable / ready condition | Verification and environment |
 | --- | --- | --- |
-| E6.1 | After E1.1: capability/argument protocol (one version bump, typed by E1's model), guarded shared dispatch and feedback for native actions, and foreign action descriptors validated against E1's fixtures; AC-1–3 | Cloud: extend panel-feedback/control-model Node tests, new `e2e/configured/panel-graphic-actions.spec.ts`, relay validation and module protocol tests. |
-| E6.2 | After E3.2: module discovery/actions/presets for native and foreign actions, foreign invocation through the relay on E3's foreign rundown cues, the guide and its trial kit; AC-1–3 through the module | Module lint/test/package; cloud configured relay tests with a headless Companion (scratch config, no surface modules) where qualified, else module tests plus the relay contract. The physical deck (AC-4) is H0.2. |
+| E6.1 | After E1.1: capability/argument protocol (one version bump, typed by E1's model), guarded shared dispatch and feedback for native actions, and foreign action descriptors validated against E1's fixtures; AC-1–3 for native actions, and for foreign actions as descriptors only | Cloud: extend panel-feedback/control-model Node tests, new `e2e/configured/panel-graphic-actions.spec.ts`, relay validation and module protocol tests. |
+| E6.2 | After E3.2: module discovery/actions/presets for native and foreign actions, foreign invocation through the relay on E3's foreign rundown cues, the guide and its trial kit; AC-1–3 through the module, foreign actions end to end | Module lint/test/package; cloud configured relay tests with a headless Companion (scratch config, no surface modules) where qualified, else module tests plus the relay contract. The physical deck (AC-4) is H0.2. |
 
 Rollback: disable negotiated graphic actions and restore prior module while retaining known
 transport verbs. Never replay ambiguous non-idempotent presses during downgrade or reconnect.

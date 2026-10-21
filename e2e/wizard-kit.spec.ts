@@ -11,6 +11,7 @@
 // The kit's export door lands on ProductionPage and asks it to open THE production export dialog
 // (templateStore `pendingProductionExport`), so a change to that page can break this wizard flow.
 // covers: src/components/{home,save}/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';

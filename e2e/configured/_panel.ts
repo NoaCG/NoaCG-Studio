@@ -135,13 +135,13 @@ export async function openHosted(page: Page, slug: string) {
   await expect(page.locator('.pd-cue')).toHaveCount(2);
 }
 
-/** A published production of two cues, Anna and Ben, left open on its production page; its
- *  hosted control slug. */
-export async function publishTwoCues(page: Page, showName: string): Promise<string> {
+/** A published production of two cues, Anna and Ben, of one graphic (the Hairline lower third
+ *  unless named), left open on its production page; its hosted control slug. */
+export async function publishTwoCues(page: Page, showName: string, graphic?: string): Promise<string> {
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
-  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, graphic ? { name: graphic } : { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, showName);
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
   await page.getByTestId('cue-label').fill('Anna');

@@ -371,7 +371,10 @@ Node test; `matchClockWire.ts` has no Node test today (its readers are in-page i
 Reconciled against `origin/main` `331a98a91` on 2026-10-20: `e2e/quarantine.json` holds no
 specs (`late-send-abandoned`, `dashboard-hosted-walk` and `production-data-key` were released
 after consecutive passes; stale PR #1450, which would have quarantined `production-data-key`
-again, was closed the same day). `e2e/configured/expected-run.json`: floor (`minTests`) 104
+again, was closed the same day). Later that day four specs entered it (`configured/agent-access`,
+`wizard-shell`, `import-svg-behaviour`, `configured/shared-lab-computer`); a quarantined spec
+leaves the blocking shards but still runs on every main push (§8, decision 18).
+`e2e/configured/expected-run.json`: floor (`minTests`) 104
 tests, five allowed skips (the four connector OAuth specs that run on the local stack only, and
 `bridge-real-server.spec.ts`). `skipOldEditor()` no longer exists in `e2e/`, so the ± press on a
 bound field (`e2e/production-data.spec.ts` 741) and the bound adjust (800) run and count.
@@ -426,7 +429,10 @@ repeated harder.
 
 ## 6. Verification matrix (one per phase; the builder follows it as written)
 
-Local targeted specs run through the browser queue: `node scripts/e2e-runs.mjs --wait && npx
+Local targeted specs are focused selections within `.agent-workflows/verify.md`'s bounds (five
+minutes, or one twelve-minute broader selection); a row naming "every ... offline spec" means that
+affected selection in Actions. One configured run on one revision satisfies every configured
+item of the phase, including both rows of 2+7. They run through the browser queue: `node scripts/e2e-runs.mjs --wait && npx
 playwright test <files>`, the configured ones with `--config=playwright.live.config.ts` only
 where a local stack exists, else dispatched. Node tests: `node --test <files>`. Configured
 dispatch on the candidate ref: `gh workflow run configured-suite.yml --ref <branch>` (about 25
@@ -461,10 +467,10 @@ configured run URL with its tested sha, the assessor's verdict with the reviewed
 - **Revalidation.** A commit that changes `src/`, `e2e/`, `scripts/` or `package.json` after any
   evidence invalidates that evidence; the matrix rows the change reaches run again (all of them
   for `src/control/` or the page).
-- **Evidence-only commit.** A commit touching only this spec's `evidence/` directory is allowed
+- **Evidence-only commit.** A commit touching only the programme's `evidence/` directories is allowed
   once after the last material commit; it does not invalidate evidence; `/check` then runs on
   that tip, and its verify step cites the evidence after confirming the tested sha differs only
-  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/production-page-refactor/evidence'`
+  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/*/evidence/**'`
   is empty). `/queue-merge` requires the stamp on the final tip; a review or simplify change
   during `/check` is a material commit and restarts the matrix.
 - **Mappings.** New Node tests carry `// guards: <module>`; specs whose `// covers:` named a
@@ -534,9 +540,16 @@ phase 1 does not. plan-run does not isolate the refactor from production.
 deploy-verify run, and the exact revert command.
 
 **Ledger sequences** (`scripts/plan-run.mjs`):
-- A failed post-merge check: `fail` -> `repair` (one) -> `landed` -> `check` -> `pass`; a second
-  `fail` makes the coordinator record `stop` and ask the owner; only his real answer is recorded
-  as `answered`. This is the runner's failure limit, a real decision, not a thumbs-up gate.
+- A failed post-merge check: `fail` -> `repair` (one) -> `landed` -> `check` -> `pass`. A second
+  failure is diagnosed, not an automatic owner stop (owner, 2026-10-20, decision 17): one fresh
+  deciding agent, independent of the phase's builders, repairers and checkers, either makes one
+  last scoped repair after product failures (never loosening a test, check or limit), re-checks
+  once after blocked checks whose prerequisite has recovered, or concludes that a genuine owner
+  decision is needed; only then does the coordinator record `stop` and notify him, and only his
+  real answer is recorded as `answered`. Any failure after the diagnosed attempt, product or
+  blocked, stops; counts never go down, and his answer to a phase out of attempts grants exactly
+  one more. Infrastructure and capacity outages are no failures at all: the checker reports the
+  infrastructure unavailable and the coordinator records a wait (runner PRs, below).
 - A product regression found after `pass` (a laptop receipt, the landing's configured run,
   deploy-verify, a later main run attributed to the phase, an owner report) becomes a repair
   (owner, 2026-10-20, B): the coordinator uses the helper's issue, or files one with the failing
@@ -551,6 +564,46 @@ deploy-verify run, and the exact revert command.
   launches nothing against it, waits inside its background job and retries when it is back, and
   notifies the owner only if it lasts more than two hours or needs his account. No `stop` and no
   `answered` are involved.
+- **Separate from the editor (owner, 2026-10-20, decision 18).** A phase answers only for what
+  it can break: an editor bug or any other unrelated failure never fails a phase or stops the run.
+  A failing spec counts against the phase when the phase adds or changes it, or when it fails
+  again on a second run on the merge SHA and passes on main without the phase (the merge's first
+  parent; the checker runs it there when main's own runs do not show it). Main's push run gives
+  the second run itself; on a dispatched check run the checker re-runs the failed jobs once. A
+  spec that passes on its second run is a flake: it goes to the quarantine flow and never counts
+  against the phase. Test selection is no proof either way, since it has missed real coverage
+  (#927). Any other failing spec, one already failing without the phase, is outside the phase: the checker names
+  it in `mergeChecks` with the issue that tracks it (the rolling red-main issue, or one new issue)
+  and that evidence, and the phase can pass; one in a production-page spec also gets a
+  between-phases repair, as above. Quarantined specs gate nothing; `quarantine.yml` keeps running
+  them. When main cancelled the run on the merge SHA as superseded, the checker pushes a
+  `claude/check-<sha7>` branch at that SHA and dispatches `ci.yml` on it once (an empty
+  `diff_base` runs the full suite; a second dispatch on the same branch would cancel the first);
+  a later main run would test other landings too. The branch points at a landed commit, so no
+  listing counts it as unlanded work.
+- **A red main the phase did not cause.** Main's CI quarantines a fail-then-pass and reverts the
+  landings that turn a green main red, so an editor landing that breaks main undoes itself; if
+  that revert also takes out the phase's merge, the phase's builder lands it again once main is
+  green. Any other red main that blocks a phase's pull request, or that re-landing, is fixed by
+  the repair owner of the landing that broke it (AGENTS.md). The phase waits as for an
+  infrastructure outage, spending nothing, and the coordinator tells the owner after two hours.
+- **A refused landing.** A phase pull request the queue still refuses after its builder's repair
+  attempts (`/queue-merge` allows three per failure) gets one replacement builder (`resume`); if
+  the replacement cannot land it either, the coordinator records `stop` and tells the owner. A
+  quarantine pull request that cannot
+  land (its own CI red, or an owner hold) never holds the run: decision 18 already keeps that
+  spec from failing a phase, the owner hold is an owner-list item, and a red bot pull request is
+  carried through by a session outside the phase ledger, as #1546 did for #1544. In a cloud
+  session a quarantine is entered on its own branch from `origin/main`, never on a phase's
+  branch, with `node scripts/e2e-quarantine.mjs enter <spec> --run <url>` without `--queue` (its
+  `gh pr` calls are GraphQL, refused there), and that branch lands through the cloud path in
+  `/queue-merge`. Between phases the coordinator lists open quarantine pull requests (the
+  §9 REST call) and carries a red one through the same way.
+- **Auto-merge.** A worker's own permission check may refuse turning on auto-merge for its pull
+  request as self-approval (#1408). The coordinator, an owner-started session that can (#1546 to
+  #1550, 2026-10-20), then turns it on for that phase pull request, as the owner's permission
+  policy authorizes (§10 step 3), with `/queue-merge` step 5's checks: the head is the reviewed
+  SHA just before and just after, and auto-merge goes off again if the head moves.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its
@@ -597,7 +650,9 @@ the first rehearsal.
   new endurance workflow, landed before the run opens, gets 90 minutes.
 - **Builders and ordinary checks:** use the current landed runner's qualified native
   worker selection and independent checker procedure; existing `wave-row` roles are fallback
-  roles where that procedure selects them. One builder owns the page in any phase.
+  roles where that procedure selects them. One builder owns the page in any phase. Every phase of
+  this programme, a child spec's included, writes its notes to `evidence/phase-notes.md`, so no
+  phase changes a spec's digest.
 - **`wave-row-deciding`** (Opus, xhigh): the pre-merge assessments of phases 11-13 (A+), and any
   narrow state or lifetime decision a builder meets that this spec does not settle; use the
   current runner's qualified native equivalent where selected (the builder
@@ -612,25 +667,82 @@ the first rehearsal.
   progress check; [runner check](evidence/owner-decisions-2026-10-20.md#runner-check)) and must be
   on `main` before the run opens, with its one live test (start a coordinator, end it, continue in
   a new session, confirm the ledger carries on) recorded under
-  `docs/work-specs/continuing-plan-preparation/`.
+  `docs/work-specs/continuing-plan-preparation/` (landed: #1535, #1539). The second runner PR,
+  from the 2026-10-20 second opinions, landed (#1543): a fenced handoff so a replacement worker
+  can finish its step under its own identity; a progress check that counts only activity since
+  the step's launch and treats a running Actions job as active; consistent ledger, database and
+  checkpoint state when a publication fails; decision 17's diagnosis step; and checking from the
+  observed merge with PASS waiting for every exact-merge check. Recovery checkpoints now live on
+  the branch `claude/noacg-recovery/<id>`, which a cloud session can push (landed: #1545; receipt
+  `docs/work-specs/continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`). A third
+  runner PR, from the second opinions after those, landed (#1549, #1551; unit-tested, no live
+  test needed): failure counts never go down, a coordinator resumed at a diagnosis qualifies, and
+  the progress check counts queued and merge-queue runs and the worker's session events.
+  `run-supervisor.mjs record` takes the row number (1-47) of the `extensions.md` table; the
+  midpoint retro after row 23 is the procedure's ordinary retro step.
+- **Check-in after a lost container.** No watchdog session is built (a routine-started session has
+  no `send_message` or `list_events`). A cloud coordinator's block wake (`plan-run.md` §1,
+  `cloud-delegate.md`) is one `send_later` check-in named `plan-run check-in <project id>`, its
+  message naming the project ID, the current store's `<db>` path and the owner label. Every
+  coordinator turn that ends in a wait leaves exactly one pending for its own session, about 60
+  minutes ahead and never past the deadline: of the check-ins `list_triggers` shows with that name
+  and this session as target, it moves one and refreshes its message (`update_trigger`), arms one
+  if there is none, and deletes the rest. Other sessions' check-ins are left alone. While the
+  project waits for the owner (a `stop`, the owner's pause, the final owner block) or has ended,
+  the coordinator keeps none. When one fires: if the `<db>` file is gone, the coordinator tells the
+  owner and keeps none, since `continue` could take the run back from a session the owner moved it
+  to. Otherwise it asks `node scripts/run-supervisor.mjs next <db> <id>` and carries on from the
+  answer as usual, restarting its background wait unless that process runs on this machine (a new
+  machine keeps the disk but no process). A block end (`paused`, "work block ended") opens the next
+  block. `superseded` ends the check-ins. Any other error is an infrastructure wait (§8): the
+  restarted wait retries it and the check-in stays. Receipt
+  `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner decision R23.
+  It is no help after an account usage limit and is not relied on once the session is closed: then
+  §10 step 6 applies.
 - **Preflight before the run's first step** (C0; recorded in the wave file):
   `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
-  problems (open runtime acceptance is expected) and the plan listed under "Runnable plans";
+  problems (open runtime acceptance is expected) and the plan listed under "Runnable plans" in
+  `.agent-workflows/plan-run.md`;
   `origin/main` CI green; the latest `configured-suite` run on main green; deploy-verify green for
   main's head, or, when main's head deploy was skipped (Vercel's ignore step builds nothing for a
   range without deploy-affecting paths, so that SHA has no deploy-verify run), the last real
   deploy-verify pass on main whose SHA equals
   `node scripts/deploy-affecting-paths.mjs --last-affecting origin/main` (deploy-verify's own
-  rule), recorded with that judgement; the runner change
-  and its live-test receipt on main; a local Supabase stack can start or the configured-suite
-  dispatch route is confirmed; `gh` authenticated; `.github/workflows/endurance.yml` on main;
-  the current runner's builder/checker interfaces qualified; one test phone notification received
-  from the coordinator session; Vercel usage readable from the coordinator (C2's budget watch); no
-  open wave or plan run other than this project (`scripts/wave-plan-store.mjs`, never assumed
-  from a document); no open pull request that would quarantine a spec this plan gates on; the
-  owner has supplied the finite project deadline in Helsinki time
-  with its offset and the actual permission policy. A missing item is one configuration request
-  to the owner before opening, never a gate during the run.
+  rule), recorded with that judgement; the three runner PRs on main, with the first one's
+  live-test receipt;
+  a local Supabase stack can start or the configured-suite dispatch route is confirmed;
+  `.github/workflows/endurance.yml` on main; the current runner's builder/checker interfaces
+  qualified; one test phone notification received from the coordinator session; the owner has
+  supplied the finite project deadline in Helsinki time with its offset and the actual permission
+  policy. From a fresh cloud session, each checked by its own receipt, never assumed from a
+  document:
+  - **Keys:** `node scripts/production-page-keys.mjs` exits 0: one harmless authenticated read per
+    key, printing only pass or fail, never a value (its header lists the reads).
+  - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`) and
+    a whole failed-job log (the GitHub connector's job-log read); and, from a recent real landing
+    by a cloud session, never a probe that could queue unfinished work: a `cloud-queue-merge.yml`
+    dispatch on main, auto-merge turned on, a re-run of failed jobs, and a pull request opened and
+    commented on (#1545 to #1549 did all of these on 2026-10-20). gh's GraphQL commands (`gh pr
+    view`, `gh pr merge`) are refused in cloud sessions, so the cloud path in `/queue-merge` is
+    used, never `gh pr`.
+  - **Remote tools:** `create_session`, `get_session`, `send_message`, `list_events`,
+    `send_later`, `list_triggers`, `update_trigger` and `delete_trigger` are present.
+  - **Quarantine bot:** it has opened a quarantine pull request on main's behalf within the last
+    week (its pull request is the receipt), so a flake on main reaches quarantine unattended.
+  - **No other active plan project:** each branch `git ls-remote origin
+    'refs/heads/claude/noacg-recovery/*'` lists is fetched and its `checkpoint.json` read; only
+    this plan's own project may be `active` before its deadline (the test `run-supervisor
+    continue` uses). Checkpoint branches are never deleted, so finished, cancelled and expired
+    ones stay listed and pass. A fresh container's local wave store is empty and proves nothing.
+  - **Open quarantine pull requests reconciled:** `gh api
+    'repos/NoaCG/NoaCG-Studio/pulls?state=open&per_page=100' --jq '.[] |
+    select(.head.ref | startswith("quarantine/")) | .number'` lists them; stale ones are closed through the GitHub connector or REST (`gh api -X PATCH
+    repos/NoaCG/NoaCG-Studio/pulls/<n> -f state=closed`, never `gh pr close`), a
+    fresh fail-then-pass is left to the quarantine flow, and a spec this plan names is repaired
+    first.
+
+  A missing item is one configuration request to the owner before opening, never a gate during
+  the run.
 - **Placement (owner, 2026-10-20, A and B):** qualified cloud workers for implementation, review,
   targeted software checks and Q's Sheet/feed/YouTube/API records; authoritative full suites in
   Actions. Those are the only places a gating criterion is checked. The laptop helper (§9.1)
@@ -662,9 +774,10 @@ every 30 minutes.
 step 4 prompt whenever the laptop is on, runs beside the cloud coordinator. It never starts,
 pauses, continues or changes the run. The repository is the shared channel:
 
-1. It reads the run's ledger from the recovery ref (`git ls-remote origin
-   'refs/heads/noacg-recovery/*'` lists it) and lists the landed phases whose `extensions.md` row
-   has a laptop entry (speed checks with `scripts/playout-lag-bench.mjs` as §7 describes).
+1. It reads the run's ledger from the recovery branch (`git ls-remote origin
+   'refs/heads/claude/noacg-recovery/*'` lists it; the run's is `plan-production-page-<date>`)
+   and lists the landed phases whose `extensions.md` row has a laptop entry (speed checks with
+   `scripts/playout-lag-bench.mjs` as §7 describes).
 2. For each merge SHA that still has no receipt under `evidence/local/` (bench output under
    `evidence/perf/`), it checks that SHA out in its own worktree, runs the check and writes the
    receipt. It lands that pass's receipts as one evidence-only change through `/check` and
@@ -675,7 +788,7 @@ pauses, continues or changes the run. The repository is the shared channel:
    same issue. If a direct message from the helper to the cloud
    coordinator works, the helper also sends one as a nudge, never as the only record.
 4. Between passes it waits about 20 minutes inside a background job, never idle. If the
-   coordinator's heartbeat comment is more than 90 minutes old, it tells the owner the coordinator
+   coordinator's heartbeat comment is more than 120 minutes old, it tells the owner the coordinator
    may have stopped (§10 step 6).
 
 Isolation, never the owner's own setup or deck: CasparCG from a scratch config with AMCP outside
@@ -702,16 +815,20 @@ the final owner block, which waits for him.
 
 | Item | Environment | Who | Needed by | Status | If missing |
 | --- | --- | --- | --- | --- | --- |
-| Runner change (free continuation, progress check) and its live test | `main` | agents, separate PR | run opening | in progress (`claude/plan-run-container-restart`) | the run does not open: preflight item |
+| Runner change (free continuation, progress check) and its live test | `main` | agents, separate PR | run opening | landed (#1535, #1539; receipt `continuing-plan-preparation/live-continuation-2026-10-20.md`) | - |
+| Second runner PR (handoff, progress since launch, consistent publication, diagnosis step, check from the merge) | `main` | agents, separate PR | run opening | landed (#1543) | - |
+| Recovery checkpoints on a branch a cloud session can push (`claude/noacg-recovery/<id>`) | `main` | agents, separate PR | run opening | landed (#1545; receipt `continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`) | - |
+| Third runner PR (counts never go down, a resumed diagnosis qualifies, queued and merge-queue runs and session events in the progress check) | `main` | agents, separate PR | run opening | landed (#1549, #1551) | - |
+| Check-in after a lost container (§9) | the coordinator's owner-started cloud session | coordinator | run opening | live-tested (receipt `continuing-plan-preparation/send-later-wake-2026-10-20.md`) | §10 step 6 |
+| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch) and a readable month-to-date Vercel usage figure (the Vercel connector or the owner's dashboard); without that figure the switch stays off; Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); the preflight reads with it (`production-page-keys.mjs`) | the tick stays off; the follow-ups join the owner list with exact steps |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Claude cloud environment, the local env file, Vercel | owner | Q Sheet records (gate C1b), C1c, C2 | ready: the service account signs in | Q times reads on the public CSV export and records edit latency as unmeasured; C1b states the measured read figure; the timed edit run joins the owner list |
 | `NOACG_TEST_SHEET_IDS`: six owner-owned Sheets, comma-separated | same | owner | same | ready: the service account reads and writes each; each public CSV export works | as above |
 | `YOUTUBE_API_KEY` | same | owner | Q `youtube` (gates C3), C7 live smoke | ready: works | C3 builds and checks against recorded responses; the live receipt joins the owner list |
 | A reachable public 24/7 YouTube live stream | public | Q worker | Q `youtube` live-chat half | found when Q runs | Q retries later; C3 is not held |
 | `CRON_SECRET` (existing; do not create or rotate) | Vercel Production | owner | C2 tick | ready | the tick stays off; closed-page continuity is reported unavailable |
-| Vercel usage read access | Vercel team, from the coordinator | coordinator | C2 switch decision; daily budget watch | confirmed at preflight | the tick stays off |
 | Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
 | Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
-| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files; this laptop's `gh` token lacks the `workflow` scope (2026-10-20), so the owner either runs `gh auth refresh -s workflow` once or lets a cloud session land it | E4.1, E8.1b | not yet landed | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
+| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files | E4.1, E8.1b | landed (#1536) | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
 | Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts: the laptop entries in `extensions.md` | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
 | Physical Stream Deck with Companion | owner's laptop | owner | H0.2 | owner's deck | waits (final owner block) |
 | The real studio: the owner's CasparCG/NoaCG Bridge setup and an OBS/browser source | studio | owner | S | owner's setup | waits (final owner block) |
@@ -736,12 +853,12 @@ the final owner block, which waits for him.
    measured 2026-10-17), and send:
 
    ```
-   /plan-run production-page until <date and time with UTC offset>
+   /plan-run production-page until <date and time with UTC offset>, permission policy: auto mode; the coordinator and its workers may turn on auto-merge and dispatch cloud-queue-merge.yml for the run's own reviewed pull requests, and push claude/check-* branches and dispatch ci.yml on them to check the run's merges
    ```
 
    The coordinator reads this spec on `origin/main`, runs the §9 preflight, prepares the project
    record with the exact 47-phase sequence in `extensions.md` (gating ACs, one environment each),
-   opens it with its recovery ref, opens the tracking issue, starts the Q worker (data-sources Q),
+   opens it with its recovery branch, opens the tracking issue, starts the Q worker (data-sources Q),
    sends the laptop-helper item (step 4) and starts a bounded block. These are execution actions,
    not performed by this planning edit. No per-phase start and no routine approval is needed; the
    coordinator stops only on `stop` (§8) and in the final owner block.
@@ -756,16 +873,23 @@ the final owner block, which waits for him.
 5. Permission mode is a harness setting, not an execution step. Switching a session to auto mode
    never replaces invoking `/plan-run`, supplying the deadline, passing the preflight, or the
    merge safeguards.
-6. **Stop and continue anywhere (13).** To stop, stop or close the coordinator's session. To
-   continue, after a stop, a lost container, an account usage limit, or to move between cloud
-   and laptop, open a new session in any environment with the repository and type the same line
-   with the original deadline:
+6. **Stop and continue anywhere (13).** To stop, tell the coordinator to pause the run: it records
+   the pause and deletes its check-in. Stopping or closing its session is not enough, since the
+   check-in would wake it; if the coordinator cannot answer, ask any new Claude Code session to
+   delete the scheduled task named `plan-run check-in <project id>`. A lost container needs nothing
+   from the owner: the check-in carries on within about an hour (§9). To continue after a pause, an
+   account usage limit or a closed session, or to move between cloud and laptop, open a new Claude
+   Code session as in step 3 (the cloud, environment NoaCG, from the desktop app or claude.ai/code,
+   never a routine, which lacks the follow-up and transcript tools), and type the same line with
+   the original deadline. The laptop (the NoaCG-Studio folder) is the fallback when the cloud is
+   unavailable; it needs the same keys in its environment, and without `SUPABASE_ACCESS_TOKEN` the
+   C2 follow-ups wait for a cloud coordinator:
 
    ```
    /plan-run production-page until <the original deadline>
    ```
 
-   It restores the project from its recovery ref, takes over and carries on from the first
+   It restores the project from its recovery branch, takes over and carries on from the first
    unfinished step; a worker in flight is reconciled, not relaunched. An older coordinator that is
    still alive is refused at its next step and stops by itself. Do this also when the morning
    summary does not arrive or the helper reports a stale heartbeat.
@@ -849,8 +973,9 @@ characterised and retained as existing behaviour.
 ## Phases
 
 Each phase runs `/check` and the §6 matrix and lands with `/queue-merge`; the builder adds the
-next phase's notes under `## Phase notes` (the previous verified `main` sha, the merge sha, the
-revert command, traps, the check's findings). Allowed `src` files are exactly those named.
+next phase's notes to `evidence/phase-notes.md` (the previous verified `main` sha, the previous
+merge sha, the revert command, traps, the check's findings), an evidence file so that no phase
+changes a spec's digest. The 2+7 builder pushes a checkpoint commit after phase 2's half. Allowed `src` files are exactly those named.
 Temporary interfaces are the callbacks a module takes from the page while the page still owns the
 state; each is removed in the phase that moves that state.
 
@@ -1029,6 +1154,6 @@ evidence and any confirmed fix landed in its own pull request; S2 characterised.
 
 ## Phase notes
 
-Each phase's pull request adds here what the next phase must allow for, newest first: the
-previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
-and the check's findings.
+From the 2026-10-20 run on, phase notes go to `evidence/phase-notes.md`, newest first: what the
+next phase must allow for, the previous verified `main` sha, the previous merge sha, the revert
+command, decisions taken, traps found, and the check's findings.

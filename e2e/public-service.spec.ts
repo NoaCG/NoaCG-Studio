@@ -5,11 +5,13 @@
 // `timeline` covers line.
 // covers: src/blocks/animData.ts
 // covers: src/export/**, src/components/home/{ProductionPage,PlayoutMonitors,ProgramStage,PayloadStage}.tsx, src/components/fields/FieldControl.tsx
+// covers: src/components/home/CueEditor.tsx
 //
 // This spec iterates the CATALOG, so a design added anywhere under src/templates/ must select it.
 // Until 2026-08-08 it was reachable from no template path and ten designs landed with every
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';

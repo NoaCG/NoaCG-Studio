@@ -27,6 +27,10 @@ measurements this build is held to. `protocol.md` beside this file is the wire p
 - No page open: presses are refused, the keys show "no operator page", nothing is queued.
 - An explicit "Answer the panel on this page" switch on the production page and the hosted control
   page. The last page to switch it on wins.
+  *Superseded 2026-10-08: the switch and "the last page to switch it on wins" gave way to the
+  panel ownership lease (`docs/work-specs/panel-ownership-lease/spec.md`), which amends D2 and
+  AC-6: the production page takes a free panel by itself, "Use here" moves it, and nothing else
+  takes it from a live page.*
 - The module is published in Bitfocus's repository under MIT.
 - Key feedback: on air, the selected cue, clip time left with the 10 s and 5 s warnings, which
   verbs are allowed. Setup suits a non-technical user. Press to air through the relay must not be
@@ -55,7 +59,9 @@ reopening the requirements above.
   (owner, 2026-10-02): a deck key never changes what the next SPACE acts on. `select-cue` moves
   the selection and airs nothing.
 - **D5. Panels may press** `take`, `retake`, `update`, `next`, `out`, `select-prev`,
-  `select-next`, `pause`, `resume`, `pause-toggle`, `all-out`, `select-cue`, `take-cue`. The rundown
+  `select-next`, `pause`, `resume`, `pause-toggle`, `all-out`, `select-cue`, `take-cue`, and
+  `trigger-cue` (added by `docs/work-specs/studio-evening-reliability/spec.md`, migration 0077:
+  plays or restarts one cue by its row id and leaves the selection alone). The rundown
   editing verbs and `folder-*` stay keyboard-only (no editing from hardware, research §10.2).
 - **D6. Pairing needs a published production**, since the control slug is the capability the
   pairing, listing and revoking calls take. Before publish the panel section says so.

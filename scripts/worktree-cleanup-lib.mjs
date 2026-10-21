@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gitCommonDir } from './primary-checkout.mjs';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 
 /** Absolute path with forward slashes, for cross-checkout comparison on Windows. */
 export function normalize(path) {
@@ -98,8 +99,9 @@ export function reapDelegationTrees(worktreePath, { run = spawnSync } = {}) {
  */
 export const MANAGED_BRANCH_PREFIXES = ['claude/', 'codex/', 'worktree-agent-'];
 
+/** A recovery checkpoint branch (recovery-branch.mjs) is never managed, so never deleted. */
 export function managedBranch(name) {
-  return MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix));
+  return !recoveryCheckpointBranch(name) && MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix));
 }
 
 /**

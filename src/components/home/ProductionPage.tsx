@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
 import SyncStatus from '../SyncStatus';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
@@ -9,12 +9,8 @@ import {
   duplicateLayers,
   graphicLayer,
   loadShows,
-  MAX_PLAYOUT_LAYER,
-  MIN_PLAYOUT_LAYER,
-  nextFreeLayer,
   noteShowOutputOpened,
   removeShowGraphicChecked,
-  setShowGraphicLayer,
   setShowAudienceSlugs,
   setShowHostedSlug,
   setShowOutputSlug,
@@ -93,6 +89,9 @@ import {
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
+import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
+import { createProductionDataSession } from '../../control/productionDataSession';
+import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
@@ -100,15 +99,7 @@ import { folderStep, stepFace, type FolderStep, type StepMember } from '../../co
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
-import {
-  diffResolved,
-  replacementPatch,
-  resolveBindings,
-  withTreeWrites,
-  type JsonObject,
-  type ResolvedValues,
-  type TreeWrite,
-} from '../../model/productionData';
+import { resolveBindings, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, saveLiveData, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import {
   fetchProductionData,
@@ -135,8 +126,8 @@ import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { PREVIEW_EMPTY_LABEL, type SpaceAction } from '../../control/spaceMode';
-import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
-import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
+import { cueDataRows, hasSideFields, rowsForSide } from '../../control/cueData';
+import { groupCueFields } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
@@ -209,7 +200,7 @@ import {
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
 import { airedAfter, type AiredMap, type ReplayItem } from '../../control/outputRecovery';
-import { createSendDebts } from '../../control/failedSends';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
@@ -231,7 +222,7 @@ import SignInPrompt from '../auth/SignInPrompt';
 import { productionWhenSynced } from '../../backend/graphicWhenSynced';
 import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
-import CueOverflowNote, { cueOverflowKeys } from './CueOverflowNote';
+import { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
 import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows, type CasparFacts } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
@@ -267,9 +258,9 @@ import {
 import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import RailResizer, { useRailWidth } from './RailResizer';
+import CueEditor, { type CueEditorView } from './CueEditor';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
-import { FieldRow } from '../fields/FieldControl';
 import { isImageAsset } from '../../assets/assetUtils';
 import { importImageFile } from '../../assets/imageImport';
 import {
@@ -312,12 +303,9 @@ import { usePrepareForLive } from '../control/PrepareForLive';
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
  *  full template snapshots, so that is a visible input-lag class of cost). */
-interface CueDraft {
+interface CueDraft extends CueEditorView {
   productionId: string;
   cueId: string;
-  label: string;
-  note: string;
-  values: Record<string, string>;
 }
 
 /** How far behind the log head the action log seeds its history. Global ids mean this is a
@@ -538,6 +526,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Folder Takes still being sent: what dispatch reads (a ref, never a stale render), and whether
    *  Out or All out has stopped each since. */
   const folderRuns = useRef(new Map<string, { stop: null | 'out' | 'all-out' }>());
+  /** The last press moving a bound field still being handled on each graphic, which the next one
+   *  waits for (`afterBoundPress`). */
+  const boundPresses = useRef(new Map<string, Promise<void>>());
   /** The same, for the verb bar to draw: a folder still being sent counts as up, so Out and SPACE can
    *  stop it even before anything of it has landed. */
   const [sendingFolders, setSendingFolders] = useState<ReadonlySet<string>>(() => new Set());
@@ -598,7 +589,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  must not re-render the whole surface (control/serverPlayoutStore.ts) - the clip clock and the
    *  rows' remaining times subscribe to it themselves. */
   const [serverPlayout] = useState(createServerPlayoutStore);
-  const serverOwnership = useSyncExternalStore(serverPlayout.ownership.subscribe, serverPlayout.ownership.get);
+  /** This production's playout session (control/playoutSession.ts): one per production id, ended
+   *  when the id changes or the page goes. The route already keys the page by production
+   *  (src/App.tsx), so in practice that is the unmount. The end waits one task and a re-run of the
+   *  effect cancels it: StrictMode's extra cleanup in development (src/main.tsx) must not end the
+   *  session, because effects that never restart (the log follower) keep the one they first saw. */
+  const session = useMemo(() => createPlayoutSession(id), [id]);
+  const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
+  useEffect(() => {
+    if (sessionEnd.current?.session === session) clearTimeout(sessionEnd.current.timer);
+    return () => {
+      sessionEnd.current = { session, timer: setTimeout(() => session.dispose()) };
+    };
+  }, [session]);
+  const serverOwnership = useStorePart(serverPlayout.ownership);
   const serverOnAir = serverOwnership.onAir;
   /** How many times this page has rendered - published on its root as `data-renders`, which is how
    *  e2e/playout-clock.spec.ts proves the server's readings do not re-render it. */
@@ -1440,194 +1444,34 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
-  // Held on THIS page rather than in the Data workspace, because the one sender lives here and
-  // the Data tab unmounts the playout surface. Runtime state: it is read from and written to
-  // productionState.ts, never to the show record, which syncs and would churn per tick. The
-  // DISPATCH half sits further down, beside `runVerb`.
-  const [liveData, setLiveDataState] = useState<JsonObject>({});
-  /** The tree as it is RIGHT NOW, for callbacks that must not close over a stale render. */
-  const liveDataRef = useRef<JsonObject>(liveData);
-  liveDataRef.current = liveData;
-  /** The server re-read, reachable from the log follower — which is declared above the callback
-   *  it needs, because the follower must be in place before the wire's first row arrives. */
-  const refreshRef = useRef<() => Promise<void>>(async () => {});
-  /** What was last put on the wire, per graphic per field — the diff baseline (see the effect). */
-  const lastResolved = useRef<ResolvedValues>({});
-  useEffect(() => {
-    // The local tree seeds an UNPUBLISHED production only. Published, the server's copy is the
-    // authority and arrives a moment later - seeding from localStorage first would show the
-    // operator a stale tree and then swap it under them.
-    setLiveDataState(id && !hostedSlug ? loadLiveData(id) : {});
-    // A different production is a different tree AND a different baseline, so the next dispatch
-    // reconciles the new production from scratch rather than against the old one's values.
-    lastResolved.current = {};
-  }, [id, hostedSlug]);
-
-  /**
-   * THE LIVE TREE, WRITTEN IN ANOTHER TAB.
-   *
-   * The Data workspace opens in its own browser tab, and an UNPUBLISHED production's tree lives
-   * in localStorage (model/productionState.ts - deliberately not on the synced Show record).
-   * This page is the ONE sender: it holds the tree, resolves the bindings and dispatches the
-   * changes, precisely because the workspace has no route to air of its own. Split across tabs,
-   * a value typed on Data reached storage and stopped there - the operator watched PROGRAM keep
-   * the old score.
-   *
-   * `storage` fires in the OTHER tabs only, which is exactly the ones that need telling, and it
-   * carries the key so an unrelated write costs nothing. Published productions are untouched:
-   * there the server's copy is the authority and the API answer is what this page holds.
-   */
-  useEffect(() => {
-    if (!id || hostedSlug) return;
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== null && e.key !== PRODUCTION_DATA_KEY) return;
-      setLiveDataState(loadLiveData(id));
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [id, hostedSlug]);
-
-  /**
-   * PUBLISHED = the SERVER owns the tree. `control_shows.data` is what a feed writes and what
-   * the patch RPC merges against, so keeping a second copy in localStorage would be two truths
-   * with no tiebreak. The key is the owner's own, read over RLS (control/productionDataApi.ts
-   * says why that is not the "never a web page" case the integrator doc warns about).
-   *
-   * `undefined` means NOT YET KNOWN, and that is load-bearing: until the key has resolved, this
-   * page must not dispatch the local tree to air. A published production opened cold would
-   * otherwise spend one render believing it was offline and push the last LOCAL tree - stale
-   * values, briefly, on air.
-   */
-  const [dataKey, setDataKey] = useState<string | null | undefined>(undefined);
-  useEffect(() => {
-    let alive = true;
-    if (!hostedSlug || !backendConfigured) {
-      setDataKey(null);
-      return;
-    }
-    void productionDataKey(id).then((key) => {
-      if (alive) setDataKey(key);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [id, hostedSlug, backendConfigured]);
-
-  /**
-   * WHETHER THIS PAGE HOLDS THE PRODUCTION'S SHARED VALUES YET.
-   *
-   * Unpublished it is immediate: the tree comes out of localStorage in the effect above. Published
-   * it takes a key read and then a fetch, and until both have landed `liveData` is an empty object
-   * while `bindings` - which live on the show record - are already here.
-   *
-   * That gap is harmless for READING (a bound box shows nothing for a moment) and not harmless at
-   * all for a PRESS, because a press computes an ABSOLUTE value from what the tree says (plan
-   * §2.5). A `+1` fired in that window reads the score as missing, counts from zero, and writes 1
-   * to every graphic bound to the path - so opening the playout tab mid-show and pressing + would
-   * have put the whole production's score back to 1.
-   */
-  const [treeRead, setTreeRead] = useState(false);
-  useEffect(() => {
-    setTreeRead(false);
-  }, [id, hostedSlug]);
-
-  /** Pull the server's tree in - at mount, and whenever a FEED row says it moved. */
-  const refreshServerData = useCallback(async () => {
-    if (!dataKey) return;
-    const current = await fetchProductionData(dataKey);
-    if (current) {
-      setLiveDataState(current.data as JsonObject);
-      setTreeRead(true);
-    }
-  }, [dataKey]);
-  refreshRef.current = refreshServerData;
-  useEffect(() => {
-    void refreshServerData();
-  }, [refreshServerData]);
-
-  /**
-   * ONE CALL, ONE WRITE. This charges a persist - and, published, an HTTP PATCH against the
-   * production's ingest budget - every time it is called, and it deliberately does not coalesce:
-   * every caller it has is one deliberate gesture (a stepper, Apply JSON, Reset, Clear, Move
-   * numbers, a finished edit). A CALLER THAT FIRES AT KEYSTROKE RATE IS THE BUG, not this
-   * function's missing debounce. Deferring belongs at the box, because only the box knows which
-   * text a person currently owns - the three paths that replace `liveData` (the cross-tab
-   * `storage` listener, a PATCH answer, the failure handler's refresh) would otherwise land in
-   * whatever is being typed. `components/home/useDeferredEdits.ts` is that mechanism.
-   */
-  const setLiveData = useCallback(
-    (next: JsonObject) => {
-      // Optimistic either way, so typing stays immediate.
-      setLiveDataState(next);
-      if (!dataKey) {
-        saveLiveData(id, next);
-        return;
-      }
-      // Published: say the change as a PATCH - including the removals, which a merge patch can
-      // only express by naming them (model/productionData.ts replacementPatch). The ANSWER is
-      // what we then hold: a feed tick that landed in the same moment is already merged into
-      // it, so the operator's edit cannot silently overwrite the feed's.
-      const patch = replacementPatch(liveDataRef.current, next);
-      if (Object.keys(patch).length === 0) return;
-      void patchProductionData(dataKey, patch)
-        .then((server) => setLiveDataState(server as JsonObject))
-        .catch((error: Error) => {
-          setNote(`Production data not saved: ${error.message}`);
-          void refreshServerData();
-        });
-    },
-    [id, dataKey, refreshServerData],
+  // The tree, its key and its two write roads are the session's `data` part, written only by
+  // control/productionDataSession.ts, which says the rules. The page hands it the browser doors,
+  // enters the mode the show is in, and reads the part. The DISPATCH sits further down, beside
+  // `runVerb`, the sender it is handed.
+  const dataSession = useMemo(
+    () =>
+      createProductionDataSession(session, {
+        backendConfigured,
+        loadLiveData,
+        saveLiveData,
+        productionDataKey,
+        fetchProductionData,
+        patchProductionData,
+        patchProductionDataBySlug,
+        onStorage: (listener) => {
+          const onStorage = (e: StorageEvent) => {
+            if (e.key === null || e.key === PRODUCTION_DATA_KEY) listener();
+          };
+          window.addEventListener('storage', onStorage);
+          return () => window.removeEventListener('storage', onStorage);
+        },
+        note: setNote,
+      }),
+    [session, backendConfigured],
   );
-
-  /**
-   * A PRESS MOVING THE SHARED VALUE — the ± stepper and an event's `adjust` on a BOUND field
-   * (docs/PRODUCTION_DATA_PLAN.md §2.9's Phase 3, AC-7).
-   *
-   * It is a second door beside `setLiveData` rather than a flag on it, because the two are
-   * different actors with different budgets. `setLiveData` is the OWNER editing the tree on the
-   * Data tab, and it goes through the documented integrator endpoint with the owner's own data
-   * key. This is the OPERATOR pressing a button on the dashboard, and it goes through
-   * `control_data_patch_by_slug` (migration 0060) on the control slug they already hold — which
-   * writes its rows without the `src:'api'` mark, so an operator's `+1` spends the production's
-   * ordinary 50-per-5-s command budget and never the feed's 25-per-5-s ingest budget. "The
-   * operator keeps priority" is the reason that second cap exists; routing a press through it
-   * would have let a saturated feed refuse the operator's own score.
-   *
-   * WHICH WORLD WE ARE IN IS THE SLUG, not the key. A published production's tree lives on the
-   * server whether or not this page has managed to read its data key, so testing the key would
-   * have a failed key read (`productionDataKey` answers null on any error) quietly write a
-   * published production's shared values into localStorage, where nothing would ever air them.
-   * The unread case cannot reach here at all: `boundPressReady` below refuses the press first.
-   */
-  const patchBoundValues = useCallback(
-    async (writes: TreeWrite[]): Promise<void> => {
-      if (writes.length === 0) return;
-      const before = liveDataRef.current;
-      const next = withTreeWrites(before, writes);
-      const patch = replacementPatch(before, next);
-      if (Object.keys(patch).length === 0) return;
-      // Optimistic on both roads, so the figure on screen moves with the press - and through the
-      // ref as well as the state, because the NEXT press counts from it and a round trip is long
-      // enough for several.
-      liveDataRef.current = next;
-      setLiveDataState(next);
-      if (!hostedSlug) {
-        saveLiveData(id, next);
-        return;
-      }
-      try {
-        // The ANSWER is what we hold: a feed tick that landed in the same moment is already
-        // merged into it, so the press cannot silently overwrite the feed's write.
-        const server = (await patchProductionDataBySlug(hostedSlug, patch)) as JsonObject;
-        liveDataRef.current = server;
-        setLiveDataState(server);
-      } catch (error) {
-        setNote(`The shared value did not move: ${(error as Error).message}`);
-        void refreshServerData();
-      }
-    },
-    [id, hostedSlug, refreshServerData],
-  );
+  useEffect(() => dataSession.published(hostedSlug), [dataSession, hostedSlug]);
+  const { liveData, dataKey, treeRead } = useStorePart(session.data);
+  const { setLiveData, patchBoundValues } = dataSession;
 
   /** Refuse a press on a shared value this page cannot count from yet, and say why. Bound presses
    *  are the only thing that has to wait: everything else on this surface reads the cue. */
@@ -1642,6 +1486,38 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const resolved = useMemo(() => resolveBindings(liveData, bindings), [liveData, bindings]);
   const resolvedRef = useRef<ResolvedValues>(resolved);
   resolvedRef.current = resolved;
+  /** One graphic's bound values from the newest tree: the ref a press's write moves at once, where
+   *  `resolved` waits for the next render. */
+  const boundNow = (graphic: string): Record<string, string> => resolveBindings(session.data.get().liveData, bindings)[graphic] ?? {};
+
+  /**
+   * A PRESS MOVING A BOUND FIELD WAITS FOR THE ONE BEFORE IT on its graphic, then counts from the
+   * tree that press left (`boundNow`). The ⚡ press writes its figure only once its event has gone,
+   * a round trip after the press, and the ± press's answer replaces the tree, so a second press in
+   * that round trip counted from the same tree and wrote the same figure: two goals, one point
+   * (production-page refactor S1, e2e/configured/playout-adjust-race.spec.ts). The wait ends when
+   * the press before it has had a send's whole window and an attempt's time for its write
+   * (failedSends.ts), so a link that never answers cannot hold the next press; past it, the press
+   * counts from the tree as it stands.
+   */
+  const afterBoundPress = (graphic: string, press: () => Promise<void>): Promise<void> => {
+    const before = boundPresses.current.get(graphic);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const waited = before
+      ? Promise.race([before, new Promise<void>((resolve) => (timer = setTimeout(resolve, RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS)))])
+      : Promise.resolve();
+    const run = waited.then(() => {
+      clearTimeout(timer);
+      return press();
+    });
+    // The next press waits for this one whether or not it failed.
+    const settled = run.catch(() => {});
+    boundPresses.current.set(graphic, settled);
+    void settled.then(() => {
+      if (boundPresses.current.get(graphic) === settled) boundPresses.current.delete(graphic);
+    });
+    return run;
+  };
 
   /**
    * The values a Take, an Update or the PREVIEW must carry for one graphic — bound fields
@@ -1883,7 +1759,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           // Durable only, and for a sharper reason: the patch RPC appends server-side and
           // broadcasts nothing.
           else if (msg.t !== 'staged' && msg.t !== 'cue' && typeof (msg as { src?: string }).src === 'string') {
-            void refreshRef.current();
+            void dataSession.refresh();
           }
           const entry = describeLogRow(row, cueLabel, eventLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
@@ -2312,32 +2188,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [sendVerb],
   );
 
-  /**
-   * PRODUCTION DATA, the dispatch half: put the CHANGES on the wire, and nothing else.
-   *
-   * Diffing is not an optimisation. The log caps a production at 50 commands per 5 s (migration
-   * 0008) and every row fans out over Realtime to the renderer and to every open operator page,
-   * so a tree with one moving value must cost ONE row rather than one per bound graphic per
-   * tick. The baseline starts empty on purpose: the first pass after opening the page (or after
-   * switching production) reconciles every bound field once, which is safe precisely because
-   * these are absolute values and re-sending one changes nothing.
-   */
+  /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
+   *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
   useEffect(() => {
-    // PUBLISHED, the SERVER does this half: control_data_patch resolves the bindings and appends
-    // the update rows itself, and the log follower above brings them back here. Dispatching
-    // locally too would double every write - one row from the API, one from this page.
-    // `undefined` = the key has not resolved yet, so we do not know which world we are in and
-    // must not guess: guessing "offline" airs the stale local tree for a moment.
-    if (dataKey !== null) return;
-    const changes = diffResolved(lastResolved.current, resolved);
-    const graphics = Object.keys(changes);
-    if (graphics.length === 0) return;
-    lastResolved.current = resolved;
-    void runVerb(
-      [graphics.map((graphic) => ({ graphic, msg: { t: 'update' as const, data: changes[graphic] } }))],
-      'Data',
-    );
-  }, [resolved, runVerb, dataKey]);
+    dataSession.dispatch(resolved, liveData, runVerb);
+  }, [dataSession, resolved, liveData, dataKey, runVerb]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
@@ -3211,14 +3066,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const bumpLive = async (fieldKey: string, delta: number) => {
     if (!editingCue || !selectedGraphic || !editingIsLive) return;
-    await flushDraft(); await history.closeGroup();
-    const path = boundFields(selectedGraphic)[fieldKey];
+    const graphic = selectedGraphic;
+    const path = boundFields(graphic)[fieldKey];
     if (path) {
-      if (!boundPressReady()) return;
-      const base = resolvedRef.current[selectedGraphic]?.[fieldKey];
-      await patchBoundValues([{ path, text: adjustedValue(base, delta), verb: 'adjust' }]);
+      await afterBoundPress(graphic, async () => {
+        await flushDraft(); await history.closeGroup();
+        if (!boundPressReady()) return;
+        await patchBoundValues([{ path, text: adjustedValue(boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
+      });
       return;
     }
+    await flushDraft(); await history.closeGroup();
     const base = airedData[selectedGraphic]?.[fieldKey] ?? cueView(editingCue).values[fieldKey] ?? '0';
     const next = adjustedValue(base, delta);
     setShows(updateShowCueChecked(id, editingCue.id, { values: { [fieldKey]: next } }).shows);
@@ -3943,12 +3801,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  land only if the machine accepts the event (the structural guard). An `adjust` field (a
    *  goal's +1 on that side's score) rides moved by its delta from what AIR shows - the same
    *  base the ± live-number bump counts from - and the new figure is mirrored into the on-air
-   *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it. */
-  const fireEvent = async (button: ControlButton) => {
-    if (!selectedGraphic || !selectedLayerLive) return;
+   *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it.
+   *
+   *  A press moving a bound field waits for the one before it on its graphic (`afterBoundPress`). */
+  const fireEvent = (button: ControlButton): Promise<void> => {
+    if (!selectedGraphic || !selectedLayerLive) return Promise.resolve();
+    const graphic = selectedGraphic;
+    const bound = boundFields(graphic);
+    if (!movedKeys(button).some((key) => bound[key])) return pressEvent(button, graphic, bound);
+    return afterBoundPress(graphic, () => pressEvent(button, graphic, bound));
+  };
+  const pressEvent = async (button: ControlButton, selectedGraphic: string, bound: Record<string, string>) => {
     await flushDraft(); await history.closeGroup();
     const values = airValues();
-    const bound = boundFields(selectedGraphic);
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it: a
     // graphic playing its goal animation while the figure the production follows stayed put is
     // worse than a press that plainly did not happen.
@@ -3958,9 +3823,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // field is neither: it reads from the production tree, because that is the one figure every
     // graphic bound to the path is showing (plan §2.7).
     const moved = new Set(movedKeys(button));
+    const boundValues = boundNow(selectedGraphic);
     const { payload, fields: adjusted, tree } = pressSend(button, bound, (key) =>
       bound[key]
-        ? resolvedRef.current[selectedGraphic]?.[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
+        ? boundValues[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
         : moved.has(key)
           ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : ''))
           : values[key],
@@ -4589,10 +4455,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   // WHICH VIEWS THE SWITCHER SHOWS (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03): Data and
-  // Audience are views used live, so they stay views, but only on a production that uses them. A
+  // Messages are views used live, so they stay views, but only on a production that uses them. A
   // plain production shows Playout alone and reaches both through Setup. Data is in use once
-  // there is a table, a seed, a binding or a live value; Audience once the pool holds a graphic
-  // made for it (a message card or a vote board) or anything has arrived through the join page.
+  // there is a table, a seed, a binding or a live value; Messages once the pool holds a graphic
+  // made for it (a message card or a vote board) or anything is in its inbox.
   const views = {
     data:
       (show.datasets?.length ?? 0) > 0 ||
@@ -5000,342 +4866,107 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
             the cue already on air on that layer, where ✎ Update pushes edits live. */}
         {editingCue && editingView && poolGraphic && (
-          <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
-            onBlurCapture={() => { void flushDraft(); void history.closeGroup(); }}>
-            <div className="pd-editor-head">
-              {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
-                  same name and the same tally, so "EDITING ON-AIR CUE" over an editable title
-                  named them both identically — the operator's own report, 2026-09-05. The number
-                  is the one thing that is unique per row and is already what the rundown shows. */}
-              {/* "PREVIEW CUE" only while the cue IS on PREVIEW: in 'preview-then-take' mode
-                  the editor follows the cursor, which walks on ahead of the monitor. */}
-              <span className="pd-editor-kicker">
-                EDITING {editingIsLive ? (rehearsing ? 'UP CUE' : 'ON-AIR CUE') : selectedCueStaged ? 'PREVIEW CUE' : 'SELECTED CUE'}
-                {editingCueNo > 0 ? ` · ${editingCueNo}` : ''}
-              </span>
-              {/* The cue's own title, editable HERE: mislabelling "Guest lower third" as "Host"
-                  is a live-show mistake and must be fixable without leaving the surface. */}
-              <input
-                className="pd-cue-title"
-                value={editingView.label}
-                onChange={(e) => editDraft({ label: e.target.value })}
-                aria-label="Cue name"
-                data-testid="cue-label"
-              />
-              <span
-                className={hasUnsent ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
-                data-testid="cue-unsent"
-              >
-                {hasUnsent
-                  ? keptStates
-                    ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. ✎ Update keeps ${keptStates} ${rehearsing ? 'up' : 'on air'}, ⟳ Re-take starts over with these values`
-                    : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. Press ✎ Update`
-                  : null}
-              </span>
-              <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
-              {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
-                  line that names it rather than hidden from the operator entirely. */}
-              {editingIsLive && (
-                <button className="pd-editor-update" onClick={() => void updateLive()} data-testid="editor-update">
-                  ✎ Update
-                </button>
-              )}
-              <div className="spacer" />
-              {airCue && airCue.id !== selectedCue?.id && (
-                <button
-                  className="pd-editor-switch"
-                  onClick={() => setEditTarget((t) => (t === 'preview' ? 'air' : 'preview'))}
-                  data-testid="cue-editor-switch"
-                >
-                  {editTarget === 'preview' ? (rehearsing ? 'switch to up cue ▾' : 'switch to on-air cue ▾') : 'switch to preview cue ▾'}
-                </button>
-              )}
-            </div>
-
-            {/* THE SETUP FOLD, offered only under live actions: a scorebug's team names and a
-                quiz's words are set before the cue airs, and once they are the operator works
-                from the ⚡ block above. Folded, the bar reads back what is set, so nothing is out
-                of sight that the operator cannot check at a glance; the unsent line and the
-                too-long warning stay in the head above it. A layer clash keeps it open: that
-                repair must never sit behind a closed fold. */}
-            {liveFirst && !layerClash && (
-              <button
-                type="button"
-                className="pd-fields-fold"
-                aria-expanded={!fieldsFolded}
-                aria-controls="pd-setup-fields"
-                onClick={() =>
-                  setFoldedFields((s) => {
-                    const next = new Set(s);
-                    if (next.has(poolGraphic.id)) next.delete(poolGraphic.id);
-                    else next.add(poolGraphic.id);
-                    return next;
-                  })
-                }
-                data-testid="cue-fields-fold"
-              >
-                <span className="pd-advanced-caret" aria-hidden="true">{fieldsFolded ? '▸' : '▾'}</span>
-                Setup fields
-                {fieldsFolded && (
-                  <span className="pd-fields-fold-sum" data-testid="cue-fields-summary">
-                    {setupSummary}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {!fieldsFolded && (
-            <div id="pd-setup-fields">
-            <div className="pd-fields">
-              {/* LOAD A DATA ROW (the Data workspace's other half): a table whose column names
-                  match this graphic's field titles offers its rows here. Loading fills the
-                  EDITED CUE's draft — data prepares, only Take (or ✎ Update, deliberately)
-                  airs. Unmatched columns are skipped; untouched fields keep their values. */}
-              {loadableRows.length > 0 && (
-                <label className="pd-field pd-field-load">
-                  <span>
-                    Load data row
-                    {/* THE SIDE PICKER. Only a board with A/B fields shows it, and it says
-                        which side the next load fills — one row is one team, so without it a
-                        teams table can only ever describe half the graphic. */}
-                    {hasSides && (
-                      <span className="pd-side-pick" data-testid="cue-load-side">
-                        {(['A', 'B'] as const).map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            className={loadSide === s ? 'active' : ''}
-                            onClick={() => setLoadSide(s)}
-                            data-testid={`cue-load-side-${s}`}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </span>
-                    )}
-                  </span>
-                  <div className="row">
-                    <select className="grow" value="" onChange={(e) => loadRow(e.target.value)} data-testid="cue-load-row">
-                      <option value="">Pick a row from the production's data…</option>
-                      {loadableRows.map((o) => (
-                        <option key={o.id} value={o.id}>{o.label}</option>
-                      ))}
-                    </select>
-                    {/* The running-order gesture: next question, next name — one press. Loads
-                        the row AFTER the one this cue last loaded (the first, before any). */}
-                    <button
-                      onClick={() => {
-                        const next = nextRow(dataRows, loadSide, editingCue ? lastLoaded[editingCue.id] ?? null : null);
-                        if (next) loadRow(next.id);
-                      }}
-                      disabled={
-                        !editingCue ||
-                        !nextRow(dataRows, loadSide, lastLoaded[editingCue.id] ?? null)
-                      }
-                      title="Load the next row of the table into this cue"
-                      data-testid="cue-load-next"
-                    >
-                      Load next row
-                    </button>
-                  </div>
-                </label>
-              )}
-              {/* THE BANDS. One per side on a two-sided board, headed by the operator's own
-                  word for that side; one unlabelled band - today's flat flow - on everything
-                  else. The grouping is derived, never authored (control/cueFieldGroups.ts). */}
-              {fieldGroups.map((group) => {
-                // WHAT THE OPERATOR IS LOOKING AT, in the same order the field boxes resolve it:
-                // a bound field shows the live tree's value, an unset one its authored default.
-                // Reading `editingView.values` alone would head a band "Side A" while the box
-                // under it plainly said HOME.
-                const heading = groupHeading(group, headingValues);
-                return (
-                  <div
-                    className={`pd-band${heading ? '' : ' pd-band-plain'}`}
-                    key={group.id}
-                    data-testid={`cue-band-${group.id}`}
-                  >
-                    {heading && (
-                      <span className="pd-band-label" data-testid={`cue-band-label-${group.id}`}>
-                        {heading}
-                      </span>
-                    )}
-                    <div className="pd-band-fields">
-                      {group.keys.map((key) => {
-                        const d = descriptorByKey.get(key);
-                        if (!d) return null;
-                        // A BOUND field is not a cue value (plan §2.7): it takes the live tree's
-                        // value at Take, at ✎ Update and in the preview, so an editable box here
-                        // would show a number nothing will ever air. It reads out instead,
-                        // wearing its path — the one override gesture is Unbind, on the Data tab.
-                        const path = boundFields(selectedGraphic)[d.key];
-                        if (path) {
-                          // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
-                          // rather than on a hand-rolled label. The cue fields lay out in a grid,
-                          // so a row of a different height sits its input a few pixels off its
-                          // neighbour's; matching the real structure makes them line up by
-                          // construction instead of by a number kept in step here.
-                          return (
-                            <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
-                              <div className="field-meta">
-                                <label style={{ margin: 0 }}>
-                                  {d.key.toUpperCase()} · {d.label}
-                                </label>
-                                <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
-                                  🔗 {path}
-                                </span>
-                              </div>
-                              <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" readOnly tabIndex={-1} />
-                            </div>
-                          );
-                        }
-                        return (
-                          <FieldRow
-                            key={d.key}
-                            descriptor={{ ...d, label: `${d.key.toUpperCase()} · ${d.label}` }}
-                            value={String(editingView.values[d.key] ?? d.defaultValue ?? '')}
-                            onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
-                            overflow={overflowSet.has(d.key)}
-                            testIdPrefix="cue-field"
-                            images={cueImages}
-                            imageHint={
-                              poolGraphic.type === 'picture'
-                                ? 'Add pictures with Upload image…'
-                                : "Add pictures in the graphic's Assets tab."
-                            }
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* CUE SETTINGS, under a rule and not in the content grid. The note is the cue's; it is
-                not something the graphic SHOWS, and flowing it in beside the content fields is
-                what left settings alone on a second row looking like a field nobody finished
-                (owner, 2026-08-21). */}
-            <div className="pd-cue-meta" data-testid="cue-meta">
-              <label className="pd-field pd-field-note">
-                <span>Operator note</span>
-                <input
-                  value={editingView.note}
-                  placeholder="e.g. after the intro"
-                  onChange={(e) => editDraft({ note: e.target.value })}
-                  data-testid="cue-note"
+          <CueEditor
+            show={show}
+            setShows={setShows}
+            poolGraphic={poolGraphic}
+            editingCue={editingCue}
+            editingView={editingView}
+            editingCueNo={editingCueNo}
+            editingIsLive={editingIsLive}
+            rehearsing={rehearsing}
+            selectedCue={selectedCue}
+            selectedCueStaged={selectedCueStaged}
+            selectedGraphic={selectedGraphic}
+            airCue={airCue}
+            editTarget={editTarget}
+            setEditTarget={setEditTarget}
+            authoringAllowed={authoringAllowed}
+            editDraft={editDraft}
+            flushDraft={flushDraft}
+            rundownHistory={history}
+            updateLive={updateLive}
+            hasUnsent={hasUnsent}
+            unsentFields={unsentFields}
+            keptStates={keptStates}
+            overflowKeys={overflowKeys}
+            overflowSet={overflowSet}
+            descriptors={descriptors}
+            descriptorByKey={descriptorByKey}
+            fieldGroups={fieldGroups}
+            headingValues={headingValues}
+            boundFields={boundFields}
+            resolved={resolved}
+            cueImages={cueImages}
+            liveFirst={liveFirst}
+            fieldsFolded={fieldsFolded}
+            setFoldedFields={setFoldedFields}
+            setupSummary={setupSummary}
+            dataRows={dataRows}
+            loadableRows={loadableRows}
+            hasSides={hasSides}
+            loadSide={loadSide}
+            setLoadSide={setLoadSide}
+            lastLoaded={lastLoaded}
+            loadRow={loadRow}
+            layerClash={layerClash}
+            sharingLayer={sharingLayer}
+            editedLayer={editedLayer}
+            advancedOpen={advancedOpen}
+            setAdvancedFor={setAdvancedFor}
+            clashFix={clashFix}
+            endsRow={() => {
+              const auto = readAuto(editingCue);
+              const nextId = nextGraphicCue(cues, editingCue.id);
+              const nextCue = nextId ? cues.find((c) => c.id === nextId) : undefined;
+              const counting = !!selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id;
+              const nextHint = counting
+                ? 'It is counting now: a new length or end applies from its next Take.'
+                : !auto || !takesNext(auto.then)
+                ? null
+                : !nextCue
+                  ? 'Nothing comes after this cue in the rundown, so Next cue has nothing to take.'
+                  : auto.then === 'out-next' && cueGraphicName(nextCue) === selectedGraphic
+                    ? `Next cue takes “${cueView(nextCue).label}”, on this same layer: its entrance cuts the Out short, and Next cue alone already replaces this one.`
+                    : `Next cue takes “${cueView(nextCue).label}”.`;
+              return (
+                <CueEndsRow
+                  key={editingCue.id}
+                  auto={auto}
+                  refused={
+                    hostedSlug && armsServer === 'missing'
+                      ? 'This production’s server does not keep timed cues yet, so here they air as manual cues.'
+                      : null
+                  }
+                  nextHint={nextHint}
+                  onChange={(next) => {
+                    setShows(setCueAuto(show.id, editingCue.id, next));
+                    // Made manual while it counts: the countdown goes too, as Manual's does. A new
+                    // length or end applies from the next Take, which is when a cue is armed.
+                    if (!next && selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id) manualLane(selectedGraphic);
+                  }}
                 />
-              </label>
-              {/* HOW THE CUE ENDS (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, §2.1): by hand, or after so many
-                  seconds on air, then Out, the next cue, or both. Phase 1 runs it unpublished only. */}
-              {(() => {
-                const auto = readAuto(editingCue);
-                const nextId = nextGraphicCue(cues, editingCue.id);
-                const nextCue = nextId ? cues.find((c) => c.id === nextId) : undefined;
-                const counting = !!selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id;
-                const nextHint = counting
-                  ? 'It is counting now: a new length or end applies from its next Take.'
-                  : !auto || !takesNext(auto.then)
-                  ? null
-                  : !nextCue
-                    ? 'Nothing comes after this cue in the rundown, so Next cue has nothing to take.'
-                    : auto.then === 'out-next' && cueGraphicName(nextCue) === selectedGraphic
-                      ? `Next cue takes “${cueView(nextCue).label}”, on this same layer: its entrance cuts the Out short, and Next cue alone already replaces this one.`
-                      : `Next cue takes “${cueView(nextCue).label}”.`;
-                return (
-                  <CueEndsRow
-                    key={editingCue.id}
-                    auto={auto}
-                    refused={
-                      hostedSlug && armsServer === 'missing'
-                        ? 'This production’s server does not keep timed cues yet, so here they air as manual cues.'
-                        : null
-                    }
-                    nextHint={nextHint}
-                    onChange={(next) => {
-                      setShows(setCueAuto(show.id, editingCue.id, next));
-                      // Made manual while it counts: the countdown goes too, as Manual's does. A new
-                      // length or end applies from the next Take, which is when a cue is armed.
-                      if (!next && selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id) manualLane(selectedGraphic);
-                    }}
-                  />
-                );
-              })()}
-            </div>
-
-
-            {/* ADVANCED: the graphic's PLAYOUT LAYER (docs/CLIP_PLAYBACK_PLAN.md §6.5). Closed by
-                default with the number in its summary, because most productions never change it
-                (§5 counts from 20, distinct by construction). WHEN IT CLASHES it is open and
-                cannot be closed: two graphics on one layer replace each other on air, so the
-                repair must never be one click away behind a closed disclosure. The rundown's
-                clash badge lands here too (`openLayerRepair`). */}
-            <div className={`pd-advanced${layerClash ? ' clash' : ''}`} data-testid="cue-advanced">
-              <button
-                type="button"
-                className="pd-advanced-toggle"
-                aria-expanded={advancedOpen}
-                aria-controls="pd-advanced-graphic"
-                disabled={layerClash}
-                onClick={() => setAdvancedFor(advancedOpen ? null : poolGraphic.id)}
-                title={layerClash ? 'Two graphics share this layer' : undefined}
-                data-testid="cue-advanced-toggle"
-              >
-                <span className="pd-advanced-caret" aria-hidden="true">{advancedOpen ? '▾' : '▸'}</span>
-                Advanced
-                <span className="pd-advanced-sum" data-testid="cue-advanced-summary">
-                  Layer {editedLayer}
-                  {layerClash ? ' · shared' : ''}
-                </span>
-              </button>
-              {advancedOpen && (
-                <div className="pd-advanced-body" id="pd-advanced-graphic">
-                  <label className="pd-field pd-field-layer">
-                    <span>Playout layer</span>
-                    <input
-                      type="number"
-                      min={MIN_PLAYOUT_LAYER}
-                      max={MAX_PLAYOUT_LAYER}
-                      value={editedLayer}
-                      onChange={(e) => setShows(setShowGraphicLayer(show.id, poolGraphic.id, Number(e.target.value)))}
-                      data-testid="graphic-layer"
-                    />
-                  </label>
-                  {sharingLayer && (
-                    <p className="status-warn pd-layer-clash" data-testid="layer-clash">
-                      {nameList(sharingLayer.map((g) => g.name))} share layer {editedLayer}. On air
-                      they replace each other.
-                      <button
-                        ref={clashFix}
-                        onClick={() => setShows(setShowGraphicLayer(show.id, poolGraphic.id, nextFreeLayer(show.graphics)))}
-                        data-testid="layer-clash-fix"
-                      >
-                        Move to layer {nextFreeLayer(show.graphics)}
-                      </button>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-            </div>
-            )}
-            <ProductionSounds
-              key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
-              template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
-              config={poolGraphic.soundConfig}
-              assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
-              visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
-              onSave={async (config,expected,source)=>{
-                const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
-                const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
-                if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
-                const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
-                setShows(result.shows);
-                const failure = result.error ?? await commitDurableWrites();
-                if (failure) throw new Error(failure);
-              }}
-            />
-          </div>
+              );
+            }}
+            sounds={
+              <ProductionSounds
+                key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
+                template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
+                config={poolGraphic.soundConfig}
+                assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
+                visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
+                onSave={async (config,expected,source)=>{
+                  const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
+                  const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
+                  if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
+                  const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
+                  setShows(result.shows);
+                  const failure = result.error ?? await commitDurableWrites();
+                  if (failure) throw new Error(failure);
+                }}
+              />
+            }
+          />
         )}
 
         {/* A cue over the PLAYOUT SERVER'S OWN LIBRARY: its editor (home/ServerCueEditor). */}
@@ -5525,7 +5156,7 @@ function ProductionShell({
   // The verb keys (docs/PLAYOUT_DASHBOARD.md §2) come from the SHARED keymap, so the hosted
   // control page cannot drift away from this one again — see components/playoutKeys.ts.
   //
-  // ONLY WHILE PLAYOUT IS THE SURFACE ON SCREEN. This shell renders on Data and Audience too,
+  // ONLY WHILE PLAYOUT IS THE SURFACE ON SCREEN. This shell renders on Data and Messages too,
   // with the playout column hidden behind them, so bound-while-mounted meant SPACE ran Take
   // from a screen showing neither monitor. The hosted page has no workspaces and passes nothing.
   const shortcuts = useCueShortcutSet(show.cues ?? NO_CUES);
@@ -5616,7 +5247,8 @@ function ProductionShell({
             2026-08-21: "the buttons that we have and the side pages we have feel a bit
             dangerous to swap between. I think the playout should always be open." Data and
             Audience are AUTHORING surfaces, and authoring while the thing you are steering is
-            off-screen is how a live mistake happens.
+            off-screen is how a live mistake happens. (The Audience view is called Messages now;
+            its route stays `audience`.)
             This needed the durable store's CROSS-TAB INVALIDATION first (model/durableStore.ts):
             two tabs on one production used to overwrite each other, so shipping this before that
             would have made the losing path the default rather than an unlucky one.
@@ -5626,16 +5258,16 @@ function ProductionShell({
             returns IN THIS TAB, where the monitors already are.
 
             ONLY THE VIEWS THIS PRODUCTION USES (owner, 2026-10-03). A plain production has no
-            switcher at all, and Setup offers Data and Audience instead. The view you are standing
-            on is always listed, so nothing disappears under the operator. Audience carries the
-            count of submissions waiting in its inbox. */}
+            switcher at all; Setup always lists Data and Messages. The view you are standing
+            on is always listed, so nothing disappears under the operator. Messages carries the
+            count of messages waiting in its inbox. */}
         {tabs.length > 0 && (
           <nav className="pd-tabs" aria-label="Production workspaces">
             <button className={sub === null ? 'on' : undefined} onClick={onTab} data-testid="tab-playout">
               Playout
             </button>
             {tabs.map((tab) => {
-              const label = tab === 'data' ? 'Data' : 'Audience';
+              const label = tab === 'data' ? 'Data' : 'Messages';
               const count =
                 tab === 'audience' && views.waiting > 0 ? (
                   <span className="pd-tab-count" title={`${views.waiting} waiting in the inbox`} data-testid="tab-audience-count">
@@ -5709,8 +5341,6 @@ function ProductionShell({
           onPlayoutSettings={onPlayoutSettings}
           onLinks={onLinks}
           onExport={onExport}
-          offerData={!tabs.includes('data')}
-          offerAudience={!tabs.includes('audience')}
         />
         {panelDialog}
         <button

@@ -48,14 +48,18 @@ Commit and push owned work before checkpointing. Dirty/untracked source is refus
 so uncommitted work is never silently described as recoverable. The first checkpoint
 checks the source branch on the remote and verifies evidence bytes from the pinned
 commit. Recovery commits retain the source revision as a parent, preserving it even
-after its feature branch is deleted. Only `checkpoint.json` appears in their trees.
+after its feature branch is deleted. Their trees hold `checkpoint.json` and, since
+2026-10-20, a `vercel.json` that turns Vercel deployments off.
 The original adapter executable/arguments/cwd are omitted from the durable document;
 they remain local and are replaced explicitly at restoration. Generated commits use
 a fixed NoaCG Recovery author/committer identity without changing host Git settings.
 All effective fetch and push URLs, including separate or multiple push URLs and
 Git URL rewrites, must identify that same repository before any record is exported.
-The dedicated `refs/heads/noacg-recovery/<run-id>` ref is state storage, never a
-product landing branch; product changes still use `/check` → `/queue-merge`.
+The dedicated `claude/noacg-recovery/<run-id>` branch is state storage, never a product
+landing branch; product changes still use `/check` → `/queue-merge`. It was
+`refs/noacg-recovery/<run-id>` until 2026-10-20, when cloud sessions proved unable to push
+there (`continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`). Its checkpoint
+trees have no workflows and turn Vercel deployments off, so no preview or CI builds one.
 
 Registration, waits, checkpoints, terminal changes, pending delivery intents and
 receipts automatically publish for an opted-in run. Use the supervisor wrapper for

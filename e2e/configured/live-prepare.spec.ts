@@ -10,8 +10,10 @@
 // offline e2e/output-prepare.spec.ts; the words are scripts/prepare-live.test.mjs.
 // The command path ping (landing c, AC-12) is said on each output's line once the outputs settle.
 // covers: src/components/control/PrepareForLive.tsx, src/control/prepareLive.ts, src/output/prepare.ts, src/components/home/ProductionPage.tsx, src/components/home/PlayoutPanel.tsx, supabase/migrations/0072_command_ping.sql
+// covers: src/components/home/CueEditor.tsx
 // A graphic edited in the library counts as an unpublished change (docs/work-specs/studio-day-playout AC-5).
 // covers: src/components/home/usePublishDrift.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';

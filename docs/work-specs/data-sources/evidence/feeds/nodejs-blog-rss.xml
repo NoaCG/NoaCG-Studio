@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+    <channel>
+        <title>Node.js Blog</title>
+        <link>https://nodejs.org/en</link>
+        <description></description>
+        <lastBuildDate>Tue, 20 Oct 2026 21:03:34 GMT</lastBuildDate>
+        <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+        <generator>https://github.com/jpmonette/feed</generator>
+        <language>en</language>
+        <item>
+            <title><![CDATA[Node.js 24.22.0 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v24.22.0</link>
+            <guid isPermaLink="false">/blog/release/v24.22.0?1791991608742</guid>
+            <pubDate>Wed, 14 Oct 2026 15:26:48 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.12.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.12.0</link>
+            <guid isPermaLink="false">/blog/release/v26.12.0?1791991386239</guid>
+            <pubDate>Wed, 14 Oct 2026 15:23:06 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Wednesday, October 21, 2026 Security Releases]]></title>
+            <link>https://nodejs.org/en/blog/vulnerability/october-2026-security-releases</link>
+            <guid isPermaLink="false">/blog/vulnerability/october-2026-security-releases?1791946800000</guid>
+            <pubDate>Wed, 14 Oct 2026 03:00:00 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.11.1 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.11.1</link>
+            <guid isPermaLink="false">/blog/release/v26.11.1?1791417386441</guid>
+            <pubDate>Wed, 07 Oct 2026 23:56:26 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.11.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.11.0</link>
+            <guid isPermaLink="false">/blog/release/v26.11.0?1791384309757</guid>
+            <pubDate>Wed, 07 Oct 2026 14:45:09 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 22.23.3 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v22.23.3</link>
+            <guid isPermaLink="false">/blog/release/v22.23.3?1790187760940</guid>
+            <pubDate>Wed, 23 Sep 2026 18:22:40 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.10.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.10.0</link>
+            <guid isPermaLink="false">/blog/release/v26.10.0?1790067829095</guid>
+            <pubDate>Tue, 22 Sep 2026 09:03:49 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.9.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.9.0</link>
+            <guid isPermaLink="false">/blog/release/v26.9.0?1789582662027</guid>
+            <pubDate>Wed, 16 Sep 2026 18:17:42 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.8.2 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.8.2</link>
+            <guid isPermaLink="false">/blog/release/v26.8.2?1788970157773</guid>
+            <pubDate>Wed, 09 Sep 2026 16:09:17 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 24.21.0 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v24.21.0</link>
+            <guid isPermaLink="false">/blog/release/v24.21.0?1788954920945</guid>
+            <pubDate>Wed, 09 Sep 2026 11:55:20 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.8.1 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.8.1</link>
+            <guid isPermaLink="false">/blog/release/v26.8.1?1787782296332</guid>
+            <pubDate>Wed, 26 Aug 2026 22:11:36 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.8.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.8.0</link>
+            <guid isPermaLink="false">/blog/release/v26.8.0?1787754588258</guid>
+            <pubDate>Wed, 26 Aug 2026 14:29:48 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 24.20.0 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v24.20.0</link>
+            <guid isPermaLink="false">/blog/release/v24.20.0?1787754582505</guid>
+            <pubDate>Wed, 26 Aug 2026 14:29:42 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js Interactive 2026: A Recap]]></title>
+            <link>https://nodejs.org/en/blog/events/nodejs-interactive-2026</link>
+            <guid isPermaLink="false">/blog/events/nodejs-interactive-2026?1786665600000</guid>
+            <pubDate>Fri, 14 Aug 2026 00:00:00 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.7.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.7.0</link>
+            <guid isPermaLink="false">/blog/release/v26.7.0?1785947155911</guid>
+            <pubDate>Wed, 05 Aug 2026 16:25:55 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.6.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.6.0</link>
+            <guid isPermaLink="false">/blog/release/v26.6.0?1785765089084</guid>
+            <pubDate>Mon, 03 Aug 2026 13:51:29 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 24.19.0 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v24.19.0</link>
+            <guid isPermaLink="false">/blog/release/v24.19.0?1785764979301</guid>
+            <pubDate>Mon, 03 Aug 2026 13:49:39 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 24.18.1 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v24.18.1</link>
+            <guid isPermaLink="false">/blog/release/v24.18.1?1785341947684</guid>
+            <pubDate>Wed, 29 Jul 2026 16:19:07 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.5.1 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.5.1</link>
+            <guid isPermaLink="false">/blog/release/v26.5.1?1785333819312</guid>
+            <pubDate>Wed, 29 Jul 2026 14:03:39 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 22.23.2 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v22.23.2</link>
+            <guid isPermaLink="false">/blog/release/v22.23.2?1785333695511</guid>
+            <pubDate>Wed, 29 Jul 2026 14:01:35 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Wednesday, July 29, 2026 Security Releases]]></title>
+            <link>https://nodejs.org/en/blog/vulnerability/july-2026-security-releases</link>
+            <guid isPermaLink="false">/blog/vulnerability/july-2026-security-releases?1785283200000</guid>
+            <pubDate>Wed, 29 Jul 2026 00:00:00 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Check out the New Node.js API Documentation Preview]]></title>
+            <link>https://nodejs.org/en/blog/announcements/new-api-docs-beta</link>
+            <guid isPermaLink="false">/blog/announcements/new-api-docs-beta?1784919600000</guid>
+            <pubDate>Fri, 24 Jul 2026 19:00:00 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.5.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.5.0</link>
+            <guid isPermaLink="false">/blog/release/v26.5.0?1783512035116</guid>
+            <pubDate>Wed, 08 Jul 2026 12:00:35 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 26.4.0 (Current)]]></title>
+            <link>https://nodejs.org/en/blog/release/v26.4.0</link>
+            <guid isPermaLink="false">/blog/release/v26.4.0?1782344347849</guid>
+            <pubDate>Wed, 24 Jun 2026 23:39:07 GMT</pubDate>
+        </item>
+        <item>
+            <title><![CDATA[Node.js 24.18.0 (LTS)]]></title>
+            <link>https://nodejs.org/en/blog/release/v24.18.0</link>
+            <guid isPermaLink="false">/blog/release/v24.18.0?1782256361150</guid>
+            <pubDate>Tue, 23 Jun 2026 23:12:41 GMT</pubDate>
+        </item>
+    </channel>
+</rss>

@@ -48,9 +48,28 @@ export interface AudienceSubmission {
   status: AudienceStatus;
   /** Kept back for later — an operator's "maybe", which is not the same as approved. */
   shortlisted: boolean;
-  /** ISO, once it has actually been on air. What stops the same question being asked twice. */
+  /** ISO, once it has been prepared into a cue. What stops the same question being asked twice. */
   usedAt: string | null;
+  /** Provenance, shown small beside the message and NEVER put on a graphic: the platform's own id
+   *  for an imported item (what dedupes a re-import), a label such as "Pasted", and a private
+   *  note such as a phone number. All optional; a pasted message needs none of them. */
+  externalId?: string | null;
+  source?: string | null;
+  reference?: string | null;
 }
+
+/** One message an OPERATOR adds: pasted, or imported from a source. Body required, the rest
+ *  optional. Never a viewer's write - that is `submit`, behind the join slug. */
+export interface CandidateInput {
+  author?: string;
+  body: string;
+  externalId?: string | null;
+  source?: string | null;
+  reference?: string | null;
+}
+
+/** The most an operator adds in one call (migration 0095's `audience_operator_add` bound). */
+export const OPERATOR_ADD_MAX = 100;
 
 /** One opened poll or quiz question (Phase 6 uses these; Phase 5 only has to carry them). */
 export interface AudienceRound {
@@ -152,6 +171,10 @@ export interface AudienceBackend {
 
   // ── The operator's half (the control slug) ────────────────────────────────────────────────
   list(): Promise<AudienceSubmission[]>;
+  /** Add operator-supplied candidates (paste, an import). They arrive `new`, like any message,
+   *  and air only as a cue the operator prepares and Takes. At most OPERATOR_ADD_MAX per call;
+   *  an item whose `externalId` is already in the inbox is skipped. Returns the rows added. */
+  addCandidates(items: CandidateInput[]): Promise<AudienceSubmission[]>;
   /** Patch a submission. The allowlist is what makes the original immutable: `author` and
    *  `body` are NOT patchable, here or in any provider. */
   update(
@@ -205,6 +228,19 @@ export function broadcastValues(
 /** The hard caps, in one place so the local provider, a future server trigger and the join
  *  page's own counter cannot disagree. 500 for a question is the owner's ratified number. */
 export const AUDIENCE_LIMITS = { author: 40, body: 500, options: 8 } as const;
+
+/** The three provenance fields, trimmed and capped as 0095 stores them; empty is absent. */
+export function clampProvenance(item: Pick<CandidateInput, 'externalId' | 'source' | 'reference'>): {
+  externalId: string | null;
+  source: string | null;
+  reference: string | null;
+} {
+  const one = (v: string | null | undefined, max: number) => {
+    const t = (v ?? '').trim().slice(0, max);
+    return t ? t : null;
+  };
+  return { externalId: one(item.externalId, 200), source: one(item.source, 60), reference: one(item.reference, 200) };
+}
 
 /** Trim and truncate exactly as a server-side guard trigger would, so the local provider is a
  *  faithful stand-in rather than a more permissive one. */

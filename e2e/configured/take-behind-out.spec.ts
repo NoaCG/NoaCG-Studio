@@ -1,4 +1,5 @@
 // covers: src/control/{hostedControl,seqSend}.ts, src/components/home/ProductionPage.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // A TAKE PRESSED BEHIND AN OUT STANDS, AND ALL OUT CLEARS IT (issue #914).
 //

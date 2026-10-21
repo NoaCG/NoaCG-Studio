@@ -5,6 +5,7 @@
 // no backend, so the build config is swapped for one naming a host that exists only inside this
 // spec, and that host's RPCs are answered here.
 // covers: src/output/main.ts, src/backend/supabase.ts, src/control/hostedControl.ts
+// covers: src/control/liveCue.ts, src/control/cueItems.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 

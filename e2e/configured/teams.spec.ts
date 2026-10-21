@@ -14,7 +14,9 @@
 // - `src/app/router.ts` is CORE for the offline plan, and the offline pin fails outright if
 // that route stops resolving, so it is covered where it is cheap to cover.
 // covers: src/components/home/ProductionPage.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/components/home/sections/ProductionsSection.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';

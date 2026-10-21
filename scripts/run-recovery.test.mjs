@@ -10,6 +10,7 @@ import test from 'node:test';
 import { continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
+import { nextStep, recordStep } from './plan-run.mjs';
 
 // Defense in depth: every child git process is restricted to the temporary file remote.
 process.env.GIT_ALLOW_PROTOCOL = 'file';
@@ -50,8 +51,11 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
         evidence: [{ path: 'evidence.md', sha256: hash(readFileSync(path.join(source, 'evidence.md'))) }],
         native: { provider: 'codex', sessionId: 'native-owner', environmentId: 'original-environment', policySha256: hash('original policy') },
         repairOwners: [{ prNumber: 42, commentId: 123, sessionId: 'native-owner', headSha: revision }] } } };
+  // A fault-injection hook: `fault(args, call)` may throw instead of, or after, calling git.
+  let fault = null;
   const transport = (cwd, args, input) => {
-    const result = recoveryGit(cwd, args, input);
+    const call = () => recoveryGit(cwd, args, input);
+    const result = fault ? fault(args, call) : call();
     // The file-only transport stands in for this exact configured repository. Other
     // effective destinations remain unchanged, so forks/mirrors must still be rejected.
     return args[0] === 'remote' && args[1] === 'get-url'
@@ -73,7 +77,7 @@ function fixture(t, adapterArgs = ['-e', ''], prepareSource = () => {}) {
       adapter: { command: process.execPath, args: ['-e', ''], cwd: repository } };
     return { db: fresh, database, config, result: restoreRun(fresh, config, clock) };
   };
-  return { root, remote, source, manifest, db, now, restore, open, transport, bootstrap };
+  return { root, remote, source, manifest, db, now, restore, open, transport, bootstrap, inject: (hook) => { fault = hook; } };
 }
 
 function receipt(doc, now) {
@@ -85,7 +89,7 @@ function receipt(doc, now) {
 
 const HOUR = 3_600_000;
 const blockOf = (wave) => readProject(readFileSync(wave, 'utf8')).block;
-const ledgerAt = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`)).ledger;
+const ledgerAt = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/claude/noacg-recovery/${f.manifest.id}:checkpoint.json`)).ledger;
 
 /** A 72-hour project named as `continue` finds it; `open` starts a block on the original host,
  * `inFlight` also records a build there. */
@@ -130,8 +134,17 @@ test('a stopped coordinator\'s project continues in a new session after full fil
   assert.equal(continued.next.action, 'wait');
   const db = f.open(path.relative(f.root, continued.db));
   assert.throws(() => recordRun(db, f.manifest.id, 1, 'build', '{"actor":"second-builder"}', { now: f.now + 1000, authority: continued.block }), /already launched/);
-  recordRun(db, f.manifest.id, 1, 'landed', 'merged', { now: f.now + 1000, authority: continued.block });
-  assert.match(ledgerAt(f), /phase 1 build[\s\S]*phase 1 landed merged/);
+  recordRun(db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now + 1000, authority: continued.block });
+  assert.match(ledgerAt(f), /phase 1 build[\s\S]*phase 1 landed \{"mergeSha":"a{40}"\}/);
+});
+
+test('a cloud checkout whose remote spells the repository in another case still continues the project', (t) => {
+  // Claude cloud clones https://github.com/NoaCG/noacg-studio: GitHub names are case-insensitive.
+  const f = projectFixture(t);
+  const continued = continueProject(path.join(f.root, 'state-cloud'), { plan: 'fixture', owner: 'cloud', ...f.manifest.recovery,
+    repositoryFullName: f.manifest.recovery.repositoryFullName.toLowerCase(), repository: f.bootstrap() }, { now: f.now + 1000, recoveryGit: f.transport });
+  assert.equal(continued.verdict, 'continued');
+  assert.equal(remoteLedger(f).doc.manifest.recovery.repositoryFullName, f.manifest.recovery.repositoryFullName);
 });
 
 test('the older coordinator is superseded: its record, next and tick are refused and launch nothing', async (t) => {
@@ -160,6 +173,18 @@ test('continue answers open when the plan has no active project; cancelled and e
   assert.equal(projectFixture(t, { id: 'plan-fixture-v2-2030-01-01' }).continueAs('session-d').verdict, 'open');
 });
 
+test('a network failure after the restore claimed the project says to run continue again, which then succeeds', (t) => {
+  const f = projectFixture(t), ref = `refs/heads/claude/noacg-recovery/${f.manifest.id}`;
+  let failNext = true;
+  const flaky = (cwd, args, input) => {
+    if (failNext && args[0] === 'ls-remote' && args[2] === ref) { failNext = false; throw new Error('Could not resolve host: github.com'); }
+    return f.transport(cwd, args, input);
+  };
+  assert.throws(() => continueProject(path.join(f.root, 'state-flaky'), { plan: 'fixture', owner: 'session-b', ...f.manifest.recovery, repository: f.bootstrap() },
+    { now: f.now + 1000, recoveryGit: flaky }), /Could not resolve host[\s\S]*run continue again/);
+  assert.equal(f.continueAs('session-b').verdict, 'continued');
+});
+
 test('a continued project with a recorded wait is owned by the new session, which resolves it and opens its block', (t) => {
   const f = projectFixture(t);
   updateRun(f.db, f.manifest.id, 'wait', { kind: 'owner', reason: 'owner decides the next phase', until: null }, f.now);
@@ -171,6 +196,108 @@ test('a continued project with a recorded wait is owned by the new session, whic
   updateRun(db, f.manifest.id, 'clear-wait', 'owner answered in session B', at);
   updateRun(db, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(at + HOUR).toISOString(), evidence: 'wait resolved' }, at);
   recordRun(db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: at, authority: blockOf(blocked.wave) });
+});
+
+const pushes = (args) => args[0] === 'push';
+const remoteLedger = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/claude/noacg-recovery/${f.manifest.id}:checkpoint.json`));
+
+test('a refused checkpoint publication leaves the ledger and the store as they were, so a retry works', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave), before = readFileSync(f.manifest.wave, 'utf8');
+  f.inject((args, call) => { if (pushes(args)) throw new Error('remote: rejected'); return call(); });
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /publication unresolved; retry before acting \(git: remote: rejected\)/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), before);
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /publication unresolved/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), before);
+  f.inject(null);
+  // Neither the ledger nor the project state disagrees with the store: the same step is admitted.
+  assert.equal(nextStep(readFileSync(f.manifest.wave, 'utf8'), f.now).action, 'launch');
+  recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block });
+  updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now);
+  assert.equal(remoteLedger(f).ledger.match(/phase 1 build/g).length, 1);
+  assert.equal(readProject(remoteLedger(f).ledger, f.now).status, 'paused');
+});
+
+test('a push accepted after the network failed is adopted as this store\'s own transition, never as superseded', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave);
+  // The push lands, then the network goes: neither the push result nor a read-back arrives.
+  let down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /Could not resolve host/);
+  assert.doesNotMatch(readFileSync(f.manifest.wave, 'utf8'), /phase 1 build/);
+  assert.match(remoteLedger(f).ledger, /phase 1 build/);
+  f.inject(null);
+  // The next operation adopts it: the build is recorded once and waited on, not launched again.
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder-2"}', { now: f.now, authority: block }), /already launched/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), remoteLedger(f).ledger);
+  recordRun(f.db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now, authority: block });
+  // The same for a project update: an accepted pause is adopted with its project state.
+  down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /Could not resolve host/);
+  f.inject(null);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /refuses work: paused/);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), remoteLedger(f).ledger);
+  // Another session's continuation is still superseding.
+  assert.equal(f.continueAs('session-b').verdict, 'continued');
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /superseded/);
+});
+
+test('adopting an accepted record merges in what the coordinator wrote to the wave file since', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave);
+  let down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /Could not resolve host/);
+  f.inject(null);
+  // The procedure writes these directly, outside recordRun.
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}Wake: fixture host, next check-in 12:00\n\n## Midpoint retro\n\n- fine so far\n`);
+  recordRun(f.db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now, authority: block });
+  const ledger = readFileSync(f.manifest.wave, 'utf8');
+  for (const kept of [/phase 1 build \{"actor":"builder"\}/, /^Wake: fixture host/m, /^## Midpoint retro$/m, /phase 1 landed/]) assert.match(ledger, kept);
+  assert.equal(remoteLedger(f).ledger, ledger);
+  // An accepted pause rewrites the Project line while a note is added at the end: both stay.
+  down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /Could not resolve host/);
+  f.inject(null);
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}- paused for the night\n`);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /refuses work: paused/);
+  assert.equal(readProject(readFileSync(f.manifest.wave, 'utf8'), f.now).status, 'paused');
+  assert.match(readFileSync(f.manifest.wave, 'utf8'), /- paused for the night\n$/);
+});
+
+test('adopting an accepted checkpoint keeps a line recorded locally since, and a failed update undoes only its own write', (t) => {
+  // A short wave (no project): the coordinator records with plain plan-run, outside the supervisor.
+  const f = fixture(t);
+  let down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'wait', { kind: 'transient', reason: 'runner capacity', until: new Date(f.now + HOUR).toISOString() }, f.now), /Could not resolve host[\s\S]*the push said \(git: Connection reset\)/);
+  f.inject(null);
+  assert.equal(recordStep(f.manifest.wave, 1, 'build', 'worker-1', f.now).refusal, undefined);
+  const local = readFileSync(f.manifest.wave, 'utf8');
+  updateRun(f.db, f.manifest.id, 'clear-wait', 'capacity is back', f.now);
+  assert.equal(readFileSync(f.manifest.wave, 'utf8'), local);
+  assert.equal(docFor(f.db).waitResolution, 'capacity is back');
+  assert.match(remoteLedger(f).ledger, /phase 1 build worker-1/);
 });
 
 test('whole source/store/ledger loss restores pinned code, hashes, waits and unresolved exact request without replay', async (t) => {
@@ -345,9 +472,16 @@ test('a durable phase update invalidates an already inspecting local tick before
 
 test('durable checkpoints omit adapter configuration while preserving local credentials', (t) => {
   const sentinel = 'private-adapter-argument-sentinel', f = fixture(t, ['--access-token', sentinel]);
-  const raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  const raw = git(f.remote, 'show', `refs/heads/claude/noacg-recovery/${f.manifest.id}:checkpoint.json`);
   assert.ok(!raw.includes(sentinel)); assert.equal(JSON.parse(raw).doc.manifest.adapter, undefined);
   assert.deepEqual(docFor(f.db).manifest.adapter.args, ['--access-token', sentinel]);
+  // Checkpoints live on a claude/ branch, the namespace a cloud session can push, and each
+  // checkpoint tree turns Vercel deployments off, so no preview is built or fails for it.
+  const branch = `refs/heads/claude/noacg-recovery/${f.manifest.id}`;
+  assert.match(git(f.remote, 'rev-parse', branch), /^[a-f0-9]{40}$/);
+  assert.equal(git(f.remote, 'ls-tree', '--name-only', branch), 'checkpoint.json\nvercel.json');
+  assert.deepEqual(JSON.parse(git(f.remote, 'show', `${branch}:vercel.json`)), { git: { deploymentEnabled: false } });
+  assert.equal(git(f.remote, 'for-each-ref', '--format=%(refname)', 'refs/noacg-recovery/'), '');
 });
 
 test('recovery commits have a machine identity even when the host has none', (t) => {
@@ -357,7 +491,7 @@ test('recovery commits have a machine identity even when the host has none', (t)
   const f = fixture(t);
   git(f.source, 'config', '--unset', 'user.name'); git(f.source, 'config', '--unset', 'user.email');
   updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'persist without host identity', until: null });
-  const identity = git(f.remote, 'show', '-s', '--format=%an <%ae> / %cn <%ce>', `refs/heads/noacg-recovery/${f.manifest.id}`);
+  const identity = git(f.remote, 'show', '-s', '--format=%an <%ae> / %cn <%ce>', `refs/heads/claude/noacg-recovery/${f.manifest.id}`);
   assert.equal(identity, 'NoaCG Recovery <noacg-recovery@users.noreply.github.com> / NoaCG Recovery <noacg-recovery@users.noreply.github.com>');
 });
 
@@ -372,12 +506,12 @@ test('separate and multiple effective push destinations are rejected before any 
       if (multiple) git(source, 'config', '--add', 'remote.origin.pushurl', remoteUrl);
       git(source, 'config', '--add', 'remote.origin.pushurl', forkUrl);
     }), /effective.*destination/);
-    assert.equal(git(fork, 'for-each-ref', '--format=%(refname)', 'refs/heads/noacg-recovery/'), '');
+    assert.equal(git(fork, 'for-each-ref', '--format=%(refname)', 'refs/heads/claude/noacg-recovery/'), '');
   }
 });
 
 test('a missing replacement adapter cannot create files or claim a new remote generation', (t) => {
-  const f = fixture(t), ref = `refs/heads/noacg-recovery/${f.manifest.id}`;
+  const f = fixture(t), ref = `refs/heads/claude/noacg-recovery/${f.manifest.id}`;
   const before = git(f.remote, 'rev-parse', ref);
   for (const field of ['command', 'cwd']) {
     const db = f.open(`invalid-${field}.sqlite`), worktree = path.join(f.root, `invalid-${field}`);
@@ -421,7 +555,7 @@ test('automatic adapter observations cannot export auxiliary token or raw-respon
   await tickRun(f.db, f.manifest.id, { invoke: async (_, r) => r.operation === 'inspect' ? { state: 'gone' }
     : { state: 'delivered', workerId: 'owned-worker', token: sentinel, rawProviderResponse: { secret: sentinel } } });
   assert.deepEqual(docFor(f.db).pending.receipt, { state: 'delivered', workerId: 'owned-worker' });
-  let raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  let raw = git(f.remote, 'show', `refs/heads/claude/noacg-recovery/${f.manifest.id}:checkpoint.json`);
   assert.ok(!raw.includes(sentinel));
   const legacy = docFor(f.db);
   legacy.pending.packet.restoredGithub = [{ ...receipt({ ...legacy, restoration: { checkpoint: 'test' } }, f.now).github[0], token: sentinel }];
@@ -432,7 +566,7 @@ test('automatic adapter observations cannot export auxiliary token or raw-respon
   proof.github[0].rawProviderResponse = { token: sentinel };
   proof.native = { ...proof.native, state: 'waiting', wait: { kind: 'permission', reason: 'same approval', until: null, token: sentinel } };
   assert.equal((await tickRun(restored.db, f.manifest.id, { now: () => f.now, invoke: async () => proof })).verdict, 'waiting');
-  raw = git(f.remote, 'show', `refs/heads/noacg-recovery/${f.manifest.id}:checkpoint.json`);
+  raw = git(f.remote, 'show', `refs/heads/claude/noacg-recovery/${f.manifest.id}:checkpoint.json`);
   assert.ok(!raw.includes(sentinel));
   const g = fixture(t);
   await tickRun(g.db, g.manifest.id, { invoke: async () => ({ state: 'waiting',
@@ -441,7 +575,7 @@ test('automatic adapter observations cannot export auxiliary token or raw-respon
   await tickRun(g.db, g.manifest.id, { now: () => g.now, invoke: async (_, r) => r.operation === 'inspect' ? { state: 'gone' } : { state: 'unknown' } });
   await tickRun(g.db, g.manifest.id, { now: () => g.now + 61_000, invoke: async (_, r) => r.operation === 'reconcile'
     ? { state: 'delivered', workerId: 'second-worker', rawProviderResponse: { token: sentinel } } : { state: 'running', workerId: 'second-worker' } });
-  const ref = `refs/heads/noacg-recovery/${g.manifest.id}`;
+  const ref = `refs/heads/claude/noacg-recovery/${g.manifest.id}`;
   for (const commit of git(g.remote, 'log', '--format=%H', ref, '--', 'checkpoint.json').split('\n')) {
     assert.ok(!git(g.remote, 'show', `${commit}:checkpoint.json`).includes(sentinel));
   }

@@ -1,13 +1,15 @@
 // covers: src/components/home/{ProductionSetupMenu.tsx,useAudienceInbox.ts}
 // covers: src/components/home/ProductionPage.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 //
 // THE PRODUCTION HEADER, DECLUTTERED (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03: "the
 // playout page is getting crowded"). What is pressed live stays in the header; the doors opened
-// before a show are one Setup menu left of ■ All out; and the Data and Audience views are in the
-// switcher only while the production uses them, so a plain production shows Playout alone. A
-// view the operator is standing on never leaves the switcher, and Audience counts what waits in
-// its inbox. Offline, so Share is absent (e2e/auth.spec.ts pins that) and the audience is the
-// rehearsal one, whose inbox lives in the Audience tab itself.
+// before a show are one Setup menu left of ■ All out, which always lists Data and Messages
+// (data-sources C0: the door never moves); and the two views are in the switcher only while the
+// production uses them, so a plain production shows Playout alone. A view the operator is
+// standing on never leaves the switcher, and Messages (the Audience view, renamed; its route is
+// still `audience`) counts what waits in its inbox. Offline, so Share is absent
+// (e2e/auth.spec.ts pins that) and the inbox is the local one.
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
@@ -26,7 +28,7 @@ test('a plain production shows Playout alone, and Setup holds every other door o
   await expect(page.getByTestId('export-production')).toHaveCount(0);
   await expect(page.getByTestId('panel-open')).toHaveCount(0);
 
-  // Setup, in its order: the panel, Playout settings, Export, then the two views it does not use.
+  // Setup, in its order: the panel, Playout settings, Export, then the two views, always.
   const setup = page.getByTestId('production-setup');
   await setup.click();
   const menu = page.getByTestId('production-setup-menu');
@@ -35,8 +37,8 @@ test('a plain production shows Playout alone, and Setup holds every other door o
     /Stream Deck panel…\s*Off/,
     /Playout settings…/,
     /Export…/,
-    'Add data source…',
-    'Turn on audience…',
+    'Data…',
+    'Messages…',
   ]);
 
   // Each door works from there, and choosing one closes the menu.
@@ -59,7 +61,7 @@ test('a plain production shows Playout alone, and Setup holds every other door o
   await expect(menu).toHaveCount(0);
 });
 
-test('Add data source opens Data in its own tab, and once the production has a table Data joins the switcher', async ({ page }) => {
+test('Data… opens Data in its own tab, and once the production has a table Data joins the switcher', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Data Show');
 
@@ -74,22 +76,22 @@ test('Add data source opens Data in its own tab, and once the production has a t
   await expect(page.getByTestId('tab-data')).toHaveCount(0);
 
   // A table makes it a production that uses Data: the Playout tab's switcher shows it now, and
-  // Setup stops offering it.
+  // Setup still lists both views, so neither door moves.
   await data.getByTestId('add-dataset').click();
   await settleDurableWrites(data);
   await expect(page.getByTestId('tab-data')).toBeVisible();
   await expect(page.getByTestId('tab-playout')).toHaveClass(/\bon\b/);
   await page.getByTestId('production-setup').click();
-  await expect(page.getByTestId('setup-data')).toHaveCount(0);
-  await expect(page.getByTestId('setup-audience')).toBeVisible();
+  await expect(page.getByTestId('setup-data')).toHaveText('Data…');
+  await expect(page.getByTestId('setup-audience')).toHaveText('Messages…');
 });
 
-test('a production with an audience graphic lists Audience, which counts the submissions waiting', async ({ page }) => {
+test('a production with an audience graphic lists Messages, which counts the messages waiting', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await openProductionWithCurrent(page, 'Phone In');
 
-  // An audience card in the pool: Audience is in the switcher from the start, Data is not.
-  await expect(page.getByTestId('tab-audience')).toBeVisible();
+  // An audience card in the pool: Messages is in the switcher from the start, Data is not.
+  await expect(page.getByTestId('tab-audience')).toHaveText('Messages');
   await expect(page.getByTestId('tab-data')).toHaveCount(0);
   await expect(page.getByTestId('tab-audience-count')).toHaveCount(0);
 
@@ -97,10 +99,11 @@ test('a production with an audience graphic lists Audience, which counts the sub
   await expect(audience.getByTestId('production-audience')).toBeVisible();
   await expect(audience.getByTestId('tab-audience-count')).toHaveCount(0);
 
-  // Three arrive: "Audience 3". Approving one leaves two waiting.
+  // Three arrive: "Messages 3". Approving one leaves two waiting.
   await audience.getByTestId('audience-simulate').click();
-  await expect(audience.getByTestId('tab-audience')).toHaveText('Audience3');
+  await expect(audience.getByTestId('tab-audience')).toHaveText('Messages3');
   await expect(audience.getByTestId('tab-audience-count')).toHaveText('3');
-  await audience.locator('.pd-aud-row').first().getByTestId('audience-approve').click();
+  await audience.locator('.pd-aud-row').first().getByTestId('audience-more').click();
+  await audience.getByTestId('audience-approve').click();
   await expect(audience.getByTestId('tab-audience-count')).toHaveText('2');
 });

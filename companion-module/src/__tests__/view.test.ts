@@ -88,8 +88,9 @@ test('reading a state ignores unknown fields and fills safe defaults', () => {
 	assert.equal(readState({ page: 'p' }), null)
 })
 
-test('presets: the transport, the clock, and a Take and a Select key per row, all wired to real ids', () => {
-	const { structure, presets } = buildPresets('noacg', rows().rows)
+test('presets: the transport, the clock, a Take and a Select key per row and a Trigger key per cue, all wired to real ids', () => {
+	const folder = { id: 'fold_1', label: 'Part two', kind: 'folder' as const, source: null }
+	const { structure, presets } = buildPresets('noacg', [...rows().rows, folder])
 	for (const id of [
 		'take',
 		'retake',
@@ -103,10 +104,12 @@ test('presets: the transport, the clock, and a Take and a Select key per row, al
 		'status',
 		'take_cue_a',
 		'select_cue_vt',
+		'trigger_cue_b',
+		'take_fold_1',
 	]) {
 		assert.ok(presets[id], `preset ${id}`)
 	}
-	const actionIds = new Set<string>([...Object.keys(ACTION_VERBS), 'select_cue', 'take_cue'])
+	const actionIds = new Set<string>([...Object.keys(ACTION_VERBS), 'select_cue', 'take_cue', 'trigger_cue'])
 	const feedbackIds = new Set([
 		'on_air',
 		'selected',
@@ -129,6 +132,9 @@ test('presets: the transport, the clock, and a Take and a Select key per row, al
 		)
 	}
 	assert.deepEqual(presets['take_cue_b']!.steps[0].down[0], { actionId: 'take_cue', options: { row: 'cue_b' } })
+	// Trigger acts on the cue's own row id, never on the selection; a folder has nothing to trigger.
+	assert.deepEqual(presets['trigger_cue_b']!.steps[0].down[0], { actionId: 'trigger_cue', options: { row: 'cue_b' } })
+	assert.equal(presets['trigger_fold_1'], undefined)
 	const referenced = structure.flatMap((s) =>
 		s.definitions.flatMap((d) => (typeof d === 'string' ? [d] : 'presets' in d ? d.presets : [])),
 	)

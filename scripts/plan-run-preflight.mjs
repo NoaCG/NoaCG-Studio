@@ -78,7 +78,8 @@ export function preflight({ context, until, wave, cwd = ROOT, now,
     return block('invalid window: require a started window of at most 24 hours');
   }
   if (project && projectBoundary(project, started)) return block(`project refuses work: ${projectBoundary(project, started).action}`);
-  if (text && !['launch', 'wait', 'retro'].includes(nextStep(text, started).action)) {
+  // A diagnosis is a launch too: a coordinator resumed at one must still qualify to run it.
+  if (text && !['launch', 'wait', 'retro', 'diagnose'].includes(nextStep(text, started).action)) {
     return block('ledger refuses work: reconcile its next step before launching');
   }
   let child;

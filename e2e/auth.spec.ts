@@ -15,6 +15,7 @@
 // The save dialog also names WHERE a graphic goes when a backend is configured, and the
 // offline pin that it names no account at all is in auth.spec.ts.
 // covers: src/components/save/SaveDialogs.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { test, expect } from '@playwright/test';
 import { FAKE_JOIN_ROUTE, TEAM } from './_teams';

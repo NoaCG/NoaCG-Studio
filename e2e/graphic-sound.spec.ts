@@ -2,6 +2,7 @@
 // covers: src/preview/{composeDocument.ts,previewProtocol.ts}, src/output/{stage.ts,main.ts}
 // covers: src/export/targets/{ograf.ts,htmlOverlay.ts}, src/validation/{validateTemplate.ts,templateBench.ts}
 // covers: src/control/{localReceiver.ts,receiverScript.ts,hostedReceiver.ts,hostedControl.ts,controlModel.ts,productionControllerHtml.ts,realtimeControl.ts,logFollow.ts}
+// covers: src/control/liveCue.ts, src/control/cueItems.ts
 // focus
 
 import { test, expect } from '@playwright/test';

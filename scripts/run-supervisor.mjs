@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { activeProject, assertCurrent, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
@@ -60,10 +60,20 @@ export function openStore(file, { recoveryGit } = {}) {
   return db;
 }
 
-function transaction(db, fn) {
-  db.exec('BEGIN IMMEDIATE');
-  try { const result = fn(); db.exec('COMMIT'); return result; }
-  catch (error) { db.exec('ROLLBACK'); throw error; }
+
+/** A transition whose checkpoint publication fails leaves the ledger as SQLite leaves its row:
+ * unchanged. The file is read under the write lock, so no other admission is undone. A push the
+ * remote accepted anyway is adopted by the next operation (adoptAccepted). */
+function ledgerTransaction(db, wave, fn) {
+  return transaction(db, () => {
+    const before = readFileSync(wave, 'utf8');
+    let written = null;
+    try { return fn(() => { written = readFileSync(wave, 'utf8'); }); } catch (error) {
+      // Only this transition's own write is undone; a line another writer added since stays.
+      if (written !== null && readFileSync(wave, 'utf8') === written) writeFileSync(wave, before);
+      throw error;
+    }
+  });
 }
 
 function rowFor(db, id) {
@@ -95,7 +105,7 @@ export function registerRun(db, manifest, now = Date.now()) {
   if (project && (manifest.kind !== 'plan' || project.id !== manifest.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Manifest differs from original project authorization');
   if (windowStart(text) !== start || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== end) throw new Error('Wave window differs from authorization');
   if (REPORT_HEADING.test(text)) throw new Error('Wave already reported');
-  return transaction(db, () => {
+  return ledgerTransaction(db, normalized.wave, (wrote) => {
     if (project) {
       const store = canonical(db.prepare('PRAGMA database_list').all().find((row) => row.name === 'main').file);
       const locked = withLedgerLock(normalized.wave, () => {
@@ -104,6 +114,7 @@ export function registerRun(db, manifest, now = Date.now()) {
         if (readFileSync(normalized.wave, 'utf8') !== text) throw Error('Project changed during registration; reconcile');
         project.authorityStore = store;
         writeFileSync(normalized.wave, writeProject(text, project));
+        wrote();
         return {};
       });
       if (locked.refusal) throw Error(locked.refusal);
@@ -123,7 +134,8 @@ export function registerRun(db, manifest, now = Date.now()) {
 
 /** Explicit operator/coordinator updates fence any in-flight tick; they never renew authorization. */
 export function updateRun(db, id, operation, value, now = Date.now()) {
-  return transaction(db, () => {
+  adoptAccepted(db, id);
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
     const { doc } = rowFor(db, id);
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
     assertCurrent(db, id, doc); // A superseded coordinator changes nothing, not even its own ledger.
@@ -147,6 +159,7 @@ export function updateRun(db, id, operation, value, now = Date.now()) {
         if (readFileSync(doc.manifest.wave, 'utf8') !== text) throw Error('Ledger changed; reconcile before updating project');
         const changed = changeProject(doc, project, text, operation, value, now);
         writeFileSync(doc.manifest.wave, changed);
+        wrote();
         return {};
       });
       if (locked.refusal) throw Error(locked.refusal);
@@ -159,7 +172,8 @@ export function updateRun(db, id, operation, value, now = Date.now()) {
 
 /** One supported phase admission path; SQLite plus the ledger lock serialize local callers. */
 export function recordRun(db, id, phase, event, detail = '', { now = Date.now(), authority } = {}) {
-  return transaction(db, () => {
+  adoptAccepted(db, id);
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
     const row = rowFor(db, id), { doc } = row;
     if (doc.status !== 'active') throw Error('Terminal run cannot record another phase');
     // A superseded coordinator is refused here, before it writes the ledger or launches anything.
@@ -172,6 +186,7 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
     }
     const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
     if (result.refusal) throw Error(result.refusal);
+    wrote();
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
     publishRun(db, id);
     return result;
@@ -230,6 +245,7 @@ export function callAdapter(adapter, request) {
 }
 
 export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } = {}) {
+  try { adoptAccepted(db, id); } catch (error) { return { verdict: 'unknown', why: error.message, run: id, actionId: null }; }
   const claim = acquire(db, id, now());
   if (!claim) return { verdict: 'leased' };
   const { doc } = claim, { manifest } = doc;
@@ -388,9 +404,10 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
  * plan has no active project yet. */
 export function continueProject(root, { plan, owner, ...recovery }, { now = Date.now(), recoveryGit: transport } = {}) {
   if (!required(owner)) throw new Error('Continue needs an owner label for the new block');
-  const dir = path.join(path.resolve(root), `${new Date(now).toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
+  // Short names: the worktree holds the whole repository, and Windows paths stop at 260 characters.
+  const dir = path.join(path.resolve(root), randomUUID().slice(0, 8));
   mkdirSync(dir, { recursive: true });
-  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'worktree');
+  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'src');
   let db = openStore(dbFile, { recoveryGit: transport });
   try {
     const id = activeProject(db, recovery, plan, now);
@@ -408,7 +425,11 @@ export function continueProject(root, { plan, owner, ...recovery }, { now = Date
     try {
       updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
     } catch (error) {
-      // This store already owns the project (the restore claimed it); resolve, then start-block.
+      // A recorded wait or uncertain action: this store owns the project (the restore claimed
+      // it), so it resolves that and then starts its block. Any other failure, such as a lost
+      // network after GitHub accepted the block, is answered by running continue again.
+      const { doc } = rowFor(db, id);
+      if (!doc.wait && !doc.pending) throw new Error(`${error.message}; run continue again`, { cause: error });
       return { verdict: 'blocked', why: error.message, ...where, next: nextStep(readFileSync(wave, 'utf8'), now) };
     }
     const text = readFileSync(wave, 'utf8');
@@ -438,6 +459,7 @@ export async function main(args = process.argv.slice(2), options = {}) {
     let output;
     if (command === 'register') output = registerRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'next') {
+      adoptAccepted(db, id);
       const { doc } = rowFor(db, id);
       assertCurrent(db, id, doc);
       output = nextStep(readFileSync(doc.manifest.wave, 'utf8'));
@@ -447,7 +469,7 @@ export async function main(args = process.argv.slice(2), options = {}) {
       const config = JSON.parse(readFileSync(id, 'utf8'));
       if (!db.prepare('SELECT id FROM runs').get()) restoreRun(db, config);
       const { doc } = rowFor(db, config.id);
-      if (doc.manifest.recovery?.repositoryFullName !== config.repositoryFullName) throw new Error('Resume repository differs');
+      if (!sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Resume repository differs');
       output = await tickRun(db, config.id);
     }
     else if (command === 'record') {

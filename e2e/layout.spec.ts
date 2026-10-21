@@ -1,4 +1,5 @@
 // covers: src/components/home/**, src/components/wizard/**, !src/components/wizard/import/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 //
 // focus
 

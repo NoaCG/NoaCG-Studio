@@ -63,8 +63,9 @@ Take/Update/edit with a reason and keeps the record byte for byte (precedent `re
 enforced at both write doors in `src/model/shows.ts`). Only E7.2a, a later deploy, lands the
 writer that creates selection records, so every page loaded after E7.1 already refuses rather
 than flattens. Outputs receive resolved values only; if the builder finds the output payload
-carries selector metadata, the output reader follows the same gate under the CasparCG 2.3
-Chromium 71 rule of `src/control/payloadVersion.ts`.
+carries selector metadata, the output reader follows the same gate; that code reaches outputs through Vite's `es2017` build target (`vite.config.ts`), which CasparCG 2.3's
+Chromium 71 can parse, with runtime APIs shimmed in `output.html`; its test checks the built
+output bundle, and a reader module shared with Node uses no DOM.
 Exported rehearsal packs contain resolved defaults, schema/recipe, selector metadata and assets,
 never credentials. Offline installation operates in explicitly labelled replay/manual mode.
 

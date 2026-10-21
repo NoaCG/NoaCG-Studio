@@ -14,7 +14,7 @@ import { expect, type Page } from '@playwright/test';
 
 // THE DOOR DEPENDS ON THE PRODUCTION (docs/PLAYOUT_DASHBOARD.md §2, 2026-10-03): the header's
 // switcher lists a view only once the production uses it, and until then the Setup menu offers
-// it ("Add data source…", "Turn on audience…"). Both are the same link to the same route, so a
+// it ("Data…", "Messages…", listed always since data-sources C0). Both are the same link to the same route, so a
 // spec reaches the view through whichever door its production shows; e2e/production-views.spec.ts
 // pins which door shows when.
 

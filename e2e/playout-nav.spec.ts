@@ -15,6 +15,7 @@
 // pair beside them.
 // covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
 // covers: src/components/home/{PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';

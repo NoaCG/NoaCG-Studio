@@ -120,13 +120,20 @@ const ACCEPTED_CLASSES = {
     'community_pack_shelf and community_pack_file (0079, community packs) are a different door with ' +
     'the same reason to be anon-callable: approved packs are on the wizard shelf for everyone, signed ' +
     'in or not (owner, 2026-10-08). Signed out, both answer only packs in state live; the table ' +
-    'itself grants clients nothing.',
+    'itself grants clients nothing. ' +
+    'audience_operator_add (0095, operator-added messages, docs/work-specs/data-sources/ C0) is ' +
+    'the same control-slug door as audience_list and audience_update: it resolves the slug through ' +
+    'audience_owner_for_control, so the capability and the audience kill switch are checked as for ' +
+    'every operator function, and it only inserts candidates into that production\'s ' +
+    'audience_submissions, at most 100 a call, each clamped to the 0035 limits. It writes no command ' +
+    'log and no production value; a candidate airs only as a cue the operator prepares and takes.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
     '0080, 0086) are the only door to community_packs and community_pack_reports: each checks ' +
     'auth.uid() or is_moderator() inside. ' +
-    'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller.',
+    'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller. ' +
+    'audience_operator_add (0095) is the anon control-slug door above, reached by a signed-in operator.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +

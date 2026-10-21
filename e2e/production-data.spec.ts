@@ -5,6 +5,7 @@
 // path (the hosted page's rows), so the production-data specs that drive the gesture have to run
 // alongside the control ones the covers line beside it selects.
 // covers: src/control/cueData.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';

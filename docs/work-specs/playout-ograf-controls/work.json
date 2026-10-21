@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "5839863362d6ee1a4efefc07b13c105233dc9e49de68196b4ef9915d8e462de4",
+  "specSha256": "a973ef94390ffcd1a59dd97d85e04309c7a43dba5813982935c52d4b173f68bb",
   "authority": {
     "status": "agreed",
     "source": "Owner, 2026-10-19: \"Yes, please turn the selected extensions into precise executable specs and reconcile the complete plan with current main.\" Adopts H0 and E1\u2013E8 from the reconciled full-run proposal for the production-page programme. Authorizes planning/documentation and main reconciliation, not feature implementation, opening a run, deployment or claiming acceptance. Execution requires the separate parent start instruction and finite project authorization. 2026-10-20, owner: \"Update the production-page plan so the run never stops for an owner check that agents can do themselves. Planning only: no product code (a runner change, if needed, goes in its own verified PR).\" Decisions A-H, review fixes 1-12 and additions 13-16 of the same day are recorded in production-page-refactor/evidence/owner-decisions-2026-10-20.md. This authorizes the plan update only: no implementation, run opening or completed acceptance."

@@ -1,5 +1,7 @@
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutItemPicker,LibMenu}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/styles/playout-dashboard.css
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // focus
 
 import { test, expect, type Page } from '@playwright/test';

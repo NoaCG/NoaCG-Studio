@@ -4,29 +4,52 @@ Run a [NoaCG Studio](https://noacg.studio) production from a Stream Deck or any 
 
 Each press is run by the NoaCG operator page that answers the panel, exactly as if the operator pressed the key there. So a key does only what the page would allow, and the page shows every press.
 
+### Install
+
+Companion 4.3 or later (the steps below use Companion 5.1's words). If **NoaCG: NoaCG Studio** is not in Companion's list of connections yet, install the module file you were given (`noacg-studio-<version>.tgz`): open **Modules**, press **Import module package** and choose the file. To go back to an earlier version, import that version's file the same way. A new Companion first shows its own welcome and What's New windows; finish or close them.
+
 ### Set it up
 
-1. On the NoaCG production page (or the hosted control page), open **Panels** and press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
-2. In Companion, add a **NoaCG Studio** connection. Type the code into **Pairing code**, give the panel a name, and save. The code field clears and the panel appears in the page's list.
-3. On the operator page, switch on **Answer the panel on this page**.
-4. Drag ready keys from the **Presets** tab: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), and **Cues** (one key per cue of your rundown).
+1. Publish the production in NoaCG once. On the production page open **Setup**, then **Panel** (on the hosted control page, **Panel** is in the header). Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
+2. In Companion, open **Connections**, type `NoaCG` in the search box on the right, press **Add** beside **NoaCG: NoaCG Studio**, then **Add** again. Type the code into **Pairing code**, give the panel a name in **Panel name**, and press **Save**. The code field clears and the panel appears in the page's list.
+3. Keep the production page open. It answers the panel by itself; the header shows **Panel ✓**.
+4. Open **Buttons**, then the **Presets** tab, press **NoaCG**, open a section and drag keys onto your buttons: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), and **Cues** (Take, Select and Trigger keys for each cue of your rundown).
 
-To stop a panel, revoke it in the page's **Panels** list. To pair again, clear **Panel key** and type a new code.
+To stop a panel, press **Revoke** beside it in the page's panel list. To pair again, clear **Panel key** and type a new code.
+
+### Which page answers
+
+- One page answers the panel at a time. The production page takes it by itself when no other page has it, and keeps it when you reload.
+- Another page never takes it away. To move the panel to the page in front of you (another laptop, or the hosted control page on a phone), press **Use here** in its panel dialog, or **Use panel here** in the production page's header.
+- If the answering page closes or loses its network, the panel is free again within 15 seconds. Another open production page takes it; until one does, the keys show "No operator page".
+- With no answering page, a press is refused, never queued: nothing runs later when a page comes back.
 
 ### What the keys show
 
-| Look                                | Meaning                                                      |
-| ----------------------------------- | ------------------------------------------------------------ |
-| Red                                 | the cue is on air                                            |
-| Green                               | the cue is selected (what PREVIEW shows)                     |
-| Grey text                           | the page would not run this action now                       |
-| Amber flash                         | the press was refused or not answered                        |
-| Clip clock amber, then blinking red | 10 seconds left, then 5                                      |
-| "No operator page"                  | no page answers the panel; presses are refused, never queued |
+| Look                                | Meaning                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| Red                                 | the cue is on air                                          |
+| Green                               | the cue is selected: what Take, Next and Out act on        |
+| Grey text                           | the page would not run this action now                     |
+| Amber flash                         | the press was refused or not answered                      |
+| Clip clock amber, then blinking red | 10 seconds left, then 5                                    |
+| "No operator page"                  | no page answers the panel; presses are refused, not queued |
 
 ### Actions
 
-Take (the SPACE toggle), Re-take, Update, Next, Out, Select the previous or next cue, Pause, Resume, Pause or resume the clip on air, All out, Select a cue, and Take a cue. **Take a cue** airs that cue whatever the SPACE mode, and pressed again while it is on air, takes it off.
+- **Take (the SPACE toggle)**: what SPACE does on the answering page: takes the selected cue, or takes it off when it is on air.
+- **Re-take**: plays the selected cue again while it is on air.
+- **Update**: sends the selected cue's changed values to air.
+- **Next**: the next step of the selected cue's graphic.
+- **Out**: takes the selected cue's graphic off air.
+- **Select the previous cue** and **Select the next cue**: walk the rundown. Nothing airs.
+- **Pause the server clip**, **Resume the server clip** and **Pause or resume the clip on air**: the clip clock's keys.
+- **All out**: takes everything off air.
+- **Select a cue**: moves the selection to that cue. Nothing airs.
+- **Take a cue**: airs that cue whatever the SPACE mode; pressed again while it is on air, takes it off. The selection stays where it was.
+- **Trigger a cue**: plays or restarts that cue. The selection and PREVIEW stay where they were.
+
+The hosted control page has no server clips, so it refuses the clip keys with "not on this page".
 
 ### Variables
 
@@ -34,8 +57,6 @@ Take (the SPACE toggle), Re-take, Update, Next, Out, Select the previous or next
 
 ### Good to know
 
-- Only one page answers at a time: the last one where **Answer the panel on this page** was switched on.
-- If the answering page closes, the keys show "No operator page" within 12 seconds.
 - The panel key can only ask an open operator page to run these actions. It cannot reach NoaCG Bridge, your playout server, or anything else in your account.
 - OBS, vMix and CasparCG keys come from those programs' own Companion connections, side by side with this one.
 - Self-hosted NoaCG: change **NoaCG address** to your own app's address.
