@@ -399,7 +399,12 @@ export default function App() {
     route.view === 'editor-foundation' ? (new URLSearchParams(window.location.search).get('editor') === 'foundation' ? <AccountAuthoringGate><EditorFoundation /></AccountAuthoringGate> : home)
     : route.view === 'home' ? <HomePage key="home" route={route} />
     : route.view === 'control' || route.view === 'graphic' ? <GraphicControlPage id={route.id} />
-    : route.view === 'production' ? <ProductionPage id={route.id} sub={route.sub ?? null} />
+    // ONE PAGE PER PRODUCTION. What is up, the aired values, timed cues and clocks are page state
+    // keyed by graphic name, which collides between productions, so a page reused for the next
+    // production showed the last one's layers as its own (production-page refactor S4,
+    // e2e/configured/playout-switch-mid-flight.spec.ts). A new production mounts a fresh page, as
+    // opening it from Home does; its Data and Audience views keep the same one.
+    : route.view === 'production' ? <ProductionPage key={route.id} id={route.id} sub={route.sub ?? null} />
     // A join link's SURFACE is Home - the dialog itself mounts below, with the app-level
     // dialogs, so an offline build (where it renders nothing) simply lands the visitor on Home
     // rather than on a blank surface.
