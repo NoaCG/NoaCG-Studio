@@ -368,6 +368,8 @@ const wallClock = () => Date.now();
 /** A Sheet source's reader lease and memory, shared by this browser's tabs (control/sheetSource.ts).
  *  Runtime state like the live tree: localStorage, never the show record. */
 const SHEET_LEASE_KEY = 'spx-gfx-sheet-reader:';
+/** How soon a published production's sources are written again after a write failed. */
+const SOURCES_RETRY_MS = 10_000;
 function readSheetLease(key: string): SheetLease | null {
   try {
     const raw = localStorage.getItem(SHEET_LEASE_KEY + key);
@@ -1638,26 +1640,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
   // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
   // the operator door then takes the new path, the tick honours the Pause with every page closed,
-  // and nothing waits for the next publish. The first value is the one the publish wrote.
+  // and nothing waits for the next publish. Written when the page opens too, so a change whose
+  // write was lost (offline, a reload) still arrives, and tried again while it fails.
   const sourcesPlan = hostedSlug ? JSON.stringify([bindings ?? {}, show?.sources ?? []]) : null;
-  const writtenPlan = useRef<string | null>(null);
   useEffect(() => {
-    if (!sourcesPlan || !hostedSlug) {
-      writtenPlan.current = null;
-      return;
-    }
-    if (writtenPlan.current === null || writtenPlan.current === sourcesPlan) {
-      writtenPlan.current = sourcesPlan;
-      return;
-    }
-    writtenPlan.current = sourcesPlan;
+    if (!sourcesPlan) return;
     const [planBindings, planSources] = JSON.parse(sourcesPlan) as [Show['bindings'], Show['sources']];
-    writePublishedSources(id, { bindings: planBindings, sources: planSources })
-      .then(() => {
-        for (const source of planSources ?? []) sourceStatus.poke(source.id);
-      })
-      .catch((error: Error) => setNote(`The change has not reached the published production: ${error.message}`));
-  }, [sourcesPlan, hostedSlug, id, sourceStatus]);
+    let live = true;
+    let noted = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const attempt = () =>
+      writePublishedSources(id, { bindings: planBindings, sources: planSources })
+        .then(() => {
+          if (live) for (const source of planSources ?? []) sourceStatus.poke(source.id);
+        })
+        .catch((error: Error) => {
+          if (!live) return;
+          if (!noted) setNote(`The change has not reached the published production: ${error.message}`);
+          noted = true;
+          retry = setTimeout(attempt, SOURCES_RETRY_MS);
+        });
+    void attempt();
+    return () => {
+      live = false;
+      clearTimeout(retry);
+    };
+  }, [sourcesPlan, id, sourceStatus]);
   /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
   const [connectPreview, setConnectPreview] = useState<{ graphic: string; values: Record<string, string> } | null>(null);
 

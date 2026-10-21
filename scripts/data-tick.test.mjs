@@ -233,3 +233,37 @@ test('an oversized tab is not read whole: past the byte cap the read fails and w
   const small = tick.cappedFetch(async () => new Response('a,b\n', { status: 200 }));
   assert.equal(await (await small('https://docs.google.com/x', { signal: new AbortController().signal })).text(), 'a,b\n');
 });
+
+test('a read that starts late gets only what is left before 26 s, so its write and the record fit in 30', async () => {
+  const hang = (url, init) => new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(new Error('aborted'))));
+  const w = world({ due: [ticker('s1')], sheets: { 'sheet-s1': hang } });
+  // The run's clock reads: the start, then 19 s on when the read is set up.
+  let reads = 0;
+  w.io.now = () => 1_000_000 + (reads++ === 0 ? 0 : 19_000);
+  const running = tick.runDataTick(w.io);
+  await new Promise((resolve) => setImmediate(resolve));
+  const cut = w.timers.find((t) => t && t.ms <= 10_000);
+  assert.equal(cut.ms, tick.READS_END_MS - 19_000);
+  cut.run();
+  await running;
+});
+
+test('a source paused on the row since the list was read is let go unread', async () => {
+  const w = world({ due: [ticker('s1')], sheets: { 'sheet-s1': csv('x\n') } });
+  const lease = w.io.lease;
+  w.io.lease = async (...args) => ({ ...(await lease(...args)), ...(args[3] > 0 ? { paused: true } : {}) });
+  const run = await tick.runDataTick(w.io);
+  assert.equal(run.sources[0].outcome, 'moved');
+  assert.deepEqual(w.calls.fetched, []);
+  assert.deepEqual(w.calls.leases.map((l) => l.ttlMs), [tick.TICK_LEASE_MS, 0]);
+});
+
+test('the tick reads a field’s kind as the browser does: kindForField, without hidden fields', async () => {
+  await import('./lib/tsResolve.mjs');
+  const { fieldDescriptors } = await import('../src/control/controlModel.ts');
+  const ftypes = ['textfield', 'textarea', 'number', 'filelist', 'dropdown', 'checkbox', 'color', 'hidden', 'instruction', 'caption', 'button', 'divider', 'spacer'];
+  const fields = ftypes.map((ftype, i) => ({ field: `f${i}`, ftype, title: ftype, items: ftype === 'dropdown' ? [{ text: 'A', value: 'a' }] : undefined }));
+  const browser = fieldDescriptors(fields).map((d) => [d.key, d.kind, d.options]);
+  const server = tick.descriptorsOf(fields).map((d) => [d.key, d.kind, d.options]);
+  assert.deepEqual(server, browser);
+});

@@ -109,6 +109,8 @@ export async function readSheet(fetcher: SheetFetch, link: SheetLink, signal: Ab
     text = await response.text();
   } catch (error) {
     if (signal.aborted) return { ok: false, error: 'Google did not answer in 10 seconds', fix: 'Reading carries on by itself.' };
+    // The server tick reads at most so many bytes of a tab (api/_lib/dataTick.ts READ_BYTES).
+    if ((error as { code?: string }).code === 'too_large') return { ok: false, error: 'the tab is too large to read', fix: 'Keep the tab under 1 MB, or move older rows to another tab.' };
     // An unshared Sheet answers with a redirect to Google's sign-in, which a browser refuses to
     // read from another origin: it arrives here as a network error, like being offline.
     void error;
@@ -378,7 +380,8 @@ export interface SheetLease extends SheetReadState {
 export interface SheetLeaseDoor {
   /** Take or renew the lease. `held` false: another reader has it, and this is what it says. */
   claim: (claim: string | null) => Promise<
-    { held: true; claim: string; state: SheetReadState } | { held: false; status: SheetStatus | null; reader: 'other' | 'server' }
+    | { held: true; claim: string; state: SheetReadState; paused?: boolean }
+    | { held: false; status: SheetStatus | null; reader: 'other' | 'server' }
   >;
   /**
    * Write a read's changed paths (as text by path, and as one merge patch) and keep `next`, under
@@ -577,9 +580,12 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   const door = io.door ?? localLeaseDoor(o, () => !stopped);
   /** The claim this page holds, as far as it knows: renewed at every read. */
   let claimId: string | null = null;
+  /** What the line last said, for a lease the door could not reach. */
+  let shown: SheetStatus | null = null;
 
   const report = (status: SheetStatus) => {
     const text = JSON.stringify(status);
+    shown = status;
     if (text === last) return;
     last = text;
     o.onStatus(status);
@@ -606,17 +612,27 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
 
   const read = async () => {
     const started = io.now();
-    const answer = await door.claim(claimId).catch(() => null);
+    const answer = await door.claim(claimId).catch((error: Error) => error);
     if (stopped) return;
-    if (!answer || !answer.held) {
+    if (answer instanceof Error) {
+      // The published lease could not be reached (offline, or an instance behind on its
+      // migrations): a missed read, said as one, so the line goes stale rather than silent.
       claimId = null;
-      if (answer) report({ ...(answer.status ?? initialStatus(answer.reader)), reader: answer.reader });
+      const fix = 'Reading carries on by itself.';
+      report(missedStatus(shown ?? initialStatus('this'), { error: `the published production did not answer (${answer.message})`, fix }, io.now(), 'this'));
+      schedule(SHEET_READ_MS);
+      return;
+    }
+    if (!answer.held) {
+      claimId = null;
+      report({ ...(answer.status ?? initialStatus(answer.reader)), reader: answer.reader });
       schedule(SHEET_READ_MS);
       return;
     }
     claimId = answer.claim;
     const held = answer.state;
-    if (o.paused()) {
+    // Paused here, or on the published row by another page.
+    if (o.paused() || answer.paused) {
       // Paused keeps the snapshot as it was, so Resume writes only what changed meanwhile.
       const status: SheetStatus = { ...held.status, state: 'paused', reader: 'this' };
       await door.settle(answer.claim, {}, {}, { ...held, status }).catch(() => false);

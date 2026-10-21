@@ -37,6 +37,9 @@ import type { FieldDescriptor, FieldKind } from '../../src/model/fieldModel.js';
 
 /** No read starts this long after the tick began (the record: 10 s reads, a 30 s function). */
 export const NO_NEW_READ_MS = 20_000;
+/** Every read is over by then, so its write, its release and the run's record still fit inside
+ *  `maxDuration` 30: a read started late gets less than its 10 seconds. */
+export const READS_END_MS = 26_000;
 /** The tick's own lease on a source: longer than any one read and write, and let go at the end. */
 export const TICK_LEASE_MS = 30_000;
 /** Reads in flight at once. */
@@ -63,7 +66,7 @@ export interface PanelField {
   items?: { text: string; value: string }[];
 }
 
-export type LeaseAnswer = { ok: boolean; claim?: string; snapshot?: Record<string, string>; content?: string | null; status?: Partial<SheetStatus> | null };
+export type LeaseAnswer = { ok: boolean; claim?: string; paused?: boolean; snapshot?: Record<string, string>; content?: string | null; status?: Partial<SheetStatus> | null };
 export type CommitAnswer = { ok: boolean; moved?: boolean; paused?: boolean };
 
 /** Everything the tick touches, so scripts/data-tick.test.mjs runs it with fakes. */
@@ -88,7 +91,9 @@ export interface TickOutcome {
   ms?: number;
 }
 
-/** kindForField (src/control/controlModel.ts), as far as `valueFor` reads it. */
+/** kindForField (src/control/controlModel.ts), as far as `valueFor` reads it. No `hidden`: the
+ *  browser reader takes a graphic's fields as fieldDescriptors draws them, without hidden ones
+ *  (scripts/data-tick.test.mjs pins the two together). */
 const KINDS: Record<string, FieldKind> = {
   textfield: 'text',
   textarea: 'lines',
@@ -97,7 +102,6 @@ const KINDS: Record<string, FieldKind> = {
   dropdown: 'select',
   checkbox: 'toggle',
   color: 'color',
-  hidden: 'text',
 };
 
 /** A published graphic's fields as the reader's descriptors. */
@@ -145,7 +149,7 @@ export function cappedFetch(fetcher: typeof fetch): SheetFetch {
           size += value.byteLength;
           if (size > READ_BYTES) {
             await reader.cancel();
-            throw new Error('too large');
+            throw Object.assign(new Error('too large'), { code: 'too_large' });
           }
           chunks.push(value);
         }
@@ -162,16 +166,18 @@ export function cappedFetch(fetcher: typeof fetch): SheetFetch {
 }
 
 /** Read one source under the tick's lease, write what changed, keep the state, let go. */
-async function readOne(io: TickIo, due: DueSource): Promise<TickOutcome> {
+async function readOne(io: TickIo, due: DueSource, startedAt: number): Promise<TickOutcome> {
   const at = io.now();
   const base = { slug: due.slug, source: due.source.id };
   const answer = await io.lease(due.slug, due.source.id, null, TICK_LEASE_MS);
   if (!answer.ok || !answer.claim) return { ...base, outcome: 'leased' };
   const claim = answer.claim;
   try {
+    // Paused on the row since the list was read.
+    if (answer.paused) return { ...base, outcome: 'moved' };
     const held = rowState(answer);
     const abort = new AbortController();
-    const cut = io.setTimer(() => abort.abort(), SHEET_TIMEOUT_MS);
+    const cut = io.setTimer(() => abort.abort(), Math.max(0, Math.min(SHEET_TIMEOUT_MS, startedAt + READS_END_MS - io.now())));
     let result;
     try {
       const { sheetId, gid, published } = due.source.config;
@@ -223,7 +229,7 @@ export async function runDataTick(io: TickIo): Promise<{ startedAt: number; dura
         continue;
       }
       try {
-        outcomes.push(await readOne(io, due));
+        outcomes.push(await readOne(io, due, startedAt));
       } catch (error) {
         console.error('Data tick read failed:', error instanceof Error ? error.message : error);
         outcomes.push({ slug: due.slug, source: due.source.id, outcome: 'error' });

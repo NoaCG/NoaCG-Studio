@@ -16,8 +16,10 @@
 --
 -- THE LEASE is one function, `control_source_lease`, that browser readers (on the control slug, as
 -- every operator function is), the tick (service role) and later E4's agent all call. A reader
--- takes or renews the lease when it is free, expired or already its own, and is told who holds it
--- otherwise; ttl 0 lets go of its own. THE WRITE is `control_source_commit` (the browser, through
+-- takes the lease when it is free or expired, renews it with the claim it holds, and is told who
+-- holds it otherwise; ttl 0 with its claim lets go. The claim, not the owner's name, decides: two
+-- runs of the tick share the name `tick`, and a duplicated cron call must not take over (or let
+-- go of) the other run's lease. THE WRITE is `control_source_commit` (the browser, through
 -- the operator's door `control_data_patch_by_slug`, so every value guard stays) or
 -- `control_source_tick_commit` (service role only, through `control_data_apply` with the label
 -- 'sheet'). Both check the claim and the write under one row lock: an answer that arrives after
@@ -166,54 +168,59 @@ begin
 end $$;
 
 -- ── 6. The lease: one function for every reader ────────────────────────────────────────────────
--- Answers {ok: true, claim, handed, snapshot, content, status, tick} when the caller holds the
--- lease now (`handed`: a new claim, so the caller starts from the snapshot it is handed), or
--- {ok: false, owner, status, tick} while another reader holds it, or {ok: false, gone: true} when
--- the row no longer lists the source. `tick` says whether closed-page reading is on.
+-- Answers {ok: true, claim, handed, snapshot, content, status, paused, tick} when the caller holds
+-- the lease now (`handed`: a new claim, so the caller starts from the snapshot it is handed), or
+-- {ok: false, owner, status, paused, tick} while another claim holds it, or {ok: false, gone: true}
+-- when the row no longer lists the source. `paused` is the row's Pause; `tick` says whether
+-- closed-page reading is on.
 create or replace function public.control_source_lease(p_slug text, p_source text, p_owner text, p_claim text, p_ttl_ms integer)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   v_show uuid;
   v_sources jsonb;
   v_read public.control_source_reads%rowtype;
-  v_mine boolean;
+  v_entry jsonb;
+  v_paused boolean;
   v_claim text;
 begin
   select s.id, s.sources into v_show, v_sources
     from public.control_shows s where s.slug = p_slug and p_slug is not null;
   if v_show is null then raise exception 'unknown control slug'; end if;
   if p_owner is null or p_owner !~ '^[A-Za-z0-9:_-]{1,64}$' then raise exception 'not a reader'; end if;
-  if p_source is null or not exists (
-       select 1 from jsonb_array_elements(case jsonb_typeof(v_sources) when 'array' then v_sources else '[]'::jsonb end) e
-        where e.value->>'id' = p_source) then
-    return jsonb_build_object('ok', false, 'gone', true);
-  end if;
+  select e.value into v_entry
+    from jsonb_array_elements(case jsonb_typeof(v_sources) when 'array' then v_sources else '[]'::jsonb end) e
+   where e.value->>'id' = p_source and p_source is not null
+   limit 1;
+  if v_entry is null then return jsonb_build_object('ok', false, 'gone', true); end if;
+  v_paused := coalesce((v_entry->>'paused')::boolean, false);
 
   insert into public.control_source_reads (show_id, source_id) values (v_show, p_source)
     on conflict (show_id, source_id) do nothing;
   select * into v_read from public.control_source_reads r
     where r.show_id = v_show and r.source_id = p_source for update;
 
-  if v_read.owner is distinct from p_owner and v_read.lease_until > now() then
-    return jsonb_build_object('ok', false, 'owner', v_read.owner, 'status', v_read.status, 'tick', public.data_tick_on());
-  end if;
   if coalesce(p_ttl_ms, 0) <= 0 then
-    if v_read.owner = p_owner then
+    if v_read.claim = p_claim and v_read.owner = p_owner then
       update public.control_source_reads r set lease_until = now(), updated_at = now()
         where r.show_id = v_show and r.source_id = p_source;
     end if;
     return jsonb_build_object('ok', false, 'released', true);
   end if;
+  if v_read.lease_until > now() and (v_read.owner is distinct from p_owner or v_read.claim is distinct from p_claim) then
+    return jsonb_build_object('ok', false, 'owner', v_read.owner, 'status', v_read.status, 'paused', v_paused,
+                              'tick', public.data_tick_on());
+  end if;
 
-  v_mine := v_read.owner = p_owner and v_read.claim = p_claim and v_read.lease_until > now();
-  v_claim := case when v_mine then v_read.claim
+  -- Free, expired, or renewed with the live claim it holds.
+  v_claim := case when v_read.lease_until > now() then v_read.claim
                   else p_owner || ':' || translate(encode(extensions.gen_random_bytes(9), 'base64'), '+/', '-_') end;
   update public.control_source_reads r
      set owner = p_owner, claim = v_claim,
          lease_until = now() + make_interval(secs => least(p_ttl_ms, 60000) / 1000.0), updated_at = now()
    where r.show_id = v_show and r.source_id = p_source;
-  return jsonb_build_object('ok', true, 'claim', v_claim, 'handed', not v_mine, 'snapshot', v_read.snapshot,
-                            'content', v_read.content, 'status', v_read.status, 'tick', public.data_tick_on());
+  return jsonb_build_object('ok', true, 'claim', v_claim, 'handed', v_claim is distinct from v_read.claim,
+                            'snapshot', v_read.snapshot, 'content', v_read.content, 'status', v_read.status,
+                            'paused', v_paused, 'tick', public.data_tick_on());
 end $$;
 revoke execute on function public.control_source_lease(text, text, text, text, integer) from public;
 grant execute on function public.control_source_lease(text, text, text, text, integer) to anon, authenticated, service_role;
@@ -221,7 +228,11 @@ grant execute on function public.control_source_lease(text, text, text, text, in
 -- ── 7. The write under the lease ───────────────────────────────────────────────────────────────
 -- p_writes: connected path -> the text it now holds (only what changed). p_state: {snapshot,
 -- content, status} as the reader would keep them. Answers {ok: true, data (the tree, or null when
--- nothing was written), skipped (paths the row does not bind)} or {ok: false, moved | paused}.
+-- nothing was written), skipped} or {ok: false, moved | paused}. A path is skipped, and keeps its
+-- snapshot, when the row does not bind it, or when 0088's rules for a press would refuse it: the
+-- value there is not a field value (an object a feed wrote), or a branch above it is not an
+-- object. The same rules for both labels, so the tick can never erase what the operator's door
+-- protects.
 create or replace function public.control_source_settle(p_show uuid, p_slug text, p_source text, p_claim text,
                                                         p_writes jsonb, p_state jsonb, p_src text)
 returns jsonb language plpgsql security definer set search_path = '' as $$
@@ -235,8 +246,10 @@ declare
   v_one jsonb;
   v_seg text[];
   v_i int;
+  v_data jsonb;
   v_patch jsonb := '{}'::jsonb;
   v_skipped text[] := '{}';
+  v_fits boolean;
   v_snapshot jsonb;
   v_result jsonb;
 begin
@@ -252,7 +265,7 @@ begin
   if v_read.claim is null or v_read.claim is distinct from p_claim or v_read.lease_until <= now() then
     return jsonb_build_object('ok', false, 'moved', true);
   end if;
-  select e.value, s.bindings into v_entry, v_bindings
+  select e.value, s.bindings, coalesce(s.data, '{}'::jsonb) into v_entry, v_bindings, v_data
     from public.control_shows s
     cross join lateral jsonb_array_elements(case jsonb_typeof(s.sources) when 'array' then s.sources else '[]'::jsonb end) e
    where s.id = p_show and e.value->>'id' = p_source;
@@ -267,11 +280,15 @@ begin
 
   for v_path, v_value in select w.key, w.value from jsonb_each(p_writes) w loop
     if jsonb_typeof(v_value) <> 'string' then raise exception 'not a source write'; end if;
-    if not (v_path = any(v_bound)) then
+    v_seg := string_to_array(v_path, '.');
+    v_fits := v_path = any(v_bound) and public.production_data_may_replace(v_data #> v_seg, v_value);
+    for v_i in 1 .. coalesce(array_length(v_seg, 1), 1) - 1 loop
+      v_fits := v_fits and coalesce(jsonb_typeof(v_data #> v_seg[1:v_i]), 'null') in ('object', 'null');
+    end loop;
+    if not v_fits then
       v_skipped := v_skipped || v_path;
       continue;
     end if;
-    v_seg := string_to_array(v_path, '.');
     v_one := v_value;
     for v_i in reverse coalesce(array_length(v_seg, 1), 0) .. 1 loop
       v_one := jsonb_build_object(v_seg[v_i], v_one);
@@ -457,9 +474,17 @@ begin
     if exists (select 1 from jsonb_array_elements(public.control_data_tick_due(50)) d where d->>'slug' = v_slug) then
       raise exception '0097 self-check failed: the tick is offered a leased source';
     end if;
-    -- Renewing keeps the claim.
+    -- Renewing keeps the claim; the same name without it (a second run of the tick) takes nothing.
     if public.control_source_lease(v_slug, 's1', 'tab-a', v_a->>'claim', 15000)->>'claim' <> v_a->>'claim' then
       raise exception '0097 self-check failed: a renewal changed the claim';
+    end if;
+    if (public.control_source_lease(v_slug, 's1', 'tab-a', null, 15000)->>'ok')::boolean
+       or (public.control_source_lease(v_slug, 's1', 'tab-a', 'tab-a:other', 15000)->>'ok')::boolean then
+      raise exception '0097 self-check failed: the same name without the live claim took the lease';
+    end if;
+    perform public.control_source_lease(v_slug, 's1', 'tab-a', null, 0);
+    if (select r.lease_until from public.control_source_reads r where r.show_id = v_show) <= now() then
+      raise exception '0097 self-check failed: a release without the claim let the lease go';
     end if;
 
     -- A write under the claim lands once, labelled as the operator's.
@@ -472,7 +497,18 @@ begin
       where e.show_id = v_show and e.graphic = 'News' and e.msg #>> '{data,f0}' = 'One' and e.msg->>'src' = 'operator';
     if v_n <> 1 then raise exception '0097 self-check failed: the write made % update rows', v_n; end if;
 
-    -- An unbound path is left out and keeps its snapshot.
+    -- A value a feed wrote as an object at a bound path is not written over, like at the operator's
+    -- door, and nor is an unbound path; both keep their snapshot.
+    update public.control_shows set data = '{"sheet":{"s1":{"lines":{"kept":true}}}}'::jsonb,
+           bindings = '{"News":{"f0":"sheet.s1.lines"}}'::jsonb where id = v_show;
+    v_got := public.control_source_commit(v_slug, 's1', v_a->>'claim', '{"sheet.s1.lines":"Over"}'::jsonb,
+                                          '{"snapshot":{"sheet.s1.lines":"Over"},"content":"cx","status":{}}'::jsonb);
+    if v_got->'skipped' <> '["sheet.s1.lines"]'::jsonb
+       or (select s.data #> '{sheet,s1,lines}' from public.control_shows s where s.id = v_show) <> '{"kept":true}'::jsonb then
+      raise exception '0097 self-check failed: a source write replaced an object (%)', v_got;
+    end if;
+    update public.control_shows set data = '{"sheet":{"s1":{"lines":"One"}}}'::jsonb where id = v_show;
+    update public.control_source_reads set snapshot = '{"sheet.s1.lines":"One"}'::jsonb where show_id = v_show;
     v_got := public.control_source_commit(v_slug, 's1', v_a->>'claim', '{"sheet.s1.values.x":"7"}'::jsonb,
                                           '{"snapshot":{"sheet.s1.lines":"One","sheet.s1.values.x":"7"},"content":"c2","status":{}}'::jsonb);
     if v_got->'skipped' <> '["sheet.s1.values.x"]'::jsonb
@@ -504,8 +540,11 @@ begin
       raise exception '0097 self-check failed: a late answer after a handover wrote (%)', v_got;
     end if;
 
-    -- Paused on the row: no write lands and the tick is offered nothing.
+    -- Paused on the row: the lease says so, no write lands and the tick is offered nothing.
     update public.control_shows set sources = jsonb_set(sources, '{0,paused}', 'true') where id = v_show;
+    if (public.control_source_lease(v_slug, 's1', 'tick', v_b->>'claim', 30000)->>'paused')::boolean is not true then
+      raise exception '0097 self-check failed: the lease did not say the row is paused';
+    end if;
     v_got := public.control_source_tick_commit(v_slug, 's1', v_b->>'claim', '{"sheet.s1.lines":"Three"}'::jsonb, '{"snapshot":{}}'::jsonb);
     if (v_got->>'paused')::boolean is not true then
       raise exception '0097 self-check failed: a paused source was written (%)', v_got;
@@ -515,14 +554,15 @@ begin
       raise exception '0097 self-check failed: the tick is offered a paused source';
     end if;
 
-    -- Letting go: ttl 0 frees the caller's own lease only.
+    -- Letting go: ttl 0 with the claim frees the caller's own lease only.
     update public.control_shows set sources = jsonb_set(sources, '{0,paused}', 'false') where id = v_show;
+    perform public.control_source_lease(v_slug, 's1', 'tick', v_b->>'claim', 0);
     v_a := public.control_source_lease(v_slug, 's1', 'tab-a', null, 15000);
-    perform public.control_source_lease(v_slug, 's1', 'tick', null, 0);
+    perform public.control_source_lease(v_slug, 's1', 'tick', v_b->>'claim', 0);
     if (select r.lease_until from public.control_source_reads r where r.show_id = v_show) <= now() then
       raise exception '0097 self-check failed: another reader let go of the lease';
     end if;
-    perform public.control_source_lease(v_slug, 's1', 'tab-a', null, 0);
+    perform public.control_source_lease(v_slug, 's1', 'tab-a', v_a->>'claim', 0);
     if (select r.lease_until from public.control_source_reads r where r.show_id = v_show) > now() then
       raise exception '0097 self-check failed: the owner could not let go';
     end if;

@@ -15,21 +15,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { registerHooks } from 'node:module';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-// The Sheet reader's modules are the server tick's too (api/_lib/dataTick.ts), so they import each
-// other by `.js`, as the functions' emit needs; Node strips the types but keeps the extension.
-registerHooks({
-  resolve(spec, ctx, next) {
-    if (ctx.parentURL?.includes('/src/') && /^\.\.?\/.*\.js$/.test(spec)) {
-      const ts = new URL(spec.replace(/\.js$/, '.ts'), ctx.parentURL);
-      if (existsSync(fileURLToPath(ts))) return next(ts.href, ctx);
-    }
-    return next(spec, ctx);
-  },
-});
+import './lib/tsResolve.mjs';
 
 const {
   SHEET_LEASE_MS,
@@ -794,4 +780,49 @@ test('a page going away lets its lease go, so the reloaded page reads at once, n
   assert.equal(b.sheet.fetches - fetches, 1, 'the new page read at once');
   assert.equal(again.status().reader, 'this');
   again.reader.stop();
+});
+
+test('published: a lease that cannot be reached is a missed read, said as one, and three make it stale', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const door = r.door('tab-a');
+  let down = false;
+  const claim = door.claim;
+  door.claim = async (c) => {
+    if (down) throw new Error('Could not find the function public.control_source_lease');
+    return claim(c);
+  };
+  const t = { statuses: [] };
+  const reader = createSheetReader({
+    key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'lines', tab: 'tab-a', world: 'slug-1',
+    io: { ...b.io, door }, connected: () => new Set(['sheet.s1.lines']), paused: () => false,
+    write: async () => true, onStatus: (s) => t.statuses.push(s),
+  });
+  await b.clock.advance(0);
+  assert.equal(t.statuses.at(-1).state, 'ok');
+  down = true;
+  await b.clock.advance(3 * SHEET_READ_MS);
+  const status = t.statuses.at(-1);
+  assert.equal(status.state, 'failing');
+  assert.match(status.error, /published production did not answer/);
+  assert.equal(status.stale, true);
+  reader.stop();
+});
+
+test('published: a Pause on the row from another page holds this page too, and it says paused without reading', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const door = r.door('tab-a');
+  const claim = door.claim;
+  door.claim = async (c) => ({ ...(await claim(c)), paused: true });
+  const t = { statuses: [] };
+  const reader = createSheetReader({
+    key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'lines', tab: 'tab-a', world: 'slug-1',
+    io: { ...b.io, door }, connected: () => new Set(['sheet.s1.lines']), paused: () => false,
+    write: async () => true, onStatus: (s) => t.statuses.push(s),
+  });
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(b.sheet.fetches, 0);
+  assert.equal(t.statuses.at(-1).state, 'paused');
+  reader.stop();
 });

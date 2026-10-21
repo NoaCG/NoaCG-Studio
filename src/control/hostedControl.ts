@@ -11,6 +11,7 @@ import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownC
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
+import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import { publishAudio } from '../backend/productionAudio';
 import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
@@ -654,16 +655,20 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
  * `bindings` and `sources` written at once, so a field connected after publishing moves the
  * output with no new publish, the server's operator door accepts its path, and the tick honours
  * a Pause with the page closed. Only these two columns: the panel and the payload stay as last
- * published. Throws on a refusal, so the page can say the change has not reached the server.
+ * published. Throws on a refusal, or when it matched no row, so the page can say the change has not
+ * reached the server and try again.
  */
 export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const { error } = await sb
+  const { data, error } = await sb
     .from('control_shows')
     .update({ bindings: show.bindings ?? {}, sources: show.sources ?? [] })
-    .eq('id', showId);
+    .eq('id', showId)
+    .select('id');
   if (error) throw new Error(error.message);
+  // Signed out, or no longer this account's row: the write matches nothing and says nothing.
+  if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
 }
 
 /** What `control_source_lease` and `control_source_commit` answer (migration 0097). */
@@ -672,6 +677,7 @@ interface LeaseRow {
   claim?: string;
   owner?: string | null;
   gone?: boolean;
+  paused?: boolean;
   snapshot?: Record<string, string>;
   content?: string | null;
   status?: Partial<SheetStatus> | null;
@@ -697,7 +703,8 @@ function rowStatus(status: Partial<SheetStatus> | null | undefined, reader: Shee
  * renews it on the control slug; settle writes a read through the operator's door and keeps the
  * snapshot and status, in one step the database refuses once the claim has moved, the source is
  * paused, or a path is no longer connected (that path alone is left out, and kept for later).
- * `hold` takes the tree the write answered with (productionDataSession.holdServerTree).
+ * `hold` takes the tree the write answered with (productionDataSession.holdServerTree). Letting go
+ * is a keepalive request, so it still leaves when the page is going away.
  */
 export function publishedLeaseDoor(o: {
   slug: string;
@@ -707,6 +714,8 @@ export function publishedLeaseDoor(o: {
   note: (text: string) => void;
 }): SheetLeaseDoor {
   let tick = false;
+  /** The claim this page last held, which letting go names. */
+  let held: string | null = null;
   const said = new Set<string>();
   const sayOnce = (text: string) => {
     if (said.has(text)) return;
@@ -730,6 +739,7 @@ export function publishedLeaseDoor(o: {
     claim: async (claim) => {
       const row = await lease(claim, SHEET_LEASE_MS);
       tick = row.tick === true;
+      held = row.ok && row.claim ? row.claim : null;
       if (!row.ok || !row.claim) {
         // A source the row does not list yet (its connection is on its way) waits.
         const reader = row.owner === 'tick' ? 'server' : 'other';
@@ -740,7 +750,7 @@ export function publishedLeaseDoor(o: {
         content: typeof row.content === 'string' ? row.content : null,
         status: rowStatus(row.status, 'this', tick),
       };
-      return { held: true, claim: row.claim, state };
+      return { held: true, claim: row.claim, state, paused: row.paused === true };
     },
     settle: async (claim, writes, _patch, next) => {
       const sb = await getSupabase();
@@ -763,7 +773,17 @@ export function publishedLeaseDoor(o: {
       return true;
     },
     release: () => {
-      void lease(null, 0).catch(() => {});
+      const claim = held;
+      held = null;
+      const cfg = loadBackendConfig();
+      if (!claim || !isBackendConfigured(cfg)) return;
+      // Not through the client: a reload or a closed tab cancels an ordinary request.
+      void fetch(`${cfg.url}/rest/v1/rpc/control_source_lease`, {
+        method: 'POST',
+        keepalive: true,
+        headers: { apikey: cfg.anonKey, 'content-type': 'application/json' },
+        body: JSON.stringify({ p_slug: o.slug, p_source: o.sourceId, p_owner: o.owner, p_claim: claim, p_ttl_ms: 0 }),
+      }).catch(() => {});
     },
   };
 }
