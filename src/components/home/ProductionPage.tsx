@@ -91,7 +91,7 @@ import {
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
-import { createSheetReader, createSourceStatusStore, fieldHolds, type SheetLease } from '../../control/sheetSource';
+import { createSheetReader, createSourceStatusStore, fieldValue, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -372,11 +372,13 @@ function readSheetLease(key: string): SheetLease | null {
     return null;
   }
 }
-function writeSheetLease(key: string, lease: SheetLease): void {
+function writeSheetLease(key: string, lease: SheetLease): boolean {
   try {
     localStorage.setItem(SHEET_LEASE_KEY + key, JSON.stringify(lease));
+    return true;
   } catch {
-    // Quota or a private-mode refusal: this tab still reads; another tab may read too.
+    // Quota or a private-mode refusal: the reader keeps its lease in memory and still reads.
+    return false;
   }
 }
 
@@ -1568,18 +1570,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   bindingsRef.current = bindings;
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;
-  /** Whether every field connected to `path` can hold `text`: a score never takes "abc". */
-  const sourceHolds = useCallback((path: string, text: string): boolean => {
+  /** `text` in the form the fields connected to `path` take it ("TRUE" is "1" for a toggle), or
+   *  null when one of them cannot hold it: a score never takes "abc". */
+  const sourceAccept = useCallback((path: string, text: string): string | null => {
+    let out: string | null = text;
     for (const [graphic, fields] of Object.entries(bindingsRef.current ?? {})) {
       const template = graphicsRef.current?.find((g) => g.name === graphic)?.template;
       if (!template) continue;
       for (const [fieldId, bound] of Object.entries(fields)) {
         if (bound !== path) continue;
         const d = fieldDescriptors(template.fields).find((f) => f.key === fieldId);
-        if (d && !fieldHolds(d, text)) return false;
+        const value = d ? fieldValue(d, text) : text;
+        if (value === null) return null;
+        out = value;
       }
     }
-    return true;
+    return out;
   }, []);
   const readerPlan = JSON.stringify((show?.sources ?? []).map((s) => [s.id, s.config]));
   useEffect(() => {
@@ -1604,7 +1610,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             writeLease: writeSheetLease,
           },
           connected: () => new Set(sourcePaths(bindingsRef.current, sourceId).map((p) => p.path)),
-          holds: sourceHolds,
+          accept: sourceAccept,
           paused: () => Boolean(sourcesRef.current?.find((s) => s.id === sourceId)?.paused),
           write: dataSession.applySourcePatch,
           onStatus: (status) => sourceStatus.set(sourceId, status),
@@ -1618,7 +1624,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         sourceStatus.set(sourceId, undefined);
       }
     };
-  }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceHolds]);
+  }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
   /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
   const [connectPreview, setConnectPreview] = useState<{ graphic: string; values: Record<string, string> } | null>(null);
 

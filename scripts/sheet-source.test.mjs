@@ -21,7 +21,7 @@ const {
   SHEET_READ_MS,
   SHEET_TIMEOUT_MS,
   createSheetReader,
-  fieldHolds,
+  fieldValue,
   parseSheetLink,
   readSheet,
   sheetContent,
@@ -537,30 +537,48 @@ test('a write that left a path out (not bound on the published row) retries that
   a.reader.stop();
 });
 
-test('a cell its field cannot hold writes nothing and is reported; the field keeps its last good value', async () => {
-  assert.equal(fieldHolds({ kind: 'number' }, 'abc'), false);
-  assert.equal(fieldHolds({ kind: 'number' }, ' 3 '), true);
-  assert.equal(fieldHolds({ kind: 'select', options: [{ value: 'A' }] }, 'B'), false);
-  assert.equal(fieldHolds({ kind: 'toggle' }, 'TRUE'), true);
-  assert.equal(fieldHolds({ kind: 'number' }, ''), true, 'empty clears');
+test('a cell its field cannot hold writes nothing and is reported; what is written is the field’s own form of the cell', async () => {
+  assert.equal(fieldValue({ kind: 'number' }, 'abc'), null);
+  assert.equal(fieldValue({ kind: 'number' }, ' 3 '), '3');
+  assert.equal(fieldValue({ kind: 'select', options: [{ value: 'A' }] }, 'B'), null);
+  assert.equal(fieldValue({ kind: 'select', options: [{ value: 'A' }] }, ' A '), 'A', 'a padded option is the option');
+  assert.equal(fieldValue({ kind: 'toggle' }, 'TRUE'), '1', 'TRUE is on, in the form the toggle reads');
+  assert.equal(fieldValue({ kind: 'number' }, ''), '', 'empty clears');
   const b = browser();
-  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,3\n';
+  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,3\nf2,Live,TRUE\n';
   const t = { writes: [], statuses: [] };
+  const kinds = { 'sheet.s1.values.f1': { kind: 'number' }, 'sheet.s1.values.f2': { kind: 'toggle' } };
   const reader = createSheetReader({
     key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'values', tab: 'A', world: 'local', io: b.io,
-    connected: () => new Set(['sheet.s1.values.f1']),
-    holds: (path, text) => Number.isFinite(Number(text)),
+    connected: () => new Set(Object.keys(kinds)),
+    accept: (path, text) => fieldValue(kinds[path], text),
     paused: () => false,
     write: async (patch) => (t.writes.push(patch), true),
     onStatus: (s) => t.statuses.push(s),
   });
   await b.clock.advance(0);
-  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,abc\n';
+  assert.deepEqual(t.writes, [{ sheet: { s1: { values: { f1: '3', f2: '1' } } } }]);
+  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,abc\nf2,Live,true\n';
   await b.clock.advance(SHEET_READ_MS);
-  assert.equal(t.writes.length, 1, 'the bad cell wrote nothing');
+  assert.equal(t.writes.length, 1, 'the bad cell wrote nothing, and "true" is still on');
   assert.match(t.statuses.at(-1).problems[0], /f1 holds “abc”, which its field cannot show, so it keeps its value/);
-  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,4\n';
+  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,4\nf2,Live,1\n';
   await b.clock.advance(SHEET_READ_MS);
   assert.deepEqual(t.writes.at(-1), { sheet: { s1: { values: { f1: '4' } } } });
   reader.stop();
+});
+
+test('storage that refuses the lease does not silence the only open page: it keeps its lease in memory and reads', async () => {
+  const b = browser();
+  b.io.writeLease = () => false; // full, or private mode
+  b.io.readLease = () => null;
+  const a = tab(b, 'A');
+  await b.clock.advance(0);
+  assert.equal(b.sheet.fetches, 1);
+  assert.deepEqual(a.writes, [{ sheet: { s1: { lines: 'one\ntwo' } } }]);
+  assert.equal(a.status().reader, 'this');
+  b.sheet.csv = 'three\n';
+  await b.clock.advance(SHEET_READ_MS);
+  assert.deepEqual(a.writes.at(-1), { sheet: { s1: { lines: 'three' } } }, 'its snapshot lives in memory too');
+  a.reader.stop();
 });

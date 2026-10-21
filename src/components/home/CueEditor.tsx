@@ -17,7 +17,7 @@ import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, 
 import { hasLiveData } from '../../control/liveData';
 import { uuid } from '../../model/id';
 import {
-  fieldHolds,
+  fieldValue,
   isSourcePath,
   offeredValues,
   parseSheetLink,
@@ -262,7 +262,7 @@ function CueConnectReview({
         offered,
         bound,
         (fieldId) => preparedMessageField(show, poolGraphic.name, fieldId),
-        (fieldId, text) => fieldHolds(byKey.get(fieldId)!, text),
+        (fieldId, text) => fieldValue(byKey.get(fieldId)!, text) !== null,
       )
     : [];
   const chosen = (row: MappingRow): string | null => chosenPath(row, choices);

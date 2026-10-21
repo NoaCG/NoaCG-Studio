@@ -93,6 +93,10 @@ changes a spec's digest.
     localStorage reads per source per read; moving the lease storage into model/ would add a file.
 - **Extra files.** `e2e/configured/production-data-key-sheet.spec.ts` (new) and
   `e2e/configured/expected-run.json` (110 to 111) are the configured row's files.
+  `src/control/contentFormats.ts` (C1a's) exports `valueFor`, so a Sheet cell takes the same
+  field form as a data-template row (third review round: "TRUE" is "1" for a toggle, a padded
+  select option is the option). In the same round the reader keeps its lease in memory when
+  localStorage refuses the write, so the only open page still reads instead of standing down.
   `src/model/teamShowMerge.ts` gains one label (`sources: 'the data sources'`) so a team merge
   conflict on the new field reads in words.
 - **Traps.**

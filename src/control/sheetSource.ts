@@ -33,7 +33,7 @@
 // Pure and Node-importable (production-page spec §5.2): every door arrives through `io`, so
 // scripts/sheet-source.test.mjs drives it with a fake clock, fetch and storage.
 
-import { fillList, listFormatFor, type FilledRow, type ListAdapter, type ListFormat } from './contentFormats.ts';
+import { fillList, listFormatFor, valueFor, type FilledRow, type ListAdapter, type ListFormat } from './contentFormats.ts';
 import { parseDelimited } from '../model/csv.ts';
 import { mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.ts';
 
@@ -256,7 +256,7 @@ export function sheetWrites(
   content: Pick<SheetContent, 'leaves'>,
   connected: ReadonlySet<string>,
   snapshot: Readonly<Record<string, string>>,
-  holds: (path: string, text: string) => boolean = () => true,
+  accept: (path: string, text: string) => string | null = (_path, text) => text,
 ): { patch: JsonObject; snapshot: Record<string, string>; missing: string[]; unfit: string[] } {
   const prefix = `${sourcePrefix(sourceId)}.`;
   let patch: JsonObject = {};
@@ -265,12 +265,13 @@ export function sheetWrites(
   const unfit: string[] = [];
   for (const path of [...connected].sort()) {
     if (!path.startsWith(prefix)) continue;
-    const value = content.leaves[path.slice(prefix.length)];
+    const cell = content.leaves[path.slice(prefix.length)];
     // A row gone from the tab, or a cell its field cannot hold ("abc" for a score), writes nothing
-    // and is reported: the field keeps its last good value, as after a failed read.
-    const bad = value === undefined ? missing : !holds(path, value) ? unfit : null;
-    if (bad) {
-      bad.push(path.slice(prefix.length));
+    // and is reported: the field keeps its last good value, as after a failed read. What is
+    // written is the field's own form of the cell ("TRUE" is "1" for a toggle).
+    const value = cell === undefined ? null : accept(path, cell);
+    if (value === null) {
+      (cell === undefined ? missing : unfit).push(path.slice(prefix.length));
       if (snapshot[path] !== undefined) next[path] = snapshot[path];
       continue;
     }
@@ -282,15 +283,9 @@ export function sheetWrites(
   return { patch, snapshot: next, missing, unfit };
 }
 
-/** Can a field of this kind hold the text? Empty always can: it clears. */
-export function fieldHolds(d: Pick<FieldDescriptor, 'kind' | 'options'>, text: string): boolean {
-  const v = text.trim();
-  if (v === '') return true;
-  if (d.kind === 'number') return Number.isFinite(Number(v));
-  if (d.kind === 'toggle') return ['0', '1', 'true', 'false'].includes(v.toLowerCase());
-  if (d.kind === 'select') return d.options?.some((o) => o.value === v) ?? true;
-  return true;
-}
+/** The form a field of this kind takes a cell in, or null when it cannot hold it (contentFormats'
+ *  `valueFor`, which the data template's importer uses). Empty always clears. */
+export const fieldValue: (d: FieldDescriptor, text: string) => string | null = valueFor;
 
 // ── The reader ────────────────────────────────────────────────────────────────
 
@@ -334,7 +329,8 @@ export interface SheetReaderIo {
   fetch: SheetFetch;
   /** The browser's shared lease storage, keyed per production and source. */
   readLease: (key: string) => SheetLease | null;
-  writeLease: (key: string, lease: SheetLease) => void;
+  /** False when the storage refused the write (full, or unavailable). */
+  writeLease: (key: string, lease: SheetLease) => boolean | void;
 }
 
 export interface SheetReaderOptions {
@@ -350,8 +346,9 @@ export interface SheetReaderOptions {
   io: SheetReaderIo;
   /** The connected paths now: read at every read, so a new connection is written at once. */
   connected: () => ReadonlySet<string>;
-  /** Whether every field connected to a path can hold the text; absent, all can. */
-  holds?: (path: string, text: string) => boolean;
+  /** The text in the form the fields connected to a path take it, or null when one cannot hold
+   *  it; absent, every text is written as it is. */
+  accept?: (path: string, text: string) => string | null;
   paused: () => boolean;
   /** The writer (productionDataSession.applySourcePatch): true when the write landed, false when
    *  nothing did, or the paths it left out while the rest landed. */
@@ -389,6 +386,14 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   let timer: unknown = null;
   let busy = false;
   let last: string | null = null;
+  // When the browser's storage refuses the lease (full, or private mode), this page keeps its lease
+  // in memory and goes on reading: an open page never stands down silently. Tabs then cannot see
+  // each other's lease, so two such tabs may both read; their writes are the same values.
+  let memory: SheetLease | null = null;
+  const readLease = (): SheetLease | null => memory ?? io.readLease(o.key);
+  const writeLease = (lease: SheetLease): void => {
+    if (memory || io.writeLease(o.key, lease) === false) memory = lease;
+  };
 
   const report = (status: SheetStatus) => {
     const text = JSON.stringify(status);
@@ -409,7 +414,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   /** This tab's claim on the source, taken or renewed; null when another tab holds it. */
   const claim = (): SheetLease | null => {
     const now = io.now();
-    const held = io.readLease(o.key);
+    const held = readLease();
     if (held && held.owner !== o.tab && held.until > now) return null;
     const mine = held?.owner === o.tab && held.until > now;
     const fresh = held && held.world === o.world;
@@ -422,15 +427,15 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       content: fresh ? held.content : null,
       status: { ...(fresh ? held.status : initialStatus('this')), reader: 'this' },
     };
-    io.writeLease(o.key, lease);
+    writeLease(lease);
     // Two tabs claiming in one moment: the storage holds one of them, and the other stands down.
-    return io.readLease(o.key)?.claim === lease.claim ? lease : null;
+    return readLease()?.claim === lease.claim ? lease : null;
   };
 
   /** Still ours, unstopped, with the claim the read began under. */
   const ours = (claimId: string): SheetLease | null => {
     if (stopped) return null;
-    const lease = io.readLease(o.key);
+    const lease = readLease();
     return lease && lease.owner === o.tab && lease.claim === claimId && lease.until > io.now() ? lease : null;
   };
 
@@ -439,7 +444,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     const started = io.now();
     const lease = claim();
     if (!lease) {
-      const held = io.readLease(o.key);
+      const held = readLease();
       report({ ...(held?.status ?? initialStatus('other')), reader: 'other' });
       schedule(SHEET_READ_MS);
       return;
@@ -447,7 +452,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     if (o.paused()) {
       // Paused keeps the snapshot as it was, so Resume writes only what changed meanwhile.
       const status: SheetStatus = { ...lease.status, state: 'paused', reader: 'this' };
-      io.writeLease(o.key, { ...lease, status });
+      writeLease({ ...lease, status });
       report(status);
       schedule(SHEET_READ_MS);
       return;
@@ -483,7 +488,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
         missed,
         stale: missed >= SHEET_STALE_MISSES,
       };
-      io.writeLease(o.key, { ...held, until: now + SHEET_LEASE_MS, status });
+      writeLease({ ...held, until: now + SHEET_LEASE_MS, status });
       report(status);
       schedule(Math.max(0, started + SHEET_READ_MS - now));
       return;
@@ -491,7 +496,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     if (o.inbox) o.inbox(read.rows.map((r) => Object.freeze([...r])));
     const content = sheetContent(o.shape, read.rows);
     const fingerprint = JSON.stringify(content.leaves);
-    const writes = sheetWrites(o.sourceId, content, o.connected(), held.snapshot, o.holds);
+    const writes = sheetWrites(o.sourceId, content, o.connected(), held.snapshot, o.accept);
     let snapshot = writes.snapshot;
     if (Object.keys(writes.patch).length > 0) {
       const landed = await o.write(writes.patch);
@@ -521,7 +526,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       changedAt: held.content === fingerprint ? held.status.changedAt ?? now : now,
       problems,
     };
-    io.writeLease(o.key, { ...held, until: io.now() + SHEET_LEASE_MS, snapshot, content: fingerprint, status });
+    writeLease({ ...held, until: io.now() + SHEET_LEASE_MS, snapshot, content: fingerprint, status });
     report(status);
     schedule(Math.max(0, started + SHEET_READ_MS - io.now()));
   };
@@ -534,8 +539,8 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       stopped = true;
       if (timer !== null) io.clearTimer(timer);
       // Let the lease go at once, so another open tab takes over at its next read.
-      const lease = io.readLease(o.key);
-      if (lease?.owner === o.tab) io.writeLease(o.key, { ...lease, until: 0 });
+      const lease = readLease();
+      if (lease?.owner === o.tab) writeLease({ ...lease, until: 0 });
     },
   };
 }
