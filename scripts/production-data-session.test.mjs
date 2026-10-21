@@ -340,9 +340,9 @@ test('the source writer, published: goes through the operator door by slug and h
   assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: { s1: { lines: 'a' } }, feed: 9 });
 
   const refused = t.data.applySourcePatch({ sheet: { s1: { lines: 'b' } } });
-  t.answers.slugPatches[1].reject(new Error('not a bound path: sheet.s1.lines'));
+  t.answers.slugPatches[1].reject(new Error('unknown control slug'));
   assert.equal(await refused, false, 'the reader keeps its snapshot and tries again');
-  assert.match(t.calls.notes.at(-1), /Sheet’s change was not written: not a bound path/);
+  assert.match(t.calls.notes.at(-1), /Sheet’s change was not written: unknown control slug/);
 });
 
 test('the source writer: an answer from an earlier mode is not landed, and an empty patch writes nothing', async () => {
@@ -355,4 +355,24 @@ test('the source writer: an answer from an earlier mode is not landed, and an em
   assert.deepEqual(t.session.data.get().liveData, {}, 'the old mode’s answer is not held');
   assert.equal(await t.data.applySourcePatch({}), true);
   assert.equal(t.calls.slugPatched.length, 1);
+});
+
+test('the source writer, published: a path the row does not bind yet is left out and reported, and the connections that work still land', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  const write = t.data.applySourcePatch({ sheet: { s1: { values: { f0: 'A', f9: 'new' } } } });
+  t.answers.slugPatches[0].reject(new Error('not a bound path: sheet.s1.values.f9'));
+  await flush();
+  assert.deepEqual(t.calls.slugPatched[1], ['slug-1', { sheet: { s1: { values: { f0: 'A' } } } }], 'the rest is sent again without it');
+  t.answers.slugPatches[1].resolve({ sheet: { s1: { values: { f0: 'A' } } } });
+  assert.deepEqual(await write, ['sheet.s1.values.f9']);
+  assert.equal(t.calls.notes.length, 1);
+  // The next write leaves it out at once, and a patch of only that path sends nothing.
+  const next = t.data.applySourcePatch({ sheet: { s1: { values: { f0: 'B', f9: 'newer' } } } });
+  assert.deepEqual(t.calls.slugPatched[2], ['slug-1', { sheet: { s1: { values: { f0: 'B' } } } }]);
+  t.answers.slugPatches[2].resolve({ sheet: { s1: { values: { f0: 'B' } } } });
+  assert.deepEqual(await next, ['sheet.s1.values.f9']);
+  assert.deepEqual(await t.data.applySourcePatch({ sheet: { s1: { values: { f9: 'x' } } } }), ['sheet.s1.values.f9']);
+  assert.equal(t.calls.slugPatched.length, 3);
+  assert.equal(t.calls.notes.length, 1, 'said once');
 });

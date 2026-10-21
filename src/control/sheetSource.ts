@@ -335,8 +335,9 @@ export interface SheetReaderOptions {
   /** The connected paths now: read at every read, so a new connection is written at once. */
   connected: () => ReadonlySet<string>;
   paused: () => boolean;
-  /** The writer (productionDataSession.applySourcePatch); false when the write did not land. */
-  write: (patch: JsonObject) => Promise<boolean>;
+  /** The writer (productionDataSession.applySourcePatch): true when the write landed, false when
+   *  nothing did, or the paths it left out while the rest landed. */
+  write: (patch: JsonObject) => Promise<boolean | string[]>;
   /** The message-candidate consumer: rows only, and no way to write. */
   inbox?: (rows: readonly (readonly string[])[]) => void;
   onStatus: (status: SheetStatus) => void;
@@ -481,8 +482,14 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
         schedule(SHEET_READ_MS);
         return;
       }
-      // A write that did not land is tried again: the snapshot keeps what was there before.
+      // What did not land is tried again: the snapshot keeps what was there before for it.
       if (!landed) snapshot = { ...held.snapshot };
+      else if (Array.isArray(landed)) {
+        for (const path of landed) {
+          if (held.snapshot[path] === undefined) delete snapshot[path];
+          else snapshot[path] = held.snapshot[path];
+        }
+      }
     }
     const problems = [...content.problems, ...writes.missing.map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`)];
     const status: SheetStatus = {

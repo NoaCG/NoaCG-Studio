@@ -522,3 +522,16 @@ test('a page that slept past its lease with a read in flight writes nothing, and
   assert.deepEqual(a.writes.at(-1), { sheet: { s1: { lines: 'changed' } } }, 'the reader claimed again and read');
   a.reader.stop();
 });
+
+test('a write that left a path out (not bound on the published row) retries that path only', async () => {
+  const b = browser();
+  b.sheet.csv = 'Name,Value\nA,1\nB,2\n';
+  const a = tab(b, 'A', { shape: 'values', paths: ['sheet.s1.values.A', 'sheet.s1.values.B'], landed: ['sheet.s1.values.B'] });
+  await b.clock.advance(0);
+  await b.clock.advance(SHEET_READ_MS);
+  assert.deepEqual(a.writes, [
+    { sheet: { s1: { values: { A: '1', B: '2' } } } },
+    { sheet: { s1: { values: { B: '2' } } } },
+  ]);
+  a.reader.stop();
+});
