@@ -1,4 +1,4 @@
-// guards: api/_lib/dataTick.ts, api/_lib/systemSettings.ts, api/data/[...path].ts
+// guards: api/_lib/dataTick.ts, api/_lib/systemSettings.ts, api/data/[...path].ts, vercel.json
 //
 // THE SERVER TICK (docs/work-specs/data-sources/spec.md, phase C2; sheet-data-flow AC-4, AC-5),
 // run in Node against the JavaScript tree Vercel emits for the data function (api-runtime-build
@@ -13,6 +13,7 @@
 // outcomes; a field's own form is written (TRUE is 1 for a toggle); an oversized tab is not read.
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -243,9 +244,18 @@ test('a read that starts late gets only what is left before 26 s, so its write a
   const running = tick.runDataTick(w.io);
   await new Promise((resolve) => setImmediate(resolve));
   const cut = w.timers.find((t) => t && t.ms <= 10_000);
-  assert.equal(cut.ms, tick.READS_END_MS - 19_000);
+  // 26 s - 19 s, written out: an expectation computed from READS_END_MS would follow any change to it.
+  assert.equal(cut.ms, 7_000);
   cut.run();
   await running;
+});
+
+// The cost record's ceiling (data-sources/evidence/tick-cost-estimate.md) holds only while the
+// function stops at 30 s and the cron fires once a minute; nothing else checks either value.
+test('vercel.json caps the data function at 30 s and runs the tick once a minute', () => {
+  const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  assert.equal(config.functions['api/data/[...path].ts']?.maxDuration, 30);
+  assert.deepEqual(config.crons.filter((c) => c.path === '/api/data/tick'), [{ path: '/api/data/tick', schedule: '* * * * *' }]);
 });
 
 test('a source paused on the row since the list was read is let go unread', async () => {
