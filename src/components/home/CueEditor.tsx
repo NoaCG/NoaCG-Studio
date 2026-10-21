@@ -514,7 +514,7 @@ export default function CueEditor({
             {/* THE DATA TEMPLATE (data-sources C1a, AC-13): every value of this graphic as
                 `Field ID,Label,Value`, keyed by id so a reordered row or a renamed label still
                 reaches its field. A spreadsheet coerces "007" and "=1+1" unless told not to. */}
-            <div className="pd-field">
+            <div className="row" style={{ marginTop: 8 }}>
               <button
                 type="button"
                 onClick={() => downloadCsv(scalarTemplateCsv(scalarFields(poolGraphic, descriptors), currentValues), csvName(poolGraphic.name, 'data-template'))}
@@ -522,7 +522,7 @@ export default function CueEditor({
               >
                 ⬇ Data template
               </button>
-              <span className="hint">In Google Sheets, import it with “Convert text to numbers, dates and formulas” off.</span>
+              <span className="muted">In Google Sheets, import it with “Convert text to numbers, dates and formulas” off.</span>
             </div>
             {sharingLayer && (
               <p className="status-warn pd-layer-clash" data-testid="layer-clash">
