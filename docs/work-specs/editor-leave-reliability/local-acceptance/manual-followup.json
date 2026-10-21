@@ -69,6 +69,6 @@
   "wholePhase2Accepted": false,
   "latestContinuationReceipt": "morning-handoff.json",
   "accountAuthenticationQualification": "Disposable branch account only; branch deleted after stopped handoff",
-  "latestStop": "Fresh owner-approved morning admission j-4662 timed out awaiting native ZIP selection; server stopped; permanent deletion of its disposable branch awaits fresh owner confirmation required by automatic approval review",
+  "latestStop": "Morning admission j-4662 timed out awaiting native ZIP selection; server stopped; owner subsequently approved permanent deletion and the disposable branch deletion was verified at 2026-10-21T10:23:38Z",
   "currentIssue1498": "CLOSED externally by github-actions at 2026-10-21T05:10:38Z; original nightly failure and existing scope deferral are not requalified by the issue state"
 }

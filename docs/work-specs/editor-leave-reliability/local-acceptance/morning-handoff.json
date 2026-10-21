@@ -2,7 +2,7 @@
   "date": "2026-10-21",
   "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
   "tree": "ebcba7a8b69d117842dcd29b917dbf6013042a6c",
-  "verdict": "TIMED OUT / HANDOFF INCOMPLETE / BRANCH DELETION AWAITS FRESH CONFIRMATION",
+  "verdict": "TIMED OUT / HANDOFF INCOMPLETE / TEMPORARY BRANCH DELETED",
   "authorization": "Owner resumed the existing approved local acceptance scope; temporary branch, 12-minute cap and 1536 MiB manual admission floor retained",
   "audit": {
     "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
@@ -56,10 +56,14 @@
     "organization": "NoaCG",
     "parentProjectRef": "kprolrchuldgfrzspthy",
     "creationInterface": "Supabase dashboard",
-    "deleted": false,
-    "deletionApproval": "Pending fresh owner confirmation after automatic approval review rejected permanent deletion despite prior cleanup authorization",
+    "deleted": true,
+    "deletionApproval": "Owner explicitly approved permanent deletion after automatic approval review required fresh confirmation at the dashboard unrecoverability warning",
+    "deletionInterface": "Same Supabase dashboard warning, after fresh confirmation; no alternate route",
+    "deletionVerifiedAt": "2026-10-21T10:23:38Z",
+    "deletionVerification": "Fresh connector branch listing returned only main; dashboard showed no preview branches",
+    "deletionScreenshot": "test-results/p2-local-acceptance/morning-branch-deleted.jpg (local ignored artifact)",
     "deletionWarningScreenshot": "test-results/p2-local-acceptance/morning-branch-delete-confirmation.jpg (local ignored artifact)",
-    "billing": "Branch compute continues until deletion at quoted USD 0.01344/hour plus usage and applicable taxes"
+    "billing": "Branch deletion is confirmed; usage before deletion and applicable taxes may still be billed. No zero-invoice claim"
   },
   "migrations": {
     "exitCode": 0,
@@ -116,12 +120,14 @@
     "ownedIdleExceptionRunner": "Already absent at exact PID/start-time check after terminal result",
     "normalRunnerDefaultsRestored": true,
     "firstTestTabClosed": true,
-    "temporaryBranchActive": true,
-    "branchDeletionBlockedByAutomaticReview": true,
+    "temporaryBranchActive": false,
+    "initialBranchDeletionBlockedByAutomaticReview": true,
+    "freshOwnerDeletionConfirmationReceived": true,
+    "branchDeleted": true,
     "alternateDeletionRouteAttemptedAfterRejection": false,
-    "cleanupTabKeptOpenForOwner": true
+    "cleanupTabClosedAfterVerifiedDeletion": true
   },
   "wholePhase2Accepted": false,
-  "remaining": "Sequential isolated-profile inspection of saved cumulative contents, plus immediate pending disposable branch deletion",
+  "remaining": "Sequential isolated-profile inspection of saved cumulative contents; no new admission started after cleanup",
   "preserved": "All original failures, assertions, 32 groups, existing skips, budgets and deferrals. Original shared-lab cause unresolved and three revised diagnosis attempts spent. Step 6 COMPLETE; #1466 CLOSED. #1498 was closed externally by github-actions at 2026-10-21T05:10:38Z; no original-failure resolution is inferred or issue state changed here. #1532/#1533 CLOSED UNMERGED and not reactivated. No quarantine workaround, historical campaign restart, Phase 3, landing or whole-acceptance stamp."
 }

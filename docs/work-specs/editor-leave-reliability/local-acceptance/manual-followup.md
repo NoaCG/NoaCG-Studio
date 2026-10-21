@@ -370,8 +370,9 @@ review then rejected permanent deletion despite the owner's earlier cleanup
 instruction, requiring fresh confirmation after the unrecoverability warning.
 No alternate deletion route was attempted. The confirmation request names the
 branch and irreversible loss of its test account/data; its dashboard warning
-is retained open. **The temporary branch remains active and billed until that
-confirmation and deletion.** See [morning-handoff.json](morning-handoff.json),
+was retained open. At that point the temporary branch remained active until
+confirmation and deletion, subsequently resolved below. See
+[morning-handoff.json](morning-handoff.json),
 [terminal queue record](morning-handoff-queue-final.json) and
 [log](morning-handoff-log.txt).
 
@@ -380,3 +381,12 @@ Save and cloud-arrival observations remain recorded separately; they do not
 prove the missing isolated-profile inspection. Step 6 remains COMPLETE. No
 quarantine workaround, historical campaign restart, Phase 3, issue closure,
 passing whole-acceptance stamp or landing followed.
+
+The owner subsequently replied `Approve permanent deletion` after seeing the
+unrecoverability warning. The same dashboard route then deleted exactly
+`codex-p2-handoff-12ecc-20261021`. At 10:23:38 UTC, a fresh connector listing
+returned only default main; the dashboard also showed no preview branches.
+The cleanup tab was closed and a local ignored deletion screenshot retained.
+No alternate route was used after the automatic refusal. Usage before deletion
+may still be billed; no zero-invoice claim is made. The stopped run and missing
+profile proof remain unchanged, and no new admission was started by cleanup.
