@@ -9,12 +9,8 @@ import {
   duplicateLayers,
   graphicLayer,
   loadShows,
-  MAX_PLAYOUT_LAYER,
-  MIN_PLAYOUT_LAYER,
-  nextFreeLayer,
   noteShowOutputOpened,
   removeShowGraphicChecked,
-  setShowGraphicLayer,
   setShowAudienceSlugs,
   setShowHostedSlug,
   setShowOutputSlug,
@@ -130,12 +126,12 @@ import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { PREVIEW_EMPTY_LABEL, type SpaceAction } from '../../control/spaceMode';
-import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
-import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
+import { cueDataRows, hasSideFields, rowsForSide } from '../../control/cueData';
+import { groupCueFields } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
-import ProductionAudienceWorkspace, { CueMessageFill, isMessageBodyField, pollFieldMap } from './ProductionAudienceWorkspace';
+import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceWorkspace';
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox } from './useAudienceInbox';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
@@ -226,7 +222,7 @@ import SignInPrompt from '../auth/SignInPrompt';
 import { productionWhenSynced } from '../../backend/graphicWhenSynced';
 import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
-import CueOverflowNote, { cueOverflowKeys } from './CueOverflowNote';
+import { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
 import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows, type CasparFacts } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
@@ -262,9 +258,9 @@ import {
 import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import RailResizer, { useRailWidth } from './RailResizer';
+import CueEditor from './CueEditor';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
-import { FieldRow } from '../fields/FieldControl';
 import { isImageAsset } from '../../assets/assetUtils';
 import { importImageFile } from '../../assets/imageImport';
 import {
@@ -4873,351 +4869,107 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
             the cue already on air on that layer, where ✎ Update pushes edits live. */}
         {editingCue && editingView && poolGraphic && (
-          <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
-            onBlurCapture={() => { void flushDraft(); void history.closeGroup(); }}>
-            <div className="pd-editor-head">
-              {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
-                  same name and the same tally, so "EDITING ON-AIR CUE" over an editable title
-                  named them both identically — the operator's own report, 2026-09-05. The number
-                  is the one thing that is unique per row and is already what the rundown shows. */}
-              {/* "PREVIEW CUE" only while the cue IS on PREVIEW: in 'preview-then-take' mode
-                  the editor follows the cursor, which walks on ahead of the monitor. */}
-              <span className="pd-editor-kicker">
-                EDITING {editingIsLive ? (rehearsing ? 'UP CUE' : 'ON-AIR CUE') : selectedCueStaged ? 'PREVIEW CUE' : 'SELECTED CUE'}
-                {editingCueNo > 0 ? ` · ${editingCueNo}` : ''}
-              </span>
-              {/* The cue's own title, editable HERE: mislabelling "Guest lower third" as "Host"
-                  is a live-show mistake and must be fixable without leaving the surface. */}
-              <input
-                className="pd-cue-title"
-                value={editingView.label}
-                onChange={(e) => editDraft({ label: e.target.value })}
-                aria-label="Cue name"
-                data-testid="cue-label"
-              />
-              <span
-                className={hasUnsent ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
-                data-testid="cue-unsent"
-              >
-                {hasUnsent
-                  ? keptStates
-                    ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. ✎ Update keeps ${keptStates} ${rehearsing ? 'up' : 'on air'}, ⟳ Re-take starts over with these values`
-                    : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. Press ✎ Update`
-                  : null}
-              </span>
-              <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
-              {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
-                  line that names it rather than hidden from the operator entirely. */}
-              {editingIsLive && (
-                <button className="pd-editor-update" onClick={() => void updateLive()} data-testid="editor-update">
-                  ✎ Update
-                </button>
-              )}
-              <div className="spacer" />
-              {airCue && airCue.id !== selectedCue?.id && (
-                <button
-                  className="pd-editor-switch"
-                  onClick={() => setEditTarget((t) => (t === 'preview' ? 'air' : 'preview'))}
-                  data-testid="cue-editor-switch"
-                >
-                  {editTarget === 'preview' ? (rehearsing ? 'switch to up cue ▾' : 'switch to on-air cue ▾') : 'switch to preview cue ▾'}
-                </button>
-              )}
-            </div>
-
-            {/* THE SETUP FOLD, offered only under live actions: a scorebug's team names and a
-                quiz's words are set before the cue airs, and once they are the operator works
-                from the ⚡ block above. Folded, the bar reads back what is set, so nothing is out
-                of sight that the operator cannot check at a glance; the unsent line and the
-                too-long warning stay in the head above it. A layer clash keeps it open: that
-                repair must never sit behind a closed fold. */}
-            {liveFirst && !layerClash && (
-              <button
-                type="button"
-                className="pd-fields-fold"
-                aria-expanded={!fieldsFolded}
-                aria-controls="pd-setup-fields"
-                onClick={() =>
-                  setFoldedFields((s) => {
-                    const next = new Set(s);
-                    if (next.has(poolGraphic.id)) next.delete(poolGraphic.id);
-                    else next.add(poolGraphic.id);
-                    return next;
-                  })
-                }
-                data-testid="cue-fields-fold"
-              >
-                <span className="pd-advanced-caret" aria-hidden="true">{fieldsFolded ? '▸' : '▾'}</span>
-                Setup fields
-                {fieldsFolded && (
-                  <span className="pd-fields-fold-sum" data-testid="cue-fields-summary">
-                    {setupSummary}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {!fieldsFolded && (
-            <div id="pd-setup-fields">
-            <div className="pd-fields">
-              {/* LOAD A DATA ROW (the Data workspace's other half): a table whose column names
-                  match this graphic's field titles offers its rows here. Loading fills the
-                  EDITED CUE's draft — data prepares, only Take (or ✎ Update, deliberately)
-                  airs. Unmatched columns are skipped; untouched fields keep their values. */}
-              {loadableRows.length > 0 && (
-                <label className="pd-field pd-field-load">
-                  <span>
-                    Load data row
-                    {/* THE SIDE PICKER. Only a board with A/B fields shows it, and it says
-                        which side the next load fills — one row is one team, so without it a
-                        teams table can only ever describe half the graphic. */}
-                    {hasSides && (
-                      <span className="pd-side-pick" data-testid="cue-load-side">
-                        {(['A', 'B'] as const).map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            className={loadSide === s ? 'active' : ''}
-                            onClick={() => setLoadSide(s)}
-                            data-testid={`cue-load-side-${s}`}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </span>
-                    )}
-                  </span>
-                  <div className="row">
-                    <select className="grow" value="" onChange={(e) => loadRow(e.target.value)} data-testid="cue-load-row">
-                      <option value="">Pick a row from the production's data…</option>
-                      {loadableRows.map((o) => (
-                        <option key={o.id} value={o.id}>{o.label}</option>
-                      ))}
-                    </select>
-                    {/* The running-order gesture: next question, next name — one press. Loads
-                        the row AFTER the one this cue last loaded (the first, before any). */}
-                    <button
-                      onClick={() => {
-                        const next = nextRow(dataRows, loadSide, editingCue ? lastLoaded[editingCue.id] ?? null : null);
-                        if (next) loadRow(next.id);
-                      }}
-                      disabled={
-                        !editingCue ||
-                        !nextRow(dataRows, loadSide, lastLoaded[editingCue.id] ?? null)
-                      }
-                      title="Load the next row of the table into this cue"
-                      data-testid="cue-load-next"
-                    >
-                      Load next row
-                    </button>
-                  </div>
-                </label>
-              )}
-              {/* THE BANDS. One per side on a two-sided board, headed by the operator's own
-                  word for that side; one unlabelled band - today's flat flow - on everything
-                  else. The grouping is derived, never authored (control/cueFieldGroups.ts). */}
-              {fieldGroups.map((group) => {
-                // WHAT THE OPERATOR IS LOOKING AT, in the same order the field boxes resolve it:
-                // a bound field shows the live tree's value, an unset one its authored default.
-                // Reading `editingView.values` alone would head a band "Side A" while the box
-                // under it plainly said HOME.
-                const heading = groupHeading(group, headingValues);
-                return (
-                  <div
-                    className={`pd-band${heading ? '' : ' pd-band-plain'}`}
-                    key={group.id}
-                    data-testid={`cue-band-${group.id}`}
-                  >
-                    {heading && (
-                      <span className="pd-band-label" data-testid={`cue-band-label-${group.id}`}>
-                        {heading}
-                      </span>
-                    )}
-                    <div className="pd-band-fields">
-                      {group.keys.map((key) => {
-                        const d = descriptorByKey.get(key);
-                        if (!d) return null;
-                        // A BOUND field is not a cue value (plan §2.7): it takes the live tree's
-                        // value at Take, at ✎ Update and in the preview, so an editable box here
-                        // would show a number nothing will ever air. It reads out instead,
-                        // wearing its path — the one override gesture is Unbind, on the Data tab.
-                        const path = boundFields(selectedGraphic)[d.key];
-                        if (path) {
-                          // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
-                          // rather than on a hand-rolled label. The cue fields lay out in a grid,
-                          // so a row of a different height sits its input a few pixels off its
-                          // neighbour's; matching the real structure makes them line up by
-                          // construction instead of by a number kept in step here.
-                          return (
-                            <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
-                              <div className="field-meta">
-                                <label style={{ margin: 0 }}>
-                                  {d.key.toUpperCase()} · {d.label}
-                                </label>
-                                <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
-                                  🔗 {path}
-                                </span>
-                              </div>
-                              <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" readOnly tabIndex={-1} />
-                            </div>
-                          );
-                        }
-                        const field = (
-                          <FieldRow
-                            key={d.key}
-                            descriptor={{ ...d, label: `${d.key.toUpperCase()} · ${d.label}` }}
-                            value={String(editingView.values[d.key] ?? d.defaultValue ?? '')}
-                            onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
-                            overflow={overflowSet.has(d.key)}
-                            testIdPrefix="cue-field"
-                            images={cueImages}
-                            imageHint={
-                              poolGraphic.type === 'picture'
-                                ? 'Add pictures with Upload image…'
-                                : "Add pictures in the graphic's Assets tab."
-                            }
-                          />
-                        );
-                        // A MESSAGE BODY offers "Fill from…": paste or pick a message into this
-                        // cue, through the same staging Messages uses (data-sources C0).
-                        if (!editingCue || !isMessageBodyField(show, poolGraphic.id, d.key)) return field;
-                        return (
-                          <div className="pd-field-with-fill" key={d.key}>
-                            {field}
-                            <CueMessageFill show={show} setShows={setShows} cueId={editingCue.id} graphicId={poolGraphic.id} beforeFill={flushDraft} />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* CUE SETTINGS, under a rule and not in the content grid. The note is the cue's; it is
-                not something the graphic SHOWS, and flowing it in beside the content fields is
-                what left settings alone on a second row looking like a field nobody finished
-                (owner, 2026-08-21). */}
-            <div className="pd-cue-meta" data-testid="cue-meta">
-              <label className="pd-field pd-field-note">
-                <span>Operator note</span>
-                <input
-                  value={editingView.note}
-                  placeholder="e.g. after the intro"
-                  onChange={(e) => editDraft({ note: e.target.value })}
-                  data-testid="cue-note"
+          <CueEditor
+            show={show}
+            setShows={setShows}
+            poolGraphic={poolGraphic}
+            editingCue={editingCue}
+            editingView={editingView}
+            editingCueNo={editingCueNo}
+            editingIsLive={editingIsLive}
+            rehearsing={rehearsing}
+            selectedCue={selectedCue}
+            selectedCueStaged={selectedCueStaged}
+            selectedGraphic={selectedGraphic}
+            airCue={airCue}
+            editTarget={editTarget}
+            setEditTarget={setEditTarget}
+            authoringAllowed={authoringAllowed}
+            editDraft={editDraft}
+            flushDraft={flushDraft}
+            history={history}
+            updateLive={updateLive}
+            hasUnsent={hasUnsent}
+            unsentFields={unsentFields}
+            keptStates={keptStates}
+            overflowKeys={overflowKeys}
+            overflowSet={overflowSet}
+            descriptors={descriptors}
+            descriptorByKey={descriptorByKey}
+            fieldGroups={fieldGroups}
+            headingValues={headingValues}
+            boundFields={boundFields}
+            resolved={resolved}
+            cueImages={cueImages}
+            liveFirst={liveFirst}
+            fieldsFolded={fieldsFolded}
+            setFoldedFields={setFoldedFields}
+            setupSummary={setupSummary}
+            dataRows={dataRows}
+            loadableRows={loadableRows}
+            hasSides={hasSides}
+            loadSide={loadSide}
+            setLoadSide={setLoadSide}
+            lastLoaded={lastLoaded}
+            loadRow={loadRow}
+            layerClash={layerClash}
+            sharingLayer={sharingLayer}
+            editedLayer={editedLayer}
+            advancedOpen={advancedOpen}
+            setAdvancedFor={setAdvancedFor}
+            clashFix={clashFix}
+            endsRow={(() => {
+              const auto = readAuto(editingCue);
+              const nextId = nextGraphicCue(cues, editingCue.id);
+              const nextCue = nextId ? cues.find((c) => c.id === nextId) : undefined;
+              const counting = !!selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id;
+              const nextHint = counting
+                ? 'It is counting now: a new length or end applies from its next Take.'
+                : !auto || !takesNext(auto.then)
+                ? null
+                : !nextCue
+                  ? 'Nothing comes after this cue in the rundown, so Next cue has nothing to take.'
+                  : auto.then === 'out-next' && cueGraphicName(nextCue) === selectedGraphic
+                    ? `Next cue takes “${cueView(nextCue).label}”, on this same layer: its entrance cuts the Out short, and Next cue alone already replaces this one.`
+                    : `Next cue takes “${cueView(nextCue).label}”.`;
+              return (
+                <CueEndsRow
+                  key={editingCue.id}
+                  auto={auto}
+                  refused={
+                    hostedSlug && armsServer === 'missing'
+                      ? 'This production’s server does not keep timed cues yet, so here they air as manual cues.'
+                      : null
+                  }
+                  nextHint={nextHint}
+                  onChange={(next) => {
+                    setShows(setCueAuto(show.id, editingCue.id, next));
+                    // Made manual while it counts: the countdown goes too, as Manual's does. A new
+                    // length or end applies from the next Take, which is when a cue is armed.
+                    if (!next && selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id) manualLane(selectedGraphic);
+                  }}
                 />
-              </label>
-              {/* HOW THE CUE ENDS (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, §2.1): by hand, or after so many
-                  seconds on air, then Out, the next cue, or both. Phase 1 runs it unpublished only. */}
-              {(() => {
-                const auto = readAuto(editingCue);
-                const nextId = nextGraphicCue(cues, editingCue.id);
-                const nextCue = nextId ? cues.find((c) => c.id === nextId) : undefined;
-                const counting = !!selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id;
-                const nextHint = counting
-                  ? 'It is counting now: a new length or end applies from its next Take.'
-                  : !auto || !takesNext(auto.then)
-                  ? null
-                  : !nextCue
-                    ? 'Nothing comes after this cue in the rundown, so Next cue has nothing to take.'
-                    : auto.then === 'out-next' && cueGraphicName(nextCue) === selectedGraphic
-                      ? `Next cue takes “${cueView(nextCue).label}”, on this same layer: its entrance cuts the Out short, and Next cue alone already replaces this one.`
-                      : `Next cue takes “${cueView(nextCue).label}”.`;
-                return (
-                  <CueEndsRow
-                    key={editingCue.id}
-                    auto={auto}
-                    refused={
-                      hostedSlug && armsServer === 'missing'
-                        ? 'This production’s server does not keep timed cues yet, so here they air as manual cues.'
-                        : null
-                    }
-                    nextHint={nextHint}
-                    onChange={(next) => {
-                      setShows(setCueAuto(show.id, editingCue.id, next));
-                      // Made manual while it counts: the countdown goes too, as Manual's does. A new
-                      // length or end applies from the next Take, which is when a cue is armed.
-                      if (!next && selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id) manualLane(selectedGraphic);
-                    }}
-                  />
-                );
-              })()}
-            </div>
-
-
-            {/* ADVANCED: the graphic's PLAYOUT LAYER (docs/CLIP_PLAYBACK_PLAN.md §6.5). Closed by
-                default with the number in its summary, because most productions never change it
-                (§5 counts from 20, distinct by construction). WHEN IT CLASHES it is open and
-                cannot be closed: two graphics on one layer replace each other on air, so the
-                repair must never be one click away behind a closed disclosure. The rundown's
-                clash badge lands here too (`openLayerRepair`). */}
-            <div className={`pd-advanced${layerClash ? ' clash' : ''}`} data-testid="cue-advanced">
-              <button
-                type="button"
-                className="pd-advanced-toggle"
-                aria-expanded={advancedOpen}
-                aria-controls="pd-advanced-graphic"
-                disabled={layerClash}
-                onClick={() => setAdvancedFor(advancedOpen ? null : poolGraphic.id)}
-                title={layerClash ? 'Two graphics share this layer' : undefined}
-                data-testid="cue-advanced-toggle"
-              >
-                <span className="pd-advanced-caret" aria-hidden="true">{advancedOpen ? '▾' : '▸'}</span>
-                Advanced
-                <span className="pd-advanced-sum" data-testid="cue-advanced-summary">
-                  Layer {editedLayer}
-                  {layerClash ? ' · shared' : ''}
-                </span>
-              </button>
-              {advancedOpen && (
-                <div className="pd-advanced-body" id="pd-advanced-graphic">
-                  <label className="pd-field pd-field-layer">
-                    <span>Playout layer</span>
-                    <input
-                      type="number"
-                      min={MIN_PLAYOUT_LAYER}
-                      max={MAX_PLAYOUT_LAYER}
-                      value={editedLayer}
-                      onChange={(e) => setShows(setShowGraphicLayer(show.id, poolGraphic.id, Number(e.target.value)))}
-                      data-testid="graphic-layer"
-                    />
-                  </label>
-                  {sharingLayer && (
-                    <p className="status-warn pd-layer-clash" data-testid="layer-clash">
-                      {nameList(sharingLayer.map((g) => g.name))} share layer {editedLayer}. On air
-                      they replace each other.
-                      <button
-                        ref={clashFix}
-                        onClick={() => setShows(setShowGraphicLayer(show.id, poolGraphic.id, nextFreeLayer(show.graphics)))}
-                        data-testid="layer-clash-fix"
-                      >
-                        Move to layer {nextFreeLayer(show.graphics)}
-                      </button>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-            </div>
-            )}
-            <ProductionSounds
-              key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
-              template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
-              config={poolGraphic.soundConfig}
-              assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
-              visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
-              onSave={async (config,expected,source)=>{
-                const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
-                const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
-                if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
-                const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
-                setShows(result.shows);
-                const failure = result.error ?? await commitDurableWrites();
-                if (failure) throw new Error(failure);
-              }}
-            />
-          </div>
+              );
+            })()}
+            sounds={
+              <ProductionSounds
+                key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
+                template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
+                config={poolGraphic.soundConfig}
+                assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
+                visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
+                onSave={async (config,expected,source)=>{
+                  const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
+                  const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
+                  if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
+                  const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
+                  setShows(result.shows);
+                  const failure = result.error ?? await commitDurableWrites();
+                  if (failure) throw new Error(failure);
+                }}
+              />
+            }
+          />
         )}
 
         {/* A cue over the PLAYOUT SERVER'S OWN LIBRARY: its editor (home/ServerCueEditor). */}
