@@ -325,17 +325,105 @@ test('the source writer, unpublished: merges onto the newest tree, saves it, and
   assert.deepEqual(t.sent.at(-1).batches, [[{ graphic: 'Ticker', msg: { t: 'update', data: { f0: '' } } }]]);
 });
 
-test('the source writer, published: writes nothing itself, and holds only the server tree its own slug answered', async () => {
+test('the source writer, published: goes through the operator door by slug and holds the answer; a refusal is reported as not landed', async () => {
   const t = setup();
   t.data.published('slug-1');
   t.answers.keys[0].resolve('key-1');
   await flush();
   t.answers.fetches[0].resolve({ data: { home: 1 } });
   await flush();
-  // Published, a reader writes under its lease on the row (control/hostedControl.ts), never here.
-  assert.equal(await t.data.applySourcePatch({ sheet: { s1: { lines: 'a' } } }), false);
-  assert.deepEqual(t.calls.slugPatched, []);
-  assert.deepEqual(t.session.data.get().liveData, { home: 1 }, 'nothing optimistic');
+  const write = t.data.applySourcePatch({ sheet: { s1: { lines: 'a' } } });
+  assert.deepEqual(t.calls.slugPatched, [['slug-1', { sheet: { s1: { lines: 'a' } } }]]);
+  assert.deepEqual(t.calls.patched, [], 'never the owner key road: a reader is the operator');
+  t.answers.slugPatches[0].resolve({ home: 1, sheet: { s1: { lines: 'a' } }, feed: 9 });
+  assert.equal(await write, true);
+  assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: { s1: { lines: 'a' } }, feed: 9 });
+
+  const refused = t.data.applySourcePatch({ sheet: { s1: { lines: 'b' } } });
+  t.answers.slugPatches[1].reject(new Error('unknown control slug'));
+  assert.equal(await refused, false, 'the reader keeps its snapshot and tries again');
+  assert.match(t.calls.notes.at(-1), /Sheet’s change was not written: unknown control slug/);
+});
+
+test('the source writer: an answer from an earlier mode is not landed, and an empty patch writes nothing', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  const write = t.data.applySourcePatch({ sheet: { s1: { lines: 'a' } } });
+  t.data.published(null); // unpublished meanwhile
+  t.answers.slugPatches[0].resolve({ sheet: { s1: { lines: 'a' } } });
+  assert.equal(await write, false);
+  assert.deepEqual(t.session.data.get().liveData, {}, 'the old mode’s answer is not held');
+  assert.equal(await t.data.applySourcePatch({}), true);
+  assert.equal(t.calls.slugPatched.length, 1);
+});
+
+test('the source writer, published: a path the row does not bind yet is left out and reported, and the connections that work still land', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  const write = t.data.applySourcePatch({ sheet: { s1: { values: { f0: 'A', f9: 'new' } } } });
+  t.answers.slugPatches[0].reject(new Error('not a bound path: sheet.s1.values.f9'));
+  await flush();
+  assert.deepEqual(t.calls.slugPatched[1], ['slug-1', { sheet: { s1: { values: { f0: 'A' } } } }], 'the rest is sent again without it');
+  t.answers.slugPatches[1].resolve({ sheet: { s1: { values: { f0: 'A' } } } });
+  assert.deepEqual(await write, ['sheet.s1.values.f9']);
+  assert.equal(t.calls.notes.length, 1);
+  // The next write leaves it out at once, and a patch of only that path sends nothing.
+  const next = t.data.applySourcePatch({ sheet: { s1: { values: { f0: 'B', f9: 'newer' } } } });
+  assert.deepEqual(t.calls.slugPatched[2], ['slug-1', { sheet: { s1: { values: { f0: 'B' } } } }]);
+  t.answers.slugPatches[2].resolve({ sheet: { s1: { values: { f0: 'B' } } } });
+  assert.deepEqual(await next, ['sheet.s1.values.f9']);
+  assert.deepEqual(await t.data.applySourcePatch({ sheet: { s1: { values: { f9: 'x' } } } }), ['sheet.s1.values.f9']);
+  assert.equal(t.calls.slugPatched.length, 3);
+  assert.equal(t.calls.notes.length, 1, 'said once');
+});
+
+test('the source writer: a refused path with spaces is left out whole, and is tried again after a minute (a republish keeps the slug)', async () => {
+  const realNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+  try {
+    const t = setup();
+    t.data.published('slug-1');
+    const write = t.data.applySourcePatch({ sheet: { s1: { values: { 'Home score': '3', Away: '1' } } } });
+    t.answers.slugPatches[0].reject(new Error('not a bound path: sheet.s1.values.Home score'));
+    await flush();
+    assert.deepEqual(t.calls.slugPatched[1], ['slug-1', { sheet: { s1: { values: { Away: '1' } } } }]);
+    t.answers.slugPatches[1].resolve({});
+    assert.deepEqual(await write, ['sheet.s1.values.Home score']);
+    // A minute on, the production was published again: the path is tried, and now it lands.
+    now += 61_000;
+    const later = t.data.applySourcePatch({ sheet: { s1: { values: { 'Home score': '4' } } } });
+    assert.deepEqual(t.calls.slugPatched[2], ['slug-1', { sheet: { s1: { values: { 'Home score': '4' } } } }]);
+    t.answers.slugPatches[2].resolve({ sheet: { s1: { values: { 'Home score': '4' } } } });
+    assert.equal(await later, true);
+    assert.equal(t.calls.notes.length, 1);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('the source writer, published: a value the row refuses never enters the local tree, even when every path is refused', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.answers.fetches[0].resolve({ data: { match: 1 } });
+  await flush();
+  const write = t.data.applySourcePatch({ sheet: { s1: { values: { Score: '9' } } } });
+  assert.deepEqual(t.session.data.get().liveData, { match: 1 }, 'nothing optimistic while the row decides');
+  t.answers.slugPatches[0].reject(new Error('not a bound path: sheet.s1.values.Score'));
+  assert.deepEqual(await write, ['sheet.s1.values.Score']);
+  assert.deepEqual(t.session.data.get().liveData, { match: 1 }, 'PREVIEW and Take cannot see the refused value');
+  assert.equal(t.calls.slugPatched.length, 1, 'nothing left to send');
+});
+
+test('a published lease write: the page holds only the server tree its own slug answered', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.answers.fetches[0].resolve({ data: { home: 1 } });
+  await flush();
   t.data.holdServerTree('slug-1', { home: 1, sheet: { s1: { lines: 'a' } } });
   assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: { s1: { lines: 'a' } } });
   // An answer for another slug, or after the production left the slug, is not held.

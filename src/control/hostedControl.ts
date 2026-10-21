@@ -661,11 +661,10 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
 export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const { data, error } = await sb
-    .from('control_shows')
-    .update({ bindings: show.bindings ?? {}, sources: show.sources ?? [] })
-    .eq('id', showId)
-    .select('id');
+  const write = (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).select('id');
+  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] });
+  // PGRST204: an instance that has not run 0097 has no `sources` column; the bindings still go.
+  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {} }));
   if (error) throw new Error(error.message);
   // Signed out, or no longer this account's row: the write matches nothing and says nothing.
   if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
@@ -731,7 +730,9 @@ export function publishedLeaseDoor(o: {
     const sb = await getSupabase();
     if (!sb) throw new Error('offline');
     const { data, error } = await sb.rpc('control_source_lease', args(claim, ttl));
-    if (error) throw new Error(error.message);
+    // PGRST202: the function is not there (an instance behind on migrations). The reader then
+    // falls back to this browser's own lease (control/sheetSource.ts).
+    if (error) throw Object.assign(new Error(error.message), error.code === 'PGRST202' ? { code: 'no_lease' } : {});
     return data as LeaseRow;
   };
   return {

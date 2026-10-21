@@ -267,6 +267,10 @@ begin
   if v_read.claim is null or v_read.claim is distinct from p_claim or v_read.lease_until <= now() then
     return jsonb_build_object('ok', false, 'moved', true);
   end if;
+  -- The production's lock first, so the values checked below are the ones the write lands on: a
+  -- feed cannot change a path between this check and `control_data_apply` (which takes the same
+  -- NO KEY UPDATE lock again, in this transaction).
+  perform 1 from public.control_shows s where s.id = p_show for no key update;
   select e.value, s.bindings, coalesce(s.data, '{}'::jsonb) into v_entry, v_bindings, v_data
     from public.control_shows s
     cross join lateral jsonb_array_elements(case jsonb_typeof(s.sources) when 'array' then s.sources else '[]'::jsonb end) e

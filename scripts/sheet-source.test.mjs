@@ -813,3 +813,28 @@ test('published: a Pause on the row from another page holds this page too, and i
   assert.equal(t.statuses.at(-1).state, 'paused');
   reader.stop();
 });
+
+test('published on an instance without the row lease: the page falls back to its own lease and the operator door', async () => {
+  const b = browser();
+  const door = {
+    claim: async () => {
+      throw Object.assign(new Error('Could not find the function public.control_source_lease'), { code: 'no_lease' });
+    },
+    settle: async () => assert.fail('the row lease is not there'),
+    release: () => {},
+  };
+  const writes = [];
+  const reader = createSheetReader({
+    key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'lines', tab: 'tab-a', world: 'slug-1',
+    io: { ...b.io, door }, connected: () => new Set(['sheet.s1.lines']), paused: () => false,
+    write: async (patch) => {
+      writes.push(patch);
+      return true;
+    },
+    onStatus: () => {},
+  });
+  await b.clock.advance(0);
+  assert.deepEqual(writes, [{ sheet: { s1: { lines: 'one\ntwo' } } }]);
+  assert.equal(b.leases.get('prod-1:s1').owner, 'tab-a', 'this browser holds the lease');
+  reader.stop();
+});

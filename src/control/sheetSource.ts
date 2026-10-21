@@ -423,8 +423,9 @@ export interface SheetReaderOptions {
    *  it; absent, every text is written as it is. */
   accept?: (path: string, text: string) => string | null;
   paused: () => boolean;
-  /** The unpublished writer (productionDataSession.applySourcePatch): true when the write landed. */
-  write: (patch: JsonObject) => Promise<boolean>;
+  /** The writer behind this browser's own lease (productionDataSession.applySourcePatch): true when
+   *  the write landed, false when nothing did, or the paths it left out while the rest landed. */
+  write: (patch: JsonObject) => Promise<boolean | string[]>;
   /** The message-candidate consumer: rows only, and no way to write. */
   inbox?: (rows: readonly (readonly string[])[]) => void;
   onStatus: (status: SheetStatus) => void;
@@ -572,8 +573,15 @@ function localLeaseDoor(o: SheetReaderOptions, alive: () => boolean): SheetLease
         const landed = await o.write(patchOf(writes));
         held = ours(claimId);
         if (!held) return false;
-        // What did not land is tried again: the snapshot keeps what was there before.
+        // What did not land is tried again: the snapshot keeps what was there before for it.
         if (!landed) snapshot = { ...held.snapshot };
+        else if (Array.isArray(landed)) {
+          snapshot = { ...snapshot };
+          for (const path of landed) {
+            if (held.snapshot[path] === undefined) delete snapshot[path];
+            else snapshot[path] = held.snapshot[path];
+          }
+        }
       }
       writeLease({ ...held, until: io.now() + SHEET_LEASE_MS, ...next, snapshot });
       return true;
@@ -591,7 +599,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   let timer: unknown = null;
   let busy = false;
   let last: string | null = null;
-  const door = io.door ?? localLeaseDoor(o, () => !stopped);
+  let door = io.door ?? localLeaseDoor(o, () => !stopped);
   /** The claim this page holds, as far as it knows: renewed at every read. */
   let claimId: string | null = null;
   /** What the line last said, for a lease the door could not reach. */
@@ -628,6 +636,14 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     const started = io.now();
     const answer = await door.claim(claimId).catch((error: Error) => error);
     if (stopped) return;
+    if (answer instanceof Error && (answer as { code?: string }).code === 'no_lease') {
+      // An instance that has not run migration 0097 (or holds it back while outputs are live):
+      // this browser's own lease and the operator door, as before published leases existed.
+      door = localLeaseDoor(o, () => !stopped);
+      claimId = null;
+      schedule(0);
+      return;
+    }
     if (answer instanceof Error) {
       // The published lease could not be reached (offline, or an instance behind on its
       // migrations): a missed read, said as one, so the line goes stale rather than silent.
