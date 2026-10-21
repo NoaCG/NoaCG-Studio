@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, setShowSourcePaused, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
-import { mappingEntries, proposeMapping, type MappingRow, type ResolvedValues } from '../../model/productionData';
+import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
 import { nextRow, type CueDataRow } from '../../control/cueData';
 import { groupHeading, type CueFieldGroup } from '../../control/cueFieldGroups';
 import { FieldRow, type FieldImage } from '../fields/FieldControl';
@@ -11,6 +11,7 @@ import CueOverflowNote from './CueOverflowNote';
 import { nameList } from './CueRundown';
 import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspace';
 import LibMenu from './LibMenu';
+import { useNow } from './ClipClock';
 import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
 import { hasLiveData } from '../../control/liveData';
 import { uuid } from '../../model/id';
@@ -131,12 +132,9 @@ const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-dig
 /** A source's status, re-rendering only its reader, and ticking for "checked N s ago". */
 function useSourceStatus(store: SourceStatusStore, sourceId: string): { status: SheetStatus | undefined; now: number } {
   const status = useSyncExternalStore(store.subscribe, () => store.get(sourceId));
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  return { status, now };
+  // Ticks only while the line shows an age; paused, failing or waiting text does not move.
+  const ticking = (status?.state === 'ok' || status?.state === 'empty') && status.checkedAt !== null;
+  return { status, now: useNow(ticking, 1000, Date.now) };
 }
 
 /** What a source's line says: the one vocabulary of the sheet spec (checked, paused, empty). */
@@ -217,15 +215,8 @@ function CueConnectedMark({ source, store }: { source: ShowSource; store: Source
 /** A tab read for the review: its link, rows, or the failure with its fix. */
 type ConnectRead = { link: SheetLink; rows: string[][] } | { error: string; fix: string };
 
-/**
- * "CONNECT DATA…" (data-sources C1b; sheet AC-1, AC-2): the graphic-level action. Choose a Google
- * Sheet tab or reuse a source, see the tab's rows and every field's proposed connection on the
- * real graphic (the PREVIEW monitor shows them), repair what needs attention, and confirm ONCE:
- * the source and the reviewed mapping are one write through the shared binding path, prepared
- * message fields refused. Cancel writes nothing. A graphic whose own code already reads a Sheet
- * is refused until that code's migration exists (C6), so no field ever has two readers.
- */
-function CueConnectData({
+/** The Connect review's content: the read, the proposal, repair and the one confirmation. */
+function CueConnectReview({
   show,
   setShows,
   poolGraphic,
@@ -234,6 +225,8 @@ function CueConnectData({
   bound,
   store,
   onPreview,
+  onClose,
+  onRefused,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
@@ -244,8 +237,9 @@ function CueConnectData({
   bound: Record<string, string>;
   store: SourceStatusStore;
   onPreview: (values: Record<string, string> | null) => void;
+  onClose: () => void;
+  onRefused: (text: string | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [linkText, setLinkText] = useState('');
   const [reuse, setReuse] = useState<ShowSource | null>(null);
   const [read, setRead] = useState<ConnectRead | null>(null);
@@ -253,7 +247,6 @@ function CueConnectData({
   const [firstTab, setFirstTab] = useState(false);
   const [label, setLabel] = useState('');
   const [choices, setChoices] = useState<Record<string, string | null>>({});
-  const [refusal, setRefusal] = useState<string | null>(null);
   /** A new source's id, minted per read of a pasted link, so a second Connect is a second source. */
   const [sourceId, setSourceId] = useState('');
   /** Which read is current: an older answer, or one arriving after the review closed, is dropped. */
@@ -261,7 +254,6 @@ function CueConnectData({
   const previewRef = useRef(onPreview);
   previewRef.current = onPreview;
 
-  const legacy = hasLiveData(poolGraphic.template.js ?? '');
   const shape = reuse?.config.shape ?? sheetShapeFor(poolGraphic);
   const id = reuse?.id ?? sourceId;
   const rows = read && 'rows' in read ? read.rows : null;
@@ -271,19 +263,19 @@ function CueConnectData({
   const offered = content ? offeredValues(id, shape, content) : [];
   const sample = new Map(offered.map((o) => [o.path, o.sample]));
   const mapping: MappingRow[] = content
-    ? proposeMapping(fields, offered, bound, (fieldId) => preparedMessageField(show, poolGraphic.name, fieldId)).map((row) =>
-        // A proposal the field cannot hold is not made: a number field never takes "abc".
-        row.path && !fieldHolds(byKey.get(row.fieldId)!, sample.get(row.path) ?? '') ? { ...row, status: 'unmatched', path: null } : row,
+    ? proposeMapping(
+        fields,
+        offered,
+        bound,
+        (fieldId) => preparedMessageField(show, poolGraphic.name, fieldId),
+        (fieldId, text) => fieldHolds(byKey.get(fieldId)!, text),
       )
     : [];
-  const chosen = (row: MappingRow): string | null =>
-    Object.prototype.hasOwnProperty.call(choices, row.fieldId) ? choices[row.fieldId] : row.current ?? row.path;
+  const chosen = (row: MappingRow): string | null => chosenPath(row, choices);
   const entries = mappingEntries(poolGraphic.name, mapping, choices);
   const matched = mapping.filter((r) => r.status !== 'refused' && chosen(r) !== null).length;
   const attention = mapping.filter((r) => r.status === 'ambiguous' || r.status === 'unmatched' || (r.current !== null && r.current !== r.path && r.path !== null)).length;
-  const users = Object.entries(show.bindings ?? {})
-    .filter(([g, f]) => g !== poolGraphic.name && Object.values(f).some((p) => isSourcePath(id, p)))
-    .map(([g]) => g);
+  const users = [...new Set(sourcePaths(show.bindings, id).map((p) => p.graphic))].filter((g) => g !== poolGraphic.name);
   const usedBy = (show.cues ?? []).filter((c) => {
     const g = show.graphics.find((x) => x.id === c.sourceId);
     return g && (g.id === poolGraphic.id || users.includes(g.name));
@@ -299,26 +291,15 @@ function CueConnectData({
     const path = chosen(row);
     if (path !== null && row.status !== 'refused' && sample.has(path)) previewValues[row.fieldId] = sample.get(path)!;
   }
-  const previewKey = open && content ? JSON.stringify(previewValues) : null;
+  const previewKey = content ? JSON.stringify(previewValues) : null;
   useEffect(() => {
     previewRef.current(previewKey === null ? null : (JSON.parse(previewKey) as Record<string, string>));
   }, [previewKey]);
   useEffect(() => () => previewRef.current(null), []);
 
-  const reset = () => {
-    setLinkText('');
-    setReuse(null);
-    setRead(null);
-    setFirstTab(false);
-    setChoices({});
-    setLabel('');
-  };
-  const close = () => {
-    readNo.current += 1;
-    reset();
-    setReading(false);
-    setOpen(false);
-  };
+  // Closing unmounts the review, which is its reset; a read still in flight then lands nowhere.
+  useEffect(() => () => void (readNo.current += 1), []);
+  const close = onClose;
   const readTab = async (link: SheetLink) => {
     const no = (readNo.current += 1);
     setReading(true);
@@ -342,186 +323,208 @@ function CueConnectData({
     let shows = result.shows;
     if (reuse && label.trim() && label.trim() !== reuse.label) shows = renameShowSource(show.id, reuse.id, label);
     setShows(shows);
-    if (result.error || result.refused.length > 0) {
-      setRefusal(result.error ?? `${result.refused.map((r) => r.fieldId.toUpperCase()).join(', ')} not connected: prepared messages use it. Add a separate card for messages.`);
-    } else setRefusal(null);
+    onRefused(
+      result.error ??
+        (result.refused.length > 0
+          ? `${result.refused.map((r) => r.fieldId.toUpperCase()).join(', ')} not connected: prepared messages use it. Add a separate card for messages.`
+          : null),
+    );
     store.poke(source.id);
     close();
   };
 
   return (
+    <>
+      <p className="hint">Google Sheet: paste the tab’s link (Share, then “Anyone with the link”).</p>
+      <div className="row">
+        <input
+          className="grow"
+          value={linkText}
+          placeholder="https://docs.google.com/spreadsheets/d/…"
+          aria-label="Sheet link"
+          onChange={(e) => {
+            setLinkText(e.target.value);
+            setReuse(null);
+          }}
+          data-testid="cue-connect-link"
+        />
+        <button
+          type="button"
+          disabled={reading || linkText.trim() === ''}
+          onClick={() => {
+            const parsed = parseSheetLink(linkText);
+            if ('error' in parsed) setRead({ error: parsed.error, fix: 'Copy the link from the Sheet’s Share button.' });
+            else {
+              setLabel((l) => l || poolGraphic.name);
+              setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
+              void readTab(parsed.link);
+            }
+          }}
+          data-testid="cue-connect-read"
+        >
+          {reading ? 'Reading…' : 'Read'}
+        </button>
+      </div>
+      {(show.sources ?? []).length > 0 && (
+        <select
+          value={reuse?.id ?? ''}
+          onChange={(e) => {
+            const source = show.sources?.find((s) => s.id === e.target.value) ?? null;
+            setReuse(source);
+            setLabel(source?.label ?? '');
+            setLinkText('');
+            if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
+            else {
+              readNo.current += 1;
+              setReading(false);
+              setRead(null);
+            }
+          }}
+          aria-label="Use existing content"
+          data-testid="cue-connect-reuse"
+        >
+          <option value="">Use existing content…</option>
+          {show.sources?.map((s) => (
+            <option key={s.id} value={s.id}>
+              Sheet: {s.label}
+            </option>
+          ))}
+        </select>
+      )}
+      {read && 'error' in read && (
+        <p className="status-warn" data-testid="cue-connect-error">
+          {read.error}. {read.fix}
+        </p>
+      )}
+      {content && (
+        <>
+          {noTab && (
+            <label className="hint" data-testid="cue-connect-first-tab">
+              <input type="checkbox" checked={firstTab} onChange={(e) => setFirstTab(e.target.checked)} /> The link names no tab,
+              so this is its first tab. Use it?
+            </label>
+          )}
+          <label className="pd-field">
+            <span>Name</span>
+            <input value={label} onChange={(e) => setLabel(e.target.value)} data-testid="cue-connect-label" />
+          </label>
+          {content.preview.length > 0 && (
+            <ol className="hint" data-testid="cue-connect-preview">
+              {content.preview.slice(0, 12).map((r, i) => (
+                <li key={i} className={r.problem ? 'status-warn' : undefined}>
+                  {r.text || '·'}
+                  {r.problem && ` - ${r.problem}`}
+                </li>
+              ))}
+            </ol>
+          )}
+          {content.empty && <p className="hint" data-testid="cue-connect-empty">The tab is empty: connected, it clears the field.</p>}
+          {content.problems.map((p) => (
+            <p key={p} className="status-warn">{p}</p>
+          ))}
+          <table className="hint" data-testid="cue-connect-map">
+            <tbody>
+              {mapping.map((row) => (
+                <tr key={row.fieldId} data-testid={`cue-connect-row-${row.fieldId}`} data-status={row.status}>
+                  <td>{row.fieldId.toUpperCase()} · {row.label}</td>
+                  <td>
+                    {row.status === 'refused' ? (
+                      <span className="status-warn">used by prepared messages</span>
+                    ) : (
+                      <select
+                        value={chosen(row) ?? ''}
+                        onChange={(e) => setChoices((c) => ({ ...c, [row.fieldId]: e.target.value || null }))}
+                        aria-label={`${row.label} follows`}
+                        data-testid={`cue-connect-pick-${row.fieldId}`}
+                      >
+                        <option value="">Not connected</option>
+                        {row.current !== null && !offered.some((o) => o.path === row.current) && (
+                          <option value={row.current}>Keep: {row.current}</option>
+                        )}
+                        {offered.map((o) => (
+                          <option key={o.path} value={o.path}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
+                  <td className="muted">
+                    {row.status === 'ambiguous'
+                      ? 'several match: pick one'
+                      : row.current !== null && row.path !== null && row.current !== row.path && chosen(row) === row.current
+                        ? 'connected elsewhere: pick to replace'
+                        : chosen(row) !== null && sample.has(chosen(row)!)
+                          ? sample.get(chosen(row)!)!.split('\n')[0]
+                          : row.status === 'unmatched'
+                            ? 'no match'
+                            : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint" data-testid="cue-connect-summary">
+            {matched} connected · {attention} need{attention === 1 ? 's' : ''} attention · Used by {usedBy} cue{usedBy === 1 ? '' : 's'}
+            {removed.length > 0 && <span className="status-warn" data-testid="cue-connect-removed"> · {removed.join(', ')} no longer in this production</span>}
+          </p>
+          <div className="row">
+            <button type="button" disabled={noTab && !firstTab} onClick={confirm} data-testid="cue-connect-confirm">
+              Connect
+            </button>
+            <button type="button" onClick={close} data-testid="cue-connect-cancel">
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
+      {!content && (
+        <button
+          type="button"
+          onClick={() => {
+            const format = listFormatFor(poolGraphic, 'f0') ?? listFormatFor(poolGraphic, 'f2');
+            if (format) downloadCsv(starterCsv(format, values), csvName(poolGraphic.name, 'rows'));
+            else downloadCsv(scalarTemplateCsv(scalarFields(poolGraphic, descriptors), values), csvName(poolGraphic.name, 'data-template'));
+          }}
+          data-testid="cue-connect-template"
+        >
+          ⬇ {shape === 'values' ? 'Data template' : 'Starter rows'}
+        </button>
+      )}
+    </>
+  );
+}
+
+/**
+ * "CONNECT DATA…" (data-sources C1b; sheet AC-1, AC-2): the graphic-level action. Choose a Google
+ * Sheet tab or reuse a source, see the tab's rows and every field's proposed connection on the
+ * real graphic (the PREVIEW monitor shows them), repair what needs attention, and confirm ONCE:
+ * the source and the reviewed mapping are one write through the shared binding path, prepared
+ * message fields refused. Cancel writes nothing. A graphic whose own code already reads a Sheet
+ * is refused until that code's migration exists (C6), so no field ever has two readers. The
+ * review (CueConnectReview) exists only while open, so a closed menu costs the editor nothing.
+ */
+function CueConnectData(props: Omit<Parameters<typeof CueConnectReview>[0], 'onClose' | 'onRefused'>) {
+  const [open, setOpen] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const close = () => setOpen(false);
+  return (
     <span className="lib-menu-host pd-connect-host">
-      <button type="button" onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} data-testid="cue-connect">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="cue-connect">
         Connect data…
       </button>
       {refusal && (
         <span className="status-warn" data-testid="cue-connect-refused"> {refusal}</span>
       )}
       <LibMenu open={open} onClose={close} testid="cue-connect-menu" role="dialog">
-        {legacy ? (
-          <p className="hint status-warn" data-testid="cue-connect-legacy">
-            This graphic reads a Sheet in its own code, so it can’t be connected here yet.
-          </p>
-        ) : (
-          <>
-            <p className="hint">Google Sheet: paste the tab’s link (Share, then “Anyone with the link”).</p>
-            <div className="row">
-              <input
-                className="grow"
-                value={linkText}
-                placeholder="https://docs.google.com/spreadsheets/d/…"
-                aria-label="Sheet link"
-                onChange={(e) => {
-                  setLinkText(e.target.value);
-                  setReuse(null);
-                }}
-                data-testid="cue-connect-link"
-              />
-              <button
-                type="button"
-                disabled={reading || linkText.trim() === ''}
-                onClick={() => {
-                  const parsed = parseSheetLink(linkText);
-                  if ('error' in parsed) setRead({ error: parsed.error, fix: 'Copy the link from the Sheet’s Share button.' });
-                  else {
-                    setLabel((l) => l || poolGraphic.name);
-                    setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
-                    void readTab(parsed.link);
-                  }
-                }}
-                data-testid="cue-connect-read"
-              >
-                {reading ? 'Reading…' : 'Read'}
-              </button>
-            </div>
-            {(show.sources ?? []).length > 0 && (
-              <select
-                value={reuse?.id ?? ''}
-                onChange={(e) => {
-                  const source = show.sources?.find((s) => s.id === e.target.value) ?? null;
-                  setReuse(source);
-                  setLabel(source?.label ?? '');
-                  setLinkText('');
-                  if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
-                  else {
-                    readNo.current += 1;
-                    setReading(false);
-                    setRead(null);
-                  }
-                }}
-                aria-label="Use existing content"
-                data-testid="cue-connect-reuse"
-              >
-                <option value="">Use existing content…</option>
-                {show.sources?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    Sheet: {s.label}
-                  </option>
-                ))}
-              </select>
-            )}
-            {read && 'error' in read && (
-              <p className="status-warn" data-testid="cue-connect-error">
-                {read.error}. {read.fix}
-              </p>
-            )}
-            {content && (
-              <>
-                {noTab && (
-                  <label className="hint" data-testid="cue-connect-first-tab">
-                    <input type="checkbox" checked={firstTab} onChange={(e) => setFirstTab(e.target.checked)} /> The link names no tab,
-                    so this is its first tab. Use it?
-                  </label>
-                )}
-                <label className="pd-field">
-                  <span>Name</span>
-                  <input value={label} onChange={(e) => setLabel(e.target.value)} data-testid="cue-connect-label" />
-                </label>
-                {content.preview.length > 0 && (
-                  <ol className="hint" data-testid="cue-connect-preview">
-                    {content.preview.slice(0, 12).map((r, i) => (
-                      <li key={i} className={r.problem ? 'status-warn' : undefined}>
-                        {r.text || '·'}
-                        {r.problem && ` - ${r.problem}`}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-                {content.empty && <p className="hint" data-testid="cue-connect-empty">The tab is empty: connected, it clears the field.</p>}
-                {content.problems.map((p) => (
-                  <p key={p} className="status-warn">{p}</p>
-                ))}
-                <table className="hint" data-testid="cue-connect-map">
-                  <tbody>
-                    {mapping.map((row) => (
-                      <tr key={row.fieldId} data-testid={`cue-connect-row-${row.fieldId}`} data-status={row.status}>
-                        <td>{row.fieldId.toUpperCase()} · {row.label}</td>
-                        <td>
-                          {row.status === 'refused' ? (
-                            <span className="status-warn">used by prepared messages</span>
-                          ) : (
-                            <select
-                              value={chosen(row) ?? ''}
-                              onChange={(e) => setChoices((c) => ({ ...c, [row.fieldId]: e.target.value || null }))}
-                              aria-label={`${row.label} follows`}
-                              data-testid={`cue-connect-pick-${row.fieldId}`}
-                            >
-                              <option value="">Not connected</option>
-                              {row.current !== null && !offered.some((o) => o.path === row.current) && (
-                                <option value={row.current}>Keep: {row.current}</option>
-                              )}
-                              {offered.map((o) => (
-                                <option key={o.path} value={o.path}>
-                                  {o.label}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </td>
-                        <td className="muted">
-                          {row.status === 'ambiguous'
-                            ? 'several match: pick one'
-                            : row.current !== null && row.path !== null && row.current !== row.path && chosen(row) === row.current
-                              ? 'connected elsewhere: pick to replace'
-                              : chosen(row) !== null && sample.has(chosen(row)!)
-                                ? sample.get(chosen(row)!)!.split('\n')[0]
-                                : row.status === 'unmatched'
-                                  ? 'no match'
-                                  : ''}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="hint" data-testid="cue-connect-summary">
-                  {matched} connected · {attention} need{attention === 1 ? 's' : ''} attention · Used by {usedBy} cue{usedBy === 1 ? '' : 's'}
-                  {removed.length > 0 && <span className="status-warn" data-testid="cue-connect-removed"> · {removed.join(', ')} no longer in this production</span>}
-                </p>
-                <div className="row">
-                  <button type="button" disabled={noTab && !firstTab} onClick={confirm} data-testid="cue-connect-confirm">
-                    Connect
-                  </button>
-                  <button type="button" onClick={close} data-testid="cue-connect-cancel">
-                    Cancel
-                  </button>
-                </div>
-              </>
-            )}
-            {!content && (
-              <button
-                type="button"
-                onClick={() => {
-                  const format = listFormatFor(poolGraphic, 'f0') ?? listFormatFor(poolGraphic, 'f2');
-                  if (format) downloadCsv(starterCsv(format, values), csvName(poolGraphic.name, 'rows'));
-                  else downloadCsv(scalarTemplateCsv(scalarFields(poolGraphic, descriptors), values), csvName(poolGraphic.name, 'data-template'));
-                }}
-                data-testid="cue-connect-template"
-              >
-                ⬇ {shape === 'values' ? 'Data template' : 'Starter rows'}
-              </button>
-            )}
-          </>
-        )}
+        {open &&
+          (hasLiveData(props.poolGraphic.template.js ?? '') ? (
+            <p className="hint status-warn" data-testid="cue-connect-legacy">
+              This graphic reads a Sheet in its own code, so it can’t be connected here yet.
+            </p>
+          ) : (
+            <CueConnectReview {...props} onClose={close} onRefused={setRefusal} />
+          ))}
       </LibMenu>
     </span>
   );
@@ -861,6 +864,7 @@ export default function CueEditor({
                   // wearing its path — the one override gesture is Unbind, on the Data tab.
                   const path = boundFields(selectedGraphic)[d.key];
                   const source = sourceOf(show, path);
+                  const format = listFormatFor(poolGraphic, d.key);
                   if (path) {
                     // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
                     // rather than on a hand-rolled label. The cue fields lay out in a grid,
@@ -882,7 +886,7 @@ export default function CueEditor({
                           )}
                         </div>
                         {/* A list keeps its lines: an <input> would join them into one. */}
-                        {listFormatFor(poolGraphic, d.key) ? (
+                        {format ? (
                           <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" rows={3} readOnly tabIndex={-1} />
                         ) : (
                           <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" readOnly tabIndex={-1} />
@@ -891,9 +895,9 @@ export default function CueEditor({
                             list is read-only here and says where to edit it (sheet spec). */}
                         {source && (
                           <span className="hint" data-testid="cue-connected-note">
-                            {listFormatFor(poolGraphic, d.key) ? `Connected to Sheet: ${source.label}. Edit in the Sheet, or ` : ''}
+                            {format ? `Connected to Sheet: ${source.label}. Edit in the Sheet, or ` : ''}
                             <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
-                              {listFormatFor(poolGraphic, d.key) ? 'Disconnect to edit here' : 'Disconnect'}
+                              {format ? 'Disconnect to edit here' : 'Disconnect'}
                             </button>
                           </span>
                         )}
@@ -918,7 +922,6 @@ export default function CueEditor({
                   );
                   // A LIST FIELD offers "Fill from… Paste rows" (data-sources C1a). A standings
                   // board's two fields fill together, from its rows field.
-                  const format = listFormatFor(poolGraphic, d.key);
                   if (editingCue && format?.main === d.key) {
                     return (
                       <div className="pd-field-with-fill" key={d.key}>

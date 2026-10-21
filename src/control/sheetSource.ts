@@ -35,7 +35,9 @@
 
 import { fillList, listFormatFor, type FilledRow, type ListAdapter, type ListFormat } from './contentFormats.ts';
 import { parseDelimited } from '../model/csv.ts';
-import { mergePatch, patchForPath, type JsonObject, type OfferedValue } from '../model/productionData.ts';
+import { mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.ts';
+
+export { isSourcePath, sourceIdOf, sourcePrefix } from '../model/productionData.ts';
 import type { SavedGraphic } from '../model/packets';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
@@ -170,8 +172,8 @@ export function sheetContent(shape: SheetShape, rows: string[][]): SheetContent 
   if (shape === 'values') return { ...keyedValues(rows), empty };
   const format: ListFormat = shape === 'standings' ? { adapter: shape, main: 'rows', headers: 'headers' } : { adapter: shape, main: 'lines' };
   const fill = fillList(format, rows);
-  const labels = Object.fromEntries(listLeaves(shape).map((l) => [l.leaf, l.label]));
-  return { leaves: fill.values, labels, preview: fill.rows, problems: [], empty, byFieldId: false };
+  // A list's labels are its adapter's (`listLeaves`), so the read carries none.
+  return { leaves: fill.values, labels: {}, preview: fill.rows, problems: [], empty, byFieldId: false };
 }
 
 /**
@@ -240,15 +242,6 @@ function keyedValues(rows: string[][]): Omit<SheetContent, 'empty'> {
   const preview = Object.keys(leaves).map((leaf) => ({ text: `${labels[leaf]}: ${leaves[leaf]}` }));
   return { leaves, labels, preview, problems, byFieldId: template };
 }
-
-/** The tree prefix a source writes under. */
-export const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}`;
-
-/** Whether a connected path is one this source writes. */
-export const isSourcePath = (sourceId: string, path: string): boolean => path.startsWith(`${sourcePrefix(sourceId)}.`);
-
-/** The source a connected path follows, or null for a path no source writes. */
-export const sourceIdOf = (path: string | undefined): string | null => (path?.startsWith('sheet.') ? path.split('.')[1] || null : null);
 
 /**
  * What one read writes: the connected paths whose text differs from what this reader last
@@ -493,15 +486,10 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     }
     const problems = [...content.problems, ...writes.missing.map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`)];
     const status: SheetStatus = {
+      ...initialStatus('this'),
       state: content.empty ? 'empty' : 'ok',
-      reader: 'this',
       checkedAt: now,
       changedAt: held.content === fingerprint ? held.status.changedAt ?? now : now,
-      failingSince: null,
-      error: null,
-      fix: null,
-      missed: 0,
-      stale: false,
       problems,
     };
     io.writeLease(o.key, { ...held, until: io.now() + SHEET_LEASE_MS, snapshot, content: fingerprint, status });

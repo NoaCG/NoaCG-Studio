@@ -42,12 +42,14 @@ const {
   flattenLeaves,
   formatValue,
   getPath,
+  chosenPath,
   mappingEntries,
   mergePatch,
   parseLiteral,
   parsePath,
   patchForPath,
   proposeMapping,
+  sourcePaths,
   reparseLeaf,
   replacementPatch,
   resolveBindings,
@@ -404,4 +406,15 @@ test('one confirmation binds every matched field of ONE graphic; an existing bin
   // Cancel is no call at all; a confirmation that changes nothing returns the same object.
   assert.equal(withBindings(bindings, [], never).bindings, bindings);
   assert.equal(withBindings(bindings, reviewed, never).bindings, bindings, 'the same review again writes nothing');
+});
+
+test('a value the field cannot hold is never proposed, and the review and the confirmation read one choice rule', () => {
+  const offered = [{ path: 'sheet.s1.values.Score A', label: 'Score A', sample: 'abc' }];
+  const rows = proposeMapping(scoreFields, offered, {}, never, (field, text) => field !== 'f1' || Number.isFinite(Number(text)));
+  const f1 = rows.find((r) => r.fieldId === 'f1');
+  assert.equal(f1.status, 'unmatched');
+  assert.equal(chosenPath(f1, {}), null);
+  assert.equal(chosenPath({ ...f1, current: 'x' }, {}), 'x', 'a current binding stands until a choice');
+  assert.equal(chosenPath({ ...f1, current: 'x' }, { f1: null }), null);
+  assert.deepEqual(sourcePaths({ A: { f0: 'sheet.s1.lines', f1: 'sheet.s10.lines' }, B: { f2: 'match.x' } }, 's1'), [{ graphic: 'A', fieldId: 'f0', path: 'sheet.s1.lines' }]);
 });

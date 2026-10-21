@@ -522,6 +522,24 @@ export function parseDataTree(text: string): { data: JsonObject | null; error: s
 // mapping for every field of one graphic, the operator reviews it, and one confirmation writes
 // it. Nothing here applies anything by itself: a source's arrival never binds a field.
 
+/** A data source's paths: everything under `sheet.<id>` (control/sheetSource.ts writes them). */
+export const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}`;
+
+/** Whether a connected path is one this source writes. */
+export const isSourcePath = (sourceId: string, path: string): boolean => path.startsWith(`${sourcePrefix(sourceId)}.`);
+
+/** The source a connected path follows, or null for a path no source writes. */
+export const sourceIdOf = (path: string | undefined): string | null => (path?.startsWith('sheet.') ? path.split('.')[1] || null : null);
+
+/** Every connected path that follows this source, across the production's graphics. */
+export function sourcePaths(bindings: ProductionBindings | undefined, sourceId: string): { graphic: string; fieldId: string; path: string }[] {
+  const out: { graphic: string; fieldId: string; path: string }[] = [];
+  for (const [graphic, fields] of Object.entries(bindings ?? {})) {
+    for (const [fieldId, path] of Object.entries(fields)) if (isSourcePath(sourceId, path)) out.push({ graphic, fieldId, path });
+  }
+  return out;
+}
+
 /** One binding write: a path to set, or `null` to unbind. */
 export interface BindingEntry {
   graphic: string;
@@ -600,6 +618,7 @@ export function proposeMapping(
   offered: OfferedValue[],
   current: Record<string, string>,
   refuses: (fieldId: string) => boolean,
+  holds: (fieldId: string, text: string) => boolean = () => true,
 ): MappingRow[] {
   const leaves: DataLeaf[] = offered.map((o) => ({ path: o.path, value: o.sample, text: o.sample }));
   const byLabel = (title: string): string[] => {
@@ -610,12 +629,20 @@ export function proposeMapping(
   return fields.map((field) => {
     const base = { fieldId: field.key, label: field.label, current: current[field.key] ?? null };
     if (refuses(field.key)) return { ...base, status: 'refused', path: null, candidates: [] };
-    const keyed = offered.find((o) => o.key === field.key);
+    // A value the field cannot hold is never proposed: a number field does not take "abc".
+    const fits = offered.filter((o) => holds(field.key, o.sample));
+    const keyed = fits.find((o) => o.key === field.key);
     if (keyed) return { ...base, status: 'key', path: keyed.path, candidates: [keyed.path] };
-    const hits = byLabel(field.label);
+    const hits = byLabel(field.label).filter((path) => fits.some((o) => o.path === path));
     if (hits.length === 1) return { ...base, status: 'name', path: hits[0], candidates: hits };
     return { ...base, status: hits.length > 1 ? 'ambiguous' : 'unmatched', path: null, candidates: hits };
   });
+}
+
+/** The path a reviewed field ends on: the operator's choice, else what it is bound to now (a
+ *  different binding is replaced only by a choice), else the proposal. */
+export function chosenPath(row: MappingRow, choices: Record<string, string | null>): string | null {
+  return Object.prototype.hasOwnProperty.call(choices, row.fieldId) ? choices[row.fieldId] : row.current ?? row.path;
 }
 
 /**
@@ -628,12 +655,8 @@ export function mappingEntries(graphic: string, rows: MappingRow[], choices: Rec
   const out: BindingEntry[] = [];
   for (const row of rows) {
     if (row.status === 'refused') continue;
-    const chosen = Object.prototype.hasOwnProperty.call(choices, row.fieldId)
-      ? choices[row.fieldId]
-      : row.current !== null && row.current !== row.path
-        ? row.current
-        : row.path;
-    if ((chosen ?? null) === row.current) continue;
+    const chosen = chosenPath(row, choices);
+    if (chosen === row.current) continue;
     out.push({ graphic, fieldId: row.fieldId, path: chosen ?? null });
   }
   return out;

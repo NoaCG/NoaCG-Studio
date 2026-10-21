@@ -91,7 +91,7 @@ import {
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
-import { createSheetReader, createSourceStatusStore, isSourcePath, type SheetLease } from '../../control/sheetSource';
+import { createSheetReader, createSourceStatusStore, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -100,7 +100,7 @@ import { folderStep, stepFace, type FolderStep, type StepMember } from '../../co
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
-import { resolveBindings, type ResolvedValues } from '../../model/productionData';
+import { resolveBindings, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, saveLiveData, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import {
   fetchProductionData,
@@ -1588,8 +1588,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             readLease: readSheetLease,
             writeLease: writeSheetLease,
           },
-          connected: () =>
-            new Set(Object.values(bindingsRef.current ?? {}).flatMap((fields) => Object.values(fields)).filter((path) => isSourcePath(sourceId, path))),
+          connected: () => new Set(sourcePaths(bindingsRef.current, sourceId).map((p) => p.path)),
           paused: () => Boolean(sourcesRef.current?.find((s) => s.id === sourceId)?.paused),
           write: dataSession.applySourcePatch,
           onStatus: (status) => sourceStatus.set(sourceId, status),

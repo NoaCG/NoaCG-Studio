@@ -8,7 +8,7 @@
 import type { SpxTemplate, ProductionSounds } from './types';
 import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
-import { withBindings, type BindingEntry, type JsonObject, type ProductionBindings } from './productionData';
+import { sourcePaths, withBindings, type BindingEntry, type JsonObject, type ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
@@ -1705,12 +1705,16 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
   else delete show.bindings;
-  if (show.sources) {
-    const sources = show.sources.filter((s) => s.inbox || sourceInUse(show, s.id));
-    if (sources.length > 0) show.sources = sources;
-    else delete show.sources;
-  }
+  pruneSources(show);
   return { changed: true, refused };
+}
+
+/** Drop the sources no field follows and no inbox reads. */
+function pruneSources(show: Show): void {
+  if (!show.sources) return;
+  const sources = show.sources.filter((s) => s.inbox || sourcePaths(show.bindings, s.id).length > 0);
+  if (sources.length > 0) show.sources = sources;
+  else delete show.sources;
 }
 
 /** Bind a field to a production-data path, or unbind it with `null` — the operator's one and
@@ -1736,16 +1740,6 @@ export function setFieldBindings(
   return patchShowChecked(showId, (show) => entries.length > 0 && applyBindings(show, entries).changed, true).shows;
 }
 
-/** The tree prefix a source writes under, with its dot (control/sheetSource.ts `sourcePrefix`,
- *  which model/ cannot import). */
-const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}.`;
-
-/** Whether any field still follows this source. */
-function sourceInUse(show: Pick<Show, 'bindings'>, sourceId: string): boolean {
-  const prefix = sourcePrefix(sourceId);
-  return Object.values(show.bindings ?? {}).some((fields) => Object.values(fields).some((path) => path.startsWith(prefix)));
-}
-
 /**
  * CONNECT DATA's one confirmation (data-sources C1b, AC-3): the source, new or reused, and the
  * reviewed mapping, in ONE write through the one binding path. A refused field (prepared messages
@@ -1763,40 +1757,38 @@ export function connectShowSource(
     // added first, so the binding write below keeps it exactly when a field follows it.
     if (!show.sources?.some((s) => s.id === source.id)) show.sources = [...(show.sources ?? []), source];
     refused = applyBindings(show, entries).refused;
-    if (show.sources && !show.sources.some((s) => s.id === source.id && (s.inbox || sourceInUse(show, s.id)))) {
-      show.sources = show.sources.filter((s) => s.id !== source.id);
-      if (show.sources.length === 0) delete show.sources;
-    }
+    pruneSources(show);
     return JSON.stringify([show.bindings, show.sources]) !== before;
   }, true);
   return { ...result, refused };
 }
 
-/** Pause or resume a source: paused, nothing is read and every value holds. */
-export function setShowSourcePaused(showId: string, sourceId: string, paused: boolean): Show[] {
+/** Change one source's record; `edit` answers null when there is nothing to change. */
+function patchShowSource(showId: string, sourceId: string, edit: (source: ShowSource) => ShowSource | null): Show[] {
   return patchShowChecked(showId, (show) => {
-    const source = show.sources?.find((s) => s.id === sourceId);
-    if (!source || Boolean(source.paused) === paused) return false;
-    show.sources = show.sources!.map((s) => {
-      if (s.id !== sourceId) return s;
-      const next = { ...s };
-      if (paused) next.paused = true;
-      else delete next.paused;
-      return next;
-    });
+    const at = show.sources?.findIndex((s) => s.id === sourceId) ?? -1;
+    const next = at < 0 ? null : edit(show.sources![at]);
+    if (!next) return false;
+    show.sources = show.sources!.map((s, i) => (i === at ? next : s));
     return true;
   }, true).shows;
+}
+
+/** Pause or resume a source: paused, nothing is read and every value holds. */
+export function setShowSourcePaused(showId: string, sourceId: string, paused: boolean): Show[] {
+  return patchShowSource(showId, sourceId, (source) => {
+    if (Boolean(source.paused) === paused) return null;
+    const next = { ...source };
+    if (paused) next.paused = true;
+    else delete next.paused;
+    return next;
+  });
 }
 
 /** Rename a source for the operator. Its id, and so every connection, stays. */
 export function renameShowSource(showId: string, sourceId: string, label: string): Show[] {
   const name = label.trim();
-  return patchShowChecked(showId, (show) => {
-    const source = show.sources?.find((s) => s.id === sourceId);
-    if (!source || name === '' || source.label === name) return false;
-    show.sources = show.sources!.map((s) => (s.id === sourceId ? { ...s, label: name } : s));
-    return true;
-  }, true).shows;
+  return patchShowSource(showId, sourceId, (source) => (name === '' || source.label === name ? null : { ...source, label: name }));
 }
 
 /**
