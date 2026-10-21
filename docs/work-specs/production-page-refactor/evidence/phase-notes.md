@@ -82,8 +82,11 @@ changes a spec's digest.
   - A page going away (`pagehide`) lets its leases go: the reload journey found a reloaded page
     showing "read in another tab" for up to 15 s, its own previous page's lease. Published, the
     release is a keepalive request straight to the RPC, because a reload cancels an ordinary one.
-  - Only a change made on the page is written to the row, never the value it opened with, so a page
-    holding an older copy cannot overwrite newer sources (assessment A, medium). A failed write is
+  - The value a page opens with (or publishes) is never written to the row, so a page holding an
+    older copy cannot overwrite newer sources (assessment A, medium); every change after it is,
+    including a return to that first value. Comparing later values with the first one dropped a
+    Resume back to it and left the row paused (review, fixed; the configured walk pauses and
+    resumes around it). A failed write is
     tried again every 10 s while the page shows it (said once); a write that matches no row (signed
     out) counts as failed. A change whose write was lost to a reload reaches the row at the next
     publish.
