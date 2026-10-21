@@ -212,15 +212,10 @@ export default function CueEditor({
   /** The cue's sound (home/ProductionSounds), built by the page. */
   sounds: ReactNode;
 }) {
-  // What the cue holds now, field by field: its own value, else the bound value it airs, else
-  // the graphic's default. Starter rows and the data template both start from it.
+  // What the cue shows now, field by field, as the band headings read it: starter rows and the
+  // data template both start from it. A bound field is not a cue value, so a fill skips it.
+  const currentValues = Object.fromEntries(Object.entries(headingValues).map(([k, v]) => [k, String(v)]));
   const bound = boundFields(selectedGraphic);
-  const currentValues = Object.fromEntries(
-    descriptors.map((d) => [
-      d.key,
-      bound[d.key] ? resolved[selectedGraphic ?? '']?.[d.key] ?? '' : String(editingView.values[d.key] ?? d.defaultValue ?? ''),
-    ]),
-  );
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
       onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
@@ -434,7 +429,13 @@ export default function CueEditor({
                     return (
                       <div className="pd-field-with-fill" key={d.key}>
                         {field}
-                        <CueRowsFill format={format} values={currentValues} graphicName={poolGraphic.name} onFill={(values) => editDraft({ values })} />
+                        <CueRowsFill
+                          key={editingCue.id}
+                          format={format}
+                          values={currentValues}
+                          graphicName={poolGraphic.name}
+                          onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !bound[k])) })}
+                        />
                       </div>
                     );
                   }

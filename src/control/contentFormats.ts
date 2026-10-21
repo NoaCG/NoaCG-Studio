@@ -80,13 +80,60 @@ export function listFormatFor(graphic: Pick<SavedGraphic, 'type'> & { template: 
 
 /**
  * What the operator pasted, as rows of cells. Cells copied from a spreadsheet arrive
- * tab-separated (with a quoted cell for one holding a line break); lines from a document arrive
- * one per line, each a single cell.
+ * tab-separated, with a cell holding a line break quoted; lines from a document arrive one per
+ * line, each a single cell.
+ *
+ * Not `parseDelimited`: a spreadsheet quotes only the cells that need it, so a headline that merely
+ * OPENS with a quotation ("Unbelievable" says coach) must stay as typed. A cell is read as quoted
+ * only when its closing quote ends the cell; anything else is literal text.
  */
 export function pastedCells(text: string): string[][] {
-  const clean = text.replace(/\r\n?/g, '\n');
-  if (clean.includes('\t')) return parseDelimited(clean, '\t');
-  return clean.split('\n').map((line) => [line]);
+  const src = text.replace(/\r\n?/g, '\n');
+  if (!src.includes('\t')) return src.split('\n').map((line) => [line]);
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let i = 0;
+  while (i <= src.length) {
+    let cell = '';
+    const quoted = src[i] === '"' ? quotedCell(src, i) : null;
+    if (quoted) {
+      cell = quoted.text;
+      i = quoted.end;
+    } else {
+      while (i < src.length && src[i] !== '\t' && src[i] !== '\n') cell += src[i++];
+    }
+    row.push(cell);
+    if (src[i] === '\t') {
+      i++;
+      continue;
+    }
+    rows.push(row);
+    row = [];
+    i++;
+  }
+  // A trailing line break is not a last, empty row.
+  if (rows.length > 1 && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') rows.pop();
+  return rows;
+}
+
+/** A quoted cell starting at `at`: its text and the index just past its closing quote, or null
+ *  when the quotes do not close the cell (then the quote is part of the text). */
+function quotedCell(src: string, at: number): { text: string; end: number } | null {
+  let text = '';
+  let i = at + 1;
+  while (i < src.length) {
+    if (src[i] === '"') {
+      if (src[i + 1] === '"') {
+        text += '"';
+        i += 2;
+        continue;
+      }
+      const next = src[i + 1];
+      return next === undefined || next === '\t' || next === '\n' ? { text, end: i + 1 } : null;
+    }
+    text += src[i++];
+  }
+  return null;
 }
 
 /** One line a fill writes, as the preview lists it; `problem` flags a malformed row. */
@@ -133,7 +180,8 @@ function contentRows(adapter: ListAdapter, cells: string[][]): { rows: string[][
   const trimmed = trimmedRows(cells);
   const lead = cells.findIndex((r) => trimRow(r).length > 0);
   const raw = lead < 0 ? [] : cells.slice(lead, lead + trimmed.length);
-  if (header && trimmed.length > 0 && sameRow(trimmed[0], header)) {
+  // A header copied as one document line ("Time | Programme") is the header too.
+  if (header && trimmed.length > 0 && (sameRow(trimmed[0], header) || sameRow(splitPipes(trimmed[0], false), header))) {
     return { rows: trimmed.slice(1), raw: raw.slice(1) };
   }
   return { rows: trimmed, raw };
@@ -192,14 +240,19 @@ function creditsRow(row: string[], width: number): FilledRow {
   if (role.startsWith('#')) return { text: row.filter((c) => c !== '').join(' | ') };
   const name = names.filter((c) => c !== '').join(' ');
   if (role === '') return { text: name };
-  return { text: name === '' ? `${role}:` : `${role} | ${name}` };
+  if (name !== '') return { text: `${role} | ${name}` };
+  // The credits parser reads "Role:" as a role only up to its label length.
+  const text = `${role}:`;
+  return role.length <= ROLE_LABEL_MAX ? { text } : { text, problem: `A role without a name has at most ${ROLE_LABEL_MAX} characters` };
 }
 
 function standings(format: ListFormat, rows: string[][]): ListFill {
   if (rows.length === 0) return { values: { [format.main]: '', [format.headers!]: '' }, rows: [] };
   const [head, ...body] = rows;
   const columns = head.slice(1);
-  const out: FilledRow[] = [{ text: head.join(' | ') }];
+  // The header row is content by definition; a first row of figures is a team that lost its header.
+  const figures = columns.length > 0 && columns.every((c) => c === '' || Number.isFinite(Number(c.replace(/^\+/, ''))));
+  const out: FilledRow[] = [figures ? { text: head.join(' | '), problem: 'The first row names the columns' } : { text: head.join(' | ') }];
   const lines: string[] = [];
   for (const row of body) {
     const text = row.join(' | ');

@@ -52,6 +52,10 @@ test('pasted cells: a spreadsheet selection splits at tabs, a document gives one
   assert.deepEqual(pastedCells('one\ntwo | three'), [['one'], ['two | three']]);
   // A cell holding a line break comes quoted from a spreadsheet, and stays one cell.
   assert.deepEqual(pastedCells('"two\nlines"\tx'), [['two\nlines', 'x']]);
+  assert.deepEqual(pastedCells('"say ""hi"""\tx'), [['say "hi"', 'x']]);
+  // A cell that merely OPENS with a quotation is not quoted: it stays as typed, and no row is lost.
+  assert.deepEqual(pastedCells('"Unbelievable" says coach\tSPORT'), [['"Unbelievable" says coach', 'SPORT']]);
+  assert.deepEqual(pastedCells('SPORT\t"Quote of the day\nNext\tY'), [['SPORT', '"Quote of the day'], ['Next', 'Y']]);
 });
 
 // ── lines (tickers) ─────────────────────────────────────────────────────────
@@ -110,6 +114,9 @@ test('schedule: a row missing either half is flagged and written as the board wi
 test('schedule: document lines already in the field format split at the first pipe', () => {
   const fill = fillList(SCHEDULE, pastedCells('20:00 | News\n21:00 | Q | A'));
   assert.equal(fill.values.f0, '20:00 | News\n21:00 | Q | A');
+  // The starter header written as one document line is the header too.
+  assert.equal(fillList(SCHEDULE, pastedCells('Time | Programme\n20:00 | News')).values.f0, '20:00 | News');
+  assert.equal(fillList(CREDITS, pastedCells('Role | Name\nHost | Ann')).values.f0, 'Host | Ann');
 });
 
 // ── standings ───────────────────────────────────────────────────────────────
@@ -131,7 +138,19 @@ test('standings: the header row fills the headers field, the body the rows, in o
 test('standings: the header row is content by definition, and a nameless row is flagged', () => {
   const fill = fillList(STANDINGS, [['Name', 'PTS'], ['', '9']]);
   assert.equal(fill.values.f3, 'PTS');
+  assert.equal(fill.rows[0].problem, undefined);
   assert.match(fill.rows[1].problem, /name/);
+  // Rows pasted without their header: the first team would become the columns, so it is flagged.
+  const headless = fillList(STANDINGS, pastedCells('Liquid | 5 | +4 | 12\nNAVI | 5 | 3 | 9'));
+  assert.match(headless.rows[0].problem, /first row names the columns/);
+});
+
+test('credits: a role alone longer than the credits label limit is flagged', () => {
+  const role = 'Executive Producer for International Co-Productions';
+  const fill = fillList(CREDITS, [[role, ''], ['', 'Ann']]);
+  assert.equal(fill.values.f0, `${role}:\nAnn`);
+  assert.match(fill.rows[0].problem, /at most 48 characters/);
+  assert.equal(fillList(CREDITS, [['x'.repeat(48), ''], ['', 'Ann']]).rows[0].problem, undefined);
 });
 
 // ── credits ─────────────────────────────────────────────────────────────────
