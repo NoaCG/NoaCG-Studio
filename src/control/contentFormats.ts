@@ -407,8 +407,9 @@ export function parseScalarCsv(text: string, fields: FieldDescriptor[]): { value
   return { values, problems };
 }
 
-/** The value a field takes from a cell, or null when its type cannot hold it. Empty clears. */
-function valueFor(field: FieldDescriptor, raw: string): string | null {
+/** The value a field takes from a cell, or null when its type cannot hold it. Empty clears.
+ *  Shared with the Sheet reader (sheetSource.ts), so a Sheet cell and a template row read alike. */
+export function valueFor(field: FieldDescriptor, raw: string): string | null {
   if (raw.trim() === '') return '';
   switch (field.kind) {
     case 'number': {

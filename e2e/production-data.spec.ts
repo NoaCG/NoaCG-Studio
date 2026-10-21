@@ -7,6 +7,7 @@
 // covers: src/control/cueData.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 // covers: src/control/contentFormats.ts
+// covers: src/control/sheetSource.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
@@ -14,6 +15,7 @@ import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
 import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
+import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
 // The production DATA workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md D3/D6): the show's own
 // tables, edited on the Data tab, loaded into CUES on the Playout tab by deliberate operator
@@ -1229,4 +1231,300 @@ test('a graphic downloads its data template: one Field ID, Label and Value row p
   const ids = rows.slice(1).map((r) => r.split(',')[0]);
   expect(new Set(ids).size).toBe(ids.length);
   for (const id of ids) await expect(page.locator(`[data-testid="cue-field-${id}"], [data-testid^="cue-field-${id}-"]`).first()).toBeAttached();
+});
+
+// ── CONNECT DATA: a Google Sheet tab drives a graphic (data-sources C1b; sheet-data-flow AC-1,
+//    AC-2, AC-6, AC-7, AC-8) ─────────────────────────────────────────────────────────────────
+// The Sheet is a stub this spec serves itself at Google's export address: the reader builds that
+// address from the stored id and tab, so the route is exactly what a real Sheet would answer.
+
+const SHEET_LINK = 'https://docs.google.com/spreadsheets/d/1NoaCGStubSheet0000000000/edit#gid=0';
+
+/** A stub Sheet tab: the export answers with whatever `tab.csv` holds at the moment of the read. */
+async function stubSheet(page: Page, csv: string): Promise<{ csv: string; status: number; reads: number }> {
+  const tab = { csv, status: 200, reads: 0 };
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, async (route) => {
+    tab.reads += 1;
+    await route.fulfill({ status: tab.status, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: tab.csv });
+  });
+  return tab;
+}
+
+/** Open the edited cue's Connect data… and read the Sheet tab; answers the review. */
+async function readSheetTab(page: Page, link = SHEET_LINK) {
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill(link);
+  await review.getByTestId('cue-connect-read').click();
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  return review;
+}
+
+/** Reuse the production's one source on the edited cue's graphic; answers the review. */
+async function reuseSource(page: Page) {
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  const reuse = review.getByTestId('cue-connect-reuse');
+  await reuse.selectOption({ index: 1 });
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  return review;
+}
+
+async function storedBindings(page: Page, showId: string) {
+  return page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.id === id);
+    return { bindings: show?.bindings ?? {}, sources: show?.sources ?? [] };
+  }, showId);
+}
+
+test('Connect data previews the whole graphic, connects it in one confirmation and follows the Sheet; cancel, repair, rename, Pause and Disconnect', async ({ page }) => {
+  test.setTimeout(120_000);
+  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\nRole,Chief Editor\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Sheet Night');
+  await addCatalogGraphic(page, showId, 'Underline');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const preview = page.frameLocator('iframe[title="Cue preview"]');
+
+  // ── The review: every field's proposal, the counts, the cues it affects, on the real graphic. ──
+  let review = await readSheetTab(page);
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'name');
+  await expect(review.getByTestId('cue-connect-row-f1')).toHaveAttribute('data-status', 'unmatched');
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('1 connected · 1 needs attention · Used by 1 cue');
+  await expect(preview.locator('#f0')).toHaveText('Ann Lee');
+  // Cancel writes nothing, and the preview returns to the cue.
+  await review.getByTestId('cue-connect-cancel').click();
+  await expect(review).toBeHidden();
+  await expect(preview.locator('#f0')).not.toHaveText('Ann Lee');
+  expect(await storedBindings(page, showId)).toEqual({ bindings: {}, sources: [] });
+  await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
+
+  // ── Repair the unmatched field by hand, then ONE confirmation. ──
+  review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'Role' });
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('2 connected');
+  await review.getByTestId('cue-connect-label').fill('News desk');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toHaveLength(1);
+  const sourceId = stored.sources[0].id;
+  expect(stored.bindings).toEqual({ Hairline: { f0: `sheet.${sourceId}.values.Name`, f1: `sheet.${sourceId}.values.Role` } });
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: News desk');
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Ann Lee');
+  await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Chief Editor');
+  await expect(page.getByTestId(`cue-source-${sourceId}`)).toContainText(/Sheet: News desk · checked \d+ s ago/);
+
+  // ── The equal title on the other graphic stays the cue's own. ──
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
+  await expect(page.getByTestId('cue-field-f0')).not.toHaveValue('Ann Lee');
+  await cues.nth(0).locator('.pd-cue-label').click();
+
+  // ── On air, a cell edit reaches PROGRAM with no Take. ──
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="Hairline"]');
+  await expect(program.locator('#f0')).toHaveText('Ann Lee');
+  tab.csv = 'Name,Value\nName,Bo Chen\nRole,Chief Editor\n';
+  await expect(program.locator('#f0')).toHaveText('Bo Chen', { timeout: 15_000 });
+
+  // ── A display rename keeps the connection. ──
+  review = await reuseSource(page);
+  await review.getByTestId('cue-connect-label').fill('Studio guests');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: Studio guests');
+  expect((await storedBindings(page, showId)).bindings.Hairline.f0).toBe(`sheet.${sourceId}.values.Name`);
+
+  // ── Pause holds the values; Resume brings the change. ──
+  const line = page.getByTestId(`cue-source-${sourceId}`);
+  await line.getByTestId('cue-source-pause').click();
+  await expect(line).toContainText('paused');
+  tab.csv = 'Name,Value\nName,Cy Dale\nRole,Chief Editor\n';
+  const reads = tab.reads;
+  await page.waitForTimeout(7_000);
+  expect(tab.reads, 'paused: nothing is read').toBe(reads);
+  await expect(program.locator('#f0')).toHaveText('Bo Chen');
+  await line.getByTestId('cue-source-pause').click();
+  await expect(program.locator('#f0')).toHaveText('Cy Dale', { timeout: 10_000 });
+
+  // ── A failed read keeps the values and names the fix. ──
+  tab.status = 403;
+  await expect(line).toContainText('can’t read it (not shared)', { timeout: 10_000 });
+  await expect(line.getByTestId('cue-source-fix')).toContainText('Anyone with the link');
+  await expect(program.locator('#f0')).toHaveText('Cy Dale');
+  tab.status = 200;
+  await expect(line).toContainText('checked', { timeout: 10_000 });
+
+  // ── Disconnect returns the field to the cue holding its last value. ──
+  await page.getByTestId('cue-bound-f0').getByTestId('cue-disconnect').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Cy Dale');
+  await expect(page.getByTestId('cue-bound-f1')).toBeVisible();
+  expect((await storedBindings(page, showId)).bindings).toEqual({ Hairline: { f1: `sheet.${sourceId}.values.Role` } });
+  await page.getByTestId('cue-bound-f1').getByTestId('cue-disconnect').click();
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('Chief Editor');
+  expect(await storedBindings(page, showId), 'the last field gone, the source goes too').toEqual({ bindings: {}, sources: [] });
+  await expect(line).toHaveCount(0);
+});
+
+test('twelve Sheet rows reach a ticker on air without a new entrance, and an emptied tab clears it', async ({ page }) => {
+  test.setTimeout(120_000);
+  const twelve = Array.from({ length: 12 }, (_, i) => `Headline ${i + 1}`).join('\n');
+  const tab = await stubSheet(page, 'First line\n');
+  await bootstrapGraphic(page, { name: 'News Strip' });
+  await productionFor(page, 'Ticker Sheet');
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="News Strip"]');
+  await expect(program.locator('#ticker-track')).not.toBeEmpty();
+  const stage = page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first();
+  const plays = await stage.getAttribute('data-plays');
+
+  const review = await readSheetTab(page);
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
+  await expect(review.getByTestId('cue-connect-preview')).toContainText('First line');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(program.locator('#f0')).toHaveText('First line', { timeout: 10_000 });
+  // A connected list is read-only here and says where to edit it.
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Edit in the Sheet, or Disconnect to edit here');
+
+  tab.csv = `${twelve}\n`;
+  await expect.poll(async () => ((await program.locator('#f0').textContent()) ?? '').split('\n').length, { timeout: 12_000 }).toBe(12);
+  await expect(program.locator('#ticker-track')).toContainText('Headline 12');
+  await expect(program.locator('#f0')).toHaveText(twelve);
+  await expect(page.getByTestId('cue-bound-f0').locator('textarea')).toHaveValue(twelve);
+  // It updated the running strip: no new entrance was played, nothing was taken.
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+
+  tab.csv = '';
+  await expect(program.locator('#f0')).toHaveText('', { timeout: 12_000 });
+  await expect(page.locator('[data-testid^="cue-source-"]').first()).toContainText('empty');
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+});
+
+test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
+  test.setTimeout(120_000);
+  const tab = await stubSheet(page, 'Field ID,Label,Value\nf1,Home score,0\n');
+  await bootstrapGraphic(page, { name: 'House Score' });
+  const showId = await productionFor(page, 'Sheet Derby');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+
+  let review = await readSheetTab(page);
+  await expect(review.getByTestId('cue-connect-row-f1')).toHaveAttribute('data-status', 'key');
+  await review.getByTestId('cue-connect-confirm').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  // Sharing is explicit: the second board reuses the source by choice, and the review counts both.
+  review = await reuseSource(page);
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('Used by 2 cues');
+  await review.getByTestId('cue-connect-confirm').click();
+  const { bindings, sources } = await storedBindings(page, showId);
+  expect(sources).toHaveLength(1);
+  expect(bindings['House Score'].f1).toBe(bindings['Club Scorebug'].f1);
+
+  await cues.nth(0).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const strip = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  tab.csv = 'Field ID,Label,Value\nf1,Home score,2\n';
+  await expect(strip.locator('#f1')).toHaveText('2', { timeout: 12_000 });
+  await expect(bug.locator('#f1')).toHaveText('2');
+
+  // The operator wins: one press moves the shared value on both boards, and the unchanged cell
+  // does not put it back.
+  await page.getByTestId('live-number-f1-up').click();
+  await expect(bug.locator('#f1')).toHaveText('3');
+  await expect(strip.locator('#f1')).toHaveText('3');
+  await page.waitForTimeout(7_000);
+  await expect(strip.locator('#f1')).toHaveText('3');
+  // The cell changes: the Sheet wins again.
+  tab.csv = 'Field ID,Label,Value\nf1,Home score,5\n';
+  await expect(strip.locator('#f1')).toHaveText('5', { timeout: 12_000 });
+  await expect(bug.locator('#f1')).toHaveText('5');
+});
+
+test('a connected field the graphic lacks is flagged, a removed graphic is named, and a graphic that reads a Sheet itself is refused', async ({ page }) => {
+  test.setTimeout(120_000);
+  await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Sheet Repairs');
+  await addCatalogGraphic(page, showId, 'Underline');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+  await cues.nth(0).locator('.pd-cue-label').click();
+  let review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  review = await reuseSource(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(page.getByTestId('cue-bound-f0')).toBeVisible();
+
+  // A connection to a field Hairline does not have (its template changed under it).
+  const { sources } = await storedBindings(page, showId);
+  await page.evaluate(
+    async ({ showId, path }) => {
+      const { setFieldBindings } = await import('/src/model/shows.ts');
+      setFieldBindings(showId, [{ graphic: 'Hairline', fieldId: 'f9', path }]);
+    },
+    { showId, path: `sheet.${sources[0].id}.values.Name` },
+  );
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const missing = page.getByTestId('cue-source-missing');
+  await expect(missing).toContainText('F9 is connected, but this graphic has no F9');
+  await missing.getByTestId('cue-disconnect-f9').click();
+  await expect(missing).toHaveCount(0);
+
+  // Underline leaves the production: the review names it instead of redirecting its connection.
+  await page.evaluate(async (showId) => {
+    const { loadShows, removeShowGraphic } = await import('/src/model/shows.ts');
+    const g = loadShows().find((s) => s.id === showId)?.graphics.find((x) => x.name === 'Underline');
+    if (g) removeShowGraphic(showId, g.id);
+  }, showId);
+  await expect(cues).toHaveCount(1);
+  review = await reuseSource(page);
+  await expect(review.getByTestId('cue-connect-removed')).toContainText('Underline no longer in this production');
+  await review.getByTestId('cue-connect-cancel').click();
+
+  // A graphic whose own code reads a Sheet is refused until that code moves here.
+  await page.evaluate(async (showId) => {
+    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const template = loadShows().find((s) => s.id === showId)!.graphics[0].template;
+    const js = `${template.js}\n${liveDataBlock({ csvUrl: 'https://docs.google.com/spreadsheets/d/e/x/pub?output=csv', pollSeconds: 5, fields: template.fields })}`;
+    addGraphicToShow(showId, { ...template, name: 'Legacy Card', js });
+  }, showId);
+  await expect(cues).toHaveCount(2);
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('cue-connect').click();
+  await expect(page.getByTestId('cue-connect-legacy')).toContainText('reads a Sheet in its own code');
+  await expect(page.getByTestId('cue-connect-link')).toHaveCount(0);
+});
+
+test('Connect closes only once the save landed, and a changed link needs a fresh read', async ({ page }) => {
+  test.setTimeout(120_000);
+  await armStorageFailure(page);
+  await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Sheet Saves');
+
+  // Editing the link after a read drops that read: nothing old can be connected.
+  let review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-link').fill(`${SHEET_LINK}0`);
+  await expect(review.getByTestId('cue-connect-map')).toHaveCount(0);
+  await expect(review.getByTestId('cue-connect-confirm')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Storage refuses the write: the review stays, says so, and Connect can be pressed again.
+  review = await readSheetTab(page);
+  await fillStorage(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review.getByTestId('cue-connect-save-error')).toContainText('Not saved');
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  await freeStorage(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: Hairline');
 });

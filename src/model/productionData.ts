@@ -515,3 +515,149 @@ export function parseDataTree(text: string): { data: JsonObject | null; error: s
   if (!isPlainObject(parsed)) return { data: null, error: 'Production data must be a JSON object at the top level.' };
   return { data: parsed, error: null };
 }
+
+// ── Connecting a graphic: one reviewed write of its bindings ────────────────
+//
+// "Connect data…" (docs/work-specs/data-sources/spec.md, "Whole-graphic matching") PROPOSES a
+// mapping for every field of one graphic, the operator reviews it, and one confirmation writes
+// it. Nothing here applies anything by itself: a source's arrival never binds a field.
+
+/** A data source's paths: everything under `sheet.<id>` (control/sheetSource.ts writes them). */
+export const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}`;
+
+/** Whether a connected path is one this source writes. */
+export const isSourcePath = (sourceId: string, path: string): boolean => path.startsWith(`${sourcePrefix(sourceId)}.`);
+
+/** The source a connected path follows, or null for a path no source writes. */
+export const sourceIdOf = (path: string | undefined): string | null => (path?.startsWith('sheet.') ? path.split('.')[1] || null : null);
+
+/** Every connected path that follows this source, across the production's graphics. */
+export function sourcePaths(bindings: ProductionBindings | undefined, sourceId: string): { graphic: string; fieldId: string; path: string }[] {
+  const out: { graphic: string; fieldId: string; path: string }[] = [];
+  for (const [graphic, fields] of Object.entries(bindings ?? {})) {
+    for (const [fieldId, path] of Object.entries(fields)) if (isSourcePath(sourceId, path)) out.push({ graphic, fieldId, path });
+  }
+  return out;
+}
+
+/** One binding write: a path to set, or `null` to unbind. */
+export interface BindingEntry {
+  graphic: string;
+  fieldId: string;
+  path: string | null;
+}
+
+/**
+ * THE ONE BINDING WRITE. Every door that binds a field - the Advanced rows, Bind all by title,
+ * Connect data and its field repair - goes through this, so the refusal cannot be bypassed:
+ * `refuses` names a field that may not take a path (a field prepared messages use; model/shows.ts
+ * decides which). Unbinding is always allowed. Returns the same object when nothing changed.
+ */
+export function withBindings(
+  bindings: ProductionBindings,
+  entries: BindingEntry[],
+  refuses: (graphic: string, fieldId: string) => boolean,
+): { bindings: ProductionBindings; refused: BindingEntry[] } {
+  let out = bindings;
+  const refused: BindingEntry[] = [];
+  for (const entry of entries) {
+    const path = entry.path?.trim() ?? '';
+    if (path !== '' && refuses(entry.graphic, entry.fieldId)) {
+      refused.push(entry);
+      continue;
+    }
+    const current = out[entry.graphic]?.[entry.fieldId];
+    if ((current ?? '') === path) continue;
+    const forGraphic = { ...(out[entry.graphic] ?? {}) };
+    if (path !== '') forGraphic[entry.fieldId] = path;
+    else delete forGraphic[entry.fieldId];
+    out = { ...out };
+    if (Object.keys(forGraphic).length > 0) out[entry.graphic] = forGraphic;
+    else delete out[entry.graphic];
+  }
+  return { bindings: out, refused };
+}
+
+/** A value a source offers a graphic: its path, what the operator reads it as, a sample, and the
+ *  field it was made for when the source says so (a list adapter's field, a template's Field ID). */
+export interface OfferedValue {
+  path: string;
+  label: string;
+  sample: string;
+  key?: string;
+}
+
+/**
+ * A field's proposed connection, as the review shows it.
+ *
+ * - `key`        the source names this field (a Field ID row, a list adapter's own field)
+ * - `name`       the one value whose name matches the field's title
+ * - `ambiguous`  several names match: nothing is guessed, the operator picks
+ * - `unmatched`  nothing matches
+ * - `refused`    prepared messages use this field, so it never follows live data
+ */
+export interface MappingRow {
+  fieldId: string;
+  label: string;
+  status: 'key' | 'name' | 'ambiguous' | 'unmatched' | 'refused';
+  /** The proposed path, or null. */
+  path: string | null;
+  candidates: string[];
+  /** What the field is bound to now, if anything. A different binding is replaced only when the
+   *  operator says so. */
+  current: string | null;
+}
+
+/**
+ * Propose a whole graphic's mapping from one source's values: a supplied key first, otherwise a
+ * unique name match (`matchTitle`, the rule Bind all by title uses), never across sources and
+ * never a guess between two.
+ */
+export function proposeMapping(
+  fields: { key: string; label: string }[],
+  offered: OfferedValue[],
+  current: Record<string, string>,
+  refuses: (fieldId: string) => boolean,
+  holds: (fieldId: string, text: string) => boolean = () => true,
+): MappingRow[] {
+  const leaves: DataLeaf[] = offered.map((o) => ({ path: o.path, value: o.sample, text: o.sample }));
+  const byLabel = (title: string): string[] => {
+    const want = normalize(title);
+    const named = want === '' ? [] : offered.filter((o) => normalize(o.label) === want).map((o) => o.path);
+    return [...new Set([...named, ...matchTitle(title, leaves)])];
+  };
+  return fields.map((field) => {
+    const base = { fieldId: field.key, label: field.label, current: current[field.key] ?? null };
+    if (refuses(field.key)) return { ...base, status: 'refused', path: null, candidates: [] };
+    // A value the field cannot hold is never proposed: a number field does not take "abc".
+    const fits = offered.filter((o) => holds(field.key, o.sample));
+    const keyed = fits.find((o) => o.key === field.key);
+    if (keyed) return { ...base, status: 'key', path: keyed.path, candidates: [keyed.path] };
+    const hits = byLabel(field.label).filter((path) => fits.some((o) => o.path === path));
+    if (hits.length === 1) return { ...base, status: 'name', path: hits[0], candidates: hits };
+    return { ...base, status: hits.length > 1 ? 'ambiguous' : 'unmatched', path: null, candidates: hits };
+  });
+}
+
+/** The path a reviewed field ends on: the operator's choice, else what it is bound to now (a
+ *  different binding is replaced only by a choice), else the proposal. */
+export function chosenPath(row: MappingRow, choices: Record<string, string | null>): string | null {
+  return Object.prototype.hasOwnProperty.call(choices, row.fieldId) ? choices[row.fieldId] : row.current ?? row.path;
+}
+
+/**
+ * The bindings one confirmation writes for one graphic: each field's chosen path where it differs
+ * from what is bound now. `choices` holds the operator's review (field -> path, or null for "not
+ * connected"); a field it does not name keeps the proposal, except that a field already bound
+ * elsewhere keeps its binding until the operator chooses to replace it. Refused fields never bind.
+ */
+export function mappingEntries(graphic: string, rows: MappingRow[], choices: Record<string, string | null>): BindingEntry[] {
+  const out: BindingEntry[] = [];
+  for (const row of rows) {
+    if (row.status === 'refused') continue;
+    const chosen = chosenPath(row, choices);
+    if (chosen === row.current) continue;
+    out.push({ graphic, fieldId: row.fieldId, path: chosen ?? null });
+  }
+  return out;
+}

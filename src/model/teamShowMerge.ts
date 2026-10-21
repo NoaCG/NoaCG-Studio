@@ -40,6 +40,7 @@ const FIELD_LABEL: Record<string, string> = {
   playoutItems: 'the playout items',
   data: 'the production data',
   bindings: 'the field bindings',
+  sources: 'the data sources',
   profile: 'the control panel layout',
   look: 'the look',
   brandId: 'the brand',
