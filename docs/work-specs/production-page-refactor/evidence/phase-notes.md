@@ -5,6 +5,58 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 4, phase 2+7: store part, session skeleton, the production-data session
+
+- **Previous verified `main` sha:** `304a440a121c51d650f78437496ffc2e1bd56d0a` (row 3, phase 1,
+  #1568 and #1569, then the nightly e2e map #1570). Receipt: `phase-2-7.md`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no persisted format: the
+  data part holds what the page's state held, under the same storage keys.
+- **Decisions.**
+  - The session is `createPlayoutSession(productionId)` with `key`, `alive`, `data`, `apply`,
+    `onDispose` and `dispose`. `onDispose` is the one place a module registers its stop, so
+    disposal runs every stop once and a stop registered late runs at once. It is the hook the
+    later watchers (bridge, wire, arms) register with.
+  - The page holds the session in state and the same effect ends it. When the effect finds the
+    session disposed or keyed on another id it makes the next one. `src/main.tsx` renders under
+    `React.StrictMode`, whose extra cleanup in development disposes the first session; a session
+    held in `useMemo` stayed dead after it (review finding on this branch). The route keys the page
+    by production (S4, #1566), so in production builds the session lives exactly as long as the
+    page.
+  - The `data` part holds `liveData`, `dataKey` and `treeRead`. The dispatch baseline
+    (`lastResolved`) stays private to `productionDataSession`: nothing renders from it, and in the
+    part every dispatch would re-render the page.
+  - `published(slug)` is the mode change of D2 for the data tree: it re-seeds the tree and the
+    baseline, listens to other tabs when unpublished, reads the key when published, and answers its
+    stop. A number that moves with every mode change drops answers from an earlier mode (the old
+    page's `alive` flag did that for the key read only).
+  - **Departure:** entering the published mode sets `dataKey` to `undefined` until the key read
+    answers. The page kept the previous `null` for that moment, so a first publish could dispatch the
+    (empty) tree locally once. `undefined` is the spec's and the folder contract's "not yet known".
+  - `dispatch(resolved, tree, send)`: the page passes the resolve it rendered and the tree it came
+    from, and the session passes over a tree the part no longer holds. A mode change sets the tree
+    and the key in one write, so without the tree check a render's older tree could pair with the
+    newer key in the same commit (unpublishing would have sent the server tree's values once).
+  - A write that changes no field keeps the part's value, so nothing re-renders for it (as React's
+    own bail-out did for an unchanged state).
+  - The data API's types come from `productionDataApi.ts` through `typeof`, type-only, so the
+    module stays Node-importable.
+  - `cueItems.ts` type-imports `ControlSendItem` from `hostedControl.ts`: a type-only cycle, which
+    `.dependency-cruiser.cjs` tolerates, so `hostedControl.ts` changes by re-exports only.
+  - `// covers:` headers: every spec whose covers selected `hostedControl.ts`, `serverPlayoutStore.ts`
+    or `ProductionPage.tsx` before the move now also names the module that code moved to (comment
+    lines only, 57 specs), so `e2e-affected --files <new module>` selects them.
+- **Traps.**
+  - `src/main.tsx` uses `React.StrictMode`. Any session, watcher or engine a later phase creates
+    must survive mount, cleanup and mount again in development; `useMemo` plus a cleanup does not.
+  - A disposed session is final by design: create the next one rather than revive it.
+  - The local e2e selection passed on the `useMemo` version too, so the StrictMode defect was found
+    by review, not by the suite. Do not read a green local run as evidence of lifetime.
+- **Left for later:** `ClipClock.tsx` still reads its two store parts with `useSyncExternalStore`
+  directly rather than `useStorePart` (outside this phase's files). Answers from one mode that land
+  out of order (two refreshes, two PATCHes) can still replace a newer tree with an older one, as
+  before this phase: [#1572](https://github.com/NoaCG/NoaCG-Studio/issues/1572).
+
 ## Row 3, phase 1: safety net and baseline
 
 - **Previous verified `main` sha:** `995272d56215f6e218da22a2b94baba6adec801f` (H0.1, #1561).
