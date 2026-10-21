@@ -54,7 +54,15 @@ changes a spec's digest.
   slot receipt found a duplicated Field ID reported twice, the second time as missing; it is now
   reported once (`SheetContent.doubled`), mutation-tested. `e2e/production-audience.spec.ts` and
   `e2e/configured/production-data-key-dispatch.spec.ts` open Advanced before using the per-field
-  table and the add-a-value row.
+  table and the add-a-value row. `src/control/cueData.ts` exports `datasetMatches`, the cue loader's own
+  column test, so a table's "Loads into" can never disagree with what a cue offers.
+- **`/check` review fixes.** Only graphics still in the pool are named as showing or following a
+  value (bindings outlive a removed graphic); a data template's Field ID reads as the field's title;
+  a Sheet's lines stay a list when emptied; the overview shows a read's problems; values a
+  disconnected Sheet left in the tree are not called local; a source not read yet says it waits for
+  the first read. Not taken: a `FieldControl` box on the overview (the overview mirrors the
+  Advanced rows, which are tree values, not graphic fields); generalising `doubled` into a map of
+  withheld leaves (one cause today); memoising the overview's scans (tens of values).
 - **Traps.**
   - The graphic's fields sit in a shadow root: `document.querySelector('#f0')` in an iframe finds
     nothing, a Playwright locator does. Time a field with a locator polled in Node.
