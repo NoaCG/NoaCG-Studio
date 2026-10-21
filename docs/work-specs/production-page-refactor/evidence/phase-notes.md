@@ -70,8 +70,14 @@ changes a spec's digest.
     store outside React (`createSourceStatusStore`) so a read re-renders only the lines. C1c moves
     the sources line to Playout and adds checked versus changed.
   - Not in this phase (C2): writing `bindings`/`sources` to the published row at connect. A field
-    connected after publishing reaches air after the next publish, as every binding does today;
-    until then the reader's writes are refused by the door and the page notes it.
+    connected after publishing reaches air after the next publish, as every binding does today.
+    The operator door refuses a whole patch for one unbound path, so the writer leaves such a path
+    out (said once), writes the rest, and the reader retries only that path; without this, one new
+    connection froze every working one on the same source (assessment A, medium, fixed).
+  - Assessment A (fresh read-only session on `c5b9028`): PASS WITH NOTES. Its three low notes
+    stay: a published write in flight is not cancelled by a handover (bounded by the 15 s lease);
+    rename on reuse is a second write after Connect (nothing is lost); the writer now answers
+    false once the session has ended.
   - `/check` review fixes: a pasted link mints a new source each read (a second Connect never
     reuses the first source's record); a read answering after the review closed or after a newer
     read is dropped; the PREVIEW overlay clears when the review closes or unmounts; a reader whose
@@ -91,6 +97,7 @@ changes a spec's digest.
   - A button inside `.pd-bound-mark` is unclickable: the mark is clipped to its column with an
     ellipsis. Keep the mark short and put actions under the field.
   - `react-hooks/purity` refuses `Math.random` inside `useMemo`; a `useState` initializer is fine.
+  - The E2E protection gate caps a per-test timeout at 120 s; the journeys take 20 to 30 s.
   - The `""` database case is carried by C1a's 0096 self-check and `production-data-migration`;
     the configured spec now walks it end to end (an emptied tab is an update row with `f0: ""`).
 
