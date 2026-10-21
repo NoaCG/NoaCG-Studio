@@ -433,7 +433,7 @@ async function addValue(page: Page, path: string, value: string): Promise<void> 
 
 /** The pool graphic's name, as the bindings table prints it. */
 async function firstGraphicName(page: Page): Promise<string> {
-  const heading = await page.locator('.pd-bind-graphic h4').first().textContent();
+  const heading = await page.getByTestId('production-bindings').locator('.pd-bind-graphic h4').first().textContent();
   return (heading ?? '').trim();
 }
 
