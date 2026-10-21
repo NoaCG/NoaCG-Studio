@@ -7,15 +7,50 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39404236197"
     },
+    "e2e/configured/audience-live.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
+    },
+    "e2e/configured/command-sequence.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
+    },
+    "e2e/configured/dashboard-hosted-walk.spec.ts": {
+      "since": "2026-10-21",
+      "count": 6,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
+    },
+    "e2e/configured/hosted-reveal-after-reload.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
+    },
     "e2e/configured/late-send-abandoned.spec.ts": {
       "since": "2026-10-20",
       "count": 13,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39509585350"
     },
+    "e2e/configured/playout-both-roads.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
+    },
+    "e2e/configured/publish-output-default.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
+    },
     "e2e/configured/shared-lab-computer.spec.ts": {
       "since": "2026-10-20",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253761"
+    },
+    "e2e/configured/take-behind-out.spec.ts": {
+      "since": "2026-10-21",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
     },
     "e2e/import-svg-behaviour.spec.ts": {
       "since": "2026-10-20",
@@ -41,10 +76,6 @@
     "e2e/configured/connector-grants.spec.ts": {
       "count": 1,
       "last": "2026-10-13"
-    },
-    "e2e/configured/dashboard-hosted-walk.spec.ts": {
-      "count": 5,
-      "last": "2026-10-12"
     },
     "e2e/configured/deep-link-boot.spec.ts": {
       "count": 1,
