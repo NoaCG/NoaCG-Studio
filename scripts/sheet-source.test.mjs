@@ -344,6 +344,18 @@ test('a missing keyed row holds its value and is reported; an explicit empty Val
   a.reader.stop();
 });
 
+test('a keyed row on two rows holds its value and is reported once, as doubled, not as missing', async () => {
+  const b = browser();
+  b.sheet.csv = 'Field ID,Label,Value\nf0,Home,3\nf1,Away,1\n';
+  const a = tab(b, 'A', { shape: 'values', paths: ['sheet.s1.values.f0', 'sheet.s1.values.f1'] });
+  await b.clock.advance(0);
+  b.sheet.csv = 'Field ID,Label,Value\nf0,Home,3\nf1,Away,1\nf1,Away again,2\n';
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(a.writes.length, 1, 'the doubled row writes nothing');
+  assert.deepEqual(a.status().problems, ['f1 is on rows 3 and 4, so it keeps its value']);
+  a.reader.stop();
+});
+
 test('the operator wins: an override holds until its cell changes, Pause keeps it, Resume writes only what changed while paused', async () => {
   const b = browser();
   b.sheet.csv = 'Name,Value\nHome,3\nAway,1\n';
