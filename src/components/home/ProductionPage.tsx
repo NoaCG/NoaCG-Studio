@@ -209,7 +209,7 @@ import {
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
 import { airedAfter, type AiredMap, type ReplayItem } from '../../control/outputRecovery';
-import { createSendDebts } from '../../control/failedSends';
+import { RESEND_WINDOW_MS, createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
@@ -538,8 +538,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Folder Takes still being sent: what dispatch reads (a ref, never a stale render), and whether
    *  Out or All out has stopped each since. */
   const folderRuns = useRef(new Map<string, { stop: null | 'out' | 'all-out' }>());
-  /** The last ⚡ press still being handled on each graphic, which the next one waits for (`fireEvent`). */
-  const eventPresses = useRef(new Map<string, Promise<void>>());
+  /** The last ⚡ press moving a bound field still being handled on each graphic, which the next such
+   *  press waits for (`fireEvent`). */
+  const boundPresses = useRef(new Map<string, Promise<void>>());
   /** The same, for the verb bar to draw: a folder still being sent counts as up, so Out and SPACE can
    *  stop it even before anything of it has landed. */
   const [sendingFolders, setSendingFolders] = useState<ReadonlySet<string>>(() => new Set());
@@ -3947,21 +3948,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  base the ± live-number bump counts from - and the new figure is mirrored into the on-air
    *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it.
    *
-   *  ONE PRESS AT A TIME PER GRAPHIC. A bound field's new figure is written only once the event
-   *  has gone, a round trip after the press, so a second Goal pressed inside that round trip
-   *  counted from the same tree and wrote the same figure: two goals, one point (production-page
-   *  refactor S1, e2e/configured/playout-adjust-race.spec.ts). Each press waits for the one
-   *  before it on its graphic and counts from the tree that press left. */
+   *  A PRESS MOVING A BOUND FIELD WAITS FOR THE ONE BEFORE IT on its graphic. The new figure is
+   *  written only once the event has gone, a round trip after the press, so a second Goal pressed
+   *  inside that round trip counted from the same tree and wrote the same figure: two goals, one
+   *  point (production-page refactor S1, e2e/configured/playout-adjust-race.spec.ts). It counts
+   *  from the tree the press before it left. The wait ends with a send's own window
+   *  (failedSends.ts), so a link that never answers cannot hold the next press: past it the press
+   *  counts from the tree as it stands. A press moving no bound field never waits. */
   const fireEvent = (button: ControlButton): Promise<void> => {
     if (!selectedGraphic || !selectedLayerLive) return Promise.resolve();
     const graphic = selectedGraphic;
-    const before = eventPresses.current.get(graphic) ?? Promise.resolve();
-    const press = before.then(() => pressEvent(button, graphic));
+    const bound = boundFields(graphic);
+    if (!movedKeys(button).some((key) => bound[key])) return pressEvent(button, graphic);
+    const before = boundPresses.current.get(graphic);
+    const waited = before ? Promise.race([before, new Promise<void>((resolve) => setTimeout(resolve, RESEND_WINDOW_MS))]) : Promise.resolve();
+    const press = waited.then(() => pressEvent(button, graphic));
     // The next press waits for this one whether or not it failed.
     const settled = press.catch(() => {});
-    eventPresses.current.set(graphic, settled);
+    boundPresses.current.set(graphic, settled);
     void settled.then(() => {
-      if (eventPresses.current.get(graphic) === settled) eventPresses.current.delete(graphic);
+      if (boundPresses.current.get(graphic) === settled) boundPresses.current.delete(graphic);
     });
     return press;
   };
