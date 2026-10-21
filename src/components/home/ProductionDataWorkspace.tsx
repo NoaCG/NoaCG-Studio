@@ -19,6 +19,8 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { parseTableFile, serializeCsv } from '../../model/csv';
 import type { JsonObject, ResolvedValues } from '../../model/productionData';
 import ProductionDataPanel from './ProductionDataPanel';
+import { datasetMatches } from '../../control/cueData';
+import { fieldDescriptors } from '../../control/controlModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
 
 /** A file name a spreadsheet will not argue with, from the table type's own name. */
@@ -305,10 +307,8 @@ function DatasetCard({
    *  any of them disarms the rest and the card can never show two pending confirms at once. */
   const [armed, setArmed] = useState<string | null>(null);
   const [newColumn, setNewColumn] = useState('');
-  const columns = new Set(ds.columns.map((c) => c.label.trim().toLowerCase()));
-  const users = show.graphics
-    .filter((g) => (g.template.fields ?? []).some((f) => f.title && columns.has(f.title.trim().toLowerCase())))
-    .map((g) => g.name);
+  // The cue's own test (control/cueData.ts), so the card and the cue's loader never disagree.
+  const users = show.graphics.filter((g) => datasetMatches(fieldDescriptors(g.template.fields ?? []), ds)).map((g) => g.name);
 
   return (
     <div className="pd-dataset" data-testid={`dataset-${ds.id}`}>

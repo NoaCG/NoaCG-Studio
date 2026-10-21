@@ -38,7 +38,7 @@ export function statusWords(paused: boolean | undefined, status: SheetStatus | u
 /** Who reads a source and how often (data-sources AC-9's source details). */
 export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined): string {
   if (paused) return 'Paused: not read until Resume';
-  if (!status) return 'Not read: no page of this production is open';
+  if (!status) return 'Waiting for the first read';
   const every = `about every ${SHEET_READ_MS / 1000} s`;
   return status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
 }

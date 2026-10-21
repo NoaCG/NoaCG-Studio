@@ -10,6 +10,7 @@ import {
   parseLiteral,
   reparseLeaf,
   setPath,
+  sourceIdOf,
   sourcePaths,
   sourcePrefix,
   suggestPath,
@@ -111,6 +112,12 @@ export default function ProductionDataPanel({
     if (stored === text) return;
     write(setPath(liveData, path, reparseLeaf(previous, text)));
   });
+
+  /** A − or + press on a number: one write, counted from the tree as it stands. */
+  const step = (path: string, by: number) => {
+    const value = getPath(liveData, path);
+    if (typeof value === 'number') write(setPath(liveData, path, value + by));
+  };
 
   const addField = () => {
     const path = newPath.trim();
@@ -239,13 +246,7 @@ export default function ProductionDataPanel({
         setShows={setShows}
         leaves={leaves}
         store={sourceStatus}
-        edits={{
-          ...edits,
-          step: (path, by) => {
-            const value = getPath(liveData, path);
-            if (typeof value === 'number') write(setPath(liveData, path, value + by));
-          },
-        }}
+        edits={{ ...edits, step }}
       />
 
       {/* ADVANCED (sheet spec AC-9): the tree by its paths, the seed, Raw JSON and the per-field
@@ -391,13 +392,13 @@ export default function ProductionDataPanel({
                 {typeof leaf.value === 'number' && (
                   <span className="pd-live-step">
                     <button
-                      onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) - 1))}
+                      onClick={() => step(leaf.path, -1)}
                       data-testid={`data-down-${leaf.path}`}
                     >
                       −
                     </button>
                     <button
-                      onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) + 1))}
+                      onClick={() => step(leaf.path, 1)}
                       data-testid={`data-up-${leaf.path}`}
                     >
                       +
@@ -462,10 +463,17 @@ export default function ProductionDataPanel({
 }
 
 /** The graphics showing a value, by name, from the production's connections. */
-function usersOf(bindings: Show['bindings'], path: string): string[] {
-  return Object.entries(bindings ?? {})
-    .filter(([, fields]) => Object.values(fields).includes(path))
-    .map(([graphic]) => graphic);
+function usersOf(show: Show, pool: ReadonlySet<string>, path: string): { graphic: string; fieldId: string }[] {
+  return Object.entries(show.bindings ?? {})
+    .filter(([graphic]) => pool.has(graphic))
+    .flatMap(([graphic, fields]) => Object.entries(fields).filter(([, p]) => p === path).map(([fieldId]) => ({ graphic, fieldId })));
+}
+
+/** A value's name on the overview: a data template's Field ID reads as the field's own title. */
+function nameOf(show: Show, key: string, users: { graphic: string; fieldId: string }[]): string {
+  const user = users.find((u) => u.fieldId === key);
+  const field = user && show.graphics.find((g) => g.name === user.graphic)?.template.fields?.find((f) => f.field === key);
+  return field?.title || key;
 }
 
 /** What the overview's value rows need from the panel: its deferred boxes and its one write. */
@@ -482,8 +490,7 @@ interface ValueEdits {
  * here (the operator wins, D4: a Sheet value holds until its cell changes); a list is read here
  * and edited where it comes from, the Sheet or Advanced.
  */
-function OverviewValue({ leaf, name, users, connected, edits }: { leaf: DataLeaf; name: string; users: string[]; connected: boolean; edits: ValueEdits }) {
-  const list = Array.isArray(leaf.value) || leaf.text.includes('\n');
+function OverviewValue({ leaf, name, users, list, connected, edits }: { leaf: DataLeaf; name: string; users: string[]; list: boolean; connected: boolean; edits: ValueEdits }) {
   const lines = leaf.text.split('\n');
   return (
     <div className="pd-live-row" data-testid={`data-item-${leaf.path}`}>
@@ -492,7 +499,7 @@ function OverviewValue({ leaf, name, users, connected, edits }: { leaf: DataLeaf
         <span className="hint" data-testid="data-item-value">
           {lines.length} line{lines.length === 1 ? '' : 's'}: {lines[0]}
           {lines.length > 1 ? ' …' : ''}
-          {connected ? ' · edit it in the Sheet' : ''}
+          {connected ? ' · edit it in the Sheet' : ' · edit it under Advanced'}
         </span>
       ) : (
         <input
@@ -528,9 +535,9 @@ function OverviewValue({ leaf, name, users, connected, edits }: { leaf: DataLeaf
 
 /** A source on the overview: what it is, who reads it and how often, checked versus changed,
  *  Pause, and the graphics that follow it (data-sources AC-9's source details). */
-function OverviewSource({ show, setShows, source, store }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore }) {
+function OverviewSource({ show, setShows, source, store, pool }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; pool: ReadonlySet<string> }) {
   const { status, now } = useSourceStatus(store, source.id);
-  const graphics = [...new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))];
+  const graphics = [...new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))].filter((g) => pool.has(g));
   return (
     <div className="pd-bind-graphic-head" data-testid={`data-source-${source.id}`}>
       <h4>Sheet: {source.label}</h4>
@@ -538,6 +545,9 @@ function OverviewSource({ show, setShows, source, store }: { show: Show; setShow
         {statusWords(source.paused, status, now, false)}
         {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
         {status?.state === 'failing' && status.fix && !source.paused && <span className="status-warn"> · {status.fix}</span>}
+        {!source.paused && status?.problems.map((p) => (
+          <span key={p} className="status-warn" data-testid="data-source-problem"> · {p}.</span>
+        ))}
       </span>
       <span className="hint" data-testid="data-source-reader">
         {readerWords(source.paused, status)}
@@ -572,18 +582,34 @@ function DataOverview({
   edits: ValueEdits;
 }) {
   const sources = show.sources ?? [];
-  const local = leaves.filter((leaf) => !sources.some((s) => isSourcePath(s.id, leaf.path)));
-  const row = (leaf: DataLeaf, name: string, connected: boolean) => (
-    <OverviewValue key={leaf.path} leaf={leaf} name={name} users={usersOf(show.bindings, leaf.path)} connected={connected} edits={edits} />
-  );
+  // A Sheet's values outlive its disconnection in the tree, following nothing: they are not local
+  // content, and they stay reachable under Advanced.
+  const local = leaves.filter((leaf) => !sourceIdOf(leaf.path));
+  // Bindings outlive a graphic removed from the pool; only graphics still in it show anything.
+  const pool = new Set(show.graphics.map((g) => g.name));
+  const row = (leaf: DataLeaf, key: string | null) => {
+    const users = usersOf(show, pool, leaf.path);
+    return (
+      <OverviewValue
+        key={leaf.path}
+        leaf={leaf}
+        name={key === null ? leaf.path : nameOf(show, key.replace(/^values\./, ''), users)}
+        users={[...new Set(users.map((u) => u.graphic))]}
+        // A Sheet's lines and rows are lists by shape, even emptied; a local value by its type.
+        list={key === null ? Array.isArray(leaf.value) || leaf.text.includes('\n') : !key.startsWith('values.')}
+        connected={key !== null}
+        edits={edits}
+      />
+    );
+  };
   return (
     <div className="pd-bindings" data-testid="data-overview">
       {sources.map((source) => (
         <div className="pd-bind-graphic" key={source.id}>
-          <OverviewSource show={show} setShows={setShows} source={source} store={store} />
+          <OverviewSource show={show} setShows={setShows} source={source} store={store} pool={pool} />
           {leaves
             .filter((leaf) => isSourcePath(source.id, leaf.path))
-            .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id).length + 1).replace(/^values\./, ''), true))}
+            .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id).length + 1)))}
         </div>
       ))}
       {(local.length > 0 || sources.length === 0) && (
@@ -597,7 +623,7 @@ function DataOverview({
               No values yet. Connect a Sheet with Connect data… on a graphic in Playout, or add values under Advanced.
             </p>
           )}
-          {local.map((leaf) => row(leaf, leaf.path, false))}
+          {local.map((leaf) => row(leaf, null))}
         </div>
       )}
     </div>
