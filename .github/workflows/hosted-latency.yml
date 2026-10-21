@@ -1,60 +1,58 @@
-name: hosted-latency historical trace diagnosis (disposable)
+name: hosted-latency targeted switch reproduction (disposable)
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        required: true
+        type: string
 permissions:
   contents: read
-  actions: read
+concurrency:
+  group: hosted-latency
+  cancel-in-progress: false
 jobs:
-  diagnose:
+  reproduce:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_EMAIL: e2e-s4@noacg.staging
+      E2E_PASSWORD: noacg-e2e-staging-pw
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
         with:
-          run-id: 39565846898
-          github-token: ${{ github.token }}
-          pattern: hosted-results-*
-          path: evidence
-      - name: Summarize historical failed-attempt traces without credentials or bodies
+          ref: ${{ inputs.source_ref }}
+      - name: Refuse production and absent staging credentials
         shell: python
         run: |
-          import collections, json, pathlib, re, zipfile
-          from urllib.parse import urlsplit
-          def endpoint(raw):
-              u = urlsplit(raw)
-              p = u.path
-              if p.startswith('/control/') or p.startswith('/output/'):
-                  p = '/' + p.split('/')[1] + '/<id>'
-              return u.hostname, p
-          for trace in sorted(pathlib.Path('evidence').rglob('trace.zip')):
-              print('\nTRACE', trace.parent.name)
-              with zipfile.ZipFile(trace) as z:
-                  endpoints = collections.defaultdict(list)
-                  failed, slow = [], []
-                  for name in z.namelist():
-                      if not name.endswith('.network'): continue
-                      for line in z.read(name).decode().splitlines():
-                          e = json.loads(line)
-                          s = e.get('snapshot', {})
-                          req, res = s.get('request', {}), s.get('response', {})
-                          host, path = endpoint(req.get('url', ''))
-                          if not host or host.endswith('googleapis.com') or host.endswith('gstatic.com'): continue
-                          status = res.get('status', 0)
-                          duration = round(s.get('time', 0))
-                          key = (req.get('method'), host, path, status)
-                          endpoints[key].append(duration)
-                          if duration > 2000: slow.append((duration, key))
-                          if status >= 400 or s.get('_failureText'):
-                              failed.append((key, s.get('_failureText', '')))
-                  for key, times in sorted(endpoints.items(), key=lambda kv: -max(kv[1]))[:24]:
-                      print('NET', key, 'count', len(times), 'max_ms', max(times), 'total_ms', sum(times))
-                  print('FAILURES', failed[-15:])
-                  print('SLOW', sorted(slow, reverse=True)[:8])
-                  for name in z.namelist():
-                      if not name.endswith('.trace'): continue
-                      for line in z.read(name).decode().splitlines():
-                          e = json.loads(line)
-                          if e.get('type') == 'after' and e.get('error'):
-                              message = str(e['error'].get('message', '')).split('\n')[0]
-                              message = re.sub(r'https?://\S+', '<url>', message)
-                              print('ACTION_ERROR', message[:220])
+          import os
+          assert 'garafohbzmsybtysxphb.supabase.co' == __import__('urllib.parse', fromlist=['urlsplit']).urlsplit(os.environ['VITE_SUPABASE_URL']).hostname
+          assert all(os.environ.get(k) for k in ['VITE_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: ./.github/actions/node-modules
+      - uses: ./.github/actions/playwright-chromium
+      - name: Reproduce the captured resolve-before-send race on only the switch spec
+        shell: python
+        run: |
+          import pathlib, subprocess
+          p = pathlib.Path('e2e/configured/playout-switch-mid-flight.spec.ts')
+          s = p.read_text()
+          needle = "test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');"
+          assert needle in s
+          fixture = """
+          test.beforeEach(async ({ page }) => {
+            await page.route('**/rest/v1/rpc/control_show_resolve', async route => {
+              const response = await route.fetch();
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              await route.fulfill({ response }).catch(() => {});
+            });
+          });
+          """
+          p.write_text(s.replace(needle, needle + '\n' + fixture))
+          result = subprocess.run(['timeout', '300s', 'npm', 'run', 'test:e2e:live', '--', 'e2e/configured/playout-switch-mid-flight.spec.ts', '--trace=retain-on-failure'])
+          raise SystemExit(result.returncode)
