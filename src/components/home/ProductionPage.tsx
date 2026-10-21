@@ -1622,7 +1622,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       ]),
     );
     sourceStatus.onPoke((sourceId) => readers.get(sourceId)?.poke());
+    // A reload or a closed tab runs no cleanup: let the leases go as the page leaves, so the
+    // next page (or, published, the tick) reads at once instead of waiting the lease out.
+    const leave = () => {
+      for (const reader of readers.values()) reader.release();
+    };
+    window.addEventListener('pagehide', leave);
     return () => {
+      window.removeEventListener('pagehide', leave);
       for (const [sourceId, reader] of readers) {
         reader.stop();
         sourceStatus.set(sourceId, undefined);

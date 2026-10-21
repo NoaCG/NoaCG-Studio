@@ -1424,6 +1424,12 @@ test('the Playout sources line stays whichever cue is selected, tells checked fr
   const reads = tab.reads;
   await page.waitForTimeout(6_000);
   expect(tab.reads, 'paused: nothing is read').toBe(reads);
+  // A reload keeps the source, its name and its Pause (data-sources C2: the record holds them).
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(status).toHaveText('Sheet: Guests · paused', { timeout: 20_000 });
+  await page.waitForTimeout(6_000);
+  expect(tab.reads, 'still paused after the reload: nothing is read').toBe(reads);
   await line.getByTestId('source-pause').click();
   await expect(status).toHaveText(/checked \d+ s ago/, { timeout: 10_000 });
   expect(tab.reads).toBeGreaterThan(reads);

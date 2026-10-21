@@ -780,3 +780,18 @@ test('the status rules the tick shares: three missed minutes are stale, the time
   assert.equal(status.failingSince, 60_000);
   assert.equal(status.reader, 'server');
 });
+
+test('a page going away lets its lease go, so the reloaded page reads at once, not after the lease', async () => {
+  const b = browser();
+  const a = tab(b, 'A');
+  await b.clock.advance(0);
+  a.frozen = true;
+  // pagehide: the page goes without its cleanup; it lets the lease go on the way out.
+  a.reader.release();
+  const again = tab(b, 'A-reloaded');
+  const fetches = b.sheet.fetches;
+  await b.clock.advance(0);
+  assert.equal(b.sheet.fetches - fetches, 1, 'the new page read at once');
+  assert.equal(again.status().reader, 'this');
+  again.reader.stop();
+});

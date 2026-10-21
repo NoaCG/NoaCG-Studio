@@ -434,6 +434,9 @@ export interface SheetReader {
   poke: () => void;
   /** Stop for good: an answer still in flight writes nothing, and the lease is let go. */
   stop: () => void;
+  /** Let the lease go now and claim it again at the next read: the page is going away (a reload
+   *  or a closed tab runs no cleanup), so the next page or the tick need not wait out the lease. */
+  release: () => void;
 }
 
 export const initialStatus = (reader: SheetStatus['reader']): SheetStatus => ({
@@ -672,6 +675,11 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       stopped = true;
       if (timer !== null) io.clearTimer(timer);
       // Let the lease go at once, so another open tab, or the tick, takes over at its next read.
+      door.release();
+    },
+    release: () => {
+      if (stopped) return;
+      claimId = null;
       door.release();
     },
   };
