@@ -12,10 +12,12 @@ import { nameList } from './CueRundown';
 import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspace';
 import LibMenu from './LibMenu';
 import { useNow } from './ClipClock';
+import { commitDurableWrites } from '../../model/durableStore';
 import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
 import { hasLiveData } from '../../control/liveData';
 import { uuid } from '../../model/id';
 import {
+  fieldHolds,
   isSourcePath,
   offeredValues,
   parseSheetLink,
@@ -109,16 +111,6 @@ function CueRowsFill({
 function sourceOf(show: Pick<Show, 'sources'>, path: string | undefined): ShowSource | null {
   const id = sourceIdOf(path);
   return (id && show.sources?.find((s) => s.id === id)) || null;
-}
-
-/** Can a field of this kind hold the text? Empty always can: it clears. */
-function fieldHolds(d: FieldDescriptor, text: string): boolean {
-  const v = text.trim();
-  if (v === '') return true;
-  if (d.kind === 'number') return Number.isFinite(Number(v));
-  if (d.kind === 'toggle') return ['0', '1', 'true', 'false'].includes(v.toLowerCase());
-  if (d.kind === 'select') return d.options?.some((o) => o.value === v) ?? true;
-  return true;
 }
 
 /** "3 s ago", "2 min ago", from a time in ms. */
@@ -247,6 +239,8 @@ function CueConnectReview({
   const [firstTab, setFirstTab] = useState(false);
   const [label, setLabel] = useState('');
   const [choices, setChoices] = useState<Record<string, string | null>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   /** A new source's id, minted per read of a pasted link, so a second Connect is a second source. */
   const [sourceId, setSourceId] = useState('');
   /** Which read is current: an older answer, or one arriving after the review closed, is dropped. */
@@ -311,8 +305,10 @@ function CueConnectReview({
     setReading(false);
     setRead(answer.ok ? { link, rows: answer.rows } : { error: answer.error, fix: answer.fix });
   };
-  const confirm = () => {
-    if (!read || !('link' in read)) return;
+  /** Connect: one write, and the review closes only once storage has agreed to it, so a
+   *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
+  const confirm = async () => {
+    if (!read || !('link' in read) || id === '' || saving) return;
     const source: ShowSource = reuse ?? {
       id,
       kind: 'sheet',
@@ -320,14 +316,24 @@ function CueConnectReview({
       config: { sheetId: read.link.sheetId, gid: read.link.gid, ...(read.link.published ? { published: true } : {}), shape },
     };
     const result = connectShowSource(show.id, source, entries);
+    if (result.error) {
+      setSaveError(result.error);
+      return;
+    }
     let shows = result.shows;
     if (reuse && label.trim() && label.trim() !== reuse.label) shows = renameShowSource(show.id, reuse.id, label);
     setShows(shows);
+    setSaving(true);
+    const failure = await commitDurableWrites();
+    setSaving(false);
+    if (failure) {
+      setSaveError(`Not saved: ${failure}`);
+      return;
+    }
     onRefused(
-      result.error ??
-        (result.refused.length > 0
-          ? `${result.refused.map((r) => r.fieldId.toUpperCase()).join(', ')} not connected: prepared messages use it. Add a separate card for messages.`
-          : null),
+      result.refused.length > 0
+        ? `${result.refused.map((r) => r.fieldId.toUpperCase()).join(', ')} not connected: prepared messages use it. Add a separate card for messages.`
+        : null,
     );
     store.poke(source.id);
     close();
@@ -343,8 +349,15 @@ function CueConnectReview({
           placeholder="https://docs.google.com/spreadsheets/d/…"
           aria-label="Sheet link"
           onChange={(e) => {
+            // A changed link is a new tab: the last read, its review and any read in flight go,
+            // so Connect needs a fresh read of what the box now says.
+            readNo.current += 1;
             setLinkText(e.target.value);
             setReuse(null);
+            setRead(null);
+            setReading(false);
+            setChoices({});
+            setSourceId('');
           }}
           data-testid="cue-connect-link"
         />
@@ -469,7 +482,12 @@ function CueConnectReview({
             {removed.length > 0 && <span className="status-warn" data-testid="cue-connect-removed"> · {removed.join(', ')} no longer in this production</span>}
           </p>
           <div className="row">
-            <button type="button" disabled={noTab && !firstTab} onClick={confirm} data-testid="cue-connect-confirm">
+            {saveError && (
+              <p className="status-warn" data-testid="cue-connect-save-error">
+                {saveError}
+              </p>
+            )}
+            <button type="button" disabled={(noTab && !firstTab) || saving} onClick={() => void confirm()} data-testid="cue-connect-confirm">
               Connect
             </button>
             <button type="button" onClick={close} data-testid="cue-connect-cancel">

@@ -21,6 +21,7 @@ const {
   SHEET_READ_MS,
   SHEET_TIMEOUT_MS,
   createSheetReader,
+  fieldHolds,
   parseSheetLink,
   readSheet,
   sheetContent,
@@ -534,4 +535,32 @@ test('a write that left a path out (not bound on the published row) retries that
     { sheet: { s1: { values: { B: '2' } } } },
   ]);
   a.reader.stop();
+});
+
+test('a cell its field cannot hold writes nothing and is reported; the field keeps its last good value', async () => {
+  assert.equal(fieldHolds({ kind: 'number' }, 'abc'), false);
+  assert.equal(fieldHolds({ kind: 'number' }, ' 3 '), true);
+  assert.equal(fieldHolds({ kind: 'select', options: [{ value: 'A' }] }, 'B'), false);
+  assert.equal(fieldHolds({ kind: 'toggle' }, 'TRUE'), true);
+  assert.equal(fieldHolds({ kind: 'number' }, ''), true, 'empty clears');
+  const b = browser();
+  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,3\n';
+  const t = { writes: [], statuses: [] };
+  const reader = createSheetReader({
+    key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'values', tab: 'A', world: 'local', io: b.io,
+    connected: () => new Set(['sheet.s1.values.f1']),
+    holds: (path, text) => Number.isFinite(Number(text)),
+    paused: () => false,
+    write: async (patch) => (t.writes.push(patch), true),
+    onStatus: (s) => t.statuses.push(s),
+  });
+  await b.clock.advance(0);
+  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,abc\n';
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(t.writes.length, 1, 'the bad cell wrote nothing');
+  assert.match(t.statuses.at(-1).problems[0], /f1 holds “abc”, which its field cannot show, so it keeps its value/);
+  b.sheet.csv = 'Field ID,Label,Value\nf1,Score,4\n';
+  await b.clock.advance(SHEET_READ_MS);
+  assert.deepEqual(t.writes.at(-1), { sheet: { s1: { values: { f1: '4' } } } });
+  reader.stop();
 });

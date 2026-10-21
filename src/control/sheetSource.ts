@@ -39,6 +39,7 @@ import { mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedVa
 
 export { isSourcePath, sourceIdOf, sourcePrefix } from '../model/productionData.ts';
 import type { SavedGraphic } from '../model/packets';
+import type { FieldDescriptor } from '../model/fieldModel';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
 export const SHEET_READ_MS = 5_000;
@@ -255,16 +256,21 @@ export function sheetWrites(
   content: Pick<SheetContent, 'leaves'>,
   connected: ReadonlySet<string>,
   snapshot: Readonly<Record<string, string>>,
-): { patch: JsonObject; snapshot: Record<string, string>; missing: string[] } {
+  holds: (path: string, text: string) => boolean = () => true,
+): { patch: JsonObject; snapshot: Record<string, string>; missing: string[]; unfit: string[] } {
   const prefix = `${sourcePrefix(sourceId)}.`;
   let patch: JsonObject = {};
   const next: Record<string, string> = {};
   const missing: string[] = [];
+  const unfit: string[] = [];
   for (const path of [...connected].sort()) {
     if (!path.startsWith(prefix)) continue;
     const value = content.leaves[path.slice(prefix.length)];
-    if (value === undefined) {
-      missing.push(path.slice(prefix.length));
+    // A row gone from the tab, or a cell its field cannot hold ("abc" for a score), writes nothing
+    // and is reported: the field keeps its last good value, as after a failed read.
+    const bad = value === undefined ? missing : !holds(path, value) ? unfit : null;
+    if (bad) {
+      bad.push(path.slice(prefix.length));
       if (snapshot[path] !== undefined) next[path] = snapshot[path];
       continue;
     }
@@ -273,7 +279,17 @@ export function sheetWrites(
     const one = patchForPath(path, value);
     if (one) patch = mergePatch(patch, one) as JsonObject;
   }
-  return { patch, snapshot: next, missing };
+  return { patch, snapshot: next, missing, unfit };
+}
+
+/** Can a field of this kind hold the text? Empty always can: it clears. */
+export function fieldHolds(d: Pick<FieldDescriptor, 'kind' | 'options'>, text: string): boolean {
+  const v = text.trim();
+  if (v === '') return true;
+  if (d.kind === 'number') return Number.isFinite(Number(v));
+  if (d.kind === 'toggle') return ['0', '1', 'true', 'false'].includes(v.toLowerCase());
+  if (d.kind === 'select') return d.options?.some((o) => o.value === v) ?? true;
+  return true;
 }
 
 // ── The reader ────────────────────────────────────────────────────────────────
@@ -334,6 +350,8 @@ export interface SheetReaderOptions {
   io: SheetReaderIo;
   /** The connected paths now: read at every read, so a new connection is written at once. */
   connected: () => ReadonlySet<string>;
+  /** Whether every field connected to a path can hold the text; absent, all can. */
+  holds?: (path: string, text: string) => boolean;
   paused: () => boolean;
   /** The writer (productionDataSession.applySourcePatch): true when the write landed, false when
    *  nothing did, or the paths it left out while the rest landed. */
@@ -473,7 +491,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     if (o.inbox) o.inbox(read.rows.map((r) => Object.freeze([...r])));
     const content = sheetContent(o.shape, read.rows);
     const fingerprint = JSON.stringify(content.leaves);
-    const writes = sheetWrites(o.sourceId, content, o.connected(), held.snapshot);
+    const writes = sheetWrites(o.sourceId, content, o.connected(), held.snapshot, o.holds);
     let snapshot = writes.snapshot;
     if (Object.keys(writes.patch).length > 0) {
       const landed = await o.write(writes.patch);
@@ -491,7 +509,11 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
         }
       }
     }
-    const problems = [...content.problems, ...writes.missing.map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`)];
+    const problems = [
+      ...content.problems,
+      ...writes.missing.map((leaf) => `${leaf.replace(/^values\./, '')} is missing from the tab, so it keeps its value`),
+      ...writes.unfit.map((leaf) => `${leaf.replace(/^values\./, '')} holds “${content.leaves[leaf]}”, which its field cannot show, so it keeps its value`),
+    ];
     const status: SheetStatus = {
       ...initialStatus('this'),
       state: content.empty ? 'empty' : 'ok',

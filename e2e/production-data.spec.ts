@@ -15,6 +15,7 @@ import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
 import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
+import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
 // The production DATA workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md D3/D6): the show's own
 // tables, edited on the Data tab, loaded into CUES on the Playout tab by deliberate operator
@@ -1500,4 +1501,30 @@ test('a connected field the graphic lacks is flagged, a removed graphic is named
   await page.getByTestId('cue-connect').click();
   await expect(page.getByTestId('cue-connect-legacy')).toContainText('reads a Sheet in its own code');
   await expect(page.getByTestId('cue-connect-link')).toHaveCount(0);
+});
+
+test('Connect closes only once the save landed, and a changed link needs a fresh read', async ({ page }) => {
+  test.setTimeout(120_000);
+  await armStorageFailure(page);
+  await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Sheet Saves');
+
+  // Editing the link after a read drops that read: nothing old can be connected.
+  let review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-link').fill(`${SHEET_LINK}0`);
+  await expect(review.getByTestId('cue-connect-map')).toHaveCount(0);
+  await expect(review.getByTestId('cue-connect-confirm')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Storage refuses the write: the review stays, says so, and Connect can be pressed again.
+  review = await readSheetTab(page);
+  await fillStorage(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review.getByTestId('cue-connect-save-error')).toContainText('Not saved');
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  await freeStorage(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: Hairline');
 });
