@@ -35,7 +35,7 @@
 
 import { fillList, listFormatFor, type FilledRow, type ListAdapter, type ListFormat } from './contentFormats.ts';
 import { parseDelimited } from '../model/csv.ts';
-import { mergePatch, patchForPath, type JsonObject } from '../model/productionData.ts';
+import { mergePatch, patchForPath, type JsonObject, type OfferedValue } from '../model/productionData.ts';
 import type { SavedGraphic } from '../model/packets';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
@@ -147,6 +147,8 @@ export interface SheetContent {
   problems: string[];
   /** A valid read with no rows. */
   empty: boolean;
+  /** Keyed by the data template's Field ID, so each key names a field of the graphic. */
+  byFieldId: boolean;
 }
 
 /** The leaves a list adapter writes, and the field each one fills on its graphic. */
@@ -167,7 +169,24 @@ export function sheetContent(shape: SheetShape, rows: string[][]): SheetContent 
   const format: ListFormat = shape === 'standings' ? { adapter: shape, main: 'rows', headers: 'headers' } : { adapter: shape, main: 'lines' };
   const fill = fillList(format, rows);
   const labels = Object.fromEntries(listLeaves(shape).map((l) => [l.leaf, l.label]));
-  return { leaves: fill.values, labels, preview: fill.rows, problems: [], empty };
+  return { leaves: fill.values, labels, preview: fill.rows, problems: [], empty, byFieldId: false };
+}
+
+/**
+ * What a source offers a graphic's mapping review: each leaf's path, label and sample, and the
+ * field it was made for when the source says so (a list adapter's own field, a Field ID).
+ */
+export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent): OfferedValue[] {
+  const prefix = sourcePrefix(sourceId);
+  if (shape !== 'values') {
+    return listLeaves(shape).map((l) => ({ path: `${prefix}.${l.leaf}`, label: l.label, sample: content.leaves[l.leaf] ?? '', key: l.field }));
+  }
+  return Object.keys(content.leaves).map((leaf) => ({
+    path: `${prefix}.${leaf}`,
+    label: content.labels[leaf] ?? leaf,
+    sample: content.leaves[leaf],
+    ...(content.byFieldId ? { key: leaf.slice('values.'.length) } : {}),
+  }));
 }
 
 /** A key as a path segment: dots would split it, and an all-digit segment indexes an array. */
@@ -217,7 +236,7 @@ function keyedValues(rows: string[][]): Omit<SheetContent, 'empty'> {
     labels[`values.${key}`] = label;
   }
   const preview = Object.keys(leaves).map((leaf) => ({ text: `${labels[leaf]}: ${leaves[leaf]}` }));
-  return { leaves, labels, preview, problems };
+  return { leaves, labels, preview, problems, byFieldId: template };
 }
 
 /** The tree prefix a source writes under. */
@@ -483,6 +502,41 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       // Let the lease go at once, so another open tab takes over at its next read.
       const lease = io.readLease(o.key);
       if (lease?.owner === o.tab) io.writeLease(o.key, { ...lease, until: 0 });
+    },
+  };
+}
+
+// ── The page's view of its readers ────────────────────────────────────────────
+
+/** Each source's status, held outside React so a read every 5 s re-renders only the lines that
+ *  show it, never the page. `poke` asks a source's reader to read now. */
+export interface SourceStatusStore {
+  get: (sourceId: string) => SheetStatus | undefined;
+  set: (sourceId: string, status: SheetStatus | undefined) => void;
+  subscribe: (listener: () => void) => () => void;
+  poke: (sourceId: string) => void;
+  /** The page's readers answer pokes through this. */
+  onPoke: (handler: (sourceId: string) => void) => void;
+}
+
+export function createSourceStatusStore(): SourceStatusStore {
+  const statuses = new Map<string, SheetStatus>();
+  const listeners = new Set<() => void>();
+  let poker: (sourceId: string) => void = () => {};
+  return {
+    get: (id) => statuses.get(id),
+    set: (id, status) => {
+      if (status) statuses.set(id, status);
+      else statuses.delete(id);
+      for (const listener of [...listeners]) listener();
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    poke: (id) => poker(id),
+    onPoke: (handler) => {
+      poker = handler;
     },
   };
 }

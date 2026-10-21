@@ -91,6 +91,7 @@ import {
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
+import { createSheetReader, createSourceStatusStore, type SheetLease } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -359,6 +360,25 @@ const panelClipNow = (store: ServerPlayoutStore, items: readonly PlayoutItem[], 
 /** The time the unpublished timed-cue engine counts in: this machine's own (docs/RUNDOWN_AUTOMATION_PLAN.md
  *  §2.0). Read in handlers and timers only, never to draw. */
 const wallClock = () => Date.now();
+
+/** A Sheet source's reader lease and memory, shared by this browser's tabs (control/sheetSource.ts).
+ *  Runtime state like the live tree: localStorage, never the show record. */
+const SHEET_LEASE_KEY = 'spx-gfx-sheet-reader:';
+function readSheetLease(key: string): SheetLease | null {
+  try {
+    const raw = localStorage.getItem(SHEET_LEASE_KEY + key);
+    return raw ? (JSON.parse(raw) as SheetLease) : null;
+  } catch {
+    return null;
+  }
+}
+function writeSheetLease(key: string, lease: SheetLease): void {
+  try {
+    localStorage.setItem(SHEET_LEASE_KEY + key, JSON.stringify(lease));
+  } catch {
+    // Quota or a private-mode refusal: this tab still reads; another tab may read too.
+  }
+}
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -1535,6 +1555,58 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [],
   );
 
+  // ── SHEET SOURCES: one browser reader per source while this page is open, under a lease, writing
+  // through the session's source writer (control/sheetSource.ts says the rules). A reader is made
+  // per source, tab and world (unpublished, or the published slug), and reads the bindings and
+  // Pause at every read, so connecting a field or pausing needs no new reader.
+  // The route keys this page by production (S4, #1566), so both live exactly as long as it does.
+  const [sourceStatus] = useState(createSourceStatusStore);
+  const [readerTab] = useState(() => `tab-${Math.random().toString(36).slice(2, 10)}`);
+  const sourcesRef = useRef(show?.sources);
+  sourcesRef.current = show?.sources;
+  const bindingsRef = useRef(bindings);
+  bindingsRef.current = bindings;
+  const readerPlan = JSON.stringify((show?.sources ?? []).map((s) => [s.id, s.config]));
+  useEffect(() => {
+    const plan = JSON.parse(readerPlan) as [string, NonNullable<Show['sources']>[number]['config']][];
+    const world = hostedSlug ?? 'local';
+    const readers = new Map(
+      plan.map(([sourceId, config]) => [
+        sourceId,
+        createSheetReader({
+          key: `${id}:${sourceId}`,
+          sourceId,
+          link: { sheetId: config.sheetId, gid: config.gid, published: config.published },
+          shape: config.shape,
+          tab: readerTab,
+          world,
+          io: {
+            now: Date.now,
+            setTimer: (run, ms) => setTimeout(run, ms),
+            clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+            fetch: (url, init) => fetch(url, init),
+            readLease: readSheetLease,
+            writeLease: writeSheetLease,
+          },
+          connected: () =>
+            new Set(Object.values(bindingsRef.current ?? {}).flatMap((fields) => Object.values(fields)).filter((path) => path.startsWith(`sheet.${sourceId}.`))),
+          paused: () => Boolean(sourcesRef.current?.find((s) => s.id === sourceId)?.paused),
+          write: dataSession.applySourcePatch,
+          onStatus: (status) => sourceStatus.set(sourceId, status),
+        }),
+      ]),
+    );
+    sourceStatus.onPoke((sourceId) => readers.get(sourceId)?.poke());
+    return () => {
+      for (const [sourceId, reader] of readers) {
+        reader.stop();
+        sourceStatus.set(sourceId, undefined);
+      }
+    };
+  }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus]);
+  /** A Connect review's values, shown on the PREVIEW monitor while the review is open. */
+  const [connectPreview, setConnectPreview] = useState<{ graphic: string; values: Record<string, string> } | null>(null);
+
   /** The paths this production has bound, per graphic — what the cue editor greys out. */
   const boundFields = useCallback(
     (graphic: string | null): Record<string, string> => (graphic ? (bindings?.[graphic] ?? {}) : {}),
@@ -1919,7 +1991,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // The PREVIEW settles with bound fields overlaid too, for the same reason Take does: the
   // monitor has to show what a Take would actually put on air, not the cue's prepared value.
   const settleData = previewCue
-    ? JSON.stringify(withBoundValues(cueGraphicName(previewCue) ?? '', cueView(previewCue).values))
+    ? JSON.stringify({
+        ...withBoundValues(cueGraphicName(previewCue) ?? '', cueView(previewCue).values),
+        ...(connectPreview && connectPreview.graphic === cueGraphicName(previewCue) ? connectPreview.values : {}),
+      })
     : '';
   /** Which of the values being typed PREVIEW says do not fit - measured by the monitor
    *  (PlayoutMonitors), read here by the editor's field marks. */
@@ -4915,6 +4990,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             advancedOpen={advancedOpen}
             setAdvancedFor={setAdvancedFor}
             clashFix={clashFix}
+            sourceStatus={sourceStatus}
+            onConnectPreview={(values) => setConnectPreview(values ? { graphic: poolGraphic.name, values } : null)}
             endsRow={() => {
               const auto = readAuto(editingCue);
               const nextId = nextGraphicCue(cues, editingCue.id);
