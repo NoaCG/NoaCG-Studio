@@ -11,9 +11,10 @@
 //
 //   1. scripts/production-data.test.mjs   - runs every case against the REAL TypeScript module.
 //   2. the 0048 migration's own self-check - runs every case against the REAL plpgsql body,
-//      from a jsonb literal embedded in the migration.
-//   3. scripts/production-data-migration.test.mjs - asserts that embedded literal still equals
-//      this table, so ADDING A CASE HERE FAILS THE BUILD until the SQL side carries it too.
+//      from a jsonb literal embedded in the migration; a case added later is called the same
+//      way by a later migration (0048 is applied history and is never edited).
+//   3. scripts/production-data-migration.test.mjs - asserts that those embedded literals still
+//      equal this table, so ADDING A CASE HERE FAILS THE BUILD until the SQL side carries it too.
 //
 // Add a case here before changing either implementation. Every entry is RFC 7386 behaviour a
 // live production depends on.
@@ -91,5 +92,14 @@ export const MERGE_PATCH_CONFORMANCE = [
     base: { a: 1 },
     patch: { b: {} },
     expect: { a: 1, b: {} },
+  },
+  {
+    // A list adapter writes "" when a valid read has no rows (data-sources "Formats"), so an
+    // emptied list clears on air. A list written earlier as an ARRAY (a /patch sender) is
+    // replaced by the string like any other scalar, never kept beside it.
+    name: 'an empty string replaces a list, so an emptied list clears',
+    base: { sheet: { s1: { lines: ['United win', 'Polls close'] } } },
+    patch: { sheet: { s1: { lines: '' } } },
+    expect: { sheet: { s1: { lines: '' } } },
   },
 ];

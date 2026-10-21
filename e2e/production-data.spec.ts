@@ -6,6 +6,7 @@
 // alongside the control ones the covers line beside it selects.
 // covers: src/control/cueData.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
+// covers: src/control/contentFormats.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
@@ -1101,4 +1102,131 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   await expect(box).toHaveValue('Helsinki');
   // …and the edit wins its own path when it commits, over the value that arrived meanwhile.
   await expect.poll(() => persistedValue(dataOne, 'match.home.name')).toBe('Helsinki');
+});
+
+// ── Data sources C1a: "Fill from… Paste rows" and starter data (data AC-2 adapter half, AC-4, AC-13) ──
+
+/** A download's text, read the way a spreadsheet would open it. */
+async function downloaded(page: Page, click: () => Promise<void>): Promise<{ name: string; text: string }> {
+  const [download] = await Promise.all([page.waitForEvent('download'), click()]);
+  const chunks: Buffer[] = [];
+  for await (const chunk of await download.createReadStream()) chunks.push(chunk as Buffer);
+  return { name: download.suggestedFilename(), text: Buffer.concat(chunks).toString('utf8') };
+}
+
+/** The stored values of a production's cues, in rundown order. */
+async function storedCueValues(page: Page, showId: string): Promise<Record<string, string>[]> {
+  return page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows().find((s) => s.id === id)?.cues ?? []).map((c) => c.values);
+  }, showId);
+}
+
+test('Paste rows fills a ticker, a schedule, standings and credits, flags malformed rows, and the starter rows carry what it filled', async ({ page }) => {
+  test.setTimeout(120_000);
+  await bootstrapGraphic(page, { name: 'News Strip' });
+  const showId = await productionFor(page, 'Paste Night');
+  for (const name of ['Schedule Board', 'League Table', 'Classic Roll']) await addCatalogGraphic(page, showId, name);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(4);
+  const preview = page.frameLocator('iframe[title="Cue preview"]');
+  const menu = page.getByTestId('cue-rows-menu');
+
+  /** Open the cue's Fill from… menu and paste, as cells from a spreadsheet arrive: tab-separated. */
+  const paste = async (cue: number, rows: string[][]) => {
+    await cues.nth(cue).locator('.pd-cue-label').click();
+    await page.getByTestId('cue-rows-from').click();
+    await menu.getByTestId('cue-rows-paste').fill(rows.map((r) => r.join('\t')).join('\n'));
+  };
+  const starter = () => downloaded(page, async () => {
+    await page.getByTestId('cue-rows-from').click();
+    await menu.getByTestId('cue-rows-starter').click();
+  });
+
+  // ── A ticker: one cell per row, a second cell is the kicker, `|` is plain text. ──
+  await paste(0, [['SPORT', 'United win 3-0'], ['Polls close at 20:00'], ['Markets | Börsen']]);
+  await expect(menu.getByTestId('cue-rows-row')).toHaveCount(3);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(0);
+  // Nothing changes before Fill: the menu previews, the cue keeps its words.
+  await expect(page.getByTestId('cue-field-f0')).not.toHaveValue(/United win/);
+  await menu.getByTestId('cue-rows-fill').click();
+  await expect(menu).toBeHidden();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('SPORT\tUnited win 3-0\nPolls close at 20:00\nMarkets | Börsen');
+  await expect(preview.locator('#ticker-track')).toContainText('United win 3-0');
+  await expect(preview.locator('#ticker-track .ticker-kicker').first()).toContainText('SPORT');
+  await expect(preview.locator('#ticker-track')).toContainText('Markets | Börsen');
+  // A fill prepares; only Take airs.
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  const tickerRows = await starter();
+  expect(tickerRows.name).toBe('news-strip-rows.csv');
+  expect(tickerRows.text).toBe('SPORT,United win 3-0\r\nPolls close at 20:00\r\nMarkets | Börsen\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── A schedule: Time | Programme; its starter header is skipped, a half row is flagged. ──
+  await paste(1, [['Time', 'Programme'], ['20:00', 'News at Eight'], ['21:00', ''], ['22:00', 'Q | A live']]);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(1);
+  await expect(menu.getByTestId('cue-rows-flag')).toContainText('21:00');
+  await menu.getByTestId('cue-rows-fill').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('20:00 | News at Eight\n21:00 |\n22:00 | Q | A live');
+  // The board drops the half row on air, as its own parser always has.
+  await expect(preview.locator('.infographic-row')).toHaveCount(2);
+  await expect(preview.locator('.infographic-row').nth(1)).toContainText('Q | A live');
+  expect((await starter()).text).toBe('Time,Programme\r\n20:00,News at Eight\r\n21:00,\r\n22:00,Q | A live\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── Standings: the header row names the columns; both fields change in one edit. ──
+  await paste(2, [['Team', 'P', 'W', 'PTS'], ['Liquid', '5', '4', '12'], ['NAVI', '5', '3', '9', '+6']]);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(1);
+  await expect(menu.getByTestId('cue-rows-flag')).toContainText('4 values for 3 columns');
+  await menu.getByTestId('cue-rows-fill').click();
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue('P | W | PTS');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Liquid | 5 | 4 | 12\nNAVI | 5 | 3 | 9 | +6');
+  await expect(preview.locator('.results-board-col')).toHaveText(['P', 'W', 'PTS']);
+  await expect(preview.locator('.results-board-row')).toHaveCount(2);
+  expect((await starter()).text).toBe('Name,P,W,PTS\r\nLiquid,5,4,12\r\nNAVI,5,3,9,+6\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── Credits: headings, a role waiting for names, a section break. ──
+  await paste(3, [['Role', 'Name'], ['# CREW', ''], ['Director', 'Ann Lee'], ['Camera', ''], ['', 'Bo Chen'], ['', ''], ['# THANKS', '']]);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(0);
+  await menu.getByTestId('cue-rows-fill').click();
+  const credits = '# CREW\nDirector | Ann Lee\nCamera:\nBo Chen\n\n# THANKS';
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue(credits);
+  await expect(preview.locator('#credits-track')).toContainText('Ann Lee');
+  await expect(preview.locator('#credits-track')).toContainText('Bo Chen');
+  expect((await starter()).text).toBe('Role,Name\r\n# CREW,\r\nDirector,Ann Lee\r\nCamera,\r\n,Bo Chen\r\n,\r\n# THANKS,\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── Saved into the cues, with no source and no account: a reload has them, and Take airs one. ──
+  await expect.poll(async () => (await storedCueValues(page, showId))[3]?.f0).toBe(credits);
+  const stored = await storedCueValues(page, showId);
+  expect(stored[0].f0).toContain('Markets | Börsen');
+  expect(stored[2]).toMatchObject({ f3: 'P | W | PTS' });
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('20:00 | News at Eight\n21:00 |\n22:00 | Q | A live');
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="Schedule Board"]');
+  await expect(program.locator('.infographic-row')).toHaveCount(2);
+  await expect(program.locator('.infographic-row').nth(0)).toContainText('News at Eight');
+});
+
+test('a graphic downloads its data template: one Field ID, Label and Value row per value, quoted where a spreadsheet needs it', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Template Night');
+  await page.getByTestId('cue-field-f0').fill('Smith, "The Rock"');
+  await page.getByTestId('cue-field-f1').fill('007');
+  await page.getByTestId('cue-advanced-toggle').click();
+  const file = await downloaded(page, () => page.getByTestId('cue-data-template').click());
+  expect(file.name).toBe('hairline-data-template.csv');
+  const rows = file.text.trimEnd().split('\r\n');
+  expect(rows[0]).toBe('Field ID,Label,Value');
+  expect(rows[1]).toMatch(/^f0,[^,]+,"Smith, ""The Rock"""$/);
+  expect(rows[2]).toMatch(/^f1,[^,]+,007$/);
+  // Every row names a field of this graphic by its id, once.
+  const ids = rows.slice(1).map((r) => r.split(',')[0]);
+  expect(new Set(ids).size).toBe(ids.length);
+  for (const id of ids) await expect(page.locator(`[data-testid="cue-field-${id}"], [data-testid^="cue-field-${id}-"]`).first()).toBeAttached();
 });

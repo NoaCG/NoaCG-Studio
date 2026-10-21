@@ -17,11 +17,20 @@ import { MERGE_PATCH_CONFORMANCE } from './merge-patch-conformance.mjs';
 
 const sql = await readFile(new URL('../supabase/migrations/0048_production_data_tree.sql', import.meta.url), 'utf8');
 const sql60 = await readFile(new URL('../supabase/migrations/0060_operator_data_patch.sql', import.meta.url), 'utf8');
+// A case added to the table after 0048 is answered by a later migration that calls the same
+// bodies (0048 is applied history and never edited). Listed in the order they apply.
+const LATER_CASES = ['0096_merge_patch_empty_list.sql'];
+const later = await Promise.all(
+  LATER_CASES.map((name) => readFile(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8')),
+);
 
-test('0048 embeds the SHARED merge-patch conformance table, case for case', () => {
-  const block = /\$cases\$([\s\S]*?)\$cases\$/.exec(sql);
-  assert.ok(block, '0048 must carry the conformance cases in a $cases$ dollar-quoted literal');
-  const embedded = JSON.parse(block[1]);
+test('0048 and the later conformance migrations embed the SHARED merge-patch table, case for case', () => {
+  const embedded = [sql, ...later].flatMap((text, i) => {
+    const block = /\$cases\$([\s\S]*?)\$cases\$/.exec(text);
+    assert.ok(block, `${i === 0 ? '0048' : LATER_CASES[i - 1]} must carry its cases in a $cases$ dollar-quoted literal`);
+    assert.match(text, /public\.jsonb_merge_patch\(v_case->'base', v_case->'patch'\)/, 'and CALL the merge on each of them');
+    return JSON.parse(block[1]);
+  });
 
   // Compared as DATA, not as text: formatting differences between the two files are fine,
   // a missing or altered case is not.
@@ -29,8 +38,8 @@ test('0048 embeds the SHARED merge-patch conformance table, case for case', () =
   assert.deepEqual(
     embedded.map(shape),
     MERGE_PATCH_CONFORMANCE.map(shape),
-    'the plpgsql merge no longer answers the same cases as the TypeScript one - update ' +
-      'supabase/migrations/0048_production_data_tree.sql to match scripts/merge-patch-conformance.mjs',
+    'the plpgsql merge no longer answers the same cases as the TypeScript one - answer an added ' +
+      'case in a new migration that calls the merge on it (as 0096 does), listed in LATER_CASES',
   );
 });
 
