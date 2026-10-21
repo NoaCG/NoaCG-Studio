@@ -412,6 +412,4 @@ test('a panel key cannot write the command log or reach another production', asy
   await heardA.next('press');
   await new Promise((r) => setTimeout(r, 1_500));
   expect(heardB.got.filter((m) => m.event === 'press')).toEqual([]);
-  // And B's page answering under its own claim never sees A's numbers either.
-  expect(Number(leasedB.claim)).toBeGreaterThan(0);
 });

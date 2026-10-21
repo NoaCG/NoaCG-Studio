@@ -115,33 +115,33 @@ export function buildPresets(
 			{ feedbackId: 'selected', options: { row: row.id }, style: { bgcolor: GREEN, color: WHITE } },
 			{ feedbackId: 'on_air', options: { row: row.id }, style: { bgcolor: RED, color: WHITE } },
 		]
-		for (const [verb, ids, prefix] of [
-			['take-cue', takeIds, 'take'],
-			['select-cue', selectIds, 'select'],
-		] as const) {
+		// Trigger plays or restarts a cue by its own row id and leaves the selection alone; a folder
+		// has nothing to play, so only cues get one.
+		const keys = [
+			{ verb: 'take-cue', ids: takeIds, prefix: 'take', title: 'Take', action: 'take_cue', text: row.label },
+			{ verb: 'select-cue', ids: selectIds, prefix: 'select', title: 'Select', action: 'select_cue', text: row.label },
+			...(row.kind === 'cue'
+				? [
+						{
+							verb: 'trigger-cue',
+							ids: triggerIds,
+							prefix: 'trigger',
+							title: 'Trigger',
+							action: 'trigger_cue',
+							text: `\u25B6 ${row.label}`,
+						} as const,
+					]
+				: []),
+		] as const
+		for (const { verb, ids, prefix, title, action, text } of keys) {
 			const id = `${prefix}_${row.id}`
 			ids.push(id)
 			presets[id] = {
 				type: 'simple',
-				name: `${verb === 'take-cue' ? 'Take' : 'Select'} ${name}`,
-				style: { text: row.label, size: 'auto', color: WHITE, bgcolor: BLACK },
-				steps: [
-					{ down: [{ actionId: verb === 'take-cue' ? 'take_cue' : 'select_cue', options: { row: row.id } }], up: [] },
-				],
+				name: `${title} ${name}`,
+				style: { text, size: 'auto', color: WHITE, bgcolor: BLACK },
+				steps: [{ down: [{ actionId: action, options: { row: row.id } }], up: [] }],
 				feedbacks: [...tally, ...verbFeedbacks(verb, row.id), ...statusFeedbacks(label)],
-			}
-		}
-		// Trigger plays or restarts a cue by its own row id and leaves the selection alone; a folder
-		// has nothing to play, so only cues get one.
-		if (row.kind === 'cue') {
-			const id = `trigger_${row.id}`
-			triggerIds.push(id)
-			presets[id] = {
-				type: 'simple',
-				name: `Trigger ${name}`,
-				style: { text: `\u25B6 ${row.label}`, size: 'auto', color: WHITE, bgcolor: BLACK },
-				steps: [{ down: [{ actionId: 'trigger_cue', options: { row: row.id } }], up: [] }],
-				feedbacks: [...tally, ...verbFeedbacks('trigger-cue', row.id), ...statusFeedbacks(label)],
 			}
 		}
 	}

@@ -1,7 +1,8 @@
 # Panel ownership lease
 
 Status: agreed with the owner on 2026-10-08 (P1). Built: migration 0081 and
-`src/control/panelRelay.ts`; its configured specs are listed under Verification.
+`src/control/panelRelay.ts`; its configured specs are listed under
+Verification; its acceptance has not been reviewed into `work.json` yet.
 Parent: `docs/work-specs/playout-workflow-simplification/spec.md` (owner decision 12, non-goal 2).
 It changes `docs/work-specs/hardware-panel-control/spec.md` AC-6 and D2, and `protocol.md` §4
 to §6. Everything else of that spec stands.

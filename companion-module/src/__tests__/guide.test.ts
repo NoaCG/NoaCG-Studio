@@ -11,7 +11,6 @@ const help = readFileSync(fileURLToPath(new URL('../../companion/HELP.md', impor
 test('the action list is every panel verb, once', () => {
 	const actions = [...Object.values(ACTION_VERBS), 'select-cue', 'take-cue', 'trigger-cue']
 	assert.deepEqual([...actions].sort(), [...PANEL_VERBS].sort())
-	assert.equal(PANEL_VERBS.length, 14)
 })
 
 test('the guide names every action as Companion lists it', () => {

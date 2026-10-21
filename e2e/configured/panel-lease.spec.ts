@@ -64,28 +64,35 @@ test('a reload keeps the panel, a second production page never takes it, and tak
 test('a hidden page keeps the panel; a page cut off lets go and, back online, never takes it back', async ({ page, browser }) => {
   test.setTimeout(300_000);
   // The page's own timers, wrapped from its first script so the ones already running can be starved
-  // too: while `__starve` is set on the top window, an interval skips its ticks and a timeout waits.
+  // too: while `__starve` is set, an interval skips its ticks and a timeout waits until release,
+  // unless it is cleared meanwhile. Only the page itself starves, not its monitors' frames.
   await page.addInitScript(() => {
-    const starved = () => {
-      try {
-        return (window.top as unknown as { __starve?: boolean }).__starve === true;
-      } catch {
-        return false;
-      }
+    if (window !== window.top) return;
+    const w = window as unknown as { __starve?: boolean; __release: () => void };
+    const held = new Map<number, () => void>();
+    w.__release = () => {
+      const due = [...held.values()];
+      held.clear();
+      due.forEach((f) => f());
     };
-    const held: (() => void)[] = [];
-    (window as unknown as { __release: () => void }).__release = () => held.splice(0).forEach((f) => f());
     const realTimeout = window.setTimeout.bind(window);
+    const realClear = window.clearTimeout.bind(window);
     const realInterval = window.setInterval.bind(window);
-    window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) =>
-      realTimeout(() => {
+    window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) => {
+      const id: number = realTimeout(() => {
         const run = () => (typeof fn === 'function' ? fn(...args) : undefined);
-        if (starved()) held.push(run);
+        if (w.__starve) held.set(id, run);
         else run();
-      }, ms)) as typeof window.setTimeout;
+      }, ms);
+      return id;
+    }) as typeof window.setTimeout;
+    window.clearTimeout = ((id?: number) => {
+      if (id !== undefined) held.delete(id);
+      realClear(id);
+    }) as typeof window.clearTimeout;
     window.setInterval = ((fn: TimerHandler, ms?: number, ...args: unknown[]) =>
       realInterval(() => {
-        if (!starved() && typeof fn === 'function') fn(...args);
+        if (!w.__starve && typeof fn === 'function') fn(...args);
       }, ms)) as typeof window.setInterval;
   });
   // A real cut: Playwright's offline mode leaves open WebSockets alone, so the page's Realtime
@@ -128,7 +135,13 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
     delete (document as unknown as Record<string, unknown>).hidden;
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  const shown = await deck.state((s) => s.where === 'production', 'the page publishing again');
+  // Shown again, it runs and publishes presses made from now on, under the same claim.
+  const [anna, ben] = (await deck.rows()).map((r) => r.id);
+  const awake = await deck.state((s) => s.selected === anna, 'Anna selected');
+  expect((await deck.press('select-next', '', awake.ver as number)).outcome).toBe('ran');
+  const onBen = await deck.state((s) => s.selected === ben, 'the page publishing again');
+  expect((await deck.press('select-prev', '', onBen.ver as number)).outcome).toBe('ran');
+  const shown = await deck.state((s) => s.selected === anna, 'Anna selected again');
   expect(shown.claim).toBe(before.claim);
   const slug = await op.evaluate(async () => {
     const { loadShows } = await import('/src/model/shows.ts');

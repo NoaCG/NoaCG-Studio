@@ -6,7 +6,7 @@ Each press is run by the NoaCG operator page that answers the panel, exactly as 
 
 ### Install
 
-Companion 4.3 or later. If **NoaCG: NoaCG Studio** is not in Companion's list of connections yet, install the module file you were given (`noacg-studio-<version>.tgz`): open **Modules**, press **Import module package** and choose the file. To go back to an earlier version, import that version's file the same way. A new Companion first shows its own welcome and What's New windows; finish or close them.
+Companion 4.3 or later (the steps below use Companion 5.1's words). If **NoaCG: NoaCG Studio** is not in Companion's list of connections yet, install the module file you were given (`noacg-studio-<version>.tgz`): open **Modules**, press **Import module package** and choose the file. To go back to an earlier version, import that version's file the same way. A new Companion first shows its own welcome and What's New windows; finish or close them.
 
 ### Set it up
 
