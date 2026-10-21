@@ -110,8 +110,8 @@ jobs:
                           if not (u.hostname or '').endswith('.supabase.co'): continue
                           code = s.get('response', {}).get('status', 0)
                           if code == 101: continue
-                          timings.append((round(s.get('time', 0)), u.path, code))
-                  print('SLOW_HTTP', sorted(timings, reverse=True)[:6])
+                          timings.append((round(s.get('time', 0)), u.path, code, s.get('timings', {})))
+                  print('SLOW_HTTP', sorted(timings, key=lambda row: row[0], reverse=True)[:6])
                   for name in z.namelist():
                       if not name.endswith('.trace'): continue
                       for line in z.read(name).decode().splitlines():
