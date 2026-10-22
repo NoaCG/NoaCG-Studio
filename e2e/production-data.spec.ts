@@ -882,6 +882,68 @@ test('a ± press on a bound field moves the shared value, and every graphic boun
   await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('1');
 });
 
+test('a quiz revealed beside a running clock: bound values update both, the clock keeps counting and the quiz stays revealed (C7)', async ({ page }) => {
+  // data-sources AC-16: independent behaviour stays independent. A data write changes values
+  // only: it never restarts another graphic's clock, re-takes a graphic or moves a machine.
+  test.setTimeout(90_000);
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  const showId = await productionFor(page, 'Quiz Clock Night');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  const chip = page.getByTestId('machine-state-chip');
+
+  const data = await openData(page);
+  await addValue(data, 'quiz.question', 'Which planet is largest?');
+  await addValue(data, 'match.home.score', '0');
+  await data.getByTestId('bind-Arena Quiz-f0').fill('quiz.question');
+  await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
+  await expect(data.getByTestId('bind-value-Club Scorebug-f1')).toHaveText('0');
+  await settleDurableWrites(data);
+
+  const quiz = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect(chip).toContainText(/running/i);
+  const clock = bug.locator('.scoreboard-clock');
+  const seconds = async (): Promise<number> => {
+    const [m, s] = ((await clock.textContent()) ?? '').trim().split(':').map(Number);
+    return m * 60 + s;
+  };
+  const start = await seconds();
+
+  await cues.nth(0).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(quiz.locator('#f0')).toHaveText('Which planet is largest?');
+  await page.getByTestId('cue-field-f6-opt-B').click();
+  await page.getByTestId('cue-action-select').click();
+  await page.getByTestId('cue-action-lock').click();
+  await page.getByTestId('cue-action-judge').click();
+  await expect(chip).toHaveText('Reveal');
+  await expect(quiz.locator('.quiz-correct')).toHaveCount(1);
+
+  // The clock has run a few seconds while the quiz was played.
+  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+  const runBefore = Math.abs((await seconds()) - start);
+
+  // The data moves: both graphics take the new values on air, nothing else changes.
+  await data.getByTestId('data-value-quiz.question').fill('Which planet has the most moons?');
+  await data.getByTestId('data-value-match.home.score').fill('2');
+  await settleDurableWrites(data);
+  await expect(quiz.locator('#f0')).toHaveText('Which planet has the most moons?');
+  await expect(bug.locator('#f1')).toHaveText('2');
+
+  // The quiz did not advance or go back: still revealed, the same answer marked.
+  await expect(chip).toHaveText('Reveal');
+  await expect(quiz.locator('.quiz-correct')).toHaveCount(1);
+  await expect(quiz.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
+  // The clock was not reset: it ran on from where it stood, and it still runs.
+  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 10_000 }).toBeGreaterThanOrEqual(runBefore + 2);
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(chip).toContainText(/running/i);
+});
+
 test('an adjust on a bound field patches the tree, and the event still fires', async ({ page }) => {
   // The second half of AC-7. A scoreboard's GOAL carries `adjust: { f1: 1 }`, so the press used to
   // ride the new figure as the event's payload and mirror it into the cue. With f1 bound, the
