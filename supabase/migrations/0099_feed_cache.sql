@@ -12,8 +12,9 @@
 -- stale row with its age (api/_lib/feedFetch.ts). The two lease times default to the epoch rather
 -- than NULL so the conditional update is one plain comparison each. `refused` marks a failure that
 -- is the guard refusing the address itself; `feed_wait_ms` is the wait the feed's own body asks
--- for (`<ttl>`), kept so a 304, which has no body, still honours it. A row whose wait ended a day ago is an address nobody
--- reads any more (any address in use is fetched at least hourly), and the reader deletes it.
+-- for (`<ttl>`, at most an hour), kept so a 304, which has no body, still honours it. A row whose
+-- wait ended a day ago is an address nobody reads any more (any address in use is fetched at least
+-- hourly), and the reader deletes it.
 --
 -- It is reached only by the service role, from the public route `/api/data/feed` and the server
 -- tick. Clients get nothing: RLS on with no policy is deny-all, and every client privilege is

@@ -445,6 +445,11 @@ test('a feed asking for longer is read later: max-age 900 and <ttl>15</ttl> both
   }
 });
 
+test('a <ttl> of any size is kept as at most an hour', () => {
+  assert.equal(parseFeed(RSS(['x'], '<ttl>99999999999</ttl>')).ttlMs, 60 * MIN);
+  assert.equal(parseFeed(RSS(['x'], '<ttl>15</ttl>')).ttlMs, 15 * MIN);
+});
+
 test('a feed asking for more than an hour is read after an hour anyway', async () => {
   const server = feedServer({ headers: { 'cache-control': 'max-age=86400' } });
   const env = io(server.net);

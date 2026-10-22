@@ -503,7 +503,8 @@ export function parseFeed(xml: string): FeedParse {
     once.sort((a, b) => (b.at as number) - (a.at as number));
   }
   const ttl = /<ttl>\s*(\d+)\s*<\/ttl>/i.exec(body);
-  return { ok: true, items: once.slice(0, FEED_ITEMS), ttlMs: ttl ? Number(ttl[1]) * 60_000 : null };
+  // Past the hour cap a longer wait changes nothing, and the row keeps it in an integer.
+  return { ok: true, items: once.slice(0, FEED_ITEMS), ttlMs: ttl ? Math.min(Number(ttl[1]) * 60_000, FEED_MAX_WAIT_MS) : null };
 }
 
 // ── One cached read per address ───────────────────────────────────────────────
