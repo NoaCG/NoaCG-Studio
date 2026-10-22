@@ -44,12 +44,12 @@ changes a spec's digest.
     to the key on a database that has not run 0100.
   The cases are `scripts/data-pause-conformance.mjs`, embedded as a `$pause$` literal in 0100 and
   run by its self-check on the real bodies (sixteen cases); `data-pause` fails when the two differ.
-  Mutation checks of the bodies (each turned the self-check red, run on the local stack in a
-  rolled-back transaction): an operator write diffed against the API's tree; held values laid
-  under the diff instead of over it; `/update` held without merging per field; the paused API
-  branch removed; the API's paused write landing in `data`; a held `/update` kept after a press or
-  after a later `/patch`; the owner's door labelled `'api'`; operator writes not joining the API's
-  tree.
+  Mutation checks of the final bodies (nine, each turned the self-check red, run on the local
+  stack in a rolled-back transaction): held values laid under the diff instead of over it;
+  `/update` held without merging per field; the paused API branch removed; the API's paused write
+  landing in `data`; a held `/update` kept after a press; kept after a later `/patch`; the owner's
+  door labelled `'api'`; operator writes not joining the API's tree; Resume not making the API's
+  tree the tree.
 - **Decisions.**
   - Another system is the data key as ONE source with no `Show.sources` record (AC-8: no
     per-sender attribution or Pause). Its fields are ordinary bindings to `api.<graphic>.<field>`
