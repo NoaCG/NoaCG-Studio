@@ -262,7 +262,29 @@ export interface YouTubeShowSource {
   inbox: true;
 }
 
-export type ShowSource = SheetShowSource | YouTubeShowSource;
+/**
+ * A NEWS FEED source (data-sources C4): an RSS 2.0 or Atom address whose newest headlines fill a
+ * ticker's lines, read through NoaCG's guarded feed route (control/feedSource.ts). Its paths are
+ * `feed.<id>.lines`. Like a Sheet tab it feeds fields only through bindings.
+ */
+export interface FeedShowSource {
+  id: string;
+  kind: 'feed';
+  label: string;
+  config: { url: string };
+  paused?: boolean;
+  /** A feed never feeds Messages. */
+  inbox?: undefined;
+}
+
+export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource;
+
+/** A source that fills fields (a Sheet tab or a feed); a YouTube source feeds Messages alone. */
+export type FieldShowSource = SheetShowSource | FeedShowSource;
+export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed';
+
+/** What a source is called on the surface. */
+export const sourceKindWord = (s: ShowSource): string => (s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : 'YouTube');
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question

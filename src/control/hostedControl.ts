@@ -732,7 +732,10 @@ export function publishedLeaseDoor(o: {
   owner: string;
   hold: (slug: string, tree: JsonObject) => void;
   note: (text: string) => void;
+  /** The reader's lease (sheetSource `leaseOf`); the row holds any lease at most a minute. */
+  leaseMs?: number;
 }): SheetLeaseDoor {
+  const leaseMs = o.leaseMs ?? SHEET_LEASE_MS;
   let tick = false;
   /** The claim this page last held, which letting go names. */
   let held: string | null = null;
@@ -757,7 +760,7 @@ export function publishedLeaseDoor(o: {
   };
   return {
     claim: async (claim) => {
-      const row = await lease(claim, SHEET_LEASE_MS);
+      const row = await lease(claim, leaseMs);
       tick = row.tick === true;
       held = row.ok && row.claim ? row.claim : null;
       if (!row.ok || !row.claim) {
@@ -774,7 +777,7 @@ export function publishedLeaseDoor(o: {
     },
     settle: async (claim, writes, next) => {
       const state = unchecked(next);
-      if (Object.keys(writes).length === 0 && kept?.claim === claim && kept.state === state && Date.now() - kept.at < SHEET_LEASE_MS) return true;
+      if (Object.keys(writes).length === 0 && kept?.claim === claim && kept.state === state && Date.now() - kept.at < leaseMs) return true;
       const sb = await getSupabase();
       if (!sb) return false;
       const { data, error } = await sb.rpc('control_source_commit', {

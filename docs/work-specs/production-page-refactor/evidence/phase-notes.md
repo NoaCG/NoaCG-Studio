@@ -5,6 +5,149 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 11, data-sources C4: Feeds
+
+- **Previous verified `main` sha:** `570da40a4e32fc6b0876d109fa41e679eb5490c1` (row 10, C3, #1593
+  and repair #1594). This branch starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0099 is additive and stays applied:
+  `feed_cache` is then read by nothing, and `control_data_tick_due` keeps listing feed sources,
+  which a reverted tick reads as Sheets and fails harmlessly (`readSheet` of an undefined id; the
+  outcome is recorded as failed and nothing is written). Remove feed sources from productions
+  (Disconnect) before reverting if any exist; a reverted page ignores them otherwise.
+- **Q record used.** `docs/work-specs/data-sources/evidence/feeds.md` and its six fixtures, cited
+  for markup and conditional requests: the parser is tested on every fixture (CDATA titles of the
+  Node.js blog, `&#39;` in the GitHub releases, emoji and the `media:` namespace of YouTube, the
+  Vercel blog's escaped `&lt;script ...&gt;` read as text, PyPI identified by link, Yle's
+  `<ttl>5</ttl>`); the record's advice is taken: the reader honours `<ttl>` and `max-age` as lower
+  bounds on the 5-minute floor, the size cap (5 MB, decompressed) sits above the Vercel blog's
+  3.9 MB whole feed, and an oversized or failed read keeps the last good list.
+- **Receipt.** `docs/work-specs/data-sources/evidence/feed-real-receipt.md`: Yle through the
+  emitted data function on the local stack (CLI 2.111.0, every migration through 0099 from an empty
+  database): 200 with 11 headlines and a weak ETag; a second read served from the row with no
+  request; after the wait, a conditional request answered 304 with the headlines unchanged.
+- **Decisions.**
+  - The route is `GET /api/data/feed?url=<address>`, a public segment of the data catch-all (one
+    segment deep; no new function). It answers `{ ok, items, fetchedAt }` (headlines only), or
+    `{ ok: false, error, fix, failingSince }` with the last good headlines when there are any.
+    One client is refused after 30 reads a minute (`checkFeedIpRateLimit` in
+    `api/_lib/rateLimit.ts`, in-process and per instance as the other data gates, `FEED_RATE_MAX`
+    to tune); one address is fetched at most once every 5 minutes whatever the readers. A client
+    that leaves ends only its own wait, never the fetch other readers are waiting on.
+  - The guard (`api/_lib/feedFetch.ts`): http and https only, on their own ports, no credentials;
+    the name is resolved by the reader itself and EVERY answer must be public (a name answering one
+    private address is refused whole); the connection is pinned to the checked address through the
+    request's own `lookup`, so TLS still checks the certificate against the name; every redirect is
+    checked the same way, at most 5 (the validators go only to the same site); the body stops at
+    5 MB after decompression (`stream.pipeline`, so an abort ends the decoder too) and the read,
+    every lookup and redirect included, at 10 s. IPv4 is connected first when a name has both, as
+    a function may have no IPv6 egress. The page runs the same address check before asking
+    (`normalizeFeedAddress` lives in `src/control/feedSource.ts` and the route imports it). Public means: IPv4 outside the special ranges (private, shared,
+    loopback, link-local with the 169.254.169.254 metadata address, documentation, benchmarking,
+    multicast, reserved); IPv6 only inside global unicast 2000::/3, minus Teredo and protocol
+    assignments, documentation and 6to4, so loopback, unique-local (fd00:ec2::254), link-local,
+    IPv4-mapped and NAT64 forms all fall outside. A refused address answers 400, from the row too
+    (`refused`), and is not looked up again for 5 minutes. A row whose wait ended a day ago is
+    deleted at the next fetch (any address in use is fetched at least hourly), so addresses
+    nobody reads do not pile up.
+  - Politeness: the wait after a read is the 5-minute floor, or longer when the feed asks
+    (`<ttl>`, `max-age`, a `Retry-After` on a refusal), never longer than an hour. ETag and
+    Last-Modified go back only for headlines in hand. Headlines: titles as plain text (entities
+    decoded once outside CDATA, so escaped markup in a text title stays text; CDATA and Atom
+    `type="html"` read as HTML), each item once by guid/id or link, newest first when every item is
+    dated (else feed order), 20, at most 300 characters.
+  - The shared cache is `feed_cache` (0099), keyed by the SHA-256 of the normalized address, with
+    the two lease times defaulting to the epoch so the claim is one conditional update
+    (`claimed_until < now and next_allowed_at <= now`) through the service-role client, as the
+    spec says; no SQL function, so no new advisor class. A reader that loses the claim serves the
+    stale row; before any first read it waits for that read to settle (looking at the row after
+    250 ms, then twice as long each time up to a second, never longer than the read's own time),
+    so two readers at once make one fetch.
+  - The browser reader reuses the Sheet reader: `createSheetReader` gained `read`, `everyMs`,
+    `renewMs` and `timeoutMs` options. A feed asks the route every 5 minutes and renews its claim
+    every 30 s in between, because the published row holds any lease at most a minute (0097):
+    without the renewal the tick or another tab would take the feed while the page is open. The
+    lease is three renewals (`leaseOf`, 90 s for a feed, 15 s for a Sheet as before); Connect and
+    Resume read at once. One `FEED_CADENCE` and `FEED_LEASE_MS` in `feedSource.ts` feed both the
+    reader and the published lease. Feed paths are `feed.<id>.lines` (the spec's content line);
+    `sourcePrefix(id, kind)` takes the kind, and `isSourcePath`/`sourceIdOf` know both prefixes.
+  - The tick lists feed sources (0099 widens `control_data_tick_due`, same signature and grants)
+    and reads them through `readFeed`, never with its own fetch; their rows keep the label
+    `'sheet'`, which names the server tick, not the kind (widening `control_data_apply` again for a
+    word was not worth a second copy of its body).
+  - "Connect… News feed" is the ticker's existing Connect data… box: on a graphic whose shape is
+    `lines`, a pasted address that is not a Sheet link is read as a feed through the route, and
+    the review, mapping, "Used by" and one confirmation are the Sheet's. The Playout sources line,
+    the Data overview and the connected-field mark name the kind ("News feed: …", "about every
+    5 min"); a connected feed list says "Connected to News feed: …" with Disconnect, as there is no
+    source to edit.
+- **Files beyond the phase's list, and why.** `src/control/sheetSource.ts` (the reader's `read`,
+  cadence and lease options, kind-aware leaves), `src/control/hostedControl.ts` (the published
+  lease's length), `src/model/productionData.ts` (the `feed.` prefix), `src/model/shows.ts`
+  (`FeedShowSource`, `fillsFields`, `sourceKindWord`), `src/components/home/ProductionPage.tsx`
+  (starts a feed's reader beside the Sheet readers), `SourcesLine.tsx` and
+  `ProductionDataPanel.tsx` (show feeds, with their cadence), `ProductionAudienceWorkspace.tsx`
+  (one type guard the new union needed), `api/_lib/dataTick.ts` (the tick reads feeds),
+  `api/_lib/rateLimit.ts` (the feed route's per-client limit beside the other routes'), and
+  `scripts/supabase-advisors.mjs` with `supabase/advisor-baseline.json` (`feed_cache`'s deny-all,
+  lesson 1 of the run). Each is the smallest change that puts the feed on the reader and the tick
+  the spec names.
+- **Mutation checks** (each mutation turned its test red, then was reverted): floor 5 to 4 min;
+  the hour cap 60 to 120 min; timeout 10 to 11 s (the test is cancelled: the read never ends at
+  10 s); redirects 5 to 6; body 5 MB to 6 MB; claim 20 to 30 s; items 20 to 25; title 300 to 400;
+  address 2048 to 4096; client limit 30 to 60 a minute; first answer checked instead of every
+  answer; a second lookup at connect time instead of the checked address; redirects not
+  re-checked; validators not sent; dedupe off; a failure dropping the last good headlines; the
+  browser cadence 5 to 1 min; the lease 3 renewals to 2; the renewal 30 to 60 s; Resume not
+  forcing a read; a failure with headlines read as success; the prune age 24 to 48 h; a refusal
+  not kept on the row; IPv6 connected first; validators sent across sites; the lookup outside the
+  read's time (the test is cancelled); a headline cut by UTF-16 units; and, in the configured
+  walk, an insert that claims whether or not it won (two upstream fetches).
+- **Check.** Review (delegated, high): 10 findings, all confirmed and fixed (decoder not ended on
+  abort, published lease lapsing between reads, unbounded rows, IPv6-first connect, refusal status
+  lost from the row, lookup outside the timeout, validators across sites, the route's wait ignoring
+  a client gone, surrogate-splitting cut, a defaulted prefix kind). Simplify (four delegated
+  angles): the feed cadence and lease in one place, the reader plan carries the kind, one address
+  check for page and route, the rate limit as a `rateLimit.ts` pair, shared `sha256`, patch
+  builders and a regex cache in the parser, one read path in Connect. Skipped: a shared byte-cap
+  helper with C2's `cappedFetch` (would reshape C2's tested path), a `sourceShape` helper (two
+  call sites), a longer renewal (30 s keeps margin under the one-minute row lease).
+- **Assessment A** (a fresh read-only session with the `/so` brief, on `45f7cf91`): AGREE WITH
+  CORRECTIONS. Its four corrections are in: (1) the parser was quadratic on hostile markup (its
+  lazy regexes rescanned to the end from every unclosed tag; 400 KB of `<item>` took 5 s), which
+  could hold the public route and the tick; it now scans forward only (`indexOf`, an element
+  without its end stops the scan, a headline's markup is read up to 16 KB), and `feed-fetch` feeds
+  it nine 5 MB hostile documents, each under 2 s (slowest 352 ms; the old comment regex turns it
+  red); (2) a tick cut-off was saved as the feed's failure for every reader for 5 minutes; a read
+  the caller cuts short now lets only the claim go; (3) the real connection had no test; two now
+  run `nodeFeedNet` against a local server, one reaching it only through the pinned address under
+  an unresolvable name (with gzip), one proving a stalled compressed body ends at the abort (both
+  red when the `lookup` or `pipeline` is removed); (4) the never-written `updated_at` column is
+  gone from 0099. The real receipt was repeated on the final code with the same result.
+- **Codex review** of `90033f8` (two P2 findings, both regressions this branch introduced, both
+  fixed in `a142a68` with a test that fails on `90033f8`): the forward-only parser no longer read
+  an Atom feed written with a namespace prefix (`<atom:feed>`, `<atom:entry>`), so such a feed
+  would read as empty and clear the ticker; the prefix is now taken from the root and used for the
+  entries and their children. And a 304 forgot the feed's own `<ttl>` (only the body carries it),
+  dropping an hourly feed to every 5 minutes; 0099 gains `feed_wait_ms`, kept with the headlines
+  and applied after a 304 (and kept as at most an hour, so any `<ttl>` fits the column). Its
+  re-review of `f665175` found two more, also fixed with tests that fail on `f665175`: an item's
+  metadata was the first matching substring, so a `<title>` inside a description's CDATA could
+  replace the headline; items are now read as their DIRECT children with CDATA masked, and a
+  stray unclosed tag cannot hide the rest of the item. And a 200 body cut off early parsed as an
+  empty feed and cleared the ticker; a document without its root's end is now a failed read that
+  keeps the last good headlines (a feed with no items still ends its root and reads as empty).
+  The final parser read three live feeds (Yle 11, PyPI 20, GitHub releases 10 headlines) and the
+  hostile 5 MB set, now twelve cases, stays under 2 s each.
+- **Traps.**
+  - A lazy regex over a body someone else wrote is a denial of service at 5 MB; scan forward.
+  - `node:http`'s `lookup` option must answer both shapes (`all: true` gets an array); a typed
+    `LookupFunction` cast keeps the root tsconfig's check.
+  - The configured walk replaces `feedNetwork.current` in the route's own process, so the guard
+    still resolves and checks every address; the stub answers only the checked public address.
+  - A local Supabase stack runs on a cloud machine once `dockerd` is started by hand; `supabase@2.111.0
+    start -x studio,edge-runtime` then applies every migration from empty.
+
 ## Row 10, data-sources C3: Sheet messages and YouTube
 
 - **Repair, 2026-10-22 (P10 repair 1, the check's FAIL on `a868bc5`).** Post-landing run 39706145334

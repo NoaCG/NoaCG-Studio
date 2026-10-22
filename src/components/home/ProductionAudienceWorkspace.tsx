@@ -487,7 +487,7 @@ function MessageSources({
 
   const sourcesRef = useRef(show.sources);
   sourcesRef.current = show.sources;
-  const messageSources = (show.sources ?? []).filter((s) => s.inbox);
+  const messageSources = (show.sources ?? []).filter((s): s is SheetShowSource | YouTubeShowSource => Boolean(s.inbox));
   const others = running.filter((r) => !r.sourceId);
 
   const save = async (result: { shows: Show[]; error: string | null }, what: string): Promise<boolean> => {

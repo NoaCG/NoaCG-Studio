@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
-import { setShowSourcePaused, type Show, type ShowSource } from '../../model/shows';
+import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
+import { FEED_READ_MS } from '../../control/feedSource';
 import { useNow } from './ClipClock';
 
 /** "3 s ago", "2 min ago", from a time in ms. */
@@ -38,10 +39,10 @@ export function statusWords(paused: boolean | undefined, status: SheetStatus | u
 }
 
 /** Who reads a source and how often (data-sources AC-9's source details). */
-export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined): string {
+export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined, kind: ShowSource['kind']): string {
   if (paused) return 'Paused: not read until Resume';
   if (!status) return 'Waiting for the first read';
-  const every = `about every ${SHEET_READ_MS / 1000} s`;
+  const every = kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;
   if (status.reader === 'server') return 'Read by the server about once a minute, while every page is closed';
   const page = status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
   if (status.closedPage === undefined) return page;
@@ -60,13 +61,13 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
   return (
     <div
       className="pd-source-line hint"
-      title={readerWords(source.paused, status)}
+      title={readerWords(source.paused, status, source.kind)}
       data-testid={`source-line-${source.id}`}
       data-state={source.paused ? 'paused' : (status?.state ?? 'waiting')}
       data-stale={status?.stale && !source.paused ? 'true' : undefined}
     >
       <span data-testid="source-status">
-        Sheet: {source.label} · {statusWords(source.paused, status, now)}
+        {sourceKindWord(source)}: {source.label} · {statusWords(source.paused, status, now)}
         {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
       </span>{' '}
       <button type="button" onClick={() => toggleSourcePause(show, setShows, store, source)} data-testid="source-pause">
@@ -86,8 +87,8 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
  * while the show runs and Pause is one press. Nothing at all without sources.
  */
 export default function SourcesLine({ show, setShows, store }: { show: Show; setShows: (shows: Show[]) => void; store: SourceStatusStore }) {
-  // A Sheet's line; a YouTube source is read and shown in Messages only.
-  const sources = (show.sources ?? []).filter((s) => s.kind === 'sheet');
+  // A Sheet's or a feed's line; a YouTube source is read and shown in Messages only.
+  const sources = (show.sources ?? []).filter(fillsFields);
   if (sources.length === 0) return null;
   return (
     <div className="pd-sources" data-testid="sources-line">

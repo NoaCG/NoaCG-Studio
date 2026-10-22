@@ -36,6 +36,8 @@ import {
   type PlayoutItem,
   type PlayoutMediaKind,
   type SheetShowSource,
+  type FeedShowSource,
+  fillsFields,
   type Show,
   type ShowCue,
   type ShowFolder,
@@ -93,7 +95,8 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
-import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader } from '../../control/sheetSource';
+import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
+import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -391,6 +394,9 @@ function writeSheetLease(key: string, lease: SheetLease): boolean {
     return false;
   }
 }
+
+/** A source's reader as the page builds it: its id, kind and config, and whether it feeds Messages. */
+type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'>, boolean];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -1599,11 +1605,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   messagesRef.current = messages;
   // Its YouTube live chat keeps reading while the page is open, and reconnects on reload.
   useMessageSources(show ?? null, messages);
+  // Sheet tabs and news feeds (data-sources C4) each have one reader; a feed's reads go through
+  // the guarded feed route, every 5 minutes (control/feedSource.ts).
+  // Only what a reader is built from, so a rename or a Pause never restarts one.
   const readerPlan = JSON.stringify(
-    (show?.sources ?? []).flatMap((s) => (s.kind === 'sheet' ? [[s.id, s.config, Boolean(s.inbox)]] : [])),
+    (show?.sources ?? []).filter(fillsFields).map((s) => [s.id, { kind: s.kind, config: s.config }, Boolean(s.inbox)] as ReaderPlan),
   );
   useEffect(() => {
-    const plan = JSON.parse(readerPlan) as [string, SheetShowSource['config'], boolean][];
+    const plan = JSON.parse(readerPlan) as ReaderPlan[];
     const world = hostedSlug ?? 'local';
     const inboxes = new Map(
       plan
@@ -1622,13 +1631,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         ]),
     );
     const readers: Map<string, SheetReader> = new Map(
-      plan.map(([sourceId, config]) => [
-        sourceId,
-        createSheetReader({
+      plan.map(([sourceId, source]) => {
+        const common: Omit<SheetReaderOptions, 'shape'> = {
           key: `${id}:${sourceId}`,
           sourceId,
-          link: { sheetId: config.sheetId, gid: config.gid, published: config.published },
-          shape: config.shape,
           tab: readerTab,
           world,
           io: {
@@ -1640,17 +1646,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             writeLease: writeSheetLease,
             // Published, the lease lives on the row, shared with the other pages and the tick.
             door: hostedSlug
-              ? publishedLeaseDoor({ slug: hostedSlug, sourceId, owner: readerTab, hold: dataSession.holdServerTree, note: setNote })
+              ? publishedLeaseDoor({
+                  slug: hostedSlug,
+                  sourceId,
+                  owner: readerTab,
+                  hold: dataSession.holdServerTree,
+                  note: setNote,
+                  leaseMs: source.kind === 'feed' ? FEED_LEASE_MS : undefined,
+                })
               : undefined,
           },
           connected: () => new Set(sourcePaths(bindingsRef.current, sourceId).map((p) => p.path)),
           accept: sourceAccept,
           paused: () => Boolean(sourcesRef.current?.find((s) => s.id === sourceId)?.paused),
           write: dataSession.applySourcePatch,
-          inbox: inboxes.get(sourceId)?.take,
           onStatus: (status) => sourceStatus.set(sourceId, status),
-        }),
-      ]),
+        };
+        const reader =
+          source.kind === 'feed'
+            ? createFeedReader({ ...common, url: source.config.url })
+            : createSheetReader({
+                ...common,
+                link: { sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published },
+                shape: source.config.shape,
+                inbox: inboxes.get(sourceId)?.take,
+              });
+        return [sourceId, reader];
+      }),
     );
     sourceStatus.onPoke((sourceId) => readers.get(sourceId)?.poke());
     // A reload or a closed tab runs no cleanup: let the leases go as the page leaves, so the

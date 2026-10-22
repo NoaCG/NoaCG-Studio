@@ -16,10 +16,12 @@
 // .mjs - measured, not inferred), so every verb lives one segment deep: /api/data/update
 // today, siblings later at no function cost. Function 11 of the 12 budget. `/api/data/tick` is the
 // server tick (data-sources C2), the one-minute cron's target: vercel.json gives this function
-// `maxDuration` 30 for it.
+// `maxDuration` 30 for it. `/api/data/feed` is the public news feed reader (data-sources C4,
+// api/_lib/feedFetch.ts): no key, guarded by address, size, time and a per-client limit.
 
 import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
-import { checkDataIngestBudget, checkDataIpRateLimit } from '../_lib/rateLimit.js';
+import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit } from '../_lib/rateLimit.js';
+import { feedNetwork, readFeed, supabaseFeedStore, type FeedIo } from '../_lib/feedFetch.js';
 import {
   dataApiConfigured,
   mapLabelsToFields,
@@ -243,6 +245,7 @@ async function tick(req: Request): Promise<Response> {
       record: (startedAt, durationMs, sources) =>
         rpc('control_data_tick_record', { p_started: new Date(startedAt).toISOString(), p_duration_ms: durationMs, p_sources: sources }),
       fetch: cappedFetch(fetch),
+      feed: async (address, signal) => readFeed(address, await feedIo(), { wait: signal, cut: signal }),
       setTimer: (run, ms) => setTimeout(run, ms),
       clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
     });
@@ -250,6 +253,39 @@ async function tick(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Data tick failed:', error instanceof Error ? error.message : error);
     return apiError('internal', 'The tick could not run.', 500);
+  }
+}
+
+async function feedIo(): Promise<FeedIo> {
+  return {
+    net: feedNetwork.current,
+    store: supabaseFeedStore(await adminDb()),
+    now: Date.now,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  };
+}
+
+/**
+ * THE NEWS FEED READER: GET `/api/data/feed?url=<address>`, public. Answers the newest headlines
+ * as plain text, from the shared cache or one guarded read (api/_lib/feedFetch.ts), or the
+ * failure with its fix and, when there are any, the last good headlines.
+ */
+async function feed(req: Request): Promise<Response> {
+  const guard = methodGuard(req, 'GET');
+  if (guard) return guard;
+  const gate = checkFeedIpRateLimit(req);
+  if (gate) return apiError('rate_limited', 'Too many feed reads - slow down.', 429, {}, retryAfter(gate.retryAfterSec));
+  const address = new URL(req.url).searchParams.get('url');
+  if (!address) return json({ ok: false, error: 'no feed address', fix: 'Paste the feed’s address.', failingSince: null }, 400);
+  if (!adminConfigured()) return apiError('unavailable', 'The feed reader is not configured on this deployment.', 503);
+  try {
+    const answer = await readFeed(address, await feedIo(), { wait: req.signal });
+    if (answer.ok) return json(answer);
+    const { status, ...body } = answer;
+    return json(body, status);
+  } catch (error) {
+    console.error('Feed read failed:', error instanceof Error ? error.message : error);
+    return json({ ok: false, error: 'the feed reader could not read its cache', fix: 'Reading carries on by itself.', failingSince: null }, 500);
   }
 }
 
@@ -262,6 +298,7 @@ const ROUTES: Record<string, Handler> = {
   patch: { fetch: patch },
   state: { fetch: state },
   tick: { fetch: tick },
+  feed: { fetch: feed },
 };
 
 export default {

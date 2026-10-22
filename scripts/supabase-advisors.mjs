@@ -82,7 +82,10 @@ const inputArg = args.includes('--input') ? args[args.indexOf('--input') + 1] : 
 const ACCEPTED_CLASSES = {
   rls_enabled_no_policy:
     'RLS on with no policies is DENY-ALL. These tables are reached only through SECURITY ' +
-    'DEFINER functions or the service role, which is the stricter posture, not a gap.',
+    'DEFINER functions or the service role, which is the stricter posture, not a gap. ' +
+    'feed_cache (0099, data-sources C4) is the news feed reader\'s shared cache: public headlines ' +
+    'and the addresses typed to read them, written and read only by the service role from the ' +
+    'feed route and the server tick, with every client privilege revoked.',
   anon_security_definer_function_executable:
     'The capability-URL model: an output/control slug is held by an unauthenticated playout ' +
     'client (CasparCG/OBS/vMix), so these RPCs must be anon-callable. docs/CLOUD_PLAYOUT.md. ' +

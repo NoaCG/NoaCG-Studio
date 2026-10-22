@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, type Show, type SheetShowSource, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
@@ -28,8 +28,10 @@ import {
   sourceIdOf,
   SHEET_TIMEOUT_MS,
   type SheetLink,
+  type SheetRead,
   type SourceStatusStore,
 } from '../../control/sheetSource';
+import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
 
 /** The edited cue's text, as the page's draft shows it. */
 export interface CueEditorView {
@@ -123,7 +125,7 @@ function CueSourceMissing({ source, missing, onDisconnect }: { source: ShowSourc
     <div className="pd-source-line hint" data-testid={`cue-source-${source.id}`}>
       {missing.map((fieldId) => (
         <span key={fieldId} className="status-warn" data-testid="cue-source-missing">
-          {fieldId.toUpperCase()} is connected to Sheet: {source.label}, but this graphic has no {fieldId.toUpperCase()}.{' '}
+          {fieldId.toUpperCase()} is connected to {sourceKindWord(source)}: {source.label}, but this graphic has no {fieldId.toUpperCase()}.{' '}
           <button type="button" onClick={() => onDisconnect([fieldId])} data-testid={`cue-disconnect-${fieldId}`}>
             Disconnect
           </button>
@@ -138,14 +140,14 @@ function CueSourceMissing({ source, missing, onDisconnect }: { source: ShowSourc
 function CueConnectedMark({ source, store }: { source: ShowSource; store: SourceStatusStore }) {
   const status = useSyncExternalStore(store.subscribe, () => store.get(source.id));
   return (
-    <span className="pd-bound-mark" title={`Connected to Sheet: ${source.label}`} data-testid="cue-connected-mark" data-stale={status?.stale ? 'true' : undefined}>
-      {status?.stale ? '⚠ stale · ' : '🔗 '}Sheet: {source.label}
+    <span className="pd-bound-mark" title={`Connected to ${sourceKindWord(source)}: ${source.label}`} data-testid="cue-connected-mark" data-stale={status?.stale ? 'true' : undefined}>
+      {status?.stale ? '⚠ stale · ' : '🔗 '}{sourceKindWord(source)}: {source.label}
     </span>
   );
 }
 
-/** A tab read for the review: its link, rows, or the failure with its fix. */
-type ConnectRead = { link: SheetLink; rows: string[][] } | { error: string; fix: string };
+/** A tab or a feed read for the review: its link or address, rows, or the failure with its fix. */
+type ConnectRead = { link: SheetLink; rows: string[][] } | { feed: string; rows: string[][] } | { error: string; fix: string };
 
 /** The Connect review's content: the read, the proposal, repair and the one confirmation. */
 function CueConnectReview({
@@ -176,9 +178,11 @@ function CueConnectReview({
   onRefused: (text: string | null) => void;
 }) {
   const [linkText, setLinkText] = useState('');
-  const [reuse, setReuse] = useState<SheetShowSource | null>(null);
-  /** Only a Sheet tab can fill fields; a YouTube source feeds Messages alone. */
-  const sheets = (show.sources ?? []).filter((s): s is SheetShowSource => s.kind === 'sheet');
+  const [reuse, setReuse] = useState<FieldShowSource | null>(null);
+  /** A ticker (the lines adapter) also follows a news feed (data-sources C4). */
+  const takesFeed = sheetShapeFor(poolGraphic) === 'lines';
+  /** A Sheet tab, and for a ticker a feed, can fill fields; a YouTube source feeds Messages alone. */
+  const fieldSources = (show.sources ?? []).filter((s): s is FieldShowSource => s.kind === 'sheet' || (takesFeed && s.kind === 'feed'));
   const [read, setRead] = useState<ConnectRead | null>(null);
   const [reading, setReading] = useState(false);
   const [firstTab, setFirstTab] = useState(false);
@@ -193,13 +197,15 @@ function CueConnectReview({
   const previewRef = useRef(onPreview);
   previewRef.current = onPreview;
 
-  const shape = reuse?.config.shape ?? sheetShapeFor(poolGraphic);
+  const kind = reuse?.kind ?? (read && 'feed' in read ? 'feed' : 'sheet');
+  // A feed is read only on a ticker, whose shape is `lines`.
+  const shape = reuse?.kind === 'sheet' ? reuse.config.shape : sheetShapeFor(poolGraphic);
   const id = reuse?.id ?? sourceId;
   const rows = read && 'rows' in read ? read.rows : null;
   const content = rows ? sheetContent(shape, rows) : null;
   const fields = descriptors.filter((d) => d.kind !== 'image');
   const byKey = new Map(fields.map((d) => [d.key, d]));
-  const offered = content ? offeredValues(id, shape, content) : [];
+  const offered = content ? offeredValues(id, shape, content, kind) : [];
   const sample = new Map(offered.map((o) => [o.path, o.sample]));
   const mapping: MappingRow[] = content
     ? proposeMapping(
@@ -245,27 +251,37 @@ function CueConnectReview({
   // Closing unmounts the review, which is its reset; a read still in flight then lands nowhere.
   useEffect(() => () => void (readNo.current += 1), []);
   const close = onClose;
-  const readTab = async (link: SheetLink) => {
+  /** Read a tab, or a feed's headlines through NoaCG's feed route (control/feedSource.ts), for
+   *  the review; an older read, or one arriving after the review closed, lands nowhere. */
+  const readInto = async (go: () => Promise<SheetRead>, as: (rows: string[][]) => ConnectRead) => {
     const no = (readNo.current += 1);
     setReading(true);
     setRead(null);
     setChoices({});
     setFirstTab(false);
-    const answer = await readSheet((url, init) => fetch(url, init), link, AbortSignal.timeout(SHEET_TIMEOUT_MS));
+    const answer = await go();
     if (no !== readNo.current) return;
     setReading(false);
-    setRead(answer.ok ? { link, rows: answer.rows } : { error: answer.error, fix: answer.fix });
+    setRead(answer.ok ? as(answer.rows) : { error: answer.error, fix: answer.fix });
   };
+  const readTab = (link: SheetLink) =>
+    readInto(() => readSheet((url, init) => fetch(url, init), link, AbortSignal.timeout(SHEET_TIMEOUT_MS)), (rows) => ({ link, rows }));
+  const readFeed = (url: string) =>
+    readInto(() => readFeedRoute((u, init) => fetch(u, init), url, AbortSignal.timeout(FEED_ROUTE_TIMEOUT_MS)), (rows) => ({ feed: url, rows }));
   /** Connect: one write, and the review closes only once storage has agreed to it, so a
    *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
   const confirm = async () => {
-    if (!read || !('link' in read) || id === '' || saving) return;
-    const source: ShowSource = reuse ?? {
-      id,
-      kind: 'sheet',
-      label: label.trim() || poolGraphic.name,
-      config: { sheetId: read.link.sheetId, gid: read.link.gid, ...(read.link.published ? { published: true } : {}), shape },
-    };
+    if (!read || 'error' in read || id === '' || saving) return;
+    const source: ShowSource =
+      reuse ??
+      ('feed' in read
+        ? { id, kind: 'feed', label: label.trim() || poolGraphic.name, config: { url: read.feed } }
+        : {
+            id,
+            kind: 'sheet',
+            label: label.trim() || poolGraphic.name,
+            config: { sheetId: read.link.sheetId, gid: read.link.gid, ...(read.link.published ? { published: true } : {}), shape },
+          });
     const result = connectShowSource(show.id, source, entries);
     if (result.error) {
       setSaveError(result.error);
@@ -292,13 +308,17 @@ function CueConnectReview({
 
   return (
     <>
-      <p className="hint">Google Sheet: paste the tab’s link (Share, then “Anyone with the link”).</p>
+      <p className="hint">
+        {takesFeed
+          ? 'Paste a Google Sheet tab’s link (Share, then “Anyone with the link”) or a news feed’s address.'
+          : 'Google Sheet: paste the tab’s link (Share, then “Anyone with the link”).'}
+      </p>
       <div className="row">
         <input
           className="grow"
           value={linkText}
-          placeholder="https://docs.google.com/spreadsheets/d/…"
-          aria-label="Sheet link"
+          placeholder={takesFeed ? 'https://docs.google.com/spreadsheets/d/… or https://…/feed.xml' : 'https://docs.google.com/spreadsheets/d/…'}
+          aria-label={takesFeed ? 'Sheet link or feed address' : 'Sheet link'}
           onChange={(e) => {
             // A changed link is a new tab: the last read, its review and any read in flight go,
             // so Connect needs a fresh read of what the box now says.
@@ -316,28 +336,34 @@ function CueConnectReview({
           type="button"
           disabled={reading || linkText.trim() === ''}
           onClick={() => {
-            const parsed = parseSheetLink(linkText);
-            if ('error' in parsed) setRead({ error: parsed.error, fix: 'Copy the link from the Sheet’s Share button.' });
-            else {
+            const start = (go: () => Promise<void>) => {
               setLabel((l) => l || poolGraphic.name);
               setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
-              void readTab(parsed.link);
-            }
+              void go();
+            };
+            const sheet = parseSheetLink(linkText);
+            if (!('error' in sheet)) return start(() => readTab(sheet.link));
+            // Not a Sheet: on a ticker, any other web address is read as a news feed.
+            if (!takesFeed || /docs\.google\.com/.test(linkText)) return setRead({ error: sheet.error, fix: 'Copy the link from the Sheet’s Share button.' });
+            const feed = normalizeFeedAddress(linkText);
+            if ('error' in feed) return setRead({ error: feed.error.replace(/\.$/, ''), fix: 'Copy the feed’s address from its site.' });
+            start(() => readFeed(feed.url));
           }}
           data-testid="cue-connect-read"
         >
           {reading ? 'Reading…' : 'Read'}
         </button>
       </div>
-      {sheets.length > 0 && (
+      {fieldSources.length > 0 && (
         <select
           value={reuse?.id ?? ''}
           onChange={(e) => {
-            const source = sheets.find((s) => s.id === e.target.value) ?? null;
+            const source = fieldSources.find((s) => s.id === e.target.value) ?? null;
             setReuse(source);
             setLabel(source?.label ?? '');
             setLinkText('');
-            if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
+            if (source?.kind === 'feed') void readFeed(source.config.url);
+            else if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
             else {
               readNo.current += 1;
               setReading(false);
@@ -348,9 +374,9 @@ function CueConnectReview({
           data-testid="cue-connect-reuse"
         >
           <option value="">Use existing content…</option>
-          {sheets.map((s) => (
+          {fieldSources.map((s) => (
             <option key={s.id} value={s.id}>
-              Sheet: {s.label}
+              {sourceKindWord(s)}: {s.label}
             </option>
           ))}
         </select>
@@ -382,7 +408,11 @@ function CueConnectReview({
               ))}
             </ol>
           )}
-          {content.empty && <p className="hint" data-testid="cue-connect-empty">The tab is empty: connected, it clears the field.</p>}
+          {content.empty && (
+            <p className="hint" data-testid="cue-connect-empty">
+              {kind === 'feed' ? 'The feed has no headlines' : 'The tab is empty'}: connected, it clears the field.
+            </p>
+          )}
           {content.problems.map((p) => (
             <p key={p} className="status-warn">{p}</p>
           ))}
@@ -864,7 +894,11 @@ export default function CueEditor({
                             list is read-only here and says where to edit it (sheet spec). */}
                         {source && (
                           <span className="hint" data-testid="cue-connected-note">
-                            {format ? `Connected to Sheet: ${source.label}. Edit in the Sheet, or ` : ''}
+                            {format
+                              ? source.kind === 'feed'
+                                ? `Connected to News feed: ${source.label}. `
+                                : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
+                              : ''}
                             <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
                               {format ? 'Disconnect to edit here' : 'Disconnect'}
                             </button>
