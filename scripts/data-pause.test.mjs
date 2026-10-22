@@ -167,6 +167,11 @@ test('each field is offered its own path under api., named after its label, the 
   ]);
   assert.deepEqual(offers.map((o) => o.key), ['f0', 'f1', 'f2', 'f3']);
   assert.equal(offers[0].sample, 'Harbour List');
+  // A label or graphic name of digits only never makes a segment that reads as a list index.
+  const years = apiOffers({}, '2026', [{ key: 'f0', label: '2026' }], {});
+  assert.deepEqual(years.map((o) => o.path), ['api.n2026.n2026']);
+  const bound = { 2026: { f0: years[0].path } };
+  assert.equal(apiDestinations(bound, [{ name: '2026', fields: [{ key: 'f0', label: '2026' }], values: {} }]).length, 1);
 });
 
 test('a graphic keeps its group and its connected paths; two graphics never share a group by accident', () => {

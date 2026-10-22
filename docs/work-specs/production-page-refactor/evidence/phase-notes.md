@@ -28,8 +28,8 @@ changes a spec's digest.
     last-write map, and answers NULL; the route answers `event: null`, `paused: true`.
   - Operator presses, the owner's Data view and the server tick air at once as unpaused, and also
     merge into `data_pending`, so the LAST write wins at Resume either way. A held `/update` field
-    is dropped when a later aired write or `/patch` moves that field (the review's ordering
-    finding).
+    is dropped when a later write names its path, a null or a repeated value included (the
+    review's ordering finding, then two of the PR's automated review).
   - Resume diffs `data_pending` against `data`, lays the held `/update` values over it (the spec's
     "applied after", as one row so a field is never aired twice), appends one row per graphic,
     `src: 'api'`, and makes `data_pending` the tree. It never refuses: a cap check there could
@@ -43,15 +43,17 @@ changes a spec's digest.
     `control_data_owner_patch` (the row policy's test, then the apply as `'operator'`), falling back
     to the key on a database that has not run 0100.
   The cases are `scripts/data-pause-conformance.mjs`, embedded as a `$pause$` literal in 0100 and
-  run by its self-check on the real bodies (eighteen cases); `data-pause` fails when the two differ.
+  run by its self-check on the real bodies (twenty cases); `data-pause` fails when the two differ.
   Mutation checks of the final bodies (ten, each turned the self-check red, run on the local
   stack in a rolled-back transaction): held values laid under the diff instead of over it;
   `/update` held without merging per field; the paused API branch removed; the API's paused write
   landing in `data`; a held `/update` kept after a press (and, found by assessment A, kept after a
   press of the value air already showed, now dropped by the API's-tree diff too); kept after a
-  later `/patch`; kept after a later null (found by the PR's automated review: the change set only
-  saw values present in the new tree, so held fields are now dropped by `production_data_moved`, a
-  diff in both directions); the owner's
+  later `/patch`; kept after a later null; kept after a later write that repeats the value (the
+  last two found by the PR's automated review: held fields are now dropped by
+  `production_data_addressed`, every bound field whose path a later write NAMES, under or over a
+  written path included, whether or not its value changes); the prefix rule reduced to an exact
+  match; the owner's
   door labelled `'api'`; operator writes not joining the API's tree; Resume not making the API's
   tree the tree.
 - **Sample sender, run for real** (assessment A asked for the whole chain, not only stubbed tests).
@@ -92,7 +94,10 @@ changes a spec's digest.
   - The sample sender (`scripts/data-sample-sender.mjs`) reads one local synthetic file, names its
     records after the destination labels, sends one patch and prints the receipt; a failed
     acquisition (missing, cut off, no records, a non-scalar value) or a report naming no field
-    sends nothing; the key comes from `NOACG_DATA_KEY` and is never printed. Names match in any
+    sends nothing; the key comes from `NOACG_DATA_KEY` and is never printed. A path through a list
+    index (only possible when bound by hand under Advanced) is in neither the card's example nor
+    the sender's patch, since a merge patch would replace the whole list; generated segments never
+    look like an index (`2026` becomes `n2026`). Names match in any
     script, and two records that read as one name (or a name of punctuation only) fill no field
     (from the PR's automated review: an ASCII-only match sent one record's value to every
     non-Latin field). Fixtures are an

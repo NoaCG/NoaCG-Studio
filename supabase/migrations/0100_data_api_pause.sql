@@ -14,8 +14,8 @@
 --   browser Sheet reader's write and the owner's Data view through control_data_owner_patch) and
 --   the server tick ('sheet'). Each such write is also merged into `data_pending`, so a press
 --   after a held value wins, and a held value after a press wins: the final value is the last one.
--- - A held `/update` field is dropped when a later write moves that field (a press that airs, or
---   a `/patch` that changes what the field resolves to, a null that deletes its path included),
+-- - A held `/update` field is dropped when a later write names that field's path (a press, the
+--   tick, or a `/patch`, a null that deletes it included), even when the value does not change,
 --   for the same reason.
 -- - Resume (control_data_pause_by_slug(slug, false)) diffs `data_pending` against `data`, lays the
 --   held `/update` values over the result, appends ONE update row per graphic marked 'api' (exactly
@@ -38,7 +38,7 @@
 -- widened functions keep their signatures and grants and, while `data_paused` is false, write the
 -- same tree and the same rows as before (the API's writes also stamp `data_received_at`), and a
 -- build that never calls the new functions never pauses. Revert: drop the two functions,
--- production_data_changes, production_data_moved, production_data_held_without and the four columns, and restore 0097's
+-- production_data_changes, production_data_addressed, production_data_held_without and the four columns, and restore 0097's
 -- control_data_apply and 0047's control_data_send (a production left paused then airs the API's
 -- next write as before; its held values are lost).
 
@@ -70,22 +70,24 @@ $$;
 revoke execute on function public.production_data_changes(jsonb, jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.production_data_changes(jsonb, jsonb, jsonb) to service_role;
 
--- Every bound field whose value differs between the two trees in EITHER direction, a field whose
--- path the second tree deleted included: {graphic: {field: true}}. What supersedes a held /update.
-create or replace function public.production_data_moved(p_after jsonb, p_before jsonb, p_bindings jsonb)
+-- Every bound field a write NAMES: its path is written, or lies under or above a written path
+-- (a null that deletes it included), whether or not the value changes. {graphic: {field: true}}.
+-- What supersedes a held /update: the later write is the final value even when it repeats one.
+create or replace function public.production_data_addressed(p_patch jsonb, p_bindings jsonb)
 returns jsonb language sql immutable set search_path = '' as $$
-  select coalesce(jsonb_object_agg(m.graphic, m.fields), '{}'::jsonb)
+  select coalesce(jsonb_object_agg(x.graphic, x.fields), '{}'::jsonb)
   from (
-    select coalesce(a.graphic, b.graphic) as graphic, jsonb_object_agg(coalesce(a.field, b.field), true) as fields
-    from public.production_data_resolve(p_after, p_bindings) a
-    full join public.production_data_resolve(p_before, p_bindings) b
-      on b.graphic = a.graphic and b.field = a.field
-    where a.value is distinct from b.value
-    group by coalesce(a.graphic, b.graphic)
-  ) m;
+    select g.key as graphic, jsonb_object_agg(f.key, true) as fields
+    from jsonb_each(coalesce(p_bindings, '{}'::jsonb)) g
+    cross join lateral jsonb_each_text(case when jsonb_typeof(g.value) = 'object' then g.value else '{}'::jsonb end) f
+    where exists (
+      select 1 from public.production_data_patch_paths(p_patch) w
+      where w.path = f.value or starts_with(f.value, w.path || '.') or starts_with(w.path, f.value || '.'))
+    group by g.key
+  ) x;
 $$;
-revoke execute on function public.production_data_moved(jsonb, jsonb, jsonb) from public, anon, authenticated;
-grant execute on function public.production_data_moved(jsonb, jsonb, jsonb) to service_role;
+revoke execute on function public.production_data_addressed(jsonb, jsonb) from public, anon, authenticated;
+grant execute on function public.production_data_addressed(jsonb, jsonb) to service_role;
 
 -- A held /update map without the fields a later write moved; a graphic left with none goes.
 create or replace function public.production_data_held_without(p_held jsonb, p_changes jsonb)
@@ -149,7 +151,7 @@ begin
     v_after := public.jsonb_merge_patch(v_pending_tree, p_patch);
     update public.control_shows s
        set data_pending = v_after,
-           data_held = public.production_data_held_without(v_held, public.production_data_moved(v_after, v_pending_tree, v_bindings)),
+           data_held = public.production_data_held_without(v_held, public.production_data_addressed(p_patch, v_bindings)),
            data_received_at = now()
      where s.id = p_show;
     return jsonb_build_object('data', v_after, 'writes', '[]'::jsonb, 'paused', true);
@@ -174,16 +176,14 @@ begin
 
   if v_paused then
     -- An operator write while the API is paused: it airs as usual, joins the API's tree so the
-    -- last value wins at Resume, and supersedes any held /update for the fields it moved, on air
-    -- or in the API's tree (a press of the value air already shows still comes after the API's).
+    -- last value wins at Resume, and supersedes any held /update for the fields it names (a press
+    -- of the value air already shows still comes after the API's).
     v_pending_tree := coalesce(v_pending_tree, v_before, '{}'::jsonb);
     v_next_pending := public.jsonb_merge_patch(v_pending_tree, p_patch);
     update public.control_shows s
        set data = v_after,
            data_pending = v_next_pending,
-           data_held = public.production_data_held_without(
-             public.production_data_held_without(v_held, public.production_data_moved(v_after, v_before, v_bindings)),
-             public.production_data_moved(v_next_pending, v_pending_tree, v_bindings))
+           data_held = public.production_data_held_without(v_held, public.production_data_addressed(p_patch, v_bindings))
      where s.id = p_show;
   elsif v_after is distinct from v_before
         or (p_src = 'api' and (v_received is null or v_received < now() - interval '1 second')) then
@@ -362,7 +362,9 @@ declare
     {"name":"a value the API sends after a press is the final value","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"press","patch":{"api":{"bug":{"score":5}}}},{"op":"patch","patch":{"api":{"bug":{"score":3}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"5"}},{"graphic":"Bug","src":"api","data":{"f0":"3"}}],"data_after":{"api":{"bug":{"score":3}}}},
     {"name":"the owner's Data view airs while paused and is not a receipt","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"owner","patch":{"api":{"bug":{"score":4}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"4"}}],"data_after":{"api":{"bug":{"score":4}}}},
     {"name":"a press of the value air already shows, after a held /update, still wins","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"press","patch":{"api":{"bug":{"score":1}}}},{"op":"resume"}],"rows":[],"data_after":{"api":{"bug":{"score":1}}}},
-    {"name":"a null after a held /update deletes the path, so the held value is dropped and the field keeps what it showed","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"patch","patch":{"api":{"bug":{"score":null}}}},{"op":"resume"}],"rows":[],"data_after":{"api":{"bug":{}}}}
+    {"name":"a null after a held /update deletes the path, so the held value is dropped and the field keeps what it showed","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"patch","patch":{"api":{"bug":{"score":null}}}},{"op":"resume"}],"rows":[],"data_after":{"api":{"bug":{}}}},
+    {"name":"a later /patch that repeats the tree's value still supersedes a held /update","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"patch","patch":{"api":{"bug":{"score":1}}}},{"op":"resume"}],"rows":[],"data_after":{"api":{"bug":{"score":1}}}},
+    {"name":"a null that deletes a whole branch supersedes a held /update for a field under it","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"patch","patch":{"api":{"bug":null}}},{"op":"resume"}],"rows":[],"data_after":{"api":{}}}
   ]$pause$::jsonb;
   v_user uuid := gen_random_uuid();
   v_case jsonb;
@@ -385,7 +387,7 @@ begin
   if has_function_privilege('anon', 'public.control_data_owner_patch(uuid,jsonb)', 'execute')
      or not has_function_privilege('authenticated', 'public.control_data_owner_patch(uuid,jsonb)', 'execute')
      or has_function_privilege('anon', 'public.production_data_changes(jsonb,jsonb,jsonb)', 'execute')
-     or has_function_privilege('anon', 'public.production_data_moved(jsonb,jsonb,jsonb)', 'execute')
+     or has_function_privilege('anon', 'public.production_data_addressed(jsonb,jsonb)', 'execute')
      or has_function_privilege('authenticated', 'public.production_data_held_without(jsonb,jsonb)', 'execute') then
     raise exception '0100 self-check failed: the owner door or a helper has the wrong grants';
   end if;

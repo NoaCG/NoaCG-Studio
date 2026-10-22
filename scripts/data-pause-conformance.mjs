@@ -1084,5 +1084,95 @@ export const PAUSE_CONFORMANCE = [
         "bug": {}
       }
     }
+  },
+  {
+    "name": "a later /patch that repeats the tree's value still supersedes a held /update",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "update",
+        "graphic": "Bug",
+        "data": {
+          "f0": "9"
+        }
+      },
+      {
+        "op": "patch",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 1
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [],
+    "data_after": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    }
+  },
+  {
+    "name": "a null that deletes a whole branch supersedes a held /update for a field under it",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "update",
+        "graphic": "Bug",
+        "data": {
+          "f0": "9"
+        }
+      },
+      {
+        "op": "patch",
+        "patch": {
+          "api": {
+            "bug": null
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [],
+    "data_after": {
+      "api": {}
+    }
   }
 ];

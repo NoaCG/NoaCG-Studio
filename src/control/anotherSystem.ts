@@ -15,7 +15,8 @@ export const API_PREFIX = 'api';
 
 export const isApiPath = (path: string | null | undefined): boolean => !!path && path.startsWith(`${API_PREFIX}.`);
 
-/** A path segment from a name: lower case, letters and digits joined by `_` (never a dot). */
+/** A path segment from a name: lower case, letters and digits joined by `_` (never a dot). A name
+ *  of digits only (`2026`) takes an `n` in front, so it can never read as a list index. */
 export function pathKey(name: string, fallback: string): string {
   const key = name
     .normalize('NFKD')
@@ -23,7 +24,8 @@ export function pathKey(name: string, fallback: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
-  return key === '' ? fallback : key.slice(0, 40);
+  if (key === '') return fallback;
+  return /^\d+$/.test(key) ? `n${key}`.slice(0, 40) : key.slice(0, 40);
 }
 
 /** The group a graphic's fields fill: the one it already uses, else its own name, made unique
