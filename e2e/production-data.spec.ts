@@ -332,6 +332,8 @@ test('a guest row loads into a lower third and airs on Take; editing or deleting
   const rows = data.locator('.pd-dataset tbody tr');
   await rows.nth(1).locator('td input').nth(1).fill('Assistant referee');
   await settleDurableWrites(data);
+  // A negative needs time to be wrong in: give a send that would follow the edit a moment.
+  await page.waitForTimeout(1_500);
   await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
   // Removing a row is armed: the first press asks, the second removes.
   const remove = rows.nth(1).locator('[data-testid^="row-delete-"]');
@@ -339,6 +341,7 @@ test('a guest row loads into a lower third and airs on Take; editing or deleting
   await remove.click();
   await expect(rows).toHaveCount(1);
   await settleDurableWrites(data);
+  await page.waitForTimeout(1_500);
   await expect(program.locator('#f0')).toHaveText('Leo Berg');
   await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
 });
@@ -974,11 +977,12 @@ test('a quiz revealed beside a running clock: bound values update both, the cloc
   await expect(quiz.locator('#f0')).toHaveText('Which planet has the most moons?');
   await expect(bug.locator('#f1')).toHaveText('2');
 
-  // The quiz did not advance or go back: still revealed, the same answer marked.
+  // The clock was not reset: it stands at least where it stood, and it still runs.
+  expect(Math.abs((await seconds()) - start), 'the clock was reset').toBeGreaterThanOrEqual(runBefore);
+  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 10_000 }).toBeGreaterThanOrEqual(runBefore + 2);
+  // Two seconds on, the quiz has not advanced or gone back: still revealed, the same answer marked.
   await expect(chip).toHaveText('Reveal');
   expect(await board(), 'the board is exactly as revealed').toEqual(revealed);
-  // The clock was not reset: it ran on from where it stood, and it still runs.
-  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 10_000 }).toBeGreaterThanOrEqual(runBefore + 2);
   await cues.nth(1).locator('.pd-cue-label').click();
   await expect(chip).toContainText(/running/i);
 });

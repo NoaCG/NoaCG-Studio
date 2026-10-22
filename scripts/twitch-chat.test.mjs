@@ -107,6 +107,15 @@ test('the recorded session: three opening commands, live only on the join, PING 
   driver.stop();
 });
 
+test('an end-of-names reply that carries tags still confirms the join', (t) => {
+  withSockets(t);
+  const r = recorder();
+  twitchChatDriver('rehearsal_room', r.handlers);
+  const [ws] = FakeSocket.made;
+  ws.onmessage({ data: '@badge-info= :justinfan12345.tmi.twitch.tv 366 justinfan12345 #rehearsal_room :End of /NAMES list\r\n' });
+  assert.deepEqual(r.statuses, ['connecting', 'live']);
+});
+
 test('a dropped socket reconnects at 1 s, doubling to 30 s, and a confirmed join resets the ladder', (t) => {
   withSockets(t);
   const r = recorder();

@@ -107,7 +107,7 @@ export function twitchChatDriver(channel: string, handlers: ChatDriverHandlers):
         }
         // `:tmi... 366 justinfan #chan :End of /NAMES list` - the join is confirmed. The numeric
         // must be the command: a chat line about "366 votes" is chat.
-        if (/^:\S+ 366 /.test(line)) {
+        if (/^(?:@\S+ )?:\S+ 366 /.test(line)) {
           retryMs = 1_000; // a confirmed join resets the backoff ladder
           handlers.onStatus('live');
           continue;

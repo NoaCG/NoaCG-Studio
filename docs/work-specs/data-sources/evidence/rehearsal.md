@@ -159,7 +159,7 @@ Result: **pass** for the YouTube live chat route on a live stream, as far as a k
 1. **Fixed: a Twitch chat line containing " 366 " was dropped.** The reader took any line holding
    ` 366 ` as the server's end-of-names reply, so a message such as "We counted 366 votes" never
    reached the inbox and reset the reconnect ladder. Found by the new fixture test; the numeric
-   must now be the IRC command (`/^:\S+ 366 /`). Blocking for the Twitch route's honesty (a
+   must now be the IRC command (`/^(?:@\S+ )?:\S+ 366 /`, an optional tag block, then the server, then the numeric). Blocking for the Twitch route's honesty (a
    silent drop), small and in the reader under test, so fixed and retested here.
 
 FINDINGS_PLACEHOLDER
