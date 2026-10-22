@@ -2,40 +2,15 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/audience-live.spec.ts": {
-      "since": "2026-10-21",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
-    },
-    "e2e/configured/command-sequence.spec.ts": {
-      "since": "2026-10-21",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
-    },
     "e2e/configured/community-pack-review.spec.ts": {
       "since": "2026-10-21",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
     },
-    "e2e/configured/dashboard-hosted-walk.spec.ts": {
-      "since": "2026-10-21",
-      "count": 6,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
-    },
-    "e2e/configured/hosted-reveal-after-reload.spec.ts": {
-      "since": "2026-10-21",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
-    },
     "e2e/configured/operator-outage-not-unpublished.spec.ts": {
       "since": "2026-10-21",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
-    },
-    "e2e/configured/playout-both-roads.spec.ts": {
-      "since": "2026-10-21",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
     },
     "e2e/configured/playout-switch-mid-flight.spec.ts": {
       "since": "2026-10-21",
@@ -47,20 +22,10 @@
       "count": 4,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39810829163"
     },
-    "e2e/configured/publish-output-default.spec.ts": {
-      "since": "2026-10-21",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
-    },
     "e2e/configured/sync-one-pass-per-edit.spec.ts": {
       "since": "2026-10-21",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
-    },
-    "e2e/configured/take-behind-out.spec.ts": {
-      "since": "2026-10-21",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
     },
     "e2e/production-chat-intake.spec.ts": {
       "since": "2026-10-22",
@@ -87,19 +52,47 @@
       "count": 1,
       "last": "2026-10-21"
     },
+    "e2e/configured/audience-live.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/command-sequence.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
     "e2e/configured/connector-grants.spec.ts": {
       "count": 1,
       "last": "2026-10-13"
+    },
+    "e2e/configured/dashboard-hosted-walk.spec.ts": {
+      "count": 6,
+      "last": "2026-10-22"
     },
     "e2e/configured/deep-link-boot.spec.ts": {
       "count": 1,
       "last": "2026-10-19"
     },
+    "e2e/configured/hosted-reveal-after-reload.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
     "e2e/configured/late-send-abandoned.spec.ts": {
       "count": 13,
       "last": "2026-10-21"
     },
+    "e2e/configured/playout-both-roads.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/publish-output-default.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
     "e2e/configured/shared-lab-computer.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/take-behind-out.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
     },
