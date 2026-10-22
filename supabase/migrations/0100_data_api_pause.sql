@@ -92,6 +92,7 @@ declare
   v_bindings jsonb;
   v_paused boolean;
   v_pending_tree jsonb;
+  v_next_pending jsonb;
   v_held jsonb;
   v_received timestamptz;
   v_recent int;
@@ -155,11 +156,16 @@ begin
 
   if v_paused then
     -- An operator write while the API is paused: it airs as usual, joins the API's tree so the
-    -- last value wins at Resume, and supersedes any held /update for the fields it moved.
+    -- last value wins at Resume, and supersedes any held /update for the fields it moved, on air
+    -- or in the API's tree (a press of the value air already shows still comes after the API's).
+    v_pending_tree := coalesce(v_pending_tree, v_before, '{}'::jsonb);
+    v_next_pending := public.jsonb_merge_patch(v_pending_tree, p_patch);
     update public.control_shows s
        set data = v_after,
-           data_pending = public.jsonb_merge_patch(coalesce(v_pending_tree, v_before, '{}'::jsonb), p_patch),
-           data_held = public.production_data_held_without(v_held, v_changes)
+           data_pending = v_next_pending,
+           data_held = public.production_data_held_without(
+             public.production_data_held_without(v_held, v_changes),
+             public.production_data_changes(v_next_pending, v_pending_tree, v_bindings))
      where s.id = p_show;
   elsif v_after is distinct from v_before
         or (p_src = 'api' and (v_received is null or v_received < now() - interval '1 second')) then
@@ -336,7 +342,8 @@ declare
     {"name":"a press after a held /update supersedes it","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"press","patch":{"api":{"bug":{"score":5}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"5"}}],"data_after":{"api":{"bug":{"score":5}}}},
     {"name":"a /patch after a held /update moves the field, so the patch's value is final","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"2"}}],"data_after":{"api":{"bug":{"score":2}}}},
     {"name":"a value the API sends after a press is the final value","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"press","patch":{"api":{"bug":{"score":5}}}},{"op":"patch","patch":{"api":{"bug":{"score":3}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"5"}},{"graphic":"Bug","src":"api","data":{"f0":"3"}}],"data_after":{"api":{"bug":{"score":3}}}},
-    {"name":"the owner's Data view airs while paused and is not a receipt","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"owner","patch":{"api":{"bug":{"score":4}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"4"}}],"data_after":{"api":{"bug":{"score":4}}}}
+    {"name":"the owner's Data view airs while paused and is not a receipt","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"owner","patch":{"api":{"bug":{"score":4}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"4"}}],"data_after":{"api":{"bug":{"score":4}}}},
+    {"name":"a press of the value air already shows, after a held /update, still wins","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"press","patch":{"api":{"bug":{"score":1}}}},{"op":"resume"}],"rows":[],"data_after":{"api":{"bug":{"score":1}}}}
   ]$pause$::jsonb;
   v_user uuid := gen_random_uuid();
   v_case jsonb;

@@ -43,13 +43,27 @@ changes a spec's digest.
     `control_data_owner_patch` (the row policy's test, then the apply as `'operator'`), falling back
     to the key on a database that has not run 0100.
   The cases are `scripts/data-pause-conformance.mjs`, embedded as a `$pause$` literal in 0100 and
-  run by its self-check on the real bodies (sixteen cases); `data-pause` fails when the two differ.
+  run by its self-check on the real bodies (seventeen cases); `data-pause` fails when the two differ.
   Mutation checks of the final bodies (nine, each turned the self-check red, run on the local
   stack in a rolled-back transaction): held values laid under the diff instead of over it;
   `/update` held without merging per field; the paused API branch removed; the API's paused write
-  landing in `data`; a held `/update` kept after a press; kept after a later `/patch`; the owner's
+  landing in `data`; a held `/update` kept after a press (and, found by assessment A, kept after a
+  press of the value air already showed, now dropped by the API's-tree diff too); kept after a
+  later `/patch`; the owner's
   door labelled `'api'`; operator writes not joining the API's tree; Resume not making the API's
   tree the tree.
+- **Sample sender, run for real** (assessment A asked for the whole chain, not only stubbed tests).
+  On the local stack (every migration through 0100 from empty), a production with a scoreboard
+  whose four fields were retitled Leading, Margin, Counted and Turnout ("Riverside count", an
+  unfamiliar custom graphic) was connected through Connect data…, Another system in one
+  confirmation, published, and the card's "For the sample sender" file downloaded: it named the same
+  four `api.riverside_count.*` paths as the fixture. With the card's key in `NOACG_DATA_KEY`:
+  `results-first.json` -> `Received (200): Riverside count (f0, f1, f2, f3)` ("Polling stations"
+  reported as not connected, not sent); `results-correction.json` -> `Received (200): Riverside
+  count (f1)` (only the corrected margin moved); `results-cut-off.json` -> "Acquisition failed ...
+  Nothing was sent", exit 1. The log held exactly two update rows, `src: api`: the four values,
+  then `{f1: "214"}`. The card showed "Received N s ago"; no output line carried the key. No
+  lifecycle event was sent: the key reaches only the data RPCs (`data-pause` pins it).
 - **Decisions.**
   - Another system is the data key as ONE source with no `Show.sources` record (AC-8: no
     per-sender attribution or Pause). Its fields are ordinary bindings to `api.<graphic>.<field>`

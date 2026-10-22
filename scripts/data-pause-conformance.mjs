@@ -980,5 +980,63 @@ export const PAUSE_CONFORMANCE = [
         }
       }
     }
+  },
+  {
+    "name": "a press of the value air already shows, after a held /update, still wins",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "patch",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 2
+            }
+          }
+        }
+      },
+      {
+        "op": "update",
+        "graphic": "Bug",
+        "data": {
+          "f0": "9"
+        }
+      },
+      {
+        "op": "press",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 1
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [],
+    "data_after": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    }
   }
 ];

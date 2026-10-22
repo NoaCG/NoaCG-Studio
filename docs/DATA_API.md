@@ -163,7 +163,9 @@ tested behaviour (`supabase/migrations/0100_data_api_pause.sql`; its self-check 
 - **Resume sends exactly the final values once**: one update row per graphic, marked
   `src: "api"`, with what changed since Pause and the held `/update` values laid over it, and your
   tree becomes the production's. Nothing that ended where it started is sent. Resume is never
-  refused, so it cannot leave the source held.
+  refused, so it cannot leave the source held; its rows count toward the production's 50 commands
+  per 5 s, so a Resume that moves many graphics at once can make the operator's next presses wait
+  a few seconds.
 - **A `null` while paused** deletes the path, so Resume sends nothing for it and the field keeps
   what it showed, exactly as an unpaused `null` does. A value sent after the `null` is the final
   value.
