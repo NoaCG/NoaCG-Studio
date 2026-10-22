@@ -22,12 +22,12 @@
 -- HOW THIS FILE RUNS. `create index concurrently` cannot run in a transaction; the CLI commits
 -- the statements before it, runs it alone, then runs the rest with the ledger row
 -- (supabase/AGENTS.md, "A concurrent statement runs on its own"; 0074 is the worked example).
---   1. the timeouts, the new column, and the drop of a leftover index from a failed build;
+--   1. the timeouts, the new column, a duplicate id cleared (below), and the drop of a leftover
+--      index from a failed build;
 --   2. the build: SHARE UPDATE EXCLUSIVE on audience_submissions, which no insert or read waits on;
 --   3. the proof the index is valid, the three functions and the self-checks.
--- If the build fails (a duplicate the look-first insert let through), nothing after it applies
--- and the next landing retries from the top; the index is then built by hand after the duplicate
--- is resolved by the owner.
+-- If the build fails (a duplicate inserted after step 1), nothing after it applies and the next
+-- landing retries from the top, where step 1 clears it.
 --
 -- Additive: a nullable column, an index, one new function, two functions widened. Revert: drop
 -- `audience_operator_settle` and the index, restore 0095's `audience_list` and
@@ -38,6 +38,18 @@ set statement_timeout = '30s';
 
 alter table public.audience_submissions
   add column if not exists withdrawn_at timestamptz;
+
+-- A duplicate already in the table (C0's look-first insert could let two simultaneous adds of one
+-- id through) would fail the unique build. The first row of each pair keeps the id; a later one
+-- keeps its row, its text and its moderation, and gives up only the id it shared, so it becomes an
+-- ordinary candidate that no source settles. Nothing is deleted. A clash inserted by an old page
+-- between this and the build fails the build, and the file re-run from the top clears it.
+update public.audience_submissions x set external_id = null
+ where x.external_id is not null
+   and exists (
+     select 1 from public.audience_submissions y
+      where y.show_id = x.show_id and y.external_id = x.external_id
+        and (y.created_at, y.id) < (x.created_at, x.id));
 
 drop index if exists public.audience_submissions_external_idx;
 

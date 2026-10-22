@@ -36,6 +36,15 @@ test('the index is unique per production on external_id, partial, and built conc
   assert.match(code, /indisvalid and i\.indisready and i\.indisunique/);
 });
 
+test('a duplicate id already in the table is cleared before the build, and nothing is deleted', () => {
+  const clear = /update public\.audience_submissions x set external_id = null[\s\S]*?;/.exec(code);
+  assert.ok(clear, 'the duplicate step is missing');
+  assert.match(clear[0], /y\.show_id = x\.show_id and y\.external_id = x\.external_id/);
+  assert.match(clear[0], /\(y\.created_at, y\.id\) < \(x\.created_at, x\.id\)/, 'the first row keeps its id');
+  assert.ok(code.indexOf(clear[0]) < code.indexOf('create unique index concurrently'));
+  assert.doesNotMatch(code.slice(0, code.indexOf('create unique index concurrently')), /delete from/i);
+});
+
 test('the withdrawn mark is a nullable column with no default', () => {
   assert.match(code, /add column if not exists withdrawn_at timestamptz;/);
   assert.doesNotMatch(code, /withdrawn_at timestamptz not null|withdrawn_at timestamptz default/i);

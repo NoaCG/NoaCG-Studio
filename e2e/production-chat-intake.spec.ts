@@ -355,3 +355,29 @@ test('YouTube live chat: the first page arrives as earlier, the quota line count
   await expect(rows).toHaveCount(71);
   await expect(audience.getByTestId('chat-source-youtube')).toBeVisible();
 });
+
+test('YouTube comments: a source removed while its fetch is out adds nothing when the answer lands', async ({ page }) => {
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  await productionFor(page, 'Comments Late');
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  await page.context().route(/^https:\/\/www\.googleapis\.com\/youtube\/v3\/commentThreads/, async (route) => {
+    await held;
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: youtubeFixture('comment-threads-page.json') });
+  });
+  const audience = await openWorkspace(page, 'audience');
+  await audience.getByTestId('chat-add-platform').selectOption('youtube-comments');
+  await audience.getByTestId('chat-add-video').fill('jNQXAC9IVRw');
+  await audience.getByTestId('chat-add-key').fill(KEY);
+  await audience.getByTestId('chat-add-connect').click();
+  const source = audience.getByTestId('comments-source-youtube');
+  await expect(source.getByTestId('comments-fetch')).toHaveText('Fetching…');
+  await source.getByTestId('chat-source-remove').click();
+  await expect(source).toHaveCount(0);
+  const answered = audience.waitForEvent('requestfinished', (r) => r.url().includes('/commentThreads'));
+  release();
+  await answered;
+  // The answer is in; its handler runs within a task or two. Absence needs a bound to mean anything.
+  await audience.waitForTimeout(500);
+  await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
+});

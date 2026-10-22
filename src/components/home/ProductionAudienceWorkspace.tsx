@@ -416,6 +416,16 @@ export function useMessageSources(show: Pick<Show, 'id' | 'sources'> | null, bac
       window.removeEventListener('pagehide', leave);
     };
   }, [intake, plan]);
+  // Leaving the production stops its chats here: nothing would keep this tab's claim honest, and
+  // another tab with the key takes over within the claim's 15 s.
+  useEffect(
+    () => () => {
+      if (!intake) return;
+      for (const running of intake.sources()) if (running.sourceId) intake.remove(running.id);
+      releaseChatRead();
+    },
+    [intake],
+  );
 }
 
 /**
@@ -475,6 +485,8 @@ function MessageSources({
     };
   }, [intake]);
 
+  const sourcesRef = useRef(show.sources);
+  sourcesRef.current = show.sources;
   const messageSources = (show.sources ?? []).filter((s) => s.inbox);
   const others = running.filter((r) => !r.sourceId);
 
@@ -497,6 +509,8 @@ function MessageSources({
     try {
       const read = await fetchComments((url) => fetch(url), videoId, apiKey);
       if (read.units) spendYouTube(read.units);
+      // Removed while the fetch was out: its answer adds nothing.
+      if (!sourcesRef.current?.some((s) => s.id === sourceId)) return;
       if (!read.ok) return setFetched((f) => ({ ...f, [sourceId]: { text: `${read.error}. ${read.fix}`, ok: false } }));
       const added = (await addInChunks(backend, read.items)).length;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
