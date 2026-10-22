@@ -241,6 +241,8 @@ test('the binding write refuses a held graphic and a recorded stop, whichever br
     shows.setShowHostedSlug(shared.id, 'shared-slug');
     assert.equal(shows.refreshGraphicCopies(shared.id, () => design).error, null);
     assert.deepEqual(read(shared.id).ownReaderStops, ['Hairline']);
+    const copy = shows.duplicateShowChecked(shared.id).show;
+    assert.equal(copy.ownReaderStops, undefined, 'a rehearsal copy has no output, and no stops');
     assert.equal(bind(shared.id, 'Hairline'), null, 'held whichever browser binds');
     // Before the first Publish no output runs it: nothing to record.
     const fresh = shows.createShowNamed('fresh');

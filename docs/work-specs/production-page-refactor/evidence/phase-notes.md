@@ -210,7 +210,9 @@ changes a spec's digest.
   - *Fresh `/so` assessment* (read-only, on the first cut): FAIL, because the stop was written by
     the Stop button for its own production only, so a second production sharing the design took
     the clean copy at its own Publish with nothing recorded; and a team merge could drop a stop.
-    Both fixed as above, with the unpublish clear it suggested. Its notes kept as gaps below.
+    Both fixed as above, with the unpublish clear it suggested. Its re-assessment of the fixed
+    diff: PASS WITH NOTES; its note that duplicates and sync conflict copies kept stale stops is
+    fixed (both drop them), the others are gaps below.
   - The journeys stand in for Publish (`publishWithoutReader` calls the app's own
     `refreshGraphicCopies` and builds the payload): the real Publish button needs a signed-in
     account, which the offline suite has not got. Publish's recording is pinned in Node.
@@ -221,7 +223,11 @@ changes a spec's digest.
     hold (as the history already did); the clear is an automatic record write, so on a personal
     production two devices clearing at once can leave a conflicted copy (rare: once per stop); an
     output that stays behind (a stuck prepare, an old output tab) now holds the graphic for every
-    browser until it catches up or is closed.
+    browser until it catches up or is closed; a graphic removed and re-added clean under the same
+    name, then published from a page whose resolve has not answered, records no stop; a merge
+    cannot tell a re-stop inside one save window from the stop it clears; the journeys stand in for
+    Publish, so its call site's third argument is pinned only through the function; a team merge
+    now drops a binding left on a stopped graphic, reported as "the field bindings".
 - **Traps.**
   - The production page reads the library once per mount; a design change made from the page
     itself must re-read it or the monitors keep the old design.

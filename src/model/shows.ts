@@ -628,6 +628,7 @@ export function duplicateShowChecked(sourceId: string): { show: Show | null; err
   delete copy.publishedAt;
   delete copy.publishedRecord;
   delete copy.outputOpenedAt;
+  delete copy.ownReaderStops;
   delete copy.deleted;
   const all = loadAllShows();
   all.push(copy);

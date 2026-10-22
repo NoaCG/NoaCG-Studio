@@ -386,6 +386,8 @@ function makeConflictCopy(r: StoredRecord): StoredRecord {
   delete body.presenterSlug;
   delete body.publishedAt;
   delete body.publishedRecord;
+  // What the original's outputs may still run is the original's (data-sources C6).
+  delete body.ownReaderStops;
   return { kind: r.kind, id, updatedAt: now, deleted: false, body };
 }
 
