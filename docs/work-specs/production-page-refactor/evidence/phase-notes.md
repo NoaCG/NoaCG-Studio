@@ -56,13 +56,14 @@ changes a spec's digest.
   - PROGRAM's status tag (`programAir`), in the frame's bottom-left corner like PREVIEW's length
     tag: "sending…" while a send waits, "logged HH:MM:SS" once the log took it (its tooltip says
     outputs do not report their picture), "not confirmed" when a send that moved this monitor may
-    not have reached the log, and "connection lost · last logged HH:MM:SS" when the page cannot
-    reach the server. Nothing pressed yet shows nothing. Unpublished it shows nothing either: the
+    not have reached the log, and "last logged HH:MM:SS" when the page cannot reach the server
+    (the centre tag below says the connection is lost; review found the two said it twice). Nothing pressed yet shows nothing. Unpublished it shows nothing either: the
     header's existing PROGRAM · NOT PUBLISHED and "up, not live" already label the local
     simulation (a first cut put "this page only" in the header, which truncated the monitor's name
     at 1280 px; seen on the after screenshot and moved).
-  - A lost connection dims PROGRAM and puts "LAST KNOWN · NOT LIVE" over it; so does NoaCG Bridge
-    not answering while server cues are up, whose badge turns amber with a "last reported"
+  - A lost connection dims PROGRAM and puts "CONNECTION LOST · NOT LIVE" over it; NoaCG Bridge
+    not answering (its `bridge` or `server` state, not a Bridge that answers with a warning) while
+    server cues are up puts "BRIDGE NOT ANSWERING · NOT LIVE", whose badge turns amber with a "last reported"
     tooltip (its words stay short: the header already truncates the monitor name with a long badge).
   - The target line under the verbs (`takeTargets`): "To: this page only", "To: N outputs ·
     CasparCG 1-20", "(not loaded)" when the output is not on its slot, or a server cue's slot
@@ -84,6 +85,11 @@ changes a spec's digest.
   own-reader line on Playout and the Data overview), `src/styles/playout-dashboard.css` (the chip,
   the stale picture, the folder rows), `docs.html` (the /docs page is this file).
 - **Advisor judgement:** none needed; no migration and no database object.
+- **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
+  (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
+  legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.
+- **Own-reader line on a published production** also lists a graphic whose copy (what the output
+  runs) still has the block after the migration, until Publish replaces it (review finding).
 - **Traps.**
   - The production page reads the library once per mount; a design change made from the page
     itself must re-read it or the monitors keep the old design.

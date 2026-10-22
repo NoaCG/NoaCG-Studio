@@ -296,14 +296,14 @@ export default function PlayoutMonitors({
             {/* What is known of the last command (C6): pending, logged, not confirmed, or a lost
                 connection. In the frame's corner, so the header keeps its names. Unpublished, the
                 header's NOT PUBLISHED already says this monitor is the only place. */}
-            {air && air.state !== 'idle' && air.state !== 'local' && (
+            {air && air.text && air.state !== 'local' && (
               <span className={`pd-air-state pd-air-${air.state}`} title={air.title} data-state={air.state} data-testid="program-air">
                 {air.text}
               </span>
             )}
             {stale && (
-              <span className="pd-stale-tag" title={air?.state === 'stale' ? air.title : 'NoaCG Bridge is not answering.'} data-testid="program-stale">
-                LAST KNOWN · NOT LIVE
+              <span className="pd-stale-tag" title={air?.state === 'stale' ? air.title : 'NoaCG Bridge is not answering: this is what the server last reported.'} data-testid="program-stale">
+                {air?.state === 'stale' ? 'CONNECTION LOST · NOT LIVE' : 'BRIDGE NOT ANSWERING · NOT LIVE'}
               </span>
             )}
             <ServerStill thumb={programClip ? programThumb : null} testId="program" />

@@ -172,9 +172,9 @@ test('published, a Take is pending until the command log answers, then logged, n
   // The network goes: the last picture stays, dimmed and marked, never looking live.
   await page.context().setOffline(true);
   await expect(air).toHaveAttribute('data-state', 'stale');
-  await expect(air).toHaveText(/^connection lost · last logged /);
+  await expect(air).toHaveText(/^last logged \d{1,2}[:.]\d{2}[:.]\d{2}/);
   await expect(page.getByTestId('program-frame')).toHaveAttribute('data-stale', 'true');
-  await expect(page.getByTestId('program-stale')).toBeVisible();
+  await expect(page.getByTestId('program-stale')).toHaveText('CONNECTION LOST · NOT LIVE');
   await page.context().setOffline(false);
   await expect(air).toHaveAttribute('data-state', 'confirmed');
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');

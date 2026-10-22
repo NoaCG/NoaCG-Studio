@@ -13,11 +13,13 @@ export interface OwnSheetReader {
   url: string | null;
 }
 
-/** The production's graphics that read a Sheet in their own code, in the design they play. */
-export function ownSheetReaders(graphics: readonly SavedGraphic[], library: GraphicDoc[]): OwnSheetReader[] {
+/** The production's graphics that read a Sheet in their own code where they play: the design, and
+ *  on a published production also the copy the output runs until Publish replaces it. */
+export function ownSheetReaders(graphics: readonly SavedGraphic[], library: GraphicDoc[], published: boolean): OwnSheetReader[] {
   return graphics.flatMap((g) => {
-    const js = resolveSavedGraphicDoc(g, library)?.template.js ?? g.template.js;
-    return hasLiveData(js) ? [{ graphic: g.name, url: liveDataUrl(js) }] : [];
+    const design = resolveSavedGraphicDoc(g, library)?.template.js ?? g.template.js;
+    const js = hasLiveData(design) ? design : published && hasLiveData(g.template.js) ? g.template.js : null;
+    return js ? [{ graphic: g.name, url: liveDataUrl(js) }] : [];
   });
 }
 

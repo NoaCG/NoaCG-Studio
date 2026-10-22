@@ -210,13 +210,14 @@ export interface AirFacts {
 
 const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-/** PROGRAM's status chip: its state, its words and its tooltip. `idle` shows nothing. */
+/** PROGRAM's status tag: its state, its words and its tooltip. Empty words show nothing. */
 export function programAir(f: AirFacts): { state: AirState; text: string; title: string } {
   if (!f.published) return { state: 'local', text: 'this page only', title: 'Not published: a Take plays on this monitor and nowhere else.' };
   if (f.lost) {
     return {
       state: 'stale',
-      text: f.confirmedAt !== null ? `connection lost · last logged ${hms(f.confirmedAt)}` : 'connection lost',
+      // PROGRAM's centre tag says the connection is lost; this says when the log last took one.
+      text: f.confirmedAt !== null ? `last logged ${hms(f.confirmedAt)}` : '',
       title: 'This page cannot reach the server, so PROGRAM keeps the last picture it knew. Air may have changed since.',
     };
   }

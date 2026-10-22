@@ -1130,6 +1130,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const settle = sendDebts.current.heard(items);
       if (settle) {
         setNote(settle);
+        // A send that answered "not confirmed" landed after all: the log has it now.
+        const at = Date.now();
+        setLastSend((last) => (last?.outcome === 'unknown' ? { outcome: 'logged', at } : last));
+        setLoggedAt(at);
         // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
         setTakeMisses((m) => {
           const kept = Object.entries(m).filter(([, missed]) => settle(missed) !== null);
@@ -3301,10 +3305,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const ownReaderOf = (graphic: SavedGraphic): OwnReader => {
     const doc = resolveSavedGraphicDoc(graphic, library);
     const resolvedJs = doc?.template.js ?? graphic.template.js;
+    const gate = ownReaderGate({ copyJs: graphic.template.js, resolvedJs, published: !!hostedSlug });
     return {
-      gate: ownReaderGate({ copyJs: graphic.template.js, resolvedJs, published: !!hostedSlug }),
+      gate,
       url: liveDataUrl(resolvedJs) ?? liveDataUrl(graphic.template.js),
-      elsewhere: doc ? productionsContaining(doc.id).filter((s) => s.id !== show?.id).length : 0,
+      // Read from every stored production, so only when the migration is on offer.
+      elsewhere: gate === 'reader' && doc ? productionsContaining(doc.id).filter((s) => s.id !== show?.id).length : 0,
       remove: async () => {
         if (!show) return 'This production is no longer open.';
         const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
@@ -3314,15 +3320,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           const saved = updateGraphic(fresh.id, { template: { ...fresh.template, js: stripLiveData(fresh.template.js) } });
           if (saved.error) return saved.error;
         }
+        let refused: string | null = null;
         if (plan.copy && hasLiveData(graphic.template.js)) {
           const copied = setGraphicCopyScript(show.id, graphic.id, graphic.template.js, stripLiveData(graphic.template.js));
           setShows(copied.shows);
-          if (copied.error) return copied.error;
+          refused = copied.error;
         }
+        // The library write above stands whether or not the copy's did: land it and show it, so
+        // the gate and the monitors read the design as it now is.
         const failure = await commitDurableWrites();
-        if (failure) return `Not saved: ${failure}`;
         setLibraryRev((n) => n + 1);
-        return null;
+        return failure ? `Not saved: ${failure}` : refused;
       },
     };
   };
@@ -3756,7 +3764,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       casparLoaded: outputSlot?.holds === 'ours',
       server: serverOnly
         ? selectedFolder && folderMode(selectedFolder) === 'through'
-          ? slotAddress(folderSlot(playoutSettings, selectedFolder))
+          ? folderSlotOf(selectedFolder)
           : [...new Set((selectedFolder ? held : selectedCue ? [selectedCue] : []).map((c) => playoutItemFor(c)).filter((i): i is PlayoutItem => !!i).map(addressOfItem))].join(', ') || null
         : null,
       serverToo: !!selectedFolder && !serverOnly && held.some((c) => c.source === 'playout'),
@@ -4992,7 +5000,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onReady={restoreProgram}
           onOverflow={notePreviewOverflow}
           air={programAir({ published: !!hostedSlug, sending: sendingNow, last: lastSend, confirmedAt: loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
-          serverLost={casparOn && bridgeStatus !== null && bridgeStatus.state !== 'ok'}
+          serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server')}
           programChip={
             chipGraphic ? (
               <ProgramAutoChip
@@ -5132,7 +5140,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               )}
             </span>
             {/* Where TAKE sends the selection (C6, AC-16): the outputs, or this page only. */}
-            <span className="pd-onair-line pd-target-line" title={takeButton.title} data-testid="verb-target">
+            <span className="pd-onair-line pd-target-line" data-testid="verb-target">
               {takeTarget}
             </span>
             <SpaceModeToggle mode={spaceMode} onChange={changeSpaceMode} testId="space-mode" />
@@ -5150,7 +5158,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
-        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownSheetReaders(show.graphics, library)} />
+        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownSheetReaders(show.graphics, library, !!hostedSlug)} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&

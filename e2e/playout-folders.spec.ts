@@ -858,7 +858,7 @@ test('All together: one Take starts every cue in it, a refused one is NOT TAKEN 
   await expect(page.getByTestId('playout-on-air')).toHaveAttribute('data-stale', 'true', { timeout: 15_000 });
   await expect(page.getByTestId('playout-on-air')).toHaveAttribute('title', /what the server last reported/);
   await expect(page.getByTestId('program-frame')).toHaveAttribute('data-stale', 'true');
-  await expect(page.getByTestId('program-stale')).toHaveText('LAST KNOWN · NOT LIVE');
+  await expect(page.getByTestId('program-stale')).toHaveText('BRIDGE NOT ANSWERING · NOT LIVE');
   fake.missing = false;
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true', { timeout: 15_000 });
   await expect(page.getByTestId('playout-on-air')).not.toHaveAttribute('data-stale', 'true');

@@ -138,8 +138,9 @@ test('PROGRAM says what is known of the last command, and never more (data-sourc
   // A lost connection outranks everything, and names the last time the log took a command.
   const lost = air({ sending: 1, last: { outcome: 'unknown', at: at + 9000 }, confirmedAt: at, lost: true });
   assert.equal(lost.state, 'stale');
-  assert.equal(lost.text, `connection lost · last logged ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
-  assert.equal(air({ lost: true }).text, 'connection lost', 'nothing confirmed: no time is claimed');
+  assert.equal(lost.text, `last logged ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+  assert.equal(air({ lost: true }).state, 'stale');
+  assert.equal(air({ lost: true }).text, '', 'nothing confirmed: no time is claimed');
 });
 
 test('TAKE names where it sends: this page, the outputs and the CasparCG slot, or a server slot (C6)', async () => {

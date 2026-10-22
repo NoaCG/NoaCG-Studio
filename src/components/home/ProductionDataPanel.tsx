@@ -520,7 +520,7 @@ function DataOverview({
   // Bindings outlive a graphic removed from the pool; only graphics still in it show anything.
   const pool = new Set(show.graphics.map((g) => g.name));
   // A graphic reading a Sheet in its own code is a source too, one Pause cannot reach (C6).
-  const ownReaders = useMemo(() => ownSheetReaders(show.graphics, loadGraphics()), [show.graphics]);
+  const ownReaders = useMemo(() => ownSheetReaders(show.graphics, loadGraphics(), !!show.hostedSlug), [show.graphics, show.hostedSlug]);
   const row = (leaf: DataLeaf, key: string | null) => {
     const users = usersOf(show, pool, leaf.path);
     return (
