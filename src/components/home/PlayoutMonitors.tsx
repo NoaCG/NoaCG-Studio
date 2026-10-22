@@ -280,14 +280,7 @@ export default function PlayoutMonitors({
               data-testid="playout-on-air"
               {...(serverLost ? { 'data-stale': 'true' } : {})}
             >
-              {serverLost ? 'server, last known' : 'server'}: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
-            </span>
-          )}
-          {/* What is known of the last command (C6): pending, logged, not confirmed, or a lost
-              connection; on an unpublished production, that this monitor is the only place. */}
-          {air && air.state !== 'idle' && (
-            <span className={`pd-air-state pd-air-${air.state}`} title={air.title} data-state={air.state} data-testid="program-air">
-              {air.text}
+              server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
             </span>
           )}
           {programChip}
@@ -300,6 +293,14 @@ export default function PlayoutMonitors({
             data-testid="program-frame"
             {...(stale ? { 'data-stale': 'true' } : {})}
           >
+            {/* What is known of the last command (C6): pending, logged, not confirmed, or a lost
+                connection. In the frame's corner, so the header keeps its names. Unpublished, the
+                header's NOT PUBLISHED already says this monitor is the only place. */}
+            {air && air.state !== 'idle' && air.state !== 'local' && (
+              <span className={`pd-air-state pd-air-${air.state}`} title={air.title} data-state={air.state} data-testid="program-air">
+                {air.text}
+              </span>
+            )}
             {stale && (
               <span className="pd-stale-tag" title={air?.state === 'stale' ? air.title : 'NoaCG Bridge is not answering.'} data-testid="program-stale">
                 LAST KNOWN · NOT LIVE

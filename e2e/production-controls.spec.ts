@@ -89,15 +89,14 @@ test('a Take pressed a moment after the page opens still airs - and stays aired'
 // write it took, never a picture), and a lost connection, which dims the picture rather than
 // leaving it looking live.
 
-test('before Publish, TAKE says it reaches this page only and PROGRAM is labelled a local simulation (C6)', async ({ page }) => {
+test('before Publish, TAKE says it reaches this page only and PROGRAM stays labelled NOT PUBLISHED (C6)', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Rehearsal');
   await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
   await page.getByTestId('verb-take').click();
-  const air = page.getByTestId('program-air');
-  await expect(air).toHaveAttribute('data-state', 'local');
-  await expect(air).toHaveText('this page only');
+  // The header's NOT PUBLISHED is the label; the status chip adds nothing to it.
   await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · NOT PUBLISHED');
+  await expect(page.getByTestId('program-air')).toHaveCount(0);
 });
 
 test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
@@ -153,8 +152,8 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.goto(`/app#/production/${fixture.id}`);
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
-  // Published with nothing reporting: TAKE goes to the output link, and says nothing is there.
-  await expect(page.getByTestId('verb-target')).toHaveText('To: the output link, nothing connected');
+  // Published with nothing reporting: TAKE names the outputs it reaches, none yet.
+  await expect(page.getByTestId('verb-target')).toHaveText('To: 0 outputs');
   // Nothing pressed yet: the chip claims nothing.
   await expect(page.getByTestId('program-air')).toHaveCount(0);
 

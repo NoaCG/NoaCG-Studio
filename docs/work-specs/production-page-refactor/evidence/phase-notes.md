@@ -53,20 +53,26 @@ changes a spec's digest.
   presence (READY); for server cues, the Bridge's answers and the server's own slot readings.
   No output reports its picture back, and there is no per-command render acknowledgement, so
   nothing says a picture is confirmed on air. What was added:
-  - PROGRAM's chip (`programAir`): "this page only" unpublished (the local simulation, beside
-    the existing PROGRAM · NOT PUBLISHED), "sending…" while a send waits, "logged HH:MM:SS" once
-    the log took it (its tooltip says outputs do not report their picture), "not confirmed" when a
-    send that moved this monitor may not have reached the log, and "connection lost · last logged
-    HH:MM:SS" when the page cannot reach the server. Nothing pressed yet shows nothing.
+  - PROGRAM's status tag (`programAir`), in the frame's bottom-left corner like PREVIEW's length
+    tag: "sending…" while a send waits, "logged HH:MM:SS" once the log took it (its tooltip says
+    outputs do not report their picture), "not confirmed" when a send that moved this monitor may
+    not have reached the log, and "connection lost · last logged HH:MM:SS" when the page cannot
+    reach the server. Nothing pressed yet shows nothing. Unpublished it shows nothing either: the
+    header's existing PROGRAM · NOT PUBLISHED and "up, not live" already label the local
+    simulation (a first cut put "this page only" in the header, which truncated the monitor's name
+    at 1280 px; seen on the after screenshot and moved).
   - A lost connection dims PROGRAM and puts "LAST KNOWN · NOT LIVE" over it; so does NoaCG Bridge
-    not answering while server cues are up, whose badge then reads "server, last known: …".
+    not answering while server cues are up, whose badge turns amber with a "last reported"
+    tooltip (its words stay short: the header already truncates the monitor name with a long badge).
   - The target line under the verbs (`takeTargets`): "To: this page only", "To: N outputs ·
     CasparCG 1-20", "(not loaded)" when the output is not on its slot, or a server cue's slot
-    "through NoaCG Bridge".
+    "through NoaCG Bridge". "0 outputs" rather than a sentence, so the line never wraps the verb row.
   - The folder panel lists every child's own outcome (ON AIR, NOT TAKEN with the reason) and, in
-    All together, a graphic that replaces an earlier one on the same layer, with the policy
-    ("the later one stays on air"). Server-slot and same-graphic collisions were already refused
-    before sending, so they are not shown as replacements.
+    All together, names both cues of a collision ("same place as …"). The policy is the existing
+    one: All together never takes two cues to one place (two clips on a slot, two graphics on a
+    layer, two cues of one graphic); the Take is refused before anything is sent and the folder
+    says why. A first cut said "the later one replaces it", which the after screenshot showed to be
+    false (the refusal line sat right above it); corrected.
   - Selection, PREVIEW and staged edits already had their own words (the cursor, PREVIEW's label,
     the unsent line and ✎ Update); they are unchanged.
   - No new confirmation protocol, renderer acknowledgement or composite renderer.

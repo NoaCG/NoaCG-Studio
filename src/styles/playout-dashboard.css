@@ -823,7 +823,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-frame-length { right: 8px; bottom: 8px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 /* A LOST CONNECTION LEAVES NO FRESH-LOOKING PICTURE (data-sources C6, AC-16): PROGRAM keeps the
    last picture it knew, dimmed and desaturated, with words over it, so nobody reads it as air. */
-.pd-frame-stale > :not(.pd-stale-tag) { filter: grayscale(1) brightness(0.55); }
+.pd-frame-stale > :not(.pd-stale-tag):not(.pd-air-state) { filter: grayscale(1) brightness(0.55); }
 .pd-stale-tag {
   position: absolute;
   z-index: 3;
@@ -887,17 +887,27 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   font-family: var(--mono, monospace);
   flex: none;
 }
-/* What is known of the last command (C6): words first, the colour only beside them. Pending and
-   not confirmed are amber, a lost connection amber too; logged and this-page-only stay quiet grey,
-   since neither is a claim about the picture on air. */
+/* What is known of the last command (C6), in PROGRAM's bottom-left corner like PREVIEW's length
+   tag: words first, the colour only beside them. Pending, not confirmed and a lost connection are
+   amber; logged stays quiet, since it is no claim about the picture on air. */
 .pd-air-state {
-  flex: none;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  font-weight: 600;
-  text-transform: none;
-  color: var(--text-dim);
+  position: absolute;
+  z-index: 3;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(12, 14, 18, 0.82);
+  color: var(--text-dim);
+  pointer-events: none;
 }
 .pd-air-pending,
 .pd-air-unknown,

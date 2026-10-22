@@ -148,7 +148,7 @@ test('TAKE names where it sends: this page, the outputs and the CasparCG slot, o
   assert.equal(t({ published: false, outputs: 3, caspar: '1-20', casparLoaded: true }), 'To: this page only');
   assert.equal(t({ outputs: 1 }), 'To: 1 output');
   assert.equal(t({ outputs: 2, caspar: '1-20', casparLoaded: true }), 'To: 2 outputs · CasparCG 1-20');
-  assert.equal(t({ caspar: '1-20' }), 'To: the output link, nothing connected · CasparCG 1-20 (not loaded)');
+  assert.equal(t({ caspar: '1-20' }), 'To: 0 outputs · CasparCG 1-20 (not loaded)');
   assert.equal(t({ published: false, server: '2-10' }), 'To: CasparCG 2-10 through NoaCG Bridge');
   assert.equal(t({ outputs: 1, serverToo: true }), 'To: 1 output · server cues through NoaCG Bridge');
 });

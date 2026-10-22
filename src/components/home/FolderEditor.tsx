@@ -6,6 +6,7 @@ import { NEEDS, offerBlocked, effectiveEnd, type PlaybackAbility } from '../../c
 import { folderAirWords, folderChildren, type FolderAir } from '../../control/folderAir';
 import { channelLabel, slotAddress, type PlayoutSettings } from '../../control/playoutLink';
 import { useDeferredEdits } from './useDeferredEdits';
+import { nameList } from './CueRundown';
 
 const MODES: { mode: ShowFolder['mode']; word: string }[] = [
   { mode: 'manual', word: 'One by one' },
@@ -87,7 +88,6 @@ export default function FolderEditor({
     misses,
   });
   const words = folderAirWords(air, children.filter((c) => c.outcome === 'miss').length);
-  const collides = children.some((c) => c.replaces !== undefined);
   const throughOff = offerBlocked(ability, NEEDS.through);
   // One clip that loops is a plain looping take, which any Bridge plays; only a run of several needs
   // a Bridge that can loop a sequence.
@@ -246,7 +246,7 @@ export default function FolderEditor({
         )}
       </div>
       {/* Every child's own outcome and address (C6, AC-16): a partial Take is never one green
-          group, and in All together a collision on one address says which cue replaces which. */}
+          group, and in All together the cues that share one address are named on both. */}
       <ol className="pd-folder-where" aria-label={`What airs where in ${name}`} data-testid="folder-where">
         {children.map((c) => (
           <li key={c.id} data-outcome={c.outcome} data-testid="folder-child">
@@ -257,9 +257,9 @@ export default function FolderEditor({
                 NOT TAKEN
               </span>
             )}
-            {c.replaces !== undefined && (
-              <span className="pd-cue-layer clash" title={`Same place as ${c.replaces}: on air the later one replaces it.`} data-testid="folder-child-clash">
-                replaces {c.replaces}
+            {c.sharesWith && (
+              <span className="pd-cue-layer clash" title={`${c.address} holds one thing at a time, so All together does not take both.`} data-testid="folder-child-clash">
+                same place as {nameList(c.sharesWith)}
               </span>
             )}
             <span className="pd-cue-layer">{c.address}</span>
@@ -271,11 +271,7 @@ export default function FolderEditor({
           </li>
         ))}
       </ol>
-      {mode === 'together' && collides && (
-        <p className="muted pd-clip-hint" data-testid="folder-policy">
-          Cues on the same layer replace each other; the later one stays on air.
-        </p>
-      )}
+
     </div>
   );
 }

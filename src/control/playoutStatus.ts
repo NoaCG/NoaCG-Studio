@@ -250,7 +250,7 @@ export function takeTargets(f: {
   const parts: string[] = [];
   if (!f.published) parts.push('this page only');
   else {
-    parts.push(f.outputs > 0 ? `${f.outputs} output${f.outputs === 1 ? '' : 's'}` : 'the output link, nothing connected');
+    parts.push(`${f.outputs} output${f.outputs === 1 ? '' : 's'}`);
     if (f.caspar) parts.push(`CasparCG ${f.caspar}${f.casparLoaded ? '' : ' (not loaded)'}`);
   }
   if (f.serverToo) parts.push('server cues through NoaCG Bridge');

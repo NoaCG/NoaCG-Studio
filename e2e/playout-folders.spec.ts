@@ -854,15 +854,17 @@ test('All together: one Take starts every cue in it, a refused one is NOT TAKEN 
   // NoaCG Bridge stops answering: what PROGRAM names on the server is the last it knew, and the
   // picture is marked so, never left looking live.
   fake.missing = true;
-  await expect(page.getByTestId('playout-on-air')).toContainText('server, last known: OPENER', { timeout: 15_000 });
+  await expect(page.getByTestId('playout-on-air')).toHaveAttribute('data-stale', 'true', { timeout: 15_000 });
+  await expect(page.getByTestId('playout-on-air')).toHaveAttribute('title', /what the server last reported/);
   await expect(page.getByTestId('program-frame')).toHaveAttribute('data-stale', 'true');
   await expect(page.getByTestId('program-stale')).toHaveText('LAST KNOWN · NOT LIVE');
   fake.missing = false;
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true', { timeout: 15_000 });
+  await expect(page.getByTestId('playout-on-air')).not.toHaveAttribute('data-stale', 'true');
   await expect(page.getByTestId('playout-on-air')).toContainText('server: OPENER');
 });
 
-test('All together names a known layer collision and its policy: two graphics on one layer, the later replaces the earlier (C6)', async ({ page }) => {
+test('All together names the children that collide on one layer, beside the refusal that keeps the Take from going (C6)', async ({ page }) => {
   await production(page, [], {
     graphics: [{ name: 'Strap', layer: 20 }],
     folders: [{ labels: ['Hairline', 'Strap'], name: 'Pair', mode: 'together' }],
@@ -870,9 +872,11 @@ test('All together names a known layer collision and its policy: two graphics on
   await holdFolder(page, 'Pair');
   const child = (label: string) => page.getByTestId('folder-child').filter({ has: page.locator('.pd-folder-where-cue', { hasText: new RegExp(`^${label}$`) }) });
   await expect(child('Hairline')).toContainText('L20');
-  await expect(child('Strap').getByTestId('folder-child-clash')).toHaveText('replaces Hairline');
-  await expect(child('Hairline').getByTestId('folder-child-clash')).toHaveCount(0);
-  await expect(page.getByTestId('folder-policy')).toHaveText('Cues on the same layer replace each other; the later one stays on air.');
+  await expect(child('Strap').getByTestId('folder-child-clash')).toHaveText('same place as Hairline');
+  await expect(child('Hairline').getByTestId('folder-child-clash')).toHaveText('same place as Strap');
+  // The policy: All together never takes two cues to one place, so the Take waits and says why.
+  await expect(page.getByTestId('folder-take-blocked')).toContainText('both air on layer 20');
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
   // Where TAKE sends it, before the first publish: this page and nowhere else.
   await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
 });
