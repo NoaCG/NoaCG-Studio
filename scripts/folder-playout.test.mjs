@@ -445,13 +445,16 @@ test('a folder lists every child\'s own outcome, and All together names a collis
     { id: 'c', label: 'Lower third', source: 'graphic', sourceId: 'g2', values: {} },
     { id: 'd', label: 'Credits', source: 'graphic', sourceId: 'g3', values: {} },
   ];
-  const address = { a: 'L20', b: '1-10', c: 'L30', d: 'L20' };
+  const address = { a: 'L20', b: '1-10', c: 'L30', d: 'L20', e: '1-10' };
   const children = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'd'], misses: { b: 'NoaCG Bridge refused it: file not found', a: 'stale miss' } });
   assert.deepEqual(children.map((c) => c.outcome), ['air', 'miss', 'off', 'air'], 'partial success is never one state');
   assert.equal(children[1].why, 'NoaCG Bridge refused it: file not found');
   assert.equal(children[0].why, undefined, 'a cue on air carries no old miss');
   assert.equal(children[3].replaces, 'Score', 'the later cue on L20 replaces the earlier one');
   assert.equal(children.filter((c) => c.replaces !== undefined).length, 1);
+  // Two server cues on one slot are refused before sending, so they are not a replacement.
+  const clips = [...members, { id: 'e', label: 'Clip 2', source: 'playout', sourceId: 'p2', values: {} }];
+  assert.equal(folderChildren(clips, { mode: 'together', address: (c) => address[c.id], onAir: [], misses: {} })[4].replaces, undefined);
   // One by one takes one cue at a time, and the next replaces the last by design: no collision.
   assert.ok(folderChildren(members, { mode: 'manual', address: (c) => address[c.id], onAir: [], misses: {} }).every((c) => c.replaces === undefined));
 });

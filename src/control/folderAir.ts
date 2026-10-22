@@ -145,15 +145,16 @@ export interface FolderChild {
   /** On air now, missed by the folder's last Take (with why), or neither. */
   outcome: 'air' | 'miss' | 'off';
   why?: string;
-  /** All together: the earlier cue of this folder on the same address, which this one replaces. */
+  /** All together: the earlier graphic of this folder on the same layer, which this one replaces. */
   replaces?: string;
 }
 
 /**
  * EVERY CHILD OF A FOLDER, so a partial Take never reads as a green group: each cue's own outcome
  * from the same facts its rundown row shows (`cueOnAir`, the page's per-cue Take misses), and in an
- * All-together folder the known collisions. One Take there starts every cue; two on one address
- * replace each other, and the later one stays.
+ * All-together folder the known collisions. One Take there starts every cue; two graphics on one
+ * layer replace each other, and the later one stays. (Two server cues on one slot, or two cues of
+ * one graphic, are refused before anything is sent: control/serverPlayout.ts says why.)
  */
 export function folderChildren(
   members: readonly ShowCue[],
@@ -164,8 +165,10 @@ export function folderChildren(
     const address = input.address(cue);
     const live = input.onAir.includes(cue.id);
     const why = live ? undefined : input.misses[cue.id];
-    const replaces = input.mode === 'together' && address ? seen.get(address) : undefined;
-    if (address) seen.set(address, cue.label);
+    // Graphics only: two server cues on one slot are refused before anything is sent.
+    const graphic = cue.source !== 'playout' && !!address;
+    const replaces = input.mode === 'together' && graphic ? seen.get(address) : undefined;
+    if (graphic) seen.set(address, cue.label);
     return {
       id: cue.id,
       label: cue.label,

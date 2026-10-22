@@ -168,7 +168,7 @@ export default function PlayoutMonitors({
     return () => ro.disconnect();
   }, [stageEl]);
   const stageAspect = `${stage.width} / ${stage.height}`;
-  const stale = (air?.state === 'stale' && liveLayers.length > 0) || (serverLost && serverLayers.length > 0);
+  const stale = air?.state === 'stale' || (serverLost && serverLayers.length > 0);
   // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
   // is the production's shape now, so a cue of another shape has to fit inside it rather than
   // overflow its height.

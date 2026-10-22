@@ -9,7 +9,7 @@ import { test, expect, type Locator, type Page, type Route } from '@playwright/t
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor } from './_create';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
 
 // The production page's GRAPHIC ACTIONS block (docs/PLAYOUT_DASHBOARD.md §8): the machine's
@@ -80,6 +80,105 @@ test('a Take pressed a moment after the page opens still airs - and stays aired'
   await page.waitForTimeout(3_000);
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
   await expect(page.getByTestId('cue-action-select')).toBeEnabled();
+});
+
+// ── WHAT IS KNOWN OF A COMMAND (data-sources C6, AC-16) ───────────────────────────────────────
+// Selection, PREVIEW, staged edits, a pending command and the last confirmed output answer
+// different questions. PROGRAM's chip says only what this page observes: before Publish, that the
+// monitor is the only place; published, a send waiting for the command log, the log's answer (a
+// write it took, never a picture), and a lost connection, which dims the picture rather than
+// leaving it looking live.
+
+test('before Publish, TAKE says it reaches this page only and PROGRAM is labelled a local simulation (C6)', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Rehearsal');
+  await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
+  await page.getByTestId('verb-take').click();
+  const air = page.getByTestId('program-air');
+  await expect(air).toHaveAttribute('data-state', 'local');
+  await expect(air).toHaveText('this page only');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · NOT PUBLISHED');
+});
+
+test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Stand in the backend on the network, as playout-feedback-health.spec.ts does: no remote
+  // project and no credentials are involved.
+  const backend = 'https://status.supabase.test';
+  await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
+    export function loadBackendConfig() { return { url: '${backend}', anonKey: 'anon-test-key' }; }
+    export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
+  ` }));
+  let resolveFixture: unknown = null;
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  let sends = 0;
+  await page.route(`${backend}/**`, async (route) => {
+    const req = route.request();
+    const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const path = new URL(req.url()).pathname;
+    if (path.endsWith('/rpc/control_show_resolve')) return route.fulfill({ status: 200, headers, body: JSON.stringify(resolveFixture) });
+    if (path.endsWith('/rpc/control_send_many')) {
+      sends += 1;
+      // Held until the spec has seen the pending state; an attempt the page abandons meanwhile is
+      // simply gone, and its resend is held the same way.
+      await held;
+      return route.fulfill({ status: 200, headers, body: 'null' }).catch(() => {});
+    }
+    return route.fulfill({ status: 200, headers, body: '[]' });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const fixture = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+    const show = createShowNamed('Evening News');
+    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    setShowHostedSlug(show.id, 'status-slug');
+    setShowOutputSlug(show.id, 'status-output');
+    const current = loadShows().find((s) => s.id === show.id)!;
+    const output = await buildOutputPayload(current);
+    output.ver = await stampPayload(output, null);
+    return { id: show.id, title: show.name, output, live: {}, staged: {}, last_event_id: 0 };
+  });
+  resolveFixture = fixture;
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${fixture.id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
+  // Published with nothing reporting: TAKE goes to the output link, and says nothing is there.
+  await expect(page.getByTestId('verb-target')).toHaveText('To: the output link, nothing connected');
+  // Nothing pressed yet: the chip claims nothing.
+  await expect(page.getByTestId('program-air')).toHaveCount(0);
+
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const air = page.getByTestId('program-air');
+  await expect(air).toHaveAttribute('data-state', 'pending');
+  await expect(air).toHaveText('sending…');
+  expect(sends).toBeGreaterThan(0);
+  release();
+  await expect(air).toHaveAttribute('data-state', 'confirmed');
+  await expect(air).toHaveText(/^logged \d{1,2}[:.]\d{2}[:.]\d{2}/);
+  await expect(air).toHaveAttribute('title', /do not report their picture back, so it is not confirmed here/);
+  await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');
+
+  // The network goes: the last picture stays, dimmed and marked, never looking live.
+  await page.context().setOffline(true);
+  await expect(air).toHaveAttribute('data-state', 'stale');
+  await expect(air).toHaveText(/^connection lost · last logged /);
+  await expect(page.getByTestId('program-frame')).toHaveAttribute('data-stale', 'true');
+  await expect(page.getByTestId('program-stale')).toBeVisible();
+  await page.context().setOffline(false);
+  await expect(air).toHaveAttribute('data-state', 'confirmed');
+  await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');
 });
 
 test('the selected cue is still identifiable once it is on air, and the editor names which one', async ({

@@ -1708,7 +1708,7 @@ test('a new graphic is offered no graphic-level Sheet panel (C6)', async ({ page
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
-  await expect(page.getByText('Operator fields', { exact: false })).toBeVisible();
+  await expect(page.getByText(/^Operator fields ·/)).toBeVisible();
   await expect(page.getByRole('region', { name: 'Live data', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Add live data' })).toHaveCount(0);
 });
