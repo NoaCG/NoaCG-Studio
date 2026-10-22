@@ -137,7 +137,7 @@ changes a spec's digest.
   output reports anything pending or another version, and nothing reads in the design, the copy
   or the published payload (an output that connects later loads the published version afresh).
   This closes the reload gap listed above for this browser; another browser that never saw the
-  reader still does not know it.
+  reader did not know it until the repair below.
 - **Only positive evidence clears it** (the automated review's fourth P1): an output can drop out of
   Presence and keep running its frames, so absence proves nothing. While a graphic's history entry
   exists, Connect and the binding doors hold it ("take it out, then connect"); the entry clears
@@ -163,6 +163,45 @@ changes a spec's digest.
   `confirmed` state name (renamed `logged`); the page logic and the cross-production effect
   (recorded above). The refusal for an unlinked graphic on a published production is pinned in
   Node only.
+- **Repair 1, 2026-10-22** (independent check `checker-p13-pp-p13c-3605` on `198b685`: FAIL).
+  - *Finding 1, competing writers across browsers.* Browser A stops library graphic G's reader and
+    publishes while G is on air: the output keeps G's old frame and reader until G is cleared, but
+    another browser (a teammate, a second device, A with cleared site data) saw only clean design,
+    copy and payload and empty device-local stores, so every binding door let it bind G's fields.
+    Fix: the stop is recorded on the production's own synced record (`Show.ownReaderStops`, by
+    graphic name, written by "Stop its own reader" only while published, before the design
+    write). Every browser reads it: the gate answers `clear` for a recorded stop (`ownReaderGate`
+    `stopRecorded`, through `ownSheetReader`), and `ownSheetGraphics`, which every binding door
+    and the Data view already ask, includes it, so `applyBindings` refuses there too. It clears on
+    the same positive evidence as the device-local history (off air, live state recovered,
+    Presence joined, no output behind, nothing reading), from whichever Playout page sees that
+    first, and the clear syncs back. Read only while published (`publishedReaderStops`), left out
+    of the published-record digest (it never reaches an output), and inert on duplicates and
+    conflict copies, which drop the hosted slug. Chosen over "hold whatever an output reports
+    waiting for its clear": that would cover only a browser with the Playout page open and its
+    outputs in Presence, not the Data view, a typed binding, or an output that dropped out of
+    Presence and still runs its frame. The record is a JSON field: no migration, no database
+    object, no advisor judgement. The device-local stores stay: they also carry what this page saw
+    in a payload a teammate published.
+  - *Finding 2, the migrated path uncovered.* The published-migration journey now runs past
+    "Publish first": a Publish without the reader while G is on air, a reload in the middle (the
+    clear gate `cue-connect-clear-first` restores; the binding write refuses), three reloads that
+    must still hold (an output on another version; Presence never joined; G on air with no output in
+    Presence and the resolve answering late), and the release on positive evidence (link offered,
+    record and stores empty, the binding takes). A second journey stops the reader in one browser
+    and opens the production in a fresh browser context holding only the synced record and design:
+    held there (gate, binding write, Data view's Advanced row) until the same evidence releases it.
+    Node (`scripts/legacy-sheet-block.test.mjs`, shows.ts bundled like the export): the gate holds
+    a recorded stop, and the binding write refuses a held graphic and a recorded stop, ignores a
+    stop while unpublished, and binds once cleared.
+  - *Mutation check* (each applied alone, Node test and the four C6 journeys run): the checker's
+    two mutants (verified at once and the history forgotten on load; `applyBindings` without the
+    holds) and seven on the new rules (the page ignoring the record; the binding doors ignoring
+    it; the gate ignoring it; release before the live state is recovered; release while on air;
+    release without Presence; release while an output is behind) each turn at least one red.
+  - Known gaps now: the Data overview's own-reader list reads design and copy only; a teammate's
+    Publish is seen at this page's next resolve; a browser binding from a record older than the
+    stop (before sync brings it) is the record's ordinary last-write-wins case.
 - **Traps.**
   - The production page reads the library once per mount; a design change made from the page
     itself must re-read it or the monitors keep the old design.
