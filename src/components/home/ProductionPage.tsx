@@ -3754,7 +3754,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       outputs: readiness.outputs.filter((line) => line.present).length,
       caspar: casparOn ? `${playoutSettings.channel}-${playoutSettings.layer}` : null,
       casparLoaded: outputSlot?.holds === 'ours',
-      server: serverOnly ? (selectedPlayoutItem && !selectedFolder ? addressOfItem(selectedPlayoutItem) : 'through its folder slots') : null,
+      server: serverOnly
+        ? selectedFolder && folderMode(selectedFolder) === 'through'
+          ? slotAddress(folderSlot(playoutSettings, selectedFolder))
+          : [...new Set((selectedFolder ? held : selectedCue ? [selectedCue] : []).map((c) => playoutItemFor(c)).filter((i): i is PlayoutItem => !!i).map(addressOfItem))].join(', ') || null
+        : null,
       serverToo: !!selectedFolder && !serverOnly && held.some((c) => c.source === 'playout'),
     });
   })();
