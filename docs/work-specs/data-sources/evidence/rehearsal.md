@@ -106,9 +106,11 @@ as ordinary update rows (`production-data-key-tick`, `production-data-key-dispat
 published output renderer applies update rows from that log (`e2e/configured/scorebug-output.spec.ts`
 "a published scorebug takes a score bump and a running clock on the real output renderer", and the
 other `*-output` configured specs). The two halves are each proven; the combination on one output
-page is **not walked in C7**. They are the laptop helper's scratch walks on C7's
-merge SHA (non-gating) and parent phase S's real-studio receipts. The fake Bridge journeys above
-cover the page's side of the same verbs.
+page is **not walked in C7**.
+
+The real-output items above are the laptop helper's scratch walks on C7's merge SHA (non-gating)
+and parent phase S's real-studio receipts. The fake Bridge journeys above cover the page's side of
+the same verbs.
 
 ## Audience AC-5: the published walk
 

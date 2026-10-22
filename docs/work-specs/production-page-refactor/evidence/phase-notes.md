@@ -78,7 +78,8 @@ changes a spec's digest.
   PROGRAM (said so); the guest edit's landing unchecked (now checked); the trial kit ran the
   message tasks on a published production and named a lower third no task uses and a real-shaped
   phone number (two productions, the lower third dropped, the number zeroed, task 8 tied to its
-  row); the mutant count (corrected to 18).
+  row); the mutant count (corrected to 18). Its re-assessment on `01b1b2a`, with both runs
+  finished: **PASS**, every finding fixed or accepted, nothing blocking the landing.
 - **Advisor judgement:** none needed; no migration and no database object.
 - **Traps.**
   - A clock's reading survives a re-take (it resumes from its origin), so "the clock was not
