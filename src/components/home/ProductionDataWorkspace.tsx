@@ -414,7 +414,7 @@ function AnotherSystemCard({ show, dataKey, publish }: { show: Show; dataKey?: s
             >
               ⬇ For the sample sender
             </button>
-            <a href="/docs#data-api" target="_blank" rel="noreferrer">
+            <a className="hint" href="/docs#data-api" target="_blank" rel="noreferrer">
               Live data guide
             </a>
           </div>

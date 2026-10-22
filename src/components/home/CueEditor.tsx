@@ -361,23 +361,23 @@ function CueConnectReview({
         >
           {reading ? 'Reading…' : 'Read'}
         </button>
-        {/* Another system writes this graphic's fields through the data key (C5): nothing to
-            read, every field offered its own path, reviewed and confirmed once like a Sheet. */}
-        <button
-          type="button"
-          onClick={() => {
-            readNo.current += 1;
-            setReading(false);
-            setReuse(null);
-            setLinkText('');
-            setChoices({});
-            setRead({ api: true });
-          }}
-          data-testid="cue-connect-api"
-        >
-          Another system
-        </button>
       </div>
+      {/* Another system writes this graphic's fields through the data key (C5): nothing to
+          read, every field offered its own path, reviewed and confirmed once like a Sheet. */}
+      <button
+        type="button"
+        onClick={() => {
+          readNo.current += 1;
+          setReading(false);
+          setReuse(null);
+          setLinkText('');
+          setChoices({});
+          setRead({ api: true });
+        }}
+        data-testid="cue-connect-api"
+      >
+        Another system
+      </button>
       {fieldSources.length > 0 && (
         <select
           value={reuse?.id ?? ''}
