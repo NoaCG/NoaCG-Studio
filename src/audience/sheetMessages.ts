@@ -122,7 +122,16 @@ export interface SheetInboxOptions {
   backend: () => Pick<AudienceBackend, 'list' | 'addCandidates' | 'settleImported'> | null;
   /** Said once per change: why the tab gives fewer messages, or that the inbox refused them. */
   onProblem?: (problem: string | null) => void;
+  /** This page still holds the source's lease: asked between the steps of an import, so one that a
+   *  handover overtook stops. Absent = always. */
+  holds?: () => boolean;
+  /** The clock for the minute's re-read of the inbox. */
+  now?: () => number;
 }
+
+/** How often the consumer reads the inbox again rather than trusting what it last settled: an
+ *  import another page made with an older read (a handover mid-import) is repaired within this. */
+export const SHEET_INBOX_RESYNC_MS = 60_000;
 
 export interface SheetInbox {
   /** The reader's rows from one successful read. */
@@ -144,6 +153,9 @@ export function createSheetInbox(o: SheetInboxOptions): SheetInbox {
   let known = new Set<string>();
   let knownFor: unknown = null;
   let lastProblem: string | null | undefined;
+  let syncedAt = -Infinity;
+  const now = o.now ?? Date.now;
+  const holds = () => !stopped && (o.holds?.() ?? true);
   const say = (problem: string | null) => {
     if (problem === lastProblem) return;
     lastProblem = problem;
@@ -159,18 +171,19 @@ export function createSheetInbox(o: SheetInboxOptions): SheetInbox {
     if (problem && items.length === 0) return say(problem);
     const ids = items.map((i) => i.externalId);
     try {
-      if (backend !== knownFor) {
+      if (backend !== knownFor || now() - syncedAt >= SHEET_INBOX_RESYNC_MS) {
         // What the inbox already holds from this tab: a reload re-sends nothing it has.
         const prefix = sheetMessagePrefix(o.sourceId);
         // A withdrawn one is not counted as held, so a row restored while no page was open is
         // unmarked by the settle this read then runs.
         known = new Set((await backend.list()).flatMap((r) => (r.externalId?.startsWith(prefix) && !r.withdrawnAt ? [r.externalId] : [])));
         knownFor = backend;
-        if (stopped) return;
+        syncedAt = now();
+        if (!holds()) return;
       }
       if (ids.length === known.size && ids.every((id) => known.has(id))) return say(problem);
-      await addInChunks(backend, items.filter((i) => !known.has(i.externalId)), () => stopped);
-      if (stopped) return;
+      await addInChunks(backend, items.filter((i) => !known.has(i.externalId)), () => !holds());
+      if (!holds()) return;
       await backend.settleImported(sheetMessagePrefix(o.sourceId), ids);
       known = new Set(ids);
       say(problem);

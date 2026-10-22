@@ -528,6 +528,8 @@ test('an old owner’s late read after the lease moved feeds the inbox nothing (
   release();
   await b.clock.advance(0);
   assert.equal(seen.length, 1, 'the old owner’s answer reaches no inbox');
+  assert.equal(a.reader.holds(), false, 'and it knows it no longer holds the lease');
+  assert.equal(second.reader.holds(), true);
   a.reader.stop();
   second.reader.stop();
 });

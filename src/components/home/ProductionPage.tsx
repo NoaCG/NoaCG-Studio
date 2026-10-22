@@ -93,7 +93,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
-import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease } from '../../control/sheetSource';
+import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader } from '../../control/sheetSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -1614,13 +1614,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             sourceId,
             label: () => sourcesRef.current?.find((s) => s.id === sourceId)?.label ?? 'Messages',
             backend: () => messagesRef.current,
+            holds: (): boolean => readers.get(sourceId)?.holds() ?? false,
             // The note is this Sheet's only while the problem lasts.
             onProblem: (problem) =>
               setNote((prev) => (problem ? `Message Sheet: ${problem}.` : prev?.startsWith('Message Sheet:') ? null : prev)),
           }),
         ]),
     );
-    const readers = new Map(
+    const readers: Map<string, SheetReader> = new Map(
       plan.map(([sourceId, config]) => [
         sourceId,
         createSheetReader({

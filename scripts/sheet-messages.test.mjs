@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { createSheetInbox, messageSheetId, rowHash, sheetMessagePrefix, sheetMessages, MESSAGE_SHEET_STARTER } = await import('../src/audience/sheetMessages.ts');
+const { SHEET_INBOX_RESYNC_MS, createSheetInbox, messageSheetId, rowHash, sheetMessagePrefix, sheetMessages, MESSAGE_SHEET_STARTER } = await import('../src/audience/sheetMessages.ts');
 const { createLocalAudience } = await import('../src/audience/localAudience.ts');
 
 const HEAD = ['Name', 'Message', 'Source', 'Reference'];
@@ -308,4 +308,47 @@ test('a used row restored while no page was open is unmarked by the next page', 
   for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
   assert.equal((await h.list()).find((r) => r.id === ana.id).withdrawnAt, null);
   assert.equal((await h.list()).length, 2);
+});
+
+test('an import overtaken by a handover stops between its steps, and settles nothing', async () => {
+  const backend = createLocalAudience({ productionName: 'Test' });
+  let held = true;
+  const calls = [];
+  const door = {
+    list: () => backend.list(),
+    addCandidates: async (items) => {
+      calls.push('add');
+      const added = await backend.addCandidates(items);
+      held = false; // the lease moved to another page while this call was out
+      return added;
+    },
+    settleImported: async () => calls.push('settle'),
+  };
+  const sheet = createSheetInbox({ sourceId: 's1', label: () => 'M', backend: () => door, holds: () => held });
+  sheet.take([HEAD, ...Array.from({ length: 150 }, (_, i) => ['N', `m${i}`])]);
+  for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(calls, ['add']);
+});
+
+test('the inbox is read again each minute, so damage from an older import heals', async () => {
+  assert.equal(SHEET_INBOX_RESYNC_MS, 60000);
+  let clock = 0;
+  const backend = createLocalAudience({ productionName: 'Test' });
+  const sheet = createSheetInbox({ sourceId: 's1', label: () => 'M', backend: () => backend, now: () => clock });
+  const read = async (rows) => {
+    sheet.take([HEAD, ...rows]);
+    for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
+  };
+  await read([ANA, BO]);
+  // An older page's import, overtaken by this one, settles its older rows: Bo's candidate goes.
+  await backend.settleImported(sheetMessagePrefix('s1'), ids([ANA]));
+  assert.equal((await backend.list()).length, 1);
+  // The tab is unchanged: within the minute this page trusts what it settled…
+  clock = 59_000;
+  await read([ANA, BO]);
+  assert.equal((await backend.list()).length, 1);
+  // …and at the minute it reads the inbox again and brings Bo's message back.
+  clock = 60_000;
+  await read([ANA, BO]);
+  assert.deepEqual((await backend.list()).map((r) => r.author).sort(), ['Ana', 'Bo']);
 });
