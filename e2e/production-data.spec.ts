@@ -1842,8 +1842,10 @@ async function bindAnyway(page: Page, showId: string) {
   }, showId);
 }
 
+/** Open the production, or reload it when it is open (a hash-only goto would not resolve again). */
 async function openLegacyConnect(page: Page, showId: string) {
-  await page.goto(`/app#/production/${showId}`);
+  if (page.url().includes(`#/production/${showId}`)) await page.reload();
+  else await page.goto(`/app#/production/${showId}`);
   await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
   await page.getByTestId('cue-connect').click();
@@ -1872,11 +1874,7 @@ test('a library graphic with its own reader on a published production: Stop remo
   const ver = await publishWithoutReader(page, wire, ids);
   wire.output = { ver, waiting: ['Library Card'] };
   // A reload in the middle: the copy, the design and the payload are clean, and the hold restores.
-  await page.reload();
-  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
-  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
-  await page.getByTestId('cue-connect').click();
-  menu = page.getByTestId('cue-connect-menu');
+  menu = await openLegacyConnect(page, ids.showId);
   await expect(menu.getByTestId('cue-connect-clear-first')).toContainText('take it out, then connect here');
   await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
   await expect(page.getByTestId('own-reader-line')).toHaveCount(0);
