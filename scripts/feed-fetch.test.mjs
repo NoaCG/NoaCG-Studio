@@ -336,6 +336,44 @@ test('an Atom feed written with a namespace prefix reads like its default-namesp
   assert.deepEqual(parseFeed(prefixed).items, parseFeed(plain).items);
 });
 
+test('an item’s metadata is its own direct children: never markup inside CDATA or a nested element', () => {
+  const rss = `<rss><channel><item>
+    <description><![CDATA[<title>Embedded page title</title><link>https://elsewhere/</link><guid>other</guid>]]></description>
+    <title>Real headline</title><guid>real</guid><link>https://n/1</link></item></channel></rss>`;
+  assert.deepEqual(parseFeed(rss).items.map((i) => [i.title, i.id, i.link]), [['Real headline', 'real', 'https://n/1']]);
+  const atom = `<feed xmlns="http://www.w3.org/2005/Atom"><entry>
+    <source><title>The source feed</title><id>tag:source</id></source>
+    <title>Entry headline</title><id>tag:entry</id></entry></feed>`;
+  assert.deepEqual(parseFeed(atom).items.map((i) => [i.title, i.id]), [['Entry headline', 'tag:entry']]);
+  // A stray unclosed tag in a description does not hide the rest of the item.
+  const stray = '<rss><channel><item><description>one<br>two</description><title>After a stray tag</title></item></channel></rss>';
+  assert.deepEqual(parseFeed(stray).items.map((i) => i.title), ['After a stray tag']);
+  // A CDATA title is still read as the title.
+  assert.equal(parseFeed('<rss><channel><item><title><![CDATA[Node.js <b>26</b>]]></title></item></channel></rss>').items[0].title, 'Node.js 26');
+});
+
+test('a body cut off before its root ends is a failed read, not an empty feed; a feed with no items is empty', () => {
+  const cut = parseFeed('<rss version="2.0"><channel><item><title>New headline');
+  assert.equal(cut.ok, false);
+  assert.match(cut.error, /incomplete/);
+  assert.equal(parseFeed('<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>x</title></entry>').ok, false);
+  assert.equal(parseFeed('<atom:feed xmlns:atom="http://www.w3.org/2005/Atom"><atom:entry><atom:title>x</atom:title></atom:entry></feed>').ok, false);
+  assert.deepEqual(parseFeed('<rss version="2.0"><channel><title>Quiet</title></channel></rss>'), { ok: true, items: [], ttlMs: null });
+  assert.equal(parseFeed('<rdf:RDF xmlns:rdf="x"><item><title>RSS 1.0</title></item></rdf:RDF>').items[0].title, 'RSS 1.0');
+});
+
+test('a truncated body keeps the last good headlines in the cache', async () => {
+  let reads = 0;
+  const net = fakeNet({ 'news.example': [PUBLIC] }, () => ((reads += 1) === 1 ? reply(200, RSS(['Kept'])) : reply(200, '<rss version="2.0"><channel><item><title>New')));
+  const env = io(net);
+  await readFeed(ADDRESS, env);
+  env.clock.t += 5 * MIN;
+  const answer = await readFeed(ADDRESS, env);
+  assert.equal(answer.ok, false);
+  assert.deepEqual(answer.items, ['Kept']);
+  assert.deepEqual(env.store.rows.get(feedKey(ADDRESS)).items, ['Kept']);
+});
+
 test('an Atom title typed html loses its markup; tags inside a text title go', () => {
   const atom = `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title type="html">&lt;b&gt;Bold&lt;/b&gt; &amp;amp; plain &amp;nbsp;x</title><id>1</id></entry></feed>`;
   assert.equal(parseFeed(atom).items[0].title, 'Bold & plain x');
@@ -366,6 +404,9 @@ test('hostile markup of 5 MB parses in under 2 seconds each: the parser scans fo
     'an unclosed attribute': fill('<rss><item><title type="', 'a', '>x</title></item></rss>'),
     'entities in one title': fill('<rss><item><title>', '&a', '</title></item></rss>'),
     'many small items': fill('<rss>', '<item><title>t</title><guid>g</guid></item>', '</rss>'),
+    'open tags piled in one item': fill('<rss><item>', '<a>', '<title>x</title></item></rss>'),
+    'stray closes in one item': fill('<rss><item><a><b><c>', '</z>', '<title>x</title></item></rss>'),
+    'unclosed CDATA': fill('<rss><item><title>', '<![CDATA[', '</title></item></rss>'),
   };
   for (const [name, xml] of Object.entries(cases)) {
     const started = performance.now();

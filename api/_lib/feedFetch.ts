@@ -421,19 +421,78 @@ function stripComments(xml: string): string {
   return out + xml.slice(at);
 }
 
-/** The first element `name` at or after `from`: its attributes, inner text and where it ends. */
-function element(xml: string, name: string, from = 0): { attrs: string; inner: string; end: number } | null {
-  let open = xml.indexOf(`<${name}`, from);
-  while (open >= 0 && !/[\s/>]/.test(xml.charAt(open + name.length + 1))) open = xml.indexOf(`<${name}`, open + 1);
+/** The same text with every CDATA section blanked to spaces, so a search for markup never lands
+ *  inside one, and an index found in it is the same index in the text. */
+function maskCdata(xml: string): string {
+  if (!xml.includes('<![CDATA[')) return xml;
+  let out = '';
+  let at = 0;
+  for (let open = xml.indexOf('<![CDATA['); open >= 0; open = xml.indexOf('<![CDATA[', at)) {
+    const close = xml.indexOf(']]>', open + 9);
+    const stop = close < 0 ? xml.length : close + 3;
+    out += xml.slice(at, open) + ' '.repeat(stop - open);
+    at = stop;
+  }
+  return out + xml.slice(at);
+}
+
+/** The first element `name` at or after `from`, searched in `mask` (the text with its CDATA
+ *  blanked) and read from `xml`: its attributes, inner text and where it ends. */
+function element(xml: string, name: string, from = 0, mask = xml): { attrs: string; inner: string; end: number } | null {
+  let open = mask.indexOf(`<${name}`, from);
+  while (open >= 0 && !/[\s/>]/.test(mask.charAt(open + name.length + 1))) open = mask.indexOf(`<${name}`, open + 1);
   if (open < 0) return null;
-  const gt = xml.indexOf('>', open);
+  const gt = mask.indexOf('>', open);
   if (gt < 0) return null;
   const attrs = xml.slice(open + name.length + 1, gt);
   if (attrs.endsWith('/')) return { attrs: attrs.slice(0, -1), inner: '', end: gt + 1 };
-  const close = xml.indexOf(`</${name}`, gt);
+  const close = mask.indexOf(`</${name}`, gt);
   if (close < 0) return null;
-  const end = xml.indexOf('>', close);
+  const end = mask.indexOf('>', close);
   return { attrs, inner: xml.slice(gt + 1, close), end: end < 0 ? xml.length : end + 1 };
+}
+
+/**
+ * An item's DIRECT child elements by name, in one pass: markup inside a CDATA section is text,
+ * and an element nested in another (a `<title>` inside a description's markup, an Atom
+ * `<source>`'s own title) is not the item's. A close tag ends the nearest open element of its
+ * name among the last few, so a stray unclosed tag (`<br>`) cannot hide the rest of the item.
+ */
+function childrenOf(inner: string): Map<string, { attrs: string; inner: string }[]> {
+  const mask = maskCdata(inner);
+  const kids = new Map<string, { attrs: string; inner: string }[]>();
+  const add = (name: string, kid: { attrs: string; inner: string }) => kids.set(name, [...(kids.get(name) ?? []), kid]);
+  const open: { name: string; attrs: string; start: number }[] = [];
+  let at = 0;
+  for (let lt = mask.indexOf('<', at); lt >= 0; lt = mask.indexOf('<', at)) {
+    const gt = mask.indexOf('>', lt);
+    if (gt < 0) break;
+    at = gt + 1;
+    const next = mask.charAt(lt + 1);
+    if (next === '?' || next === '!') continue;
+    if (next === '/') {
+      const name = mask.slice(lt + 2, gt).trim();
+      let match = -1;
+      for (let i = open.length - 1; i >= Math.max(0, open.length - 16); i -= 1) {
+        if (open[i].name === name) {
+          match = i;
+          break;
+        }
+      }
+      if (match < 0) continue;
+      const ended = open[match];
+      open.length = match;
+      if (match === 0) add(ended.name, { attrs: ended.attrs, inner: inner.slice(ended.start, lt) });
+      continue;
+    }
+    const name = /^[^\s/>]+/.exec(mask.slice(lt + 1, Math.min(gt, lt + 129)))?.[0];
+    if (!name) continue;
+    const closed = mask.charAt(gt - 1) === '/';
+    const attrs = inner.slice(lt + 1 + name.length, closed ? gt - 1 : gt);
+    if (!closed) open.push({ name, attrs, start: gt + 1 });
+    else if (open.length === 0) add(name, { attrs, inner: '' });
+  }
+  return kids;
 }
 
 /** An element's text, cut to what a headline or an id can use before any parsing of it. */
@@ -459,36 +518,43 @@ export type FeedParse = { ok: true; items: FeedItem[]; ttlMs: number | null } | 
  */
 export function parseFeed(xml: string): FeedParse {
   const body = stripComments(xml);
-  const rss = /<(?:[\w-]+:)?(?:rss|RDF)\b/.test(body);
-  const atomRoot = /<([\w-]+:)?feed\b/.exec(body);
-  const atom = atomRoot !== null;
-  if (!rss && !atom) {
+  const mask = maskCdata(body);
+  const rssRoot = /<((?:[\w-]+:)?(?:rss|RDF))\b/.exec(mask);
+  const atomRoot = /<([\w-]+:)?feed\b/.exec(mask);
+  if (!rssRoot && !atomRoot) {
     return { ok: false, error: 'that address is not an RSS or Atom feed', fix: 'Paste the feed’s own address (it often ends in .xml, /rss or /feed).' };
   }
-  const tag = atom && !rss ? 'entry' : 'item';
+  const tag = atomRoot && !rssRoot ? 'entry' : 'item';
   // An Atom feed written with a prefix (`<atom:feed>`) names its entries and their children with
   // it; a child without it is read too.
   const prefix = tag === 'entry' ? (atomRoot?.[1] ?? '') : '';
-  const el = (xml: string, name: string, from?: number) => element(xml, prefix + name, from) ?? (prefix ? element(xml, name, from) : null);
+  // A body cut off on the way (a 200 that stopped early) is not the feed: without the root's end,
+  // the last good headlines stay rather than an empty list replacing them. A feed with no items
+  // still ends its root, and reads as empty.
+  const root = rssRoot ? rssRoot[1] : `${prefix}feed`;
+  if (!mask.includes(`</${root}`)) {
+    return { ok: false, error: 'the feed arrived incomplete', fix: RETRY_FIX };
+  }
   const items: FeedItem[] = [];
-  for (let e = element(body, prefix + tag); e; e = element(body, prefix + tag, e.end)) {
-    const inner = e.inner;
-    const t = el(inner, 'title');
+  for (let e = element(body, prefix + tag, 0, mask); e; e = element(body, prefix + tag, e.end, mask)) {
+    const kids = childrenOf(e.inner);
+    const all = (name: string) => kids.get(prefix + name) ?? (prefix ? kids.get(name) : undefined) ?? [];
+    const first = (name: string) => all(name)[0] ?? null;
+    const t = first('title');
     if (!t) continue;
     // A headline keeps 300 characters, so 16 KB of its markup is plenty to read.
     const title = plainText(t.inner.slice(0, 16_384), (attr(t.attrs, 'type') ?? '').toLowerCase() === 'html');
     if (!title) continue;
     let link: string | null;
     if (tag === 'entry') {
-      const links: string[] = [];
-      for (let l = el(inner, 'link'); l && links.length < 20; l = el(inner, 'link', l.end)) links.push(l.attrs);
+      const links = all('link').slice(0, 20).map((l) => l.attrs);
       const alternate = links.find((a) => (attr(a, 'rel') ?? 'alternate') === 'alternate') ?? links[0];
       link = alternate ? attr(alternate, 'href') : null;
     } else {
-      link = textOf(element(inner, 'link')) || null;
+      link = textOf(first('link')) || null;
     }
-    const id = textOf(el(inner, tag === 'entry' ? 'id' : 'guid')) || null;
-    const date = el(inner, 'pubDate') ?? el(inner, 'updated') ?? el(inner, 'published') ?? element(inner, 'dc:date');
+    const id = textOf(first(tag === 'entry' ? 'id' : 'guid')) || null;
+    const date = first('pubDate') ?? first('updated') ?? first('published') ?? kids.get('dc:date')?.[0] ?? null;
     const at = Date.parse(textOf(date, 256));
     items.push({ title, id, link, at: Number.isNaN(at) ? null : at });
   }

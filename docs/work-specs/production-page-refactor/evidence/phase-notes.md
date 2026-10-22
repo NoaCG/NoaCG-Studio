@@ -130,7 +130,15 @@ changes a spec's digest.
   would read as empty and clear the ticker; the prefix is now taken from the root and used for the
   entries and their children. And a 304 forgot the feed's own `<ttl>` (only the body carries it),
   dropping an hourly feed to every 5 minutes; 0099 gains `feed_wait_ms`, kept with the headlines
-  and applied after a 304.
+  and applied after a 304 (and kept as at most an hour, so any `<ttl>` fits the column). Its
+  re-review of `f665175` found two more, also fixed with tests that fail on `f665175`: an item's
+  metadata was the first matching substring, so a `<title>` inside a description's CDATA could
+  replace the headline; items are now read as their DIRECT children with CDATA masked, and a
+  stray unclosed tag cannot hide the rest of the item. And a 200 body cut off early parsed as an
+  empty feed and cleared the ticker; a document without its root's end is now a failed read that
+  keeps the last good headlines (a feed with no items still ends its root and reads as empty).
+  The final parser read three live feeds (Yle 11, PyPI 20, GitHub releases 10 headlines) and the
+  hostile 5 MB set, now twelve cases, stays under 2 s each.
 - **Traps.**
   - A lazy regex over a body someone else wrote is a denial of service at 5 MB; scan forward.
   - `node:http`'s `lookup` option must answer both shapes (`all: true` gets an array); a typed
