@@ -68,6 +68,21 @@ changes a spec's digest.
     per-browser spend record (`{ v: 1, day, units }`, day in `America/Los_Angeles`).
   - The cue editor's "Fill from… Pick a message" shows each candidate's provenance; Sheet and
     YouTube candidates reach it because they are ordinary candidates.
+  - Duplicates already in production (owner decision path: the coordinator ruled that this row does
+    not read production, and the migration must succeed either way): before the unique build, 0098
+    clears `external_id` on every later duplicate, keeping the first row's id. The duplicate keeps
+    its row, text and moderation and becomes an ordinary candidate no source settles; nothing is
+    deleted. Proven on a scratch Postgres seeded with three rows of one id (one used) and one
+    unique: the index built valid, the first kept the id, the used flag survived.
+  - A message Sheet's source id is stable per tab (`msg-<hash of sheet id and gid>`), so removing
+    and connecting it again finds its candidates instead of adding every row again; a tab already
+    followed for fields keeps its own id and gains the inbox.
+  - Only the lease's holder feeds the inbox (`sheetSource.ts` calls the consumer after the settle
+    is kept): an old owner's late read can no longer put back what the new owner took out.
+  - The inbox consumer seeds what the inbox holds on its first read, without withdrawn rows, so a
+    reload re-sends nothing and a row restored while no page was open is unmarked.
+  - Leaving a production stops this tab's YouTube chats for it and releases their claims; a
+    comments answer that lands after its source was removed adds nothing.
   - Messages from a Sheet keep arriving only while a page of the production is open: the server
     tick (C2) reads Sheets for fields, not for the inbox. Not in C3's acceptance; said here so C7
     does not expect closed-page messages.
@@ -77,8 +92,14 @@ changes a spec's digest.
   (`settleImported`, `withdrawnAt`, `OPERATOR_SETTLE_MAX`), `src/components/home/ProductionPage.tsx`
   (the inbox consumer on the page's Sheet readers, Sheet readers only, the YouTube hook),
   `src/components/home/SourcesLine.tsx` and `src/components/home/ProductionDataPanel.tsx` (Sheets
-  only), `scripts/message-staging.test.mjs` (the interface list gains `settleImported`),
+  only), `src/control/sheetSource.ts` (the inbox fed only by the lease holder, with its test in
+  `scripts/sheet-source.test.mjs`), `scripts/message-staging.test.mjs` (the interface list gains `settleImported`),
   `scripts/audience-identity-migration.test.mjs` and `scripts/fixtures/youtube/`.
+- **Recorded responses.** The C3 row asks for recorded responses; the repository may hold no comment
+  text or author name, so `scripts/fixtures/youtube/` carries the Q record's shapes, counts,
+  intervals and times with invented text. That is the departure from the wording, for its intent.
+- **Assessment A** (fresh read-only session, `/so`): AGREE WITH CORRECTIONS; the three code
+  corrections and the two-cue journey are in, the rest is weighed in the PR.
 - **Traps.**
   - `on conflict (show_id, external_id)` inside a `RETURNS TABLE (... external_id ...)` function is
     ambiguous (42702) and an index target cannot be table-qualified; `#variable_conflict
