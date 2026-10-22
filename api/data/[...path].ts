@@ -42,6 +42,9 @@ const MAX_BODY_BYTES = 16_384;
 
 const retryAfter = (sec: number): Record<string, string> => ({ 'retry-after': String(sec) });
 
+/** What a held write answers beside `paused: true` (0100): the operator paused Another system. */
+const HELD_MESSAGE = 'Held: this production has paused Another system. Resume sends the latest values once.';
+
 async function update(req: Request): Promise<Response> {
   const guard = methodGuard(req, 'POST');
   if (guard) return guard;
@@ -95,7 +98,7 @@ async function update(req: Request): Promise<Response> {
     });
   }
 
-  let event: number;
+  let event: number | null;
   try {
     event = await sendDataUpdate(key, target.graphic.name, mapped.data);
   } catch (error) {
@@ -116,6 +119,8 @@ async function update(req: Request): Promise<Response> {
     applied: mapped.data,
     ignored: mapped.ignored,
     ambiguous: mapped.ambiguous,
+    // Paused: kept, newest per field, and sent once by Resume (0100).
+    ...(event === null ? { paused: true, message: HELD_MESSAGE } : {}),
   });
 }
 
@@ -174,7 +179,8 @@ async function patch(req: Request): Promise<Response> {
 
   try {
     const result = await patchProductionData(key, parsed.patch);
-    return json({ ok: true, data: result.data, writes: result.writes });
+    // Paused: the tree took the patch and nothing aired; Resume sends what changed (0100).
+    return json({ ok: true, data: result.data, writes: result.writes, ...(result.paused ? { paused: true, message: HELD_MESSAGE } : {}) });
   } catch (error) {
     return patchFailure(error);
   }

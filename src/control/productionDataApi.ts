@@ -119,3 +119,33 @@ export async function fetchProductionDataBySlug(slug: string): Promise<Productio
   const body = data as { data?: Record<string, unknown>; bindings?: Record<string, Record<string, string>> };
   return { data: body.data ?? {}, bindings: body.bindings ?? {} };
 }
+
+// ── Another system's Pause and receipt (data-sources C5, migration 0100) ─────
+
+/** What the "Another system" card shows: whether the API is paused and when it last wrote. */
+export interface AnotherSystemState {
+  paused: boolean;
+  receivedAt: string | null;
+}
+
+/** The owner's own row, read over RLS like the key. Null when it cannot be read: no backend, not
+ *  published, or a database that has not run 0100 yet (the card then offers no Pause). */
+export async function readAnotherSystem(showId: string): Promise<AnotherSystemState | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.from('control_shows').select('data_paused, data_received_at').eq('id', showId).maybeSingle();
+  if (error || !data) return null;
+  const row = data as { data_paused: boolean | null; data_received_at: string | null };
+  return { paused: row.data_paused === true, receivedAt: row.data_received_at ?? null };
+}
+
+/** Pause or Resume what the data key sends, on the control slug. Resume appends the final values
+ *  once, in the database; the answer says how many graphics it moved. */
+export async function setAnotherSystemPaused(slug: string, paused: boolean): Promise<{ paused: boolean; writes: number }> {
+  const sb = await getSupabase();
+  if (!sb) throw new Error('This production is not connected to a backend.');
+  const { data, error, status } = await sb.rpc('control_data_pause_by_slug', { p_slug: slug, p_paused: paused });
+  if (error) throw rpcFailure('control_data_pause_by_slug', error, status);
+  const body = (data ?? {}) as { paused?: boolean; writes?: unknown[] };
+  return { paused: body.paused === true, writes: Array.isArray(body.writes) ? body.writes.length : 0 };
+}

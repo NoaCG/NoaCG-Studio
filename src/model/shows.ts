@@ -1802,6 +1802,21 @@ export function connectShowSource(
   return { ...result, refused };
 }
 
+/**
+ * CONNECT DATA's one confirmation for Another system (data-sources C5): the reviewed mapping of
+ * `api.` paths, with no source record (the data key is the production's one API source). A
+ * refused field is reported, never bound.
+ */
+export function connectApiFields(showId: string, entries: BindingEntry[]): { shows: Show[]; error: string | null; refused: BindingEntry[] } {
+  let refused: BindingEntry[] = [];
+  const result = patchShowChecked(showId, (show) => {
+    const applied = applyBindings(show, entries);
+    refused = applied.refused;
+    return applied.changed;
+  }, true);
+  return { ...result, refused };
+}
+
 /** Change one source's record; `edit` answers null when there is nothing to change. */
 function patchShowSource(showId: string, sourceId: string, edit: (source: ShowSource) => ShowSource | null): Show[] {
   return patchShowChecked(showId, (show) => {

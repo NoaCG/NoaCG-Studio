@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
@@ -32,6 +32,7 @@ import {
   type SourceStatusStore,
 } from '../../control/sheetSource';
 import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
+import { apiOffers, isApiPath } from '../../control/anotherSystem';
 
 /** The edited cue's text, as the page's draft shows it. */
 export interface CueEditorView {
@@ -146,8 +147,9 @@ function CueConnectedMark({ source, store }: { source: ShowSource; store: Source
   );
 }
 
-/** A tab or a feed read for the review: its link or address, rows, or the failure with its fix. */
-type ConnectRead = { link: SheetLink; rows: string[][] } | { feed: string; rows: string[][] } | { error: string; fix: string };
+/** A tab or a feed read for the review: its link or address, rows, or the failure with its fix;
+ *  or Another system, which has nothing to read: its paths are offered from the fields (C5). */
+type ConnectRead = { link: SheetLink; rows: string[][] } | { feed: string; rows: string[][] } | { api: true } | { error: string; fix: string };
 
 /** The Connect review's content: the read, the proposal, repair and the one confirmation. */
 function CueConnectReview({
@@ -203,11 +205,12 @@ function CueConnectReview({
   const id = reuse?.id ?? sourceId;
   const rows = read && 'rows' in read ? read.rows : null;
   const content = rows ? sheetContent(shape, rows) : null;
+  const api = Boolean(read && 'api' in read);
   const fields = descriptors.filter((d) => d.kind !== 'image');
   const byKey = new Map(fields.map((d) => [d.key, d]));
-  const offered = content ? offeredValues(id, shape, content, kind) : [];
+  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind) : [];
   const sample = new Map(offered.map((o) => [o.path, o.sample]));
-  const mapping: MappingRow[] = content
+  const mapping: MappingRow[] = content || api
     ? proposeMapping(
         fields,
         offered,
@@ -242,7 +245,7 @@ function CueConnectReview({
     const value = path !== null && row.status !== 'refused' && sample.has(path) ? writes(path) : null;
     if (value !== null) previewValues[row.fieldId] = value;
   }
-  const previewKey = content ? JSON.stringify(previewValues) : null;
+  const previewKey = content || api ? JSON.stringify(previewValues) : null;
   useEffect(() => {
     previewRef.current(previewKey === null ? null : (JSON.parse(previewKey) as Record<string, string>));
   }, [previewKey]);
@@ -271,7 +274,9 @@ function CueConnectReview({
   /** Connect: one write, and the review closes only once storage has agreed to it, so a
    *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
   const confirm = async () => {
-    if (!read || 'error' in read || id === '' || saving) return;
+    if (!read || 'error' in read || saving) return;
+    if ('api' in read) return finish(connectApiFields(show.id, entries), null);
+    if (id === '') return;
     const source: ShowSource =
       reuse ??
       ('feed' in read
@@ -282,14 +287,17 @@ function CueConnectReview({
             label: label.trim() || poolGraphic.name,
             config: { sheetId: read.link.sheetId, gid: read.link.gid, ...(read.link.published ? { published: true } : {}), shape },
           });
-    const result = connectShowSource(show.id, source, entries);
+    let result = connectShowSource(show.id, source, entries);
+    if (!result.error && reuse && label.trim() && label.trim() !== reuse.label) result = { ...result, shows: renameShowSource(show.id, reuse.id, label) };
+    await finish(result, source.id);
+  };
+  /** The one write's outcome: the review closes only once storage has agreed to it. */
+  const finish = async (result: { shows: Show[]; error: string | null; refused: { fieldId: string }[] }, sourceToRead: string | null) => {
     if (result.error) {
       setSaveError(result.error);
       return;
     }
-    let shows = result.shows;
-    if (reuse && label.trim() && label.trim() !== reuse.label) shows = renameShowSource(show.id, reuse.id, label);
-    setShows(shows);
+    setShows(result.shows);
     setSaving(true);
     const failure = await commitDurableWrites();
     setSaving(false);
@@ -302,7 +310,7 @@ function CueConnectReview({
         ? `${result.refused.map((r) => r.fieldId.toUpperCase()).join(', ')} not connected: prepared messages use it. Add a separate card for messages.`
         : null,
     );
-    store.poke(source.id);
+    if (sourceToRead) store.poke(sourceToRead);
     close();
   };
 
@@ -353,6 +361,22 @@ function CueConnectReview({
         >
           {reading ? 'Reading…' : 'Read'}
         </button>
+        {/* Another system writes this graphic's fields through the data key (C5): nothing to
+            read, every field offered its own path, reviewed and confirmed once like a Sheet. */}
+        <button
+          type="button"
+          onClick={() => {
+            readNo.current += 1;
+            setReading(false);
+            setReuse(null);
+            setLinkText('');
+            setChoices({});
+            setRead({ api: true });
+          }}
+          data-testid="cue-connect-api"
+        >
+          Another system
+        </button>
       </div>
       {fieldSources.length > 0 && (
         <select
@@ -386,19 +410,27 @@ function CueConnectReview({
           {read.error}. {read.fix}
         </p>
       )}
-      {content && (
+      {api && (
+        <p className="hint" data-testid="cue-connect-api-note">
+          Another system fills these fields by writing their paths with the production’s data key. Data, Another system has the
+          address, the key and an example.
+        </p>
+      )}
+      {(content || api) && (
         <>
-          {noTab && (
+          {content && noTab && (
             <label className="hint" data-testid="cue-connect-first-tab">
               <input type="checkbox" checked={firstTab} onChange={(e) => setFirstTab(e.target.checked)} /> The link names no tab,
               so this is its first tab. Use it?
             </label>
           )}
+          {content && (
           <label className="pd-field">
             <span>Name</span>
             <input value={label} onChange={(e) => setLabel(e.target.value)} data-testid="cue-connect-label" />
           </label>
-          {content.preview.length > 0 && (
+          )}
+          {content && content.preview.length > 0 && (
             <ol className="hint" data-testid="cue-connect-preview">
               {content.preview.slice(0, 12).map((r, i) => (
                 <li key={i} className={r.problem ? 'status-warn' : undefined}>
@@ -408,12 +440,12 @@ function CueConnectReview({
               ))}
             </ol>
           )}
-          {content.empty && (
+          {content?.empty && (
             <p className="hint" data-testid="cue-connect-empty">
               {kind === 'feed' ? 'The feed has no headlines' : 'The tab is empty'}: connected, it clears the field.
             </p>
           )}
-          {content.problems.map((p) => (
+          {content?.problems.map((p) => (
             <p key={p} className="status-warn">{p}</p>
           ))}
           <table className="hint" data-testid="cue-connect-map">
@@ -479,7 +511,7 @@ function CueConnectReview({
           </div>
         </>
       )}
-      {!content && (
+      {!content && !api && (
         <button
           type="button"
           onClick={() => {
@@ -878,6 +910,10 @@ export default function CueEditor({
                           </label>
                           {source ? (
                             <CueConnectedMark source={source} store={sourceStatus} />
+                          ) : isApiPath(path) ? (
+                            <span className="pd-bound-mark" title={`Connected to Another system: ${path}`} data-testid="cue-connected-mark">
+                              🔗 Another system
+                            </span>
                           ) : (
                             <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
                               🔗 {path}
@@ -892,6 +928,14 @@ export default function CueEditor({
                         )}
                         {/* The operator wins for values (±, a typed value on Data); a connected
                             list is read-only here and says where to edit it (sheet spec). */}
+                        {isApiPath(path) && (
+                          <span className="hint" data-testid="cue-connected-note">
+                            Another system writes <code>{path}</code>.{' '}
+                            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
+                              Disconnect
+                            </button>
+                          </span>
+                        )}
                         {source && (
                           <span className="hint" data-testid="cue-connected-note">
                             {format
