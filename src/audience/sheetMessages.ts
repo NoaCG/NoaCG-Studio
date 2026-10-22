@@ -34,6 +34,12 @@ const HEADINGS = {
 /** The starter rows an operator copies into a new tab: the headings and one example. */
 export const MESSAGE_SHEET_STARTER = 'Name\tMessage\tSource\tReference\nAna\tWhat time does the second half start?\tWhatsApp\t+358 40 000 0000\n';
 
+/** A message Sheet's source id, the same for the same tab every time it is connected, so removing
+ *  and connecting it again reuses its candidates instead of adding every row again. */
+export function messageSheetId(sheetId: string, gid: string | null): string {
+  return `msg-${rowHash([sheetId, gid ?? ''])}`;
+}
+
 /** Every external id of one Sheet source starts with this; the backend settles by it. */
 export function sheetMessagePrefix(sourceId: string): string {
   return `sheet:${sourceId}:`;
@@ -156,7 +162,9 @@ export function createSheetInbox(o: SheetInboxOptions): SheetInbox {
       if (backend !== knownFor) {
         // What the inbox already holds from this tab: a reload re-sends nothing it has.
         const prefix = sheetMessagePrefix(o.sourceId);
-        known = new Set((await backend.list()).flatMap((r) => (r.externalId?.startsWith(prefix) ? [r.externalId] : [])));
+        // A withdrawn one is not counted as held, so a row restored while no page was open is
+        // unmarked by the settle this read then runs.
+        known = new Set((await backend.list()).flatMap((r) => (r.externalId?.startsWith(prefix) && !r.withdrawnAt ? [r.externalId] : [])));
         knownFor = backend;
         if (stopped) return;
       }

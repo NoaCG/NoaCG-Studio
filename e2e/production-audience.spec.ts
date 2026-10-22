@@ -725,7 +725,7 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
   const showId = await productionFor(page, 'Sheet Messages');
   const tab = await stubMessageSheet(
     page,
-    `${HEAD}Ana,First from the Sheet,WhatsApp,+358 40 000 0001\nBo,Same words twice,,\nBo,Same words twice,,\n`,
+    `${HEAD}Ana,First from the Sheet,WhatsApp,+358 40 000 0001\nBo,Same words twice,,\nBo,Same words twice,,\nDee,Stays put,,\n`,
   );
   const messages = await openWorkspace(page, 'audience');
   await messages.getByTestId('chat-add-platform').selectOption('sheet');
@@ -733,9 +733,9 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
   await messages.getByTestId('chat-add-connect').click();
   await expect(messages.getByTestId('message-source-sheet')).toContainText('Sheet: Messages');
 
-  // Three rows, three candidates: two identical rows are two.
+  // Four rows, four candidates: two identical rows are two.
   const rows = messages.locator('.pd-aud-row');
-  await expect(rows).toHaveCount(3, { timeout: 20_000 });
+  await expect(rows).toHaveCount(4, { timeout: 20_000 });
   await expect(rows.filter({ hasText: 'Same words twice' })).toHaveCount(2);
   const ana = rows.filter({ hasText: 'First from the Sheet' });
   await expect(ana.getByTestId('audience-provenance')).toHaveText('Sheet: Messages · WhatsApp · +358 40 000 0001');
@@ -743,6 +743,9 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
   // Prepared and taken: only Name and Message reach the graphic.
   await prepare(ana, 'House Q&A');
   await expect(messages.getByTestId('audience-note')).toContainText('✓ Cue “First from the Sheet”');
+  // A second cue on the same card, from another row (sheet AC-11's two-cue refresh).
+  await rows.filter({ hasText: 'Stays put' }).getByTestId('audience-prepare').click();
+  await expect(messages.getByTestId('audience-note')).toContainText('✓ Cue “Stays put”');
   await settleDurableWrites(messages);
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   await page.locator('.pd-cue', { hasText: 'First from the Sheet' }).first().click();
@@ -752,9 +755,10 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
   await expect(program.locator('body')).not.toContainText('WhatsApp');
   await expect(program.locator('body')).not.toContainText('+358');
 
-  // The Sheet changes: Ana's row and one of Bo's go, Cy's arrives, and the rest is reordered.
+  // The Sheet changes: Ana's row and one of Bo's go, Cy's arrives, Dee's moves, and the rest is
+  // reordered.
   const readsBefore = tab.reads;
-  tab.csv = `${HEAD}Cy,A new arrival,,\nBo,Same words twice,,\n`;
+  tab.csv = `${HEAD}Cy,A new arrival,,\nDee,Stays put,,\nBo,Same words twice,,\n`;
   await messages.getByTestId('audience-filter-all').click();
   await expect(rows.filter({ hasText: 'A new arrival' })).toHaveCount(1, { timeout: 20_000 });
   await expect(rows.filter({ hasText: 'Same words twice' })).toHaveCount(1);
@@ -762,11 +766,13 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
   // The used one stays, with its original and its cue, and says where its row went.
   await expect(ana.getByTestId('audience-used')).toBeVisible();
   await expect(ana.getByTestId('audience-withdrawn')).toHaveText('no longer in the Sheet');
-  await expect(rows).toHaveCount(3);
+  await expect(rows.filter({ hasText: 'Stays put' }).getByTestId('audience-withdrawn')).toHaveCount(0);
+  await expect(rows).toHaveCount(4);
   await expect(program.locator('body')).toContainText('First from the Sheet');
   const rec = await record(messages, showId);
   const question = fieldOf(rec, 'House Q&A', 'Question');
-  expect(rec.cues.filter((c) => c.stagedFrom).map((c) => c.values[question])).toEqual(['First from the Sheet']);
+  // Both prepared cues hold what was prepared: a refresh, a reorder and a delete rewrite neither.
+  expect(rec.cues.filter((c) => c.stagedFrom).map((c) => c.values[question])).toEqual(['First from the Sheet', 'Stays put']);
 
   // The cue editor's door picks a Sheet message too, and names where it came from.
   await page.locator('.pd-cue', { hasText: 'First from the Sheet' }).first().click();
@@ -778,9 +784,9 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
   await page.keyboard.press('Escape');
   await messages.reload();
   await messages.getByTestId('audience-filter-all').click();
-  await expect(rows).toHaveCount(3);
+  await expect(rows).toHaveCount(4);
   await expect(rows.filter({ hasText: 'First from the Sheet' }).getByTestId('audience-withdrawn')).toBeVisible();
   const reads = tab.reads;
   await expect.poll(() => tab.reads, { timeout: 20_000 }).toBeGreaterThan(reads);
-  await expect(rows).toHaveCount(3);
+  await expect(rows).toHaveCount(4);
 });

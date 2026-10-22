@@ -48,7 +48,7 @@ import {
 import { normalizeTwitchChannel } from '../../audience/twitchChat';
 import { MIN_POLL_MS, normalizeYouTubeVideoId, quotaLine, spentToday } from '../../audience/youtubeChat';
 import { fetchComments } from '../../audience/youtubeComments';
-import { MESSAGE_SHEET_STARTER } from '../../audience/sheetMessages';
+import { MESSAGE_SHEET_STARTER, messageSheetId } from '../../audience/sheetMessages';
 import { parseSheetLink } from '../../control/sheetSource';
 import { uuid } from '../../model/id';
 import {
@@ -526,7 +526,7 @@ function MessageSources({
         (s): s is SheetShowSource => s.kind === 'sheet' && s.config.sheetId === link.sheetId && s.config.gid === link.gid,
       );
       const source: SheetShowSource = {
-        id: same?.id ?? uuid(),
+        id: same?.id ?? messageSheetId(link.sheetId, link.gid),
         kind: 'sheet',
         label: 'Messages',
         config: { sheetId: link.sheetId, gid: link.gid, ...(link.published ? { published: true } : {}), shape: 'lines' },

@@ -685,7 +685,6 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       schedule(0);
       return;
     }
-    if (result.ok && o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
     const { next, writes } = nextReadState(held, result, { ...o, connected: o.connected() }, io.now(), 'this');
     const kept = await door.settle(answer.claim, writes, next).catch(() => false);
     if (stopped) return;
@@ -696,6 +695,9 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       schedule(SHEET_READ_MS);
       return;
     }
+    // Only the lease's holder feeds the inbox: an old owner's late read would put back what the
+    // new owner's newer read took out.
+    if (result.ok && o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
     report(next.status);
     schedule(Math.max(0, started + SHEET_READ_MS - io.now()));
   };

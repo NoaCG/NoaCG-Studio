@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { createSheetInbox, rowHash, sheetMessagePrefix, sheetMessages, MESSAGE_SHEET_STARTER } = await import('../src/audience/sheetMessages.ts');
+const { createSheetInbox, messageSheetId, rowHash, sheetMessagePrefix, sheetMessages, MESSAGE_SHEET_STARTER } = await import('../src/audience/sheetMessages.ts');
 const { createLocalAudience } = await import('../src/audience/localAudience.ts');
 
 const HEAD = ['Name', 'Message', 'Source', 'Reference'];
@@ -272,4 +272,40 @@ test('a refused add is said and tried again at the next read', async () => {
 test('the local provider refuses a settle past 2,000 rows', async () => {
   const backend = createLocalAudience({ productionName: 'Test' });
   await assert.rejects(backend.settleImported('sheet:s1:', Array.from({ length: 2001 }, (_, i) => `sheet:s1:${i}`)), /At most 2000 rows/);
+});
+
+test('a message Sheet keeps one id per tab, so connecting it again adds no row twice', async () => {
+  const id = messageSheetId('1NoaCGMessageSheet00000000', '0');
+  assert.equal(id, messageSheetId('1NoaCGMessageSheet00000000', '0'));
+  assert.notEqual(id, messageSheetId('1NoaCGMessageSheet00000000', '7'));
+  assert.notEqual(messageSheetId('1NoaCGMessageSheet00000000', null), id);
+  // A published address's id is long; the source id still fits the settle's prefix rule.
+  const published = messageSheetId('2PACX-1vTxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', null);
+  assert.match(sheetMessagePrefix(published), /^sheet:[A-Za-z0-9_-]{1,80}:$/);
+  // Removed and connected again: a new consumer on the same id finds every row already there.
+  const backend = createLocalAudience({ productionName: 'Test' });
+  const take = async (rows) => {
+    const sheet = createSheetInbox({ sourceId: id, label: () => 'Messages', backend: () => backend });
+    sheet.take([HEAD, ...rows]);
+    for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
+    sheet.stop();
+  };
+  await take([ANA, BO]);
+  await take([ANA, BO]);
+  assert.equal((await backend.list()).length, 2);
+});
+
+test('a used row restored while no page was open is unmarked by the next page', async () => {
+  const h = inbox();
+  await h.read([ANA, BO]);
+  const ana = (await h.list()).find((r) => r.author === 'Ana');
+  await h.backend.update(ana.id, { usedAt: '2026-10-21T12:00:00Z' });
+  await h.read([BO]);
+  assert.ok((await h.list()).find((r) => r.id === ana.id).withdrawnAt);
+  // A reload: a fresh consumer, and the tab holds Ana's row again.
+  const again = createSheetInbox({ sourceId: 's1', label: () => 'Messages', backend: () => h.backend });
+  again.take([HEAD, ANA, BO]);
+  for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
+  assert.equal((await h.list()).find((r) => r.id === ana.id).withdrawnAt, null);
+  assert.equal((await h.list()).length, 2);
 });
