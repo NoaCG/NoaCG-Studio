@@ -305,6 +305,44 @@ test('a quiz bank imported from CSV loads into a cue and airs — the Phase 2 wa
   await expect(program.locator('#f2')).toHaveText('Mars');
 });
 
+test('a guest row loads into a lower third and airs on Take; editing or deleting the row afterwards leaves PROGRAM alone (C7)', async ({ page }) => {
+  // data-sources AC-16's guest row: one table row fills one cue, never joined, and the cue keeps
+  // what it was loaded with.
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Guest Night');
+  const data = await openWorkspace(page, 'data');
+  await data.getByTestId('import-dataset').setInputFiles({
+    name: 'Guests.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('Name,Title\nAino Virtanen,Head coach\nLeo Berg,"Referee, FIFA"\n'),
+  });
+  await expect(data.getByTestId('import-note')).toContainText('Imported 2 rows');
+  await settleDurableWrites(data);
+
+  await page.getByTestId('cue-load-row').selectOption({ label: 'Guests: Leo Berg' });
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Leo Berg');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('Referee, FIFA');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Leo Berg');
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+
+  // The source moves: the row is edited, then deleted. What is on air stays as it was taken.
+  const rows = data.locator('.pd-dataset tbody tr');
+  await rows.nth(1).locator('td input').nth(1).fill('Assistant referee');
+  await settleDurableWrites(data);
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+  // Removing a row is armed: the first press asks, the second removes.
+  const remove = rows.nth(1).locator('[data-testid^="row-delete-"]');
+  await remove.click();
+  await remove.click();
+  await expect(rows).toHaveCount(1);
+  await settleDurableWrites(data);
+  await expect(program.locator('#f0')).toHaveText('Leo Berg');
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+});
+
 test('the downloaded template is a file the importer accepts, with the columns a cue can bind', async ({
   page,
 }) => {
