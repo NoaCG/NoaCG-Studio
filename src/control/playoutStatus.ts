@@ -266,13 +266,14 @@ export function takeTargets(f: {
   /** A held folder with server cues as well as graphics. */
   serverToo?: boolean;
 }): string {
-  if (f.server) return `To: CasparCG ${f.server} through NoaCG Bridge`;
+  // One line beside the verbs: the server badge on PROGRAM already says it goes through the Bridge.
+  if (f.server) return `To: CasparCG ${f.server}`;
   const parts: string[] = [];
   if (!f.published) parts.push('this page only');
   else {
     parts.push(plural(f.outputs, 'output'));
     if (f.caspar) parts.push(`CasparCG ${f.caspar}${f.casparLoaded ? '' : ' (not loaded)'}`);
   }
-  if (f.serverToo) parts.push('server cues through NoaCG Bridge');
+  if (f.serverToo) parts.push('server cues');
   return `To: ${parts.join(' · ')}`;
 }

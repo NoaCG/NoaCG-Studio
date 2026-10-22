@@ -88,7 +88,8 @@ changes a spec's digest.
     tooltip (its words stay short: the header already truncates the monitor name with a long badge).
   - The target line under the verbs (`takeTargets`): "To: this page only", "To: N outputs ·
     CasparCG 1-20", "(not loaded)" when the output is not on its slot, or a server cue's slot
-    "through NoaCG Bridge". "0 outputs" rather than a sentence, so the line never wraps the verb row.
+    ("To: CasparCG 2-10"; the re-recorded baselines showed "through NoaCG Bridge" wrapping the
+    line at 1366 and 1920 px, and the server badge on PROGRAM already names the Bridge). "0 outputs" rather than a sentence, so the line never wraps the verb row.
   - The folder panel lists every child's own outcome (ON AIR, NOT TAKEN with the reason) and, in
     All together, names both cues of a collision ("same place as …"). The policy is the existing
     one: All together never takes two cues to one place (two clips on a slot, two graphics on a
@@ -105,6 +106,9 @@ changes a spec's digest.
   `src/components/home/SourcesLine.tsx` and `src/components/home/ProductionDataPanel.tsx` (the
   own-reader line on Playout and the Data overview), `src/styles/playout-dashboard.css` (the chip,
   the stale picture, the folder rows), `docs.html` (the /docs page is this file).
+- **Baselines.** The six `playout-baseline` Linux pictures changed (the target line under the
+  verbs); re-recorded only through `rerecord-screenshots.yml`, looked at, masks and thresholds as
+  they were. The `-win32` set is not recorded from a Linux cloud worker (as in row 7).
 - **Advisor judgement:** none needed; no migration and no database object.
 - **The output's own running frame (the PR's automated review, P1).** After Publish, an output keeps
   an on-air graphic's old frame, its embedded reader included, until the graphic is cleared
