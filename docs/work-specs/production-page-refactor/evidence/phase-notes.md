@@ -5,6 +5,98 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 11, data-sources C4: Feeds
+
+- **Previous verified `main` sha:** `570da40a4e32fc6b0876d109fa41e679eb5490c1` (row 10, C3, #1593
+  and repair #1594). This branch starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0099 is additive and stays applied:
+  `feed_cache` is then read by nothing, and `control_data_tick_due` keeps listing feed sources,
+  which a reverted tick reads as Sheets and fails harmlessly (`readSheet` of an undefined id; the
+  outcome is recorded as failed and nothing is written). Remove feed sources from productions
+  (Disconnect) before reverting if any exist; a reverted page ignores them otherwise.
+- **Q record used.** `docs/work-specs/data-sources/evidence/feeds.md` and its six fixtures, cited
+  for markup and conditional requests: the parser is tested on every fixture (CDATA titles of the
+  Node.js blog, `&#39;` in the GitHub releases, emoji and the `media:` namespace of YouTube, the
+  Vercel blog's escaped `&lt;script ...&gt;` read as text, PyPI identified by link, Yle's
+  `<ttl>5</ttl>`); the record's advice is taken: the reader honours `<ttl>` and `max-age` as lower
+  bounds on the 5-minute floor, the size cap (5 MB, decompressed) sits above the Vercel blog's
+  3.9 MB whole feed, and an oversized or failed read keeps the last good list.
+- **Receipt.** `docs/work-specs/data-sources/evidence/feed-real-receipt.md`: Yle through the
+  emitted data function on the local stack (CLI 2.111.0, every migration through 0099 from an empty
+  database): 200 with 11 headlines and a weak ETag; a second read served from the row with no
+  request; after the wait, a conditional request answered 304 with the headlines unchanged.
+- **Decisions.**
+  - The route is `GET /api/data/feed?url=<address>`, a public segment of the data catch-all (one
+    segment deep; no new function). It answers `{ ok, items, fetchedAt }` (headlines only), or
+    `{ ok: false, error, fix, failingSince }` with the last good headlines when there are any.
+    One client is refused after 30 reads a minute (in-process, per instance, as the other data
+    gates); one address is fetched at most once every 5 minutes whatever the readers.
+  - The guard (`api/_lib/feedFetch.ts`): http and https only, on their own ports, no credentials;
+    the name is resolved by the reader itself and EVERY answer must be public (a name answering one
+    private address is refused whole); the connection is pinned to the checked address through the
+    request's own `lookup`, so TLS still checks the certificate against the name; every redirect is
+    checked the same way, at most 5; the body stops at 5 MB after decompression and the read,
+    redirects included, at 10 s. Public means: IPv4 outside the special ranges (private, shared,
+    loopback, link-local with the 169.254.169.254 metadata address, documentation, benchmarking,
+    multicast, reserved); IPv6 only inside global unicast 2000::/3, minus Teredo and protocol
+    assignments, documentation and 6to4, so loopback, unique-local (fd00:ec2::254), link-local,
+    IPv4-mapped and NAT64 forms all fall outside. A refused address answers 400 and is cached like
+    any failure, so it is not looked up again for 5 minutes.
+  - Politeness: the wait after a read is the 5-minute floor, or longer when the feed asks
+    (`<ttl>`, `max-age`, a `Retry-After` on a refusal), never longer than an hour. ETag and
+    Last-Modified go back only for headlines in hand. Headlines: titles as plain text (entities
+    decoded once outside CDATA, so escaped markup in a text title stays text; CDATA and Atom
+    `type="html"` read as HTML), each item once by guid/id or link, newest first when every item is
+    dated (else feed order), 20, at most 300 characters.
+  - The shared cache is `feed_cache` (0099), keyed by the SHA-256 of the normalized address, with
+    the two lease times defaulting to the epoch so the claim is one conditional update
+    (`claimed_until < now and next_allowed_at <= now`) through the service-role client, as the
+    spec says; no SQL function, so no new advisor class. A reader that loses the claim serves the
+    stale row; before any first read it waits for that read to settle (polling the row every
+    250 ms, never longer than the read's own time), so two readers at once make one fetch.
+  - The browser reader reuses the Sheet reader: `createSheetReader` gained `read`, `everyMs` and
+    `timeoutMs` options and the lease became three reads of the source's own cadence (`leaseOf`),
+    so a feed (5 minutes) holds a 15-minute local lease; published, the row caps any lease at a
+    minute (0097), so with the tick on it may read a feed between the page's 5-minute reads, through
+    the same cache, writing nothing unchanged. Feed paths are `feed.<id>.lines` (the spec's
+    content line); `sourcePrefix`, `isSourcePath` and `sourceIdOf` know both prefixes.
+  - The tick lists feed sources (0099 widens `control_data_tick_due`, same signature and grants)
+    and reads them through `readFeed`, never with its own fetch; their rows keep the label
+    `'sheet'`, which names the server tick, not the kind (widening `control_data_apply` again for a
+    word was not worth a second copy of its body).
+  - "Connect… News feed" is the ticker's existing Connect data… box: on a graphic whose shape is
+    `lines`, a pasted address that is not a Sheet link is read as a feed through the route, and
+    the review, mapping, "Used by" and one confirmation are the Sheet's. The Playout sources line,
+    the Data overview and the connected-field mark name the kind ("News feed: …", "about every
+    5 min"); a connected feed list says "Connected to News feed: …" with Disconnect, as there is no
+    source to edit.
+- **Files beyond the phase's list, and why.** `src/control/sheetSource.ts` (the reader's `read`,
+  cadence and lease options, kind-aware leaves), `src/control/hostedControl.ts` (the published
+  lease's length), `src/model/productionData.ts` (the `feed.` prefix), `src/model/shows.ts`
+  (`FeedShowSource`, `fillsFields`, `sourceKindWord`), `src/components/home/ProductionPage.tsx`
+  (starts a feed's reader beside the Sheet readers), `SourcesLine.tsx` and
+  `ProductionDataPanel.tsx` (show feeds, with their cadence), `ProductionAudienceWorkspace.tsx`
+  (one type guard the new union needed), `api/_lib/dataTick.ts` (the tick reads feeds), and
+  `scripts/supabase-advisors.mjs` with `supabase/advisor-baseline.json` (`feed_cache`'s deny-all,
+  lesson 1 of the run). Each is the smallest change that puts the feed on the reader and the tick
+  the spec names.
+- **Mutation checks** (each mutation turned its test red, then was reverted): floor 5 to 4 min;
+  the hour cap 60 to 120 min; timeout 10 to 11 s (the test is cancelled: the read never ends at
+  10 s); redirects 5 to 6; body 5 MB to 6 MB; claim 20 to 30 s; items 20 to 25; title 300 to 400;
+  address 2048 to 4096; client limit 30 to 60 a minute; first answer checked instead of every
+  answer; a second lookup at connect time instead of the checked address; redirects not
+  re-checked; validators not sent; dedupe off; a failure dropping the last good headlines; the
+  browser cadence 5 to 1 min; the lease 3 reads to 2; a failure with headlines read as success;
+  and, in the configured walk, an insert that claims whether or not it won (two upstream fetches).
+- **Traps.**
+  - `node:http`'s `lookup` option must answer both shapes (`all: true` gets an array); a typed
+    `LookupFunction` cast keeps the root tsconfig's check.
+  - The configured walk replaces `feedNetwork.current` in the route's own process, so the guard
+    still resolves and checks every address; the stub answers only the checked public address.
+  - A local Supabase stack runs on a cloud machine once `dockerd` is started by hand; `supabase@2.111.0
+    start -x studio,edge-runtime` then applies every migration from empty.
+
 ## Row 10, data-sources C3: Sheet messages and YouTube
 
 - **Repair, 2026-10-22 (P10 repair 1, the check's FAIL on `a868bc5`).** Post-landing run 39706145334

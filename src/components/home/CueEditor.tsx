@@ -314,7 +314,7 @@ function CueConnectReview({
     <>
       <p className="hint">
         {takesFeed
-          ? 'Google Sheet or news feed: paste the tab’s link (Share, then “Anyone with the link”), or the feed’s address.'
+          ? 'Paste a Google Sheet tab’s link (Share, then “Anyone with the link”) or a news feed’s address.'
           : 'Google Sheet: paste the tab’s link (Share, then “Anyone with the link”).'}
       </p>
       <div className="row">
