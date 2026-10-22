@@ -905,8 +905,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const outputsBehind = livePresence.peers.some(
     (p) => p.kind === 'output' && !!p.ready && (!!p.ready.chg || (!!publishedVer && p.ready.v?.h !== publishedVer.h)),
   );
-  // A stop recorded on the production (`ownReaderStops`, by whichever browser pressed it) holds here
-  // too: this browser may never have seen the reader the output still runs.
+  // A stop recorded on the production (`ownReaderStops`, by whichever browser published it) holds
+  // here too: this browser may never have seen the reader the output still runs.
   const stopsKey = show ? publishedReaderStops(show).join('\n') : '';
   const stops = useMemo(() => (stopsKey ? stopsKey.split('\n') : []), [stopsKey]);
   const outputObservations = useMemo(() => ({ reads: publishedReaders, former: formerReaders, stops }), [publishedReaders, formerReaders, stops]);
@@ -2958,6 +2958,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           const refreshed = refreshGraphicCopies(show.id, (g) => resolveSavedGraphicDoc(g, library));
           setShows(refreshed.shows);
           if (refreshed.error) throw new Error(refreshed.error);
+          // A payload this page saw reading a Sheet that this publish no longer carries (a copy
+          // changed outside the refresh, which records its own): recorded, and saved with it.
+          const refreshedShow = refreshed.shows.find((s) => s.id === show.id);
+          if (refreshedShow?.hostedSlug) {
+            const dropped = refreshedShow.graphics
+              .filter((g) => publishedReaders.has(g.name) && !hasLiveData(templateForSavedGraphic(g, library).js))
+              .map((g) => g.name)
+              .filter((name) => !publishedReaderStops(refreshedShow).includes(name));
+            if (dropped.length > 0) {
+              const marked = setOwnReaderStops(show.id, { add: dropped });
+              if (marked.error) throw new Error(marked.error);
+              setShows(marked.shows);
+            }
+          }
           // A team save that fails does not stop the publish (G2): an older design is still refused.
           if (team) await flushTeamProduction(show.id);
           else {
@@ -3394,13 +3408,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
         const plan = ownReaderRemoval({ library: !!fresh, published: !!hostedSlug });
         if (!plan) return `${graphic.name} has no library record here, so Publish could not take the change to the output. Keep its own reader.`;
-        // Published, the output keeps an on-air graphic's old frame, reader included, until it is
-        // cleared: recorded on the production first, so every browser holds the graphic until then.
-        if (hostedSlug) {
-          const marked = setOwnReaderStops(show.id, { add: graphic.name });
-          if (marked.error) return marked.error;
-          setShows(marked.shows);
-        }
         if (plan.library && fresh && hasLiveData(fresh.template.js)) {
           const saved = updateGraphic(fresh.id, { template: { ...fresh.template, js: stripLiveData(fresh.template.js) } });
           if (saved.error) return saved.error;

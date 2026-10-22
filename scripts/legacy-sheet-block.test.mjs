@@ -211,14 +211,14 @@ test('the binding write refuses a held graphic and a recorded stop, whichever br
     // Stopped while published in another browser: nothing held here, the copy and design are
     // clean, and the production's record alone carries the stop. Refused until it clears.
     const synced = make('synced');
-    assert.deepEqual(shows.setOwnReaderStops(synced, { add: 'Hairline' }).error, null);
+    assert.deepEqual(shows.setOwnReaderStops(synced, { add: ['Hairline'] }).error, null);
     assert.deepEqual(read(synced).ownReaderStops, ['Hairline']);
     assert.deepEqual([...shows.ownSheetGraphics(read(synced), [])], ['Hairline']);
     assert.equal(bind(synced, 'Hairline'), null, 'a recorded stop takes no binding');
     assert.equal(bind(synced, 'Other'), 'guest.name');
     const digest = publishedRecordDigest(read(synced));
     // Recording a stop is not a change to publish: it never reaches an output.
-    shows.setOwnReaderStops(synced, { add: 'Other' });
+    shows.setOwnReaderStops(synced, { add: ['Other'] });
     assert.equal(publishedRecordDigest(read(synced)), digest);
     shows.setOwnReaderStops(synced, { clear: ['Hairline', 'Other'] });
     assert.equal(read(synced).ownReaderStops, undefined, 'cleared, the record carries nothing');
@@ -226,10 +226,27 @@ test('the binding write refuses a held graphic and a recorded stop, whichever br
 
     // Unpublished, no output runs, so a stale stop holds nothing.
     const quiet = make('quiet');
-    shows.setOwnReaderStops(quiet, { add: 'Hairline' });
+    shows.setOwnReaderStops(quiet, { add: ['Hairline'] });
     shows.setShowHostedSlug(quiet, undefined);
     assert.deepEqual(shows.publishedReaderStops(read(quiet)), []);
+    assert.equal(read(quiet).ownReaderStops, undefined, 'unpublishing drops the stops: no output follows it again');
     assert.equal(bind(quiet, 'Hairline'), 'guest.name');
+
+    // Publish records the stop itself, in every production whose copy loses its reader to the
+    // refreshed design (the one where Stop was pressed or another sharing it), in the same write.
+    const reader = { ...hairline.template };
+    const design = { template: plain, updatedAt: '2999-01-01T00:00:00.000Z' };
+    const shared = shows.createShowNamed('shared');
+    shows.addGraphicToShow(shared.id, reader);
+    shows.setShowHostedSlug(shared.id, 'shared-slug');
+    assert.equal(shows.refreshGraphicCopies(shared.id, () => design).error, null);
+    assert.deepEqual(read(shared.id).ownReaderStops, ['Hairline']);
+    assert.equal(bind(shared.id, 'Hairline'), null, 'held whichever browser binds');
+    // Before the first Publish no output runs it: nothing to record.
+    const fresh = shows.createShowNamed('fresh');
+    shows.addGraphicToShow(fresh.id, reader);
+    shows.refreshGraphicCopies(fresh.id, () => design);
+    assert.equal(read(fresh.id).ownReaderStops, undefined);
   } finally {
     globalThis.localStorage = previous;
   }

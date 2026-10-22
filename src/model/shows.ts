@@ -781,6 +781,11 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
  * than reverting it. Name, id, layer and sounds stay: they are the production's. The copy takes
  * the record's edit time, never now, so the two read as the same edit. Only Publish calls it: an
  * edit reaches the production only through Publish.
+ *
+ * A published copy that loses its own Sheet reader here (the design's reader was stopped, from
+ * this production or another one sharing it: data-sources C6) is recorded in `ownReaderStops` in
+ * the same write: the output keeps an on-air graphic's old frame, reader included, until it is
+ * cleared, so no browser may bind its fields before then.
  */
 export function refreshGraphicCopies(
   showId: string,
@@ -791,6 +796,9 @@ export function refreshGraphicCopies(
     for (const graphic of show.graphics) {
       const doc = newer(graphic);
       if (!doc || !(Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt))) continue;
+      if (show.hostedSlug && hasLiveData(graphic.template.js ?? '') && !hasLiveData(doc.template.js ?? '')) {
+        show.ownReaderStops = [...new Set([...(show.ownReaderStops ?? []), graphic.name])];
+      }
       graphic.template = doc.template;
       graphic.savedAt = doc.updatedAt;
       changed = true;
@@ -1804,12 +1812,12 @@ export function publishedReaderStops(show: Pick<Show, 'hostedSlug' | 'ownReaderS
   return show.hostedSlug ? (show.ownReaderStops ?? []) : [];
 }
 
-/** Record on the production that a graphic's own reader was stopped while published, or clear the
- *  graphics proven gone from every output (ProductionPage, data-sources C6). */
-export function setOwnReaderStops(showId: string, edit: { add?: string; clear?: readonly string[] }): { shows: Show[]; error: string | null } {
+/** Record on the production that graphics' own readers left what it publishes while published, or
+ *  clear the graphics proven gone from every output (ProductionPage, data-sources C6). */
+export function setOwnReaderStops(showId: string, edit: { add?: readonly string[]; clear?: readonly string[] }): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, (show) => {
     const before = show.ownReaderStops ?? [];
-    const next = [...new Set([...before, ...(edit.add ? [edit.add] : [])])].filter((name) => !edit.clear?.includes(name));
+    const next = [...new Set([...before, ...(edit.add ?? [])])].filter((name) => !edit.clear?.includes(name));
     if (next.length === before.length && next.every((name, i) => name === before[i])) return false;
     if (next.length > 0) show.ownReaderStops = next;
     else delete show.ownReaderStops;
@@ -2214,7 +2222,11 @@ export function setShowHostedSlug(showId: string, slug: string | undefined): Sho
   const show = all.find((s) => s.id === showId);
   if (show) {
     if (slug) show.hostedSlug = slug;
-    else delete show.hostedSlug;
+    else {
+      delete show.hostedSlug;
+      // Unpublished, no output follows this production again (a re-publish mints a new slug).
+      delete show.ownReaderStops;
+    }
     show.updatedAt = nowIso();
     saveAll(all);
   }

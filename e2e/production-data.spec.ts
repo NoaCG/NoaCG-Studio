@@ -1809,8 +1809,9 @@ async function seedPublishedLegacy(page: Page, wire: LegacyWire): Promise<{ docI
   return { docId: seeded.docId, showId: seeded.fixture.id, cueId: seeded.cueId };
 }
 
-/** What Publish does after Stop (refresh the copy from the design, publish a payload without the
- *  reader, a new version), with the graphic still on air: the output keeps its old frame. */
+/** What Publish does after Stop (refresh the copy from the design through the app's own
+ *  `refreshGraphicCopies`, which records the stop, then publish a payload without the reader, a
+ *  new version), with the graphic still on air: the output keeps its old frame. */
 async function publishWithoutReader(page: Page, wire: LegacyWire, ids: { showId: string; cueId: string }): Promise<{ n: number; h: string }> {
   const fixture = wire.fixture as { output: { ver: unknown } };
   const published = await page.evaluate(async ({ showId, previous }) => {
@@ -1882,11 +1883,13 @@ test('a library graphic with its own reader on a published production: Stop remo
   await expect(page.getByTestId('own-reader-line')).toContainText('Sheet in Library Card’s own code');
   const design = await page.evaluate(async (docId) => (await import('/src/model/library.ts')).loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'), ids.docId);
   expect(design).toBe(false);
-  // The copy keeps it, and the stop is recorded on the production itself, for every browser.
-  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: ['Library Card'], copy: true, former: ['Library Card'], holds: ['Library Card'] });
+  // The copy keeps it (synced, so every browser refuses on it) until Publish.
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: [], copy: true, former: ['Library Card'], holds: ['Library Card'] });
 
   // ── Published without the reader, still on air: the output keeps the old frame until the clear. ──
   const ver = await publishWithoutReader(page, wire, ids);
+  // Publish recorded the stop on the production itself, for every browser.
+  expect((await ownReaderState(page, ids.showId)).stops).toEqual(['Library Card']);
   wire.output = { ver, waiting: ['Library Card'] };
   // A reload in the middle: the copy, the design and the payload are clean, and the hold restores.
   menu = await openLegacyConnect(page, ids.showId);
