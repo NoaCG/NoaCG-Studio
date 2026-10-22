@@ -1,0 +1,3412 @@
+{
+ "$comment": "Shapes, counts and times as recorded in docs/work-specs/data-sources/evidence/youtube.md (2026-10-20); every text, name and id is invented.",
+ "kind": "youtube#commentThreadListResponse",
+ "etag": "etagpage",
+ "nextPageToken": "QURTSl9pM",
+ "pageInfo": {
+  "totalResults": 100,
+  "resultsPerPage": 100
+ },
+ "items": [
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag0",
+   "id": "Ugthread0000",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc0",
+     "id": "Ugthread0000",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 0",
+      "textOriginal": "Comment number 0",
+      "authorDisplayName": "@viewer0",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer0",
+      "authorChannelId": {
+       "value": "UCviewer0"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 0,
+      "publishedAt": "2020-02-17T10:11:12Z",
+      "updatedAt": "2020-02-17T10:11:12Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag1",
+   "id": "Ugthread0001",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc1",
+     "id": "Ugthread0001",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 1",
+      "textOriginal": "Comment number 1",
+      "authorDisplayName": "@viewer1",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer1",
+      "authorChannelId": {
+       "value": "UCviewer1"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 1,
+      "publishedAt": "2026-10-20T17:30:22Z",
+      "updatedAt": "2026-10-20T17:30:22Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag2",
+   "id": "Ugthread0002",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc2",
+     "id": "Ugthread0002",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 2",
+      "textOriginal": "Comment number 2",
+      "authorDisplayName": "@viewer2",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer2",
+      "authorChannelId": {
+       "value": "UCviewer2"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 2,
+      "publishedAt": "2026-10-20T17:28:05Z",
+      "updatedAt": "2026-10-20T17:28:05Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag3",
+   "id": "Ugthread0003",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc3",
+     "id": "Ugthread0003",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 3",
+      "textOriginal": "Comment number 3",
+      "authorDisplayName": "@viewer3",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer3",
+      "authorChannelId": {
+       "value": "UCviewer3"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 3,
+      "publishedAt": "2026-10-20T17:25:48Z",
+      "updatedAt": "2026-10-20T17:25:48Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag4",
+   "id": "Ugthread0004",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc4",
+     "id": "Ugthread0004",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 4",
+      "textOriginal": "Comment number 4",
+      "authorDisplayName": "@viewer4",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer4",
+      "authorChannelId": {
+       "value": "UCviewer4"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 4,
+      "publishedAt": "2026-10-20T17:23:31Z",
+      "updatedAt": "2026-10-20T17:23:31Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag5",
+   "id": "Ugthread0005",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc5",
+     "id": "Ugthread0005",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 5",
+      "textOriginal": "Comment number 5",
+      "authorDisplayName": "@viewer5",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer5",
+      "authorChannelId": {
+       "value": "UCviewer5"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 5,
+      "publishedAt": "2026-10-20T17:21:14Z",
+      "updatedAt": "2026-10-20T17:21:14Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag6",
+   "id": "Ugthread0006",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc6",
+     "id": "Ugthread0006",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 6",
+      "textOriginal": "Comment number 6",
+      "authorDisplayName": "@viewer6",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer6",
+      "authorChannelId": {
+       "value": "UCviewer6"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 6,
+      "publishedAt": "2026-10-20T17:18:57Z",
+      "updatedAt": "2026-10-20T17:18:57Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag7",
+   "id": "Ugthread0007",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc7",
+     "id": "Ugthread0007",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 7",
+      "textOriginal": "Comment number 7",
+      "authorDisplayName": "@viewer7",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer7",
+      "authorChannelId": {
+       "value": "UCviewer7"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 7,
+      "publishedAt": "2026-10-20T17:16:40Z",
+      "updatedAt": "2026-10-20T17:16:40Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag8",
+   "id": "Ugthread0008",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc8",
+     "id": "Ugthread0008",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 8",
+      "textOriginal": "Comment number 8",
+      "authorDisplayName": "@viewer8",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer8",
+      "authorChannelId": {
+       "value": "UCviewer8"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 8,
+      "publishedAt": "2026-10-20T17:14:23Z",
+      "updatedAt": "2026-10-20T17:14:23Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag9",
+   "id": "Ugthread0009",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc9",
+     "id": "Ugthread0009",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 9",
+      "textOriginal": "Comment number 9",
+      "authorDisplayName": "@viewer9",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer9",
+      "authorChannelId": {
+       "value": "UCviewer9"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 9,
+      "publishedAt": "2026-10-20T17:12:06Z",
+      "updatedAt": "2026-10-20T17:12:06Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag10",
+   "id": "Ugthread0010",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc10",
+     "id": "Ugthread0010",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 10",
+      "textOriginal": "Comment number 10",
+      "authorDisplayName": "@viewer10",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer10",
+      "authorChannelId": {
+       "value": "UCviewer10"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 10,
+      "publishedAt": "2026-10-20T17:09:49Z",
+      "updatedAt": "2026-10-20T17:09:49Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag11",
+   "id": "Ugthread0011",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc11",
+     "id": "Ugthread0011",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 11",
+      "textOriginal": "Comment number 11",
+      "authorDisplayName": "@viewer11",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer11",
+      "authorChannelId": {
+       "value": "UCviewer11"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 11,
+      "publishedAt": "2026-10-20T17:07:32Z",
+      "updatedAt": "2026-10-20T17:07:32Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag12",
+   "id": "Ugthread0012",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc12",
+     "id": "Ugthread0012",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 12",
+      "textOriginal": "Comment number 12",
+      "authorDisplayName": "@viewer12",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer12",
+      "authorChannelId": {
+       "value": "UCviewer12"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 12,
+      "publishedAt": "2026-10-20T17:05:15Z",
+      "updatedAt": "2026-10-20T17:05:15Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag13",
+   "id": "Ugthread0013",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc13",
+     "id": "Ugthread0013",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 13",
+      "textOriginal": "Comment number 13",
+      "authorDisplayName": "@viewer13",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer13",
+      "authorChannelId": {
+       "value": "UCviewer13"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 13,
+      "publishedAt": "2026-10-20T17:02:58Z",
+      "updatedAt": "2026-10-20T17:02:58Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag14",
+   "id": "Ugthread0014",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc14",
+     "id": "Ugthread0014",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 14",
+      "textOriginal": "Comment number 14",
+      "authorDisplayName": "@viewer14",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer14",
+      "authorChannelId": {
+       "value": "UCviewer14"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 14,
+      "publishedAt": "2026-10-20T17:00:41Z",
+      "updatedAt": "2026-10-20T17:00:41Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag15",
+   "id": "Ugthread0015",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc15",
+     "id": "Ugthread0015",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 15",
+      "textOriginal": "Comment number 15",
+      "authorDisplayName": "@viewer15",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer15",
+      "authorChannelId": {
+       "value": "UCviewer15"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 15,
+      "publishedAt": "2026-10-20T16:58:24Z",
+      "updatedAt": "2026-10-20T16:58:24Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag16",
+   "id": "Ugthread0016",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc16",
+     "id": "Ugthread0016",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 16",
+      "textOriginal": "Comment number 16",
+      "authorDisplayName": "@viewer16",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer16",
+      "authorChannelId": {
+       "value": "UCviewer16"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 16,
+      "publishedAt": "2026-10-20T16:56:07Z",
+      "updatedAt": "2026-10-20T16:56:07Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag17",
+   "id": "Ugthread0017",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc17",
+     "id": "Ugthread0017",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 17",
+      "textOriginal": "Comment number 17",
+      "authorDisplayName": "@viewer17",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer17",
+      "authorChannelId": {
+       "value": "UCviewer17"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 17,
+      "publishedAt": "2026-10-20T16:53:50Z",
+      "updatedAt": "2026-10-20T16:53:50Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag18",
+   "id": "Ugthread0018",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc18",
+     "id": "Ugthread0018",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 18",
+      "textOriginal": "Comment number 18",
+      "authorDisplayName": "@viewer18",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer18",
+      "authorChannelId": {
+       "value": "UCviewer18"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 18,
+      "publishedAt": "2026-10-20T16:51:33Z",
+      "updatedAt": "2026-10-20T16:51:33Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag19",
+   "id": "Ugthread0019",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc19",
+     "id": "Ugthread0019",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 19",
+      "textOriginal": "Comment number 19",
+      "authorDisplayName": "@viewer19",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer19",
+      "authorChannelId": {
+       "value": "UCviewer19"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 19,
+      "publishedAt": "2026-10-20T16:49:16Z",
+      "updatedAt": "2026-10-20T16:49:16Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag20",
+   "id": "Ugthread0020",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc20",
+     "id": "Ugthread0020",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 20",
+      "textOriginal": "Comment number 20",
+      "authorDisplayName": "@viewer20",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer20",
+      "authorChannelId": {
+       "value": "UCviewer20"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 20,
+      "publishedAt": "2026-10-20T16:46:59Z",
+      "updatedAt": "2026-10-20T16:46:59Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag21",
+   "id": "Ugthread0021",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc21",
+     "id": "Ugthread0021",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 21",
+      "textOriginal": "Comment number 21",
+      "authorDisplayName": "@viewer21",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer21",
+      "authorChannelId": {
+       "value": "UCviewer21"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 21,
+      "publishedAt": "2026-10-20T16:44:42Z",
+      "updatedAt": "2026-10-20T16:44:42Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag22",
+   "id": "Ugthread0022",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc22",
+     "id": "Ugthread0022",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 22",
+      "textOriginal": "Comment number 22",
+      "authorDisplayName": "@viewer22",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer22",
+      "authorChannelId": {
+       "value": "UCviewer22"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 22,
+      "publishedAt": "2026-10-20T16:42:25Z",
+      "updatedAt": "2026-10-20T16:42:25Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag23",
+   "id": "Ugthread0023",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc23",
+     "id": "Ugthread0023",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 23",
+      "textOriginal": "Comment number 23",
+      "authorDisplayName": "@viewer23",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer23",
+      "authorChannelId": {
+       "value": "UCviewer23"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 23,
+      "publishedAt": "2026-10-20T16:40:08Z",
+      "updatedAt": "2026-10-20T16:40:08Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag24",
+   "id": "Ugthread0024",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc24",
+     "id": "Ugthread0024",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 24",
+      "textOriginal": "Comment number 24",
+      "authorDisplayName": "@viewer24",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer24",
+      "authorChannelId": {
+       "value": "UCviewer24"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 24,
+      "publishedAt": "2026-10-20T16:37:51Z",
+      "updatedAt": "2026-10-20T16:37:51Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag25",
+   "id": "Ugthread0025",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc25",
+     "id": "Ugthread0025",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 25",
+      "textOriginal": "Comment number 25",
+      "authorDisplayName": "@viewer25",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer25",
+      "authorChannelId": {
+       "value": "UCviewer25"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 25,
+      "publishedAt": "2026-10-20T16:35:34Z",
+      "updatedAt": "2026-10-20T16:35:34Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag26",
+   "id": "Ugthread0026",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc26",
+     "id": "Ugthread0026",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 26",
+      "textOriginal": "Comment number 26",
+      "authorDisplayName": "@viewer26",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer26",
+      "authorChannelId": {
+       "value": "UCviewer26"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 26,
+      "publishedAt": "2026-10-20T16:33:17Z",
+      "updatedAt": "2026-10-20T16:33:17Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag27",
+   "id": "Ugthread0027",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc27",
+     "id": "Ugthread0027",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 27",
+      "textOriginal": "Comment number 27",
+      "authorDisplayName": "@viewer27",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer27",
+      "authorChannelId": {
+       "value": "UCviewer27"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 27,
+      "publishedAt": "2026-10-20T16:31:00Z",
+      "updatedAt": "2026-10-20T16:31:00Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag28",
+   "id": "Ugthread0028",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc28",
+     "id": "Ugthread0028",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 28",
+      "textOriginal": "Comment number 28",
+      "authorDisplayName": "@viewer28",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer28",
+      "authorChannelId": {
+       "value": "UCviewer28"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 28,
+      "publishedAt": "2026-10-20T16:28:43Z",
+      "updatedAt": "2026-10-20T16:28:43Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag29",
+   "id": "Ugthread0029",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc29",
+     "id": "Ugthread0029",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 29",
+      "textOriginal": "Comment number 29",
+      "authorDisplayName": "@viewer29",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer29",
+      "authorChannelId": {
+       "value": "UCviewer29"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 29,
+      "publishedAt": "2026-10-20T16:26:26Z",
+      "updatedAt": "2026-10-20T16:26:26Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag30",
+   "id": "Ugthread0030",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc30",
+     "id": "Ugthread0030",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 30",
+      "textOriginal": "Comment number 30",
+      "authorDisplayName": "@viewer30",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer30",
+      "authorChannelId": {
+       "value": "UCviewer30"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 30,
+      "publishedAt": "2026-10-20T16:24:09Z",
+      "updatedAt": "2026-10-20T16:24:09Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag31",
+   "id": "Ugthread0031",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc31",
+     "id": "Ugthread0031",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 31",
+      "textOriginal": "Comment number 31",
+      "authorDisplayName": "@viewer31",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer31",
+      "authorChannelId": {
+       "value": "UCviewer31"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 31,
+      "publishedAt": "2026-10-20T16:21:52Z",
+      "updatedAt": "2026-10-20T16:21:52Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag32",
+   "id": "Ugthread0032",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc32",
+     "id": "Ugthread0032",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 32",
+      "textOriginal": "Comment number 32",
+      "authorDisplayName": "@viewer32",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer32",
+      "authorChannelId": {
+       "value": "UCviewer32"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 32,
+      "publishedAt": "2026-10-20T16:19:35Z",
+      "updatedAt": "2026-10-20T16:19:35Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag33",
+   "id": "Ugthread0033",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc33",
+     "id": "Ugthread0033",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 33",
+      "textOriginal": "Comment number 33",
+      "authorDisplayName": "@viewer33",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer33",
+      "authorChannelId": {
+       "value": "UCviewer33"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 33,
+      "publishedAt": "2026-10-20T16:17:18Z",
+      "updatedAt": "2026-10-20T16:17:18Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag34",
+   "id": "Ugthread0034",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc34",
+     "id": "Ugthread0034",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 34",
+      "textOriginal": "Comment number 34",
+      "authorDisplayName": "@viewer34",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer34",
+      "authorChannelId": {
+       "value": "UCviewer34"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 34,
+      "publishedAt": "2026-10-20T16:15:01Z",
+      "updatedAt": "2026-10-20T16:15:01Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag35",
+   "id": "Ugthread0035",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc35",
+     "id": "Ugthread0035",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 35",
+      "textOriginal": "Comment number 35",
+      "authorDisplayName": "@viewer35",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer35",
+      "authorChannelId": {
+       "value": "UCviewer35"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 35,
+      "publishedAt": "2026-10-20T16:12:44Z",
+      "updatedAt": "2026-10-20T16:12:44Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag36",
+   "id": "Ugthread0036",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc36",
+     "id": "Ugthread0036",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 36",
+      "textOriginal": "Comment number 36",
+      "authorDisplayName": "@viewer36",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer36",
+      "authorChannelId": {
+       "value": "UCviewer36"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 36,
+      "publishedAt": "2026-10-20T16:10:27Z",
+      "updatedAt": "2026-10-20T16:10:27Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag37",
+   "id": "Ugthread0037",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc37",
+     "id": "Ugthread0037",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 37",
+      "textOriginal": "Comment number 37",
+      "authorDisplayName": "@viewer37",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer37",
+      "authorChannelId": {
+       "value": "UCviewer37"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 37,
+      "publishedAt": "2026-10-20T16:08:10Z",
+      "updatedAt": "2026-10-20T16:08:10Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag38",
+   "id": "Ugthread0038",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc38",
+     "id": "Ugthread0038",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 38",
+      "textOriginal": "Comment number 38",
+      "authorDisplayName": "@viewer38",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer38",
+      "authorChannelId": {
+       "value": "UCviewer38"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 38,
+      "publishedAt": "2026-10-20T16:05:53Z",
+      "updatedAt": "2026-10-20T16:05:53Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag39",
+   "id": "Ugthread0039",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc39",
+     "id": "Ugthread0039",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 39",
+      "textOriginal": "Comment number 39",
+      "authorDisplayName": "@viewer39",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer39",
+      "authorChannelId": {
+       "value": "UCviewer39"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 39,
+      "publishedAt": "2026-10-20T16:03:36Z",
+      "updatedAt": "2026-10-20T16:03:36Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag40",
+   "id": "Ugthread0040",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc40",
+     "id": "Ugthread0040",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 40",
+      "textOriginal": "Comment number 40",
+      "authorDisplayName": "@viewer40",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer40",
+      "authorChannelId": {
+       "value": "UCviewer40"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 40,
+      "publishedAt": "2026-10-20T16:01:19Z",
+      "updatedAt": "2026-10-20T16:01:19Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag41",
+   "id": "Ugthread0041",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc41",
+     "id": "Ugthread0041",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 41",
+      "textOriginal": "Comment number 41",
+      "authorDisplayName": "@viewer41",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer41",
+      "authorChannelId": {
+       "value": "UCviewer41"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 41,
+      "publishedAt": "2026-10-20T15:59:02Z",
+      "updatedAt": "2026-10-20T15:59:02Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag42",
+   "id": "Ugthread0042",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc42",
+     "id": "Ugthread0042",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 42",
+      "textOriginal": "Comment number 42",
+      "authorDisplayName": "@viewer42",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer42",
+      "authorChannelId": {
+       "value": "UCviewer42"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 42,
+      "publishedAt": "2026-10-20T15:56:45Z",
+      "updatedAt": "2026-10-20T15:56:45Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag43",
+   "id": "Ugthread0043",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc43",
+     "id": "Ugthread0043",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 43",
+      "textOriginal": "Comment number 43",
+      "authorDisplayName": "@viewer43",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer43",
+      "authorChannelId": {
+       "value": "UCviewer43"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 43,
+      "publishedAt": "2026-10-20T15:54:28Z",
+      "updatedAt": "2026-10-20T15:54:28Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag44",
+   "id": "Ugthread0044",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc44",
+     "id": "Ugthread0044",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 44",
+      "textOriginal": "Comment number 44",
+      "authorDisplayName": "@viewer44",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer44",
+      "authorChannelId": {
+       "value": "UCviewer44"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 44,
+      "publishedAt": "2026-10-20T15:52:11Z",
+      "updatedAt": "2026-10-20T15:52:11Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag45",
+   "id": "Ugthread0045",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc45",
+     "id": "Ugthread0045",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 45",
+      "textOriginal": "Comment number 45",
+      "authorDisplayName": "@viewer45",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer45",
+      "authorChannelId": {
+       "value": "UCviewer45"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 45,
+      "publishedAt": "2026-10-20T15:49:54Z",
+      "updatedAt": "2026-10-20T15:49:54Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag46",
+   "id": "Ugthread0046",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc46",
+     "id": "Ugthread0046",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 46",
+      "textOriginal": "Comment number 46",
+      "authorDisplayName": "@viewer46",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer46",
+      "authorChannelId": {
+       "value": "UCviewer46"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 46,
+      "publishedAt": "2026-10-20T15:47:37Z",
+      "updatedAt": "2026-10-20T15:47:37Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag47",
+   "id": "Ugthread0047",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc47",
+     "id": "Ugthread0047",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 47",
+      "textOriginal": "Comment number 47",
+      "authorDisplayName": "@viewer47",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer47",
+      "authorChannelId": {
+       "value": "UCviewer47"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 47,
+      "publishedAt": "2026-10-20T15:45:20Z",
+      "updatedAt": "2026-10-20T15:45:20Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag48",
+   "id": "Ugthread0048",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc48",
+     "id": "Ugthread0048",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 48",
+      "textOriginal": "Comment number 48",
+      "authorDisplayName": "@viewer48",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer48",
+      "authorChannelId": {
+       "value": "UCviewer48"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 48,
+      "publishedAt": "2026-10-20T15:43:03Z",
+      "updatedAt": "2026-10-20T15:43:03Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag49",
+   "id": "Ugthread0049",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc49",
+     "id": "Ugthread0049",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 49",
+      "textOriginal": "Comment number 49",
+      "authorDisplayName": "@viewer49",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer49",
+      "authorChannelId": {
+       "value": "UCviewer49"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 49,
+      "publishedAt": "2026-10-20T15:40:46Z",
+      "updatedAt": "2026-10-20T15:40:46Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag50",
+   "id": "Ugthread0050",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc50",
+     "id": "Ugthread0050",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 50",
+      "textOriginal": "Comment number 50",
+      "authorDisplayName": "@viewer50",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer50",
+      "authorChannelId": {
+       "value": "UCviewer50"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 50,
+      "publishedAt": "2026-10-20T15:38:29Z",
+      "updatedAt": "2026-10-20T15:38:29Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag51",
+   "id": "Ugthread0051",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc51",
+     "id": "Ugthread0051",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 51",
+      "textOriginal": "Comment number 51",
+      "authorDisplayName": "@viewer51",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer51",
+      "authorChannelId": {
+       "value": "UCviewer51"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 51,
+      "publishedAt": "2026-10-20T15:36:12Z",
+      "updatedAt": "2026-10-20T15:36:12Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag52",
+   "id": "Ugthread0052",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc52",
+     "id": "Ugthread0052",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 52",
+      "textOriginal": "Comment number 52",
+      "authorDisplayName": "@viewer52",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer52",
+      "authorChannelId": {
+       "value": "UCviewer52"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 52,
+      "publishedAt": "2026-10-20T15:33:55Z",
+      "updatedAt": "2026-10-20T15:33:55Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag53",
+   "id": "Ugthread0053",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc53",
+     "id": "Ugthread0053",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 53",
+      "textOriginal": "Comment number 53",
+      "authorDisplayName": "@viewer53",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer53",
+      "authorChannelId": {
+       "value": "UCviewer53"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 53,
+      "publishedAt": "2026-10-20T15:31:38Z",
+      "updatedAt": "2026-10-20T15:31:38Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag54",
+   "id": "Ugthread0054",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc54",
+     "id": "Ugthread0054",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 54",
+      "textOriginal": "Comment number 54",
+      "authorDisplayName": "@viewer54",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer54",
+      "authorChannelId": {
+       "value": "UCviewer54"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 54,
+      "publishedAt": "2026-10-20T15:29:21Z",
+      "updatedAt": "2026-10-20T15:29:21Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag55",
+   "id": "Ugthread0055",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc55",
+     "id": "Ugthread0055",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 55",
+      "textOriginal": "Comment number 55",
+      "authorDisplayName": "@viewer55",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer55",
+      "authorChannelId": {
+       "value": "UCviewer55"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 55,
+      "publishedAt": "2026-10-20T15:27:04Z",
+      "updatedAt": "2026-10-20T15:27:04Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag56",
+   "id": "Ugthread0056",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc56",
+     "id": "Ugthread0056",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 56",
+      "textOriginal": "Comment number 56",
+      "authorDisplayName": "@viewer56",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer56",
+      "authorChannelId": {
+       "value": "UCviewer56"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 56,
+      "publishedAt": "2026-10-20T15:24:47Z",
+      "updatedAt": "2026-10-20T15:24:47Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag57",
+   "id": "Ugthread0057",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc57",
+     "id": "Ugthread0057",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 57",
+      "textOriginal": "Comment number 57",
+      "authorDisplayName": "@viewer57",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer57",
+      "authorChannelId": {
+       "value": "UCviewer57"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 57,
+      "publishedAt": "2026-10-20T15:22:30Z",
+      "updatedAt": "2026-10-20T15:22:30Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag58",
+   "id": "Ugthread0058",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc58",
+     "id": "Ugthread0058",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 58",
+      "textOriginal": "Comment number 58",
+      "authorDisplayName": "@viewer58",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer58",
+      "authorChannelId": {
+       "value": "UCviewer58"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 58,
+      "publishedAt": "2026-10-20T15:20:13Z",
+      "updatedAt": "2026-10-20T15:20:13Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag59",
+   "id": "Ugthread0059",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc59",
+     "id": "Ugthread0059",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 59",
+      "textOriginal": "Comment number 59",
+      "authorDisplayName": "@viewer59",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer59",
+      "authorChannelId": {
+       "value": "UCviewer59"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 59,
+      "publishedAt": "2026-10-20T15:17:56Z",
+      "updatedAt": "2026-10-20T15:17:56Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag60",
+   "id": "Ugthread0060",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc60",
+     "id": "Ugthread0060",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 60",
+      "textOriginal": "Comment number 60",
+      "authorDisplayName": "@viewer60",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer60",
+      "authorChannelId": {
+       "value": "UCviewer60"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 60,
+      "publishedAt": "2026-10-20T15:15:39Z",
+      "updatedAt": "2026-10-20T15:15:39Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag61",
+   "id": "Ugthread0061",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc61",
+     "id": "Ugthread0061",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 61",
+      "textOriginal": "Comment number 61",
+      "authorDisplayName": "@viewer61",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer61",
+      "authorChannelId": {
+       "value": "UCviewer61"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 61,
+      "publishedAt": "2026-10-20T15:13:22Z",
+      "updatedAt": "2026-10-20T15:13:22Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag62",
+   "id": "Ugthread0062",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc62",
+     "id": "Ugthread0062",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 62",
+      "textOriginal": "Comment number 62",
+      "authorDisplayName": "@viewer62",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer62",
+      "authorChannelId": {
+       "value": "UCviewer62"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 62,
+      "publishedAt": "2026-10-20T15:11:05Z",
+      "updatedAt": "2026-10-20T15:11:05Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag63",
+   "id": "Ugthread0063",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc63",
+     "id": "Ugthread0063",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 63",
+      "textOriginal": "Comment number 63",
+      "authorDisplayName": "@viewer63",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer63",
+      "authorChannelId": {
+       "value": "UCviewer63"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 63,
+      "publishedAt": "2026-10-20T15:08:48Z",
+      "updatedAt": "2026-10-20T15:08:48Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag64",
+   "id": "Ugthread0064",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc64",
+     "id": "Ugthread0064",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 64",
+      "textOriginal": "Comment number 64",
+      "authorDisplayName": "@viewer64",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer64",
+      "authorChannelId": {
+       "value": "UCviewer64"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 64,
+      "publishedAt": "2026-10-20T15:06:31Z",
+      "updatedAt": "2026-10-20T15:06:31Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag65",
+   "id": "Ugthread0065",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc65",
+     "id": "Ugthread0065",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 65",
+      "textOriginal": "Comment number 65",
+      "authorDisplayName": "@viewer65",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer65",
+      "authorChannelId": {
+       "value": "UCviewer65"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 65,
+      "publishedAt": "2026-10-20T15:04:14Z",
+      "updatedAt": "2026-10-20T15:04:14Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag66",
+   "id": "Ugthread0066",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc66",
+     "id": "Ugthread0066",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 66",
+      "textOriginal": "Comment number 66",
+      "authorDisplayName": "@viewer66",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer66",
+      "authorChannelId": {
+       "value": "UCviewer66"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 66,
+      "publishedAt": "2026-10-20T15:01:57Z",
+      "updatedAt": "2026-10-20T15:01:57Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag67",
+   "id": "Ugthread0067",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc67",
+     "id": "Ugthread0067",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 67",
+      "textOriginal": "Comment number 67",
+      "authorDisplayName": "@viewer67",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer67",
+      "authorChannelId": {
+       "value": "UCviewer67"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 67,
+      "publishedAt": "2026-10-20T14:59:40Z",
+      "updatedAt": "2026-10-20T14:59:40Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag68",
+   "id": "Ugthread0068",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc68",
+     "id": "Ugthread0068",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 68",
+      "textOriginal": "Comment number 68",
+      "authorDisplayName": "@viewer68",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer68",
+      "authorChannelId": {
+       "value": "UCviewer68"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 68,
+      "publishedAt": "2026-10-20T14:57:23Z",
+      "updatedAt": "2026-10-20T14:57:23Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag69",
+   "id": "Ugthread0069",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc69",
+     "id": "Ugthread0069",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 69",
+      "textOriginal": "Comment number 69",
+      "authorDisplayName": "@viewer69",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer69",
+      "authorChannelId": {
+       "value": "UCviewer69"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 69,
+      "publishedAt": "2026-10-20T14:55:06Z",
+      "updatedAt": "2026-10-20T14:55:06Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag70",
+   "id": "Ugthread0070",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc70",
+     "id": "Ugthread0070",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 70",
+      "textOriginal": "Comment number 70",
+      "authorDisplayName": "@viewer70",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer70",
+      "authorChannelId": {
+       "value": "UCviewer70"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 70,
+      "publishedAt": "2026-10-20T14:52:49Z",
+      "updatedAt": "2026-10-20T14:52:49Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag71",
+   "id": "Ugthread0071",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc71",
+     "id": "Ugthread0071",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 71",
+      "textOriginal": "Comment number 71",
+      "authorDisplayName": "@viewer71",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer71",
+      "authorChannelId": {
+       "value": "UCviewer71"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 71,
+      "publishedAt": "2026-10-20T14:50:32Z",
+      "updatedAt": "2026-10-20T14:50:32Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag72",
+   "id": "Ugthread0072",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc72",
+     "id": "Ugthread0072",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 72",
+      "textOriginal": "Comment number 72",
+      "authorDisplayName": "@viewer72",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer72",
+      "authorChannelId": {
+       "value": "UCviewer72"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 72,
+      "publishedAt": "2026-10-20T14:48:15Z",
+      "updatedAt": "2026-10-20T14:48:15Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag73",
+   "id": "Ugthread0073",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc73",
+     "id": "Ugthread0073",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 73",
+      "textOriginal": "Comment number 73",
+      "authorDisplayName": "@viewer73",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer73",
+      "authorChannelId": {
+       "value": "UCviewer73"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 73,
+      "publishedAt": "2026-10-20T14:45:58Z",
+      "updatedAt": "2026-10-20T14:45:58Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag74",
+   "id": "Ugthread0074",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc74",
+     "id": "Ugthread0074",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 74",
+      "textOriginal": "Comment number 74",
+      "authorDisplayName": "@viewer74",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer74",
+      "authorChannelId": {
+       "value": "UCviewer74"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 74,
+      "publishedAt": "2026-10-20T14:43:41Z",
+      "updatedAt": "2026-10-20T14:43:41Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag75",
+   "id": "Ugthread0075",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc75",
+     "id": "Ugthread0075",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 75",
+      "textOriginal": "Comment number 75",
+      "authorDisplayName": "@viewer75",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer75",
+      "authorChannelId": {
+       "value": "UCviewer75"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 75,
+      "publishedAt": "2026-10-20T14:41:24Z",
+      "updatedAt": "2026-10-20T14:41:24Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag76",
+   "id": "Ugthread0076",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc76",
+     "id": "Ugthread0076",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 76",
+      "textOriginal": "Comment number 76",
+      "authorDisplayName": "@viewer76",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer76",
+      "authorChannelId": {
+       "value": "UCviewer76"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 76,
+      "publishedAt": "2026-10-20T14:39:07Z",
+      "updatedAt": "2026-10-20T14:39:07Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag77",
+   "id": "Ugthread0077",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc77",
+     "id": "Ugthread0077",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 77",
+      "textOriginal": "Comment number 77",
+      "authorDisplayName": "@viewer77",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer77",
+      "authorChannelId": {
+       "value": "UCviewer77"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 77,
+      "publishedAt": "2026-10-20T14:36:50Z",
+      "updatedAt": "2026-10-20T14:36:50Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag78",
+   "id": "Ugthread0078",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc78",
+     "id": "Ugthread0078",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 78",
+      "textOriginal": "Comment number 78",
+      "authorDisplayName": "@viewer78",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer78",
+      "authorChannelId": {
+       "value": "UCviewer78"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 78,
+      "publishedAt": "2026-10-20T14:34:33Z",
+      "updatedAt": "2026-10-20T14:34:33Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag79",
+   "id": "Ugthread0079",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc79",
+     "id": "Ugthread0079",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 79",
+      "textOriginal": "Comment number 79",
+      "authorDisplayName": "@viewer79",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer79",
+      "authorChannelId": {
+       "value": "UCviewer79"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 79,
+      "publishedAt": "2026-10-20T14:32:16Z",
+      "updatedAt": "2026-10-20T14:32:16Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag80",
+   "id": "Ugthread0080",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc80",
+     "id": "Ugthread0080",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 80",
+      "textOriginal": "Comment number 80",
+      "authorDisplayName": "@viewer80",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer80",
+      "authorChannelId": {
+       "value": "UCviewer80"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 80,
+      "publishedAt": "2026-10-20T14:29:59Z",
+      "updatedAt": "2026-10-20T14:29:59Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag81",
+   "id": "Ugthread0081",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc81",
+     "id": "Ugthread0081",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 81",
+      "textOriginal": "Comment number 81",
+      "authorDisplayName": "@viewer81",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer81",
+      "authorChannelId": {
+       "value": "UCviewer81"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 81,
+      "publishedAt": "2026-10-20T14:27:42Z",
+      "updatedAt": "2026-10-20T14:27:42Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag82",
+   "id": "Ugthread0082",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc82",
+     "id": "Ugthread0082",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 82",
+      "textOriginal": "Comment number 82",
+      "authorDisplayName": "@viewer82",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer82",
+      "authorChannelId": {
+       "value": "UCviewer82"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 82,
+      "publishedAt": "2026-10-20T14:25:25Z",
+      "updatedAt": "2026-10-20T14:25:25Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag83",
+   "id": "Ugthread0083",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc83",
+     "id": "Ugthread0083",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 83",
+      "textOriginal": "Comment number 83",
+      "authorDisplayName": "@viewer83",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer83",
+      "authorChannelId": {
+       "value": "UCviewer83"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 83,
+      "publishedAt": "2026-10-20T14:23:08Z",
+      "updatedAt": "2026-10-20T14:23:08Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag84",
+   "id": "Ugthread0084",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc84",
+     "id": "Ugthread0084",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 84",
+      "textOriginal": "Comment number 84",
+      "authorDisplayName": "@viewer84",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer84",
+      "authorChannelId": {
+       "value": "UCviewer84"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 84,
+      "publishedAt": "2026-10-20T14:20:51Z",
+      "updatedAt": "2026-10-20T14:20:51Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag85",
+   "id": "Ugthread0085",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc85",
+     "id": "Ugthread0085",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 85",
+      "textOriginal": "Comment number 85",
+      "authorDisplayName": "@viewer85",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer85",
+      "authorChannelId": {
+       "value": "UCviewer85"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 85,
+      "publishedAt": "2026-10-20T14:18:34Z",
+      "updatedAt": "2026-10-20T14:18:34Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag86",
+   "id": "Ugthread0086",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc86",
+     "id": "Ugthread0086",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 86",
+      "textOriginal": "Comment number 86",
+      "authorDisplayName": "@viewer86",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer86",
+      "authorChannelId": {
+       "value": "UCviewer86"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 86,
+      "publishedAt": "2026-10-20T14:16:17Z",
+      "updatedAt": "2026-10-20T14:16:17Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag87",
+   "id": "Ugthread0087",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc87",
+     "id": "Ugthread0087",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 87",
+      "textOriginal": "Comment number 87",
+      "authorDisplayName": "@viewer87",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer87",
+      "authorChannelId": {
+       "value": "UCviewer87"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 87,
+      "publishedAt": "2026-10-20T14:14:00Z",
+      "updatedAt": "2026-10-20T14:14:00Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag88",
+   "id": "Ugthread0088",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc88",
+     "id": "Ugthread0088",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 88",
+      "textOriginal": "Comment number 88",
+      "authorDisplayName": "@viewer88",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer88",
+      "authorChannelId": {
+       "value": "UCviewer88"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 88,
+      "publishedAt": "2026-10-20T14:11:43Z",
+      "updatedAt": "2026-10-20T14:11:43Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag89",
+   "id": "Ugthread0089",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc89",
+     "id": "Ugthread0089",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 89",
+      "textOriginal": "Comment number 89",
+      "authorDisplayName": "@viewer89",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer89",
+      "authorChannelId": {
+       "value": "UCviewer89"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 89,
+      "publishedAt": "2026-10-20T14:09:26Z",
+      "updatedAt": "2026-10-20T14:09:26Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag90",
+   "id": "Ugthread0090",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc90",
+     "id": "Ugthread0090",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 90",
+      "textOriginal": "Comment number 90",
+      "authorDisplayName": "@viewer90",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer90",
+      "authorChannelId": {
+       "value": "UCviewer90"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 90,
+      "publishedAt": "2026-10-20T14:07:09Z",
+      "updatedAt": "2026-10-20T14:07:09Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag91",
+   "id": "Ugthread0091",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc91",
+     "id": "Ugthread0091",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 91",
+      "textOriginal": "Comment number 91",
+      "authorDisplayName": "@viewer91",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer91",
+      "authorChannelId": {
+       "value": "UCviewer91"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 91,
+      "publishedAt": "2026-10-20T14:04:52Z",
+      "updatedAt": "2026-10-20T14:04:52Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag92",
+   "id": "Ugthread0092",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc92",
+     "id": "Ugthread0092",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 92",
+      "textOriginal": "Comment number 92",
+      "authorDisplayName": "@viewer92",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer92",
+      "authorChannelId": {
+       "value": "UCviewer92"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 92,
+      "publishedAt": "2026-10-20T14:02:35Z",
+      "updatedAt": "2026-10-20T14:02:35Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag93",
+   "id": "Ugthread0093",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc93",
+     "id": "Ugthread0093",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 93",
+      "textOriginal": "Comment number 93",
+      "authorDisplayName": "@viewer93",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer93",
+      "authorChannelId": {
+       "value": "UCviewer93"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 93,
+      "publishedAt": "2026-10-20T14:00:18Z",
+      "updatedAt": "2026-10-20T14:00:18Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag94",
+   "id": "Ugthread0094",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc94",
+     "id": "Ugthread0094",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 94",
+      "textOriginal": "Comment number 94",
+      "authorDisplayName": "@viewer94",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer94",
+      "authorChannelId": {
+       "value": "UCviewer94"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 94,
+      "publishedAt": "2026-10-20T13:58:01Z",
+      "updatedAt": "2026-10-20T13:58:01Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag95",
+   "id": "Ugthread0095",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc95",
+     "id": "Ugthread0095",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 95",
+      "textOriginal": "Comment number 95",
+      "authorDisplayName": "@viewer95",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer95",
+      "authorChannelId": {
+       "value": "UCviewer95"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 95,
+      "publishedAt": "2026-10-20T13:55:44Z",
+      "updatedAt": "2026-10-20T13:55:44Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag96",
+   "id": "Ugthread0096",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc96",
+     "id": "Ugthread0096",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 96",
+      "textOriginal": "Comment number 96",
+      "authorDisplayName": "@viewer96",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer96",
+      "authorChannelId": {
+       "value": "UCviewer96"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 96,
+      "publishedAt": "2026-10-20T13:53:27Z",
+      "updatedAt": "2026-10-20T13:53:27Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag97",
+   "id": "Ugthread0097",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 1,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc97",
+     "id": "Ugthread0097",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 97",
+      "textOriginal": "Comment number 97",
+      "authorDisplayName": "@viewer97",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer97",
+      "authorChannelId": {
+       "value": "UCviewer97"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 97,
+      "publishedAt": "2026-10-20T13:51:10Z",
+      "updatedAt": "2026-10-20T13:51:10Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag98",
+   "id": "Ugthread0098",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 2,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc98",
+     "id": "Ugthread0098",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 98",
+      "textOriginal": "Comment number 98",
+      "authorDisplayName": "@viewer98",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer98",
+      "authorChannelId": {
+       "value": "UCviewer98"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 98,
+      "publishedAt": "2026-10-20T13:48:53Z",
+      "updatedAt": "2026-10-20T13:48:53Z"
+     }
+    }
+   }
+  },
+  {
+   "kind": "youtube#commentThread",
+   "etag": "etag99",
+   "id": "Ugthread0099",
+   "snippet": {
+    "channelId": "UCchannel0000",
+    "videoId": "jNQXAC9IVRw",
+    "canReply": true,
+    "totalReplyCount": 0,
+    "isPublic": true,
+    "topLevelComment": {
+     "kind": "youtube#comment",
+     "etag": "etagc99",
+     "id": "Ugthread0099",
+     "snippet": {
+      "channelId": "UCchannel0000",
+      "videoId": "jNQXAC9IVRw",
+      "textDisplay": "Comment number 99",
+      "textOriginal": "Comment number 99",
+      "authorDisplayName": "@viewer99",
+      "authorProfileImageUrl": "https://yt3.ggpht.com/x",
+      "authorChannelUrl": "http://www.youtube.com/@viewer99",
+      "authorChannelId": {
+       "value": "UCviewer99"
+      },
+      "canRate": true,
+      "viewerRating": "none",
+      "likeCount": 99,
+      "publishedAt": "2026-10-20T13:46:36Z",
+      "updatedAt": "2026-10-20T13:46:36Z"
+     }
+    }
+   }
+  }
+ ]
+}

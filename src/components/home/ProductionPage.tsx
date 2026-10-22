@@ -35,6 +35,7 @@ import {
   setCueAuto,
   type PlayoutItem,
   type PlayoutMediaKind,
+  type SheetShowSource,
   type Show,
   type ShowCue,
   type ShowFolder,
@@ -134,9 +135,10 @@ import { readPublishedProfile, readShowProfile, withGraphicArrange, type Arrange
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import SourcesLine from './SourcesLine';
-import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceWorkspace';
+import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
 import { ProductionSetupMenu } from './ProductionSetupMenu';
-import { useAudienceInbox } from './useAudienceInbox';
+import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
+import { createSheetInbox } from '../../audience/sheetMessages';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
 import { canonical } from '../../model/publishedRecord';
 import { setGraphicSounds } from '../../model/shows';
@@ -1591,10 +1593,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (path: string, text: string): string | null => pathValue(connectedFields(bindingsRef.current, path, fieldsOf), text),
     [fieldsOf],
   );
-  const readerPlan = JSON.stringify((show?.sources ?? []).map((s) => [s.id, s.config]));
+  // A message Sheet's rows go to the production's inbox through the operator door (data-sources C3).
+  const messages = useMessagesBackend(show ?? null).backend;
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  // Its YouTube live chat keeps reading while the page is open, and reconnects on reload.
+  useMessageSources(show ?? null, messages);
+  const readerPlan = JSON.stringify(
+    (show?.sources ?? []).flatMap((s) => (s.kind === 'sheet' ? [[s.id, s.config, Boolean(s.inbox)]] : [])),
+  );
   useEffect(() => {
-    const plan = JSON.parse(readerPlan) as [string, NonNullable<Show['sources']>[number]['config']][];
+    const plan = JSON.parse(readerPlan) as [string, SheetShowSource['config'], boolean][];
     const world = hostedSlug ?? 'local';
+    const inboxes = new Map(
+      plan
+        .filter(([, , inbox]) => inbox)
+        .map(([sourceId]) => [
+          sourceId,
+          createSheetInbox({
+            sourceId,
+            label: () => sourcesRef.current?.find((s) => s.id === sourceId)?.label ?? 'Messages',
+            backend: () => messagesRef.current,
+            onProblem: (problem) => problem && setNote(`Message Sheet: ${problem}.`),
+          }),
+        ]),
+    );
     const readers = new Map(
       plan.map(([sourceId, config]) => [
         sourceId,
@@ -1621,6 +1644,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           accept: sourceAccept,
           paused: () => Boolean(sourcesRef.current?.find((s) => s.id === sourceId)?.paused),
           write: dataSession.applySourcePatch,
+          inbox: inboxes.get(sourceId)?.take,
           onStatus: (status) => sourceStatus.set(sourceId, status),
         }),
       ]),
@@ -1634,6 +1658,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     window.addEventListener('pagehide', leave);
     return () => {
       window.removeEventListener('pagehide', leave);
+      for (const inbox of inboxes.values()) inbox.stop();
       for (const [sourceId, reader] of readers) {
         reader.stop();
         sourceStatus.set(sourceId, undefined);

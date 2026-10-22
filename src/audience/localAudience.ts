@@ -18,6 +18,7 @@ import { uuid } from '../model/id.ts';
 import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
+  OPERATOR_SETTLE_MAX,
   clampProvenance,
   clampSubmission,
   type AudienceBackend,
@@ -84,6 +85,7 @@ function readRow(raw: unknown): AudienceSubmission | null {
   if (!text(r.id) || !text(r.createdAt) || !text(r.author) || !text(r.body)) return null;
   if (!text(r.broadcastAuthor) || !text(r.broadcastBody) || !text(r.status) || !STATUSES.has(r.status)) return null;
   if (!optionalText(r.usedAt) || !optionalText(r.externalId) || !optionalText(r.source) || !optionalText(r.reference)) return null;
+  if (!optionalText(r.withdrawnAt)) return null;
   return {
     id: r.id,
     createdAt: r.createdAt,
@@ -98,6 +100,7 @@ function readRow(raw: unknown): AudienceSubmission | null {
     externalId: (r.externalId as string | null | undefined) ?? null,
     source: (r.source as string | null | undefined) ?? null,
     reference: (r.reference as string | null | undefined) ?? null,
+    withdrawnAt: (r.withdrawnAt as string | null | undefined) ?? null,
   };
 }
 
@@ -335,6 +338,27 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       if (!keep([...rows, ...added])) throw new Error('This browser refused to keep the message.');
       changed();
       return added.map((s) => ({ ...s }));
+    },
+
+    async settleImported(prefix, present): Promise<void> {
+      if (present.length > OPERATOR_SETTLE_MAX) throw new Error(`At most ${OPERATOR_SETTLE_MAX} rows at a time.`);
+      if (!prefix) return;
+      const here = new Set(present);
+      const rows = kept();
+      const at = nowIso();
+      let changes = 0;
+      const next = rows.flatMap((row) => {
+        if (!row.externalId?.startsWith(prefix)) return [row];
+        const there = here.has(row.externalId);
+        // An unused candidate follows its row; a used one is the operator's record and stays.
+        if (!there && !row.usedAt) return (changes += 1), [];
+        if (!there && !row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: at }];
+        if (there && row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: null }];
+        return [row];
+      });
+      if (changes === 0) return;
+      if (!keep(next)) throw new Error('This browser refused to keep the change.');
+      changed();
     },
 
     async update(id, patch): Promise<void> {

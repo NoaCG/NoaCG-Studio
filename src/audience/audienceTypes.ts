@@ -56,6 +56,9 @@ export interface AudienceSubmission {
   externalId?: string | null;
   source?: string | null;
   reference?: string | null;
+  /** ISO, once its row left the source it was imported from (`settleImported`). Only a used
+   *  candidate carries it: an unused one leaves the inbox instead. Absent or null = still there. */
+  withdrawnAt?: string | null;
 }
 
 /** One message an OPERATOR adds: pasted, or imported from a source. Body required, the rest
@@ -70,6 +73,10 @@ export interface CandidateInput {
 
 /** The most an operator adds in one call (migration 0095's `audience_operator_add` bound). */
 export const OPERATOR_ADD_MAX = 100;
+
+/** The most rows one source settles in a call (migration 0098's `audience_operator_settle`
+ *  bound): a message Sheet is read whole, so this is the longest tab Messages follows. */
+export const OPERATOR_SETTLE_MAX = 2_000;
 
 /** One opened poll or quiz question (Phase 6 uses these; Phase 5 only has to carry them). */
 export interface AudienceRound {
@@ -175,6 +182,11 @@ export interface AudienceBackend {
    *  and air only as a cue the operator prepares and Takes. At most OPERATOR_ADD_MAX per call;
    *  an item whose `externalId` is already in the inbox is skipped. Returns the rows added. */
   addCandidates(items: CandidateInput[]): Promise<AudienceSubmission[]>;
+  /** One source's rows as they stand now (audience spec, "Identity"): of the candidates whose
+   *  external id starts with `prefix`, an unused one not in `present` leaves the inbox, a used one
+   *  is marked withdrawn and kept with its original, and a withdrawn one back in `present` is
+   *  unmarked. Adds nothing: arrivals go through `addCandidates`. */
+  settleImported(prefix: string, present: string[]): Promise<void>;
   /** Patch a submission. The allowlist is what makes the original immutable: `author` and
    *  `body` are NOT patchable, here or in any provider. */
   update(

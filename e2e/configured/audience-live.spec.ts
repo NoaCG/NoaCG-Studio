@@ -123,4 +123,88 @@ test.describe(() => {
     await unpublishForCleanup(page);
     await wipeMyGraphics(page);
   });
+
+  test('a message Sheet on a published production imports through the operator door, once per row', async ({ page }) => {
+    // data-sources C3, the published half: Sheet rows reach the REAL inbox through
+    // `audience_operator_add` with their row identity as `external_id`; the database's unique index
+    // (migration 0098) keeps one row per id even for two calls at once; `audience_operator_settle`
+    // removes an unused candidate whose row left the Sheet and keeps a used one, marked.
+    test.setTimeout(110_000);
+    await signIn(page);
+    await settleSync(page);
+    await wipeMyGraphics(page);
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
+    const showId = await openProductionWithCurrent(page, `Sheet Messages Live ${Date.now()}`);
+    await publishProduction(page);
+    await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
+    await page.keyboard.press('Escape');
+
+    const tab = { csv: 'Name,Message,Source,Reference\nAna,Kept once,WhatsApp,+358 40 000 0001\nBo,Leaves unused,,\nCy,Used then gone,,\n' };
+    await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
+      route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: tab.csv }),
+    );
+    const messages = await openWorkspace(page, 'audience');
+    await messages.getByTestId('chat-add-platform').selectOption('sheet');
+    await messages.getByTestId('sheet-add-link').fill('https://docs.google.com/spreadsheets/d/1NoaCGMessageSheetLive0000/edit#gid=0');
+    await messages.getByTestId('chat-add-connect').click();
+    const rows = messages.locator('.pd-aud-row');
+    await expect(rows).toHaveCount(3, { timeout: 30_000 });
+    await expect(rows.filter({ hasText: 'Kept once' }).getByTestId('audience-provenance')).toHaveText('Sheet: Messages · WhatsApp · +358 40 000 0001');
+
+    // The database holds them: a reload reads them back, once each, while the reader keeps reading.
+    await messages.reload();
+    await expect(rows).toHaveCount(3, { timeout: 20_000 });
+
+    const slugOf = async () =>
+      messages.evaluate(async (id) => {
+        const { loadShows } = await import('/src/model/shows.ts');
+        return loadShows().find((s) => s.id === id)?.hostedSlug ?? null;
+      }, showId);
+    const slug = await slugOf();
+    expect(slug).toBeTruthy();
+
+    // Two adds of one id at the same moment: one row, and neither call fails.
+    const raced = await messages.evaluate(async (s) => {
+      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const sb = (await getSupabase())!;
+      const items = [{ body: 'Raced import', external_id: 'yt:configured-race' }];
+      const [a, b] = await Promise.all([
+        sb.rpc('audience_operator_add', { p_slug: s, p_items: items }),
+        sb.rpc('audience_operator_add', { p_slug: s, p_items: items }),
+      ]);
+      return { added: (a.data?.length ?? 0) + (b.data?.length ?? 0), errors: [a.error?.message, b.error?.message].filter(Boolean) };
+    }, slug);
+    expect(raced).toEqual({ added: 1, errors: [] });
+    await messages.getByTestId('audience-filter-all').click();
+    await expect(rows.filter({ hasText: 'Raced import' })).toHaveCount(1, { timeout: 20_000 });
+
+    // Cy's message is used (prepared into a cue elsewhere); then Bo's and Cy's rows leave the Sheet.
+    const used = await messages.evaluate(async (s) => {
+      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const sb = (await getSupabase())!;
+      const { data } = await sb.rpc('audience_list', { p_slug: s });
+      const cy = (data as { id: string; body: string }[]).find((r) => r.body === 'Used then gone')!;
+      const { error } = await sb.rpc('audience_update', { p_slug: s, p_id: cy.id, p_patch: { used_at: new Date().toISOString() } });
+      return error?.message ?? null;
+    }, slug);
+    expect(used).toBeNull();
+    tab.csv = 'Name,Message,Source,Reference\nAna,Kept once,WhatsApp,+358 40 000 0001\n';
+    await expect(rows.filter({ hasText: 'Leaves unused' })).toHaveCount(0, { timeout: 30_000 });
+    const gone = rows.filter({ hasText: 'Used then gone' });
+    await expect(gone.getByTestId('audience-withdrawn')).toHaveText('no longer in the Sheet', { timeout: 20_000 });
+    await expect(rows.filter({ hasText: 'Kept once' })).toHaveCount(1);
+
+    // A prefix that is not a Sheet source's is refused by the server.
+    const refused = await messages.evaluate(async (s) => {
+      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { error } = await (await getSupabase())!.rpc('audience_operator_settle', { p_slug: s, p_prefix: 'yt:', p_present: [] });
+      return error?.message ?? null;
+    }, slug);
+    expect(refused).toContain('not an imported source');
+    await expect(rows.filter({ hasText: 'Raced import' })).toHaveCount(1);
+
+    await messages.close();
+    await unpublishForCleanup(page);
+    await wipeMyGraphics(page);
+  });
 });

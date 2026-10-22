@@ -8,6 +8,12 @@
 // rule survives untouched: nothing here can reach the command log, because the interface it
 // writes through has no method that does.
 //
+// YOUTUBE is the exception to the door (data-sources C3): its lines are imported candidates and go
+// in through the OPERATOR door (`addCandidates`, the backend's `audience_operator_add` when
+// published), with the platform's message id as their identity and "YouTube chat" as provenance,
+// so they need no open audience and dedupe in the database. The name stays the viewer's name: the
+// platform word is provenance, never part of it. Twitch keeps the viewer door, unchanged.
+//
 // ARCHITECTURE, stated because it is a deliberate stopgap: the pollers run in the OPERATOR'S
 // BROWSER, the same place the Google-Sheets live-data block runs (control/liveData.ts). That
 // keeps the audience plane's zero-Vercel-function architecture; the cost is that ingestion
@@ -27,9 +33,9 @@
 // change is the DB trigger's, and that is an owner decision, not a connector default.
 
 import { uuid } from '../model/id';
-import { AUDIENCE_LIMITS, type SubmitResult } from './audienceTypes';
+import { AUDIENCE_LIMITS, OPERATOR_ADD_MAX, type AudienceSubmission, type CandidateInput, type SubmitResult } from './audienceTypes';
 import { twitchChatDriver } from './twitchChat';
-import { youtubeChatDriver } from './youtubeChat';
+import { recordSpend, rememberKey, rememberedKey, youtubeChatDriver } from './youtubeChat';
 
 /** One normalized chat line, whatever platform it came from. */
 export interface ChatDriverMessage {
@@ -40,11 +46,15 @@ export interface ChatDriverMessage {
   authorId: string;
   authorName: string;
   text: string;
+  /** Said before the source connected: the live chat's first page (YouTube). */
+  earlier?: boolean;
 }
 
 export interface ChatDriverHandlers {
   onMessage(message: ChatDriverMessage): void;
   onStatus(status: 'connecting' | 'live' | 'error', detail?: string): void;
+  /** Quota units a call just spent (YouTube), for the remaining-runtime estimate. */
+  onSpend?(units: number): void;
 }
 
 /** What a platform driver hands back: a way to stop, and optionally a way to pause the spend
@@ -58,7 +68,8 @@ export type ChatPlatform = 'twitch' | 'youtube' | 'test';
 
 export type ChatSourceSpec =
   | { platform: 'twitch'; channel: string }
-  | { platform: 'youtube'; videoId: string; apiKey: string }
+  /** `sourceId` is the production's `Show.sources` entry the chat belongs to. */
+  | { platform: 'youtube'; videoId: string; apiKey: string; sourceId?: string }
   /** The rehearsal/test driver - never offered in the UI. It exists so the offline e2e suite
    *  can drive the WHOLE pipeline (identity, throttle, dedupe, counters, the submit door)
    *  without a network, the same reason localAudience has simulate(). */
@@ -69,6 +80,8 @@ export type ChatSourceStatus = 'connecting' | 'live' | 'error' | 'stopped';
 
 export interface ChatSourceState {
   id: string;
+  /** The production's source record this runtime reads for (YouTube), or null. */
+  sourceId: string | null;
   platform: ChatPlatform;
   /** What the operator typed, cleaned: the channel name or the video id. */
   label: string;
@@ -89,6 +102,89 @@ export interface ChatSourceState {
  *  submit in rehearsal, the join-slug Supabase provider's on a published production - the
  *  viewer's door in both cases, which is the whole point. */
 export type ChatSubmit = (deviceToken: string, author: string, body: string) => Promise<SubmitResult>;
+
+/** The operator door, as the production's audience backend offers it (`addCandidates`). */
+export type ChatAdd = (items: CandidateInput[]) => Promise<AudienceSubmission[]>;
+
+/** The provenance a YouTube chat line carries; the first page says it was said earlier. */
+export const CHAT_SOURCE = 'YouTube chat';
+export const CHAT_SOURCE_EARLIER = 'YouTube chat · earlier';
+
+// ── The YouTube key: in memory for this tab, in browser storage only when remembered ─────────
+let keyInMemory: string | null = null;
+const storage = () => (typeof localStorage === 'undefined' ? null : localStorage);
+
+/** The key this tab may use: the one typed this session, else a remembered one, else null. */
+export function youtubeKey(): string | null {
+  return keyInMemory ?? rememberedKey(storage());
+}
+
+/** Use `key` for this session; with `remember`, keep it on this browser, without it forget it. */
+export function setYouTubeKey(key: string, remember: boolean): void {
+  keyInMemory = key.trim() || null;
+  rememberKey(storage(), remember ? keyInMemory : null);
+}
+
+/** Whether this browser remembers a key. */
+export function youtubeKeyRemembered(): boolean {
+  return rememberedKey(storage()) !== null;
+}
+
+// ── One reader per browser for a live chat ───────────────────────────────────────────────────
+// The Playout tab and the Messages tab both run the production page, and each poll is the
+// operator's quota, so a stream's chat is read by one tab: the one holding its claim in browser
+// storage, renewed every poll interval, lapsing 15 s after its tab stops (the Sheet reader's rule).
+// Only a tab with a key claims, so a key typed in one tab and not remembered keeps the reading there.
+
+/** How long a chat claim lasts unrenewed. */
+export const CHAT_CLAIM_MS = 15_000;
+const CHAT_CLAIM_KEY = 'spx-gfx-youtube-reader';
+const thisTab = Math.random().toString(36).slice(2, 10);
+
+type Claims = Record<string, { tab: string; until: number }>;
+const readClaims = (): Claims => {
+  try {
+    const raw = JSON.parse(storage()?.getItem(CHAT_CLAIM_KEY) ?? '{}') as Claims | null;
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch {
+    return {};
+  }
+};
+const writeClaims = (claims: Claims) => {
+  try {
+    storage()?.setItem(CHAT_CLAIM_KEY, JSON.stringify(claims));
+  } catch {
+    /* without storage every tab reads, as before */
+  }
+};
+
+/** Claim (or renew) the reading of a chat source for this tab; false while another tab holds it. */
+export function claimChatRead(sourceId: string, now = Date.now()): boolean {
+  const claims = readClaims();
+  const held = claims[sourceId];
+  if (held && held.tab !== thisTab && held.until > now) return false;
+  claims[sourceId] = { tab: thisTab, until: now + CHAT_CLAIM_MS };
+  writeClaims(claims);
+  return true;
+}
+
+/** Let this tab's claims go (the page is leaving, or the source stopped here). */
+export function releaseChatRead(sourceId?: string): void {
+  const claims = readClaims();
+  for (const [id, held] of Object.entries(claims)) if (held.tab === thisTab && (!sourceId || id === sourceId)) delete claims[id];
+  writeClaims(claims);
+}
+
+/** Another tab of this browser reads this chat source now. */
+export function chatReadElsewhere(sourceId: string, now = Date.now()): boolean {
+  const held = readClaims()[sourceId];
+  return Boolean(held && held.tab !== thisTab && held.until > now);
+}
+
+/** Count a call's units against today's estimate. */
+export function spendYouTube(units: number): void {
+  recordSpend(storage(), units, Date.now());
+}
 
 /** A handle the test driver returns: push a line as if the platform delivered it. */
 export interface TestChatSource {
@@ -153,6 +249,10 @@ export interface ChatIntake {
   /** The workspace wires the CURRENT provider's viewer-half submit here on mount (it can
    *  change when a production publishes). Messages arriving with nothing wired are dropped. */
   setSubmit(submit: ChatSubmit | null): void;
+  /** The operator door YouTube lines go through (the production's current backend). */
+  setAdd(add: ChatAdd | null): void;
+  /** The running source for a production source record, if any. */
+  forSource(sourceId: string): ChatSourceState | null;
   onChange(cb: () => void): () => void;
   /** Stop every driver. The workspace never calls this on unmount - sources deliberately
    *  survive a trip to Playout, like the local inbox does - but Remove-all paths may. */
@@ -186,7 +286,34 @@ export function createChatIntake(): ChatIntake {
    *  production because the DB burst cap it protects is per show, not per connector. */
   const accepts: number[] = [];
   let submit: ChatSubmit | null = null;
+  let add: ChatAdd | null = null;
   const changed = () => listeners.forEach((cb) => cb());
+  /** YouTube lines waiting for the operator door, per source: a page goes in as one call. */
+  const outbox = new Map<SourceRuntime, CandidateInput[]>();
+  const flush = (runtime: SourceRuntime) => {
+    const items = outbox.get(runtime) ?? [];
+    outbox.delete(runtime);
+    const send = add;
+    for (let at = 0; at < items.length; at += OPERATOR_ADD_MAX) {
+      const chunk = items.slice(at, at + OPERATOR_ADD_MAX);
+      if (!send || runtime.state.status === 'stopped') {
+        runtime.state.dropped += chunk.length;
+        continue;
+      }
+      send(chunk)
+        .then((added) => {
+          // The database skips an id it already holds: that is a dedupe, counted as dropped.
+          runtime.state.submitted += added.length;
+          runtime.state.dropped += chunk.length - added.length;
+          changed();
+        })
+        .catch(() => {
+          runtime.state.dropped += chunk.length;
+          changed();
+        });
+    }
+    changed();
+  };
 
   /** Deterministic fallback ids for platforms/messages that carry none - still deduped, so a
    *  driver re-delivering the exact same line in the same moment cannot double-post. */
@@ -216,6 +343,20 @@ export function createChatIntake(): ChatIntake {
         runtime.seen.delete(old);
         if (runtime.seen.size <= 2048) break;
       }
+    }
+
+    if (state.platform === 'youtube') {
+      // The operator door: no viewer caps to protect, and the page cadence bounds the rate.
+      const waiting = outbox.get(runtime) ?? [];
+      if (waiting.length === 0) queueMicrotask(() => flush(runtime));
+      waiting.push({
+        author: message.authorName.trim() || message.authorId,
+        body: text,
+        externalId: message.id ? `yt:${message.id}` : null,
+        source: message.earlier ? CHAT_SOURCE_EARLIER : CHAT_SOURCE,
+      });
+      outbox.set(runtime, waiting);
+      return;
     }
 
     // THE LOCAL THROTTLE - synchronous, before any write, shared across the production's
@@ -258,11 +399,16 @@ export function createChatIntake(): ChatIntake {
       runtime.state.detail = status === 'error' ? (detail ?? 'Connection failed.') : null;
       changed();
     },
+    onSpend: (units) => {
+      spendYouTube(units);
+      changed();
+    },
   });
 
-  const makeRuntime = (platform: ChatPlatform, label: string): SourceRuntime => {
+  const makeRuntime = (platform: ChatPlatform, label: string, sourceId: string | null = null): SourceRuntime => {
     const state: ChatSourceState = {
       id: uuid(),
+      sourceId,
       platform,
       label,
       status: 'connecting',
@@ -285,7 +431,7 @@ export function createChatIntake(): ChatIntake {
       const label = spec.platform === 'twitch' ? spec.channel : spec.platform === 'youtube' ? spec.videoId : (spec.label ?? 'Test');
       const dup = runtimes.find((r) => r.state.platform === spec.platform && r.state.label === label && r.state.status !== 'stopped');
       if (dup) return { ...dup.state };
-      const runtime = makeRuntime(spec.platform, label);
+      const runtime = makeRuntime(spec.platform, label, spec.platform === 'youtube' ? (spec.sourceId ?? null) : null);
       if (spec.platform === 'twitch') runtime.driver = twitchChatDriver(spec.channel, handlersFor(runtime));
       else if (spec.platform === 'youtube') runtime.driver = youtubeChatDriver(spec.videoId, spec.apiKey, handlersFor(runtime));
       changed();
@@ -322,6 +468,15 @@ export function createChatIntake(): ChatIntake {
 
     setSubmit(fn) {
       submit = fn;
+    },
+
+    setAdd(fn) {
+      add = fn;
+    },
+
+    forSource(sourceId) {
+      const runtime = runtimes.find((r) => r.state.sourceId === sourceId && r.state.status !== 'stopped');
+      return runtime ? { ...runtime.state } : null;
     },
 
     onChange(cb) {

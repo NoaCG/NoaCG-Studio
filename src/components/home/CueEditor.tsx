@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, type Show, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, type Show, type SheetShowSource, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
@@ -176,7 +176,9 @@ function CueConnectReview({
   onRefused: (text: string | null) => void;
 }) {
   const [linkText, setLinkText] = useState('');
-  const [reuse, setReuse] = useState<ShowSource | null>(null);
+  const [reuse, setReuse] = useState<SheetShowSource | null>(null);
+  /** Only a Sheet tab can fill fields; a YouTube source feeds Messages alone. */
+  const sheets = (show.sources ?? []).filter((s): s is SheetShowSource => s.kind === 'sheet');
   const [read, setRead] = useState<ConnectRead | null>(null);
   const [reading, setReading] = useState(false);
   const [firstTab, setFirstTab] = useState(false);
@@ -327,11 +329,11 @@ function CueConnectReview({
           {reading ? 'Reading…' : 'Read'}
         </button>
       </div>
-      {(show.sources ?? []).length > 0 && (
+      {sheets.length > 0 && (
         <select
           value={reuse?.id ?? ''}
           onChange={(e) => {
-            const source = show.sources?.find((s) => s.id === e.target.value) ?? null;
+            const source = sheets.find((s) => s.id === e.target.value) ?? null;
             setReuse(source);
             setLabel(source?.label ?? '');
             setLinkText('');
@@ -346,7 +348,7 @@ function CueConnectReview({
           data-testid="cue-connect-reuse"
         >
           <option value="">Use existing content…</option>
-          {show.sources?.map((s) => (
+          {sheets.map((s) => (
             <option key={s.id} value={s.id}>
               Sheet: {s.label}
             </option>

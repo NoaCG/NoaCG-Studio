@@ -581,7 +581,8 @@ function DataOverview({
   store: SourceStatusStore;
   edits: ValueEdits;
 }) {
-  const sources = show.sources ?? [];
+  // Only a Sheet tab holds values; a YouTube source feeds Messages alone.
+  const sources = (show.sources ?? []).filter((s) => s.kind === 'sheet');
   // A Sheet's values outlive its disconnection in the tree, following nothing: they are not local
   // content, and they stay reachable under Advanced.
   const local = leaves.filter((leaf) => !sourceIdOf(leaf.path));
