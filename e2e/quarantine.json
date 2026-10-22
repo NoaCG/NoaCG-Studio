@@ -52,11 +52,6 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
     },
-    "e2e/configured/shared-lab-computer.spec.ts": {
-      "since": "2026-10-20",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39389253761"
-    },
     "e2e/configured/sync-one-pass-per-edit.spec.ts": {
       "since": "2026-10-21",
       "count": 1,
@@ -103,6 +98,10 @@
     "e2e/configured/late-send-abandoned.spec.ts": {
       "count": 13,
       "last": "2026-10-21"
+    },
+    "e2e/configured/shared-lab-computer.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
     },
     "e2e/cross-tab.spec.ts": {
       "count": 1,
