@@ -95,7 +95,7 @@ changes a spec's digest.
   (lesson 1), `scripts/data-pause-conformance.mjs` and `scripts/fixtures/data-sample/`.
 - **Pre-existing failure found.** `e2e/production-data.spec.ts` "Connect closes only once the save
   landed" fails 4 of 4 on `origin/main` (`503b029`) on this machine and 1 of 2 on this branch: the
-  app's "Could not save" dialog covers the second Connect. Filed as its own issue; not this row's.
+  app's "Could not save" dialog covers the second Connect. Filed as #1603; not this row's.
 - **Traps.**
   - `bootstrapGraphic`'s `name` is the catalog VARIANT, not a name for the graphic.
   - A plpgsql `case ... when ... then perform` is a statement and needs every branch, so the
