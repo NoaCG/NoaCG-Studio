@@ -7,6 +7,14 @@ changes a spec's digest.
 
 ## Row 11, data-sources C4: Feeds
 
+- **Repair, 2026-10-22 (P11 repair 1, the check's FAIL on `ed8394c`).** `childrenOf` copied an
+  item's child list on every append, so same-name direct children were quadratic (0.7 MB took
+  98 s; 5 MB about an hour, past `maxDuration`). It now pushes in place: 5 MB in 0.35 s. The audit
+  of the rest of the parser found one more rescan: `plainText` split on a lazy CDATA regex, which
+  rescanned the 16 KB title cap from every unclosed `<![CDATA[` (1.3 s for 5 MB of such titles);
+  it now scans forward with `indexOf` (0.25 s). Both shapes joined the 5 MB hostile-markup test
+  under its 2 s bound. No time check was added inside the parse: it could only sit between items,
+  and the shapes that went quadratic were inside one item; linearity is pinned by the test instead.
 - **Previous verified `main` sha:** `570da40a4e32fc6b0876d109fa41e679eb5490c1` (row 10, C3, #1593
   and repair #1594). This branch starts there.
 - **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
