@@ -62,6 +62,11 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39565846898"
     },
+    "e2e/production-chat-intake.spec.ts": {
+      "since": "2026-10-22",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39763463821"
+    },
     "e2e/rundown-history.spec.ts": {
       "since": "2026-10-21",
       "count": 2,
