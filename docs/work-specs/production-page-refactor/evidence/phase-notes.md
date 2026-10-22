@@ -30,19 +30,26 @@ changes a spec's digest.
   - The route is `GET /api/data/feed?url=<address>`, a public segment of the data catch-all (one
     segment deep; no new function). It answers `{ ok, items, fetchedAt }` (headlines only), or
     `{ ok: false, error, fix, failingSince }` with the last good headlines when there are any.
-    One client is refused after 30 reads a minute (in-process, per instance, as the other data
-    gates); one address is fetched at most once every 5 minutes whatever the readers.
+    One client is refused after 30 reads a minute (`checkFeedIpRateLimit` in
+    `api/_lib/rateLimit.ts`, in-process and per instance as the other data gates, `FEED_RATE_MAX`
+    to tune); one address is fetched at most once every 5 minutes whatever the readers. A client
+    that leaves ends only its own wait, never the fetch other readers are waiting on.
   - The guard (`api/_lib/feedFetch.ts`): http and https only, on their own ports, no credentials;
     the name is resolved by the reader itself and EVERY answer must be public (a name answering one
     private address is refused whole); the connection is pinned to the checked address through the
     request's own `lookup`, so TLS still checks the certificate against the name; every redirect is
-    checked the same way, at most 5; the body stops at 5 MB after decompression and the read,
-    redirects included, at 10 s. Public means: IPv4 outside the special ranges (private, shared,
+    checked the same way, at most 5 (the validators go only to the same site); the body stops at
+    5 MB after decompression (`stream.pipeline`, so an abort ends the decoder too) and the read,
+    every lookup and redirect included, at 10 s. IPv4 is connected first when a name has both, as
+    a function may have no IPv6 egress. The page runs the same address check before asking
+    (`normalizeFeedAddress` lives in `src/control/feedSource.ts` and the route imports it). Public means: IPv4 outside the special ranges (private, shared,
     loopback, link-local with the 169.254.169.254 metadata address, documentation, benchmarking,
     multicast, reserved); IPv6 only inside global unicast 2000::/3, minus Teredo and protocol
     assignments, documentation and 6to4, so loopback, unique-local (fd00:ec2::254), link-local,
-    IPv4-mapped and NAT64 forms all fall outside. A refused address answers 400 and is cached like
-    any failure, so it is not looked up again for 5 minutes.
+    IPv4-mapped and NAT64 forms all fall outside. A refused address answers 400, from the row too
+    (`refused`), and is not looked up again for 5 minutes. A row whose wait ended a day ago is
+    deleted at the next fetch (any address in use is fetched at least hourly), so addresses
+    nobody reads do not pile up.
   - Politeness: the wait after a read is the 5-minute floor, or longer when the feed asks
     (`<ttl>`, `max-age`, a `Retry-After` on a refusal), never longer than an hour. ETag and
     Last-Modified go back only for headlines in hand. Headlines: titles as plain text (entities
@@ -53,14 +60,17 @@ changes a spec's digest.
     the two lease times defaulting to the epoch so the claim is one conditional update
     (`claimed_until < now and next_allowed_at <= now`) through the service-role client, as the
     spec says; no SQL function, so no new advisor class. A reader that loses the claim serves the
-    stale row; before any first read it waits for that read to settle (polling the row every
-    250 ms, never longer than the read's own time), so two readers at once make one fetch.
-  - The browser reader reuses the Sheet reader: `createSheetReader` gained `read`, `everyMs` and
-    `timeoutMs` options and the lease became three reads of the source's own cadence (`leaseOf`),
-    so a feed (5 minutes) holds a 15-minute local lease; published, the row caps any lease at a
-    minute (0097), so with the tick on it may read a feed between the page's 5-minute reads, through
-    the same cache, writing nothing unchanged. Feed paths are `feed.<id>.lines` (the spec's
-    content line); `sourcePrefix`, `isSourcePath` and `sourceIdOf` know both prefixes.
+    stale row; before any first read it waits for that read to settle (looking at the row after
+    250 ms, then twice as long each time up to a second, never longer than the read's own time),
+    so two readers at once make one fetch.
+  - The browser reader reuses the Sheet reader: `createSheetReader` gained `read`, `everyMs`,
+    `renewMs` and `timeoutMs` options. A feed asks the route every 5 minutes and renews its claim
+    every 30 s in between, because the published row holds any lease at most a minute (0097):
+    without the renewal the tick or another tab would take the feed while the page is open. The
+    lease is three renewals (`leaseOf`, 90 s for a feed, 15 s for a Sheet as before); Connect and
+    Resume read at once. One `FEED_CADENCE` and `FEED_LEASE_MS` in `feedSource.ts` feed both the
+    reader and the published lease. Feed paths are `feed.<id>.lines` (the spec's content line);
+    `sourcePrefix(id, kind)` takes the kind, and `isSourcePath`/`sourceIdOf` know both prefixes.
   - The tick lists feed sources (0099 widens `control_data_tick_due`, same signature and grants)
     and reads them through `readFeed`, never with its own fetch; their rows keep the label
     `'sheet'`, which names the server tick, not the kind (widening `control_data_apply` again for a
@@ -77,7 +87,8 @@ changes a spec's digest.
   (`FeedShowSource`, `fillsFields`, `sourceKindWord`), `src/components/home/ProductionPage.tsx`
   (starts a feed's reader beside the Sheet readers), `SourcesLine.tsx` and
   `ProductionDataPanel.tsx` (show feeds, with their cadence), `ProductionAudienceWorkspace.tsx`
-  (one type guard the new union needed), `api/_lib/dataTick.ts` (the tick reads feeds), and
+  (one type guard the new union needed), `api/_lib/dataTick.ts` (the tick reads feeds),
+  `api/_lib/rateLimit.ts` (the feed route's per-client limit beside the other routes'), and
   `scripts/supabase-advisors.mjs` with `supabase/advisor-baseline.json` (`feed_cache`'s deny-all,
   lesson 1 of the run). Each is the smallest change that puts the feed on the reader and the tick
   the spec names.
@@ -87,8 +98,20 @@ changes a spec's digest.
   address 2048 to 4096; client limit 30 to 60 a minute; first answer checked instead of every
   answer; a second lookup at connect time instead of the checked address; redirects not
   re-checked; validators not sent; dedupe off; a failure dropping the last good headlines; the
-  browser cadence 5 to 1 min; the lease 3 reads to 2; a failure with headlines read as success;
-  and, in the configured walk, an insert that claims whether or not it won (two upstream fetches).
+  browser cadence 5 to 1 min; the lease 3 renewals to 2; the renewal 30 to 60 s; Resume not
+  forcing a read; a failure with headlines read as success; the prune age 24 to 48 h; a refusal
+  not kept on the row; IPv6 connected first; validators sent across sites; the lookup outside the
+  read's time (the test is cancelled); a headline cut by UTF-16 units; and, in the configured
+  walk, an insert that claims whether or not it won (two upstream fetches).
+- **Check.** Review (delegated, high): 10 findings, all confirmed and fixed (decoder not ended on
+  abort, published lease lapsing between reads, unbounded rows, IPv6-first connect, refusal status
+  lost from the row, lookup outside the timeout, validators across sites, the route's wait ignoring
+  a client gone, surrogate-splitting cut, a defaulted prefix kind). Simplify (four delegated
+  angles): the feed cadence and lease in one place, the reader plan carries the kind, one address
+  check for page and route, the rate limit as a `rateLimit.ts` pair, shared `sha256`, patch
+  builders and a regex cache in the parser, one read path in Connect. Skipped: a shared byte-cap
+  helper with C2's `cappedFetch` (would reshape C2's tested path), a `sourceShape` helper (two
+  call sites), a longer renewal (30 s keeps margin under the one-minute row lease).
 - **Traps.**
   - `node:http`'s `lookup` option must answer both shapes (`all: true` gets an array); a typed
     `LookupFunction` cast keeps the root tsconfig's check.
