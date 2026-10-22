@@ -922,6 +922,8 @@ test('a quiz revealed beside a running clock: bound values update both, the cloc
   await page.getByTestId('cue-action-judge').click();
   await expect(chip).toHaveText('Reveal');
   await expect(quiz.locator('.quiz-correct')).toHaveCount(1);
+  const board = () => quiz.locator('.quiz, .quiz-option').evaluateAll((els) => els.map((el) => el.className));
+  const revealed = await board();
 
   // The clock has run a few seconds while the quiz was played.
   await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
@@ -936,8 +938,7 @@ test('a quiz revealed beside a running clock: bound values update both, the cloc
 
   // The quiz did not advance or go back: still revealed, the same answer marked.
   await expect(chip).toHaveText('Reveal');
-  await expect(quiz.locator('.quiz-correct')).toHaveCount(1);
-  await expect(quiz.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
+  expect(await board(), 'the board is exactly as revealed').toEqual(revealed);
   // The clock was not reset: it ran on from where it stood, and it still runs.
   await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 10_000 }).toBeGreaterThanOrEqual(runBefore + 2);
   await cues.nth(1).locator('.pd-cue-label').click();
