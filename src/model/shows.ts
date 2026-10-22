@@ -795,12 +795,14 @@ export function refreshGraphicCopies(
  * the script the caller read, so a teammate's change is never written over.
  */
 export function setGraphicCopyScript(showId: string, graphicId: string, from: string, to: string): { shows: Show[]; error: string | null } {
-  return patchShowChecked(showId, (show) => {
+  return patchShowChecked(showId, (show, at) => {
     const graphic = show.graphics.find((g) => g.id === graphicId);
     if (!graphic) return 'This graphic is no longer in the production.';
     if (graphic.template.js !== from) return 'The graphic changed elsewhere. Open Connect data… again.';
     if (from === to) return false;
     graphic.template = { ...graphic.template, js: to };
+    // A changed design: the monitors rebuild on it (ProgramStage's pool signature).
+    graphic.savedAt = at;
     return true;
   });
 }

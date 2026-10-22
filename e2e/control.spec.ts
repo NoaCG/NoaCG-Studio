@@ -97,38 +97,54 @@ async function createHairline(page: Page) {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
-test('live data: adding a Google Sheet appends an editable polling block, remove strips it', async ({ page }) => {
+/** Give the working graphic the retired graphic-level Sheet block, as a graphic saved before
+ *  data-sources C6 carries it, and save it as the working project. */
+async function withSheetBlock(page: Page, csvUrl: string, pollSeconds = 5) {
+  await page.evaluate(async ({ csvUrl, pollSeconds }) => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const { saveProject } = await import('/src/model/project.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const store = useTemplateStore.getState();
+    const t = store.template;
+    store.applyTemplate({ ...t, js: `${t.js}\n${liveDataBlock({ csvUrl, pollSeconds, fields: t.fields })}` });
+    const s = useTemplateStore.getState();
+    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread);
+    await commitDurableWrites();
+  }, { csvUrl, pollSeconds });
+}
+
+const workingJs = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js);
+
+test('live data: a new graphic is offered no Sheet panel; one that carries the block shows what it reads, and remove strips it', async ({ page }) => {
   await createHairline(page);
   await openWorkingGraphicInEditor(page);
   await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
-  const before = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-  await page.getByRole('textbox', { name: 'Published CSV URL', exact: true }).fill('https://docs.google.com/x/pub?output=csv');
-  await page.getByRole('button', { name: 'Add live data' }).click();
+  // A Sheet connects at the production now (sheet-data-flow AC-10): nothing here offers one.
+  await expect(page.getByRole('region', { name: 'Live data', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Published CSV URL', exact: true })).toHaveCount(0);
 
-  const js1 = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.js;
-  });
+  await createHairline(page);
+  await withSheetBlock(page, 'https://docs.google.com/x/pub?output=csv');
+  await openWorkingGraphicInEditor(page);
+  await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
+  const js1 = await workingJs(page);
   expect(js1).toContain('== LIVE DATA');
-  expect(js1).toContain('https://docs.google.com/x/pub?output=csv');
   expect(js1).toContain('"f0": "Name"');   // field → header map, seeded from field titles
-  await expect(page.getByRole('region', { name: 'Live data', exact: true }).getByRole('status')).toContainText('Live data added');
+  const region = page.getByRole('region', { name: 'Live data', exact: true });
+  await expect(region.getByRole('status')).toHaveText('Reads a Sheet in its own code: https://docs.google.com/x/pub?output=csv.');
+  await expect(page.getByRole('button', { name: /Add live data|Replace live data/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Remove live data', exact: true }).click();
-  const js2 = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.js;
-  });
-  expect(js2).not.toContain('== LIVE DATA');
+  await expect.poll(() => workingJs(page)).not.toContain('== LIVE DATA');
+  await expect(region).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect.poll(() => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)).toBe(js1);
-  await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(before);
+  await expect.poll(() => workingJs(page)).toBe(js1);
   await page.getByRole('button', { name: 'Redo', exact: true }).click();
-  await expect.poll(() => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)).toBe(js1);
+  await expect.poll(() => workingJs(page)).not.toContain('== LIVE DATA');
 });
 
-test('live data: a published CSV drives the graphic (mocked sheet)', async ({ page }) => {
+test('live data: a graphic that already carries the block still follows its published CSV (mocked sheet)', async ({ page }) => {
   let pulls = 0, changed = false;
   await page.route('http://sheet-test.local/data.csv', (route: Route) => {
     pulls++;
@@ -140,11 +156,8 @@ test('live data: a published CSV drives the graphic (mocked sheet)', async ({ pa
     });
   });
   await createHairline(page);
+  await withSheetBlock(page, 'http://sheet-test.local/data.csv', 1);
   await openWorkingGraphicInEditor(page);
-  await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
-  await page.getByRole('textbox', { name: 'Published CSV URL', exact: true }).fill('http://sheet-test.local/data.csv');
-  await page.getByRole('spinbutton', { name: 'Poll every (seconds)', exact: true }).fill('1');
-  await page.getByRole('button', { name: 'Add live data' }).click();
 
   // The polling block runs inside the preview and pulls the sheet into the fields.
   const frame = editorPreview(page);
@@ -153,7 +166,6 @@ test('live data: a published CSV drives the graphic (mocked sheet)', async ({ pa
   await expect(frame.locator('#f0')).toHaveText('Live Grace', { timeout: 6000 });
   await expect(frame.locator('#f1')).toHaveText('Second sheet row');
   expect(pulls).toBeGreaterThanOrEqual(2);
-  await page.screenshot({ path: 'test-results/lean-sheet-editor.png' });
 });
 
 // ── Phase 5: the state machine's side of the panel ──────────────────────────
