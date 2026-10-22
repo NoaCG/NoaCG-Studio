@@ -126,14 +126,21 @@ const ACCEPTED_CLASSES = {
     'audience_owner_for_control, so the capability and the audience kill switch are checked as for ' +
     'every operator function, and it only inserts candidates into that production\'s ' +
     'audience_submissions, at most 100 a call, each clamped to the 0035 limits. It writes no command ' +
-    'log and no production value; a candidate airs only as a cue the operator prepares and takes.',
+    'log and no production value; a candidate airs only as a cue the operator prepares and takes. ' +
+    'audience_operator_settle (0098, Sheet messages, docs/work-specs/data-sources/ C3) is the same ' +
+    'control-slug door as audience_operator_add: it resolves the slug through ' +
+    'audience_owner_for_control, takes only a ^sheet:[A-Za-z0-9_-]{1,80}:$ prefix and at most 2000 ' +
+    'ids a call, and touches only that production\'s candidates under that prefix: it deletes the ' +
+    'unused ones whose row is gone and marks or unmarks withdrawn_at on the used ones. It adds ' +
+    'nothing and writes no command log and no production value.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
     '0080, 0086) are the only door to community_packs and community_pack_reports: each checks ' +
     'auth.uid() or is_moderator() inside. ' +
     'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller. ' +
-    'audience_operator_add (0095) is the anon control-slug door above, reached by a signed-in operator.',
+    'audience_operator_add (0095) and audience_operator_settle (0098) are the anon control-slug ' +
+    'doors above, reached by a signed-in operator.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +

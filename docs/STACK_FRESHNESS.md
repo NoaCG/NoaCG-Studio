@@ -372,6 +372,15 @@ reported once the landing of #1556 had applied it. `audience_operator_add`, for 
 the slug through `audience_owner_for_control` (capability and audience kill switch), inserts at most
 100 candidates a call into that production's `audience_submissions`, and writes no command log and
 no production value. 4 unused-index entries had gone. Re-recorded with `--update-baseline`.
+It holds **182** as of 2026-10-22. 6 entries came in by hand on 2026-10-21 (8d0da84a, migration
+0097's tables and slug functions), taking it to 180. The 2 new entries are migration 0098's
+(`0098_audience_imported_identity.sql`, Sheet messages keep one identity), which post-land run
+39706145334 reported once the landing of #1593 had applied it. `audience_operator_settle`, for `anon`
+and `authenticated`, is the same control-slug door as `audience_operator_add`: it resolves the slug
+through `audience_owner_for_control`, takes only a `sheet:<source id>:` prefix and at most 2,000 ids a
+call, deletes only that production's unused candidates under the prefix whose row is gone (a used one
+is only marked `withdrawn_at`), and writes no command log and no production value. Nothing had gone.
+Added by hand: re-recording reads production, which only the Post-landing workflow does.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
