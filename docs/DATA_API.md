@@ -167,7 +167,8 @@ tested behaviour (`supabase/migrations/0100_data_api_pause.sql`; its self-check 
   per 5 s, so a Resume that moves many graphics at once can make the operator's next presses wait
   a few seconds.
 - **A `null` while paused** deletes the path, so Resume sends nothing for it and the field keeps
-  what it showed, exactly as an unpaused `null` does. A value sent after the `null` is the final
+  what it showed, exactly as an unpaused `null` does; it also drops a held `/update` for that
+  field. A value sent after the `null` is the final
   value.
 - Your system does not have to do anything about Pause. Keep sending; read `paused` if you want
   to show it.

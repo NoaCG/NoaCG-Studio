@@ -1038,5 +1038,51 @@ export const PAUSE_CONFORMANCE = [
         }
       }
     }
+  },
+  {
+    "name": "a null after a held /update deletes the path, so the held value is dropped and the field keeps what it showed",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "update",
+        "graphic": "Bug",
+        "data": {
+          "f0": "9"
+        }
+      },
+      {
+        "op": "patch",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": null
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [],
+    "data_after": {
+      "api": {
+        "bug": {}
+      }
+    }
   }
 ];
