@@ -4998,7 +4998,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onReady={restoreProgram}
           onOverflow={notePreviewOverflow}
           air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
-          serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server')}
+          serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (
               <ProgramAutoChip

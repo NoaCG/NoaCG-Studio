@@ -164,7 +164,7 @@ test('published, a Take is pending until the command log answers, then logged, n
   await expect(air).toHaveText('sending…');
   expect(sends).toBeGreaterThan(0);
   release();
-  await expect(air).toHaveAttribute('data-state', 'confirmed');
+  await expect(air).toHaveAttribute('data-state', 'logged');
   await expect(air).toHaveText(/^logged \d{1,2}[:.]\d{2}[:.]\d{2}/);
   await expect(air).toHaveAttribute('title', /do not report their picture back, so it is not confirmed here/);
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');
@@ -176,7 +176,7 @@ test('published, a Take is pending until the command log answers, then logged, n
   await expect(page.getByTestId('program-frame')).toHaveAttribute('data-stale', 'true');
   await expect(page.getByTestId('program-stale')).toHaveText('CONNECTION LOST · NOT LIVE');
   await page.context().setOffline(false);
-  await expect(air).toHaveAttribute('data-state', 'confirmed');
+  await expect(air).toHaveAttribute('data-state', 'logged');
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');
 });
 

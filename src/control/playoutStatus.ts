@@ -194,7 +194,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
 // is confirmed on air.
 
 /** PROGRAM's account of the last graphic command this page sent. */
-export type AirState = 'local' | 'idle' | 'pending' | 'confirmed' | 'unknown' | 'stale';
+export type AirState = 'local' | 'idle' | 'pending' | 'logged' | 'unknown' | 'stale';
 
 export interface AirFacts {
   published: boolean;
@@ -228,7 +228,8 @@ export function programAir(f: AirFacts): { state: AirState; text: string; title:
   }
   if (f.loggedAt === null) return { state: 'idle', text: '', title: '' };
   return {
-    state: 'confirmed',
+    // Named for what it is: the log took it. Never read it as a picture confirmed on air.
+    state: 'logged',
     text: `logged ${hms(f.loggedAt)}`,
     title: `The command log took the last command at ${hms(f.loggedAt)}. Outputs following the log apply it; they do not report their picture back, so it is not confirmed here.`,
   };

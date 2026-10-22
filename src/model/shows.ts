@@ -14,6 +14,7 @@ import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { hasLiveData } from './liveDataMark';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -1758,12 +1759,22 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
  *  with its last field whichever door unbound it, so no reader keeps reading for nothing. */
 function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
   const before = show.bindings ?? {};
-  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId));
+  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || readsOwnSheet(show, graphic));
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
   else delete show.bindings;
   pruneSources(show);
   return { changed: true, refused };
+}
+
+/**
+ * A graphic whose copy still reads a Sheet in its own code (the retired block, data-sources C6)
+ * takes no new binding, whatever the door: its block writes the fields by their titles, so a
+ * binding would make two writers. Connect data… migrates it first ("Stop its own reader"); on a
+ * published production the copy keeps the block until Publish replaces it, and so does this.
+ */
+export function readsOwnSheet(show: Pick<Show, 'graphics'>, graphic: string): boolean {
+  return show.graphics.some((g) => g.name === graphic && hasLiveData(g.template.js ?? ''));
 }
 
 /** Drop the sources no field follows and no inbox reads. */

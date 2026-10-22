@@ -15,13 +15,10 @@
 
 import type { SpxField } from '../model/types';
 
-const OPEN = '/* == LIVE DATA (published CSV → update) — edit or delete this whole block == */';
+import { LIVE_DATA_OPEN as OPEN, hasLiveData } from '../model/liveDataMark';
 const CLOSE = '/* == END LIVE DATA == */';
 
-/** True when the template JS already carries a live-data block. */
-export function hasLiveData(js: string): boolean {
-  return js.includes(OPEN);
-}
+export { hasLiveData };
 
 /** The address an existing block reads, as its code says it now (a person may have edited it). */
 export function liveDataUrl(js: string): string | null {

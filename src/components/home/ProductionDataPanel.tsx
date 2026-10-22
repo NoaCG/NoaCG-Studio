@@ -18,7 +18,7 @@ import {
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
-import { addGraphicToShow, fillsFields, preparedMessageField, sourceKindWord, setFieldBinding, setFieldBindings, setShowSeedData, type FieldShowSource, type Show } from '../../model/shows';
+import { addGraphicToShow, fillsFields, preparedMessageField, readsOwnSheet, sourceKindWord, setFieldBinding, setFieldBindings, setShowSeedData, type FieldShowSource, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
@@ -664,6 +664,8 @@ function BindingTable({
   ) => {
     const entries: { graphic: string; fieldId: string; path: string }[] = [];
     for (const { g, descriptors } of targets) {
+      // Its own code reads a Sheet: the binding would be refused (shows.ts `readsOwnSheet`).
+      if (readsOwnSheet(show, g.name)) continue;
       const suggestions = unambiguousSuggestions(descriptors, bindings[g.name], leaves);
       for (const fieldId of Object.keys(suggestions)) entries.push({ graphic: g.name, fieldId, path: suggestions[fieldId] });
     }
@@ -742,6 +744,8 @@ function BindingTable({
               // the operator approved. setFieldBinding refuses it whatever the door; this says why
               // here, and offers the way that works - a separate card for the live data.
               const refused = !path && preparedMessageField(show, g.name, d.key);
+              // Its own code reads a Sheet: refused too, until Connect data… moves it here (C6).
+              const ownReader = !path && !refused && readsOwnSheet(show, g.name);
               return (
                 <div className="pd-bind-row" key={d.key}>
                   <span className="pd-bind-field">
@@ -749,7 +753,7 @@ function BindingTable({
                   </span>
                   <input
                     value={bindEdits.text(key, path)}
-                    readOnly={refused}
+                    readOnly={refused || ownReader}
                     data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
@@ -772,7 +776,12 @@ function BindingTable({
                       </button>
                     </span>
                   )}
-                  {suggestion && !refused && (
+                  {ownReader && (
+                    <span className="pd-bind-miss" data-testid={`bind-own-reader-${g.name}-${d.key}`}>
+                      {g.name} reads a Sheet in its own code. Connect data… on its cue moves it here first.
+                    </span>
+                  )}
+                  {suggestion && !refused && !ownReader && (
                     <button
                       className="pd-bind-suggest"
                       onClick={() => setShows(setFieldBinding(show.id, g.name, d.key, suggestion))}

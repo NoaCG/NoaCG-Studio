@@ -131,7 +131,7 @@ test('PROGRAM says what is known of the last command, and never more (data-sourc
   assert.equal(air({}).text, '');
   assert.equal(air({ sending: 1, owed: true, loggedAt: at }).state, 'pending', 'a send in flight outranks the last answer');
   const logged = air({ loggedAt: at });
-  assert.equal(logged.state, 'confirmed');
+  assert.equal(logged.state, 'logged');
   assert.equal(logged.text, `logged ${hms(at)}`);
   // A logged command is a write the log took, never a picture somebody saw.
   assert.match(logged.title, /not confirmed here/);

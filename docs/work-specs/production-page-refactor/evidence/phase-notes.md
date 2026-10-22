@@ -30,12 +30,23 @@ changes a spec's digest.
     Publish to replace (`refreshGraphicCopies` takes the newer record), and Connect says "Publish
     changes, then connect" until the copy no longer has it. A published graphic with no library
     record cannot carry the removal to its output, so the migration is refused with that reason
-    (a rare case: an unlinked legacy copy on a published production). Competing writers are
-    therefore impossible through the UI: the review only opens once no copy that plays has the
-    block.
+    (a rare case: an unlinked legacy copy on a published production). The review only opens once
+    no copy that plays has the block.
+  - **Every other binding door refuses too** (assessment A found the Advanced bindings table,
+    Bind all by title and a typed path could still bind such a graphic): the binding write path
+    (`applyBindings` in shows.ts, beside the prepared-message refusal) refuses a new binding on a
+    graphic whose copy has the block (`readsOwnSheet`), and the table says why. The block's marker
+    moved to `src/model/liveDataMark.ts` so the model can test for it without importing control/.
+    Bindings saved before C6 on such a graphic stay as they were (the C1a fixture has one).
+  - **Cross-production effect, on purpose.** Stop on a library graphic changes the shared design:
+    every production using it loses the reader (a published one at its next Publish). The panel
+    names how many other productions use it before the press.
   - **Pause is honest.** Every graphic still reading in its own code is listed under the cue editor
     (the Playout sources line) and on the Data overview as "Sheet in X's own code · read by the
     graphic · Pause does not stop it", with no Pause button.
+  - The removal itself (`ownReaderOf(...).remove` in ProductionPage.tsx: the library write, the
+    copy write, the commit) is page logic beyond "presentation wiring", recorded here; its rules
+    are the Node-tested `ownReaderGate` and `ownReaderRemoval`.
   - The page's library snapshot is re-read after the migration (`libraryRev`), so PREVIEW and
     PROGRAM rebuild on the design the production now plays; otherwise the old block would keep
     running in the page's own monitors until a reload. The production's copy write sets `savedAt`
@@ -54,7 +65,7 @@ changes a spec's digest.
   No output reports its picture back, and there is no per-command render acknowledgement, so
   nothing says a picture is confirmed on air. What was added:
   - PROGRAM's status tag (`programAir`), in the frame's bottom-left corner like PREVIEW's length
-    tag: "sending…" while a send waits, "logged HH:MM:SS" once the log took it (its tooltip says
+    tag: "sending…" while a send waits, "logged HH:MM:SS" (state `logged`, never `confirmed`) once the log took it (its tooltip says
     outputs do not report their picture), "not confirmed" while a failed send is still owed (read
     from `sendDebts`, the page's one record of that, through a new `owed()`; a later send of
     another graphic does not settle it), and "last logged HH:MM:SS" when the page cannot reach the server
@@ -64,7 +75,8 @@ changes a spec's digest.
     at 1280 px; seen on the after screenshot and moved).
   - A lost connection dims PROGRAM and puts "CONNECTION LOST · NOT LIVE" over it; NoaCG Bridge
     not answering (its `bridge` or `server` state, not a Bridge that answers with a warning) while
-    server cues are up puts "BRIDGE NOT ANSWERING · NOT LIVE", whose badge turns amber with a "last reported"
+    server cues are up puts "BRIDGE NOT ANSWERING · NOT LIVE" (or "CASPARCG NOT ANSWERING" when the
+    Bridge answers but CasparCG does not: assessment A), whose badge turns amber with a "last reported"
     tooltip (its words stay short: the header already truncates the monitor name with a long badge).
   - The target line under the verbs (`takeTargets`): "To: this page only", "To: N outputs ·
     CasparCG 1-20", "(not loaded)" when the output is not on its slot, or a server cue's slot
@@ -93,7 +105,15 @@ changes a spec's digest.
   data… all ask `ownReaderGate` through `ownSheetReader` (SourcesLine.tsx), so a published
   graphic whose copy still has the block after the migration stays listed until Publish replaces
   it, and nothing can be offered the migration without being listed (review and simplify findings).
-- `src/control/failedSends.ts` and `scripts/failed-sends.test.mjs` are touched for `owed()`.
+- `src/control/failedSends.ts` and `scripts/failed-sends.test.mjs` are touched for `owed()`;
+  `src/model/liveDataMark.ts` (new) holds the block's marker for the binding refusal.
+- **Assessment A** (fresh read-only `/so` session on the diff at `bc97f3b`): PASS WITH NOTES. Its
+  findings and what was done: the binding doors (fixed, above); the CasparCG hop named as the
+  Bridge (fixed); journeys for a library graphic on a published production (added: the scope
+  count, the design stripped and the copy kept, Publish first, the own-reader line kept); the
+  `confirmed` state name (renamed `logged`); the page logic and the cross-production effect
+  (recorded above). The refusal for an unlinked graphic on a published production is pinned in
+  Node only.
 - **Traps.**
   - The production page reads the library once per mount; a design change made from the page
     itself must re-read it or the monitors keep the old design.

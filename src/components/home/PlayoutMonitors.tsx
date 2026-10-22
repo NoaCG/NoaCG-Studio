@@ -63,7 +63,7 @@ export default function PlayoutMonitors({
   graphicsAir = live,
   programChip = null,
   air = null,
-  serverLost = false,
+  serverLost = null,
 }: {
   /** The production's stage: both monitors' shape, never the selected cue's. */
   stage: Resolution;
@@ -106,8 +106,9 @@ export default function PlayoutMonitors({
   programChip?: ReactNode;
   /** What is known of the last graphic command (control/playoutStatus.ts `programAir`, C6). */
   air?: { state: AirState; text: string; title: string } | null;
-  /** NoaCG Bridge stopped answering while server cues are up: their names are the last known. */
-  serverLost?: boolean;
+  /** The hop that stopped answering while server cues are up (NoaCG Bridge, or CasparCG behind
+   *  it): their names are the last known. */
+  serverLost?: 'bridge' | 'server' | null;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
@@ -169,7 +170,7 @@ export default function PlayoutMonitors({
   }, [stageEl]);
   const stageAspect = `${stage.width} / ${stage.height}`;
   const lost = air?.state === 'stale';
-  const stale = lost || (serverLost && serverLayers.length > 0);
+  const stale = lost || (!!serverLost && serverLayers.length > 0);
   // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
   // is the production's shape now, so a cue of another shape has to fit inside it rather than
   // overflow its height.
@@ -277,9 +278,9 @@ export default function PlayoutMonitors({
           {serverLayers.length > 0 && (
             <span
               className="pd-layer-badge pd-server-badge"
-              title={serverLost ? 'NoaCG Bridge is not answering: this is what the server last reported, and it may have changed.' : 'Playing on the playout server through NoaCG Bridge.'}
+              title={serverLost ? `${serverLost === 'bridge' ? 'NoaCG Bridge' : 'CasparCG'} is not answering: this is what the server last reported, and it may have changed.` : 'Playing on the playout server through NoaCG Bridge.'}
               data-testid="playout-on-air"
-              data-stale={serverLost || undefined}
+              data-stale={serverLost ? true : undefined}
             >
               server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
             </span>
@@ -303,8 +304,8 @@ export default function PlayoutMonitors({
               </span>
             )}
             {stale && (
-              <span className="pd-stale-tag" title={lost ? air.title : 'NoaCG Bridge is not answering: this is what the server last reported.'} data-testid="program-stale">
-                {lost ? 'CONNECTION LOST · NOT LIVE' : 'BRIDGE NOT ANSWERING · NOT LIVE'}
+              <span className="pd-stale-tag" title={lost ? air.title : `${serverLost === 'bridge' ? 'NoaCG Bridge' : 'CasparCG'} is not answering: this is what the server last reported.`} data-testid="program-stale">
+                {lost ? 'CONNECTION LOST · NOT LIVE' : `${serverLost === 'bridge' ? 'BRIDGE' : 'CASPARCG'} NOT ANSWERING · NOT LIVE`}
               </span>
             )}
             <ServerStill thumb={programClip ? programThumb : null} testId="program" />
