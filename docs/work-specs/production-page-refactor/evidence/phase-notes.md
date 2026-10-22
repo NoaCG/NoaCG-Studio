@@ -106,6 +106,17 @@ changes a spec's digest.
   own-reader line on Playout and the Data overview), `src/styles/playout-dashboard.css` (the chip,
   the stale picture, the folder rows), `docs.html` (the /docs page is this file).
 - **Advisor judgement:** none needed; no migration and no database object.
+- **The output's own running frame (the PR's automated review, P1).** After Publish, an output keeps
+  an on-air graphic's old frame, its embedded reader included, until the graphic is cleared
+  (`src/output/swapPlan.ts`), and a Publish that fails after refreshing the copy leaves the output
+  on the old version with a clean copy. The copy alone cannot prove the reader stopped, so the gate
+  also reads two observations of the output: the published payload this page last saw (at its
+  resolve, or its own successful Publish) still carrying the block keeps "Publish first", and an
+  output reporting the graphic waiting for clear (its per-graphic replacement report `chg.w`) gives
+  "Take it out, then connect". The second is any graphic's state, so it gates Connect only for that
+  window and is not listed as an own reader. Not covered: the model's binding refusal reads the
+  design and the copy only, so after a failed Publish the Advanced bindings door would accept a
+  binding on that graphic until the next resolve or Publish.
 - **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
   (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
   legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.

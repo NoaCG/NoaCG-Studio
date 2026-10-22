@@ -40,17 +40,24 @@ export function liveDataUrl(js: string): string | null {
  * readers never write the same field.
  *
  * `resolvedJs` is the design the production plays and publishes next (the library record when it
- * has one), `copyJs` the production's own copy, which is what the published output last took.
+ * has one), `copyJs` the production's own copy. Published, two observations stand for the output
+ * itself: `outputReads`, the published payload this page last saw (at its resolve or its own
+ * successful Publish) still carries the block, so a Publish that failed after refreshing the copy
+ * unlocks nothing; and `waitingForClear`, an output reports this graphic on air on an earlier
+ * frame, which keeps running (its reader included) until it is cleared or replaced.
  * - `reader`: the block still runs here; Connect offers the explicit migration first.
  * - `publish`: the design no longer has it, but the published output still runs it until Publish.
- * - `none`: nothing reads a Sheet in this graphic's code.
+ * - `clear`: published, but an output still runs an earlier frame of the graphic until Out.
+ * - `none`: nothing reads a Sheet in this graphic's code where it plays.
  */
-export type OwnReaderGate = 'none' | 'reader' | 'publish';
+export type OwnReaderGate = 'none' | 'reader' | 'publish' | 'clear';
 
-export function ownReaderGate(input: { copyJs: string; resolvedJs: string; published: boolean }): OwnReaderGate {
+export function ownReaderGate(input: { copyJs: string; resolvedJs: string; published: boolean; outputReads?: boolean; waitingForClear?: boolean }): OwnReaderGate {
   if (hasLiveData(input.resolvedJs)) return 'reader';
-  if (!hasLiveData(input.copyJs)) return 'none';
-  return input.published ? 'publish' : 'reader';
+  if (hasLiveData(input.copyJs)) return input.published ? 'publish' : 'reader';
+  if (!input.published) return 'none';
+  if (input.outputReads) return 'publish';
+  return input.waitingForClear ? 'clear' : 'none';
 }
 
 /**

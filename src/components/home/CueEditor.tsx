@@ -595,6 +595,13 @@ function CueOwnReader({ reader, graphic, onKeep }: { reader: OwnReader; graphic:
       </p>
     );
   }
+  if (reader.gate === 'clear') {
+    return (
+      <p className="hint status-warn" data-testid="cue-connect-clear-first">
+        An output still runs an earlier version of {graphic} until it is taken off air. Take it out, then connect here.
+      </p>
+    );
+  }
   return (
     <div data-testid="cue-connect-legacy">
       <p className="hint status-warn">

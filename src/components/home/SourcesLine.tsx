@@ -14,20 +14,34 @@ export interface OwnSheetReader {
   gate: OwnReaderGate;
 }
 
+/** What this page has observed of the published output (ProductionPage): the graphics whose
+ *  published payload still reads a Sheet, and those an output runs on an earlier frame until Out. */
+export interface OutputObservations {
+  reads: ReadonlySet<string>;
+  waitingForClear: ReadonlySet<string>;
+}
+
 /** One graphic's own Sheet reader where it plays (control/liveData.ts `ownReaderGate`): the design
- *  it plays, and the copy the published output runs until Publish replaces it. */
-export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], published: boolean): OwnSheetReader {
+ *  it plays, the copy, and what the published output was seen to run. */
+export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], published: boolean, output?: OutputObservations): OwnSheetReader {
   const design = resolveSavedGraphicDoc(graphic, library)?.template.js ?? graphic.template.js;
   return {
     graphic: graphic.name,
     url: liveDataUrl(design) ?? liveDataUrl(graphic.template.js),
-    gate: ownReaderGate({ copyJs: graphic.template.js, resolvedJs: design, published }),
+    gate: ownReaderGate({
+      copyJs: graphic.template.js,
+      resolvedJs: design,
+      published,
+      outputReads: output?.reads.has(graphic.name),
+      waitingForClear: output?.waitingForClear.has(graphic.name),
+    }),
   };
 }
 
-/** The production's graphics with an own reader: the ones Connect data… would migrate first. */
-export function ownSheetReaders(graphics: readonly SavedGraphic[], library: GraphicDoc[], published: boolean): OwnSheetReader[] {
-  return graphics.map((g) => ownSheetReader(g, library, published)).filter((r) => r.gate !== 'none');
+/** The production's graphics with an own reader running somewhere: the design, the copy, or the
+ *  published payload. A frame merely waiting for clear is not listed: it is any graphic's state. */
+export function ownSheetReaders(graphics: readonly SavedGraphic[], library: GraphicDoc[], published: boolean, output?: OutputObservations): OwnSheetReader[] {
+  return graphics.map((g) => ownSheetReader(g, library, published, output)).filter((r) => r.gate === 'reader' || r.gate === 'publish');
 }
 
 /**

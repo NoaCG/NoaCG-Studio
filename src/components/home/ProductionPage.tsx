@@ -777,8 +777,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setSendOwed(false);
     setLoggedAt(null);
   }, [hostedSlug]);
-  /** The graphics still reading a Sheet in their own code, for the sources line (C6). */
-  const ownReaders = useMemo(() => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug) : []), [show, library, hostedSlug]);
+  /** The graphics whose PUBLISHED payload still reads a Sheet in its own code, as this page last saw
+   *  it (its resolve, its own successful Publish): what the output runs, not what the copy says, so
+   *  a Publish that failed after refreshing the copy unlocks nothing (C6). */
+  const [publishedReaders, setPublishedReaders] = useState<ReadonlySet<string>>(() => new Set());
   // Timed cues on a published production need a backend that keeps their arms (0075); with none
   // at all, nothing does.
   const armsServer = hostedSlug && !backendConfigured ? 'missing' : armsServerState;
@@ -878,6 +880,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     stamp: readyStamp,
     onForget: forgetOutput,
   });
+  /** WHAT THIS PAGE HAS SEEN THE PUBLISHED OUTPUT RUN, for the own-reader gate (C6): the payload's
+   *  readers, and the graphics an output keeps on an earlier frame until they are cleared (its
+   *  per-graphic replacement report, `chg.w`). */
+  const waitingKey = livePresence.peers.flatMap((p) => p.ready?.chg?.w ?? []).sort().join('\n');
+  const outputObservations = useMemo(
+    () => ({ reads: publishedReaders, waitingForClear: new Set(waitingKey ? waitingKey.split('\n') : []) }),
+    [publishedReaders, waitingKey],
+  );
+  const ownReaders = useMemo(
+    () => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug, outputObservations) : []),
+    [show, library, hostedSlug, outputObservations],
+  );
   /** Something that can air a graphic is reporting right now: a renderer, or this production on its
    *  CasparCG slot. Read by the send path, which decides "No output" (AC-2). */
   const usableOutput =
@@ -1876,6 +1890,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const ver = resolved.output?.ver;
       setPublishedStamp(ver ?? null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
+      setPublishedReaders(new Set((resolved.output?.graphics ?? []).filter((g) => hasLiveData(g.js)).map((g) => g.key)));
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;
@@ -2917,6 +2932,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         fastEventGraphicsRef.current = fastEventGraphics(
           (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, loadGraphics()) })),
         );
+        setPublishedReaders(new Set((current?.graphics ?? []).filter((g) => hasLiveData(templateForSavedGraphic(g, loadGraphics()).js)).map((g) => g.name)));
         // REHEARSAL ENDS AT THE FIRST PUBLISH (AC-7): what a Take put up before it played on this
         // page only, so it leaves PROGRAM rather than be mistaken for air.
         if (!wasStarted) {
@@ -3302,7 +3318,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * removes it (control/liveData.ts says where the block goes and why).
    */
   const ownReaderOf = (graphic: SavedGraphic): OwnReader => {
-    const { gate, url } = ownSheetReader(graphic, library, !!hostedSlug);
+    const { gate, url } = ownSheetReader(graphic, library, !!hostedSlug, outputObservations);
     const doc = gate === 'reader' ? resolveSavedGraphicDoc(graphic, library) : undefined;
     return {
       gate,
