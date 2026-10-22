@@ -146,7 +146,7 @@ import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
-import { setOwnReaderHolds } from '../../model/ownReaderHolds';
+import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
 import { setGraphicSounds } from '../../model/shows';
@@ -782,12 +782,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  it (its resolve, its own successful Publish): what the output runs, not what the copy says, so
    *  a Publish that failed after refreshing the copy unlocks nothing (C6). */
   const [publishedReaders, setPublishedReaders] = useState<ReadonlySet<string>>(() => new Set());
-  /** Every graphic this page has seen with a reader (design, copy or published payload): the ones
-   *  whose output must be wholly on the published version before Connect (C6). */
-  const [formerReaders, setFormerReaders] = useState<ReadonlySet<string>>(() => new Set());
+  /** Every graphic this browser has seen with a reader (design, copy or published payload) and not
+   *  yet seen gone from every output: the ones whose outputs must be wholly on the published version
+   *  before Connect (C6). Kept across a reload (model/ownReaderHolds.ts), because a reloaded page
+   *  sees only clean scripts while an output may still run an old on-air frame. */
+  const [formerReaders, setFormerReadersState] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
     setPublishedReaders(new Set());
-    setFormerReaders(new Set());
+    setFormerReadersState(show ? storedFormerReaders(show.id) : new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- per production, not per record write
   }, [hostedSlug, show?.id]);
   // Timed cues on a published production need a backend that keeps their arms (0075); with none
   // at all, nothing does.
@@ -911,9 +914,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setOwnReaderHolds(show.id, show.graphics.filter((g) => ownSheetReader(g, library, !!hostedSlug, outputObservations).gate !== 'none').map((g) => g.name));
   }, [show, library, hostedSlug, outputObservations]);
   useEffect(() => {
+    if (!show) return;
     const seen = [...publishedReaders, ...ownReaders.map((r) => r.graphic)].filter((name) => !formerReaders.has(name));
-    if (seen.length > 0) setFormerReaders((set) => new Set([...set, ...seen]));
-  }, [publishedReaders, ownReaders, formerReaders]);
+    // Gone only once verified: presence has joined, no output reports anything pending or another
+    // version, and nothing reads in the design, the copy or the published payload. An output that
+    // connects later loads the published version afresh, so it brings no old frame back.
+    const verified = !!hostedSlug && livePresence.status === 'joined' && !outputsBehind;
+    const gone = verified ? [...formerReaders].filter((name) => !publishedReaders.has(name) && !ownReaders.some((r) => r.graphic === name)) : [];
+    if (seen.length === 0 && gone.length === 0) return;
+    const next = new Set([...formerReaders, ...seen].filter((name) => !gone.includes(name)));
+    setFormerReadersState(next);
+    setStoredFormerReaders(show.id, next);
+  }, [show, hostedSlug, publishedReaders, ownReaders, formerReaders, livePresence.status, outputsBehind]);
   /** Something that can air a graphic is reporting right now: a renderer, or this production on its
    *  CasparCG slot. Read by the send path, which decides "No output" (AC-2). */
   const usableOutput =

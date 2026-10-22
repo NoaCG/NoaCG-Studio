@@ -122,8 +122,7 @@ changes a spec's digest.
   version. A first cut read only the per-graphic "waiting for clear" list; a review of it found
   that list misses a failed preparation, whole-page reloads and more than six graphics, so the
   wider rule replaced it. It is limited to graphics seen with a reader, so a routine republish of
-  any other on-air graphic never blocks Connect. Not covered: a page reloaded after the migration
-  and Publish no longer knows the graphic had a reader; the Data overview's own-reader list reads
+  any other on-air graphic never blocks Connect. Not covered: the Data overview's own-reader list reads
   design and copy only; a teammate's Publish is not seen until this page resolves again (which only
   keeps Connect waiting longer).
 - **Every binding door reads the output too** (the automated review's second P1): the Playout page
@@ -131,6 +130,14 @@ changes a spec's digest.
   key `spx-gfx-own-reader-holds:<id>`, never synced), and the binding write path and the Data
   view's tab (through the `storage` event) refuse those graphics as well. A device-local record:
   only a page that observes the outputs can say what they run.
+- **Across a reload** (the automated review's third P1): the graphics seen with a reader are kept in
+  the same device-local store (`spx-gfx-own-reader-former:<id>`) and restored when the page opens,
+  so a page reloaded after the migration and Publish still holds Connect and the binding doors
+  while an output runs an old frame. An entry clears only when verified: presence has joined, no
+  output reports anything pending or another version, and nothing reads in the design, the copy
+  or the published payload (an output that connects later loads the published version afresh).
+  This closes the reload gap listed above for this browser; another browser that never saw the
+  reader still does not know it.
 - **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
   (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
   legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.

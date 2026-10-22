@@ -9,12 +9,14 @@
 // own Playout page to observe its own outputs.
 
 const KEY_PREFIX = 'spx-gfx-own-reader-holds:';
+/** The graphics seen with a reader whose outputs are not yet verified on a reader-free version: kept
+ *  across a reload, because a reloaded page sees only clean scripts while an output may still run
+ *  an old on-air frame. */
+const FORMER_PREFIX = 'spx-gfx-own-reader-former:';
 
-/** The graphics held for this production, by name. Empty when nothing is recorded or storage is
- *  unavailable. */
-export function ownReaderHolds(showId: string): Set<string> {
+function readList(key: string): Set<string> {
   try {
-    const raw = localStorage.getItem(KEY_PREFIX + showId);
+    const raw = localStorage.getItem(key);
     const list = raw ? (JSON.parse(raw) as unknown) : [];
     return new Set(Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : []);
   } catch {
@@ -22,17 +24,37 @@ export function ownReaderHolds(showId: string): Set<string> {
   }
 }
 
-/** Record the graphics held for this production (the Playout page, whenever its answer changes). */
-export function setOwnReaderHolds(showId: string, graphics: readonly string[]): void {
+function writeList(key: string, graphics: Iterable<string>): void {
   try {
-    const key = KEY_PREFIX + showId;
-    const next = graphics.length > 0 ? JSON.stringify([...graphics].sort()) : null;
+    const list = [...graphics];
+    const next = list.length > 0 ? JSON.stringify(list.sort()) : null;
     if (localStorage.getItem(key) === next) return;
     if (next === null) localStorage.removeItem(key);
     else localStorage.setItem(key, next);
   } catch {
     // Storage refused: the binding doors then read the design and the copy only.
   }
+}
+
+/** The graphics held for this production, by name. Empty when nothing is recorded or storage is
+ *  unavailable. */
+export function ownReaderHolds(showId: string): Set<string> {
+  return readList(KEY_PREFIX + showId);
+}
+
+/** Record the graphics held for this production (the Playout page, whenever its answer changes). */
+export function setOwnReaderHolds(showId: string, graphics: readonly string[]): void {
+  writeList(KEY_PREFIX + showId, graphics);
+}
+
+/** The graphics this browser has seen with a reader for this production, not yet verified gone
+ *  from every output. */
+export function formerReaders(showId: string): Set<string> {
+  return readList(FORMER_PREFIX + showId);
+}
+
+export function setFormerReaders(showId: string, graphics: Iterable<string>): void {
+  writeList(FORMER_PREFIX + showId, graphics);
 }
 
 /** Calls back when another tab records new holds (the `storage` event); answers the unsubscribe. */

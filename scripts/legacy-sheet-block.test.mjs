@@ -142,6 +142,13 @@ test('what the Playout page holds back reaches the other binding doors, per prod
     assert.equal(stored.size, 0, 'an empty hold leaves no key behind');
     stored.set('spx-gfx-own-reader-holds:a', '{not json');
     assert.deepEqual([...ownReaderHolds('a')], [], 'an unreadable record holds nothing rather than throwing');
+    // The reader history survives a reload, apart from the holds, and clears the same way.
+    const { formerReaders, setFormerReaders } = await import('../src/model/ownReaderHolds.ts');
+    setFormerReaders('a', new Set(['Card']));
+    assert.deepEqual([...formerReaders('a')], ['Card']);
+    assert.deepEqual([...ownReaderHolds('a')], [], 'history is not a hold');
+    setFormerReaders('a', []);
+    assert.deepEqual([...formerReaders('a')], []);
   } finally {
     globalThis.localStorage = previous;
   }
