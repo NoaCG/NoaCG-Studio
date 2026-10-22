@@ -17,25 +17,39 @@ changes a spec's digest.
   someone calls the function. Fields connected to `api.` paths stay ordinary bindings; a reverted
   page shows them as bound paths with no "Another system" name.
 - **The tested Pause, named explicitly: suppress-and-diff, not the fallback.** The spec's smallest
-  design proved proportionate, so the "to freeze, stop the sender" fallback is not used:
-  - `/patch` while paused: `control_data_apply` with `'api'` merges into `data` and skips the
-    resolve-diff-append; it answers `paused: true` with no writes, and the route adds `paused` and
-    a `message`.
+  design proved proportionate, so the "to freeze, stop the sender" fallback is not used. One change
+  from the spec's wording: while paused, `data` stays the ON-AIR tree and the API's writes go to
+  `data_pending` (the spec had `data` take them and a `dispatched` copy hold air). The review found
+  that with the spec's layout every reader of `data` (a Take, an Update, the operator pages,
+  `/state`) aired held values; with this one they cannot.
+  - `/patch` while paused: `control_data_apply` with `'api'` merges into `data_pending` and appends
+    nothing; it answers that tree with `paused: true`, and the route adds `paused` and a `message`.
   - `/update` while paused: `control_data_send` keeps the values in `data_held`, a per-graphic
     last-write map, and answers NULL; the route answers `event: null`, `paused: true`.
-  - Operator presses and the server tick still air while paused. They are diffed against
-    `data_dispatched` (the tree at Pause plus every write that aired since), not against `data`, so
-    a press of a value the API also holds still reaches air, and a press on a held path wins.
-    Diffing them against `data` was the first draft; the case "a press of the value the API holds
-    still airs" in the table is what that draft got wrong.
-  - Resume diffs `data` against `data_dispatched`, lays the held `/update` values over it (the
-    spec's "applied after", as one row so a field is never aired twice), and appends one row per
-    graphic, `src: 'api'`, under the 50-per-5-s cap; Pause twice or Resume unpaused is a no-op.
-  - A null while paused deletes the path, so Resume sends nothing for it: the same as an unpaused
-    null today (a missing path resolves to nothing). The configured walk pins it.
-  - `data_received_at` is written by every API write, held or not: the card's "Received N s ago".
+  - Operator presses, the owner's Data view and the server tick air at once as unpaused, and also
+    merge into `data_pending`, so the LAST write wins at Resume either way. A held `/update` field
+    is dropped when a later aired write or `/patch` moves that field (the review's ordering
+    finding).
+  - Resume diffs `data_pending` against `data`, lays the held `/update` values over it (the spec's
+    "applied after", as one row so a field is never aired twice), appends one row per graphic,
+    `src: 'api'`, and makes `data_pending` the tree. It never refuses: a cap check there could
+    leave a production held for good (review); the rows are bounded by the graphics.
+  - A null while paused deletes the path in `data_pending`, so Resume sends nothing for it: the
+    same as an unpaused null today. The configured walk pins it.
+  - `data_received_at` is written by every API write (at most once a second when nothing changed):
+    the card's "Received N s ago".
+  - The owner's Data view on a published production went through the data key, so Pause held the
+    owner's typing and the card counted it as a receipt (review, high). It now goes through
+    `control_data_owner_patch` (the row policy's test, then the apply as `'operator'`), falling back
+    to the key on a database that has not run 0100.
   The cases are `scripts/data-pause-conformance.mjs`, embedded as a `$pause$` literal in 0100 and
-  run by its self-check on the real bodies (eleven cases); `data-pause` fails when the two differ.
+  run by its self-check on the real bodies (sixteen cases); `data-pause` fails when the two differ.
+  Mutation checks of the bodies (each turned the self-check red, run on the local stack in a
+  rolled-back transaction): an operator write diffed against the API's tree; held values laid
+  under the diff instead of over it; `/update` held without merging per field; the paused API
+  branch removed; the API's paused write landing in `data`; a held `/update` kept after a press or
+  after a later `/patch`; the owner's door labelled `'api'`; operator writes not joining the API's
+  tree.
 - **Decisions.**
   - Another system is the data key as ONE source with no `Show.sources` record (AC-8: no
     per-sender attribution or Pause). Its fields are ordinary bindings to `api.<graphic>.<field>`
@@ -56,8 +70,9 @@ changes a spec's digest.
     step, with the page's own Publish on the card. A team member without the key is told it is on
     the owner's view.
   - Pause is on the control slug (`control_data_pause_by_slug`, anon and authenticated like
-    `control_data_patch_by_slug`); the judgement is in ACCEPTED_CLASSES and the two entries in the
-    advisor baseline (185), with a line in `docs/STACK_FRESHNESS.md` (lesson 1).
+    `control_data_patch_by_slug`); `control_data_owner_patch` is authenticated only. The judgement
+    is in ACCEPTED_CLASSES and the three entries in the advisor baseline (186), with a line in
+    `docs/STACK_FRESHNESS.md` (lesson 1).
   - The sample sender (`scripts/data-sample-sender.mjs`) reads one local synthetic file, names its
     records after the destination labels, sends one patch and prints the receipt; a failed
     acquisition (missing, cut off, no records, a non-scalar value) or a report naming no field
@@ -68,6 +83,8 @@ changes a spec's digest.
     it covers the card, the Connect flow, the example and the sender file, and the receipt's
     words are in `data-pause`; the receipt within 5 s is the configured walk.
 - **Files beyond the phase's list, and why.** `api/_lib/dataIngest.ts` (the held answers),
+  `src/control/productionDataSession.ts` and `scripts/production-data-session.test.mjs` (the
+  owner's Data view names its production, so it takes the owner's door),
   `src/control/anotherSystem.ts` (new: paths, example and words, Node-testable),
   `src/control/productionDataApi.ts` (read the row's Pause and receipt; the Pause RPC),
   `src/model/shows.ts` (`connectApiFields`), `src/components/home/ProductionDataPanel.tsx` (the key
@@ -76,6 +93,9 @@ changes a spec's digest.
   (the example block), `docs.html` (the /docs page renders the Data API section itself),
   `scripts/supabase-advisors.mjs`, `supabase/advisor-baseline.json`, `docs/STACK_FRESHNESS.md`
   (lesson 1), `scripts/data-pause-conformance.mjs` and `scripts/fixtures/data-sample/`.
+- **Pre-existing failure found.** `e2e/production-data.spec.ts` "Connect closes only once the save
+  landed" fails 4 of 4 on `origin/main` (`503b029`) on this machine and 1 of 2 on this branch: the
+  app's "Could not save" dialog covers the second Connect. Filed as its own issue; not this row's.
 - **Traps.**
   - `bootstrapGraphic`'s `name` is the catalog VARIANT, not a name for the graphic.
   - A plpgsql `case ... when ... then perform` is a statement and needs every branch, so the

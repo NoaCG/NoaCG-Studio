@@ -145,22 +145,28 @@ path (`match.home.score`); `api.` is only where Connect data… puts this source
 ## Pause
 
 The operator can pause Another system from the card (**Pause**, then **Resume**). This is the
-tested behaviour (`supabase/migrations/0100_data_api_pause.sql`, its self-check runs the cases
-in `scripts/data-pause-conformance.mjs`):
+tested behaviour (`supabase/migrations/0100_data_api_pause.sql`; its self-check runs the cases in
+`scripts/data-pause-conformance.mjs`):
 
-- **`/patch` while paused** still merges into the tree, so the tree always holds your newest
-  values, but nothing goes on air: no log row, no budget spent. The answer is `200` with
-  `"writes": []`, `"paused": true` and `"message"`.
+- **`/patch` while paused** is merged into a tree of your own, kept beside the production's, and
+  nothing goes on air: no log row, no budget spent. The answer is `200` with `"writes": []`,
+  `"paused": true`, a `"message"`, and that tree as `data`.
 - **`/update` while paused** is held: a per-graphic map keeps the newest value per field. The
   answer is `200` with `"event": null`, `"paused": true` and `"message"`.
-- **The operator still airs.** A press, a typed value and the server's Sheet reader go on air at
-  once while you are paused. A press on a path you also sent wins: Resume does not send yours.
+- **What is on air does not move.** The production's own tree stays the one on air, so a Take or
+  an Update by the operator shows what was there before Pause, never a held value. `GET
+  /api/data/state` answers that tree too, so while paused it does not show your held values.
+- **The operator still airs.** A press, a value typed on the Data tab and the server's Sheet reader
+  go on air at once while you are paused. The last write wins at Resume: a press after your value
+  wins, and a value you send after a press wins. A held `/update` field is dropped when a later
+  press or `/patch` moves that field.
 - **Resume sends exactly the final values once**: one update row per graphic, marked
-  `src: "api"`, with what changed since Pause and the held `/update` values laid over it.
-  Nothing that ended where it started is sent.
-- **A `null` while paused** deletes the path from the tree, so Resume sends nothing for it and
-  the field keeps what it showed, exactly as an unpaused `null` does. A value sent after the
-  `null` is the final value.
+  `src: "api"`, with what changed since Pause and the held `/update` values laid over it, and your
+  tree becomes the production's. Nothing that ended where it started is sent. Resume is never
+  refused, so it cannot leave the source held.
+- **A `null` while paused** deletes the path, so Resume sends nothing for it and the field keeps
+  what it showed, exactly as an unpaused `null` does. A value sent after the `null` is the final
+  value.
 - Your system does not have to do anything about Pause. Keep sending; read `paused` if you want
   to show it.
 

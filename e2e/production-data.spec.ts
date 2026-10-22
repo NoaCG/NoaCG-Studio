@@ -625,8 +625,8 @@ test('an unpublished production offers no data key, because it has none', async 
   // this is the half of that rule the offline suite can prove; the live walk
   // (e2e/configured/production-data-key.spec.ts) proves the other half, including that the
   // revealed key really authenticates.
-  await expect(data.getByTestId('data-key-toggle')).toHaveCount(0);
   await expect(data.getByTestId('data-key')).toHaveCount(0);
+  await expect(data.getByTestId('data-key-value')).toHaveCount(0);
   // The Another system card says publishing is the step, with Publish one press away (here an
   // offline build, so the button says why it cannot; data-sources AC-7, local half).
   await expect(data.getByTestId('data-api-local')).toContainText('Publishing gives this production an address and a key');

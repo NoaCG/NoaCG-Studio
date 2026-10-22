@@ -70,10 +70,19 @@ export function normalize(example, records) {
       missing.push(field.label);
       continue;
     }
-    used.add(hit.name);
     const parts = field.path.split('.');
     let at = patch;
-    for (const part of parts.slice(0, -1)) at = at[part] ??= {};
+    for (const part of parts.slice(0, -1)) {
+      at[part] ??= {};
+      at = typeof at[part] === 'object' ? at[part] : null;
+      if (!at) break;
+    }
+    // Two destinations where one path runs through the other cannot both be sent: the first wins.
+    if (!at || typeof at[parts[parts.length - 1]] === 'object') {
+      missing.push(field.label);
+      continue;
+    }
+    used.add(hit.name);
     at[parts[parts.length - 1]] = hit.value;
     sent.push({ path: field.path, label: field.label, value: hit.value });
   }

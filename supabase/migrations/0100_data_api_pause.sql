@@ -1,36 +1,45 @@
--- live-path: control_shows gains data_paused, data_dispatched, data_held and data_received_at; control_data_apply and control_data_send hold the API's writes while paused (same signatures, same grants); one new control_* function, control_data_pause_by_slug
+-- live-path: control_shows gains data_paused, data_pending, data_held and data_received_at; control_data_apply and control_data_send hold the API's writes while paused (same signatures, same grants); two new control_* functions, control_data_pause_by_slug and control_data_owner_patch
 --
 -- PAUSE FOR PUSHED DATA (docs/work-specs/data-sources/spec.md, phase C5, AC-7; docs/DATA_API.md
--- "Pause"). The data key is ONE source, "Another system", and Pause holds everything it sends:
+-- "Pause"). The data key is ONE source, "Another system", and Pause holds everything it sends.
+-- While paused, `data` stays the tree that is ON AIR, so everything that reads it (a Take, an
+-- Update, the operator pages, `/state`) shows air, never a held value:
 --
--- - `/patch` (control_data_patch -> control_data_apply with the label 'api'): while paused the
---   patch is still merged into `data`, so the tree always holds the newest values, but the
---   resolve-diff-append is skipped. No update row, no budget spent.
--- - `/update` (control_data_send): while paused the values are kept in `data_held`, a per-graphic
---   last-write map ({graphic: {field: value}}), newest per field, and no row is written. It answers
---   NULL instead of an event id, which the route reports as held.
--- - Everything else still airs at once: an operator press ('operator', also the browser Sheet
---   reader's write) and the server tick ('sheet'). While paused those are diffed against
---   `data_dispatched`, the tree as it is on air (the tree at Pause, plus every write that aired
---   since), so a press on a path the API holds wins and is never sent twice.
--- - Resume (control_data_pause_by_slug(slug, false)) diffs `data` against `data_dispatched`, lays
---   the held `/update` values over the result (they are applied after), and appends ONE update row
---   per graphic marked 'api': exactly the final values, once. A null the API sent while paused
---   deleted its path from `data`, and a missing path resolves to nothing, so it sends nothing, as an
---   unpaused null does (the field keeps what it shows).
+-- - `/patch` (control_data_patch -> control_data_apply with the label 'api') merges into
+--   `data_pending`, the tree as the API sees it (the tree at Pause plus everything written since),
+--   and appends no row: no update, no budget spent. It answers that tree with `paused: true`.
+-- - `/update` (control_data_send) keeps its values in `data_held`, a per-graphic last-write map
+--   ({graphic: {field: value}}), and answers NULL instead of an event id (the route says held).
+-- - Everything else airs at once, exactly as unpaused: an operator press ('operator', also the
+--   browser Sheet reader's write and the owner's Data view through control_data_owner_patch) and
+--   the server tick ('sheet'). Each such write is also merged into `data_pending`, so a press
+--   after a held value wins, and a held value after a press wins: the final value is the last one.
+-- - A held `/update` field is dropped when a later write moves that field (a press that airs, or
+--   a `/patch` that changes what the field resolves to), for the same reason.
+-- - Resume (control_data_pause_by_slug(slug, false)) diffs `data_pending` against `data`, lays the
+--   held `/update` values over the result, appends ONE update row per graphic marked 'api' (exactly
+--   the final values, once) and makes `data_pending` the tree. It never refuses: the rows are
+--   bounded by the production's graphics, and a Resume that failed would leave the source held.
+--   A null the API sent while paused deleted its path, and a missing path resolves to nothing, so
+--   it sends nothing, as an unpaused null does (the field keeps what it shows).
 --
--- `data_received_at` is when the API last wrote anything, held or not: the "Received N s ago" of
--- the "Another system" card. The owner's page reads the four columns through its row policy.
+-- `data_received_at` is when the API last wrote anything, held or not (at most once a second when
+-- nothing changed): the "Received N s ago" of the "Another system" card. The owner's page reads the
+-- columns through its row policy.
 --
--- The pause function takes the control slug, as every operator function does, and is
--- anon-callable for the same reason (scripts/supabase-advisors.mjs ACCEPTED_CLASSES): it can
--- only hold or release what the data key sent, which the slug holder could out-write anyway.
+-- control_data_pause_by_slug takes the control slug, as every operator function does, and is
+-- anon-callable for the same reason (scripts/supabase-advisors.mjs ACCEPTED_CLASSES).
+-- control_data_owner_patch is the signed-in owner's (or team member's) Data view on a published
+-- production: the row policy's own test, then control_data_apply as 'operator', so the owner's
+-- typing airs while the API is paused and is never counted as a receipt from Another system.
 --
--- Additive and backwards compatible: the columns are nullable or have a constant default, the two
--- widened functions keep their signatures and grants and behave exactly as before while
--- `data_paused` is false, and a build that never calls the new function never pauses. Revert:
--- drop control_data_pause_by_slug and the four columns, and restore 0097's control_data_apply and
--- 0047's control_data_send (a production left paused then airs the API's next write as before).
+-- Additive and backwards compatible: new columns are nullable or have a constant default, the two
+-- widened functions keep their signatures and grants and, while `data_paused` is false, write the
+-- same tree and the same rows as before (the API's writes also stamp `data_received_at`), and a
+-- build that never calls the new functions never pauses. Revert: drop the two functions,
+-- production_data_changes, production_data_held_without and the four columns, and restore 0097's
+-- control_data_apply and 0047's control_data_send (a production left paused then airs the API's
+-- next write as before; its held values are lost).
 
 set lock_timeout = '2s';
 set statement_timeout = '30s';
@@ -38,21 +47,53 @@ set statement_timeout = '30s';
 -- ── 1. The pause state on the row ──────────────────────────────────────────────────────────────
 alter table public.control_shows
   add column if not exists data_paused boolean not null default false,
-  add column if not exists data_dispatched jsonb,
+  add column if not exists data_pending jsonb,
   add column if not exists data_held jsonb,
   add column if not exists data_received_at timestamptz;
 
--- ── 2. The apply: 0097's body, holding the API while paused ────────────────────────────────────
+-- ── 2. Two helpers ─────────────────────────────────────────────────────────────────────────────
+-- What a write changes on air: {graphic: {field: value}} for every bound field whose value differs
+-- between the two trees (0048's resolve, the diff every apply already ran).
+create or replace function public.production_data_changes(p_after jsonb, p_before jsonb, p_bindings jsonb)
+returns jsonb language sql immutable set search_path = '' as $$
+  select coalesce(jsonb_object_agg(g.graphic, g.fields), '{}'::jsonb)
+  from (
+    select a.graphic, jsonb_object_agg(a.field, a.value) as fields
+    from public.production_data_resolve(p_after, p_bindings) a
+    left join public.production_data_resolve(p_before, p_bindings) b
+      on b.graphic = a.graphic and b.field = a.field
+    where b.value is distinct from a.value
+    group by a.graphic
+  ) g;
+$$;
+revoke execute on function public.production_data_changes(jsonb, jsonb, jsonb) from public, anon, authenticated;
+grant execute on function public.production_data_changes(jsonb, jsonb, jsonb) to service_role;
+
+-- A held /update map without the fields a later write moved; a graphic left with none goes.
+create or replace function public.production_data_held_without(p_held jsonb, p_changes jsonb)
+returns jsonb language sql immutable set search_path = '' as $$
+  select coalesce(jsonb_object_agg(h.key, h.kept), '{}'::jsonb)
+  from (
+    select e.key, e.value - array(select jsonb_object_keys(coalesce(p_changes->e.key, '{}'::jsonb))) as kept
+    from jsonb_each(coalesce(p_held, '{}'::jsonb)) e
+  ) h
+  where h.kept <> '{}'::jsonb;
+$$;
+revoke execute on function public.production_data_held_without(jsonb, jsonb) from public, anon, authenticated;
+grant execute on function public.production_data_held_without(jsonb, jsonb) to service_role;
+
+-- ── 3. The apply: 0097's body, holding the API while paused ────────────────────────────────────
 create or replace function public.control_data_apply(p_show uuid, p_patch jsonb, p_src text)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   v_owner_id uuid;
   v_before jsonb;
+  v_after jsonb;
   v_bindings jsonb;
   v_paused boolean;
-  v_dispatched jsonb;
-  v_base jsonb;
-  v_next jsonb;
+  v_pending_tree jsonb;
+  v_held jsonb;
+  v_received timestamptz;
   v_recent int;
   v_ingest int;
   v_graphic text;
@@ -72,8 +113,8 @@ begin
   end if;
   -- NO KEY UPDATE serialises two feeds (or a feed and an operator) racing on the same production
   -- exactly as FOR UPDATE did, and lets a Take's KEY SHARE through (0071).
-  select s.owner_id, s.data, s.bindings, s.data_paused, s.data_dispatched
-    into v_owner_id, v_before, v_bindings, v_paused, v_dispatched
+  select s.owner_id, s.data, s.bindings, s.data_paused, s.data_pending, s.data_held, s.data_received_at
+    into v_owner_id, v_before, v_bindings, v_paused, v_pending_tree, v_held, v_received
     from public.control_shows s
     where s.id = p_show
     for no key update;
@@ -81,30 +122,23 @@ begin
   if public.feature_denied_for(v_owner_id, 'control.hosted') then
     raise exception 'hosted control is switched off for this page' using errcode = '42501';
   end if;
-  v_before := coalesce(v_before, '{}'::jsonb);
 
-  -- PAUSED, THE API: merge, remember the receipt, write no row (0100).
+  -- PAUSED, THE API: into the API's own tree, nothing on air (0100). A held /update for a field
+  -- this patch moves is superseded by it.
   if v_paused and p_src = 'api' then
+    v_pending_tree := coalesce(v_pending_tree, v_before, '{}'::jsonb);
+    v_after := public.jsonb_merge_patch(v_pending_tree, p_patch);
     update public.control_shows s
-       set data = public.jsonb_merge_patch(v_before, p_patch), data_received_at = now()
+       set data_pending = v_after,
+           data_held = public.production_data_held_without(v_held, public.production_data_changes(v_after, v_pending_tree, v_bindings)),
+           data_received_at = now()
      where s.id = p_show;
-    return jsonb_build_object('data', public.jsonb_merge_patch(v_before, p_patch), 'writes', '[]'::jsonb, 'paused', true);
+    return jsonb_build_object('data', v_after, 'writes', '[]'::jsonb, 'paused', true);
   end if;
 
-  -- What the write is diffed against: the tree, or while paused the tree as it is on air.
-  v_base := case when v_paused then coalesce(v_dispatched, '{}'::jsonb) else v_before end;
-  v_next := public.jsonb_merge_patch(v_base, p_patch);
-
-  select coalesce(jsonb_object_agg(g.graphic, g.fields), '{}'::jsonb), count(*)
-    into v_changes, v_pending
-  from (
-    select a.graphic, jsonb_object_agg(a.field, a.value) as fields
-    from public.production_data_resolve(v_next, v_bindings) a
-    left join public.production_data_resolve(v_base, v_bindings) b
-      on b.graphic = a.graphic and b.field = a.field
-    where b.value is distinct from a.value
-    group by a.graphic
-  ) g;
+  v_after := public.jsonb_merge_patch(coalesce(v_before, '{}'::jsonb), p_patch);
+  v_changes := public.production_data_changes(v_after, v_before, v_bindings);
+  select count(*) into v_pending from jsonb_object_keys(v_changes);
 
   if v_pending > 0 then
     select count(*), count(*) filter (where e.msg->>'src' = 'api')
@@ -120,13 +154,17 @@ begin
   end if;
 
   if v_paused then
+    -- An operator write while the API is paused: it airs as usual, joins the API's tree so the
+    -- last value wins at Resume, and supersedes any held /update for the fields it moved.
     update public.control_shows s
-       set data = public.jsonb_merge_patch(v_before, p_patch), data_dispatched = v_next
+       set data = v_after,
+           data_pending = public.jsonb_merge_patch(coalesce(v_pending_tree, v_before, '{}'::jsonb), p_patch),
+           data_held = public.production_data_held_without(v_held, v_changes)
      where s.id = p_show;
-    v_next := public.jsonb_merge_patch(v_before, p_patch);
-  elsif v_next is distinct from v_before or p_src = 'api' then
+  elsif v_after is distinct from v_before
+        or (p_src = 'api' and (v_received is null or v_received < now() - interval '1 second')) then
     update public.control_shows s
-       set data = v_next,
+       set data = v_after,
            data_received_at = case when p_src = 'api' then now() else s.data_received_at end
      where s.id = p_show;
   end if;
@@ -138,13 +176,10 @@ begin
     v_writes := v_writes || jsonb_build_object('graphic', v_graphic, 'event', v_id, 'applied', v_changed);
   end loop;
 
-  if v_paused then
-    return jsonb_build_object('data', v_next, 'writes', v_writes, 'paused', true);
-  end if;
-  return jsonb_build_object('data', v_next, 'writes', v_writes);
+  return jsonb_build_object('data', v_after, 'writes', v_writes);
 end $$;
 
--- ── 3. /update: 0047's body, held per graphic while paused ─────────────────────────────────────
+-- ── 4. /update: 0047's body, held per graphic while paused ─────────────────────────────────────
 create or replace function public.control_data_send(p_key text, p_graphic text, p_data jsonb)
 returns bigint language plpgsql security definer set search_path = '' as $$
 declare
@@ -193,7 +228,7 @@ begin
   return v_id;
 end $$;
 
--- ── 4. Pause and Resume, on the control slug ───────────────────────────────────────────────────
+-- ── 5. Pause and Resume, on the control slug ───────────────────────────────────────────────────
 -- Answers {paused, writes}. Pausing twice or resuming an unpaused production changes nothing.
 create or replace function public.control_data_pause_by_slug(p_slug text, p_paused boolean)
 returns jsonb language plpgsql security definer set search_path = '' as $$
@@ -203,11 +238,9 @@ declare
   v_data jsonb;
   v_bindings jsonb;
   v_paused boolean;
-  v_dispatched jsonb;
+  v_pending_tree jsonb;
   v_held jsonb;
   v_changes jsonb;
-  v_pending int;
-  v_recent int;
   v_graphic text;
   v_changed jsonb;
   v_id bigint;
@@ -215,8 +248,8 @@ declare
 begin
   if p_paused is null then raise exception 'not a pause'; end if;
   select s.id, s.owner_id, coalesce(s.data, '{}'::jsonb), s.bindings, s.data_paused,
-         coalesce(s.data_dispatched, '{}'::jsonb), coalesce(s.data_held, '{}'::jsonb)
-    into v_show, v_owner, v_data, v_bindings, v_paused, v_dispatched, v_held
+         s.data_pending, coalesce(s.data_held, '{}'::jsonb)
+    into v_show, v_owner, v_data, v_bindings, v_paused, v_pending_tree, v_held
     from public.control_shows s where s.slug = p_slug and p_slug is not null
     for no key update;
   if v_show is null then raise exception 'unknown control slug'; end if;
@@ -227,7 +260,7 @@ begin
   if p_paused then
     if not v_paused then
       update public.control_shows s
-         set data_paused = true, data_dispatched = v_data, data_held = '{}'::jsonb
+         set data_paused = true, data_pending = v_data, data_held = '{}'::jsonb
        where s.id = v_show;
     end if;
     return jsonb_build_object('paused', true, 'writes', '[]'::jsonb);
@@ -237,33 +270,15 @@ begin
   end if;
 
   -- What changed while paused, per graphic, with the held /update values laid over it.
-  select coalesce(jsonb_object_agg(g.graphic, g.fields), '{}'::jsonb)
+  v_pending_tree := coalesce(v_pending_tree, v_data);
+  v_changes := public.production_data_changes(v_pending_tree, v_data, v_bindings);
+  select coalesce(jsonb_object_agg(k.graphic, coalesce(v_changes->k.graphic, '{}'::jsonb) || coalesce(v_held->k.graphic, '{}'::jsonb)), '{}'::jsonb)
     into v_changes
-  from (
-    select a.graphic, jsonb_object_agg(a.field, a.value) as fields
-    from public.production_data_resolve(v_data, v_bindings) a
-    left join public.production_data_resolve(v_dispatched, v_bindings) b
-      on b.graphic = a.graphic and b.field = a.field
-    where b.value is distinct from a.value
-    group by a.graphic
-  ) g;
-  select coalesce(jsonb_object_agg(k.graphic, coalesce(v_changes->k.graphic, '{}'::jsonb) || coalesce(v_held->k.graphic, '{}'::jsonb)), '{}'::jsonb),
-         count(*)
-    into v_changes, v_pending
     from (select jsonb_object_keys(v_changes) as graphic
           union select jsonb_object_keys(v_held)) k;
 
-  if v_pending > 0 then
-    select count(*) into v_recent
-      from public.control_events e
-      where e.show_id = v_show and e.created_at > now() - interval '5 seconds';
-    if v_recent + v_pending > 50 then
-      raise exception 'too many commands — slow down' using errcode = 'check_violation';
-    end if;
-  end if;
-
   update public.control_shows s
-     set data_paused = false, data_dispatched = null, data_held = null
+     set data = v_pending_tree, data_paused = false, data_pending = null, data_held = null
    where s.id = v_show;
 
   for v_graphic, v_changed in select key, value from jsonb_each(v_changes) loop
@@ -277,12 +292,32 @@ end $$;
 revoke execute on function public.control_data_pause_by_slug(text, boolean) from public, anon, authenticated;
 grant execute on function public.control_data_pause_by_slug(text, boolean) to anon, authenticated, service_role;
 
--- ── 5. Self-check ──────────────────────────────────────────────────────────────────────────────
+-- ── 6. The owner's Data view on a published production ─────────────────────────────────────────
+-- The row policy's test (control_shows_owner_all, 0063) and the suspension check, then the apply as
+-- 'operator': the owner's typing airs while the API is paused and is not a receipt.
+create or replace function public.control_data_owner_patch(p_show uuid, p_patch jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+begin
+  if (select public.is_suspended())
+     or not exists (
+       select 1 from public.control_shows s
+       where s.id = p_show
+         and case when s.team_id is null then (select auth.uid()) = s.owner_id
+                  else public.is_team_member(s.team_id) end) then
+    raise exception 'not your production' using errcode = '42501';
+  end if;
+  return public.control_data_apply(p_show, p_patch, 'operator');
+end $$;
+revoke execute on function public.control_data_owner_patch(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.control_data_owner_patch(uuid, jsonb) to authenticated, service_role;
+
+-- ── 7. Self-check ──────────────────────────────────────────────────────────────────────────────
 -- supabase/AGENTS.md: CALL the thing. The cases are scripts/data-pause-conformance.mjs, embedded
 -- here as written there (scripts/data-pause.test.mjs fails the build when the two differ); each
 -- runs on a throwaway production in a block that is always rolled back. A case's steps are
 -- `patch` (/patch), `update` (/update), `press` (an operator press), `sheet` (the server tick),
--- `pause` and `resume`; `rows` are the update rows it appends, in order, and `data` the final tree.
+-- `owner` (the owner's Data view), `pause`, `resume`, and `data` (the tree operators read now must
+-- be `expect`); `rows` are the update rows it appends, in order, and `data_after` the final tree.
 do $$
 declare
   v_cases jsonb := $pause$[
@@ -296,7 +331,12 @@ declare
     {"name":"an /update while paused is held newest per field and sent after the diff, one row per graphic","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Card","data":{"f0":"a","f1":"b"}},{"op":"update","graphic":"Card","data":{"f0":"c"}},{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"2"}},{"graphic":"Card","src":"api","data":{"f0":"c","f1":"b"}}],"data_after":{"api":{"bug":{"score":2}}}},
     {"name":"a held /update to a bound field is laid over the diff in the same row","bindings":{"Bug":{"f0":"api.bug.score","f1":"api.bug.name"}},"data":{"api":{"bug":{"score":1,"name":"A"}}},"steps":[{"op":"pause"},{"op":"patch","patch":{"api":{"bug":{"score":2,"name":"B"}}}},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"9","f1":"B"}}],"data_after":{"api":{"bug":{"score":2,"name":"B"}}}},
     {"name":"pausing twice holds once, and a second Resume sends nothing more","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"resume"},{"op":"pause"},{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"pause"},{"op":"resume"},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"2"}}],"data_after":{"api":{"bug":{"score":2}}}},
-    {"name":"unpaused, a patch and an /update air at once as before","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"update","graphic":"Card","data":{"f0":"x"}}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"2"}},{"graphic":"Card","src":"api","data":{"f0":"x"}}],"data_after":{"api":{"bug":{"score":2}}}}
+    {"name":"unpaused, a patch and an /update air at once as before","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"update","graphic":"Card","data":{"f0":"x"}}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"2"}},{"graphic":"Card","src":"api","data":{"f0":"x"}}],"data_after":{"api":{"bug":{"score":2}}}},
+    {"name":"while paused, operators read the on-air tree; Resume makes the API's tree the tree","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"data","expect":{"api":{"bug":{"score":1}}}},{"op":"resume"},{"op":"data","expect":{"api":{"bug":{"score":2}}}}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"2"}}],"data_after":{"api":{"bug":{"score":2}}}},
+    {"name":"a press after a held /update supersedes it","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"press","patch":{"api":{"bug":{"score":5}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"5"}}],"data_after":{"api":{"bug":{"score":5}}}},
+    {"name":"a /patch after a held /update moves the field, so the patch's value is final","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"update","graphic":"Bug","data":{"f0":"9"}},{"op":"patch","patch":{"api":{"bug":{"score":2}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"api","data":{"f0":"2"}}],"data_after":{"api":{"bug":{"score":2}}}},
+    {"name":"a value the API sends after a press is the final value","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"press","patch":{"api":{"bug":{"score":5}}}},{"op":"patch","patch":{"api":{"bug":{"score":3}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"5"}},{"graphic":"Bug","src":"api","data":{"f0":"3"}}],"data_after":{"api":{"bug":{"score":3}}}},
+    {"name":"the owner's Data view airs while paused and is not a receipt","bindings":{"Bug":{"f0":"api.bug.score"}},"data":{"api":{"bug":{"score":1}}},"steps":[{"op":"pause"},{"op":"owner","patch":{"api":{"bug":{"score":4}}}},{"op":"resume"}],"rows":[{"graphic":"Bug","src":"operator","data":{"f0":"4"}}],"data_after":{"api":{"bug":{"score":4}}}}
   ]$pause$::jsonb;
   v_user uuid := gen_random_uuid();
   v_case jsonb;
@@ -315,6 +355,12 @@ begin
   if not has_function_privilege('anon', 'public.control_data_pause_by_slug(text,boolean)', 'execute')
      or not has_function_privilege('authenticated', 'public.control_data_pause_by_slug(text,boolean)', 'execute') then
     raise exception '0100 self-check failed: an operator page cannot reach Pause';
+  end if;
+  if has_function_privilege('anon', 'public.control_data_owner_patch(uuid,jsonb)', 'execute')
+     or not has_function_privilege('authenticated', 'public.control_data_owner_patch(uuid,jsonb)', 'execute')
+     or has_function_privilege('anon', 'public.production_data_changes(jsonb,jsonb,jsonb)', 'execute')
+     or has_function_privilege('authenticated', 'public.production_data_held_without(jsonb,jsonb)', 'execute') then
+    raise exception '0100 self-check failed: the owner door or a helper has the wrong grants';
   end if;
   if has_function_privilege('anon', 'public.control_data_apply(uuid,jsonb,text)', 'execute')
      or has_function_privilege('anon', 'public.control_data_send(text,text,jsonb)', 'execute')
@@ -358,6 +404,15 @@ begin
               raise exception '0100 self-check failed: %: an /update answered % while paused=%', v_case->>'name', v_event, v_paused;
             end if;
           when 'press' then perform public.control_data_apply(v_show, v_step->'patch', 'operator');
+          when 'owner' then
+            perform set_config('request.jwt.claims', json_build_object('sub', v_user, 'role', 'authenticated')::text, true);
+            perform public.control_data_owner_patch(v_show, v_step->'patch');
+            perform set_config('request.jwt.claims', '', true);
+          when 'data' then
+            select s.data into v_got from public.control_shows s where s.id = v_show;
+            if v_got is distinct from (v_step->'expect') then
+              raise exception '0100 self-check failed: % - operators read %, expected %', v_case->>'name', v_got, v_step->'expect';
+            end if;
           when 'sheet' then perform public.control_data_apply(v_show, v_step->'patch', 'sheet');
           when 'pause' then
             v_ans := public.control_data_pause_by_slug(v_slug, true);
@@ -380,14 +435,26 @@ begin
       if v_got is distinct from (v_case->'data_after') then
         raise exception '0100 self-check failed: % - data %, expected %', v_case->>'name', v_got, v_case->'data_after';
       end if;
-      if (select s.data_paused or s.data_dispatched is not null or s.data_held is not null
-                 or s.data_received_at is null
+      -- Left unpaused and empty; a receipt exactly when the API wrote (never for the owner's typing).
+      if (select s.data_paused or s.data_pending is not null or s.data_held is not null
+                 or (s.data_received_at is null) = exists (
+                      select 1 from jsonb_array_elements(v_case->'steps') x where x.value->>'op' in ('patch', 'update'))
             from public.control_shows s where s.id = v_show) is distinct from false then
-        raise exception '0100 self-check failed: % - the row was not left unpaused, empty and received', v_case->>'name';
+        raise exception '0100 self-check failed: % - the row was not left unpaused, empty and with an honest receipt', v_case->>'name';
       end if;
     end loop;
 
-    -- An unknown slug and a missing answer are refused before anything is read.
+    -- The owner's door refuses anyone the row policy would.
+    perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+    begin
+      perform public.control_data_owner_patch(v_show, '{"x":1}'::jsonb);
+      raise exception '0100 self-check failed: a stranger wrote through the owner''s door';
+    exception when others then
+      if sqlerrm <> 'not your production' then raise; end if;
+    end;
+    perform set_config('request.jwt.claims', '', true);
+
+    -- An unknown slug is refused before anything is read.
     begin
       perform public.control_data_pause_by_slug('0100-no-such-slug', true);
       raise exception '0100 self-check failed: an unknown slug paused';

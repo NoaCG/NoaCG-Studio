@@ -61,6 +61,8 @@ test('the table covers the C5 matrix: push, Pause, a push with a null, /update w
   assert.ok(PAUSE_CONFORMANCE.some((c) => between(c, 'update')), 'an /update while paused');
   assert.ok(PAUSE_CONFORMANCE.some((c) => between(c, 'press')), 'an operator press while paused');
   assert.ok(PAUSE_CONFORMANCE.some((c) => between(c, 'sheet')), 'the server tick while paused');
+  assert.ok(PAUSE_CONFORMANCE.some((c) => between(c, 'owner')), "the owner's Data view while paused");
+  assert.ok(PAUSE_CONFORMANCE.some((c) => between(c, 'data')), 'what operators read while paused');
   // Resume sends each graphic at most once, as 'api', and only update rows exist at all.
   for (const c of PAUSE_CONFORMANCE) {
     const ops = steps(c);
@@ -208,6 +210,10 @@ test('the sender names its synthetic records after the unfamiliar fields, and re
   assert.deepEqual(out.patch, { api: { riverside_count: { counted: '38 %', leading: 'Harbour List', margin: '412', turnout: '57.1 %' } } });
   assert.deepEqual(out.missing, []);
   assert.deepEqual(out.unused, ['Polling stations']);
+  // A destination whose path runs through another's is reported, never a crash.
+  const clash = normalize({ fields: [{ path: 'api.a.b', label: 'Leading' }, { path: 'api.a.b.c', label: 'Margin' }] }, records);
+  assert.deepEqual(clash.patch, { api: { a: { b: 'Harbour List' } } });
+  assert.deepEqual(clash.missing, ['Margin']);
 });
 
 test('a failed acquisition sends nothing: a cut-off file, a missing one, no records, a value that is not text', async () => {

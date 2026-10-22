@@ -139,7 +139,7 @@ const ACCEPTED_CLASSES = {
     'control_data_pause_by_slug (0100, Another system\'s Pause, docs/work-specs/data-sources/ C5) is ' +
     'the same control-slug door as control_data_patch_by_slug: it holds or releases what the data ' +
     'key sends to that production. Pause writes only the row\'s pause columns; Resume appends at ' +
-    'most one update row per graphic, the values the key already sent, under the 50-per-5-s cap. ' +
+    'most one update row per graphic, the values the key already sent (bounded by its graphics). ' +
     'It cannot play, take or clear a graphic, and the slug holder could out-write those values anyway.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
@@ -148,7 +148,11 @@ const ACCEPTED_CLASSES = {
     'auth.uid() or is_moderator() inside. ' +
     'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller. ' +
     'audience_operator_add (0095) and audience_operator_settle (0098) are the anon control-slug ' +
-    'doors above, reached by a signed-in operator, and so is control_data_pause_by_slug (0100).',
+    'doors above, reached by a signed-in operator, and so is control_data_pause_by_slug (0100). ' +
+    'control_data_owner_patch (0100, the owner\'s Data view on a published production) is granted to ' +
+    'authenticated only: it applies the control_shows row policy\'s own test (owner, or a current team ' +
+    'member) and the suspension check before the apply, labelled as an operator write, so it opens ' +
+    'nothing the owner\'s row policy and the control slug do not already allow.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +

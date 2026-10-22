@@ -52,8 +52,8 @@ function fakeIo({ local = {}, backendConfigured = true } = {}) {
       calls.fetched.push(key);
       return next(answers.fetches);
     },
-    patchProductionData: (key, patch) => {
-      calls.patched.push([key, patch]);
+    patchProductionData: (key, patch, ownerShowId) => {
+      calls.patched.push(ownerShowId === undefined ? [key, patch] : [key, patch, ownerShowId]);
       return next(answers.patches);
     },
     patchProductionDataBySlug: (slug, patch) => {
@@ -185,7 +185,9 @@ test('the key road: an owner edit is a PATCH naming its removals, and the answer
 
   t.data.setLiveData({ home: 2 });
   assert.deepEqual(t.session.data.get().liveData, { home: 2 }, 'optimistic');
-  assert.deepEqual(t.calls.patched, [['key-1', { home: 2, away: null }]]);
+  // The owner's own edit names its production, so it goes through the owner's door and airs while
+  // Another system is paused (data-sources C5, migration 0100).
+  assert.deepEqual(t.calls.patched, [['key-1', { home: 2, away: null }, 'prod-1']]);
   assert.deepEqual(t.calls.saved, [], 'published, nothing goes to localStorage');
   // A feed tick landed in the same moment: the server's merge is what stands.
   t.answers.patches[0].resolve({ home: 2, clock: '10:00' });

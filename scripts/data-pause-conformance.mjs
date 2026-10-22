@@ -10,8 +10,10 @@
 // the same bodies, as 0096 does for the merge-patch table.
 //
 // Steps: `patch` (/patch with the data key), `update` (/update: one graphic's field values), `press`
-// (an operator press), `sheet` (the server tick), `pause`, `resume`. `rows` are the update rows the
-// case appends, in order, as {graphic, src, data}; `data_after` is the final tree.
+// (an operator press), `sheet` (the server tick), `owner` (the owner's Data view), `pause`, `resume`,
+// and `data` (the tree operators read at that moment must be `expect`: while paused, what is on air).
+// `rows` are the update rows the case appends, in order, as {graphic, src, data}; `data_after` is the
+// final tree.
 
 /** @type {{name: string, bindings: Record<string, Record<string, string>>, data: object, steps: object[], rows: object[], data_after: object}[]} */
 export const PAUSE_CONFORMANCE = [
@@ -679,6 +681,302 @@ export const PAUSE_CONFORMANCE = [
       "api": {
         "bug": {
           "score": 2
+        }
+      }
+    }
+  },
+  {
+    "name": "while paused, operators read the on-air tree; Resume makes the API's tree the tree",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "patch",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 2
+            }
+          }
+        }
+      },
+      {
+        "op": "data",
+        "expect": {
+          "api": {
+            "bug": {
+              "score": 1
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      },
+      {
+        "op": "data",
+        "expect": {
+          "api": {
+            "bug": {
+              "score": 2
+            }
+          }
+        }
+      }
+    ],
+    "rows": [
+      {
+        "graphic": "Bug",
+        "src": "api",
+        "data": {
+          "f0": "2"
+        }
+      }
+    ],
+    "data_after": {
+      "api": {
+        "bug": {
+          "score": 2
+        }
+      }
+    }
+  },
+  {
+    "name": "a press after a held /update supersedes it",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "update",
+        "graphic": "Bug",
+        "data": {
+          "f0": "9"
+        }
+      },
+      {
+        "op": "press",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 5
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [
+      {
+        "graphic": "Bug",
+        "src": "operator",
+        "data": {
+          "f0": "5"
+        }
+      }
+    ],
+    "data_after": {
+      "api": {
+        "bug": {
+          "score": 5
+        }
+      }
+    }
+  },
+  {
+    "name": "a /patch after a held /update moves the field, so the patch's value is final",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "update",
+        "graphic": "Bug",
+        "data": {
+          "f0": "9"
+        }
+      },
+      {
+        "op": "patch",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 2
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [
+      {
+        "graphic": "Bug",
+        "src": "api",
+        "data": {
+          "f0": "2"
+        }
+      }
+    ],
+    "data_after": {
+      "api": {
+        "bug": {
+          "score": 2
+        }
+      }
+    }
+  },
+  {
+    "name": "a value the API sends after a press is the final value",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "press",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 5
+            }
+          }
+        }
+      },
+      {
+        "op": "patch",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 3
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [
+      {
+        "graphic": "Bug",
+        "src": "operator",
+        "data": {
+          "f0": "5"
+        }
+      },
+      {
+        "graphic": "Bug",
+        "src": "api",
+        "data": {
+          "f0": "3"
+        }
+      }
+    ],
+    "data_after": {
+      "api": {
+        "bug": {
+          "score": 3
+        }
+      }
+    }
+  },
+  {
+    "name": "the owner's Data view airs while paused and is not a receipt",
+    "bindings": {
+      "Bug": {
+        "f0": "api.bug.score"
+      }
+    },
+    "data": {
+      "api": {
+        "bug": {
+          "score": 1
+        }
+      }
+    },
+    "steps": [
+      {
+        "op": "pause"
+      },
+      {
+        "op": "owner",
+        "patch": {
+          "api": {
+            "bug": {
+              "score": 4
+            }
+          }
+        }
+      },
+      {
+        "op": "resume"
+      }
+    ],
+    "rows": [
+      {
+        "graphic": "Bug",
+        "src": "operator",
+        "data": {
+          "f0": "4"
+        }
+      }
+    ],
+    "data_after": {
+      "api": {
+        "bug": {
+          "score": 4
         }
       }
     }
