@@ -54,7 +54,7 @@ marked **(new)**.
 | Pasted messages | `e2e/production-audience.spec.ts` "a pasted message airs exactly as prepared…"; `e2e/configured/audience-live.spec.ts` "a pasted message on a published production…" | the prepared version airs; a second message, an edit and a new arrival cannot change it; published through the operator door | pass |
 | Sheet messages | `production-audience` "a message Sheet: rows arrive as candidates…"; `audience-live` "a message Sheet on a published production…"; `scripts/sheet-messages.test.mjs` | rows become candidates; reorder, edit and identical rows keep identity; a vanished row keeps a used candidate | pass |
 | YouTube comments | `e2e/production-chat-intake.spec.ts` "YouTube comments: one press brings the newest 100…", "…a refusal says what to do next", "…a source removed while its fetch is out…"; `scripts/youtube-comments.test.mjs` | on Q's recorded shapes | pass (recorded responses; no live comments call in C7) |
-| YouTube live chat | `production-chat-intake` "YouTube live chat: the first page arrives as earlier…"; `scripts/youtube-chat.test.mjs`; the live smoke below | recorded shapes in CI; the app's own reader on a public stream in the smoke | see "YouTube live smoke" |
+| YouTube live chat | `production-chat-intake` "YouTube live chat: the first page arrives as earlier…"; `scripts/youtube-chat.test.mjs`; the live smoke below | recorded shapes in CI; the app's own reader on a public stream in the smoke | pass (live smoke: 24 new lines in 3.5 minutes, nothing dropped) |
 | Twitch chat (regression) | `scripts/twitch-chat.test.mjs` **(new)** on `scripts/fixtures/twitch/anonymous-read.json` | the existing anonymous reader on recorded IRC frames, through the intake | pass; one defect found and fixed (below) |
 | A staged vote | `production-audience` "the vote reaches air the same way a question does…"; `audience-live` "the published walk…" **(new)** | votes counted; staging writes a cue and stops; only Take airs | pass |
 
@@ -126,7 +126,33 @@ cue airs nothing; Take airs the question and its options. Result: see "Runs". Fi
 
 ## YouTube live smoke
 
-RESULT_PLACEHOLDER
+One smoke of the app's own live chat reader against a public 24/7 stream, with the shared key
+(`YOUTUBE_API_KEY`, read from the session's environment and never printed or stored). Run on
+2026-10-22 from 19:20:46 UTC for 3.5 minutes, on the offline dev server of this branch at
+`e53b7e7` (the reader is unchanged since), driven by a one-off Playwright script that was not
+committed: an unpublished production, Messages, "YouTube live chat", the stream `4xDzrJKXOOY`
+(the one Q found live), the key typed in, Connect. Recorded: counts, status words and timings
+only; no message text, names or ids.
+
+| Seconds after Connect | In the inbox | Marked "earlier" | New | Source line |
+| --- | --- | --- | --- | --- |
+| 1 | 75 | 75 | 0 | 75 in · 0 dropped |
+| 61 | 83 | 75 | 8 | 83 in · 0 dropped |
+| 121 | 88 | 75 | 13 | 88 in · 0 dropped |
+| 211 | 99 | 75 | 24 | 99 in · 0 dropped |
+
+- Calls: 2 `videos` lookups and 40 `liveChat/messages` pages, every one answered 200. The gap
+  between pages was 5,146 to 5,800 ms (median 5,284 ms): the 5-second floor held.
+- Units at the documented cost: 2 + 5 × 40 = 202, plus 2 for a lookup made before the smoke to
+  check that the stream was live: **204 units** of the shared key's 10,000, under the 600 allowed.
+- The quota line read "About 2 h 46 min of chat left today…" at the start and moved down a minute
+  at a time, as the browser's own spend grew.
+- No error detail appeared on the source.
+- Shorter than the ten minutes allowed: the job queue caps an uncommitted one-off browser job at
+  five minutes. Ten minutes would add pages, not a new kind of evidence.
+
+Result: **pass** for the YouTube live chat route on a live stream, as far as a key alone reaches
+(Q's record). The YouTube comments route was not called live in C7; its live receipt is Q's.
 
 ## Findings
 

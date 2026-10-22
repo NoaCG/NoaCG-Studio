@@ -51,7 +51,9 @@ changes a spec's digest.
     to Question); one that re-takes only the scoreboard goes red too, but on its machine state
     (Enter, not running), not on the clock's reading: origin-based clocks resume from their stored
     start, so the reading alone cannot see a re-take. Both checks stay.
-  - Guest row: loading always the first row goes red.
+  - Guest row: loading always the first row goes red. The re-take mutant passes it (the journey
+    makes no data write), and its "PROGRAM unchanged after the row's edit and delete" half has no
+    code path to mutate: nothing sends a table edit to air. That half guards a future one.
   - Sheet boards: a data write that also re-takes the graphic goes red on the entrance count.
   - The published audience walk runs only in the configured suite; it was not mutation-checked
     locally (no local stack on this worker), and its first configured run is its evidence.
