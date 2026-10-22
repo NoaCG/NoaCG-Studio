@@ -299,8 +299,10 @@ export function createChatIntake(): ChatIntake {
   const retries = new Map<SourceRuntime, { items: CandidateInput[]; tries: number }>();
   const retryLater = (runtime: SourceRuntime, items: CandidateInput[]) => {
     const held = retries.get(runtime) ?? { items: [], tries: 0 };
+    // One try per round: a page sent as several chunks that all fail in one round is one try.
+    const firstOfRound = held.items.length === 0;
     held.items.push(...items);
-    held.tries += 1;
+    if (firstOfRound) held.tries += 1;
     if (held.tries > CHAT_ADD_TRIES) {
       runtime.state.dropped += held.items.length;
       retries.delete(runtime);
@@ -308,7 +310,7 @@ export function createChatIntake(): ChatIntake {
       return;
     }
     retries.set(runtime, held);
-    if (held.items.length === items.length) setTimeout(() => flush(runtime), CHAT_ADD_RETRY_MS);
+    if (firstOfRound) setTimeout(() => flush(runtime), CHAT_ADD_RETRY_MS);
   };
   function flush(runtime: SourceRuntime) {
     const held = retries.get(runtime);
@@ -526,6 +528,6 @@ export function createChatIntake(): ChatIntake {
 // to a SECOND module instance (the ghost-store trap), whose registry would be empty while the
 // app's own carries the sources the UI shows. The handle the APP registered is unambiguous.
 // Dev-only: a production build carries no seam.
-if (import.meta.env.DEV && typeof window !== 'undefined') {
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__noacgChatIntake = { for: chatIntakeFor };
 }
