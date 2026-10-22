@@ -1636,6 +1636,58 @@ test('twelve Sheet rows reach a ticker on air without a new entrance, and an emp
   expect(await stage.getAttribute('data-plays')).toBe(plays);
 });
 
+test('Sheet tabs fill a schedule, standings and credits on air, and each follows its own tab without a new entrance (C7)', async ({ page }) => {
+  // data-sources AC-16: schedule, standings and credits from a Sheet, beside the ticker above.
+  test.setTimeout(120_000);
+  const tabs: Record<string, string> = {
+    '1': 'Time,Programme\n20:00,News at Eight\n22:00,Late show\n',
+    '2': 'Name,P,W,PTS\nLiquid,5,4,12\nNAVI,5,3,9\n',
+    '3': 'Role,Name\n# CREW,\nDirector,Ann Lee\n',
+  };
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      headers: { 'access-control-allow-origin': '*' },
+      body: tabs[new URL(route.request().url()).searchParams.get('gid') ?? ''] ?? '',
+    }),
+  );
+  await bootstrapGraphic(page, { name: 'Schedule Board' });
+  const showId = await productionFor(page, 'Sheet Boards');
+  for (const name of ['League Table', 'Classic Roll']) await addCatalogGraphic(page, showId, name);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(3);
+  for (const [i, gid] of ['1', '2', '3'].entries()) {
+    await cues.nth(i).locator('.pd-cue-label').click();
+    const review = await readSheetTab(page, SHEET_LINK.replace('gid=0', `gid=${gid}`));
+    await review.getByTestId('cue-connect-confirm').click();
+    await expect(review).toBeHidden();
+    await page.getByTestId('verb-take').click();
+  }
+  const program = (title: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${title}"]`);
+  const schedule = program('Schedule Board');
+  const table = program('League Table');
+  const roll = program('Classic Roll');
+  await expect(schedule.locator('.infographic-row')).toHaveCount(2, { timeout: 12_000 });
+  await expect(schedule.locator('.infographic-row').nth(0)).toContainText('News at Eight');
+  await expect(table.locator('.results-board-col')).toHaveText(['P', 'W', 'PTS'], { timeout: 12_000 });
+  await expect(table.locator('.results-board-row')).toHaveCount(2);
+  await expect(roll.locator('#credits-track')).toContainText('Ann Lee', { timeout: 12_000 });
+  const stage = page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first();
+  const plays = await stage.getAttribute('data-plays');
+
+  // Each tab changes; each board follows its own, and nothing is taken again.
+  tabs['1'] = 'Time,Programme\n20:00,News at Eight\n22:00,Late show\n23:00,Night film\n';
+  tabs['2'] = 'Name,P,W,PTS\nNAVI,6,4,12\nLiquid,6,4,12\nG2,6,1,3\n';
+  tabs['3'] = 'Role,Name\n# CREW,\nDirector,Ann Lee\nCamera,Bo Chen\n';
+  await expect(schedule.locator('.infographic-row')).toHaveCount(3, { timeout: 12_000 });
+  await expect(schedule.locator('.infographic-row').nth(2)).toContainText('Night film');
+  await expect(table.locator('.results-board-row')).toHaveCount(3, { timeout: 12_000 });
+  await expect(table.locator('.results-board-row').nth(0)).toContainText('NAVI');
+  await expect(roll.locator('#credits-track')).toContainText('Bo Chen', { timeout: 12_000 });
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+});
+
 test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
   test.setTimeout(120_000);
   const tab = await stubSheet(page, 'Field ID,Label,Value\nf1,Home score,0\n');
