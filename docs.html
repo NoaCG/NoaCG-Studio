@@ -1737,29 +1737,42 @@ CG 1-20 STOP</code></pre>
           <h3 id="data-api">The Production Data API</h3>
           <p>
             For a timing system, a results service or your own scripts: push values into a
-            published production over HTTPS, with the production's own data key.
+            published production over HTTPS, with the production's own data key. In the studio
+            this source is called <strong>Another system</strong>.
           </p>
           <p>
-            <strong>Where to find the key.</strong> Publish the production, open its
-            <strong>Data</strong> tab, and press <strong>▾ Data key</strong> in the Production data
-            panel. Reveal it, copy it, and put it in your integration's server-side configuration.
-            Publishing again mints a new key and the old one stops working, which is also how you
-            revoke one.
+            <strong>Connect the fields first.</strong> On the Playout tab, select a cue of the
+            graphic, press <strong>Connect data&hellip;</strong> and then <strong>Another
+            system</strong>. Every field is offered its own path, such as
+            <code>api.riverside_count.leading</code>. Check the list and press
+            <strong>Connect</strong>.
           </p>
-          <pre><code>curl -s https://noacg.studio/api/data/update \
+          <p>
+            <strong>Where to find the address and the key.</strong> Publish the production and open
+            its <strong>Data</strong> tab. The <strong>Another system</strong> card shows the
+            address, the key behind <strong>Reveal</strong>, an example made from the connected
+            fields and when the last values arrived. Put the key in your integration's
+            server-side configuration. Publishing again makes a new key and the old one stops
+            working, which is also how you revoke one.
+          </p>
+          <pre><code>curl -X PATCH https://noacg.studio/api/data/patch \
   -H "Authorization: Bearer $NOACG_DATA_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"graphic": "House Scorebug", "values": {"Score A": 2, "Clock": "43:12"}}'</code></pre>
+  -d '{"api": {"riverside_count": {"leading": "Harbour List", "margin": "412"}}}'</code></pre>
           <ul>
-            <li>Fields are addressed by the <strong>labels the graphic shows its operator</strong>
-              ("Score A").</li>
+            <li><code>/api/data/patch</code> (PATCH, or POST behind a proxy that eats PATCH)
+              writes data paths. Every field connected to a path follows, so the feed does not have
+              to know the rundown. A <code>null</code> removes a value from the tree; the field
+              keeps what it shows.</li>
             <li>The key writes data and reads the production's current data back. It cannot play,
               stop, take or clear anything. Cueing and clearing stay with the operator.</li>
-            <li><code>/api/data/patch</code> (PATCH, or POST behind a proxy that eats PATCH)
-              writes to a data path such as <code>match.home.score</code> instead of to a named
-              graphic. Every graphic whose field is bound to that path follows, so the feed does
-              not have to know the rundown. The binding is set up in the studio first.</li>
-            <li>The full reference, limits and errors are in
+            <li><strong>Pause</strong> on the card holds what the key sends. Nothing it sends goes
+              on air, and the answer to each request says <code>"paused": true</code>. Your own
+              presses still go on air. <strong>Resume</strong> sends the latest values once.</li>
+            <li><code>/api/data/update</code> is the older door that addresses one graphic by name
+              and its fields by the labels the operator sees. It still works, and Pause holds it
+              too.</li>
+            <li>The full reference, limits, errors and a sample sender are in
               <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/DATA_API.md">DATA_API.md</a>.</li>
           </ul>
           <p>

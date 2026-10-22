@@ -1,4 +1,4 @@
-// guards: src/model/shows.ts, src/model/productionData.ts, src/control/liveData.ts, src/control/contentFormats.ts
+// guards: src/model/shows.ts, src/model/productionData.ts, src/control/liveData.ts, src/control/contentFormats.ts, src/control/anotherSystem.ts
 //
 // A PRODUCTION SAVED BY AN EARLIER BUILD STILL LOADS AND PLAYS (docs/work-specs/data-sources/spec.md
 // AC-12: "a record saved by today's build loads and plays unchanged after every phase that adds a
@@ -27,6 +27,7 @@ import './lib/tsResolve.mjs';
 const { resolveBindings } = await import('../src/model/productionData.ts');
 const { hasLiveData } = await import('../src/control/liveData.ts');
 const { fillList, listFormatFor, starterRows } = await import('../src/control/contentFormats.ts');
+const { apiDestinations, apiOffers } = await import('../src/control/anotherSystem.ts');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixturePath = path.join(root, 'scripts/fixtures/show-saved-before-c1a.json');
@@ -111,6 +112,31 @@ test('a feed source carrying anything but its address, or a kind it does not kno
   const odd = structuredClone(withFeed);
   odd.sources[0].kind = 'rss';
   assert.notDeepEqual(showTypeErrors(odd), []);
+});
+
+// C5 adds no persisted field: a graphic connected to Another system is ordinary bindings to `api.`
+// paths, with no source record. The earlier record with one still reads, its other fields play the
+// same, and the card's example names exactly that graphic's connected fields.
+const strip = () => show.graphics.find((g) => g.name !== 'Hairline') ?? show.graphics[0];
+const withApi = () => {
+  const graphic = strip();
+  const offers = apiOffers(show.bindings, graphic.name, [{ key: 'f0', label: 'Headline' }, { key: 'f1', label: 'Detail' }], {});
+  return { ...show, bindings: { ...show.bindings, [graphic.name]: Object.fromEntries(offers.map((o) => [o.key, o.path])) } };
+};
+
+test('with a graphic connected to Another system it still reads as a Show, adds no source, and plays the same (C5)', () => {
+  const record = withApi();
+  assert.deepEqual(showTypeErrors(record), []);
+  assert.equal(record.sources, undefined, 'Another system is the data key, not a source record');
+  const graphic = strip();
+  const paths = Object.values(record.bindings[graphic.name]);
+  assert.ok(paths.every((p) => p.startsWith('api.')), paths.join(', '));
+  const live = { ...liveData, api: { [paths[0].split('.')[1]]: { headline: 'Polls close', detail: '20:00' } } };
+  const resolved = resolveBindings(live, record.bindings);
+  if (graphic.name !== 'Hairline') assert.deepEqual(resolved.Hairline, resolveBindings(liveData, show.bindings).Hairline);
+  assert.equal(resolved[graphic.name].f0, 'Polls close');
+  const dests = apiDestinations(record.bindings, [{ name: graphic.name, fields: [{ key: 'f0', label: 'Headline' }, { key: 'f1', label: 'Detail' }], values: {} }]);
+  assert.deepEqual(dests.map((d) => d.fieldId).sort(), ['f0', 'f1']);
 });
 
 test('it plays unchanged: each cue with the live tree over its bound fields is what PROGRAM showed', () => {

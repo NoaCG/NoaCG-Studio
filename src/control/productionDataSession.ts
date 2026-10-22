@@ -171,8 +171,8 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     },
 
     /**
-     * ONE CALL, ONE WRITE. This charges a persist - and, published, an HTTP PATCH against the
-     * production's ingest budget - every time it is called, and it deliberately does not coalesce:
+     * ONE CALL, ONE WRITE. This charges a persist - and, published, a write on the production's
+     * command budget - every time it is called, and it deliberately does not coalesce:
      * every caller it has is one deliberate gesture (a stepper, Apply JSON, Reset, Clear, Move
      * numbers, a finished edit). A CALLER THAT FIRES AT KEYSTROKE RATE IS THE BUG, not this
      * function's missing debounce. Deferring belongs at the box (components/home/useDeferredEdits.ts),
@@ -194,7 +194,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       const patch = replacementPatch(before, next);
       if (Object.keys(patch).length === 0) return;
       void io
-        .patchProductionData(dataKey, patch)
+        .patchProductionData(dataKey, patch, session.key)
         .then((server) => write(from, { liveData: server as JsonObject }))
         .catch((error: Error) => {
           if (!session.alive()) return;

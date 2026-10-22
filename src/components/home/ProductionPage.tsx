@@ -4831,6 +4831,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           resolved={resolved}
           dataKey={dataKey ?? null}
           sourceStatus={sourceStatus}
+          publish={started ? null : { run: () => void publish(), unavailable: backendConfigured ? null : 'Publishing needs the cloud backend, and this build runs offline' }}
         />
         </AccountAuthoringGate>
       )}

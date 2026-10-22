@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-10-22",
-  "count": 183,
+  "count": 186,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -97,6 +97,11 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_data_patch_by_slug(p_slug text, p_patch jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_patch_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_control_data_pause_by_slug_p_slug text, p_paused boolean": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_data_pause_by_slug(p_slug text, p_paused boolean)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_pause_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_output_by_slug_p_output_slug text": {
       "name": "anon_security_definer_function_executable",
@@ -393,10 +398,20 @@
       "level": "WARN",
       "detail": "Function `public.control_data_by_slug(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_control_data_owner_patch_p_show uuid, p_patch jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_data_owner_patch(p_show uuid, p_patch jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_owner_patch`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_control_data_patch_by_slug_p_slug text, p_patch jsonb": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_data_patch_by_slug(p_slug text, p_patch jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_patch_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_data_pause_by_slug_p_slug text, p_paused boolean": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_data_pause_by_slug(p_slug text, p_paused boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_data_pause_by_slug`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_output_by_slug_p_output_slug text": {
       "name": "authenticated_security_definer_function_executable",

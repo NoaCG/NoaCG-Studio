@@ -24,8 +24,8 @@ import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
 import { readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
-import { copyLink } from './copyLink';
 import { useDeferredEdits } from './useDeferredEdits';
+import { isApiPath } from '../../control/anotherSystem';
 
 /**
  * THE MANUAL DATA PLAYGROUND (docs/PRODUCTION_DATA_PLAN.md §3) — the production's live data
@@ -46,7 +46,6 @@ export default function ProductionDataPanel({
   liveData,
   setLiveData,
   resolved,
-  dataKey,
   sourceStatus,
 }: {
   show: Show;
@@ -54,9 +53,6 @@ export default function ProductionDataPanel({
   liveData: JsonObject;
   setLiveData: (data: JsonObject) => void;
   resolved: ResolvedValues;
-  /** The production's own data key, or null when there is nothing to show (unpublished,
-   *  offline, or not the owner). See the Data key block below for why it belongs on screen. */
-  dataKey?: string | null;
   /** What each source's reader last found (control/sheetSource.ts), for the overview. */
   sourceStatus: SourceStatusStore;
 }) {
@@ -69,10 +65,6 @@ export default function ProductionDataPanel({
    *  so a red line and a green one can never be on screen together - which they were, the moment
    *  any note was set outside `write()`. */
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
-  /** The data key is hidden until asked for: it is a credential, and this page is often on a
-   *  screen somebody else is looking at. */
-  const [keyOpen, setKeyOpen] = useState(false);
-  const [keyShown, setKeyShown] = useState(false);
   /** The one ✕ whose second click deletes, or null. One slot, so arming a row disarms any other. */
   const [armed, setArmed] = useState<string | null>(null);
 
@@ -168,21 +160,6 @@ export default function ProductionDataPanel({
           The values, lists and Sheets this production uses, and the graphics that show them.
           Change a value here and every graphic showing it follows, on air too.
         </p>
-        <div className="pd-live-actions">
-          {/* Only when there IS a key: unpublished productions and offline builds have no API to
-              point anybody at, and a permanently dead button is worse than no button. */}
-          {dataKey && (
-            <button
-              onClick={() => {
-                setKeyOpen((open) => !open);
-                setKeyShown(false);
-              }}
-              data-testid="data-key-toggle"
-            >
-              {keyOpen ? '▴ Hide data key' : '▾ Data key'}
-            </button>
-          )}
-        </div>
       </div>
 
       {/* ONE line, in the colour its own news deserves: a value that went nowhere must not arrive
@@ -191,54 +168,6 @@ export default function ProductionDataPanel({
         <p className={`${note.ok ? 'status-ok' : 'status-bad'} pd-data-note`} data-testid="data-note">
           {note.text}
         </p>
-      )}
-
-      {/* THE DATA KEY (docs/DATA_API.md). The API was documented and then unreachable: the key is
-          minted at publish and lived only in `control_shows.data_key`, so the whole guide told a
-          hosted operator to go and read a database row they have no way to open. It is the
-          OWNER'S OWN key, read over RLS in their own authenticated session
-          (control/productionDataApi.ts says why that is not the "never a web page" case the
-          integrator doc warns about), and it is strictly weaker than the control-page URL this
-          same production already hands out.
-
-          Hidden until asked for, because this screen is often in front of other people, and
-          revealed rather than masked-and-copyable so nobody hands out a key they never saw. */}
-      {dataKey && keyOpen && (
-        <div className="pd-datakey" data-testid="data-key">
-          <p className="hint">
-            An outside system - a timing service, a results feed, your own script - writes this
-            tree over HTTPS with this key. It writes data only: it cannot play, stop, take or
-            clear a graphic. Keep it in server-side config, never in a web page.
-          </p>
-          <div className="pd-datakey-row">
-            <code data-testid="data-key-value">{keyShown ? dataKey : '•'.repeat(24)}</code>
-            <button onClick={() => setKeyShown((shown) => !shown)} data-testid="data-key-reveal">
-              {keyShown ? 'Hide' : 'Reveal'}
-            </button>
-            <button
-              onClick={() => {
-                void copyLink(dataKey).then((ok) => {
-                  setNote(
-                    ok
-                      ? { text: '✓ Data key copied', ok: true }
-                      : { text: 'The key could not be copied. Reveal it and copy by hand.', ok: false },
-                  );
-                });
-              }}
-              data-testid="data-key-copy"
-            >
-              Copy
-            </button>
-          </div>
-          <p className="hint">
-            Publishing again mints a new key and the old one stops working. The endpoints, the
-            payload shapes and a worked example are in the{' '}
-            <a href="/docs#data-api" target="_blank" rel="noreferrer">
-              Live data guide
-            </a>
-            .
-          </p>
-        </div>
       )}
 
       <DataOverview
@@ -584,8 +513,9 @@ function DataOverview({
   // Only a Sheet tab or a feed holds values; a YouTube source feeds Messages alone.
   const sources = (show.sources ?? []).filter(fillsFields);
   // A Sheet's values outlive its disconnection in the tree, following nothing: they are not local
-  // content, and they stay reachable under Advanced.
-  const local = leaves.filter((leaf) => !sourceIdOf(leaf.path));
+  // content, and they stay reachable under Advanced. Another system's are its own group (C5).
+  const local = leaves.filter((leaf) => !sourceIdOf(leaf.path) && !isApiPath(leaf.path));
+  const pushed = leaves.filter((leaf) => isApiPath(leaf.path));
   // Bindings outlive a graphic removed from the pool; only graphics still in it show anything.
   const pool = new Set(show.graphics.map((g) => g.name));
   const row = (leaf: DataLeaf, key: string | null) => {
@@ -614,7 +544,16 @@ function DataOverview({
             .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id, source.kind).length + 1)))}
         </div>
       ))}
-      {(local.length > 0 || sources.length === 0) && (
+      {pushed.length > 0 && (
+        <div className="pd-bind-graphic" data-testid="data-api-values">
+          <div className="pd-bind-graphic-head">
+            <h4>Another system</h4>
+            <span className="hint">Written with the data key: see Another system below.</span>
+          </div>
+          {pushed.map((leaf) => row(leaf, null))}
+        </div>
+      )}
+      {(local.length > 0 || (sources.length === 0 && pushed.length === 0)) && (
         <div className="pd-bind-graphic" data-testid="data-local">
           <div className="pd-bind-graphic-head">
             <h4>Local content</h4>

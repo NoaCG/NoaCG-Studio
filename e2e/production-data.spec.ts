@@ -555,6 +555,66 @@ test('the seed is the reset target, and unbinding hands the field back to the cu
   await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
 });
 
+test('Another system connects a whole graphic in one confirmation; the card lists its paths and generates the example and the sender file', async ({ page }) => {
+  test.setTimeout(90_000);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Count Night');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+
+  // ── Connect data…, Another system: every field offered its own path, keyed, nothing read. ──
+  await page.getByTestId('cue-connect').click();
+  let review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-api').click();
+  await expect(review.getByTestId('cue-connect-api-note')).toBeVisible();
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
+  await expect(review.getByTestId('cue-connect-row-f1')).toHaveAttribute('data-status', 'key');
+  await expect(review.getByTestId('cue-connect-label')).toHaveCount(0);
+  // Cancel writes nothing.
+  await review.getByTestId('cue-connect-cancel').click();
+  expect(await storedBindings(page, showId)).toEqual({ bindings: {}, sources: [] });
+
+  // ── Repair one field (not connected), then ONE confirmation: bindings only, no source record. ──
+  await page.getByTestId('cue-connect').click();
+  review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-api').click();
+  await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'Not connected' });
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('1 connected');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toEqual([]);
+  expect(Object.keys(stored.bindings.Hairline)).toEqual(['f0']);
+  const path = stored.bindings.Hairline.f0;
+  expect(path).toMatch(/^api\.hairline\.[a-z0-9_]+$/);
+  // The connected field names its source and its path, with Disconnect beside it.
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Another system');
+  await expect(page.getByTestId('cue-bound-f0').getByTestId('cue-connected-note')).toContainText(path);
+
+  // ── The card: the connected path, the generated example (key from the environment), the file. ──
+  const data = await openData(page);
+  const card = data.getByTestId('data-api-card');
+  await expect(card.getByTestId('data-api-destinations')).toContainText(`${path} fills Hairline`);
+  const curl = card.getByTestId('data-api-curl');
+  await expect(curl).toContainText('curl -X PATCH');
+  await expect(curl).toContainText('/api/data/patch');
+  await expect(curl).toContainText('$NOACG_DATA_KEY');
+  await expect(curl).toContainText(`"${path.split('.')[2]}"`);
+  const file = await downloaded(data, () => card.getByTestId('data-api-download').click());
+  expect(file.name).toBe('another-system.json');
+  const example = JSON.parse(file.text);
+  expect(example.fields).toEqual([{ path, label: expect.any(String), graphic: 'Hairline', field: 'f0' }]);
+  expect(example.address).toMatch(/\/api\/data\/patch$/);
+  expect(file.text).not.toMatch(/data.?key/i);
+
+  // ── Disconnect hands the field back to the cue; the card has nothing to show. ──
+  await data.close();
+  await page.getByTestId('cue-bound-f0').getByTestId('cue-disconnect').click();
+  await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
+  const after = await openData(page);
+  await expect(after.getByTestId('data-api-none')).toBeVisible();
+  await after.close();
+});
+
 test('an unpublished production offers no data key, because it has none', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Key Yet');
@@ -565,8 +625,13 @@ test('an unpublished production offers no data key, because it has none', async 
   // this is the half of that rule the offline suite can prove; the live walk
   // (e2e/configured/production-data-key.spec.ts) proves the other half, including that the
   // revealed key really authenticates.
-  await expect(data.getByTestId('data-key-toggle')).toHaveCount(0);
   await expect(data.getByTestId('data-key')).toHaveCount(0);
+  await expect(data.getByTestId('data-key-value')).toHaveCount(0);
+  // The Another system card says publishing is the step, with Publish one press away (here an
+  // offline build, so the button says why it cannot; data-sources AC-7, local half).
+  await expect(data.getByTestId('data-api-local')).toContainText('Publishing gives this production an address and a key');
+  await expect(data.getByTestId('data-api-publish')).toBeVisible();
+  await expect(data.getByTestId('data-api-pause')).toHaveCount(0);
   // The rest of the panel is untouched by its absence.
   await expect(data.getByTestId('data-raw-toggle')).toBeVisible();
 });

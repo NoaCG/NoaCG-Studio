@@ -381,6 +381,12 @@ through `audience_owner_for_control`, takes only a `sheet:<source id>:` prefix a
 call, deletes only that production's unused candidates under the prefix whose row is gone (a used one
 is only marked `withdrawn_at`), and writes no command log and no production value. Nothing had gone.
 Added by hand: re-recording reads production, which only the Post-landing workflow does.
+It holds **186** after migration 0100 (`0100_data_api_pause.sql`, Another system's Pause), added by
+hand for the same reason: `control_data_pause_by_slug`, for `anon` and `authenticated`, is the same
+control-slug door as `control_data_patch_by_slug`. Pause writes only the row's pause columns; Resume
+appends at most one update row per graphic, values the data key already sent; it cannot play, take
+or clear a graphic. `control_data_owner_patch`, for `authenticated` only, is the owner's Data view:
+the row policy's own test and the suspension check, then the apply as an operator write.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
