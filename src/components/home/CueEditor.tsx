@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, fillsFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
@@ -28,9 +28,10 @@ import {
   sourceIdOf,
   SHEET_TIMEOUT_MS,
   type SheetLink,
+  type SheetRead,
   type SourceStatusStore,
 } from '../../control/sheetSource';
-import { FEED_ROUTE_TIMEOUT_MS, parseFeedLink, readFeedRoute } from '../../control/feedSource';
+import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
 
 /** The edited cue's text, as the page's draft shows it. */
 export interface CueEditorView {
@@ -181,7 +182,7 @@ function CueConnectReview({
   /** A ticker (the lines adapter) also follows a news feed (data-sources C4). */
   const takesFeed = sheetShapeFor(poolGraphic) === 'lines';
   /** A Sheet tab, and for a ticker a feed, can fill fields; a YouTube source feeds Messages alone. */
-  const sheets = (show.sources ?? []).filter(fillsFields).filter((s) => s.kind === 'sheet' || takesFeed);
+  const fieldSources = (show.sources ?? []).filter((s): s is FieldShowSource => s.kind === 'sheet' || (takesFeed && s.kind === 'feed'));
   const [read, setRead] = useState<ConnectRead | null>(null);
   const [reading, setReading] = useState(false);
   const [firstTab, setFirstTab] = useState(false);
@@ -196,8 +197,9 @@ function CueConnectReview({
   const previewRef = useRef(onPreview);
   previewRef.current = onPreview;
 
-  const shape = reuse?.kind === 'sheet' ? reuse.config.shape : reuse?.kind === 'feed' ? 'lines' : sheetShapeFor(poolGraphic);
   const kind = reuse?.kind ?? (read && 'feed' in read ? 'feed' : 'sheet');
+  // A feed is read only on a ticker, whose shape is `lines`.
+  const shape = reuse?.kind === 'sheet' ? reuse.config.shape : sheetShapeFor(poolGraphic);
   const id = reuse?.id ?? sourceId;
   const rows = read && 'rows' in read ? read.rows : null;
   const content = rows ? sheetContent(shape, rows) : null;
@@ -249,29 +251,23 @@ function CueConnectReview({
   // Closing unmounts the review, which is its reset; a read still in flight then lands nowhere.
   useEffect(() => () => void (readNo.current += 1), []);
   const close = onClose;
-  const readTab = async (link: SheetLink) => {
+  /** Read a tab, or a feed's headlines through NoaCG's feed route (control/feedSource.ts), for
+   *  the review; an older read, or one arriving after the review closed, lands nowhere. */
+  const readInto = async (go: () => Promise<SheetRead>, as: (rows: string[][]) => ConnectRead) => {
     const no = (readNo.current += 1);
     setReading(true);
     setRead(null);
     setChoices({});
     setFirstTab(false);
-    const answer = await readSheet((url, init) => fetch(url, init), link, AbortSignal.timeout(SHEET_TIMEOUT_MS));
+    const answer = await go();
     if (no !== readNo.current) return;
     setReading(false);
-    setRead(answer.ok ? { link, rows: answer.rows } : { error: answer.error, fix: answer.fix });
+    setRead(answer.ok ? as(answer.rows) : { error: answer.error, fix: answer.fix });
   };
-  /** A feed's newest headlines, through NoaCG's feed route (control/feedSource.ts). */
-  const readFeed = async (url: string) => {
-    const no = (readNo.current += 1);
-    setReading(true);
-    setRead(null);
-    setChoices({});
-    setFirstTab(false);
-    const answer = await readFeedRoute((u, init) => fetch(u, init), url, AbortSignal.timeout(FEED_ROUTE_TIMEOUT_MS));
-    if (no !== readNo.current) return;
-    setReading(false);
-    setRead(answer.ok ? { feed: url, rows: answer.rows } : { error: answer.error, fix: answer.fix });
-  };
+  const readTab = (link: SheetLink) =>
+    readInto(() => readSheet((url, init) => fetch(url, init), link, AbortSignal.timeout(SHEET_TIMEOUT_MS)), (rows) => ({ link, rows }));
+  const readFeed = (url: string) =>
+    readInto(() => readFeedRoute((u, init) => fetch(u, init), url, AbortSignal.timeout(FEED_ROUTE_TIMEOUT_MS)), (rows) => ({ feed: url, rows }));
   /** Connect: one write, and the review closes only once storage has agreed to it, so a
    *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
   const confirm = async () => {
@@ -340,28 +336,29 @@ function CueConnectReview({
           type="button"
           disabled={reading || linkText.trim() === ''}
           onClick={() => {
-            const parsed = parseSheetLink(linkText);
-            // Not a Sheet: on a ticker, any other web address is read as a news feed.
-            const feed = 'error' in parsed && takesFeed && !/docs\.google\.com/.test(linkText) ? parseFeedLink(linkText) : null;
-            if (feed && 'error' in feed) setRead({ error: feed.error.replace(/\.$/, ''), fix: 'Copy the feed’s address from its site.' });
-            else if ('error' in parsed && !feed) setRead({ error: parsed.error, fix: 'Copy the link from the Sheet’s Share button.' });
-            else {
+            const start = (go: () => Promise<void>) => {
               setLabel((l) => l || poolGraphic.name);
               setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
-              if (feed) void readFeed(feed.url);
-              else if (!('error' in parsed)) void readTab(parsed.link);
-            }
+              void go();
+            };
+            const sheet = parseSheetLink(linkText);
+            if (!('error' in sheet)) return start(() => readTab(sheet.link));
+            // Not a Sheet: on a ticker, any other web address is read as a news feed.
+            if (!takesFeed || /docs\.google\.com/.test(linkText)) return setRead({ error: sheet.error, fix: 'Copy the link from the Sheet’s Share button.' });
+            const feed = normalizeFeedAddress(linkText);
+            if ('error' in feed) return setRead({ error: feed.error.replace(/\.$/, ''), fix: 'Copy the feed’s address from its site.' });
+            start(() => readFeed(feed.url));
           }}
           data-testid="cue-connect-read"
         >
           {reading ? 'Reading…' : 'Read'}
         </button>
       </div>
-      {sheets.length > 0 && (
+      {fieldSources.length > 0 && (
         <select
           value={reuse?.id ?? ''}
           onChange={(e) => {
-            const source = sheets.find((s) => s.id === e.target.value) ?? null;
+            const source = fieldSources.find((s) => s.id === e.target.value) ?? null;
             setReuse(source);
             setLabel(source?.label ?? '');
             setLinkText('');
@@ -377,7 +374,7 @@ function CueConnectReview({
           data-testid="cue-connect-reuse"
         >
           <option value="">Use existing content…</option>
-          {sheets.map((s) => (
+          {fieldSources.map((s) => (
             <option key={s.id} value={s.id}>
               {sourceKindWord(s)}: {s.label}
             </option>

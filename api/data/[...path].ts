@@ -19,9 +19,9 @@
 // `maxDuration` 30 for it. `/api/data/feed` is the public news feed reader (data-sources C4,
 // api/_lib/feedFetch.ts): no key, guarded by address, size, time and a per-client limit.
 
-import { apiError, bearerToken, ipHash, json, methodGuard, readJson } from '../_lib/http.js';
-import { checkDataIngestBudget, checkDataIpRateLimit, hitRateLimit } from '../_lib/rateLimit.js';
-import { FEED_CLIENT_MAX, feedNetwork, readFeed, supabaseFeedStore, type FeedIo } from '../_lib/feedFetch.js';
+import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
+import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit } from '../_lib/rateLimit.js';
+import { feedNetwork, readFeed, supabaseFeedStore, type FeedIo } from '../_lib/feedFetch.js';
 import {
   dataApiConfigured,
   mapLabelsToFields,
@@ -273,8 +273,8 @@ async function feedIo(): Promise<FeedIo> {
 async function feed(req: Request): Promise<Response> {
   const guard = methodGuard(req, 'GET');
   if (guard) return guard;
-  const gate = hitRateLimit(`feed-ip:${ipHash(req)}`, { windowMs: 60_000, max: FEED_CLIENT_MAX }, Date.now());
-  if (!gate.allowed) return apiError('rate_limited', 'Too many feed reads - slow down.', 429, {}, retryAfter(gate.retryAfterSec));
+  const gate = checkFeedIpRateLimit(req);
+  if (gate) return apiError('rate_limited', 'Too many feed reads - slow down.', 429, {}, retryAfter(gate.retryAfterSec));
   const address = new URL(req.url).searchParams.get('url');
   if (!address) return json({ ok: false, error: 'no feed address', fix: 'Paste the feed’s address.', failingSince: null }, 400);
   if (!adminConfigured()) return apiError('unavailable', 'The feed reader is not configured on this deployment.', 503);

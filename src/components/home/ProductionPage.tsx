@@ -36,6 +36,8 @@ import {
   type PlayoutItem,
   type PlayoutMediaKind,
   type SheetShowSource,
+  type FeedShowSource,
+  fillsFields,
   type Show,
   type ShowCue,
   type ShowFolder,
@@ -93,8 +95,8 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
-import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, leaseOf, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
-import { FEED_READ_MS, FEED_RENEW_MS, createFeedReader } from '../../control/feedSource';
+import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
+import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -392,6 +394,9 @@ function writeSheetLease(key: string, lease: SheetLease): boolean {
     return false;
   }
 }
+
+/** A source's reader as the page builds it: its id, kind and config, and whether it feeds Messages. */
+type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'>, boolean];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -1602,13 +1607,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useMessageSources(show ?? null, messages);
   // Sheet tabs and news feeds (data-sources C4) each have one reader; a feed's reads go through
   // the guarded feed route, every 5 minutes (control/feedSource.ts).
+  // Only what a reader is built from, so a rename or a Pause never restarts one.
   const readerPlan = JSON.stringify(
-    (show?.sources ?? []).flatMap((s): [string, SheetShowSource['config'] | { feed: string }, boolean][] =>
-      s.kind === 'sheet' ? [[s.id, s.config, Boolean(s.inbox)]] : s.kind === 'feed' ? [[s.id, { feed: s.config.url }, false]] : [],
-    ),
+    (show?.sources ?? []).filter(fillsFields).map((s) => [s.id, { kind: s.kind, config: s.config }, Boolean(s.inbox)] as ReaderPlan),
   );
   useEffect(() => {
-    const plan = JSON.parse(readerPlan) as [string, SheetShowSource['config'] | { feed: string }, boolean][];
+    const plan = JSON.parse(readerPlan) as ReaderPlan[];
     const world = hostedSlug ?? 'local';
     const inboxes = new Map(
       plan
@@ -1627,18 +1631,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         ]),
     );
     const readers: Map<string, SheetReader> = new Map(
-      plan.map(([sourceId, config]) => {
-        const feed = 'feed' in config ? config.feed : null;
-        const common = {
+      plan.map(([sourceId, source]) => {
+        const common: Omit<SheetReaderOptions, 'shape'> = {
           key: `${id}:${sourceId}`,
           sourceId,
           tab: readerTab,
           world,
           io: {
             now: Date.now,
-            setTimer: (run: () => void, ms: number) => setTimeout(run, ms),
-            clearTimer: (timer: unknown) => clearTimeout(timer as ReturnType<typeof setTimeout>),
-            fetch: (url: string, init: { signal: AbortSignal }) => fetch(url, init),
+            setTimer: (run, ms) => setTimeout(run, ms),
+            clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+            fetch: (url, init) => fetch(url, init),
             readLease: readSheetLease,
             writeLease: writeSheetLease,
             // Published, the lease lives on the row, shared with the other pages and the tick.
@@ -1649,7 +1652,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   owner: readerTab,
                   hold: dataSession.holdServerTree,
                   note: setNote,
-                  leaseMs: leaseOf(feed ? { everyMs: FEED_READ_MS, renewMs: FEED_RENEW_MS } : {}),
+                  leaseMs: source.kind === 'feed' ? FEED_LEASE_MS : undefined,
                 })
               : undefined,
           },
@@ -1657,18 +1660,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           accept: sourceAccept,
           paused: () => Boolean(sourcesRef.current?.find((s) => s.id === sourceId)?.paused),
           write: dataSession.applySourcePatch,
-          onStatus: (status: Parameters<SheetReaderOptions['onStatus']>[0]) => sourceStatus.set(sourceId, status),
+          onStatus: (status) => sourceStatus.set(sourceId, status),
         };
-        if ('feed' in config) return [sourceId, createFeedReader({ ...common, url: config.feed })];
-        return [
-          sourceId,
-          createSheetReader({
-            ...common,
-            link: { sheetId: config.sheetId, gid: config.gid, published: config.published },
-            shape: config.shape,
-            inbox: inboxes.get(sourceId)?.take,
-          }),
-        ];
+        const reader =
+          source.kind === 'feed'
+            ? createFeedReader({ ...common, url: source.config.url })
+            : createSheetReader({
+                ...common,
+                link: { sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published },
+                shape: source.config.shape,
+                inbox: inboxes.get(sourceId)?.take,
+              });
+        return [sourceId, reader];
       }),
     );
     sourceStatus.onPoke((sourceId) => readers.get(sourceId)?.poke());

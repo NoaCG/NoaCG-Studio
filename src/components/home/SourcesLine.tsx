@@ -39,7 +39,7 @@ export function statusWords(paused: boolean | undefined, status: SheetStatus | u
 }
 
 /** Who reads a source and how often (data-sources AC-9's source details). */
-export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined, kind: ShowSource['kind'] = 'sheet'): string {
+export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined, kind: ShowSource['kind']): string {
   if (paused) return 'Paused: not read until Resume';
   if (!status) return 'Waiting for the first read';
   const every = kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;

@@ -23,13 +23,16 @@
 // Every door (resolver, connection, cache, clock) arrives through `FeedIo`, so
 // scripts/feed-fetch.test.mjs drives it with fakes.
 
-import { createHash } from 'node:crypto';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { request as httpRequest, type IncomingMessage } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { isIP, type LookupFunction } from 'node:net';
 import { pipeline } from 'node:stream';
 import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib';
+import { addressRefusal, normalizeFeedAddress, RETRY_FIX } from '../../src/control/feedSource.js';
+import { sha256 } from './http.js';
+
+export { normalizeFeedAddress };
 
 /** Never fetched more often than this, whatever the readers (spec DS4, AC-6). */
 export const FEED_FLOOR_MS = 5 * 60_000;
@@ -48,44 +51,18 @@ export const FEED_CLAIM_MS = 20_000;
 export const FEED_ITEMS = 20;
 /** A headline longer than this is cut, with an ellipsis. */
 export const FEED_TITLE_CHARS = 300;
-/** The longest address accepted. */
-export const FEED_ADDRESS_CHARS = 2048;
 /** A row whose wait ended this long ago is an address nobody reads any more, and goes. */
 export const FEED_PRUNE_MS = 24 * 60 * 60_000;
-/** How often a reader waiting for another instance's first read looks at the row again. */
+/** How soon a reader waiting for another instance's first read looks at the row again (then
+ *  twice as long each time, up to a second). */
 export const FEED_WAIT_POLL_MS = 250;
 
 const USER_AGENT = 'NoaCG-Studio-feed-reader/1 (+https://noacg.studio)';
 
 // ── The address ───────────────────────────────────────────────────────────────
 
-/** An address as the reader keeps and fetches it, or why it is refused. */
-export function normalizeFeedAddress(text: string): { url: string } | { error: string } {
-  const trimmed = text.trim();
-  if (trimmed.length === 0 || trimmed.length > FEED_ADDRESS_CHARS) return { error: 'That is not a feed address.' };
-  let url: URL;
-  try {
-    url = new URL(trimmed);
-  } catch {
-    return { error: 'That is not a feed address.' };
-  }
-  const why = addressRefusal(url);
-  if (why) return { error: why };
-  url.hash = '';
-  return { url: url.href };
-}
-
-/** Why this address is never fetched, or null. Checked on the first address and every redirect. */
-function addressRefusal(url: URL): string | null {
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'Only http and https feed addresses can be read.';
-  if (url.username !== '' || url.password !== '') return 'A feed address cannot carry a user name or password.';
-  // The URL parser drops a port that is the scheme's own, so any port left is another service.
-  if (url.port !== '') return 'A feed is read on its ordinary port only.';
-  return null;
-}
-
 /** The cache row's key: the normalized address's hash. */
-export const feedKey = (url: string): string => createHash('sha256').update(url).digest('hex');
+export const feedKey = (url: string): string => sha256(url);
 
 // ── Which addresses are public ────────────────────────────────────────────────
 
@@ -123,7 +100,7 @@ function publicV4(ip: string): boolean {
   const parts = v4Parts(ip);
   if (!parts) return false;
   const n = v4Number(parts);
-  return !V4_BLOCKED.some(([base, bits]) => (bits === 0 ? true : n >>> (32 - bits) === base >>> (32 - bits)));
+  return !V4_BLOCKED.some(([base, bits]) => n >>> (32 - bits) === base >>> (32 - bits));
 }
 
 /** An IPv6 address as eight 16-bit groups, or null. */
@@ -209,7 +186,6 @@ export type FeedFetch =
 
 const refuse = (error: string, fix: string): FeedFetch => ({ kind: 'problem', error, fix, refused: true });
 const PRIVATE_FIX = 'Use the feed’s public address on the internet.';
-const RETRY_FIX = 'Reading carries on by itself.';
 
 /** `max-age` in ms from a Cache-Control header, or null. */
 function maxAgeMs(header: string | undefined): number | null {
@@ -282,8 +258,8 @@ export async function guardedFetch(
   if (validators.lastModified) headers['if-modified-since'] = validators.lastModified;
   try {
     for (let hop = 0; ; hop += 1) {
-      const why = addressRefusal(url);
-      if (why) return refuse(hop === 0 ? why.replace(/\.$/, '') : `it redirects to an address that cannot be read (${why.replace(/\.$/, '')})`, PRIVATE_FIX);
+      const why = addressRefusal(url)?.replace(/\.$/, '');
+      if (why) return refuse(hop === 0 ? why : `it redirects to an address that cannot be read (${why})`, PRIVATE_FIX);
       const host = url.hostname.replace(/^\[|\]$/g, '');
       const answers = isIP(host) ? [{ address: host, family: isIP(host) }] : await underSignal(net.lookup(host), signal);
       if (answers.length === 0) return { kind: 'problem', error: 'that address does not exist', fix: 'Check the address.' };
@@ -339,15 +315,9 @@ export async function guardedFetch(
         }
         chunks.push(chunk);
       }
-      const all = new Uint8Array(size);
-      let at = 0;
-      for (const chunk of chunks) {
-        all.set(chunk, at);
-        at += chunk.byteLength;
-      }
       return {
         kind: 'body',
-        text: decodeBody(all, response.headers['content-type']),
+        text: decodeBody(Buffer.concat(chunks, size), response.headers['content-type']),
         etag: response.headers.etag ?? null,
         lastModified: response.headers['last-modified'] ?? null,
         cacheMs,
@@ -421,8 +391,11 @@ function plainText(inner: string, html: boolean): string {
 }
 
 /** The first child element `name` (no namespace prefix) of `xml`: its attributes and inner text. */
+const childPatterns = new Map<string, RegExp>();
 function child(xml: string, name: string): { attrs: string; inner: string } | null {
-  const m = new RegExp(`<${name}\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${name}\\s*>)`, 'i').exec(xml);
+  let pattern = childPatterns.get(name);
+  if (!pattern) childPatterns.set(name, (pattern = new RegExp(`<${name}\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${name}\\s*>)`, 'i')));
+  const m = pattern.exec(xml);
   return m ? { attrs: m[1], inner: m[2] ?? '' } : null;
 }
 
@@ -444,7 +417,7 @@ export type FeedParse = { ok: true; items: FeedItem[]; ttlMs: number | null } | 
  * FEED_ITEMS. `<ttl>` (minutes) is returned as the feed's own wait.
  */
 export function parseFeed(xml: string): FeedParse {
-  const body = xml.replace(/<!--[\s\S]*?-->/g, '');
+  const body = xml.includes('<!--') ? xml.replace(/<!--[\s\S]*?-->/g, '') : xml;
   const rss = /<(?:[\w-]+:)?(?:rss|RDF)\b/.test(body);
   const atom = /<(?:[\w-]+:)?feed\b[^>]*>/.test(body);
   if (!rss && !atom) {
@@ -464,7 +437,8 @@ export function parseFeed(xml: string): FeedParse {
       const links = [...inner.matchAll(/<link\b([^>]*)\/?>/gi)].map((l) => l[1]);
       const alternate = links.find((a) => (attr(a, 'rel') ?? 'alternate') === 'alternate') ?? links[0];
       link = alternate ? attr(alternate, 'href') : null;
-      id = child(inner, 'id') ? plainText(child(inner, 'id')!.inner, false) || null : null;
+      const i = child(inner, 'id');
+      id = i ? plainText(i.inner, false) || null : null;
     } else {
       const l = child(inner, 'link');
       link = l ? plainText(l.inner, false) || null : null;
@@ -542,6 +516,8 @@ export type FeedAnswer =
 const iso = (ms: number) => new Date(ms).toISOString();
 const EPOCH = iso(0);
 
+const BEING_READ: FeedAnswer = { ok: false, status: 503, error: 'the feed is being read', fix: RETRY_FIX, failingSince: null };
+
 function answerOf(row: FeedRow): FeedAnswer {
   if (row.error) {
     return {
@@ -553,7 +529,7 @@ function answerOf(row: FeedRow): FeedAnswer {
       ...(row.fetched_at ? { items: row.items, fetchedAt: row.fetched_at } : {}),
     };
   }
-  if (!row.fetched_at) return { ok: false, status: 503, error: 'the feed is being read', fix: RETRY_FIX, failingSince: null };
+  if (!row.fetched_at) return BEING_READ;
   return { ok: true, items: row.items, fetchedAt: row.fetched_at };
 }
 
@@ -579,47 +555,42 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
     outer?.removeEventListener('abort', stop);
   }
   const now = io.now();
+  const good = (etag: string | null, lastModified: string | null, waitMs: number, items?: string[]): Partial<FeedRow> => ({
+    ...(items ? { items } : {}),
+    etag,
+    last_modified: lastModified,
+    fetched_at: iso(now),
+    next_allowed_at: iso(now + waitMs),
+    error: null,
+    fix: null,
+    failing_since: null,
+    refused: false,
+  });
+  const bad = (problem: FeedProblem): Partial<FeedRow> => ({
+    error: problem.error,
+    fix: problem.fix,
+    failing_since: row.failing_since ?? iso(now),
+    next_allowed_at: iso(now + nextWait([problem.retryMs])),
+    refused: problem.refused === true,
+  });
   let patch: Partial<FeedRow>;
   if (result.kind === 'body') {
     const parsed = parseFeed(result.text);
     patch = parsed.ok
-      ? {
-          items: parsed.items.map((i) => i.title),
-          etag: result.etag,
-          last_modified: result.lastModified,
-          fetched_at: iso(now),
-          next_allowed_at: iso(now + nextWait([parsed.ttlMs, result.cacheMs])),
-          error: null,
-          fix: null,
-          failing_since: null,
-          refused: false,
-        }
-      : { error: parsed.error, fix: parsed.fix, failing_since: row.failing_since ?? iso(now), next_allowed_at: iso(now + FEED_FLOOR_MS), refused: false };
+      ? good(result.etag, result.lastModified, nextWait([parsed.ttlMs, result.cacheMs]), parsed.items.map((i) => i.title))
+      : bad(parsed);
   } else if (result.kind === 'not-modified') {
-    patch = {
-      etag: result.etag,
-      last_modified: result.lastModified,
-      fetched_at: iso(now),
-      next_allowed_at: iso(now + nextWait([result.cacheMs])),
-      error: null,
-      fix: null,
-      failing_since: null,
-      refused: false,
-    };
+    patch = good(result.etag, result.lastModified, nextWait([result.cacheMs]));
   } else {
-    patch = {
-      error: result.error,
-      fix: result.fix,
-      failing_since: row.failing_since ?? iso(now),
-      next_allowed_at: iso(now + nextWait([result.retryMs])),
-      refused: result.refused === true,
-    };
+    patch = bad(result);
   }
-  const next: FeedRow = { ...row, ...patch, claimed_until: EPOCH };
-  await io.store.save(row.key, { ...patch, claimed_until: EPOCH });
-  // Rows nobody has read for a day go: an address read at all is fetched at least hourly.
-  await io.store.prune(iso(now - FEED_PRUNE_MS)).catch(() => {});
-  return answerOf(next);
+  const saved = { ...patch, claimed_until: EPOCH };
+  await Promise.all([
+    io.store.save(row.key, saved),
+    // Rows nobody has read for a day go: an address read at all is fetched at least hourly.
+    io.store.prune(iso(now - FEED_PRUNE_MS)).catch(() => {}),
+  ]);
+  return answerOf({ ...row, ...saved });
 }
 
 /**
@@ -630,8 +601,7 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
  * fetch short (the tick passes its deadline). A client leaving never cuts a fetch, whose failure
  * every other reader would then be served.
  */
-export async function readFeed(text: string, io: FeedIo, signals: { wait?: AbortSignal; cut?: AbortSignal } = {}): Promise<FeedAnswer> {
-  const { wait: signal, cut } = signals;
+export async function readFeed(text: string, io: FeedIo, { wait, cut }: { wait?: AbortSignal; cut?: AbortSignal } = {}): Promise<FeedAnswer> {
   const normal = normalizeFeedAddress(text);
   if ('error' in normal) return { ok: false, status: 400, error: normal.error.replace(/\.$/, '').toLowerCase(), fix: 'Paste the feed’s address.', failingSince: null };
   const key = feedKey(normal.url);
@@ -659,16 +629,16 @@ export async function readFeed(text: string, io: FeedIo, signals: { wait?: Abort
     return fetchHeld({ ...row, claimed_until: until }, io, cut);
   }
   // Another instance holds the claim. Headlines in hand are served with their age; before the
-  // first read, wait for that read to settle rather than fetching a second time.
-  row = await io.store.get(key);
+  // first read, wait for that read to settle rather than fetching a second time, looking at the
+  // row less often the longer it takes.
   if (row?.fetched_at) return answerOf(row);
   const deadline = now + FEED_TIMEOUT_MS + FEED_CLAIM_MS / 4;
-  while (io.now() < deadline && !signal?.aborted) {
-    await io.sleep(FEED_WAIT_POLL_MS);
+  for (let pause = FEED_WAIT_POLL_MS; io.now() < deadline && !wait?.aborted; pause = Math.min(pause * 2, 1000)) {
+    await io.sleep(pause);
     row = await io.store.get(key);
     if (row && (row.fetched_at || row.error) && Date.parse(row.claimed_until) <= io.now()) return answerOf(row);
   }
-  return { ok: false, status: 503, error: 'the feed is being read', fix: RETRY_FIX, failingSince: null };
+  return BEING_READ;
 }
 
 // ── The real doors ────────────────────────────────────────────────────────────
@@ -722,11 +692,6 @@ export const nodeFeedNet: FeedNet = {
 /** The network the reader uses: Node's own, pinned to the checked address. A configured test in
  *  the route's own process replaces it with a stub upstream (e2e/configured/feed-route.spec.ts). */
 export const feedNetwork: { current: FeedNet } = { current: nodeFeedNet };
-
-/** One client's feed reads a minute, on the public route: a page asks once every 5 minutes per
- *  feed, so this leaves room for a production with many feeds and refuses a client using the
- *  route as a fetcher of arbitrary addresses. */
-export const FEED_CLIENT_MAX = 30;
 
 /** The `feed_cache` table through a service-role client (api/_lib/adminAuth.ts `adminDb`). */
 export function supabaseFeedStore(db: {

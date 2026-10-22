@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { createFeedReader, feedRead, feedRouteUrl, parseFeedLink, readFeedRoute } = await import('../src/control/feedSource.ts');
+const { createFeedReader, feedRead, feedRouteUrl, normalizeFeedAddress, readFeedRoute } = await import('../src/control/feedSource.ts');
 const { isSourcePath, sourceIdOf, sourcePaths, sourcePrefix } = await import('../src/model/productionData.ts');
 const { offeredValues, sheetContent } = await import('../src/control/sheetSource.ts');
 
@@ -110,8 +110,8 @@ function deferred() {
 // ── The address and the route ─────────────────────────────────────────────────
 
 test('a pasted address is checked before it is sent, and the page asks NoaCG’s route for it', () => {
-  assert.deepEqual(parseFeedLink(' https://news.example/feed.xml#x '), { url: FEED });
-  for (const bad of ['', 'news', 'ftp://news.example/feed', 'javascript:alert(1)']) assert.ok('error' in parseFeedLink(bad), bad);
+  assert.deepEqual(normalizeFeedAddress(' https://news.example/feed.xml#x '), { url: FEED });
+  for (const bad of ['', 'news', 'ftp://news.example/feed', 'javascript:alert(1)', 'https://news.example:8080/feed']) assert.ok('error' in normalizeFeedAddress(bad), bad);
   assert.equal(feedRouteUrl(FEED), `/api/data/feed?url=${encodeURIComponent(FEED)}`);
 });
 
