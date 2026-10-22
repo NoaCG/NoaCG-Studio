@@ -899,10 +899,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const outputsBehind = livePresence.peers.some(
     (p) => p.kind === 'output' && !!p.ready && (!!p.ready.chg || (!!publishedVer && p.ready.v?.h !== publishedVer.h)),
   );
-  const outputObservations = useMemo(
-    () => ({ reads: publishedReaders, former: formerReaders, behind: outputsBehind }),
-    [publishedReaders, formerReaders, outputsBehind],
-  );
+  const outputObservations = useMemo(() => ({ reads: publishedReaders, former: formerReaders }), [publishedReaders, formerReaders]);
   const ownReaders = useMemo(
     () => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug, outputObservations) : []),
     [show, library, hostedSlug, outputObservations],
@@ -916,16 +913,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => {
     if (!show) return;
     const seen = [...publishedReaders, ...ownReaders.map((r) => r.graphic)].filter((name) => !formerReaders.has(name));
-    // Gone only once verified: presence has joined, no output reports anything pending or another
-    // version, and nothing reads in the design, the copy or the published payload. An output that
-    // connects later loads the published version afresh, so it brings no old frame back.
+    // Gone only on positive evidence, never on an output's absence (one can drop out of Presence and
+    // keep its frames): the graphic is off air, so every output still following the log has taken
+    // its Out and swaps it to the published version (output/swapPlan.ts); presence has joined and no
+    // output reports anything pending or another version; and nothing reads in the design, the copy
+    // or the published payload. An output that connects later loads the published version afresh.
     const verified = !!hostedSlug && livePresence.status === 'joined' && !outputsBehind;
-    const gone = verified ? [...formerReaders].filter((name) => !publishedReaders.has(name) && !ownReaders.some((r) => r.graphic === name)) : [];
+    const gone = verified
+      ? [...formerReaders].filter((name) => !liveCue[name] && !publishedReaders.has(name) && !ownReaders.some((r) => r.graphic === name))
+      : [];
     if (seen.length === 0 && gone.length === 0) return;
     const next = new Set([...formerReaders, ...seen].filter((name) => !gone.includes(name)));
     setFormerReadersState(next);
     setStoredFormerReaders(show.id, next);
-  }, [show, hostedSlug, publishedReaders, ownReaders, formerReaders, livePresence.status, outputsBehind]);
+  }, [show, hostedSlug, publishedReaders, ownReaders, formerReaders, livePresence.status, outputsBehind, liveCue]);
   /** Something that can air a graphic is reporting right now: a renderer, or this production on its
    *  CasparCG slot. Read by the send path, which decides "No output" (AC-2). */
   const usableOutput =

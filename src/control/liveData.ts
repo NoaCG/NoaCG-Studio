@@ -43,9 +43,9 @@ export function liveDataUrl(js: string): string | null {
  * has one), `copyJs` the production's own copy. Published, two observations stand for the output
  * itself: `outputReads`, the published payload this page last saw (at its resolve or its own
  * successful Publish) still carries the block, so a Publish that failed after refreshing the copy
- * unlocks nothing; and `outputBehind`, for a graphic this page has seen with a reader, a connected
- * output has not fully taken the published version (preparing, failed, or keeping an on-air frame
- * until it is cleared, src/output/swapPlan.ts), so the old frame and its reader may still run.
+ * unlocks nothing; and `outputBehind`, a graphic seen with a reader that no output is yet proven
+ * rid of: an on-air frame keeps running until it is cleared (src/output/swapPlan.ts), and an output
+ * that drops out of Presence proves nothing, so only positive evidence clears it (ProductionPage).
  * - `reader`: the block still runs here; Connect offers the explicit migration first.
  * - `publish`: the design no longer has it, but the published output still runs it until Publish.
  * - `clear`: published, but an output has not yet taken the published version (often until Out).

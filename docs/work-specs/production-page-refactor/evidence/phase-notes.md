@@ -138,6 +138,12 @@ changes a spec's digest.
   or the published payload (an output that connects later loads the published version afresh).
   This closes the reload gap listed above for this browser; another browser that never saw the
   reader still does not know it.
+- **Only positive evidence clears it** (the automated review's fourth P1): an output can drop out of
+  Presence and keep running its frames, so absence proves nothing. While a graphic's history entry
+  exists, Connect and the binding doors hold it ("take it out, then connect"); the entry clears
+  only when the graphic is off air (every output still following the log takes its Out and swaps
+  to the published version), presence has joined, no output reports anything pending or another
+  version, and nothing reads in the design, the copy or the published payload.
 - **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
   (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
   legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.

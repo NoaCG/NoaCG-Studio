@@ -15,12 +15,11 @@ export interface OwnSheetReader {
 }
 
 /** What this page has observed of the published output (ProductionPage): the graphics whose
- *  published payload still reads a Sheet, the graphics it has seen with a reader at all, and
- *  whether a connected output has not fully taken the published version. */
+ *  published payload still reads a Sheet, and the graphics seen with a reader that no output is
+ *  yet proven rid of (cleared only on positive evidence: off air, every output on the version). */
 export interface OutputObservations {
   reads: ReadonlySet<string>;
   former: ReadonlySet<string>;
-  behind: boolean;
 }
 
 /** One graphic's own Sheet reader where it plays (control/liveData.ts `ownReaderGate`): the design
@@ -35,7 +34,7 @@ export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], pub
       resolvedJs: design,
       published,
       outputReads: output?.reads.has(graphic.name),
-      outputBehind: !!output?.behind && output.former.has(graphic.name),
+      outputBehind: !!output?.former.has(graphic.name),
     }),
   };
 }
