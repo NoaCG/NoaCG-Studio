@@ -207,4 +207,83 @@ test.describe(() => {
     await unpublishForCleanup(page);
     await wipeMyGraphics(page);
   });
+
+  test('the published walk: a phone sends a message and a vote, the presenter view follows, and only Take airs (audience AC-5)', async ({
+    page,
+    browser,
+  }) => {
+    // audience-flow AC-5, walked on the local stack (data-sources C7): the join page on a
+    // phone-sized browser, the presenter view and a vote on air. A submitted message reaches the
+    // inbox; presenter selection changes the presenter view and takes no graphic; the staged vote
+    // airs only through the operator's Take.
+    test.setTimeout(115_000);
+    await signIn(page);
+    await settleSync(page);
+    await wipeMyGraphics(page);
+    await createGraphicInEditor(page, 'Polls', 'House Vote');
+    await openProductionWithCurrent(page, `Audience Walk ${Date.now()}`);
+    await publishProduction(page);
+    await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
+    await page.keyboard.press('Escape');
+    await page.getByTestId('production-setup').click();
+    await page.getByTestId('setup-links').click();
+    const link = async (id: string) => ((await page.getByTestId(id).locator('code').textContent()) ?? '').trim();
+    const joinUrl = await link('join-url');
+    const presenterUrl = await link('presenter-url');
+    expect(joinUrl).toContain('/join/');
+    expect(presenterUrl).toContain('/join?pv=');
+    await page.getByTestId('production-links-close').click();
+    const nothingOnAir = () => expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+    const messages = await openWorkspace(page, 'audience');
+    await messages.getByTestId('audience-open').check();
+
+    // The phone: a small touch screen, nothing wider than it, a message sent.
+    const phoneContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const phone = await phoneContext.newPage();
+    await phone.goto(joinUrl);
+    await expect(phone.locator('#join .nj-send')).toBeVisible({ timeout: 20_000 });
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await phone.locator('#nj-author').fill('Ana');
+    await phone.locator('#nj-body').fill('Sent from a phone on the walk');
+    await phone.locator('#join .nj-send').tap();
+    await expect(phone.locator('#join .nj-mine')).toContainText('Sent from a phone on the walk', { timeout: 20_000 });
+    const row = messages.locator('.pd-aud-row', { hasText: 'Sent from a phone on the walk' });
+    await expect(row).toBeVisible({ timeout: 20_000 });
+
+    // The presenter view: pointing at the message changes it and airs nothing.
+    const presenter = await page.context().newPage();
+    await presenter.goto(presenterUrl);
+    await expect(presenter.locator('#join')).toContainText('Nothing queued yet.', { timeout: 20_000 });
+    await row.getByTestId('audience-more').click();
+    await messages.getByTestId('audience-presenter-now').click();
+    await expect(presenter.locator('#join .nj-prompt')).toHaveText('Sent from a phone on the walk', { timeout: 20_000 });
+    await nothingOnAir();
+
+    // The vote: the phone votes, the operator stages it, and nothing airs until Take.
+    await messages.getByTestId('audience-round-question').fill('Who wins the walk?');
+    await messages.getByTestId('audience-round-options').fill('Home\nAway');
+    await messages.getByTestId('audience-round-open').click();
+    await expect(phone.locator('#join .nj-opt')).toHaveCount(2, { timeout: 20_000 });
+    await phone.locator('#join .nj-opt').nth(1).tap();
+    await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+    await expect(messages.getByTestId('audience-tally-1')).toHaveText('1', { timeout: 20_000 });
+    await messages.getByTestId('audience-round-stage').click();
+    await settleDurableWrites(messages);
+    await nothingOnAir();
+    const voteCue = page.locator('.pd-cue', { hasText: 'Vote —' });
+    await expect(voteCue).toHaveCount(1, { timeout: 20_000 });
+    await voteCue.click();
+    await nothingOnAir();
+    await page.getByTestId('verb-take').click();
+    const program = page.frameLocator('[data-testid="program-stage"] iframe');
+    await expect(program.locator('body')).toContainText('Who wins the walk?', { timeout: 20_000 });
+    await expect(program.locator('body')).toContainText('Away');
+
+    await phoneContext.close();
+    await presenter.close();
+    await messages.close();
+    await unpublishForCleanup(page);
+    await wipeMyGraphics(page);
+  });
 });
