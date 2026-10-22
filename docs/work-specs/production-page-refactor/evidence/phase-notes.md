@@ -7,6 +7,13 @@ changes a spec's digest.
 
 ## Row 10, data-sources C3: Sheet messages and YouTube
 
+- **Repair, 2026-10-22 (P10 repair 1, the check's FAIL on `a868bc5`).** Post-landing run 39706145334
+  failed in Advisors after 0098 applied: `audience_operator_settle` for `anon` and `authenticated`
+  was not in `supabase/advisor-baseline.json`. The judgement is now in `ACCEPTED_CLASSES` in
+  `scripts/supabase-advisors.mjs`, the two entries were added by hand (180 to 182; re-recording reads
+  production, which only that workflow does) and `docs/STACK_FRESHNESS.md` says why. No migration or
+  product code changed. The flaky `e2e/production-chat-intake.spec.ts:311` the check also saw is filed
+  as its own issue.
 - **Previous verified `main` sha:** `4890bbdfd272dcf524b03a63a0de92cd86f0aede` (row 9, C2, #1591 and
   repair #1592). This branch starts there.
 - **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
