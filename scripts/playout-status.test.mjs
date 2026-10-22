@@ -119,3 +119,36 @@ test('red is for loss and faults, named, and the deciding check comes first', ()
   // A Bridge fault means nothing with CasparCG off.
   assert.deepEqual(pair(status({ bridge: { state: 'bridge', detail: '' } })), ['ok', 'Connected']);
 });
+
+test('PROGRAM says what is known of the last command, and never more (data-sources C6, AC-16)', async () => {
+  const { programAir } = await import('../src/control/playoutStatus.ts');
+  const at = Date.UTC(2026, 9, 22, 12, 3, 4);
+  const air = (f) => programAir({ published: true, sending: 0, last: null, confirmedAt: null, lost: false, ...f });
+  // Unpublished: a local simulation, labelled as such whatever else is true.
+  assert.equal(programAir({ published: false, sending: 2, last: { outcome: 'logged', at }, confirmedAt: at, lost: true }).state, 'local');
+  assert.equal(air({}).state, 'idle', 'nothing pressed yet: nothing to say');
+  assert.equal(air({ sending: 1, last: { outcome: 'logged', at }, confirmedAt: at }).state, 'pending', 'a send in flight outranks the last answer');
+  const logged = air({ last: { outcome: 'logged', at }, confirmedAt: at });
+  assert.equal(logged.state, 'confirmed');
+  assert.match(logged.text, /^logged /);
+  // A logged command is a write the log took, never a picture somebody saw.
+  assert.match(logged.title, /not confirmed here/);
+  assert.doesNotMatch(logged.text, /on air/i);
+  assert.equal(air({ last: { outcome: 'unknown', at }, confirmedAt: at }).state, 'unknown');
+  // A lost connection outranks everything, and names the last time the log took a command.
+  const lost = air({ sending: 1, last: { outcome: 'unknown', at: at + 9000 }, confirmedAt: at, lost: true });
+  assert.equal(lost.state, 'stale');
+  assert.equal(lost.text, `connection lost · last logged ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+  assert.equal(air({ lost: true }).text, 'connection lost', 'nothing confirmed: no time is claimed');
+});
+
+test('TAKE names where it sends: this page, the outputs and the CasparCG slot, or a server slot (C6)', async () => {
+  const { takeTargets } = await import('../src/control/playoutStatus.ts');
+  const t = (f) => takeTargets({ published: true, outputs: 0, caspar: null, casparLoaded: false, server: null, ...f });
+  assert.equal(t({ published: false, outputs: 3, caspar: '1-20', casparLoaded: true }), 'To: this page only');
+  assert.equal(t({ outputs: 1 }), 'To: 1 output');
+  assert.equal(t({ outputs: 2, caspar: '1-20', casparLoaded: true }), 'To: 2 outputs · CasparCG 1-20');
+  assert.equal(t({ caspar: '1-20' }), 'To: the output link, nothing connected · CasparCG 1-20 (not loaded)');
+  assert.equal(t({ published: false, server: '2-10' }), 'To: CasparCG 2-10 through NoaCG Bridge');
+  assert.equal(t({ outputs: 1, serverToo: true }), 'To: 1 output · server cues through NoaCG Bridge');
+});

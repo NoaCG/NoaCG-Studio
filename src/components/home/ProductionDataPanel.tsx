@@ -23,7 +23,8 @@ import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
-import { readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
+import { OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
+import { loadGraphics } from '../../model/library';
 import { useDeferredEdits } from './useDeferredEdits';
 import { isApiPath } from '../../control/anotherSystem';
 
@@ -518,6 +519,8 @@ function DataOverview({
   const pushed = leaves.filter((leaf) => isApiPath(leaf.path));
   // Bindings outlive a graphic removed from the pool; only graphics still in it show anything.
   const pool = new Set(show.graphics.map((g) => g.name));
+  // A graphic reading a Sheet in its own code is a source too, one Pause cannot reach (C6).
+  const ownReaders = useMemo(() => ownSheetReaders(show.graphics, loadGraphics()), [show.graphics]);
   const row = (leaf: DataLeaf, key: string | null) => {
     const users = usersOf(show, pool, leaf.path);
     return (
@@ -542,6 +545,11 @@ function DataOverview({
           {leaves
             .filter((leaf) => isSourcePath(source.id, leaf.path))
             .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id, source.kind).length + 1)))}
+        </div>
+      ))}
+      {ownReaders.map((reader) => (
+        <div className="pd-bind-graphic" key={`own:${reader.graphic}`}>
+          <OwnReaderLine reader={reader} />
         </div>
       ))}
       {pushed.length > 0 && (

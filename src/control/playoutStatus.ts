@@ -181,3 +181,78 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   if (quiet) return { tone: 'idle', text: quiet.short, checks: sorted };
   return { tone: 'idle', text: bridge?.tone === 'ok' ? 'Graphics not connected' : 'Not connected', checks: sorted };
 }
+
+// ── WHAT AN ACTION REACHES, AND WHAT IS KNOWN ABOUT IT (data-sources C6, AC-16) ─────────────────
+//
+// The operator-feedback contract: selection, PREVIEW, staged edits, a pending command and the last
+// confirmed output answer different questions, so each has its own words. These say what this page
+// can observe and nothing more. Its observations: whether the production is published; each
+// graphic send's answer from the command log (an accepted write, never proof of a rendered
+// picture); whether this page can reach the server at all (the browser's network, the resolve
+// retrying); the Bridge's answer and the server's own slot readings for server cues; and the
+// outputs' presence for READY. No output reports its picture back, so nothing here says a picture
+// is confirmed on air.
+
+/** PROGRAM's account of the last graphic command this page sent. */
+export type AirState = 'local' | 'idle' | 'pending' | 'confirmed' | 'unknown' | 'stale';
+
+export interface AirFacts {
+  published: boolean;
+  /** Graphic sends whose answer has not come back. */
+  sending: number;
+  /** The last send that answered: the command log took it, or whether it did is not known. */
+  last: { outcome: 'logged' | 'unknown'; at: number } | null;
+  /** When the command log last took a command from this page; an uncertain send does not move it. */
+  confirmedAt: number | null;
+  /** This page cannot reach the server: what PROGRAM shows is the last it knew. */
+  lost: boolean;
+}
+
+const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+/** PROGRAM's status chip: its state, its words and its tooltip. `idle` shows nothing. */
+export function programAir(f: AirFacts): { state: AirState; text: string; title: string } {
+  if (!f.published) return { state: 'local', text: 'this page only', title: 'Not published: a Take plays on this monitor and nowhere else.' };
+  if (f.lost) {
+    return {
+      state: 'stale',
+      text: f.confirmedAt !== null ? `connection lost · last logged ${hms(f.confirmedAt)}` : 'connection lost',
+      title: 'This page cannot reach the server, so PROGRAM keeps the last picture it knew. Air may have changed since.',
+    };
+  }
+  if (f.sending > 0) return { state: 'pending', text: 'sending…', title: 'Sent; waiting for the command log to answer.' };
+  if (!f.last) return { state: 'idle', text: '', title: '' };
+  if (f.last.outcome === 'unknown') {
+    return { state: 'unknown', text: 'not confirmed', title: 'The last command may not have reached the command log, so what the outputs show is unknown here.' };
+  }
+  return {
+    state: 'confirmed',
+    text: `logged ${hms(f.last.at)}`,
+    title: `The command log took the last command at ${hms(f.last.at)}. Outputs following the log apply it; they do not report their picture back, so it is not confirmed here.`,
+  };
+}
+
+/** Where TAKE sends the selected cue or folder, in the words beside the verbs. */
+export function takeTargets(f: {
+  published: boolean;
+  /** Outputs reporting now. */
+  outputs: number;
+  /** The CasparCG slot this production's output is set to (`1-20`), when CasparCG is on. */
+  caspar: string | null;
+  /** The output is loaded on that slot. */
+  casparLoaded: boolean;
+  /** A server cue's slot, when the selection is one. */
+  server: string | null;
+  /** A held folder with server cues as well as graphics. */
+  serverToo?: boolean;
+}): string {
+  if (f.server) return `To: CasparCG ${f.server} through NoaCG Bridge`;
+  const parts: string[] = [];
+  if (!f.published) parts.push('this page only');
+  else {
+    parts.push(f.outputs > 0 ? `${f.outputs} output${f.outputs === 1 ? '' : 's'}` : 'the output link, nothing connected');
+    if (f.caspar) parts.push(`CasparCG ${f.caspar}${f.casparLoaded ? '' : ' (not loaded)'}`);
+  }
+  if (f.serverToo) parts.push('server cues through NoaCG Bridge');
+  return `To: ${parts.join(' · ')}`;
+}

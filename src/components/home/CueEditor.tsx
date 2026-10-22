@@ -13,7 +13,7 @@ import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspac
 import LibMenu from './LibMenu';
 import { commitDurableWrites } from '../../model/durableStore';
 import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
-import { hasLiveData } from '../../control/liveData';
+import type { OwnReaderGate } from '../../control/liveData';
 import { uuid } from '../../model/id';
 import {
   connectedFields,
@@ -534,10 +534,10 @@ function CueConnectReview({
  * real graphic (the PREVIEW monitor shows them), repair what needs attention, and confirm ONCE:
  * the source and the reviewed mapping are one write through the shared binding path, prepared
  * message fields refused. Cancel writes nothing. A graphic whose own code already reads a Sheet
- * is refused until that code's migration exists (C6), so no field ever has two readers. The
+ * offers the explicit migration first (C6, `CueOwnReader`), so no field ever has two readers. The
  * review (CueConnectReview) exists only while open, so a closed menu costs the editor nothing.
  */
-function CueConnectData(props: Omit<Parameters<typeof CueConnectReview>[0], 'onClose' | 'onRefused'>) {
+function CueConnectData({ ownReader, ...props }: Omit<Parameters<typeof CueConnectReview>[0], 'onClose' | 'onRefused'> & { ownReader: OwnReader }) {
   const [open, setOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const close = () => setOpen(false);
@@ -552,15 +552,76 @@ function CueConnectData(props: Omit<Parameters<typeof CueConnectReview>[0], 'onC
       )}
       <LibMenu open={open} onClose={close} testid="cue-connect-menu" role="dialog">
         {open &&
-          (hasLiveData(props.poolGraphic.template.js ?? '') ? (
-            <p className="hint status-warn" data-testid="cue-connect-legacy">
-              This graphic reads a Sheet in its own code, so it can’t be connected here yet.
-            </p>
-          ) : (
+          (ownReader.gate === 'none' ? (
             <CueConnectReview {...props} onClose={close} onRefused={setRefusal} />
+          ) : (
+            <CueOwnReader reader={ownReader} graphic={props.poolGraphic.name} onKeep={close} />
           ))}
       </LibMenu>
     </span>
+  );
+}
+
+/** A graphic's own Sheet reader, as Connect data… sees it (sheet-data-flow AC-10, C6). */
+export interface OwnReader {
+  gate: OwnReaderGate;
+  /** The address its code reads, when the code still says one. */
+  url: string | null;
+  /** Other productions that play the same library graphic, which the removal reaches too. */
+  elsewhere: number;
+  /** Remove the reader (ProductionPage's write); answers why it did not happen, or null. */
+  remove: () => Promise<string | null>;
+}
+
+/**
+ * THE EXPLICIT MIGRATION: Connect data… on a graphic that reads a Sheet in its own code. Connecting
+ * while that reader runs would leave two readers writing the same fields, so the operator chooses:
+ * stop its own reader (the review follows here, or after Publish on a published production, where
+ * the output keeps the old reader until then), or keep it and connect nothing.
+ */
+function CueOwnReader({ reader, graphic, onKeep }: { reader: OwnReader; graphic: string; onKeep: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  if (reader.gate === 'publish') {
+    return (
+      <p className="hint status-warn" data-testid="cue-connect-publish-first">
+        The output still runs {graphic}’s own Sheet reader. Publish changes, then connect here, so only one reader writes its fields.
+      </p>
+    );
+  }
+  return (
+    <div data-testid="cue-connect-legacy">
+      <p className="hint status-warn">
+        {graphic} reads a Sheet in its own code{reader.url ? ` (${reader.url})` : ''}. Connecting here as well would make two readers write the same fields.
+      </p>
+      <div className="row">
+        <button
+          type="button"
+          className="primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            const why = await reader.remove();
+            setBusy(false);
+            setNote(why);
+          }}
+          data-testid="cue-connect-retire"
+        >
+          Stop its own reader
+        </button>
+        <button type="button" onClick={onKeep} data-testid="cue-connect-keep">
+          Keep it
+        </button>
+      </div>
+      <p className="hint" data-testid="cue-connect-retire-scope">
+        Removes the reader from {graphic}’s code{reader.elsewhere > 0 ? `, also in ${reader.elsewhere} other production${reader.elsewhere === 1 ? '' : 's'} using it` : ''}. Until then Pause does not stop it.
+      </p>
+      {note && (
+        <p className="status-bad" data-testid="cue-connect-retire-failed">
+          {note}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -629,6 +690,7 @@ export default function CueEditor({
   sourceStatus,
   fieldsOf,
   onConnectPreview,
+  ownReader,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
@@ -695,6 +757,8 @@ export default function CueEditor({
   fieldsOf: (graphic: string) => FieldDescriptor[] | null;
   /** Show a Connect review's values on the PREVIEW monitor, or stop (null). */
   onConnectPreview: (values: Record<string, string> | null) => void;
+  /** The graphic's own Sheet reader, which Connect data… migrates before it connects anything. */
+  ownReader: OwnReader;
 }) {
   // What the cue shows now, field by field, as the band headings read it: starter rows and the
   // data template both start from it. A bound field is not a cue value, so a fill skips it.
@@ -752,6 +816,7 @@ export default function CueEditor({
           store={sourceStatus}
           fieldsOf={fieldsOf}
           onPreview={onConnectPreview}
+          ownReader={ownReader}
         />
         {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
             line that names it rather than hidden from the operator entirely. */}

@@ -135,3 +135,44 @@ function onAirWords(air: FolderAir, up: number): { tag: string; tone: 'air' | 'p
   if (up < air.total) return { tag: `${up} OF ${air.total} ON AIR`, tone: 'part', title: `${up} of the ${cues(air.total)} of this folder ${up === 1 ? 'is' : 'are'} on air. Out takes ${up === 1 ? 'it' : 'them'} off.` };
   return { tag: 'ON AIR', tone: 'air', title: `All ${cues(air.total)} of this folder are on air.` };
 }
+
+/** One cue of a folder as its panel lists it (data-sources C6, AC-16). */
+export interface FolderChild {
+  id: string;
+  label: string;
+  /** Where it plays: `2-10` on the server, `L20` for a graphic. */
+  address: string;
+  /** On air now, missed by the folder's last Take (with why), or neither. */
+  outcome: 'air' | 'miss' | 'off';
+  why?: string;
+  /** All together: the earlier cue of this folder on the same address, which this one replaces. */
+  replaces?: string;
+}
+
+/**
+ * EVERY CHILD OF A FOLDER, so a partial Take never reads as a green group: each cue's own outcome
+ * from the same facts its rundown row shows (`cueOnAir`, the page's per-cue Take misses), and in an
+ * All-together folder the known collisions. One Take there starts every cue; two on one address
+ * replace each other, and the later one stays.
+ */
+export function folderChildren(
+  members: readonly ShowCue[],
+  input: { mode: ShowFolder['mode']; address: (cue: ShowCue) => string; onAir: readonly string[]; misses: Readonly<Record<string, string>> },
+): FolderChild[] {
+  const seen = new Map<string, string>();
+  return members.map((cue) => {
+    const address = input.address(cue);
+    const live = input.onAir.includes(cue.id);
+    const why = live ? undefined : input.misses[cue.id];
+    const replaces = input.mode === 'together' && address ? seen.get(address) : undefined;
+    if (address) seen.set(address, cue.label);
+    return {
+      id: cue.id,
+      label: cue.label,
+      address,
+      outcome: live ? 'air' : why ? 'miss' : 'off',
+      ...(why ? { why } : {}),
+      ...(replaces !== undefined ? { replaces } : {}),
+    };
+  });
+}

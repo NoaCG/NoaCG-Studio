@@ -436,3 +436,22 @@ test('the TAKE button says what a step does and names the cues in its tooltip', 
   assert.equal(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).text, '↺ FROM THE TOP');
   assert.match(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).title, /its clips play on/);
 });
+
+test('a folder lists every child\'s own outcome, and All together names a collision on one address (data-sources C6, AC-16)', async () => {
+  const { folderChildren } = await import('../src/control/folderAir.ts');
+  const members = [
+    { id: 'a', label: 'Score', source: 'graphic', sourceId: 'g1', values: {} },
+    { id: 'b', label: 'Clip', source: 'playout', sourceId: 'p1', values: {} },
+    { id: 'c', label: 'Lower third', source: 'graphic', sourceId: 'g2', values: {} },
+    { id: 'd', label: 'Credits', source: 'graphic', sourceId: 'g3', values: {} },
+  ];
+  const address = { a: 'L20', b: '1-10', c: 'L30', d: 'L20' };
+  const children = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'd'], misses: { b: 'NoaCG Bridge refused it: file not found', a: 'stale miss' } });
+  assert.deepEqual(children.map((c) => c.outcome), ['air', 'miss', 'off', 'air'], 'partial success is never one state');
+  assert.equal(children[1].why, 'NoaCG Bridge refused it: file not found');
+  assert.equal(children[0].why, undefined, 'a cue on air carries no old miss');
+  assert.equal(children[3].replaces, 'Score', 'the later cue on L20 replaces the earlier one');
+  assert.equal(children.filter((c) => c.replaces !== undefined).length, 1);
+  // One by one takes one cue at a time, and the next replaces the last by design: no collision.
+  assert.ok(folderChildren(members, { mode: 'manual', address: (c) => address[c.id], onAir: [], misses: {} }).every((c) => c.replaces === undefined));
+});

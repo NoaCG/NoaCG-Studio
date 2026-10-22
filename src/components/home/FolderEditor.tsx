@@ -3,7 +3,7 @@ import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, PLAYOUT_CLIP_LAYER, playoutItemOf
 import { folderMode } from '../../model/showFolders';
 import { folderName } from '../../model/rundownRows';
 import { NEEDS, offerBlocked, effectiveEnd, type PlaybackAbility } from '../../control/cuePlayback';
-import { folderAirWords, type FolderAir } from '../../control/folderAir';
+import { folderAirWords, folderChildren, type FolderAir } from '../../control/folderAir';
 import { channelLabel, slotAddress, type PlayoutSettings } from '../../control/playoutLink';
 import { useDeferredEdits } from './useDeferredEdits';
 
@@ -37,7 +37,7 @@ export default function FolderEditor({
   members,
   items,
   air,
-  missed,
+  misses,
   ability,
   playoutSettings,
   slot,
@@ -54,7 +54,8 @@ export default function FolderEditor({
   members: readonly ShowCue[];
   items: readonly PlayoutItem[];
   air: FolderAir | undefined;
-  missed: number;
+  /** Why the folder's last Take missed each cue it missed, by cue id. */
+  misses: Readonly<Record<string, string>>;
   ability: PlaybackAbility | null;
   playoutSettings: PlayoutSettings;
   /** Where a Play-through folder plays: the channel and layer, and whether either is its own. */
@@ -79,7 +80,14 @@ export default function FolderEditor({
     const next = text.trim();
     if (next && next !== folder.name) onRename(next, closing);
   });
-  const words = folderAirWords(air, missed);
+  const children = folderChildren(members, {
+    mode,
+    address: (c) => (mode === 'through' && c.source === 'playout' ? slotAddress(slot) : addressOf(c)),
+    onAir: air?.onAir ?? [],
+    misses,
+  });
+  const words = folderAirWords(air, children.filter((c) => c.outcome === 'miss').length);
+  const collides = children.some((c) => c.replaces !== undefined);
   const throughOff = offerBlocked(ability, NEEDS.through);
   // One clip that loops is a plain looping take, which any Bridge plays; only a run of several needs
   // a Bridge that can loop a sequence.
@@ -237,14 +245,37 @@ export default function FolderEditor({
           </>
         )}
       </div>
+      {/* Every child's own outcome and address (C6, AC-16): a partial Take is never one green
+          group, and in All together a collision on one address says which cue replaces which. */}
       <ol className="pd-folder-where" aria-label={`What airs where in ${name}`} data-testid="folder-where">
-        {members.map((c) => (
-          <li key={c.id}>
+        {children.map((c) => (
+          <li key={c.id} data-outcome={c.outcome} data-testid="folder-child">
             <span className="pd-folder-where-cue">{c.label}</span>
-            <span className="pd-cue-layer">{mode === 'through' && c.source === 'playout' ? address : addressOf(c)}</span>
+            {c.outcome === 'air' && <span className="pd-tag air">ON AIR</span>}
+            {c.outcome === 'miss' && (
+              <span className="pd-tag miss" title={c.why} data-testid="folder-child-miss">
+                NOT TAKEN
+              </span>
+            )}
+            {c.replaces !== undefined && (
+              <span className="pd-cue-layer clash" title={`Same place as ${c.replaces}: on air the later one replaces it.`} data-testid="folder-child-clash">
+                replaces {c.replaces}
+              </span>
+            )}
+            <span className="pd-cue-layer">{c.address}</span>
+            {c.outcome === 'miss' && c.why && (
+              <span className="pd-folder-where-why status-warn" data-testid="folder-child-why">
+                {c.why}
+              </span>
+            )}
           </li>
         ))}
       </ol>
+      {mode === 'together' && collides && (
+        <p className="muted pd-clip-hint" data-testid="folder-policy">
+          Cues on the same layer replace each other; the later one stays on air.
+        </p>
+      )}
     </div>
   );
 }

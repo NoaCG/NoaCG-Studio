@@ -3,6 +3,41 @@ import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowS
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
 import { FEED_READ_MS } from '../../control/feedSource';
 import { useNow } from './ClipClock';
+import { hasLiveData, liveDataUrl } from '../../control/liveData';
+import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
+import type { SavedGraphic } from '../../model/packets';
+
+/** A graphic of the production whose own code reads a Sheet (the retired block, data-sources C6). */
+export interface OwnSheetReader {
+  graphic: string;
+  url: string | null;
+}
+
+/** The production's graphics that read a Sheet in their own code, in the design they play. */
+export function ownSheetReaders(graphics: readonly SavedGraphic[], library: GraphicDoc[]): OwnSheetReader[] {
+  return graphics.flatMap((g) => {
+    const js = resolveSavedGraphicDoc(g, library)?.template.js ?? g.template.js;
+    return hasLiveData(js) ? [{ graphic: g.name, url: liveDataUrl(js) }] : [];
+  });
+}
+
+/**
+ * An own reader's line: named as a source, honestly without Pause, because nothing here can stop
+ * code inside the graphic (sheet-data-flow AC-10). Connect data… on the graphic moves it here.
+ */
+export function OwnReaderLine({ reader }: { reader: OwnSheetReader }) {
+  return (
+    <div
+      className="pd-source-line hint"
+      title={`Its own code reads ${reader.url ?? 'a Sheet'} on its own timer. Connect data… on the graphic moves it here, where Pause works.`}
+      data-testid="own-reader-line"
+    >
+      <span data-testid="source-status">
+        Sheet in {reader.graphic}’s own code · read by the graphic · <strong className="status-warn">Pause does not stop it</strong>
+      </span>
+    </div>
+  );
+}
 
 /** "3 s ago", "2 min ago", from a time in ms. */
 function ago(at: number, now: number): string {
@@ -86,14 +121,28 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
  * source of the production, whichever cue is selected, so a failing or stale Sheet is in sight
  * while the show runs and Pause is one press. Nothing at all without sources.
  */
-export default function SourcesLine({ show, setShows, store }: { show: Show; setShows: (shows: Show[]) => void; store: SourceStatusStore }) {
+export default function SourcesLine({
+  show,
+  setShows,
+  store,
+  ownReaders = [],
+}: {
+  show: Show;
+  setShows: (shows: Show[]) => void;
+  store: SourceStatusStore;
+  /** Graphics reading a Sheet in their own code: listed, without a Pause that would not work. */
+  ownReaders?: readonly OwnSheetReader[];
+}) {
   // A Sheet's or a feed's line; a YouTube source is read and shown in Messages only.
   const sources = (show.sources ?? []).filter(fillsFields);
-  if (sources.length === 0) return null;
+  if (sources.length === 0 && ownReaders.length === 0) return null;
   return (
     <div className="pd-sources" data-testid="sources-line">
       {sources.map((source) => (
         <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} />
+      ))}
+      {ownReaders.map((reader) => (
+        <OwnReaderLine key={reader.graphic} reader={reader} />
       ))}
     </div>
   );

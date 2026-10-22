@@ -8,6 +8,10 @@
 // CORS note baked into the generated comments: use the sheet's "Publish to web → CSV" link
 // (those are served for public embedding); strict browsers may still block other links, in
 // which case Era 5's gateway proxies it universally.
+//
+// RETIRED AS A WAY TO CONNECT (data-sources C6): a Sheet now connects at the production, with
+// Connect data… on a cue. Nothing offers this block to a new graphic any more; one already in a
+// graphic keeps running, and exports carry it unchanged.
 
 import type { SpxField } from '../model/types';
 
@@ -17,6 +21,51 @@ const CLOSE = '/* == END LIVE DATA == */';
 /** True when the template JS already carries a live-data block. */
 export function hasLiveData(js: string): boolean {
   return js.includes(OPEN);
+}
+
+/** The address an existing block reads, as its code says it now (a person may have edited it). */
+export function liveDataUrl(js: string): string | null {
+  const start = js.indexOf(OPEN);
+  if (start === -1) return null;
+  const m = /var CSV_URL = ("(?:[^"\\]|\\.)*")/.exec(js.slice(start));
+  if (!m) return null;
+  try {
+    return String(JSON.parse(m[1]));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ONE WAY TO CONNECT A SHEET (sheet-data-flow AC-10, data-sources C6). New graphics are no longer
+ * offered this block; a graphic that already carries one keeps running it, and Connect data… may
+ * take over its fields only once that reader no longer runs where the graphic plays, so two
+ * readers never write the same field.
+ *
+ * `resolvedJs` is the design the production plays and publishes next (the library record when it
+ * has one), `copyJs` the production's own copy, which is what the published output last took.
+ * - `reader`: the block still runs here; Connect offers the explicit migration first.
+ * - `publish`: the design no longer has it, but the published output still runs it until Publish.
+ * - `none`: nothing reads a Sheet in this graphic's code.
+ */
+export type OwnReaderGate = 'none' | 'reader' | 'publish';
+
+export function ownReaderGate(input: { copyJs: string; resolvedJs: string; published: boolean }): OwnReaderGate {
+  if (hasLiveData(input.resolvedJs)) return 'reader';
+  if (!hasLiveData(input.copyJs)) return 'none';
+  return input.published ? 'publish' : 'reader';
+}
+
+/**
+ * Where the migration removes the block. The library record is the design every production plays,
+ * so it goes there when there is one. The production's copy goes too unless the production is
+ * published: there the copy is what the output runs, and Publish replaces it with the record, which
+ * is what keeps Connect waiting until the output has stopped the old reader. A published graphic
+ * with no library record could not carry the change to its output, so the migration is refused.
+ */
+export function ownReaderRemoval(input: { library: boolean; published: boolean }): { library: boolean; copy: boolean } | null {
+  if (!input.library && input.published) return null;
+  return { library: input.library, copy: !input.published };
 }
 
 /** Remove an existing live-data block (so "Add" is really "replace"). */
