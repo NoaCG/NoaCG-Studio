@@ -16,7 +16,7 @@ import {
 import { commitDurableWrites } from '../../model/durableStore';
 import {
   AUDIENCE_LIMITS,
-  OPERATOR_ADD_MAX,
+  addInChunks,
   broadcastValues,
   type AudienceBackend,
   type AudienceMode,
@@ -498,10 +498,7 @@ function MessageSources({
       const read = await fetchComments((url) => fetch(url), videoId, apiKey);
       if (read.units) spendYouTube(read.units);
       if (!read.ok) return setFetched((f) => ({ ...f, [sourceId]: { text: `${read.error}. ${read.fix}`, ok: false } }));
-      let added = 0;
-      for (let at = 0; at < read.items.length; at += OPERATOR_ADD_MAX) {
-        added += (await backend.addCandidates(read.items.slice(at, at + OPERATOR_ADD_MAX))).length;
-      }
+      const added = (await addInChunks(backend, read.items)).length;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       setFetched((f) => ({ ...f, [sourceId]: { text: `${added} new of the newest ${read.items.length} at ${time}`, ok: true } }));
     } catch (err) {

@@ -74,6 +74,20 @@ export interface CandidateInput {
 /** The most an operator adds in one call (migration 0095's `audience_operator_add` bound). */
 export const OPERATOR_ADD_MAX = 100;
 
+/** Add any number of candidates through the operator door, OPERATOR_ADD_MAX a call, one call at
+ *  a time. `stop` is asked between calls; a refusal throws with the calls before it landed. */
+export async function addInChunks(
+  backend: Pick<AudienceBackend, 'addCandidates'>,
+  items: CandidateInput[],
+  stop: () => boolean = () => false,
+): Promise<AudienceSubmission[]> {
+  const added: AudienceSubmission[] = [];
+  for (let at = 0; at < items.length && !stop(); at += OPERATOR_ADD_MAX) {
+    added.push(...(await backend.addCandidates(items.slice(at, at + OPERATOR_ADD_MAX))));
+  }
+  return added;
+}
+
 /** The most rows one source settles in a call (migration 0098's `audience_operator_settle`
  *  bound): a message Sheet is read whole, so this is the longest tab Messages follows. */
 export const OPERATOR_SETTLE_MAX = 2_000;

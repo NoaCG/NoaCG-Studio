@@ -17,8 +17,8 @@
 // author and body); Source and Reference are provenance, shown small and never put on a graphic.
 
 import {
-  OPERATOR_ADD_MAX,
   OPERATOR_SETTLE_MAX,
+  addInChunks,
   type AudienceBackend,
   type CandidateInput,
 } from './audienceTypes.ts';
@@ -161,11 +161,7 @@ export function createSheetInbox(o: SheetInboxOptions): SheetInbox {
         if (stopped) return;
       }
       if (ids.length === known.size && ids.every((id) => known.has(id))) return say(problem);
-      const arrived = items.filter((i) => !known.has(i.externalId));
-      for (let at = 0; at < arrived.length; at += OPERATOR_ADD_MAX) {
-        if (stopped) return;
-        await backend.addCandidates(arrived.slice(at, at + OPERATOR_ADD_MAX));
-      }
+      await addInChunks(backend, items.filter((i) => !known.has(i.externalId)), () => stopped);
       if (stopped) return;
       await backend.settleImported(sheetMessagePrefix(o.sourceId), ids);
       known = new Set(ids);
