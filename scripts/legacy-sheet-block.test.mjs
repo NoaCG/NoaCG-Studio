@@ -247,6 +247,15 @@ test('the binding write refuses a held graphic and a recorded stop, whichever br
     shows.addGraphicToShow(fresh.id, reader);
     shows.refreshGraphicCopies(fresh.id, () => design);
     assert.equal(read(fresh.id).ownReaderStops, undefined);
+    // A copy that lost its reader outside Publish (its own write is newer than the design, so the
+    // refresh takes nothing) while the payload the caller saw published still has it: recorded too.
+    const outside = shows.createShowNamed('outside');
+    shows.addGraphicToShow(outside.id, plain);
+    shows.setShowHostedSlug(outside.id, 'outside-slug');
+    shows.refreshGraphicCopies(outside.id, () => undefined);
+    assert.equal(read(outside.id).ownReaderStops, undefined, 'nothing read, nothing recorded');
+    shows.refreshGraphicCopies(outside.id, () => undefined, new Set(['Hairline']));
+    assert.deepEqual(read(outside.id).ownReaderStops, ['Hairline']);
   } finally {
     globalThis.localStorage = previous;
   }

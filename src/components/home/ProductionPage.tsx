@@ -2955,23 +2955,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           const team = !!loadShows().find((s) => s.id === show.id)?.teamId;
           if (team) await refreshTeams();
           const library = loadGraphics();
-          const refreshed = refreshGraphicCopies(show.id, (g) => resolveSavedGraphicDoc(g, library));
+          // The payload's readers as this page saw them: one this publish drops is recorded (C6).
+          const refreshed = refreshGraphicCopies(show.id, (g) => resolveSavedGraphicDoc(g, library), publishedReaders);
           setShows(refreshed.shows);
           if (refreshed.error) throw new Error(refreshed.error);
-          // A payload this page saw reading a Sheet that this publish no longer carries (a copy
-          // changed outside the refresh, which records its own): recorded, and saved with it.
-          const refreshedShow = refreshed.shows.find((s) => s.id === show.id);
-          if (refreshedShow?.hostedSlug) {
-            const dropped = refreshedShow.graphics
-              .filter((g) => publishedReaders.has(g.name) && !hasLiveData(templateForSavedGraphic(g, library).js))
-              .map((g) => g.name)
-              .filter((name) => !publishedReaderStops(refreshedShow).includes(name));
-            if (dropped.length > 0) {
-              const marked = setOwnReaderStops(show.id, { add: dropped });
-              if (marked.error) throw new Error(marked.error);
-              setShows(marked.shows);
-            }
-          }
           // A team save that fails does not stop the publish (G2): an older design is still refused.
           if (team) await flushTeamProduction(show.id);
           else {

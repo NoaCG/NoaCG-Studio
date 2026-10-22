@@ -782,25 +782,34 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
  * the record's edit time, never now, so the two read as the same edit. Only Publish calls it: an
  * edit reaches the production only through Publish.
  *
- * A published copy that loses its own Sheet reader here (the design's reader was stopped, from
- * this production or another one sharing it: data-sources C6) is recorded in `ownReaderStops` in
- * the same write: the output keeps an on-air graphic's old frame, reader included, until it is
- * cleared, so no browser may bind its fields before then.
+ * A published graphic that this publish takes its own Sheet reader from (its copy loses it here,
+ * the design's reader having been stopped in this production or another sharing it; or the payload
+ * the caller saw published, `publishedReaders`, has it and the copy no longer does) is recorded in
+ * `ownReaderStops` in the same write (data-sources C6): the output keeps an on-air graphic's old
+ * frame, reader included, until it is cleared, so no browser may bind its fields before then.
  */
 export function refreshGraphicCopies(
   showId: string,
   newer: (graphic: SavedGraphic) => { template: SpxTemplate; updatedAt: string } | undefined,
+  publishedReaders: ReadonlySet<string> = new Set(),
 ): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, show => {
     let changed = false;
+    const dropped: string[] = [];
     for (const graphic of show.graphics) {
       const doc = newer(graphic);
-      if (!doc || !(Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt))) continue;
-      if (show.hostedSlug && hasLiveData(graphic.template.js ?? '') && !hasLiveData(doc.template.js ?? '')) {
-        show.ownReaderStops = [...new Set([...(show.ownReaderStops ?? []), graphic.name])];
+      const fresh = !!doc && Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt);
+      const read = publishedReaders.has(graphic.name) || hasLiveData(graphic.template.js ?? '');
+      if (fresh) {
+        graphic.template = doc.template;
+        graphic.savedAt = doc.updatedAt;
+        changed = true;
       }
-      graphic.template = doc.template;
-      graphic.savedAt = doc.updatedAt;
+      if (read && !hasLiveData(graphic.template.js ?? '')) dropped.push(graphic.name);
+    }
+    const stops = show.hostedSlug ? [...new Set([...(show.ownReaderStops ?? []), ...dropped])] : [];
+    if (stops.length > (show.ownReaderStops ?? []).length) {
+      show.ownReaderStops = stops;
       changed = true;
     }
     return changed;
