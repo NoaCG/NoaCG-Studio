@@ -139,14 +139,14 @@ import { groupCueFields } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
-import SourcesLine, { ownSheetReaders } from './SourcesLine';
+import SourcesLine, { ownSheetReader, ownSheetReaders } from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
-import { hasLiveData, liveDataUrl, ownReaderGate, ownReaderRemoval, stripLiveData } from '../../control/liveData';
+import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
 import { setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
@@ -719,10 +719,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const [follow, setFollow] = useState<ControlFollowStatus | null>(null);
   /** WHAT IS KNOWN OF THE LAST GRAPHIC COMMAND (data-sources C6, AC-16; control/playoutStatus.ts
-   *  `programAir`): sends still waiting for the log's answer, the last answer, and when the log
-   *  last took one. Published only; an unpublished Take never leaves this page. */
+   *  `programAir`): sends still waiting for the log's answer, whether a failed one is still owed
+   *  (`sendDebts`, the one record of that), and when the log last took one. Published only; an
+   *  unpublished Take never leaves this page. */
   const [sendingNow, setSendingNow] = useState(0);
-  const [lastSend, setLastSend] = useState<{ outcome: 'logged' | 'unknown'; at: number } | null>(null);
+  const [sendOwed, setSendOwed] = useState(false);
   const [loggedAt, setLoggedAt] = useState<number | null>(null);
   /** The browser has no network: nothing from the server reaches this page. */
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
@@ -773,9 +774,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const hostedSlug = show?.hostedSlug ?? null;
   // Another production, or the same one published or unpublished: the last answer was not its.
   useEffect(() => {
-    setLastSend(null);
+    setSendOwed(false);
     setLoggedAt(null);
   }, [hostedSlug]);
+  /** The graphics still reading a Sheet in their own code, for the sources line (C6). */
+  const ownReaders = useMemo(() => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug) : []), [show, library, hostedSlug]);
   // Timed cues on a published production need a backend that keeps their arms (0075); with none
   // at all, nothing does.
   const armsServer = hostedSlug && !backendConfigured ? 'missing' : armsServerState;
@@ -1130,10 +1133,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const settle = sendDebts.current.heard(items);
       if (settle) {
         setNote(settle);
-        // A send that answered "not confirmed" landed after all: the log has it now.
-        const at = Date.now();
-        setLastSend((last) => (last?.outcome === 'unknown' ? { outcome: 'logged', at } : last));
-        setLoggedAt(at);
+        // A failed send landed after all: the log has it now.
+        setSendOwed(sendDebts.current.owed() > 0);
+        setLoggedAt(Date.now());
         // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
         setTakeMisses((m) => {
           const kept = Object.entries(m).filter(([, missed]) => settle(missed) !== null);
@@ -2421,9 +2423,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           allOut,
         });
         setNote(sendDebts.current.landed(marked.flat()));
-        const at = Date.now();
-        setLastSend({ outcome: 'logged', at });
-        setLoggedAt(at);
+        setSendOwed(sendDebts.current.owed() > 0);
+        setLoggedAt(Date.now());
         // A graphic went up with nothing reporting that could air it: the status says "No output"
         // in red until something connects (playout-workflow-simplification AC-2). Never blocked.
         if (!allOut && !usableOutputRef.current && marked.some((batch) => batch.some((item) => item.msg.t === 'play'))) setNoOutputTake(true);
@@ -2445,9 +2446,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.
         const landed = verbsLanded(e);
         sendDebts.current.failed([...(verbSentItems(e) ?? marked[landed] ?? []), ...marked.slice(landed + 1).flat()], note);
-        // A verb that moved this monitor and may not have reached the log leaves air unknown; one
-        // refused before anything moved leaves the last answer standing.
-        if (verbAired(e)) setLastSend({ outcome: 'unknown', at: Date.now() });
+        setSendOwed(true);
         return { ok: false, note };
       } finally {
         setSendingNow((n) => Math.max(0, n - 1));
@@ -3303,14 +3302,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * removes it (control/liveData.ts says where the block goes and why).
    */
   const ownReaderOf = (graphic: SavedGraphic): OwnReader => {
-    const doc = resolveSavedGraphicDoc(graphic, library);
-    const resolvedJs = doc?.template.js ?? graphic.template.js;
-    const gate = ownReaderGate({ copyJs: graphic.template.js, resolvedJs, published: !!hostedSlug });
+    const { gate, url } = ownSheetReader(graphic, library, !!hostedSlug);
+    const doc = gate === 'reader' ? resolveSavedGraphicDoc(graphic, library) : undefined;
     return {
       gate,
-      url: liveDataUrl(resolvedJs) ?? liveDataUrl(graphic.template.js),
+      url,
       // Read from every stored production, so only when the migration is on offer.
-      elsewhere: gate === 'reader' && doc ? productionsContaining(doc.id).filter((s) => s.id !== show?.id).length : 0,
+      elsewhere: doc ? productionsContaining(doc.id).filter((s) => s.id !== show?.id).length : 0,
       remove: async () => {
         if (!show) return 'This production is no longer open.';
         const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
@@ -4999,7 +4997,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onState={noteProgramState}
           onReady={restoreProgram}
           onOverflow={notePreviewOverflow}
-          air={programAir({ published: !!hostedSlug, sending: sendingNow, last: lastSend, confirmedAt: loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server')}
           programChip={
             chipGraphic ? (
@@ -5158,7 +5156,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
-        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownSheetReaders(show.graphics, library, !!hostedSlug)} />
+        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&

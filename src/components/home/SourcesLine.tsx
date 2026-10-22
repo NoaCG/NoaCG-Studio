@@ -3,7 +3,7 @@ import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowS
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
 import { FEED_READ_MS } from '../../control/feedSource';
 import { useNow } from './ClipClock';
-import { hasLiveData, liveDataUrl } from '../../control/liveData';
+import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/liveData';
 import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
 
@@ -11,16 +11,23 @@ import type { SavedGraphic } from '../../model/packets';
 export interface OwnSheetReader {
   graphic: string;
   url: string | null;
+  gate: OwnReaderGate;
 }
 
-/** The production's graphics that read a Sheet in their own code where they play: the design, and
- *  on a published production also the copy the output runs until Publish replaces it. */
+/** One graphic's own Sheet reader where it plays (control/liveData.ts `ownReaderGate`): the design
+ *  it plays, and the copy the published output runs until Publish replaces it. */
+export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], published: boolean): OwnSheetReader {
+  const design = resolveSavedGraphicDoc(graphic, library)?.template.js ?? graphic.template.js;
+  return {
+    graphic: graphic.name,
+    url: liveDataUrl(design) ?? liveDataUrl(graphic.template.js),
+    gate: ownReaderGate({ copyJs: graphic.template.js, resolvedJs: design, published }),
+  };
+}
+
+/** The production's graphics with an own reader: the ones Connect data… would migrate first. */
 export function ownSheetReaders(graphics: readonly SavedGraphic[], library: GraphicDoc[], published: boolean): OwnSheetReader[] {
-  return graphics.flatMap((g) => {
-    const design = resolveSavedGraphicDoc(g, library)?.template.js ?? g.template.js;
-    const js = hasLiveData(design) ? design : published && hasLiveData(g.template.js) ? g.template.js : null;
-    return js ? [{ graphic: g.name, url: liveDataUrl(js) }] : [];
-  });
+  return graphics.map((g) => ownSheetReader(g, library, published)).filter((r) => r.gate !== 'none');
 }
 
 /**

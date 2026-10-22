@@ -447,7 +447,7 @@ test('a folder lists every child\'s own outcome, and All together names the cues
     { id: 'e', label: 'Clip 2', source: 'playout', sourceId: 'p2', values: {} },
   ];
   const address = { a: 'L20', b: '1-10', c: 'L30', d: 'L20', e: '1-10' };
-  const children = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'd'], misses: { b: 'NoaCG Bridge refused it: file not found', a: 'stale miss' } });
+  const children = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'd'], misses: { b: 'NoaCG Bridge refused it: file not found', a: 'stale miss' }, graphicsAir: true });
   assert.deepEqual(children.map((c) => c.outcome), ['air', 'miss', 'off', 'air', 'off'], 'partial success is never one state');
   assert.equal(children[1].why, 'NoaCG Bridge refused it: file not found');
   assert.equal(children[0].why, undefined, 'a cue on air carries no old miss');
@@ -459,6 +459,6 @@ test('a folder lists every child\'s own outcome, and All together names the cues
   assert.deepEqual(unpublished.slice(0, 2).map((c) => c.outcome), ['up', 'air']);
   // One by one and Play through use one place in turn by design: no collision.
   for (const mode of ['manual', 'through']) {
-    assert.ok(folderChildren(members, { mode, address: (c) => address[c.id], onAir: [], misses: {} }).every((c) => c.sharesWith === undefined), mode);
+    assert.ok(folderChildren(members, { mode, address: (c) => address[c.id], onAir: [], misses: {}, graphicsAir: true }).every((c) => c.sharesWith === undefined), mode);
   }
 });

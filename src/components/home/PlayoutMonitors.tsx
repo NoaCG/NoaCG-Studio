@@ -168,7 +168,8 @@ export default function PlayoutMonitors({
     return () => ro.disconnect();
   }, [stageEl]);
   const stageAspect = `${stage.width} / ${stage.height}`;
-  const stale = air?.state === 'stale' || (serverLost && serverLayers.length > 0);
+  const lost = air?.state === 'stale';
+  const stale = lost || (serverLost && serverLayers.length > 0);
   // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
   // is the production's shape now, so a cue of another shape has to fit inside it rather than
   // overflow its height.
@@ -278,7 +279,7 @@ export default function PlayoutMonitors({
               className="pd-layer-badge pd-server-badge"
               title={serverLost ? 'NoaCG Bridge is not answering: this is what the server last reported, and it may have changed.' : 'Playing on the playout server through NoaCG Bridge.'}
               data-testid="playout-on-air"
-              {...(serverLost ? { 'data-stale': 'true' } : {})}
+              data-stale={serverLost || undefined}
             >
               server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
             </span>
@@ -291,7 +292,7 @@ export default function PlayoutMonitors({
             className={`pd-frame pd-frame-pgm${stale ? ' pd-frame-stale' : ''}`}
             style={{ aspectRatio: stageAspect }}
             data-testid="program-frame"
-            {...(stale ? { 'data-stale': 'true' } : {})}
+            data-stale={stale || undefined}
           >
             {/* What is known of the last command (C6): pending, logged, not confirmed, or a lost
                 connection. In the frame's corner, so the header keeps its names. Unpublished, the
@@ -302,8 +303,8 @@ export default function PlayoutMonitors({
               </span>
             )}
             {stale && (
-              <span className="pd-stale-tag" title={air?.state === 'stale' ? air.title : 'NoaCG Bridge is not answering: this is what the server last reported.'} data-testid="program-stale">
-                {air?.state === 'stale' ? 'CONNECTION LOST · NOT LIVE' : 'BRIDGE NOT ANSWERING · NOT LIVE'}
+              <span className="pd-stale-tag" title={lost ? air.title : 'NoaCG Bridge is not answering: this is what the server last reported.'} data-testid="program-stale">
+                {lost ? 'CONNECTION LOST · NOT LIVE' : 'BRIDGE NOT ANSWERING · NOT LIVE'}
               </span>
             )}
             <ServerStill thumb={programClip ? programThumb : null} testId="program" />

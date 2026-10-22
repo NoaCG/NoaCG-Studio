@@ -84,9 +84,10 @@ export default function FolderEditor({
     const next = text.trim();
     if (next && next !== folder.name) onRename(next, closing);
   });
+  const address = slotAddress(slot);
   const children = folderChildren(members, {
     mode,
-    address: (c) => (mode === 'through' && c.source === 'playout' ? slotAddress(slot) : addressOf(c)),
+    address: (c) => (mode === 'through' && c.source === 'playout' ? address : addressOf(c)),
     onAir: air?.onAir ?? [],
     misses,
     graphicsAir,
@@ -102,7 +103,6 @@ export default function FolderEditor({
   const lastItem = last ? itemOf(last) : null;
   const lastEnd = last && lastItem ? effectiveEnd(last, lastItem) : 'hold';
   const allAudio = members.length > 0 && members.every((c) => itemOf(c)?.mediaKind === 'audio');
-  const address = slotAddress(slot);
   // How each mode plays, on its own button's tooltip (playout-workflow-simplification AC-10).
   const modeHint = (m: typeof mode) =>
     m === 'manual'

@@ -55,8 +55,9 @@ changes a spec's digest.
   nothing says a picture is confirmed on air. What was added:
   - PROGRAM's status tag (`programAir`), in the frame's bottom-left corner like PREVIEW's length
     tag: "sending…" while a send waits, "logged HH:MM:SS" once the log took it (its tooltip says
-    outputs do not report their picture), "not confirmed" when a send that moved this monitor may
-    not have reached the log, and "last logged HH:MM:SS" when the page cannot reach the server
+    outputs do not report their picture), "not confirmed" while a failed send is still owed (read
+    from `sendDebts`, the page's one record of that, through a new `owed()`; a later send of
+    another graphic does not settle it), and "last logged HH:MM:SS" when the page cannot reach the server
     (the centre tag below says the connection is lost; review found the two said it twice). Nothing pressed yet shows nothing. Unpublished it shows nothing either: the
     header's existing PROGRAM · NOT PUBLISHED and "up, not live" already label the local
     simulation (a first cut put "this page only" in the header, which truncated the monitor's name
@@ -88,8 +89,11 @@ changes a spec's digest.
 - **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
   (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
   legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.
-- **Own-reader line on a published production** also lists a graphic whose copy (what the output
-  runs) still has the block after the migration, until Publish replaces it (review finding).
+- **One rule for "reads a Sheet in its own code".** The sources line, the Data overview and Connect
+  data… all ask `ownReaderGate` through `ownSheetReader` (SourcesLine.tsx), so a published
+  graphic whose copy still has the block after the migration stays listed until Publish replaces
+  it, and nothing can be offered the migration without being listed (review and simplify findings).
+- `src/control/failedSends.ts` and `scripts/failed-sends.test.mjs` are touched for `owed()`.
 - **Traps.**
   - The production page reads the library once per mount; a design change made from the page
     itself must re-read it or the monitors keep the old design.

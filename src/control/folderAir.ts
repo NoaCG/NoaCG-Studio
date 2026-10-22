@@ -166,8 +166,8 @@ export function folderChildren(
     onAir: readonly string[];
     misses: Readonly<Record<string, string>>;
     /** The production is published, so a graphic that is up airs. False, it is up on this page
-     *  only, as its rundown row says (D12). Absent reads as published. */
-    graphicsAir?: boolean;
+     *  only, as its rundown row says (D12). */
+    graphicsAir: boolean;
   },
 ): FolderChild[] {
   const at = members.map((cue) => input.address(cue));
@@ -179,7 +179,7 @@ export function folderChildren(
       id: cue.id,
       label: cue.label,
       address: at[i],
-      outcome: live ? (input.graphicsAir === false && cue.source !== 'playout' ? 'up' : 'air') : why ? 'miss' : 'off',
+      outcome: live ? (!input.graphicsAir && cue.source !== 'playout' ? 'up' : 'air') : why ? 'miss' : 'off',
       ...(why ? { why } : {}),
       ...(shares.length ? { sharesWith: shares } : {}),
     };

@@ -11,13 +11,14 @@ import type { EditorOperation } from './operations';
 export default function LiveDataControls({ template, execute }: { template: SpxTemplate; execute: (operation: EditorOperation) => void }) {
   const [error, setError] = useState('');
   if (!hasLiveData(template.js)) return null;
+  const url = liveDataUrl(template.js);
   const remove = () => {
     try { execute({ kind: 'liveData.remove' }); setError(''); }
     catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   return <section aria-label="Live data">
     <h3>Live data</h3>
-    <p role="status">Reads a Sheet in its own code{liveDataUrl(template.js) ? `: ${liveDataUrl(template.js)}` : ''}.</p>
+    <p role="status">Reads a Sheet in its own code{url ? `: ${url}` : ''}.</p>
     <button onClick={remove}>Remove live data</button>
     <p className="ef-muted">To connect a Sheet now, use Connect data… on a cue in the production.</p>
     {error && <p role="alert">{error}</p>}

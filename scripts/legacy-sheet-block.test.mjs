@@ -42,6 +42,12 @@ async function loadSpxTarget() {
   return (await import(pathToFileURL(file).href)).spxTarget;
 }
 
+/** The template script of the SPX package built from the fixture's Hairline. */
+async function exportedScript() {
+  const zip = await (await spxTarget()).build(hairline.template, {});
+  return zip.file(/js\/template\.js$/)[0].async('string');
+}
+
 /** The block exactly as the record carries it. */
 function blockOf(js) {
   const start = js.indexOf('/* == LIVE DATA');
@@ -69,17 +75,13 @@ async function runBlock(block, csv) {
 }
 
 test('an existing graphic\'s Sheet block is in its exported template script, byte for byte', async () => {
-  const spx = await spxTarget();
-  const zip = await spx.build(hairline.template, {});
-  const js = await zip.file(/js\/template\.js$/)[0].async('string');
+  const js = await exportedScript();
   assert.ok(hasLiveData(js), 'the export kept the block');
   assert.ok(js.includes(blockOf(hairline.template.js)), 'the block is exported unchanged');
 });
 
 test('the exported block still reads its Sheet and emits the values to the graphic', async () => {
-  const spx = await spxTarget();
-  const zip = await spx.build(hairline.template, {});
-  const js = await zip.file(/js\/template\.js$/)[0].async('string');
+  const js = await exportedScript();
   const url = liveDataUrl(js);
   assert.ok(url, 'the block names its address');
   const { updates, fetched } = await runBlock(blockOf(js), 'Name,Title\n"Lee, Ann",Guest of the night\n');

@@ -177,6 +177,8 @@ interface SendDebts {
    *  send's own, its graphic is settled: the notice line's next state as `landed` returns it, or
    *  null when nothing changed. */
   heard(items: readonly { graphic: string; msg?: unknown }[]): ((shown: string | null) => string | null) | null;
+  /** How many graphics are still owed: a failed send of theirs that nothing has settled yet. */
+  owed(): number;
 }
 
 /** commandRoads.ts `oidOf`, restated because this file imports nothing. */
@@ -223,5 +225,6 @@ export function createSendDebts(): SendDebts {
       }
       return any ? settle() : null;
     },
+    owed: () => owed.size,
   };
 }

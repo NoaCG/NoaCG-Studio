@@ -123,24 +123,27 @@ test('red is for loss and faults, named, and the deciding check comes first', ()
 test('PROGRAM says what is known of the last command, and never more (data-sources C6, AC-16)', async () => {
   const { programAir } = await import('../src/control/playoutStatus.ts');
   const at = Date.UTC(2026, 9, 22, 12, 3, 4);
-  const air = (f) => programAir({ published: true, sending: 0, last: null, confirmedAt: null, lost: false, ...f });
-  // Unpublished: a local simulation, labelled as such whatever else is true.
-  assert.equal(programAir({ published: false, sending: 2, last: { outcome: 'logged', at }, confirmedAt: at, lost: true }).state, 'local');
+  const hms = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const air = (f) => programAir({ published: true, sending: 0, owed: false, loggedAt: null, lost: false, ...f });
+  // Unpublished: a local simulation, whatever else is true.
+  assert.equal(programAir({ published: false, sending: 2, owed: true, loggedAt: at, lost: true }).state, 'local');
   assert.equal(air({}).state, 'idle', 'nothing pressed yet: nothing to say');
-  assert.equal(air({ sending: 1, last: { outcome: 'logged', at }, confirmedAt: at }).state, 'pending', 'a send in flight outranks the last answer');
-  const logged = air({ last: { outcome: 'logged', at }, confirmedAt: at });
+  assert.equal(air({}).text, '');
+  assert.equal(air({ sending: 1, owed: true, loggedAt: at }).state, 'pending', 'a send in flight outranks the last answer');
+  const logged = air({ loggedAt: at });
   assert.equal(logged.state, 'confirmed');
-  assert.match(logged.text, /^logged /);
+  assert.equal(logged.text, `logged ${hms(at)}`);
   // A logged command is a write the log took, never a picture somebody saw.
   assert.match(logged.title, /not confirmed here/);
   assert.doesNotMatch(logged.text, /on air/i);
-  assert.equal(air({ last: { outcome: 'unknown', at }, confirmedAt: at }).state, 'unknown');
+  // A failed send still owed outranks a later logged one: its graphic's air is not known.
+  assert.equal(air({ owed: true, loggedAt: at }).state, 'unknown');
   // A lost connection outranks everything, and names the last time the log took a command.
-  const lost = air({ sending: 1, last: { outcome: 'unknown', at: at + 9000 }, confirmedAt: at, lost: true });
+  const lost = air({ sending: 1, owed: true, loggedAt: at, lost: true });
   assert.equal(lost.state, 'stale');
-  assert.equal(lost.text, `last logged ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+  assert.equal(lost.text, `last logged ${hms(at)}`);
   assert.equal(air({ lost: true }).state, 'stale');
-  assert.equal(air({ lost: true }).text, '', 'nothing confirmed: no time is claimed');
+  assert.equal(air({ lost: true }).text, '', 'nothing logged: no time is claimed');
 });
 
 test('TAKE names where it sends: this page, the outputs and the CasparCG slot, or a server slot (C6)', async () => {

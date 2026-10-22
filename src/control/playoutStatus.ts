@@ -20,7 +20,7 @@
 
 import type { PlayoutSettings, PlayoutState } from './playoutLink';
 import { bridgeAnswersLabel } from './prepareLive.ts';
-import { type ReadySummary, type ReadyTone } from './readiness.ts';
+import { plural, type ReadySummary, type ReadyTone } from './readiness.ts';
 
 /** READY's four, in the same colours. */
 export type StatusTone = ReadyTone;
@@ -200,10 +200,11 @@ export interface AirFacts {
   published: boolean;
   /** Graphic sends whose answer has not come back. */
   sending: number;
-  /** The last send that answered: the command log took it, or whether it did is not known. */
-  last: { outcome: 'logged' | 'unknown'; at: number } | null;
-  /** When the command log last took a command from this page; an uncertain send does not move it. */
-  confirmedAt: number | null;
+  /** A send that failed is still owed (failedSends.ts `owed`): whether it reached the log, and so
+   *  what the outputs show, is not known. */
+  owed: boolean;
+  /** When the command log last took a command from this page. */
+  loggedAt: number | null;
   /** This page cannot reach the server: what PROGRAM shows is the last it knew. */
   lost: boolean;
 }
@@ -217,19 +218,19 @@ export function programAir(f: AirFacts): { state: AirState; text: string; title:
     return {
       state: 'stale',
       // PROGRAM's centre tag says the connection is lost; this says when the log last took one.
-      text: f.confirmedAt !== null ? `last logged ${hms(f.confirmedAt)}` : '',
+      text: f.loggedAt !== null ? `last logged ${hms(f.loggedAt)}` : '',
       title: 'This page cannot reach the server, so PROGRAM keeps the last picture it knew. Air may have changed since.',
     };
   }
   if (f.sending > 0) return { state: 'pending', text: 'sending…', title: 'Sent; waiting for the command log to answer.' };
-  if (!f.last) return { state: 'idle', text: '', title: '' };
-  if (f.last.outcome === 'unknown') {
-    return { state: 'unknown', text: 'not confirmed', title: 'The last command may not have reached the command log, so what the outputs show is unknown here.' };
+  if (f.owed) {
+    return { state: 'unknown', text: 'not confirmed', title: 'A command that failed may still have reached the command log, so what the outputs show is unknown here.' };
   }
+  if (f.loggedAt === null) return { state: 'idle', text: '', title: '' };
   return {
     state: 'confirmed',
-    text: `logged ${hms(f.last.at)}`,
-    title: `The command log took the last command at ${hms(f.last.at)}. Outputs following the log apply it; they do not report their picture back, so it is not confirmed here.`,
+    text: `logged ${hms(f.loggedAt)}`,
+    title: `The command log took the last command at ${hms(f.loggedAt)}. Outputs following the log apply it; they do not report their picture back, so it is not confirmed here.`,
   };
 }
 
@@ -251,7 +252,7 @@ export function takeTargets(f: {
   const parts: string[] = [];
   if (!f.published) parts.push('this page only');
   else {
-    parts.push(`${f.outputs} output${f.outputs === 1 ? '' : 's'}`);
+    parts.push(plural(f.outputs, 'output'));
     if (f.caspar) parts.push(`CasparCG ${f.caspar}${f.casparLoaded ? '' : ' (not loaded)'}`);
   }
   if (f.serverToo) parts.push('server cues through NoaCG Bridge');
