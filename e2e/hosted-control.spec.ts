@@ -305,8 +305,12 @@ test('a hosted graphic that has never reported airs what was commanded before it
   const html = receiverHost(await receiverBlock(page));
 
   const log = [
-    { id: 1, graphic: 'Board', msg: { t: 'update', data: { f0: 'AIRED' } } },
-    { id: 2, graphic: 'Board', msg: { t: 'play' } },
+    { id: 1, graphic: 'Board', msg: { t: 'update', oid: 'take-data', data: { f0: 'AIRED' } } },
+    { id: 2, graphic: 'Board', msg: { t: 'play', oid: 'take-play' } },
+    // The send committed but lost its answer. Its resend appends new rows with the SAME command
+    // ids: the row cursor alone cannot distinguish that echo from another entrance (#1574).
+    { id: 3, graphic: 'Board', msg: { t: 'update', oid: 'take-data', data: { f0: 'AIRED' } } },
+    { id: 4, graphic: 'Board', msg: { t: 'play', oid: 'take-play' } },
   ];
 
   const graphic = await context.newPage();
@@ -316,8 +320,8 @@ test('a hosted graphic that has never reported airs what was commanded before it
   await graphic.route('https://bootref.supabase.co/**', (route) => {
     const name = new URL(route.request().url()).pathname.split('/').pop();
     if (name === 'control_show_by_slug') {
-      // The head is 2 and `live` is empty: the take is IN the log, and nobody has rendered it.
-      return route.fulfill({ json: [{ id: 'show-1', last_event_id: 2, live: {} }] });
+      // The take and its resend are in the log, and nobody has rendered either.
+      return route.fulfill({ json: [{ id: 'show-1', last_event_id: 4, live: {} }] });
     }
     if (name === 'control_tail') {
       const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);

@@ -102,9 +102,18 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     });
   }
 
+  // A send can commit before its answer is lost, then append the same commands on its resend.
+  // Row ids differ; command ids do not. Mirror commandRoads.ts createAppliedOnce: remember the
+  // last 400 ids, and always apply commands from older clients that carry no id.
+  var appliedIds = [];
   // Apply one command through the graphic's own globals — the same mapping as every receiver.
   function apply(m) {
     if (!m) return;
+    if (typeof m.oid === 'string' && m.oid.length > 0) {
+      if (appliedIds.indexOf(m.oid) !== -1) return;
+      appliedIds.push(m.oid);
+      if (appliedIds.length > 400) appliedIds.shift();
+    }
     if (m.t === 'play' && typeof play === 'function') play();
     else if (m.t === 'stop' && typeof stop === 'function') {
       var priorQuiet = typeof noacgSoundQuiet !== 'undefined' && noacgSoundQuiet;
