@@ -937,12 +937,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // The production's own record clears on the same evidence, for every browser.
     const stopsGone = gone.filter((name) => stops.includes(name));
     if (stopsGone.length > 0) {
-      // A refused write keeps the hold (and is not retried until something else changes).
+      // A background write: a refused one keeps the hold, and the app-level dialog reports it.
       const cleared = setOwnReaderStops(show.id, { clear: stopsGone });
-      if (!cleared.error) {
-        setShows(cleared.shows);
-        void commitDurableWrites();
-      }
+      if (!cleared.error) setShows(cleared.shows);
     }
     const formerGone = gone.filter((name) => formerReaders.has(name));
     if (seen.length === 0 && formerGone.length === 0) return;
