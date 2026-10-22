@@ -326,6 +326,16 @@ test('an item repeated by id or by link appears once', () => {
   assert.deepEqual(parseFeed(atom).items.map((i) => i.title), ['One']);
 });
 
+test('an Atom feed written with a namespace prefix reads like its default-namespace twin', () => {
+  const prefixed = `<atom:feed xmlns:atom="http://www.w3.org/2005/Atom">
+    <atom:entry><atom:title>Prefixed one</atom:title><atom:id>tag:x,1</atom:id><atom:link href="https://n/1"/><atom:updated>2026-10-22T10:00:00Z</atom:updated></atom:entry>
+    <atom:entry><atom:title>Prefixed two</atom:title><atom:id>tag:x,2</atom:id><atom:updated>2026-10-22T11:00:00Z</atom:updated></atom:entry>
+    <atom:entry><atom:title>Again</atom:title><atom:id>tag:x,1</atom:id></atom:entry></atom:feed>`;
+  const plain = prefixed.replace(/atom:/g, '').replace('xmlns:atom', 'xmlns');
+  assert.deepEqual(parseFeed(prefixed).items.map((i) => i.title), ['Prefixed two', 'Prefixed one']);
+  assert.deepEqual(parseFeed(prefixed).items, parseFeed(plain).items);
+});
+
 test('an Atom title typed html loses its markup; tags inside a text title go', () => {
   const atom = `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title type="html">&lt;b&gt;Bold&lt;/b&gt; &amp;amp; plain &amp;nbsp;x</title><id>1</id></entry></feed>`;
   assert.equal(parseFeed(atom).items[0].title, 'Bold & plain x');
@@ -464,6 +474,25 @@ test('a stale row is fetched with its ETag and Last-Modified, and a 304 keeps it
   assert.equal(sent[1]['if-modified-since'], 'Tue, 20 Oct 2026 19:52:24 GMT');
   assert.deepEqual(answer.items, ['Kept']);
   assert.equal(answer.fetchedAt, new Date(T0 + 5 * MIN).toISOString(), 'a 304 is a good read: checked now');
+});
+
+test('a 304 keeps honouring the feed’s own <ttl>: an hour stays an hour', async () => {
+  let reads = 0;
+  const net = fakeNet({ 'news.example': [PUBLIC] }, ({ headers }) => {
+    reads += 1;
+    return headers['if-none-match'] === 'W/"v1"' ? reply(304, '', { etag: 'W/"v1"' }) : reply(200, RSS(['Slow'], '<ttl>60</ttl>'), { etag: 'W/"v1"' });
+  });
+  const env = io(net);
+  await readFeed(ADDRESS, env);
+  env.clock.t = T0 + 60 * MIN;
+  await readFeed(ADDRESS, env);
+  assert.equal(reads, 2, 'the conditional read at the hour');
+  env.clock.t = T0 + 2 * 60 * MIN - 1;
+  await readFeed(ADDRESS, env);
+  assert.equal(reads, 2, 'after the 304, still an hour, not 5 minutes');
+  env.clock.t = T0 + 2 * 60 * MIN;
+  await readFeed(ADDRESS, env);
+  assert.equal(reads, 3);
 });
 
 test('two readers at once on a new address make one upstream fetch, and both get the headlines', async () => {

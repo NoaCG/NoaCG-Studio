@@ -460,15 +460,20 @@ export type FeedParse = { ok: true; items: FeedItem[]; ttlMs: number | null } | 
 export function parseFeed(xml: string): FeedParse {
   const body = stripComments(xml);
   const rss = /<(?:[\w-]+:)?(?:rss|RDF)\b/.test(body);
-  const atom = /<(?:[\w-]+:)?feed\b/.test(body);
+  const atomRoot = /<([\w-]+:)?feed\b/.exec(body);
+  const atom = atomRoot !== null;
   if (!rss && !atom) {
     return { ok: false, error: 'that address is not an RSS or Atom feed', fix: 'Paste the feed’s own address (it often ends in .xml, /rss or /feed).' };
   }
   const tag = atom && !rss ? 'entry' : 'item';
+  // An Atom feed written with a prefix (`<atom:feed>`) names its entries and their children with
+  // it; a child without it is read too.
+  const prefix = tag === 'entry' ? (atomRoot?.[1] ?? '') : '';
+  const el = (xml: string, name: string, from?: number) => element(xml, prefix + name, from) ?? (prefix ? element(xml, name, from) : null);
   const items: FeedItem[] = [];
-  for (let e = element(body, tag); e; e = element(body, tag, e.end)) {
+  for (let e = element(body, prefix + tag); e; e = element(body, prefix + tag, e.end)) {
     const inner = e.inner;
-    const t = element(inner, 'title');
+    const t = el(inner, 'title');
     if (!t) continue;
     // A headline keeps 300 characters, so 16 KB of its markup is plenty to read.
     const title = plainText(t.inner.slice(0, 16_384), (attr(t.attrs, 'type') ?? '').toLowerCase() === 'html');
@@ -476,14 +481,14 @@ export function parseFeed(xml: string): FeedParse {
     let link: string | null;
     if (tag === 'entry') {
       const links: string[] = [];
-      for (let l = element(inner, 'link'); l && links.length < 20; l = element(inner, 'link', l.end)) links.push(l.attrs);
+      for (let l = el(inner, 'link'); l && links.length < 20; l = el(inner, 'link', l.end)) links.push(l.attrs);
       const alternate = links.find((a) => (attr(a, 'rel') ?? 'alternate') === 'alternate') ?? links[0];
       link = alternate ? attr(alternate, 'href') : null;
     } else {
       link = textOf(element(inner, 'link')) || null;
     }
-    const id = textOf(element(inner, tag === 'entry' ? 'id' : 'guid')) || null;
-    const date = element(inner, 'pubDate') ?? element(inner, 'updated') ?? element(inner, 'published') ?? element(inner, 'dc:date');
+    const id = textOf(el(inner, tag === 'entry' ? 'id' : 'guid')) || null;
+    const date = el(inner, 'pubDate') ?? el(inner, 'updated') ?? el(inner, 'published') ?? element(inner, 'dc:date');
     const at = Date.parse(textOf(date, 256));
     items.push({ title, id, link, at: Number.isNaN(at) ? null : at });
   }
@@ -523,6 +528,8 @@ export interface FeedRow {
   failing_since: string | null;
   /** The failure is the guard's refusal of the address itself (answered 400, not 502). */
   refused: boolean;
+  /** The wait the feed's own body asks for (`<ttl>`), kept so a 304 keeps honouring it. */
+  feed_wait_ms: number | null;
 }
 
 /** The shared store, as the reader uses it (the service-role client in production). */
@@ -603,8 +610,8 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
     return { ok: false, status: 503, error: 'the read was cut short', fix: RETRY_FIX, failingSince: row.failing_since };
   }
   const now = io.now();
-  const good = (etag: string | null, lastModified: string | null, waitMs: number, items?: string[]): Partial<FeedRow> => ({
-    ...(items ? { items } : {}),
+  const good = (etag: string | null, lastModified: string | null, waitMs: number, items?: string[], feedWaitMs?: number | null): Partial<FeedRow> => ({
+    ...(items ? { items, feed_wait_ms: feedWaitMs ?? null } : {}),
     etag,
     last_modified: lastModified,
     fetched_at: iso(now),
@@ -625,10 +632,11 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
   if (result.kind === 'body') {
     const parsed = parseFeed(result.text);
     patch = parsed.ok
-      ? good(result.etag, result.lastModified, nextWait([parsed.ttlMs, result.cacheMs]), parsed.items.map((i) => i.title))
+      ? good(result.etag, result.lastModified, nextWait([parsed.ttlMs, result.cacheMs]), parsed.items.map((i) => i.title), parsed.ttlMs)
       : bad(parsed);
   } else if (result.kind === 'not-modified') {
-    patch = good(result.etag, result.lastModified, nextWait([result.cacheMs]));
+    // A 304 has no body, so the feed's own `<ttl>` comes from the row.
+    patch = good(result.etag, result.lastModified, nextWait([row.feed_wait_ms, result.cacheMs]));
   } else {
     patch = bad(result);
   }
@@ -671,6 +679,7 @@ export async function readFeed(text: string, io: FeedIo, { wait, cut }: { wait?:
       fix: null,
       failing_since: null,
       refused: false,
+      feed_wait_ms: null,
     };
     if (await io.store.create(fresh)) return fetchHeld(fresh, io, cut);
   } else if (await io.store.claim(key, iso(now), until)) {

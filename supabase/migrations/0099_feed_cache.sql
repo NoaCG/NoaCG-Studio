@@ -11,7 +11,8 @@
 -- fetches a stale row, so two readers at once make one upstream fetch while the others serve the
 -- stale row with its age (api/_lib/feedFetch.ts). The two lease times default to the epoch rather
 -- than NULL so the conditional update is one plain comparison each. `refused` marks a failure that
--- is the guard refusing the address itself. A row whose wait ended a day ago is an address nobody
+-- is the guard refusing the address itself; `feed_wait_ms` is the wait the feed's own body asks
+-- for (`<ttl>`), kept so a 304, which has no body, still honours it. A row whose wait ended a day ago is an address nobody
 -- reads any more (any address in use is fetched at least hourly), and the reader deletes it.
 --
 -- It is reached only by the service role, from the public route `/api/data/feed` and the server
@@ -42,7 +43,8 @@ create table if not exists public.feed_cache (
   error           text,
   fix             text,
   failing_since   timestamptz,
-  refused         boolean not null default false
+  refused         boolean not null default false,
+  feed_wait_ms    integer check (feed_wait_ms is null or feed_wait_ms >= 0)
 );
 alter table public.feed_cache enable row level security;   -- no policy: the service role only
 revoke all on table public.feed_cache from public, anon, authenticated;
