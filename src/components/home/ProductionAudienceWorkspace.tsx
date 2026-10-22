@@ -1,16 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addGraphicToShow,
+  addMessageSource,
   addShowCue,
+  removeMessageSource,
+  setShowSourcePaused,
   setShowMessageTarget,
   setShowPollLiveFigures,
   updateShowCue,
   updateShowCueChecked,
+  type SheetShowSource,
   type Show,
+  type YouTubeShowSource,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import {
   AUDIENCE_LIMITS,
+  addInChunks,
   broadcastValues,
   type AudienceBackend,
   type AudienceMode,
@@ -30,11 +36,21 @@ import { useMessagesBackend } from './useAudienceInbox';
 import {
   chatIntakeFor,
   chatPlatformWord,
+  chatReadElsewhere,
+  claimChatRead,
+  releaseChatRead,
+  setYouTubeKey,
+  spendYouTube,
+  youtubeKey,
   type ChatSourceState,
   type ChatSubmit,
 } from '../../audience/chatIntake';
 import { normalizeTwitchChannel } from '../../audience/twitchChat';
-import { normalizeYouTubeVideoId } from '../../audience/youtubeChat';
+import { MIN_POLL_MS, normalizeYouTubeVideoId, quotaLine, spentToday } from '../../audience/youtubeChat';
+import { fetchComments } from '../../audience/youtubeComments';
+import { MESSAGE_SHEET_STARTER, messageSheetId } from '../../audience/sheetMessages';
+import { parseSheetLink } from '../../control/sheetSource';
+import { uuid } from '../../model/id';
 import {
   POLL_LIVE_ON,
   POLL_LIVE_TITLE,
@@ -323,6 +339,8 @@ export function CueMessageFill({
                 return (
                   <button type="button" key={r.id} disabled={busy} onClick={() => void fill(r)} data-testid="cue-fill-pick">
                     {air.author}: {air.body}
+                    {/* Where it came from, small: provenance never fills the cue. */}
+                    {r.source && <span className="hint pd-aud-prov"> {r.source}</span>}
                   </button>
                 );
               })
@@ -339,6 +357,441 @@ export function CueMessageFill({
 export function isMessageBodyField(show: Pick<Show, 'graphics'>, graphicId: string, fieldId: string): boolean {
   const g = show.graphics.find((x) => x.id === graphicId);
   return Boolean(g && messageFields(g.template.fields ?? [])?.body === fieldId);
+}
+
+/** A message source the operator connects here, as the add form names it. */
+type SourcePick = 'twitch' | 'youtube-comments' | 'youtube-chat' | 'sheet';
+
+/**
+ * THE PRODUCTION'S YOUTUBE CHAT, kept running while the page is open (data-sources C3): its lines
+ * go through the production's operator door, and a live-chat source remembered with the production
+ * reconnects on reload when this browser has the key (in memory, or remembered). Without the key
+ * it waits, and Messages asks for it. Called once by the production page, so a reload on Playout
+ * reconnects too.
+ */
+export function useMessageSources(show: Pick<Show, 'id' | 'sources'> | null, backend: ObservableAudience | null): void {
+  const showId = show?.id ?? null;
+  const intake = useMemo(() => (showId ? chatIntakeFor(showId) : null), [showId]);
+  useEffect(() => {
+    if (!intake || !backend) return;
+    intake.setAdd((items) => backend.addCandidates(items));
+  }, [intake, backend]);
+  const plan = JSON.stringify(
+    (show?.sources ?? []).flatMap((s) => (s.kind === 'youtube' && s.config.mode === 'chat' ? [[s.id, s.config.videoId, Boolean(s.paused)]] : [])),
+  );
+  useEffect(() => {
+    if (!intake) return;
+    const chats = JSON.parse(plan) as [string, string, boolean][];
+    const wanted = new Set(chats.map(([id]) => id));
+    const settle = () => {
+      // A source removed here or in another tab stops reading at once.
+      for (const running of intake.sources()) {
+        if (running.sourceId && !wanted.has(running.sourceId)) {
+          intake.remove(running.id);
+          releaseChatRead(running.sourceId);
+        }
+      }
+      const key = youtubeKey();
+      for (const [sourceId, videoId, paused] of chats) {
+        const running = intake.forSource(sourceId);
+        if (paused) {
+          if (running && !running.paused) intake.setPaused(running.id, true);
+          continue;
+        }
+        // One tab reads: the one with a key that holds the claim.
+        if ((!running && !key) || !claimChatRead(sourceId)) {
+          if (running) intake.remove(running.id);
+          continue;
+        }
+        if (!running) intake.add({ platform: 'youtube', videoId, apiKey: key!, sourceId });
+        else if (running.paused) intake.setPaused(running.id, false);
+      }
+    };
+    settle();
+    const every = setInterval(settle, MIN_POLL_MS);
+    const leave = () => releaseChatRead();
+    window.addEventListener('pagehide', leave);
+    return () => {
+      clearInterval(every);
+      window.removeEventListener('pagehide', leave);
+    };
+  }, [intake, plan]);
+  // Leaving the production stops its chats here: nothing would keep this tab's claim honest, and
+  // another tab with the key takes over within the claim's 15 s.
+  useEffect(
+    () => () => {
+      if (!intake) return;
+      for (const running of intake.sources()) if (running.sourceId) intake.remove(running.id);
+      releaseChatRead();
+    },
+    [intake],
+  );
+}
+
+/**
+ * MESSAGE SOURCES (data-sources C3; audience spec, "Where candidates come from"): a message Sheet,
+ * a video's YouTube comments, a stream's live chat, and Twitch. Every one is a producer of
+ * candidates and nothing more: what arrives is prepared and Taken like anything else, and its
+ * platform is small provenance, never on air. The Sheet and YouTube sources are remembered with
+ * the production (`Show.sources`); the YouTube key is not.
+ */
+function MessageSources({
+  show,
+  setShows,
+  backend,
+  live,
+  accepting,
+}: {
+  show: Show;
+  setShows: (shows: Show[]) => void;
+  backend: ObservableAudience;
+  live: boolean;
+  accepting: boolean;
+}) {
+  // The intake lives in a per-production registry (the localAudienceFor pattern): a Twitch socket
+  // or a YouTube poll must survive the operator's trip to Playout.
+  const intake = useMemo(() => chatIntakeFor(show.id), [show.id]);
+  const [running, setRunning] = useState<ChatSourceState[]>(() => intake.sources());
+  const [pick, setPick] = useState<SourcePick>('twitch');
+  const [channel, setChannel] = useState('');
+  const [video, setVideo] = useState('');
+  const [key, setKey] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [sheetLink, setSheetLink] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  /** A YouTube source waiting for the key on this browser: the one being answered. */
+  const [keyFor, setKeyFor] = useState<string | null>(null);
+  /** The last comments fetch per source: when, how many were new, or what went wrong. */
+  const [fetched, setFetched] = useState<Record<string, { text: string; ok: boolean }>>({});
+  const [fetching, setFetching] = useState<string | null>(null);
+
+  // Twitch writes through the VIEWER door that is current: a published production's join slug,
+  // otherwise the local rehearsal provider. Deliberately not cleared on unmount.
+  useEffect(() => {
+    const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
+    const submit: ChatSubmit = (token, author, body) => viewer.submit(token, author, body);
+    intake.setSubmit(submit);
+  }, [intake, backend, live, show.joinSlug]);
+
+  useEffect(() => {
+    const refresh = () => setRunning(intake.sources());
+    refresh();
+    const off = intake.onChange(refresh);
+    // Another tab's claim on a chat comes and goes without a change here: look again each poll.
+    const every = setInterval(refresh, MIN_POLL_MS);
+    return () => {
+      off();
+      clearInterval(every);
+    };
+  }, [intake]);
+
+  const sourcesRef = useRef(show.sources);
+  sourcesRef.current = show.sources;
+  const messageSources = (show.sources ?? []).filter((s) => s.inbox);
+  const others = running.filter((r) => !r.sourceId);
+
+  const save = async (result: { shows: Show[]; error: string | null }, what: string): Promise<boolean> => {
+    setShows(result.shows);
+    const failure = result.error ?? (await commitDurableWrites());
+    if (failure) setNote(`${what} was not saved: ${failure}`);
+    return !failure;
+  };
+
+  /** The key for a YouTube call: the one typed now (kept as the operator chose), else this browser's. */
+  const keyToUse = (typed: string, keep: boolean): string | null => {
+    if (typed.trim()) setYouTubeKey(typed, keep);
+    return youtubeKey();
+  };
+
+  const fetchNewest = async (sourceId: string, videoId: string, apiKey: string) => {
+    if (fetching) return;
+    setFetching(sourceId);
+    try {
+      const read = await fetchComments((url) => fetch(url), videoId, apiKey);
+      if (read.units) spendYouTube(read.units);
+      // Removed while the fetch was out: its answer adds nothing.
+      if (!sourcesRef.current?.some((s) => s.id === sourceId)) return;
+      if (!read.ok) return setFetched((f) => ({ ...f, [sourceId]: { text: `${read.error}. ${read.fix}`, ok: false } }));
+      const added = (await addInChunks(backend, read.items)).length;
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setFetched((f) => ({ ...f, [sourceId]: { text: `${added} new of the newest ${read.items.length} at ${time}`, ok: true } }));
+    } catch (err) {
+      setFetched((f) => ({ ...f, [sourceId]: { text: `The comments were not added: ${(err as Error).message}`, ok: false } }));
+    } finally {
+      setFetching(null);
+    }
+  };
+
+  const connect = async () => {
+    setNote(null);
+    if (pick === 'twitch') {
+      const name = normalizeTwitchChannel(channel);
+      if (!name) return setNote('Not a Twitch channel name - the name or the channel URL both work.');
+      intake.add({ platform: 'twitch', channel: name });
+      setChannel('');
+      return;
+    }
+    if (pick === 'sheet') {
+      const parsed = parseSheetLink(sheetLink);
+      if ('error' in parsed) return setNote(parsed.error);
+      const { link } = parsed;
+      // The same tab already followed for fields gains the inbox rather than a second reader.
+      const same = (show.sources ?? []).find(
+        (s): s is SheetShowSource => s.kind === 'sheet' && s.config.sheetId === link.sheetId && s.config.gid === link.gid,
+      );
+      const source: SheetShowSource = {
+        id: same?.id ?? messageSheetId(link.sheetId, link.gid),
+        kind: 'sheet',
+        label: 'Messages',
+        config: { sheetId: link.sheetId, gid: link.gid, ...(link.published ? { published: true } : {}), shape: 'lines' },
+        inbox: true,
+      };
+      if (await save(addMessageSource(show.id, source), 'The message Sheet')) setSheetLink('');
+      return;
+    }
+    const videoId = normalizeYouTubeVideoId(video);
+    if (!videoId) return setNote('Not a YouTube video id or URL.');
+    const apiKey = keyToUse(key, remember);
+    if (!apiKey) return setNote('Paste your YouTube Data API key - YouTube has no anonymous read.');
+    const mode = pick === 'youtube-chat' ? 'chat' : 'comments';
+    // The same video in the same mode is the same source: connecting it again reads it again (with
+    // the key just given), never a second record no reader serves.
+    const same = (show.sources ?? []).find(
+      (s): s is YouTubeShowSource => s.kind === 'youtube' && s.config.videoId === videoId && s.config.mode === mode,
+    );
+    const source: YouTubeShowSource = same ?? { id: uuid(), kind: 'youtube', label: videoId, config: { videoId, mode }, inbox: true };
+    // The tab the operator pressed Connect in reads it: claimed before the record is saved, so a
+    // tab that hears of the new source first finds it taken.
+    if (mode === 'chat') claimChatRead(source.id, Date.now(), true);
+    if (!same && !(await save(addMessageSource(show.id, source), 'The YouTube source'))) return;
+    setVideo('');
+    setKey('');
+    if (mode === 'chat') {
+      const running = intake.forSource(source.id);
+      if (running) intake.remove(running.id);
+      intake.add({ platform: 'youtube', videoId, apiKey, sourceId: source.id });
+    } else void fetchNewest(source.id, videoId, apiKey);
+  };
+
+  /** The key typed for a source that was waiting for it: reconnect a chat, or fetch comments. */
+  const answerKey = (source: YouTubeShowSource) => {
+    const apiKey = keyToUse(key, remember);
+    if (!apiKey) return;
+    setKey('');
+    setKeyFor(null);
+    if (source.config.mode === 'chat') {
+      claimChatRead(source.id, Date.now(), true);
+      intake.add({ platform: 'youtube', videoId: source.config.videoId, apiKey, sourceId: source.id });
+    } else void fetchNewest(source.id, source.config.videoId, apiKey);
+  };
+
+  const removeSource = async (sourceId: string) => {
+    const runtime = intake.forSource(sourceId);
+    if (runtime) intake.remove(runtime.id);
+    await save(removeMessageSource(show.id, sourceId), 'Removing the source');
+  };
+
+  /** A chat that stopped on a refusal (not live yet, quota, key) reads again from the start. */
+  const reconnect = (source: YouTubeShowSource) => {
+    const runtime = intake.forSource(source.id);
+    const apiKey = youtubeKey();
+    if (!apiKey) return;
+    claimChatRead(source.id, Date.now(), true);
+    if (runtime) intake.remove(runtime.id);
+    intake.add({ platform: 'youtube', videoId: source.config.videoId, apiKey, sourceId: source.id });
+  };
+
+  const pauseSource = async (source: YouTubeShowSource) => {
+    const runtime = intake.forSource(source.id);
+    if (runtime) intake.setPaused(runtime.id, !source.paused);
+    await save({ shows: setShowSourcePaused(show.id, source.id, !source.paused), error: null }, 'Pause');
+  };
+
+  const keyRow = (source: YouTubeShowSource) => (
+    <span className="pd-aud-source-key" data-testid="youtube-key-prompt">
+      <input type="password" value={key} placeholder="Your YouTube Data API key" aria-label="YouTube Data API key" onChange={(e) => setKey(e.target.value)} data-testid="youtube-key-input" />
+      <label className="hint">
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} data-testid="youtube-key-remember" /> Remember on this browser
+      </label>
+      <button type="button" disabled={!key.trim()} onClick={() => answerKey(source)} data-testid="youtube-key-use">
+        {source.config.mode === 'chat' ? 'Reconnect' : 'Use key'}
+      </button>
+    </span>
+  );
+
+  return (
+    <div className="pd-aud-sources" data-testid="chat-sources">
+      <div className="pd-aud-sources-head">
+        <h3>Message sources</h3>
+        <span className="hint">What arrives joins this inbox - nothing airs without you.</span>
+      </div>
+      {(messageSources.length > 0 || others.length > 0) && (
+        <ul className="pd-aud-source-list">
+          {messageSources.map((source) => {
+            if (source.kind === 'sheet') {
+              return (
+                <li key={source.id} className="pd-aud-source" data-testid="message-source-sheet">
+                  <span className="pd-aud-source-name">Sheet: {source.label}</span>
+                  <span className="hint">{source.paused ? 'Paused' : 'New rows arrive while this production is open'}</span>
+                  <button onClick={() => void removeSource(source.id)} title="Stop taking messages from this Sheet" data-testid="message-source-remove">
+                    ✕
+                  </button>
+                </li>
+              );
+            }
+            const runtime = running.find((r) => r.sourceId === source.id) ?? null;
+            const chat = source.config.mode === 'chat';
+            const elsewhere = chat && !runtime && chatReadElsewhere(source.id);
+            const needsKey = !runtime && !elsewhere && !youtubeKey();
+            const state = source.paused ? 'paused' : (runtime?.status ?? (needsKey ? 'error' : 'connecting'));
+            return (
+              <li key={source.id} className="pd-aud-source" data-testid={chat ? 'chat-source-youtube' : 'comments-source-youtube'}>
+                {chat && <span className={`pd-aud-source-dot ${state}`} title={state} aria-hidden="true" />}
+                <span className="pd-aud-source-name">
+                  {chat ? 'YouTube live chat' : 'YouTube comments'} · {source.config.videoId}
+                </span>
+                {chat && runtime && (
+                  <span className="pd-aud-source-stats" data-testid="chat-source-stats">
+                    {runtime.submitted} in · {runtime.dropped} dropped
+                  </span>
+                )}
+                {chat && runtime?.detail && !source.paused && (
+                  <span className="pd-aud-source-detail" data-testid="chat-source-detail">{runtime.detail}</span>
+                )}
+                {elsewhere && !source.paused && (
+                  <span className="hint" data-testid="chat-source-elsewhere">Read in another tab of this production</span>
+                )}
+                {!chat && fetched[source.id] && (
+                  <span className={fetched[source.id].ok ? 'hint' : 'pd-aud-source-detail'} data-testid="comments-source-detail">
+                    {fetched[source.id].text}
+                  </span>
+                )}
+                {needsKey && keyFor !== source.id && (
+                  <button type="button" onClick={() => setKeyFor(source.id)} data-testid="youtube-key-needed">
+                    Key needed
+                  </button>
+                )}
+                {!chat && !needsKey && (
+                  <button type="button" disabled={fetching === source.id} onClick={() => void fetchNewest(source.id, source.config.videoId, youtubeKey() ?? '')} data-testid="comments-fetch">
+                    {fetching === source.id ? 'Fetching…' : 'Fetch newest'}
+                  </button>
+                )}
+                {chat && runtime?.status === 'error' && !source.paused && (
+                  <button type="button" onClick={() => reconnect(source)} data-testid="chat-source-reconnect">
+                    Reconnect
+                  </button>
+                )}
+                {chat && !needsKey && (
+                  <button onClick={() => void pauseSource(source)} data-testid="chat-source-pause">
+                    {source.paused ? '▶ Resume' : '❚❚ Pause'}
+                  </button>
+                )}
+                <button onClick={() => void removeSource(source.id)} title="Disconnect this source" data-testid="chat-source-remove">
+                  ✕
+                </button>
+                {keyFor === source.id && keyRow(source)}
+                {chat && runtime && runtime.status === 'live' && !source.paused && (
+                  <span className="hint pd-aud-source-quota" data-testid="youtube-quota">
+                    {quotaLine('chat', spentToday(globalThis.localStorage, Date.now()))}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+          {others.map((s) => (
+            <li key={s.id} className="pd-aud-source" data-testid={`chat-source-${s.platform}`}>
+              {/* The dot is the LIVE indicator; its title says the same thing in words. */}
+              <span className={`pd-aud-source-dot ${s.paused ? 'paused' : s.status}`} title={s.paused ? 'Paused' : s.status} aria-hidden="true" />
+              <span className="pd-aud-source-name">
+                {chatPlatformWord(s.platform)} · {s.label}
+              </span>
+              {/* The dropped count is deliberately always visible: the throttle and the
+                  per-author caps refuse things by design, and a limiter that drops silently
+                  is indistinguishable from a broken connector. */}
+              <span className="pd-aud-source-stats" data-testid="chat-source-stats">
+                {s.submitted} in · {s.dropped} dropped
+              </span>
+              {s.detail && !s.paused && (
+                <span className="pd-aud-source-detail" data-testid="chat-source-detail">
+                  {s.detail}
+                </span>
+              )}
+              <button onClick={() => intake.setPaused(s.id, !s.paused)} data-testid="chat-source-pause">
+                {s.paused ? '▶ Resume' : '❚❚ Pause'}
+              </button>
+              <button onClick={() => intake.remove(s.id)} title="Disconnect this source" data-testid="chat-source-remove">
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="pd-aud-source-add">
+        <select value={pick} onChange={(e) => setPick(e.target.value as SourcePick)} aria-label="Message source" data-testid="chat-add-platform">
+          <option value="twitch">Twitch channel</option>
+          <option value="youtube-comments">Comments on a video</option>
+          <option value="youtube-chat">Live chat of a stream</option>
+          <option value="sheet">Message Sheet</option>
+        </select>
+        {pick === 'twitch' && (
+          <input
+            type="text"
+            value={channel}
+            placeholder="Channel name or twitch.tv URL"
+            onChange={(e) => setChannel(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void connect()}
+            data-testid="chat-add-channel"
+          />
+        )}
+        {pick === 'sheet' && (
+          <input type="text" value={sheetLink} placeholder="Google Sheets link" onChange={(e) => setSheetLink(e.target.value)} data-testid="sheet-add-link" />
+        )}
+        {(pick === 'youtube-comments' || pick === 'youtube-chat') && (
+          <>
+            <input type="text" value={video} placeholder="YouTube video link or id" onChange={(e) => setVideo(e.target.value)} data-testid="chat-add-video" />
+            <input
+              type="password"
+              value={key}
+              placeholder={youtubeKey() ? 'API key (one is in use here)' : 'YouTube Data API key'}
+              onChange={(e) => setKey(e.target.value)}
+              data-testid="chat-add-key"
+            />
+            <label className="hint">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} data-testid="chat-add-remember" /> Remember on this browser
+            </label>
+          </>
+        )}
+        <button onClick={() => void connect()} data-testid="chat-add-connect">
+          Connect
+        </button>
+      </div>
+      {note && (
+        <p className="status-bad pd-data-note" data-testid="chat-add-note">
+          {note}
+        </p>
+      )}
+      {(pick === 'youtube-comments' || pick === 'youtube-chat') && (
+        <p className="hint pd-aud-source-hint" data-testid="youtube-quota-cost">
+          {quotaLine(pick === 'youtube-chat' ? 'chat' : 'comments')}
+        </p>
+      )}
+      {pick === 'sheet' && (
+        <p className="hint pd-aud-source-hint">
+          The first row names the columns: Name, Message, and optional Source and Reference, which stay off air.{' '}
+          <button type="button" className="pd-aud-orig" onClick={() => void navigator.clipboard?.writeText(MESSAGE_SHEET_STARTER)} data-testid="sheet-copy-starter">
+            Copy starter rows
+          </button>
+        </p>
+      )}
+      {/* The door refusal made visible: Twitch submits through the viewer door, which refuses while
+          the audience is closed, so a connected channel would count every line as dropped. */}
+      {!accepting && others.some((s) => s.platform !== 'youtube') && (
+        <p className="hint pd-aud-source-hint" data-testid="chat-sources-closed-hint">
+          Accepting messages is off - Twitch chat is refused until you turn it on above.
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function ProductionAudienceWorkspace({
@@ -407,53 +860,6 @@ export default function ProductionAudienceWorkspace({
   );
   /** What the room was being asked for before a vote took the mode over. */
   const modeBeforeRound = useRef<AudienceMode>('question');
-
-  // ── CHAT SOURCES (src/audience/chatIntake.ts) ─────────────────────────────────────────────
-  // Twitch / YouTube live chat as a PRODUCER of submissions: every accepted line goes in
-  // through the same viewer-half `submit` a phone uses - the synthesized per-author device
-  // token is what makes the per-device caps meter per chat user - so moderation, approval and
-  // the rundown exit above need to know nothing about platforms. The intake lives in a
-  // per-production registry (the localAudienceFor pattern): a Twitch socket must survive the
-  // operator's trip to Playout, or the feature dies on every tab switch.
-  const intake = useMemo(() => chatIntakeFor(show.id), [show.id]);
-  const [chatSources, setChatSources] = useState<ChatSourceState[]>(() => intake.sources());
-  const [chatPlatform, setChatPlatform] = useState<'twitch' | 'youtube'>('twitch');
-  const [chatChannel, setChatChannel] = useState('');
-  const [chatVideo, setChatVideo] = useState('');
-  const [chatKey, setChatKey] = useState('');
-  const [chatNote, setChatNote] = useState<string | null>(null);
-
-  // The intake writes through whichever door is CURRENT: a published production's real join
-  // slug, otherwise the local rehearsal provider. Deliberately not cleared on unmount - the
-  // sources keep collecting while the operator is on Playout, exactly like the inbox keeps
-  // its rows.
-  useEffect(() => {
-    const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
-    const submit: ChatSubmit = (token, author, body) => viewer.submit(token, author, body);
-    intake.setSubmit(submit);
-  }, [intake, backend, live, show.joinSlug]);
-
-  useEffect(() => {
-    const refresh = () => setChatSources(intake.sources());
-    refresh();
-    return intake.onChange(refresh);
-  }, [intake]);
-
-  const addChatSource = () => {
-    if (chatPlatform === 'twitch') {
-      const channel = normalizeTwitchChannel(chatChannel);
-      if (!channel) return setChatNote('Not a Twitch channel name - the name or the channel URL both work.');
-      intake.add({ platform: 'twitch', channel });
-      setChatChannel('');
-    } else {
-      const videoId = normalizeYouTubeVideoId(chatVideo);
-      if (!videoId) return setChatNote('Not a YouTube video id or URL.');
-      if (!chatKey.trim()) return setChatNote('Paste a YouTube Data API key - YouTube has no anonymous chat read.');
-      intake.add({ platform: 'youtube', videoId, apiKey: chatKey.trim() });
-      setChatVideo('');
-    }
-    setChatNote(null);
-  };
 
   /**
    * WHAT VIEWERS SEE, rendered by the SAME function the public page renders (the plan's own
@@ -975,115 +1381,8 @@ export default function ProductionAudienceWorkspace({
         )}
       </div>
 
-      {/* CHAT SOURCES. Live chat pulled into the SAME inbox: a source is a producer of
-          submissions and nothing more - what arrives here is moderated, approved and sent to
-          the rundown exactly like a phone's question, and the platform is TEXT on the author
-          line, never a logo (the audience category's own rule). Compact on purpose: this is
-          intake plumbing, and the inbox below is the show. */}
-      <div className="pd-aud-sources" data-testid="chat-sources">
-        <div className="pd-aud-sources-head">
-          <h3>Chat sources</h3>
-          <span className="hint">
-            Twitch or YouTube chat lands in this inbox as ordinary submissions - nothing airs
-            without you.
-          </span>
-        </div>
-        {chatSources.length > 0 && (
-          <ul className="pd-aud-source-list">
-            {chatSources.map((s) => (
-              <li key={s.id} className="pd-aud-source" data-testid={`chat-source-${s.platform}`}>
-                {/* The dot is the LIVE indicator; its title says the same thing in words. */}
-                <span
-                  className={`pd-aud-source-dot ${s.paused ? 'paused' : s.status}`}
-                  title={s.paused ? 'Paused' : s.status}
-                  aria-hidden="true"
-                />
-                <span className="pd-aud-source-name">
-                  {chatPlatformWord(s.platform)} · {s.label}
-                </span>
-                {/* The dropped count is deliberately always visible: the throttle and the
-                    per-author caps refuse things by design, and a limiter that drops silently
-                    is indistinguishable from a broken connector. */}
-                <span className="pd-aud-source-stats" data-testid="chat-source-stats">
-                  {s.submitted} in · {s.dropped} dropped
-                </span>
-                {s.detail && !s.paused && (
-                  <span className="pd-aud-source-detail" data-testid="chat-source-detail">
-                    {s.detail}
-                  </span>
-                )}
-                <button onClick={() => intake.setPaused(s.id, !s.paused)} data-testid="chat-source-pause">
-                  {s.paused ? '▶ Resume' : '❚❚ Pause'}
-                </button>
-                <button onClick={() => intake.remove(s.id)} title="Disconnect this source" data-testid="chat-source-remove">
-                  ✕
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="pd-aud-source-add">
-          <select
-            value={chatPlatform}
-            onChange={(e) => setChatPlatform(e.target.value as 'twitch' | 'youtube')}
-            aria-label="Chat platform"
-            data-testid="chat-add-platform"
-          >
-            <option value="twitch">Twitch channel</option>
-            <option value="youtube">YouTube live</option>
-          </select>
-          {chatPlatform === 'twitch' ? (
-            <input
-              type="text"
-              value={chatChannel}
-              placeholder="Channel name or twitch.tv URL"
-              onChange={(e) => setChatChannel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addChatSource()}
-              data-testid="chat-add-channel"
-            />
-          ) : (
-            <>
-              <input
-                type="text"
-                value={chatVideo}
-                placeholder="Video URL or id"
-                onChange={(e) => setChatVideo(e.target.value)}
-                data-testid="chat-add-video"
-              />
-              <input
-                type="password"
-                value={chatKey}
-                placeholder="YouTube Data API key"
-                onChange={(e) => setChatKey(e.target.value)}
-                data-testid="chat-add-key"
-              />
-            </>
-          )}
-          <button onClick={addChatSource} data-testid="chat-add-connect">
-            Connect
-          </button>
-        </div>
-        {chatNote && (
-          <p className="status-bad pd-data-note" data-testid="chat-add-note">
-            {chatNote}
-          </p>
-        )}
-        {chatPlatform === 'youtube' && (
-          <p className="hint pd-aud-source-hint">
-            Reading YouTube chat needs your own API key and spends its quota: about 3,600 units
-            an hour of polling, so the free daily 10,000 covers roughly 2½ hours of continuous
-            chat. Pause the source to stop the spend.
-          </p>
-        )}
-        {/* The door refusal made visible: submit refuses while the audience is closed, so a
-            connected source with the door shut would count every line as dropped and an
-            operator would read that as a broken connector. */}
-        {!open && chatSources.length > 0 && (
-          <p className="hint pd-aud-source-hint" data-testid="chat-sources-closed-hint">
-            Accepting messages is off - chat is refused until you turn it on above.
-          </p>
-        )}
-      </div>
+      <MessageSources show={show} setShows={setShows} backend={backend} live={live} accepting={open} />
+
 
       {/* THE VOTE. One question at a time, because that is what a room can answer: opening a
           round closes any previous one server-side, so the panel is either composing or
@@ -1295,6 +1594,7 @@ export default function ProductionAudienceWorkspace({
                   <span className="pd-aud-author">{air.author}</span>
                   <span className="pd-aud-body">{air.body}</span>
                   {row.usedAt && <span className="pd-aud-used" data-testid="audience-used">in a cue</span>}
+                  {row.withdrawnAt && <span className="pd-aud-used" data-testid="audience-withdrawn">no longer in the Sheet</span>}
                   {/* Provenance, small and never on air: where it came from and a private note. */}
                   {(row.source || row.reference) && (
                     <span className="hint pd-aud-prov" data-testid="audience-provenance">

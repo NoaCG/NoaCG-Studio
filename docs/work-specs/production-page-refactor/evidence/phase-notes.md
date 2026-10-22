@@ -5,6 +5,110 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 10, data-sources C3: Sheet messages and YouTube
+
+- **Previous verified `main` sha:** `4890bbdfd272dcf524b03a63a0de92cd86f0aede` (row 9, C2, #1591 and
+  repair #1592). This branch starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0098 is additive and stays applied:
+  a reverted build calls `audience_list` and `audience_operator_add` with the same arguments,
+  reads their columns by name (ignoring `withdrawn_at`) and never calls `audience_operator_settle`.
+  YouTube entries already saved in `Show.sources` are skipped by the reverted server tick (0097's
+  due query reads `kind = 'sheet'` only) but a reverted page would start a Sheet reader for them that
+  fails harmlessly; remove them in Messages before reverting if any exist.
+- **Q record used.** `docs/work-specs/data-sources/evidence/youtube.md`, both halves: a key alone
+  reads public comments and live chat (so both modes are promised); comments are fetched with
+  `order=time`, `textFormat=plainText`, `maxResults=100` and sorted by their own `publishedAt`
+  (the record's first slot held a 2020 comment); live chat's first page is history (68 messages
+  over 7.6 minutes) and is delivered marked earlier; the API hinted 2,853 to 3,145 ms, so the 5 s
+  floor sets the pace: 60 units a minute, 3,600 an hour, the 10,000-unit day lasting 2 h 46 min
+  (the spec's "about 2 hours 45 minutes"; the line shows the computed 2 h 46 min). Error shapes
+  used: 404 `videoNotFound` and 401 `authorizationRequired` as recorded; `quotaExceeded`,
+  `commentsDisabled` and a bad key in the API's documented shapes. Tests run on synthetic fixtures
+  (`scripts/fixtures/youtube/`) with the record's shapes, counts, intervals and times and invented
+  text; no live call was made in this phase (0 units of the shared key).
+- **Decisions.**
+  - A message Sheet is a `sheet` source with `inbox: true` (Messages, "Message Sheet"), read by the
+    page's one reader under its lease; `src/audience/sheetMessages.ts` is the inbox consumer: rows
+    to candidates by the audience spec's identity (a cyrb53 hash of Name, Message, Source and
+    Reference plus `#<occurrence>`, external id `sheet:<source id>:<hash>#<n>`), arrivals through
+    `addCandidates` at most 100 a call, then `settleImported` with the tab's whole id set. Only the
+    tab's first row names columns (Message required; Name, Source, Reference optional, with the
+    staging titles as synonyms); Source becomes provenance `Sheet: <label> · <cell>`, Reference the
+    private note. At most 2,000 messages a tab; more is said.
+  - Vanished rows: the backend gained one method, `settleImported(prefix, present)`: an unused
+    candidate under the prefix whose id is not present leaves the inbox; a used one is kept with its
+    original and marked `withdrawnAt` ("no longer in the Sheet"); a returning row is unmarked.
+    Published, it is `audience_operator_settle` (0098), keyed on the control slug, bounded at
+    2,000 ids, refusing any prefix that is not `sheet:<id>:` so it can never touch a paste, a
+    YouTube item or another Sheet. A column was needed so every operator page sees the mark, not
+    only the reading page.
+  - The unique index per show on `external_id` (partial, built concurrently, file safe to re-run
+    from the top), and `audience_operator_add` now inserts `on conflict do nothing`: two calls
+    adding one id at once give one row and neither fails (proven on a scratch Postgres with two
+    sessions: the second waited, skipped the clash, and still added its other item).
+  - YouTube sources are `Show.sources` entries of a new kind, `{ kind: 'youtube', config:
+    { videoId, mode: 'comments' | 'chat' }, inbox: true }`; the record never holds the key.
+    `ShowSource` became the union `SheetShowSource | YouTubeShowSource`; every reader that needs a
+    Sheet narrows by `kind` (the Playout sources line and the Data overview show Sheets only; the
+    cue editor's "Use existing content" lists Sheets only; the page starts Sheet readers only).
+  - YouTube lines and comments go through the OPERATOR door (`addCandidates`, the published
+    `audience_operator_add`), not the viewer's `submit`: they need no open audience and dedupe by
+    `yt:<platform id>` in the database. Twitch keeps the viewer door unchanged
+    (`twitchChat.ts` untouched). The platform word is provenance (`YouTube comments`,
+    `YouTube chat`, `YouTube chat · earlier`), never in the name.
+  - The key: memory for the tab, browser storage only with "Remember on this browser" (unticked by
+    default). On reload a remembered live chat reconnects by itself; without the key Messages shows
+    "Key needed" on the source. Live chat is read by ONE tab per browser (a 15 s claim in browser
+    storage, renewed every 5 s, only by a tab that has a key), because the Playout tab and the
+    Messages tab both run the production page and each poll is quota.
+  - The quota line: comments "1 unit of your key's 10,000 a day"; live chat "about 3,600 units an
+    hour ... about 2 h 46 min"; while chat runs, "About <h min> of chat left today, counting this
+    browser's use since midnight Pacific time; other users of the key are not counted" from a
+    per-browser spend record (`{ v: 1, day, units }`, day in `America/Los_Angeles`).
+  - The cue editor's "Fill from… Pick a message" shows each candidate's provenance; Sheet and
+    YouTube candidates reach it because they are ordinary candidates.
+  - Duplicates already in production (owner decision path: the coordinator ruled that this row does
+    not read production, and the migration must succeed either way): before the unique build, 0098
+    clears `external_id` on every later duplicate, keeping the first row's id. The duplicate keeps
+    its row, text and moderation and becomes an ordinary candidate no source settles; nothing is
+    deleted. Proven on a scratch Postgres seeded with three rows of one id (one used) and one
+    unique: the index built valid, the first kept the id, the used flag survived.
+  - A message Sheet's source id is stable per tab (`msg-<hash of sheet id and gid>`), so removing
+    and connecting it again finds its candidates instead of adding every row again; a tab already
+    followed for fields keeps its own id and gains the inbox.
+  - Only the lease's holder feeds the inbox (`sheetSource.ts` calls the consumer after the settle
+    is kept): an old owner's late read can no longer put back what the new owner took out.
+  - The inbox consumer seeds what the inbox holds on its first read, without withdrawn rows, so a
+    reload re-sends nothing and a row restored while no page was open is unmarked.
+  - Leaving a production stops this tab's YouTube chats for it and releases their claims; a
+    comments answer that lands after its source was removed adds nothing.
+  - Messages from a Sheet keep arriving only while a page of the production is open: the server
+    tick (C2) reads Sheets for fields, not for the inbox. Not in C3's acceptance; said here so C7
+    does not expect closed-page messages.
+- **Extra files** (beyond the named ones), each needed by the union type or the backend method:
+  `src/model/shows.ts` (the union, `addMessageSource`, `removeMessageSource`),
+  `src/audience/audienceTypes.ts`, `src/audience/localAudience.ts`, `src/audience/audienceData.ts`
+  (`settleImported`, `withdrawnAt`, `OPERATOR_SETTLE_MAX`), `src/components/home/ProductionPage.tsx`
+  (the inbox consumer on the page's Sheet readers, Sheet readers only, the YouTube hook),
+  `src/components/home/SourcesLine.tsx` and `src/components/home/ProductionDataPanel.tsx` (Sheets
+  only), `src/control/sheetSource.ts` (the inbox fed only by the lease holder, with its test in
+  `scripts/sheet-source.test.mjs`), `scripts/message-staging.test.mjs` (the interface list gains `settleImported`),
+  `scripts/audience-identity-migration.test.mjs` and `scripts/fixtures/youtube/`.
+- **Recorded responses.** The C3 row asks for recorded responses; the repository may hold no comment
+  text or author name, so `scripts/fixtures/youtube/` carries the Q record's shapes, counts,
+  intervals and times with invented text. That is the departure from the wording, for its intent.
+- **Assessment A** (fresh read-only session, `/so`): AGREE WITH CORRECTIONS; the three code
+  corrections and the two-cue journey are in, the rest is weighed in the PR.
+- **Traps.**
+  - `on conflict (show_id, external_id)` inside a `RETURNS TABLE (... external_id ...)` function is
+    ambiguous (42702) and an index target cannot be table-qualified; `#variable_conflict
+    use_column` fixes it. Only the self-check that CALLS the function caught it (supabase/AGENTS.md).
+  - The chat spec's `productionFor` returns nothing; use `openProductionWithCurrent` for an id.
+  - `production-chat-intake` "the throttle and the dedupe" failed once (`0 in · 14 dropped`) while
+    the machine also ran mutation tests; it passed in the 7 runs before and after. Not reproduced,
+    not chased.
+
 ## Row 9, data-sources C2: published ownership and the server tick
 
 - **Repair, 2026-10-21 (P9 repair 1, the check's FAIL on `b05bd28`).** The Q record bullet below

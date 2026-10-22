@@ -8,9 +8,11 @@
 // covers: src/audience/**
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 
+import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
+import { settleDurableWrites } from './_durable';
 
 // CHAT INTAKE (src/audience/chatIntake.ts): Twitch / YouTube live chat as a PRODUCER of
 // submissions into the production's audience inbox.
@@ -191,7 +193,7 @@ test('the add form refuses what no driver could use, before any source row exist
   await expect(audience.getByTestId('chat-add-note')).toContainText('Not a Twitch channel name');
 
   // YouTube needs a video AND a key - and says which is missing.
-  await audience.getByTestId('chat-add-platform').selectOption('youtube');
+  await audience.getByTestId('chat-add-platform').selectOption('youtube-chat');
   await audience.getByTestId('chat-add-video').fill('definitely-not-a-video-url');
   await audience.getByTestId('chat-add-connect').click();
   await expect(audience.getByTestId('chat-add-note')).toContainText('Not a YouTube video id');
@@ -201,4 +203,195 @@ test('the add form refuses what no driver could use, before any source row exist
 
   // Nothing connected - refusing at the form means no row was born to show an error on.
   await expect(audience.locator('.pd-aud-source')).toHaveCount(0);
+});
+
+// ── YOUTUBE (data-sources C3; audience-flow AC-4) ─────────────────────────────────────────────
+// The API is never called: googleapis.com answers from scripts/fixtures/youtube/, which carry the
+// shapes and counts of the Q record (docs/work-specs/data-sources/evidence/youtube.md) with invented
+// text. The key typed here is a placeholder.
+
+const youtubeFixture = (name: string) => readFileSync(new URL(`../scripts/fixtures/youtube/${name}`, import.meta.url), 'utf8');
+const KEY = 'TEST-KEY-not-real';
+
+/** Answer the YouTube Data API from fixtures, counting each call by its path. */
+async function stubYouTube(page: Page, pages: Record<string, () => string>): Promise<Record<string, number>> {
+  const calls: Record<string, number> = {};
+  await page.context().route(/^https:\/\/www\.googleapis\.com\/youtube\/v3\//, async (route) => {
+    const path = new URL(route.request().url()).pathname.replace('/youtube/v3/', '');
+    calls[path] = (calls[path] ?? 0) + 1;
+    const answer = pages[path];
+    await route.fulfill({
+      status: answer ? 200 : 404,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: answer ? answer() : youtubeFixture('error-video-not-found.json'),
+    });
+  });
+  return calls;
+}
+
+test('YouTube comments: one press brings the newest 100; the source is remembered and asks for the key after a reload', async ({ page }) => {
+  test.setTimeout(100_000);
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await openProductionWithCurrent(page, 'Comments In');
+  const calls = await stubYouTube(page, { commentThreads: () => youtubeFixture('comment-threads-page.json') });
+  const audience = await openWorkspace(page, 'audience');
+
+  await audience.getByTestId('chat-add-platform').selectOption('youtube-comments');
+  await expect(audience.getByTestId('chat-add-platform').locator('option')).toContainText(['Comments on a video', 'Live chat of a stream']);
+  await expect(audience.getByTestId('youtube-quota-cost')).toHaveText("Each fetch of the newest 100 comments costs 1 unit of your key's 10,000 a day.");
+  await expect(audience.getByTestId('chat-add-remember')).not.toBeChecked();
+  await audience.getByTestId('chat-add-video').fill('https://www.youtube.com/watch?v=jNQXAC9IVRw');
+  await audience.getByTestId('chat-add-key').fill(KEY);
+  await audience.getByTestId('chat-add-connect').click();
+
+  // The newest 100 arrive on one press; the platform word is provenance, not the name.
+  const rows = audience.locator('.pd-aud-row');
+  await expect(rows).toHaveCount(100);
+  const source = audience.getByTestId('comments-source-youtube');
+  await expect(source).toContainText('YouTube comments · jNQXAC9IVRw');
+  await expect(source.getByTestId('comments-source-detail')).toContainText('100 new of the newest 100');
+  const one = rows.filter({ hasText: 'Comment number 1' }).first();
+  await expect(one.locator('.pd-aud-author')).toHaveText('viewer1');
+  await expect(one.getByTestId('audience-provenance')).toHaveText('YouTube comments');
+  expect(calls.commentThreads).toBe(1);
+
+  // A refresh is a press, and adds nothing twice.
+  await source.getByTestId('comments-fetch').click();
+  await expect(source.getByTestId('comments-source-detail')).toContainText('0 new of the newest 100');
+  await expect(rows).toHaveCount(100);
+  expect(calls.commentThreads).toBe(2);
+  // Connecting the same video again reads the same source again: still one source.
+  await audience.getByTestId('chat-add-video').fill('jNQXAC9IVRw');
+  await audience.getByTestId('chat-add-connect').click();
+  await expect.poll(() => calls.commentThreads).toBe(3);
+  await expect(audience.getByTestId('comments-source-youtube')).toHaveCount(1);
+  await expect(rows).toHaveCount(100);
+
+  // The key stayed in memory: not in browser storage, not in the production's record.
+  await settleDurableWrites(audience);
+  const kept = await audience.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return { stored: localStorage.getItem('spx-gfx-youtube-key'), record: JSON.stringify(loadShows().find((s) => s.id === id)?.sources) };
+  }, showId);
+  expect(kept.stored).toBeNull();
+  expect(kept.record).toContain('"mode":"comments"');
+  expect(kept.record).not.toContain(KEY);
+
+  // Reload: the source is remembered, the key is not, so it asks.
+  await audience.reload();
+  await expect(source).toBeVisible();
+  await expect(source.getByTestId('comments-fetch')).toHaveCount(0);
+  await source.getByTestId('youtube-key-needed').click();
+  await source.getByTestId('youtube-key-input').fill(KEY);
+  await source.getByTestId('youtube-key-remember').check();
+  await source.getByTestId('youtube-key-use').click();
+  await expect(source.getByTestId('comments-source-detail')).toContainText('0 new of the newest 100');
+  await expect(rows).toHaveCount(100);
+
+  // Remembered on this browser: the next reload needs no key.
+  await audience.reload();
+  await expect(source.getByTestId('comments-fetch')).toBeVisible();
+  await expect(source.getByTestId('youtube-key-needed')).toHaveCount(0);
+});
+
+test('YouTube comments: a refusal says what to do next', async ({ page }) => {
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  await productionFor(page, 'Comments Refused');
+  await stubYouTube(page, {});
+  const audience = await openWorkspace(page, 'audience');
+  await audience.getByTestId('chat-add-platform').selectOption('youtube-comments');
+  await audience.getByTestId('chat-add-video').fill('jNQXAC9IVRw');
+  await audience.getByTestId('chat-add-key').fill(KEY);
+  await audience.getByTestId('chat-add-connect').click();
+  await expect(audience.getByTestId('comments-source-detail')).toHaveText('No such video. Check the link: the video may be private or removed.');
+  await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
+});
+
+test('YouTube live chat: the first page arrives as earlier, the quota line counts down, and a reconnect adds nothing twice', async ({ page }) => {
+  test.setTimeout(100_000);
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  await productionFor(page, 'Chat Live');
+  let page2 = false;
+  let live = false;
+  const calls = await stubYouTube(page, {
+    videos: () => youtubeFixture(live ? 'video-live.json' : 'video-not-live.json'),
+    'liveChat/messages': () => {
+      // The first page of each connection is the history; after it, three new lines, then quiet.
+      const name = !page2 ? 'chat-first-page.json' : 'chat-later-page.json';
+      page2 = !page2;
+      return youtubeFixture(name);
+    },
+  });
+  const audience = await openWorkspace(page, 'audience');
+  await audience.getByTestId('chat-add-platform').selectOption('youtube-chat');
+  await expect(audience.getByTestId('youtube-quota-cost')).toHaveText(
+    "Live chat costs about 3,600 units an hour, so your key's 10,000 a day last about 2 h 46 min.",
+  );
+  await audience.getByTestId('chat-add-video').fill('https://www.youtube.com/live/4xDzrJKXOOY');
+  await audience.getByTestId('chat-add-key').fill(KEY);
+  await audience.getByTestId('chat-add-remember').check();
+  await audience.getByTestId('chat-add-connect').click();
+
+  // Connected before the stream is live: it says so and what to do, then Reconnect reads it.
+  const rows = audience.locator('.pd-aud-row');
+  const source = audience.getByTestId('chat-source-youtube');
+  await expect(source.getByTestId('chat-source-detail')).toContainText('That video has no open live chat. Connect it while the stream is live');
+  live = true;
+  await source.getByTestId('chat-source-reconnect').click();
+  await expect(rows).toHaveCount(68);
+  await expect(source.getByTestId('chat-source-reconnect')).toHaveCount(0);
+  await expect(rows.first().getByTestId('audience-provenance')).toHaveText('YouTube chat · earlier');
+  await expect(rows.first().locator('.pd-aud-author')).toHaveText('Chatter 0');
+  // Units: 1 for each lookup and 5 for the page, so 2 h 46 min are left of today's 10,000.
+  await expect(source.getByTestId('youtube-quota')).toHaveText(
+    "About 2 h 46 min of chat left today, counting this browser's use since midnight Pacific time; other users of the key are not counted.",
+  );
+  // The next page, at the 5-second floor, is new.
+  await expect(rows).toHaveCount(71, { timeout: 15_000 });
+  await expect(rows.filter({ hasText: 'Chat line 70' }).getByTestId('audience-provenance')).toHaveText('YouTube chat');
+  await expect(source.getByTestId('chat-source-stats')).toHaveText('71 in · 0 dropped');
+
+  // Connecting the same stream again restarts its one reader: still one source, still no copies.
+  page2 = false;
+  await audience.getByTestId('chat-add-video').fill('4xDzrJKXOOY');
+  await audience.getByTestId('chat-add-connect').click();
+  await expect(source.getByTestId('chat-source-stats')).toHaveText('0 in · 68 dropped', { timeout: 15_000 });
+  await expect(audience.getByTestId('chat-source-youtube')).toHaveCount(1);
+  await expect(rows).toHaveCount(71);
+
+  // Reload with the key remembered: the source reconnects by itself, and the history it reads
+  // again is already in the inbox, so nothing is added twice.
+  const before = calls['liveChat/messages'];
+  page2 = false;
+  await audience.reload();
+  await expect.poll(() => calls['liveChat/messages'], { timeout: 20_000 }).toBeGreaterThan(before);
+  await expect(rows).toHaveCount(71);
+  await expect(audience.getByTestId('chat-source-youtube')).toBeVisible();
+});
+
+test('YouTube comments: a source removed while its fetch is out adds nothing when the answer lands', async ({ page }) => {
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  await productionFor(page, 'Comments Late');
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  await page.context().route(/^https:\/\/www\.googleapis\.com\/youtube\/v3\/commentThreads/, async (route) => {
+    await held;
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: youtubeFixture('comment-threads-page.json') });
+  });
+  const audience = await openWorkspace(page, 'audience');
+  await audience.getByTestId('chat-add-platform').selectOption('youtube-comments');
+  await audience.getByTestId('chat-add-video').fill('jNQXAC9IVRw');
+  await audience.getByTestId('chat-add-key').fill(KEY);
+  await audience.getByTestId('chat-add-connect').click();
+  const source = audience.getByTestId('comments-source-youtube');
+  await expect(source.getByTestId('comments-fetch')).toHaveText('Fetching…');
+  await source.getByTestId('chat-source-remove').click();
+  await expect(source).toHaveCount(0);
+  const answered = audience.waitForEvent('requestfinished', (r) => r.url().includes('/commentThreads'));
+  release();
+  await answered;
+  // The answer is in; its handler runs within a task or two. Absence needs a bound to mean anything.
+  await audience.waitForTimeout(500);
+  await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
 });

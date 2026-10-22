@@ -86,7 +86,8 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
  * while the show runs and Pause is one press. Nothing at all without sources.
  */
 export default function SourcesLine({ show, setShows, store }: { show: Show; setShows: (shows: Show[]) => void; store: SourceStatusStore }) {
-  const sources = show.sources ?? [];
+  // A Sheet's line; a YouTube source is read and shown in Messages only.
+  const sources = (show.sources ?? []).filter((s) => s.kind === 'sheet');
   if (sources.length === 0) return null;
   return (
     <div className="pd-sources" data-testid="sources-line">

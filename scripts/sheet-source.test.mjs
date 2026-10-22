@@ -506,6 +506,34 @@ test('the inbox consumer receives rows and has no writer: a source that only fee
   t2.reader.stop();
 });
 
+test('an old owner’s late read after the lease moved feeds the inbox nothing (data-sources C3)', async () => {
+  const b = browser();
+  const seen = [];
+  const a = tab(b, 'A', { paths: [], inbox: (rows) => seen.push(rows) });
+  await b.clock.advance(0);
+  assert.equal(seen.length, 1);
+  // A's next read is held in flight while the lease moves to B, which reads a newer tab.
+  let release;
+  b.sheet.hold = { promise: new Promise((r) => (release = r)) };
+  b.sheet.csv = 'old answer\n';
+  await b.clock.advance(SHEET_READ_MS);
+  const lease = b.leases.get('prod-1:s1');
+  b.leases.set('prod-1:s1', { ...lease, until: 0 });
+  b.sheet.hold = null;
+  b.sheet.csv = 'newer\n';
+  const fresh = [];
+  const second = tab(b, 'B', { paths: [], inbox: (rows) => fresh.push(rows) });
+  await b.clock.advance(0);
+  assert.deepEqual(fresh.at(-1), [['newer']]);
+  release();
+  await b.clock.advance(0);
+  assert.equal(seen.length, 1, 'the old owner’s answer reaches no inbox');
+  assert.equal(a.reader.holds(), false, 'and it knows it no longer holds the lease');
+  assert.equal(second.reader.holds(), true);
+  a.reader.stop();
+  second.reader.stop();
+});
+
 test('Pause pressed while a read is in flight: its answer writes nothing, and the reader says paused', async () => {
   const b = browser();
   const a = tab(b, 'A');

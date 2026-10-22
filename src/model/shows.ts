@@ -228,7 +228,7 @@ export interface DatasetRow {
  * ADDITIVE OPTIONAL like `datasets`. It is not published: a link grants reading, so the output
  * and audience pages never see it.
  */
-export interface ShowSource {
+export interface SheetShowSource {
   id: string;
   kind: 'sheet';
   label: string;
@@ -246,6 +246,23 @@ export interface ShowSource {
   /** Its rows are message candidates as well (data-sources C3). Absent = not. */
   inbox?: boolean;
 }
+
+/**
+ * A YOUTUBE message source (data-sources C3; audience spec "YouTube, and Twitch"): one video's
+ * comments or one stream's live chat, read in the operator's browser with the operator's own key.
+ * The record holds the video and the mode only, never the key, so it can sync and publish. It
+ * feeds the inbox and nothing else: no field follows it and the server tick never reads it.
+ */
+export interface YouTubeShowSource {
+  id: string;
+  kind: 'youtube';
+  label: string;
+  config: { videoId: string; mode: 'comments' | 'chat' };
+  paused?: boolean;
+  inbox: true;
+}
+
+export type ShowSource = SheetShowSource | YouTubeShowSource;
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question
@@ -1772,6 +1789,42 @@ function patchShowSource(showId: string, sourceId: string, edit: (source: ShowSo
     show.sources = show.sources!.map((s, i) => (i === at ? next : s));
     return true;
   }, true).shows;
+}
+
+/**
+ * A MESSAGE SOURCE (data-sources C3): a Sheet tab whose rows, or a YouTube video whose comments or
+ * chat, become message candidates. A Sheet already connected to fields gains `inbox` and keeps its
+ * record; any other is added. One write, reported as the save layer answered it.
+ */
+export function addMessageSource(showId: string, source: ShowSource): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const existing = show.sources?.find((s) => s.id === source.id);
+    if (existing) {
+      if (existing.inbox) return false;
+      show.sources = show.sources!.map((s) => (s.id === source.id ? ({ ...s, inbox: true } as ShowSource) : s));
+      return true;
+    }
+    show.sources = [...(show.sources ?? []), { ...source, inbox: true } as ShowSource];
+    return true;
+  }, true);
+}
+
+/** Stop a source feeding Messages: the candidates it brought stay; a Sheet that fields still
+ *  follow keeps reading for them, any other source goes. */
+export function removeMessageSource(showId: string, sourceId: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const at = show.sources?.findIndex((s) => s.id === sourceId) ?? -1;
+    if (at < 0 || !show.sources![at].inbox) return false;
+    show.sources = show.sources!.map((s, i) => {
+      if (i !== at || s.kind !== 'sheet') return s;
+      const next = { ...s };
+      delete next.inbox;
+      return next;
+    });
+    if (show.sources[at].kind === 'youtube') show.sources = show.sources.filter((_, i) => i !== at);
+    pruneSources(show);
+    return true;
+  }, true);
 }
 
 /** Pause or resume a source: paused, nothing is read and every value holds. */

@@ -263,8 +263,9 @@ test('publishing moves kept messages into the published inbox once, with their e
 });
 
 test('the audience backend interface has no method that airs anything', async () => {
-  // AC-10's structural half: the operator surface can list, moderate, add candidates and run
-  // the join page's state - and reach neither the command log nor production values.
+  // AC-10's structural half: the operator surface can list, moderate, add candidates, settle an
+  // imported source's rows (C3) and run the join page's state - and reach neither the command log
+  // nor production values.
   const source = await readFile(new URL('../src/audience/audienceTypes.ts', import.meta.url), 'utf8');
   const block = /export interface AudienceBackend \{([\s\S]*?)\n\}/.exec(source);
   assert.ok(block, 'AudienceBackend is where this test expects it');
@@ -278,6 +279,7 @@ test('the audience backend interface has no method that airs anything', async ()
     'openRound',
     'rounds',
     'setState',
+    'settleImported',
     'submit',
     'tally',
     'update',

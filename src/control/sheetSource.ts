@@ -439,6 +439,8 @@ export interface SheetReader {
   /** Let the lease go now and claim it again at the next read: the page is going away (a reload
    *  or a closed tab runs no cleanup), so the next page or the tick need not wait out the lease. */
   release: () => void;
+  /** This page holds the source's lease as of its last read (the inbox consumer's fence). */
+  holds: () => boolean;
 }
 
 export const initialStatus = (reader: SheetStatus['reader']): SheetStatus => ({
@@ -685,7 +687,6 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       schedule(0);
       return;
     }
-    if (result.ok && o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
     const { next, writes } = nextReadState(held, result, { ...o, connected: o.connected() }, io.now(), 'this');
     const kept = await door.settle(answer.claim, writes, next).catch(() => false);
     if (stopped) return;
@@ -696,6 +697,9 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       schedule(SHEET_READ_MS);
       return;
     }
+    // Only the lease's holder feeds the inbox: an old owner's late read would put back what the
+    // new owner's newer read took out.
+    if (result.ok && o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
     report(next.status);
     schedule(Math.max(0, started + SHEET_READ_MS - io.now()));
   };
@@ -703,6 +707,7 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   schedule(0);
   return {
     poke: () => schedule(0),
+    holds: () => !stopped && claimId !== null,
     stop: () => {
       if (stopped) return;
       stopped = true;

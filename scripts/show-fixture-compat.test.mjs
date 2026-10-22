@@ -32,12 +32,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixturePath = path.join(root, 'scripts/fixtures/show-saved-before-c1a.json');
 const { show, liveData, onAir } = JSON.parse(readFileSync(fixturePath, 'utf8'));
 
-test('the saved record still type-checks as a Show, with no field it does not know', () => {
+/** The compiler's errors for `show` read as a `Show` (and the live tree as JSON). */
+function showTypeErrors(record) {
   const file = path.join(root, 'src/__show_fixture_check__.ts');
   const source = [
     "import type { Show } from './model/shows';",
     "import type { JsonObject } from './model/productionData';",
-    `export const show: Show = ${JSON.stringify(show)};`,
+    `export const show: Show = ${JSON.stringify(record)};`,
     `export const live: JsonObject = ${JSON.stringify(liveData)};`,
   ].join('\n');
   const config = ts.getParsedCommandLineOfConfigFile(path.join(root, 'tsconfig.json'), {}, { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} });
@@ -51,10 +52,39 @@ test('the saved record still type-checks as a Show, with no field it does not kn
   host.getSourceFile = (name, lang, ...rest) =>
     path.resolve(name) === file ? ts.createSourceFile(name, source, lang) : sourceFile(name, lang, ...rest);
   const program = ts.createProgram([file], options, host);
-  const errors = ts
+  return ts
     .getPreEmitDiagnostics(program, program.getSourceFile(file))
     .map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'));
-  assert.deepEqual(errors, [], 'a production saved by the earlier build no longer reads as a Show');
+}
+
+test('the saved record still type-checks as a Show, with no field it does not know', () => {
+  assert.deepEqual(showTypeErrors(show), [], 'a production saved by the earlier build no longer reads as a Show');
+});
+
+// C3 adds message sources to `Show.sources`: a Sheet tab with `inbox`, and YouTube comments or live
+// chat. The earlier record, with these added, still reads; a YouTube source holds no key.
+const withMessageSources = {
+  ...show,
+  sources: [
+    { id: 'm1', kind: 'sheet', label: 'Messages', config: { sheetId: '1NoaCGStubSheet0000000000', gid: null, shape: 'lines' }, inbox: true },
+    { id: 'y1', kind: 'youtube', label: 'jNQXAC9IVRw', config: { videoId: 'jNQXAC9IVRw', mode: 'comments' }, inbox: true },
+    { id: 'y2', kind: 'youtube', label: '4xDzrJKXOOY', config: { videoId: '4xDzrJKXOOY', mode: 'chat' }, inbox: true, paused: true },
+  ],
+};
+
+test('with a message Sheet and both YouTube modes it still reads as a Show, and plays the same (C3)', () => {
+  assert.deepEqual(showTypeErrors(withMessageSources), []);
+  const resolved = resolveBindings(liveData, withMessageSources.bindings);
+  assert.deepEqual(resolved, resolveBindings(liveData, show.bindings), 'a message source changes no field');
+});
+
+test('a YouTube source with a key, or a mode it does not know, does not read as a Show (C3)', () => {
+  const keyed = structuredClone(withMessageSources);
+  keyed.sources[1].config.apiKey = 'AIza-not-a-real-key';
+  assert.notDeepEqual(showTypeErrors(keyed), []);
+  const odd = structuredClone(withMessageSources);
+  odd.sources[2].config.mode = 'superchat';
+  assert.notDeepEqual(showTypeErrors(odd), []);
 });
 
 test('it plays unchanged: each cue with the live tree over its bound fields is what PROGRAM showed', () => {
