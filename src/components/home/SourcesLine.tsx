@@ -15,10 +15,12 @@ export interface OwnSheetReader {
 }
 
 /** What this page has observed of the published output (ProductionPage): the graphics whose
- *  published payload still reads a Sheet, and those an output runs on an earlier frame until Out. */
+ *  published payload still reads a Sheet, the graphics it has seen with a reader at all, and
+ *  whether a connected output has not fully taken the published version. */
 export interface OutputObservations {
   reads: ReadonlySet<string>;
-  waitingForClear: ReadonlySet<string>;
+  former: ReadonlySet<string>;
+  behind: boolean;
 }
 
 /** One graphic's own Sheet reader where it plays (control/liveData.ts `ownReaderGate`): the design
@@ -33,13 +35,14 @@ export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], pub
       resolvedJs: design,
       published,
       outputReads: output?.reads.has(graphic.name),
-      waitingForClear: output?.waitingForClear.has(graphic.name),
+      outputBehind: !!output?.behind && output.former.has(graphic.name),
     }),
   };
 }
 
 /** The production's graphics with an own reader running somewhere: the design, the copy, or the
- *  published payload. A frame merely waiting for clear is not listed: it is any graphic's state. */
+ *  published payload. An output merely behind is not listed: whether its frame still reads is not
+ *  known. */
 export function ownSheetReaders(graphics: readonly SavedGraphic[], library: GraphicDoc[], published: boolean, output?: OutputObservations): OwnSheetReader[] {
   return graphics.map((g) => ownSheetReader(g, library, published, output)).filter((r) => r.gate === 'reader' || r.gate === 'publish');
 }

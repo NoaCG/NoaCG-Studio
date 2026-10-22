@@ -110,13 +110,20 @@ changes a spec's digest.
   an on-air graphic's old frame, its embedded reader included, until the graphic is cleared
   (`src/output/swapPlan.ts`), and a Publish that fails after refreshing the copy leaves the output
   on the old version with a clean copy. The copy alone cannot prove the reader stopped, so the gate
-  also reads two observations of the output: the published payload this page last saw (at its
-  resolve, or its own successful Publish) still carrying the block keeps "Publish first", and an
-  output reporting the graphic waiting for clear (its per-graphic replacement report `chg.w`) gives
-  "Take it out, then connect". The second is any graphic's state, so it gates Connect only for that
-  window and is not listed as an own reader. Not covered: the model's binding refusal reads the
-  design and the copy only, so after a failed Publish the Advanced bindings door would accept a
-  binding on that graphic until the next resolve or Publish.
+  also reads two observations of the output. The published payload this page last saw (at its
+  resolve, or its own successful Publish, read from the record as published) still carrying the
+  block keeps "Publish first". And for any graphic this page has seen with a reader (design, copy
+  or payload), Connect waits while a connected output has not wholly taken the published version:
+  it reports a change preparing, failed or waiting for an on-air graphic's clear, or holds another
+  version. A first cut read only the per-graphic "waiting for clear" list; a review of it found
+  that list misses a failed preparation, whole-page reloads and more than six graphics, so the
+  wider rule replaced it. It is limited to graphics seen with a reader, so a routine republish of
+  any other on-air graphic never blocks Connect. Not covered: a page reloaded after the migration
+  and Publish no longer knows the graphic had a reader; the model's binding refusal reads the
+  design and the copy only (after a failed Publish the Advanced bindings door would accept a
+  binding until the next resolve or Publish); the Data overview's list reads design and copy only;
+  a teammate's Publish is not seen until this page resolves again (which only keeps Connect
+  waiting longer).
 - **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
   (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
   legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.

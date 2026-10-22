@@ -781,6 +781,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  it (its resolve, its own successful Publish): what the output runs, not what the copy says, so
    *  a Publish that failed after refreshing the copy unlocks nothing (C6). */
   const [publishedReaders, setPublishedReaders] = useState<ReadonlySet<string>>(() => new Set());
+  /** Every graphic this page has seen with a reader (design, copy or published payload): the ones
+   *  whose output must be wholly on the published version before Connect (C6). */
+  const [formerReaders, setFormerReaders] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    setPublishedReaders(new Set());
+    setFormerReaders(new Set());
+  }, [hostedSlug, show?.id]);
   // Timed cues on a published production need a backend that keeps their arms (0075); with none
   // at all, nothing does.
   const armsServer = hostedSlug && !backendConfigured ? 'missing' : armsServerState;
@@ -883,15 +890,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** WHAT THIS PAGE HAS SEEN THE PUBLISHED OUTPUT RUN, for the own-reader gate (C6): the payload's
    *  readers, and the graphics an output keeps on an earlier frame until they are cleared (its
    *  per-graphic replacement report, `chg.w`). */
-  const waitingKey = livePresence.peers.flatMap((p) => p.ready?.chg?.w ?? []).sort().join('\n');
+  // An output that reports anything still pending (preparing, failed, waiting for clear), or that
+  // holds another version than the published one, has not taken it wholly.
+  const outputsBehind = livePresence.peers.some(
+    (p) => p.kind === 'output' && !!p.ready && (!!p.ready.chg || (!!publishedVer && p.ready.v?.h !== publishedVer.h)),
+  );
   const outputObservations = useMemo(
-    () => ({ reads: publishedReaders, waitingForClear: new Set(waitingKey ? waitingKey.split('\n') : []) }),
-    [publishedReaders, waitingKey],
+    () => ({ reads: publishedReaders, former: formerReaders, behind: outputsBehind }),
+    [publishedReaders, formerReaders, outputsBehind],
   );
   const ownReaders = useMemo(
     () => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug, outputObservations) : []),
     [show, library, hostedSlug, outputObservations],
   );
+  useEffect(() => {
+    const seen = [...publishedReaders, ...ownReaders.map((r) => r.graphic)].filter((name) => !formerReaders.has(name));
+    if (seen.length > 0) setFormerReaders((set) => new Set([...set, ...seen]));
+  }, [publishedReaders, ownReaders, formerReaders]);
   /** Something that can air a graphic is reporting right now: a renderer, or this production on its
    *  CasparCG slot. Read by the send path, which decides "No output" (AC-2). */
   const usableOutput =
@@ -2929,10 +2944,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer
         // is recomputed here from the library this publish pinned.
+        const pinned = loadGraphics();
         fastEventGraphicsRef.current = fastEventGraphics(
-          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, loadGraphics()) })),
+          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, pinned) })),
         );
-        setPublishedReaders(new Set((current?.graphics ?? []).filter((g) => hasLiveData(templateForSavedGraphic(g, loadGraphics()).js)).map((g) => g.name)));
+        // What this publish carried, read from the record as it now stands (a retry may have taken a
+        // teammate's change in): the graphics whose payload still reads a Sheet in its own code.
+        const carried = loadShows().find((s) => s.id === show.id)?.graphics ?? [];
+        setPublishedReaders(new Set(carried.filter((g) => hasLiveData(templateForSavedGraphic(g, pinned).js)).map((g) => g.name)));
         // REHEARSAL ENDS AT THE FIRST PUBLISH (AC-7): what a Take put up before it played on this
         // page only, so it leaves PROGRAM rather than be mistaken for air.
         if (!wasStarted) {

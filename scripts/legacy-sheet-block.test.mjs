@@ -112,10 +112,11 @@ test('Connect data… waits while the graphic\'s own reader can still run where 
   // Published, the copy is clean, but the payload the output took still reads (a Publish that
   // failed after refreshing the copy): Connect still waits for Publish.
   assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: true, outputReads: true }), 'publish');
-  // Published and clean, but an output still runs an earlier frame on air: Connect waits for Out.
-  assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: true, waitingForClear: true }), 'clear');
+  // Published and clean, but an output has not taken that version (an on-air frame waits for its
+  // Out, a change failed to prepare): Connect waits.
+  assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: true, outputBehind: true }), 'clear');
   // Unpublished, nothing runs outside this page.
-  assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: false, outputReads: true, waitingForClear: true }), 'none');
+  assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: false, outputReads: true, outputBehind: true }), 'none');
 });
 
 test('"Stop its own reader" removes it from the design, and from the copy only before Publish', () => {

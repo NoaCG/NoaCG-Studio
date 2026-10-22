@@ -43,21 +43,22 @@ export function liveDataUrl(js: string): string | null {
  * has one), `copyJs` the production's own copy. Published, two observations stand for the output
  * itself: `outputReads`, the published payload this page last saw (at its resolve or its own
  * successful Publish) still carries the block, so a Publish that failed after refreshing the copy
- * unlocks nothing; and `waitingForClear`, an output reports this graphic on air on an earlier
- * frame, which keeps running (its reader included) until it is cleared or replaced.
+ * unlocks nothing; and `outputBehind`, for a graphic this page has seen with a reader, a connected
+ * output has not fully taken the published version (preparing, failed, or keeping an on-air frame
+ * until it is cleared, src/output/swapPlan.ts), so the old frame and its reader may still run.
  * - `reader`: the block still runs here; Connect offers the explicit migration first.
  * - `publish`: the design no longer has it, but the published output still runs it until Publish.
- * - `clear`: published, but an output still runs an earlier frame of the graphic until Out.
+ * - `clear`: published, but an output has not yet taken the published version (often until Out).
  * - `none`: nothing reads a Sheet in this graphic's code where it plays.
  */
 export type OwnReaderGate = 'none' | 'reader' | 'publish' | 'clear';
 
-export function ownReaderGate(input: { copyJs: string; resolvedJs: string; published: boolean; outputReads?: boolean; waitingForClear?: boolean }): OwnReaderGate {
+export function ownReaderGate(input: { copyJs: string; resolvedJs: string; published: boolean; outputReads?: boolean; outputBehind?: boolean }): OwnReaderGate {
   if (hasLiveData(input.resolvedJs)) return 'reader';
   if (hasLiveData(input.copyJs)) return input.published ? 'publish' : 'reader';
   if (!input.published) return 'none';
   if (input.outputReads) return 'publish';
-  return input.waitingForClear ? 'clear' : 'none';
+  return input.outputBehind ? 'clear' : 'none';
 }
 
 /**
