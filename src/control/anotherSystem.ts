@@ -61,13 +61,17 @@ export function apiOffers(
   const group = apiGroup(bindings, graphic);
   const current = bindings?.[graphic] ?? {};
   const used = new Set(Object.values(current).filter(isApiPath));
+  // The next suffix to try per name, so a graphic of many same-named fields stays linear.
+  const next = new Map<string, number>();
   const out: OfferedValue[] = [];
   for (const field of fields) {
     let path = isApiPath(current[field.key]) ? current[field.key] : '';
     if (!path) {
       const base = `${API_PREFIX}.${group}.${pathKey(field.label, field.key)}`;
+      let n = next.get(base) ?? 2;
       path = base;
-      for (let n = 2; used.has(path); n += 1) path = `${base}_${n}`;
+      while (used.has(path)) path = `${base}_${n++}`;
+      next.set(base, n);
       used.add(path);
     }
     out.push({ path, label: field.label || field.key, sample: samples[field.key] ?? '', key: field.key });
