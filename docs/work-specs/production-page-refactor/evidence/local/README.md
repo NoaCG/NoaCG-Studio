@@ -8,3 +8,4 @@ the exact merge SHA of the phase whose `extensions.md` row names it. Speed bench
 | Receipt | Row | Merge SHA | Result |
 |---|---|---|---|
 | [channel-test.md](channel-test.md) | - | - | test receipt |
+| [../perf/phase-1-baselines.md](../perf/phase-1-baselines.md) | 3 | `0ca774269` | two speed baselines, local and published; they agree within §7 |
