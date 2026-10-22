@@ -64,7 +64,8 @@ test('a published production shows its data key, and that key writes the product
   // ── Unpublished there is no key and therefore no button: a permanently dead control would be
   //    worse than none (the same rule the offline spec pins from the other side). ──
   const before = await openWorkspace(page, 'data');
-  await expect(before.getByTestId('data-key-toggle')).toHaveCount(0);
+  await expect(before.getByTestId('data-key')).toHaveCount(0);
+  await expect(before.getByTestId('data-api-local')).toBeVisible();
   await before.close();
 
   await publishProduction(page);
@@ -73,10 +74,9 @@ test('a published production shows its data key, and that key writes the product
   // is nothing to click).
   await page.keyboard.press('Escape');
 
+  // The key is on the Another system card (data-sources C5).
   const data = await openWorkspace(page, 'data');
-  const toggle = data.getByTestId('data-key-toggle');
-  await expect(toggle).toBeVisible();
-  await toggle.click();
+  await expect(data.getByTestId('data-key')).toBeVisible();
 
   // Hidden until asked for: this screen is regularly in front of a room.
   const value = data.getByTestId('data-key-value');
@@ -117,7 +117,7 @@ test('Another system: the card key pushes a connected graphic, Pause holds every
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearShows(page);
-  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Count Board' });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const consent = page.getByTestId('analytics-consent');
   if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
   const showId = await openProductionWithCurrent(page, `Another System ${Date.now()}`);
@@ -131,12 +131,12 @@ test('Another system: the card key pushes a connected graphic, Pause holds every
   await expect(review).toBeHidden();
   const paths = await page.evaluate(async (id) => {
     const { loadShows } = await import('/src/model/shows.ts');
-    return loadShows().find((s) => s.id === id)?.bindings?.['Count Board'] ?? {};
+    return loadShows().find((s) => s.id === id)?.bindings?.['Hairline'] ?? {};
   }, showId);
-  expect(paths.f0).toMatch(/^api\.count_board\./);
-  expect(paths.f1).toMatch(/^api\.count_board\./);
+  expect(paths.f0).toMatch(/^api\.hairline\./);
+  expect(paths.f1).toMatch(/^api\.hairline\./);
   const leaf = (p: string) => p.split('.')[2];
-  const body = (f0: unknown, f1?: unknown) => ({ api: { count_board: { [leaf(paths.f0)]: f0, ...(f1 === undefined ? {} : { [leaf(paths.f1)]: f1 }) } } });
+  const body = (f0: unknown, f1?: unknown) => ({ api: { hairline: { [leaf(paths.f0)]: f0, ...(f1 === undefined ? {} : { [leaf(paths.f1)]: f1 }) } } });
 
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
@@ -182,7 +182,7 @@ test('Another system: the card key pushes a connected graphic, Pause holds every
   expect(held.message).toMatch(/paused Another system/);
   const nulled = await push(body('Second', null));
   expect(nulled).toMatchObject({ ok: true, paused: true, writes: [] });
-  const update = await data.request.post('/api/data/update', { headers: auth, data: { graphic: 'Count Board', values: { f0: 'Third' } } });
+  const update = await data.request.post('/api/data/update', { headers: auth, data: { graphic: 'Hairline', values: { f0: 'Third' } } });
   expect(update.status(), await update.text()).toBe(200);
   expect(await update.json()).toMatchObject({ ok: true, event: null, paused: true, applied: { f0: 'Third' } });
   expect((await updates()).filter((row) => row.id > pausedAt), 'nothing reached the log while paused').toEqual([]);
