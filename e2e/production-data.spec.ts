@@ -8,6 +8,7 @@
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 // covers: src/control/contentFormats.ts
 // covers: src/control/sheetSource.ts
+// covers: src/control/feedSource.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
@@ -1593,4 +1594,68 @@ test('Connect closes only once the save landed, and a changed link needs a fresh
   await review.getByTestId('cue-connect-confirm').click();
   await expect(review).toBeHidden();
   await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: Hairline');
+});
+
+// ── A NEWS FEED drives a ticker (data-sources C4; AC-5, AC-11) ───────────────────────────────
+// The feed is a stub this spec serves at NoaCG's own feed route, which is what the page asks: the
+// page never reads a feed itself. The route's guard and cache are the Node test's
+// (scripts/feed-fetch.test.mjs) and the configured spec's (e2e/configured/feed-route.spec.ts).
+
+const FEED_ADDRESS = 'https://news.example/rss.xml';
+
+/** A stub of the feed route: it answers whatever `feed` holds at the moment of the read. */
+async function stubFeed(page: Page, items: string[]) {
+  const feed = { items, failing: false, asked: [] as string[] };
+  await page.context().route(/\/api\/data\/feed\?/, async (route) => {
+    feed.asked.push(new URL(route.request().url()).searchParams.get('url') ?? '');
+    await route.fulfill(
+      feed.failing
+        ? { status: 502, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'the feed answered 500', fix: 'Reading carries on by itself.', failingSince: null, items: feed.items }) }
+        : { status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, items: feed.items, fetchedAt: new Date().toISOString() }) },
+    );
+  });
+  return feed;
+}
+
+test('a pasted news feed fills a ticker with its headlines, and a failed fetch keeps the list and says since when', async ({ page }) => {
+  test.setTimeout(120_000);
+  const feed = await stubFeed(page, ['Storm warning for the coast', 'Markets close higher', 'Local team wins final']);
+  await bootstrapGraphic(page, { name: 'News Strip' });
+  const showId = await productionFor(page, 'Feed Ticker');
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="News Strip"]');
+  await expect(program.locator('#ticker-track')).not.toBeEmpty();
+
+  // A ticker's Connect data… takes a feed's address in the same box as a Sheet's link.
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill(FEED_ADDRESS);
+  await review.getByTestId('cue-connect-read').click();
+  await expect(review.getByTestId('cue-connect-preview')).toContainText('Storm warning for the coast');
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
+  expect(feed.asked).toEqual([FEED_ADDRESS]);
+  await review.getByTestId('cue-connect-confirm').click();
+
+  const headlines = 'Storm warning for the coast\nMarkets close higher\nLocal team wins final';
+  await expect(program.locator('#f0')).toHaveText(headlines, { timeout: 10_000 });
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Connected to News feed');
+  await expect(page.getByTestId('cue-connected-mark')).toContainText('News feed: News Strip');
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toEqual([{ id: expect.any(String), kind: 'feed', label: 'News Strip', config: { url: FEED_ADDRESS } }]);
+  expect(stored.bindings['News Strip']).toEqual({ f0: `feed.${stored.sources[0].id}.lines` });
+  const line = page.getByTestId('sources-line');
+  await expect(line).toContainText('News feed: News Strip');
+  await expect(line.locator('[data-testid^="source-line-"]')).toHaveAttribute('title', /about every 5 min/);
+
+  // The feed fails: Resume reads at once, nothing is written, the ticker keeps its list, and the
+  // line says what failed and since when.
+  feed.failing = true;
+  feed.items = ['Should not air'];
+  await line.getByTestId('source-pause').click();
+  await expect(line.getByTestId('source-pause')).toHaveText('Resume');
+  await line.getByTestId('source-pause').click();
+  await expect(line.getByTestId('source-status')).toContainText(/the feed answered 500 since \d{1,2}[:.]\d{2}/, { timeout: 10_000 });
+  await expect(line.getByTestId('source-fix')).toContainText('Reading carries on by itself');
+  await expect(program.locator('#f0')).toHaveText(headlines);
+  await expect(page.getByTestId('cue-bound-f0').locator('textarea')).toHaveValue(headlines);
 });

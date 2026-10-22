@@ -1,6 +1,9 @@
 // THE SERVER TICK (docs/work-specs/data-sources/spec.md, phase C2; sheet-data-flow AC-4, AC-5):
 // once a minute, read the published Sheet sources no open page is reading, and write what changed
-// through `control_data_apply` with the label 'sheet' (migration 0097). A helper, not a function:
+// through `control_data_apply` with the label 'sheet' (migration 0097). Published news feeds
+// (C4, migration 0099) are read the same way, through the feed reader's shared cache
+// (api/_lib/feedFetch.ts), so a feed is still fetched at most once every 5 minutes; their rows
+// carry the same label, which names the server tick rather than the kind of source. A helper, not a function:
 // the route is `/api/data/tick`, a guarded segment of api/data/[...path].ts, called by the Vercel
 // cron in vercel.json with the project's `Authorization: Bearer <CRON_SECRET>`.
 //
@@ -29,6 +32,7 @@ import {
   type SheetShape,
   type SheetStatus,
 } from '../../src/control/sheetSource.js';
+import { feedRead, type FeedRouteAnswer } from '../../src/control/feedSource.js';
 import type { FieldDescriptor, FieldKind } from '../../src/model/fieldModel.js';
 
 /** No read starts this long after the tick began (the record: 10 s reads, a 30 s function). */
@@ -50,7 +54,9 @@ export const TICK_OWNER = 'tick';
 /** One published source the tick may read (control_data_tick_due). */
 export interface DueSource {
   slug: string;
-  source: { id: string; kind: string; config: { sheetId: string; gid: string | null; published?: boolean; shape: SheetShape } };
+  source:
+    | { id: string; kind: 'sheet'; config: { sheetId: string; gid: string | null; published?: boolean; shape: SheetShape } }
+    | { id: string; kind: 'feed'; config: { url: string } };
   bindings: Record<string, Record<string, string>>;
   /** Pool graphic name -> its published fields (the panel's `fields`). */
   fields: Record<string, PanelField[]>;
@@ -73,6 +79,8 @@ export interface TickIo {
   commit: (slug: string, source: string, claim: string, writes: Record<string, string>, state: SheetReadState) => Promise<CommitAnswer>;
   record: (startedAt: number, durationMs: number, sources: TickOutcome[]) => Promise<void>;
   fetch: SheetFetch;
+  /** One read of a feed through the shared cache (api/_lib/feedFetch.ts `readFeed`). */
+  feed: (address: string, signal: AbortSignal) => Promise<FeedRouteAnswer>;
   setTimer: (run: () => void, ms: number) => unknown;
   clearTimer: (timer: unknown) => void;
 }
@@ -176,8 +184,12 @@ async function readOne(io: TickIo, due: DueSource, startedAt: number): Promise<T
     const cut = io.setTimer(() => abort.abort(), Math.max(0, Math.min(SHEET_TIMEOUT_MS, startedAt + READS_END_MS - io.now())));
     let result;
     try {
-      const { sheetId, gid, published } = due.source.config;
-      result = await readSheet(io.fetch, { sheetId, gid, ...(published ? { published } : {}) }, abort.signal);
+      if (due.source.kind === 'feed') {
+        result = feedRead(await io.feed(due.source.config.url, abort.signal));
+      } else {
+        const { sheetId, gid, published } = due.source.config;
+        result = await readSheet(io.fetch, { sheetId, gid, ...(published ? { published } : {}) }, abort.signal);
+      }
     } finally {
       io.clearTimer(cut);
     }
@@ -189,7 +201,7 @@ async function readOne(io: TickIo, due: DueSource, startedAt: number): Promise<T
       return descriptors.get(graphic)!;
     };
     const accept = (path: string, text: string) => pathValue(connectedFields(due.bindings, path, fieldsOf), text);
-    const shape = due.source.config.shape;
+    const shape = due.source.kind === 'feed' ? 'lines' : due.source.config.shape;
     const { next, writes } = nextReadState(held, result, { sourceId: due.source.id, shape, connected, accept }, io.now(), 'server');
     const kept = await io.commit(due.slug, due.source.id, claim, writes, next);
     const ms = io.now() - at;

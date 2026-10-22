@@ -87,6 +87,32 @@ test('a YouTube source with a key, or a mode it does not know, does not read as 
   assert.notDeepEqual(showTypeErrors(odd), []);
 });
 
+// C4 adds news feeds to `Show.sources`: an address, read through NoaCG's feed route, whose
+// headlines fill a ticker at `feed.<id>.lines`. The earlier record with a feed added still reads,
+// and its other fields play the same.
+const withFeed = {
+  ...show,
+  sources: [{ id: 'f1', kind: 'feed', label: 'Yle', config: { url: 'https://yle.fi/rss/uutiset/paauutiset' } }],
+  bindings: { ...show.bindings, 'News Strip': { f0: 'feed.f1.lines' } },
+};
+
+test('with a news feed connected to its ticker it still reads as a Show, and every other field plays the same (C4)', () => {
+  assert.deepEqual(showTypeErrors(withFeed), []);
+  const live = { ...liveData, feed: { f1: { lines: 'First\nSecond' } } };
+  const resolved = resolveBindings(live, withFeed.bindings);
+  assert.deepEqual(resolved.Hairline, resolveBindings(liveData, show.bindings).Hairline);
+  assert.equal(resolved['News Strip'].f0, 'First\nSecond');
+});
+
+test('a feed source carrying anything but its address, or a kind it does not know, does not read as a Show (C4)', () => {
+  const keyed = structuredClone(withFeed);
+  keyed.sources[0].config.password = 'x';
+  assert.notDeepEqual(showTypeErrors(keyed), []);
+  const odd = structuredClone(withFeed);
+  odd.sources[0].kind = 'rss';
+  assert.notDeepEqual(showTypeErrors(odd), []);
+});
+
 test('it plays unchanged: each cue with the live tree over its bound fields is what PROGRAM showed', () => {
   const resolved = resolveBindings(liveData, show.bindings);
   for (const [name, fields] of Object.entries(onAir)) {

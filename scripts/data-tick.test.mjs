@@ -1,4 +1,4 @@
-// guards: api/_lib/dataTick.ts, api/_lib/systemSettings.ts, api/data/[...path].ts, vercel.json
+// guards: api/_lib/dataTick.ts, src/control/feedSource.ts, api/_lib/systemSettings.ts, api/data/[...path].ts, vercel.json
 //
 // THE SERVER TICK (docs/work-specs/data-sources/spec.md, phase C2; sheet-data-flow AC-4, AC-5),
 // run in Node against the JavaScript tree Vercel emits for the data function (api-runtime-build
@@ -11,7 +11,8 @@
 // survives the handover), skips a source a page leased first, lets every lease go, keeps the
 // 10-second read timeout, starts no read after 20 seconds, ends every read by 26 seconds, and
 // records its start, duration and outcomes; a field's own form is written (TRUE is 1 for a
-// toggle); an oversized tab is not read; vercel.json keeps the function's 30 s cap and the
+// toggle); an oversized tab is not read; a published feed is read through the feed reader's
+// shared cache, never fetched by the tick itself (C4); vercel.json keeps the function's 30 s cap and the
 // once-a-minute cron.
 
 import assert from 'node:assert/strict';
@@ -183,6 +184,31 @@ test('a tick reads the due sources under the lease, writes a changed cell once, 
   assert.ok(w.calls.leases.filter((l) => l.ttlMs > 0).every((l) => l.ttlMs === tick.TICK_LEASE_MS));
   assert.equal(w.calls.records.length, 1);
   assert.deepEqual(w.calls.records[0].sources.map((s) => s.source).sort(), ['s1', 's2', 's3']);
+});
+
+test('a published feed is read through the feed reader, never fetched here: its headlines write feed.<id>.lines (C4)', async () => {
+  const feed = {
+    slug: 'slug-1',
+    source: { id: 'f1', kind: 'feed', label: 'News', config: { url: 'https://news.example/feed.xml' } },
+    bindings: { News: { f0: 'feed.f1.lines' } },
+    fields: { News: [{ field: 'f0', ftype: 'textarea' }] },
+  };
+  const failing = { ...feed, source: { ...feed.source, id: 'f2' }, bindings: { News: { f0: 'feed.f2.lines' } } };
+  const w = world({ due: [feed, failing], sheets: {} });
+  const asked = [];
+  w.io.feed = async (url, signal) => {
+    asked.push(url);
+    assert.ok(signal instanceof AbortSignal, 'the read carries the tick’s cut-off');
+    return asked.length === 1 ? { ok: true, items: ['First', 'Second'] } : { ok: false, error: 'the feed answered 500', fix: 'Reading carries on by itself.', items: ['Old'] };
+  };
+  const run = await tick.runDataTick(w.io);
+  assert.deepEqual(Object.fromEntries(run.sources.map((s) => [s.source, s.outcome])), { f1: 'read', f2: 'failed' });
+  assert.deepEqual(w.calls.fetched, [], 'no fetch of its own');
+  assert.deepEqual(asked, ['https://news.example/feed.xml', 'https://news.example/feed.xml']);
+  assert.deepEqual(w.calls.commits.find((c) => c.source === 'f1').writes, { 'feed.f1.lines': 'First\nSecond' });
+  const f2 = w.calls.commits.find((c) => c.source === 'f2');
+  assert.deepEqual(f2.writes, {}, 'a failed read writes nothing, older headlines or not');
+  assert.equal(f2.state.status.state, 'failing');
 });
 
 test('a read that never answers is cut at 10 s and counts as a miss; three misses are stale', async () => {

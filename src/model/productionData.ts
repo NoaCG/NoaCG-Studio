@@ -522,14 +522,17 @@ export function parseDataTree(text: string): { data: JsonObject | null; error: s
 // mapping for every field of one graphic, the operator reviews it, and one confirmation writes
 // it. Nothing here applies anything by itself: a source's arrival never binds a field.
 
-/** A data source's paths: everything under `sheet.<id>` (control/sheetSource.ts writes them). */
-export const sourcePrefix = (sourceId: string): string => `sheet.${sourceId}`;
+/** A data source's paths: everything under `sheet.<id>`, or `feed.<id>` for a news feed
+ *  (control/sheetSource.ts and control/feedSource.ts write them). */
+export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed' = 'sheet'): string => `${kind}.${sourceId}`;
 
-/** Whether a connected path is one this source writes. */
-export const isSourcePath = (sourceId: string, path: string): boolean => path.startsWith(`${sourcePrefix(sourceId)}.`);
+/** Whether a connected path is one this source writes. Source ids are unique, so the id decides. */
+export const isSourcePath = (sourceId: string, path: string): boolean =>
+  path.startsWith(`${sourcePrefix(sourceId)}.`) || path.startsWith(`${sourcePrefix(sourceId, 'feed')}.`);
 
 /** The source a connected path follows, or null for a path no source writes. */
-export const sourceIdOf = (path: string | undefined): string | null => (path?.startsWith('sheet.') ? path.split('.')[1] || null : null);
+export const sourceIdOf = (path: string | undefined): string | null =>
+  path?.startsWith('sheet.') || path?.startsWith('feed.') ? path.split('.')[1] || null : null;
 
 /** Every connected path that follows this source, across the production's graphics. */
 export function sourcePaths(bindings: ProductionBindings | undefined, sourceId: string): { graphic: string; fieldId: string; path: string }[] {

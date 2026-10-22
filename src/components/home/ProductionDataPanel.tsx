@@ -18,7 +18,7 @@ import {
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
-import { addGraphicToShow, preparedMessageField, setFieldBinding, setFieldBindings, setShowSeedData, type Show, type ShowSource } from '../../model/shows';
+import { addGraphicToShow, fillsFields, preparedMessageField, sourceKindWord, setFieldBinding, setFieldBindings, setShowSeedData, type FieldShowSource, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
@@ -535,12 +535,12 @@ function OverviewValue({ leaf, name, users, list, connected, edits }: { leaf: Da
 
 /** A source on the overview: what it is, who reads it and how often, checked versus changed,
  *  Pause, and the graphics that follow it (data-sources AC-9's source details). */
-function OverviewSource({ show, setShows, source, store, pool }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; pool: ReadonlySet<string> }) {
+function OverviewSource({ show, setShows, source, store, pool }: { show: Show; setShows: (shows: Show[]) => void; source: FieldShowSource; store: SourceStatusStore; pool: ReadonlySet<string> }) {
   const { status, now } = useSourceStatus(store, source.id);
   const graphics = [...new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))].filter((g) => pool.has(g));
   return (
     <div className="pd-bind-graphic-head" data-testid={`data-source-${source.id}`}>
-      <h4>Sheet: {source.label}</h4>
+      <h4>{sourceKindWord(source)}: {source.label}</h4>
       <span className="hint" data-testid="data-source-status">
         {statusWords(source.paused, status, now, false)}
         {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
@@ -550,7 +550,7 @@ function OverviewSource({ show, setShows, source, store, pool }: { show: Show; s
         ))}
       </span>
       <span className="hint" data-testid="data-source-reader">
-        {readerWords(source.paused, status)}
+        {readerWords(source.paused, status, source.kind)}
       </span>
       <span className="hint" data-testid="data-source-users">
         {graphics.length > 0 ? `Followed by ${graphics.join(', ')}` : 'No graphic follows it'}
@@ -581,8 +581,8 @@ function DataOverview({
   store: SourceStatusStore;
   edits: ValueEdits;
 }) {
-  // Only a Sheet tab holds values; a YouTube source feeds Messages alone.
-  const sources = (show.sources ?? []).filter((s) => s.kind === 'sheet');
+  // Only a Sheet tab or a feed holds values; a YouTube source feeds Messages alone.
+  const sources = (show.sources ?? []).filter(fillsFields);
   // A Sheet's values outlive its disconnection in the tree, following nothing: they are not local
   // content, and they stay reachable under Advanced.
   const local = leaves.filter((leaf) => !sourceIdOf(leaf.path));
@@ -611,7 +611,7 @@ function DataOverview({
           <OverviewSource show={show} setShows={setShows} source={source} store={store} pool={pool} />
           {leaves
             .filter((leaf) => isSourcePath(source.id, leaf.path))
-            .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id).length + 1)))}
+            .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id, source.kind).length + 1)))}
         </div>
       ))}
       {(local.length > 0 || sources.length === 0) && (
