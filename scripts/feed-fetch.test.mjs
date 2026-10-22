@@ -407,6 +407,10 @@ test('hostile markup of 5 MB parses in under 2 seconds each: the parser scans fo
     'open tags piled in one item': fill('<rss><item>', '<a>', '<title>x</title></item></rss>'),
     'stray closes in one item': fill('<rss><item><a><b><c>', '</z>', '<title>x</title></item></rss>'),
     'unclosed CDATA': fill('<rss><item><title>', '<![CDATA[', '</title></item></rss>'),
+    // Copying an item's child list on every append took 98 s for 0.7 MB of these.
+    'many closed children in one item': fill('<rss><item><title>x</title>', '<a></a>', '</item></rss>'),
+    // The 16 KB a title keeps, cut inside a run of CDATA openers, in every item.
+    'CDATA openers in many titles': fill('<rss>', `<item><title><![CDATA[${'<![CDATA['.repeat(1820)}]]></title></item>`, '</rss>'),
   };
   for (const [name, xml] of Object.entries(cases)) {
     const started = performance.now();

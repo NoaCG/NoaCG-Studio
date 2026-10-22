@@ -386,10 +386,15 @@ const escapeHtml = (text: string): string => text.replace(/&/g, '&amp;').replace
  */
 function plainText(inner: string, html: boolean): string {
   let markup = '';
-  for (const part of inner.split(/(<!\[CDATA\[[\s\S]*?\]\]>)/)) {
-    if (part.startsWith('<![CDATA[')) markup += part.slice(9, -3);
-    else if (html) markup += decodeEntities(stripTags(part), XML_ENTITIES);
-    else markup += escapeHtml(decodeEntities(stripTags(part), XML_ENTITIES));
+  // Forward only: a lazy CDATA regex rescans to the end from every unclosed `<![CDATA[`.
+  for (let at = 0; at < inner.length; ) {
+    const open = inner.indexOf('<![CDATA[', at);
+    const close = open < 0 ? -1 : inner.indexOf(']]>', open + 9);
+    const part = inner.slice(at, close < 0 ? inner.length : open);
+    markup += html ? decodeEntities(stripTags(part), XML_ENTITIES) : escapeHtml(decodeEntities(stripTags(part), XML_ENTITIES));
+    if (close < 0) break;
+    markup += inner.slice(open + 9, close);
+    at = close + 3;
   }
   const out = decodeEntities(stripTags(markup), HTML_ENTITIES)
     // eslint-disable-next-line no-control-regex
@@ -461,7 +466,11 @@ function element(xml: string, name: string, from = 0, mask = xml): { attrs: stri
 function childrenOf(inner: string): Map<string, { attrs: string; inner: string }[]> {
   const mask = maskCdata(inner);
   const kids = new Map<string, { attrs: string; inner: string }[]>();
-  const add = (name: string, kid: { attrs: string; inner: string }) => kids.set(name, [...(kids.get(name) ?? []), kid]);
+  const add = (name: string, kid: { attrs: string; inner: string }) => {
+    const list = kids.get(name);
+    if (list) list.push(kid);
+    else kids.set(name, [kid]);
+  };
   const open: { name: string; attrs: string; start: number }[] = [];
   let at = 0;
   for (let lt = mask.indexOf('<', at); lt >= 0; lt = mask.indexOf('<', at)) {
