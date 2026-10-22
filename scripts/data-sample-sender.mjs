@@ -18,13 +18,13 @@
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
-/** Names compared as the Connect review compares them: case, accents and punctuation aside. */
+/** Names compared case, accents and punctuation aside, in any script (`名前` stays `名前`). */
 export const sameName = (name) =>
   String(name)
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '');
+    .replace(/[^\p{L}\p{N}]+/gu, '');
 
 /** Read and check the acquired file. Throws, with the reason, on anything that is not a report. */
 export async function acquire(file, read = readFile) {
@@ -55,18 +55,29 @@ export async function acquire(file, read = readFile) {
 /**
  * Normalize: each destination takes the record named like its field (or like its path's last
  * segment), as text. Unmatched destinations are not sent, so they keep what they show; records no
- * destination names are reported, never guessed into a field.
+ * destination names are reported, never guessed into a field. Two records that read as the same
+ * name, or a name that is only punctuation, match nothing: the field is reported, never filled
+ * with the other record's value.
  */
 export function normalize(example, records) {
+  const AMBIGUOUS = { name: null, value: null };
   const byName = new Map();
-  for (const [name, value] of Object.entries(records)) byName.set(sameName(name), { name, value: String(value) });
+  for (const [name, value] of Object.entries(records)) {
+    const key = sameName(name);
+    if (key === '') continue;
+    byName.set(key, byName.has(key) ? AMBIGUOUS : { name, value: String(value) });
+  }
+  const find = (name) => {
+    const key = sameName(name);
+    return key === '' ? undefined : byName.get(key);
+  };
   const patch = {};
   const sent = [];
   const missing = [];
   const used = new Set();
   for (const field of example.fields ?? []) {
-    const hit = byName.get(sameName(field.label)) ?? byName.get(sameName(field.path.split('.').pop()));
-    if (!hit) {
+    const hit = find(field.label) ?? find(field.path.split('.').pop());
+    if (!hit || hit === AMBIGUOUS) {
       missing.push(field.label);
       continue;
     }

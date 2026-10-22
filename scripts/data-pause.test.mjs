@@ -214,6 +214,12 @@ test('the sender names its synthetic records after the unfamiliar fields, and re
   const clash = normalize({ fields: [{ path: 'api.a.b', label: 'Leading' }, { path: 'api.a.b.c', label: 'Margin' }] }, records);
   assert.deepEqual(clash.patch, { api: { a: { b: 'Harbour List' } } });
   assert.deepEqual(clash.missing, ['Margin']);
+  // Names in any script stay distinct; two records that read as one name fill neither field.
+  const jp = normalize({ fields: [{ path: 'api.x.name', label: '名前' }, { path: 'api.x.score', label: '得点' }] }, { 名前: '田中', 得点: 9 });
+  assert.deepEqual(jp.patch, { api: { x: { name: '田中', score: '9' } } });
+  const twins = normalize({ fields: [{ path: 'api.x.m', label: 'Margin' }, { path: 'api.x.c', label: 'Counted' }] }, { 'Margin %': '1', margin: '2', Counted: '3', '%%': '4' });
+  assert.deepEqual(twins.patch, { api: { x: { c: '3' } } });
+  assert.deepEqual(twins.missing, ['Margin']);
 });
 
 test('a failed acquisition sends nothing: a cut-off file, a missing one, no records, a value that is not text', async () => {

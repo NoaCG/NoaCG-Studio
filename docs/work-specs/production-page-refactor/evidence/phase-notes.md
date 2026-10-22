@@ -44,7 +44,7 @@ changes a spec's digest.
     to the key on a database that has not run 0100.
   The cases are `scripts/data-pause-conformance.mjs`, embedded as a `$pause$` literal in 0100 and
   run by its self-check on the real bodies (eighteen cases); `data-pause` fails when the two differ.
-  Mutation checks of the final bodies (nine, each turned the self-check red, run on the local
+  Mutation checks of the final bodies (ten, each turned the self-check red, run on the local
   stack in a rolled-back transaction): held values laid under the diff instead of over it;
   `/update` held without merging per field; the paused API branch removed; the API's paused write
   landing in `data`; a held `/update` kept after a press (and, found by assessment A, kept after a
@@ -92,7 +92,10 @@ changes a spec's digest.
   - The sample sender (`scripts/data-sample-sender.mjs`) reads one local synthetic file, names its
     records after the destination labels, sends one patch and prints the receipt; a failed
     acquisition (missing, cut off, no records, a non-scalar value) or a report naming no field
-    sends nothing; the key comes from `NOACG_DATA_KEY` and is never printed. Fixtures are an
+    sends nothing; the key comes from `NOACG_DATA_KEY` and is never printed. Names match in any
+    script, and two records that read as one name (or a name of punctuation only) fill no field
+    (from the PR's automated review: an ASCII-only match sent one record's value to every
+    non-Latin field). Fixtures are an
     unfamiliar custom "Riverside count" board and invented count-night numbers, labelled
     synthetic.
   - "Offline e2e: the receipt": the offline suite has no backend, so it cannot hold a receipt;

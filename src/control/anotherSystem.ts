@@ -19,7 +19,7 @@ export const isApiPath = (path: string | null | undefined): boolean => !!path &&
 export function pathKey(name: string, fallback: string): string {
   const key = name
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
