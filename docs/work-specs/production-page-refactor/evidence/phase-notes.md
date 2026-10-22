@@ -62,6 +62,23 @@ changes a spec's digest.
   join check is anchored and linear.
 - **Limits pinned by a literal:** the reconnect ladder (1, 2, 4, 8, 16, 30, 30 s), the 25-character
   login, the 10-in-10-seconds throttle, the five-digit `justinfan` nickname.
+- **Runs.** The whole configured suite on `e53b7e7` (run 39838648044): 124 passed, 0 failed, 3
+  allowed skips, the new audience walk included. The full offline suite on `86ebdd9` (run
+  39843292132, `ci.yml` dispatched with no base): 15 of 15 shards green. Quarantined specs are
+  outside both PR and dispatch shards; `production-chat-intake.spec.ts` is one, so its YouTube
+  journeys are local-run evidence only (rehearsal.md says so per row).
+- **Assessment A+** (a fresh read-only `/so` session on the diff and the rehearsal at `93a83e5`):
+  PASS WITH NOTES. Its findings and what was done: the Row 13 heading this entry had overwritten
+  (restored); the YouTube rows rested on a quarantined spec that CI does not run on a branch
+  (restated on the Node tests and the live smoke, the journeys named as local evidence); the
+  configured run unfinished (finished green, recorded); the pushed-score row's offline citation
+  pushes nothing (restated on the configured spec); the four boards on real CasparCG/Bridge and
+  OBS, the actual consumer and a browser output receiving a data update not named as unverified
+  (named; the browser-output halves cited separately); operator-page closure checks rows, not
+  PROGRAM (said so); the guest edit's landing unchecked (now checked); the trial kit ran the
+  message tasks on a published production and named a lower third no task uses and a real-shaped
+  phone number (two productions, the lower third dropped, the number zeroed, task 8 tied to its
+  row); the mutant count (corrected to 18).
 - **Advisor judgement:** none needed; no migration and no database object.
 - **Traps.**
   - A clock's reading survives a re-take (it resumes from its origin), so "the clock was not

@@ -49,7 +49,7 @@ marked **(new)**.
 | A Sheet ticker | `production-data` "Connect data previews the whole graphic…", "twelve Sheet rows reach a ticker on air…" | whole-graphic connect in one confirmation; twelve rows reach a running ticker with no new entrance; an emptied tab clears it | pass |
 | Schedule, standings and credits from a Sheet | `production-data` "Sheet tabs fill a schedule, standings and credits on air…" **(new)** | each board connected to its own tab; each tab's change reaches its board on air; no new entrance | pass |
 | A feed | `production-data` "a pasted news feed fills a ticker…"; `scripts/feed-source.test.mjs`; `e2e/configured/feed-route.spec.ts` | headlines fill a ticker; a failed fetch keeps the list and says since when; two readers make one upstream fetch | pass |
-| A pushed score | `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…"; `scripts/data-pause.test.mjs` (the sender); offline, `production-data` "Another system connects a whole graphic in one confirmation…" connects the graphic and generates the sender but pushes nothing | the card key pushes a connected graphic; Pause holds every write; Resume sends the final values once | rests on the configured spec alone (quarantined, see Known issues): see "Runs" |
+| A pushed score | `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…"; `scripts/data-pause.test.mjs` (the sender); offline, `production-data` "Another system connects a whole graphic in one confirmation…" connects the graphic and generates the sender but pushes nothing | the card key pushes a connected graphic; Pause holds every write; Resume sends the final values once | pass, on the configured spec alone: it is quarantined on main (#1608), and it ran and passed in the configured run below |
 | A guest row | `production-data` "a guest row loads into a lower third and airs on Take…" **(new)** | one table row fills one cue; Take airs it; editing and deleting the row leave PROGRAM as taken | pass |
 | Pasted messages | `e2e/production-audience.spec.ts` "a pasted message airs exactly as prepared…"; `e2e/configured/audience-live.spec.ts` "a pasted message on a published production…" | the prepared version airs; a second message, an edit and a new arrival cannot change it; published through the operator door | pass |
 | Sheet messages | `production-audience` "a message Sheet: rows arrive as candidates…"; `audience-live` "a message Sheet on a published production…"; `scripts/sheet-messages.test.mjs` | rows become candidates; reorder, edit and identical rows keep identity; a vanished row keeps a used candidate | pass |
@@ -68,7 +68,7 @@ marked **(new)**.
 | Pause | "Connect data previews… Pause"; "the Playout sources line… pauses there"; `production-data-key-tick` "holds a Pause from the row"; `production-data-key` "Pause holds every write" | pass |
 | Disconnect | "Connect data previews… Disconnect"; `scripts/sheet-source.test.mjs` "a late read after Disconnect writes nothing"; `scripts/feed-source.test.mjs` "an answer that arrives after Disconnect or Stop writes nothing" | pass |
 | Reload | "a bound field takes the LIVE value on air…" (the tree survives a reload); "Paste rows…" (reload keeps pasted rows); "the audience workspace survives a workspace round trip and a reload"; "a reader stopped in one browser…"; `production-data-key-tick` (Pause shows after reload) | pass |
-| Operator-page closure | `e2e/configured/production-data-key-tick.spec.ts` (with the page gone, the server tick reads a published source whose lease expired, skips a leased one, holds a Pause from the row) | the spec checks the rows the tick writes to the command log, not PROGRAM or an output picture; on the local stack with its test secret; production's switch untouched. See "Runs" |
+| Operator-page closure | `e2e/configured/production-data-key-tick.spec.ts` (with the page gone, the server tick reads a published source whose lease expired, skips a leased one, holds a Pause from the row) | the spec checks the rows the tick writes to the command log, not PROGRAM or an output picture; on the local stack with its test secret; production's switch untouched. Pass |
 
 ### Custom graphics, overrides and readers
 
@@ -119,7 +119,8 @@ no horizontal scroll; the phone sends a message, which appears under "What you s
 operator's inbox; the presenter link opens and reads "Nothing queued yet."; pointing "Now" at the
 message changes the presenter view to it and nothing goes on air; a vote opens, the phone votes,
 the operator's tally reads 1, staging writes the vote cue and nothing goes on air; selecting the
-cue airs nothing; Take airs the question and its options. Result: see "Runs". Findings: see below.
+cue airs nothing; Take airs the question and its options. Result: **pass** on its first run (24 s,
+configured run below). Findings: none.
 
 ## Audience AC-9: provider support, stated honestly
 
@@ -196,9 +197,31 @@ Result: **pass** for the YouTube live chat route on a live stream, as far as a k
 - #1606 (P3): no conformance case pins the Pause snapshot of an untouched path. Touches the API
   Pause/Resume route.
 - `e2e/configured/production-data-key.spec.ts` is quarantined (#1608, a fail-then-pass on one
-  commit): its result in the configured run below is recorded as it came, and a quarantined spec
-  still runs there.
+  commit). On main it reds nothing; on a branch dispatch, as here, it runs as any spec does, and
+  both its tests passed.
 
 ## Runs
 
-RUNS_PLACEHOLDER
+All on branch `claude/plan-production-page-p14-build`.
+
+| What | Revision | Run | Result |
+| --- | --- | --- | --- |
+| The whole configured suite, local Supabase stack (`configured-suite.yml`, dispatched) | `e53b7e7` | [39838648044](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39838648044) | 124 passed, 0 failed, 0 flaky, 3 skipped (the allowed skips in `expected-run.json`); the new published walk among them |
+| The full offline suite (`ci.yml`, dispatched with no base, so every shard) | `86ebdd9` | [39843292132](https://github.com/NoaCG/NoaCG-Studio/actions/runs/39843292132) | 15 of 15 E2E shards green with no retry; Build, Factory gates and CI gate green |
+| Node, this worker | `86ebdd9` | `node --test scripts/twitch-chat.test.mjs scripts/chat-intake.test.mjs scripts/youtube-chat.test.mjs` | 22 of 22 |
+| Affected offline specs, this worker (job queue) | `21256cc` | `production-data`, `production-audience`, `production-chat-intake` | 65 passed, 2 failed, both filed: `production-chat-intake.spec.ts:311` (#1595) and "Connect closes only once the save landed" (#1603) |
+| The four new journeys after the review edits, this worker | `21256cc`, `86ebdd9` | `production-data.spec.ts -g …` | all pass |
+| YouTube live smoke, this worker | `e53b7e7` (reader unchanged since) | one-off, uncommitted | pass, above |
+
+`e2e/configured/` is unchanged between `e53b7e7` and `86ebdd9`, so the configured run covers the
+same specs; the commits after it touch only `scripts/`, one line of `src/audience/twitchChat.ts`,
+`e2e/production-data.spec.ts` and this folder's evidence.
+
+What the full offline run does not include: the specs in `e2e/quarantine.json` leave the PR and
+dispatch shards and run only on main (`quarantine.yml`). For this rehearsal that is
+`e2e/production-chat-intake.spec.ts` (#1595), so its YouTube journeys are evidence only from this
+worker's local run, as the YouTube rows say; `e2e/rundown-history.spec.ts` and
+`e2e/wizard-shell.spec.ts` are the other two and prove no route here.
+
+The app revision of the rehearsal is therefore `86ebdd9` (offline) and `e53b7e7` (configured),
+and the merge commit that lands this file carries both unchanged.
