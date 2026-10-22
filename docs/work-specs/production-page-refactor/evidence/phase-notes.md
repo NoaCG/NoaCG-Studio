@@ -5,7 +5,69 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
-## Row 13, data-sources C6: Compatibility, truthful operation and docs
+## Row 14, data-sources C7: combined technical rehearsal (software) and the content trial kit
+
+- **Previous verified `main` sha:** C6 passed on main (#1607 at `198b685`, repair #1610 at
+  `f9c9c26`); this branch starts at `6042b4f` (main when the row began).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration, no persisted field, no setting:
+  the only product change is the Twitch reader's join check, and reverting it brings back the
+  dropped " 366 " lines.
+- **What landed.** `docs/work-specs/data-sources/evidence/rehearsal.md` (every AC-16 route, each
+  with the journey or test that proves it and its result on this build), `evidence/trial-kit.md`
+  (the eight unaided tasks of data AC-14, sheet AC-12 and audience AC-7, the six comprehension
+  questions with their right answers, the four-of-five reading guide, where findings go), the
+  Twitch regression test and its fixture, four new journeys, and one fix.
+- **Decisions.**
+  - *One production per route.* The brief says to reuse the journeys that already prove a route,
+    so the rehearsal is the union of those journeys on one build, each on its own production;
+    rehearsal.md says so at the top rather than claiming one combined production.
+  - *Journeys added only where a route had none:* the quiz reveal beside a running clock, a guest
+    row, schedule/standings/credits from a Sheet (only the ticker had a Sheet journey), and the
+    published audience walk (join on a phone, presenter view, vote; no configured spec submitted
+    from the join page or opened the presenter view).
+  - *The independent clock is a second graphic.* No quiz template carries a clock, so the quiz
+    plays beside Club Scorebug's running match clock, both bound to the data.
+  - *Twitch fixtures are written, not captured.* "Captured once" would mean a live Twitch session,
+    which is the owner's item; the frames follow Twitch's IRC wire format with invented names and
+    text, and rehearsal.md says so.
+  - *The message tasks' three questions* (audience AC-7 names "the three comprehension questions"
+    without listing them) are read as questions 1, 2 and 6 of the six, the ones a message task
+    can answer; the data tasks use all six.
+  - *The YouTube live smoke ran 3.5 minutes, not 10*, inside the five-minute cap the job queue
+    allows an uncommitted one-off selection; the spec allows at most ten.
+- **Fix.** `src/audience/twitchChat.ts`: a line was taken as the end-of-names reply when it merely
+  contained ` 366 `, so a chat message about "366 votes" was dropped and reset the reconnect
+  ladder. The numeric must now be the IRC command. Found by the new test.
+- **Mutation check** (each mutant alone, its test run):
+  - `scripts/twitch-chat.test.mjs`, 18 mutants of the reader and the intake: the old ` 366 `
+    substring, the 30 s ceiling, the ladder reset, the first wait, PONG, the CAP request, `\s`
+    unescaping, the CTCP strip, the nickname range, the display-name fallback, the asynchronous
+    error, a 26-character login, binary frames, the 10-a-window throttle, the device-token
+    prefix and the dedupe each turn it red. One survives by design: `stop()` without its
+    `clearTimeout` (the pending retry still finds the driver stopped and opens nothing), an
+    equivalent mutant.
+  - Quiz beside a clock: a data write that also re-takes every graphic goes red (the quiz returns
+    to Question); one that re-takes only the scoreboard goes red too, but on its machine state
+    (Enter, not running), not on the clock's reading: origin-based clocks resume from their stored
+    start, so the reading alone cannot see a re-take. Both checks stay.
+  - Guest row: loading always the first row goes red.
+  - Sheet boards: a data write that also re-takes the graphic goes red on the entrance count.
+  - The published audience walk runs only in the configured suite; it was not mutation-checked
+    locally (no local stack on this worker), and its first configured run is its evidence.
+- **Hostile input.** The Twitch test feeds 200,000-character frames (backslashes, tag pairs, a
+  login with no `!`, `!` runs, a tag block with no space) and requires under a second; the new
+  join check is anchored and linear.
+- **Limits pinned by a literal:** the reconnect ladder (1, 2, 4, 8, 16, 30, 30 s), the 25-character
+  login, the 10-in-10-seconds throttle, the five-digit `justinfan` nickname.
+- **Advisor judgement:** none needed; no migration and no database object.
+- **Traps.**
+  - A clock's reading survives a re-take (it resumes from its origin), so "the clock was not
+    reset" needs the machine state too.
+  - The job queue refuses a broader (12-minute) job on an uncommitted tree; a one-off live smoke
+    that must not be committed is held to the five-minute small selection.
+  - A Playwright config outside the repository resolves the base config's relative paths against
+    its own folder; run a one-off spec from inside `e2e/` instead, and delete it after.
 
 - **Previous verified `main` sha:** `7057915b44e237fa9879ec49f2363b8ab15bc123` (row 12, C5, #1604);
   this branch starts at `a285d94` (that plus the quarantine entry #1605).
