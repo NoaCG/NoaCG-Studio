@@ -221,3 +221,17 @@ test('a row settles its graphic but not another one still owed', () => {
   assert.equal(debts.heard([{ graphic: 'quiz', msg: { oid: 'q' } }])('Update failed: B.'), 'Update failed: B.', 'the score is still owed');
   assert.equal(debts.landed([{ graphic: 'score' }])('Update failed: B.'), null);
 });
+
+test('owed() counts the graphics a failed send still owes, until a landing or its own row settles them (data-sources C6)', async () => {
+  const { createSendDebts } = await import('../src/control/failedSends.ts');
+  const debts = createSendDebts();
+  assert.equal(debts.owed(), 0);
+  debts.failed([{ graphic: 'A', msg: { oid: 'a1' } }, { graphic: 'B', msg: { oid: 'b1' } }], 'A and B failed');
+  assert.equal(debts.owed(), 2);
+  debts.landed([{ graphic: 'C' }]);
+  assert.equal(debts.owed(), 2, 'another graphic landing settles neither');
+  debts.heard([{ graphic: 'A', msg: { oid: 'a1' } }]);
+  assert.equal(debts.owed(), 1);
+  debts.landed([{ graphic: 'B' }]);
+  assert.equal(debts.owed(), 0);
+});

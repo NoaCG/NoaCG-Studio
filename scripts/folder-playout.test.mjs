@@ -436,3 +436,29 @@ test('the TAKE button says what a step does and names the cues in its tooltip', 
   assert.equal(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).text, '↺ FROM THE TOP');
   assert.match(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).title, /its clips play on/);
 });
+
+test('a folder lists every child\'s own outcome, and All together names the cues that share one place (data-sources C6, AC-16)', async () => {
+  const { folderChildren } = await import('../src/control/folderAir.ts');
+  const members = [
+    { id: 'a', label: 'Score', source: 'graphic', sourceId: 'g1', values: {} },
+    { id: 'b', label: 'Clip', source: 'playout', sourceId: 'p1', values: {} },
+    { id: 'c', label: 'Lower third', source: 'graphic', sourceId: 'g2', values: {} },
+    { id: 'd', label: 'Credits', source: 'graphic', sourceId: 'g3', values: {} },
+    { id: 'e', label: 'Clip 2', source: 'playout', sourceId: 'p2', values: {} },
+  ];
+  const address = { a: 'L20', b: '1-10', c: 'L30', d: 'L20', e: '1-10' };
+  const children = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'd'], misses: { b: 'NoaCG Bridge refused it: file not found', a: 'stale miss' }, graphicsAir: true });
+  assert.deepEqual(children.map((c) => c.outcome), ['air', 'miss', 'off', 'air', 'off'], 'partial success is never one state');
+  assert.equal(children[1].why, 'NoaCG Bridge refused it: file not found');
+  assert.equal(children[0].why, undefined, 'a cue on air carries no old miss');
+  // Both sides of each collision are named, graphics and server cues alike.
+  assert.deepEqual(children.map((c) => c.sharesWith ?? []), [['Credits'], ['Clip 2'], [], ['Score'], ['Clip']]);
+  // Before the first publish a graphic that is up plays on this page only, as its row says; a
+  // server cue airs either way.
+  const unpublished = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'b'], misses: {}, graphicsAir: false });
+  assert.deepEqual(unpublished.slice(0, 2).map((c) => c.outcome), ['up', 'air']);
+  // One by one and Play through use one place in turn by design: no collision.
+  for (const mode of ['manual', 'through']) {
+    assert.ok(folderChildren(members, { mode, address: (c) => address[c.id], onAir: [], misses: {}, graphicsAir: true }).every((c) => c.sharesWith === undefined), mode);
+  }
+});

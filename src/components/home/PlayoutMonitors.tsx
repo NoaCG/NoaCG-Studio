@@ -4,6 +4,7 @@ import type { PlayoutItem, Show } from '../../model/shows';
 import type { Resolution, SpxTemplate } from '../../model/types';
 import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
+import { staleWords, type AirState, type LostHop } from '../../control/playoutStatus';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
@@ -61,6 +62,8 @@ export default function PlayoutMonitors({
   live = false,
   graphicsAir = live,
   programChip = null,
+  air = null,
+  serverLost = null,
 }: {
   /** The production's stage: both monitors' shape, never the selected cue's. */
   stage: Resolution;
@@ -101,6 +104,11 @@ export default function PlayoutMonitors({
   graphicsAir?: boolean;
   /** The timed cue's countdown that fires soonest, over PROGRAM (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1). */
   programChip?: ReactNode;
+  /** What is known of the last graphic command (control/playoutStatus.ts `programAir`, C6). */
+  air?: { state: AirState; text: string; title: string } | null;
+  /** The hop that stopped answering while server cues are up (NoaCG Bridge, or CasparCG behind
+   *  it): their names are the last known. */
+  serverLost?: LostHop | null;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
@@ -161,6 +169,8 @@ export default function PlayoutMonitors({
     return () => ro.disconnect();
   }, [stageEl]);
   const stageAspect = `${stage.width} / ${stage.height}`;
+  // A lost hop matters only while server cues are up; a lost connection always does.
+  const stale = staleWords(air?.state === 'stale', serverLayers.length > 0 ? serverLost : null);
   // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
   // is the production's shape now, so a cue of another shape has to fit inside it rather than
   // overflow its height.
@@ -268,8 +278,9 @@ export default function PlayoutMonitors({
           {serverLayers.length > 0 && (
             <span
               className="pd-layer-badge pd-server-badge"
-              title="Playing on the playout server through NoaCG Bridge."
+              title={staleWords(false, serverLost)?.badge ?? 'Playing on the playout server through NoaCG Bridge.'}
               data-testid="playout-on-air"
+              data-stale={serverLost ? true : undefined}
             >
               server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
             </span>
@@ -277,7 +288,26 @@ export default function PlayoutMonitors({
           {programChip}
         </h2>
         <div className="pd-screen">
-          <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>
+          {/* A lost connection leaves no apparently fresh picture: the last one is dimmed and says so. */}
+          <div
+            className={`pd-frame pd-frame-pgm${stale ? ' pd-frame-stale' : ''}`}
+            style={{ aspectRatio: stageAspect }}
+            data-testid="program-frame"
+            data-stale={stale ? true : undefined}
+          >
+            {/* What is known of the last command (C6): pending, logged, not confirmed, or a lost
+                connection. In the frame's corner, so the header keeps its names. Unpublished, the
+                header's NOT PUBLISHED already says this monitor is the only place. */}
+            {air && air.text && air.state !== 'local' && (
+              <span className={`pd-air-state pd-air-${air.state}`} title={air.title} data-state={air.state} data-testid="program-air">
+                {air.text}
+              </span>
+            )}
+            {stale && (
+              <span className="pd-stale-tag" title={stale.title} data-testid="program-stale">
+                {stale.tag}
+              </span>
+            )}
             <ServerStill thumb={programClip ? programThumb : null} testId="program" />
             {/* With nothing but a server clip up and no picture of it to show, PROGRAM says so
                 rather than standing blank - or claiming nothing is on air. */}

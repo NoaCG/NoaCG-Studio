@@ -13,7 +13,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
 import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
@@ -1633,6 +1633,165 @@ test('a connected field the graphic lacks is flagged, a removed graphic is named
   await page.getByTestId('cue-connect').click();
   await expect(page.getByTestId('cue-connect-legacy')).toContainText('reads a Sheet in its own code');
   await expect(page.getByTestId('cue-connect-link')).toHaveCount(0);
+});
+
+test('one way to connect a Sheet: a graphic with its own reader still updates on air, is listed without Pause, and moves here only through Stop its own reader (C6)', async ({ page }) => {
+  test.setTimeout(100_000);
+  // The graphic's own block reads this address every second, as a saved graphic's would.
+  const own = { csv: 'Name,Title\nLive Ada,From The Sheet\n' };
+  await page.context().route('http://sheet-test.local/legacy.csv', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: own.csv }),
+  );
+  await stubSheet(page, 'Name,Value\nName,Bo Chen\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Legacy Sheet');
+  await page.evaluate(async (showId) => {
+    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const template = loadShows().find((s) => s.id === showId)!.graphics[0].template;
+    const js = `${template.js}\n${liveDataBlock({ csvUrl: 'http://sheet-test.local/legacy.csv', pollSeconds: 1, fields: template.fields })}`;
+    addGraphicToShow(showId, { ...template, name: 'Legacy Card', js });
+  }, showId);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+
+  // ── Retained: listed beside the sources, honestly without a Pause it could not keep. ──
+  const ownLine = page.getByTestId('own-reader-line');
+  await expect(ownLine).toContainText('Sheet in Legacy Card’s own code');
+  await expect(ownLine).toContainText('Pause does not stop it');
+  await expect(ownLine.getByRole('button')).toHaveCount(0);
+  // The Data view lists it as a source too, and its Advanced bindings refuse a second writer,
+  // as the binding write itself does whatever the door.
+  const data = await openData(page);
+  await expect(data.getByTestId('own-reader-line')).toContainText('Pause does not stop it');
+  await expect(data.getByTestId('bind-own-reader-Legacy Card-f0')).toContainText('reads a Sheet in its own code');
+  await data.close();
+  const boundAnyway = await page.evaluate(async (showId) => {
+    const { setFieldBinding, loadShows } = await import('/src/model/shows.ts');
+    setFieldBinding(showId, 'Legacy Card', 'f0', 'guest.name');
+    return loadShows().find((s) => s.id === showId)!.bindings?.['Legacy Card'] ?? null;
+  }, showId);
+  expect(boundAnyway).toBeNull();
+
+  // ── Retained: its block still drives the graphic on air. ──
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="Legacy Card"]');
+  await expect(program.locator('#f0')).toHaveText('Live Ada', { timeout: 10_000 });
+  own.csv = 'Name,Title\nLive Grace,Second row\n';
+  await expect(program.locator('#f0')).toHaveText('Live Grace', { timeout: 10_000 });
+
+  // ── The explicit migration: Connect data… offers it first, Keep it changes nothing. ──
+  await page.getByTestId('cue-connect').click();
+  const menu = page.getByTestId('cue-connect-menu');
+  await expect(menu.getByTestId('cue-connect-legacy')).toContainText('Legacy Card reads a Sheet in its own code (http://sheet-test.local/legacy.csv)');
+  await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+  await menu.getByTestId('cue-connect-keep').click();
+  await expect(menu).toBeHidden();
+  await page.getByTestId('cue-connect').click();
+  await menu.getByTestId('cue-connect-retire').click();
+  // The reader is gone from the production's copy, the line with it, and the review is here.
+  await expect(menu.getByTestId('cue-connect-link')).toBeVisible();
+  await expect(ownLine).toHaveCount(0);
+  const legacyJs = await page.evaluate(async (showId) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === showId)!.graphics.find((g) => g.name === 'Legacy Card')!.template.js;
+  }, showId);
+  expect(legacyJs).not.toContain('== LIVE DATA');
+  await menu.getByTestId('cue-connect-link').fill(SHEET_LINK);
+  await menu.getByTestId('cue-connect-read').click();
+  await expect(menu.getByTestId('cue-connect-map')).toBeVisible();
+  await menu.getByTestId('cue-connect-confirm').click();
+  await expect(menu).toBeHidden();
+  const stored = await storedBindings(page, showId);
+  expect(stored.bindings['Legacy Card']).toEqual({ f0: `sheet.${stored.sources[0].id}.values.Name` });
+
+  // ── One writer: the production's Sheet moves the field, and the old address no longer can. ──
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Bo Chen', { timeout: 15_000 });
+  own.csv = 'Name,Title\nLive Zed,Old reader\n';
+  // Three of the old block's one-second polls, had it survived the rebuild.
+  await page.waitForTimeout(3_500);
+  await expect(program.locator('#f0')).toHaveText('Bo Chen');
+});
+
+test('a library graphic with its own reader on a published production: Stop removes it from the design for every production, and Connect waits for Publish (C6)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Stand in the backend on the network (as production-controls.spec.ts does): no remote project.
+  const backend = 'https://legacy.supabase.test';
+  await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
+    export function loadBackendConfig() { return { url: '${backend}', anonKey: 'anon-test-key' }; }
+    export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
+  ` }));
+  let resolveFixture: unknown = null;
+  await page.route(`${backend}/**`, (route) => {
+    const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const path = new URL(route.request().url()).pathname;
+    return route.fulfill({ status: 200, headers, body: path.endsWith('/rpc/control_show_resolve') ? JSON.stringify(resolveFixture) : '[]' });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const seeded = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const template = variantsFor('lower-third')[0].create({});
+    const js = `${template.js}\n${liveDataBlock({ csvUrl: 'http://sheet-test.local/library.csv', pollSeconds: 60, fields: template.fields })}`;
+    const { doc, error } = createGraphic({ ...template, js }, { name: 'Library Card' });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+    const live = createShowNamed('Live Night');
+    addGraphicToShow(live.id, doc.template, { graphicId: doc.id });
+    setShowHostedSlug(live.id, 'legacy-slug');
+    setShowOutputSlug(live.id, 'legacy-output');
+    const other = createShowNamed('Other Night');
+    addGraphicToShow(other.id, doc.template, { graphicId: doc.id });
+    const output = await buildOutputPayload(loadShows().find((s) => s.id === live.id)!);
+    output.ver = await stampPayload(output, null);
+    return { docId: doc.id, fixture: { id: live.id, title: live.name, output, live: {}, staged: {}, last_event_id: 0 } };
+  });
+  resolveFixture = seeded.fixture;
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${seeded.fixture.id}`);
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+
+  await page.getByTestId('cue-connect').click();
+  const menu = page.getByTestId('cue-connect-menu');
+  // The removal reaches the shared design, and says how far.
+  await expect(menu.getByTestId('cue-connect-retire-scope')).toContainText('also in 1 other production using it');
+  await menu.getByTestId('cue-connect-retire').click();
+  // Published: the output runs the copy, which keeps the reader until Publish.
+  await expect(menu.getByTestId('cue-connect-publish-first')).toContainText('Publish changes, then connect here');
+  await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+  await expect(page.getByTestId('own-reader-line')).toContainText('Sheet in Library Card’s own code');
+  const after = await page.evaluate(async ({ docId, showId }) => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadShows } = await import('/src/model/shows.ts');
+    return {
+      design: loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'),
+      copy: loadShows().find((s) => s.id === showId)!.graphics[0].template.js.includes('== LIVE DATA'),
+    };
+  }, { docId: seeded.docId, showId: seeded.fixture.id });
+  expect(after).toEqual({ design: false, copy: true });
+  // What Connect holds back is recorded for the other binding doors and the Data view's tab.
+  await expect
+    .poll(() => page.evaluate(async (showId) => [...(await import('/src/model/ownReaderHolds.ts')).ownReaderHolds(showId)], seeded.fixture.id))
+    .toEqual(['Library Card']);
+});
+
+test('a new graphic is offered no graphic-level Sheet panel (C6)', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
+  await expect(page.getByText(/^Operator fields ·/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Live data', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add live data' })).toHaveCount(0);
 });
 
 test('Connect closes only once the save landed, and a changed link needs a fresh read', async ({ page }) => {

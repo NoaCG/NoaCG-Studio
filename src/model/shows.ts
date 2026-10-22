@@ -14,6 +14,9 @@ import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { hasLiveData } from './liveDataMark';
+import { ownReaderHolds } from './ownReaderHolds';
+import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -786,6 +789,24 @@ export function refreshGraphicCopies(
       changed = true;
     }
     return changed;
+  });
+}
+
+/**
+ * The production's copy of a graphic with its script replaced: the own-reader migration of
+ * data-sources C6 (control/liveData.ts `ownReaderRemoval`). Refused when the copy no longer holds
+ * the script the caller read, so a teammate's change is never written over.
+ */
+export function setGraphicCopyScript(showId: string, graphicId: string, from: string, to: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show, at) => {
+    const graphic = show.graphics.find((g) => g.id === graphicId);
+    if (!graphic) return 'This graphic is no longer in the production.';
+    if (graphic.template.js !== from) return 'The graphic changed elsewhere. Open Connect data… again.';
+    if (from === to) return false;
+    graphic.template = { ...graphic.template, js: to };
+    // A changed design: the monitors rebuild on it (ProgramStage's pool signature).
+    graphic.savedAt = at;
+    return true;
   });
 }
 
@@ -1740,12 +1761,32 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
  *  with its last field whichever door unbound it, so no reader keeps reading for nothing. */
 function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
   const before = show.bindings ?? {};
-  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId));
+  let ownReaders: Set<string> | null = null;
+  const readsOwn = (graphic: string) =>
+    (ownReaders ??= new Set([...ownSheetGraphics(show, loadGraphics()), ...ownReaderHolds(show.id)])).has(graphic);
+  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || readsOwn(graphic));
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
   else delete show.bindings;
   pruneSources(show);
   return { changed: true, refused };
+}
+
+/**
+ * The production's graphics that still read a Sheet in their own code (the retired block,
+ * data-sources C6): in the design they play (the library record) or in the production's copy,
+ * which a published output runs until Publish replaces it. The same reach as control/liveData.ts
+ * `ownReaderGate`. Such a graphic takes no new binding, whatever the door: its block writes the
+ * fields by their titles, so a binding would make two writers. Connect data… migrates it first.
+ * The binding write also refuses what the Playout page holds back for the published output
+ * (model/ownReaderHolds.ts): a frame that may still run the reader after Publish.
+ */
+export function ownSheetGraphics(show: Pick<Show, 'graphics'>, library: GraphicDoc[]): Set<string> {
+  const out = new Set<string>();
+  for (const g of show.graphics) {
+    if (hasLiveData(g.template.js ?? '') || hasLiveData(resolveSavedGraphicDoc(g, library)?.template.js ?? '')) out.add(g.name);
+  }
+  return out;
 }
 
 /** Drop the sources no field follows and no inbox reads. */

@@ -5,6 +5,171 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 13, data-sources C6: Compatibility, truthful operation and docs
+
+- **Previous verified `main` sha:** `7057915b44e237fa9879ec49f2363b8ab15bc123` (row 12, C5, #1604);
+  this branch starts at `a285d94` (that plus the quarantine entry #1605).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no persisted field: a
+  reverted build reads every record this one wrote. A graphic whose reader was removed through
+  "Stop its own reader" stays without it after a revert (the removal is an ordinary design edit;
+  Undo in the editor or re-adding the block by hand restores it).
+- **One way to connect a Sheet (sheet AC-10).**
+  - The editor's graphic-level panel (`LiveDataControls`, in `editorFoundation/`, where the former
+    `ControlPanel.tsx` panel moved) offers nothing to a graphic without the block. A graphic that
+    has one sees what it reads and "Remove live data". The `liveData.set` editor operation stays
+    (records and tests still create the block); no UI reaches it.
+  - Exports are unchanged: `scripts/legacy-sheet-block.test.mjs` builds the SPX package from the
+    C1a fixture's Hairline, finds the block byte for byte in `js/template.js`, and runs it against
+    a CSV: it fetches its address and hands `update` the mapped row.
+  - **The explicit migration.** Connect data… on a graphic whose code reads a Sheet offers "Stop
+    its own reader" or "Keep it" instead of the review (`ownReaderGate`). Stop removes the block
+    from the library record (the design every production plays, so other productions using the
+    graphic lose it too, and the panel says how many) and, before Publish, from the production's
+    copy (`ownReaderRemoval`). Published, the copy is what the output runs, so it is left for
+    Publish to replace (`refreshGraphicCopies` takes the newer record), and Connect says "Publish
+    changes, then connect" until the copy no longer has it. A published graphic with no library
+    record cannot carry the removal to its output, so the migration is refused with that reason
+    (a rare case: an unlinked legacy copy on a published production). The review only opens once
+    no copy that plays has the block.
+  - **Every other binding door refuses too** (assessment A found the Advanced bindings table,
+    Bind all by title and a typed path could still bind such a graphic): the binding write path
+    (`applyBindings` in shows.ts, beside the prepared-message refusal) refuses a new binding on a
+    graphic whose copy or library design has the block (`ownSheetGraphics`, the same reach as
+    `ownReaderGate`), and the table says why; Bind all by title names what it skipped, a binding
+    saved before C6 stays (and can be unbound) but takes no new path, the prepared-message
+    "separate card" offer leaves the block behind, and Connect's refusal names the reader when that
+    is the cause (the delta review's findings). The block's marker
+    moved to `src/model/liveDataMark.ts` so the model can test for it without importing control/.
+    Bindings saved before C6 on such a graphic stay as they were (the C1a fixture has one).
+    Not guarded, by scope: a door that gives an already-bound graphic the block afterwards (adding
+    a legacy template under the same name, or Publish taking an older library design that still
+    has it). Nothing in the app offers the block to a graphic any more, so neither has a way in
+    short of hand-editing code.
+  - **Cross-production effect, on purpose.** Stop on a library graphic changes the shared design:
+    every production using it loses the reader (a published one at its next Publish). The panel
+    names how many other productions use it before the press.
+  - **Pause is honest.** Every graphic still reading in its own code is listed under the cue editor
+    (the Playout sources line) and on the Data overview as "Sheet in X's own code · read by the
+    graphic · Pause does not stop it", with no Pause button.
+  - The removal itself (`ownReaderOf(...).remove` in ProductionPage.tsx: the library write, the
+    copy write, the commit) is page logic beyond "presentation wiring", recorded here; its rules
+    are the Node-tested `ownReaderGate` and `ownReaderRemoval`.
+  - The page's library snapshot is re-read after the migration (`libraryRev`), so PREVIEW and
+    PROGRAM rebuild on the design the production now plays; otherwise the old block would keep
+    running in the page's own monitors until a reload. The production's copy write sets `savedAt`
+    for the same reason (ProgramStage's pool signature).
+  - `/docs` (docs.html, "A Google Sheet") now describes Connect data… and the migration;
+    `docs/PRODUCTION_DATA_PLAN.md` carries the supersession note in its status block.
+- **AC-9.** Setup's "Messages…" and "Data…", the Data overview, the Playout sources line with
+  Pause, local content without freshness and the reader/cadence/checked/changed details were
+  C1c's and are unchanged; C6 adds the own-reader line to both lists (the "explicit fallback" for
+  a reader Pause cannot reach).
+- **AC-16 presentation: which observations the output route supplies.** This page observes:
+  whether the production is published; each graphic send's answer from the command log
+  (`control_send_many` / the seq road), an accepted write and never a rendered picture; whether it
+  can reach the server (the browser's `online`/`offline`, and the resolve retrying); the outputs'
+  presence (READY); for server cues, the Bridge's answers and the server's own slot readings.
+  No output reports its picture back, and there is no per-command render acknowledgement, so
+  nothing says a picture is confirmed on air. What was added:
+  - PROGRAM's status tag (`programAir`), in the frame's bottom-left corner like PREVIEW's length
+    tag: "sending…" while a send waits, "logged HH:MM:SS" (state `logged`, never `confirmed`) once the log took it (its tooltip says
+    outputs do not report their picture), "not confirmed" while a failed send is still owed (read
+    from `sendDebts`, the page's one record of that, through a new `owed()`; a later send of
+    another graphic does not settle it), and "last logged HH:MM:SS" when the page cannot reach the server
+    (the centre tag below says the connection is lost; review found the two said it twice). Nothing pressed yet shows nothing. Unpublished it shows nothing either: the
+    header's existing PROGRAM · NOT PUBLISHED and "up, not live" already label the local
+    simulation (a first cut put "this page only" in the header, which truncated the monitor's name
+    at 1280 px; seen on the after screenshot and moved).
+  - A lost connection dims PROGRAM and puts "CONNECTION LOST · NOT LIVE" over it; NoaCG Bridge
+    not answering (its `bridge` or `server` state, not a Bridge that answers with a warning) while
+    server cues are up puts "BRIDGE NOT ANSWERING · NOT LIVE" (or "CASPARCG NOT ANSWERING" when the
+    Bridge answers but CasparCG does not: assessment A), whose badge turns amber with a "last reported"
+    tooltip (its words stay short: the header already truncates the monitor name with a long badge).
+  - The target line under the verbs (`takeTargets`): "To: this page only", "To: N outputs ·
+    CasparCG 1-20", "(not loaded)" when the output is not on its slot, or a server cue's slot
+    ("To: CasparCG 2-10"; the re-recorded baselines showed "through NoaCG Bridge" wrapping the
+    line at 1366 and 1920 px, and the server badge on PROGRAM already names the Bridge). "0 outputs" rather than a sentence, so the line never wraps the verb row.
+  - The folder panel lists every child's own outcome (ON AIR, NOT TAKEN with the reason) and, in
+    All together, names both cues of a collision ("same place as …"). The policy is the existing
+    one: All together never takes two cues to one place (two clips on a slot, two graphics on a
+    layer, two cues of one graphic); the Take is refused before anything is sent and the folder
+    says why. A first cut said "the later one replaces it", which the after screenshot showed to be
+    false (the refusal line sat right above it); corrected.
+  - Selection, PREVIEW and staged edits already had their own words (the cursor, PREVIEW's label,
+    the unsent line and ✎ Update); they are unchanged.
+  - No new confirmation protocol, renderer acknowledgement or composite renderer.
+- **Files beyond the phase's list, and why.** `src/control/liveData.ts` (the gate and removal
+  rules, Node-testable), `src/model/shows.ts` (`setGraphicCopyScript`, the copy write),
+  `src/control/playoutStatus.ts` (`programAir`, `takeTargets`: the existing Node status contract),
+  `src/control/folderAir.ts` (`folderChildren`: the existing folder contract),
+  `src/components/home/SourcesLine.tsx` and `src/components/home/ProductionDataPanel.tsx` (the
+  own-reader line on Playout and the Data overview), `src/styles/playout-dashboard.css` (the chip,
+  the stale picture, the folder rows), `docs.html` (the /docs page is this file).
+- **Baselines.** The six `playout-baseline` Linux pictures changed (the target line under the
+  verbs); re-recorded only through `rerecord-screenshots.yml`, looked at, masks and thresholds as
+  they were. The `-win32` set is not recorded from a Linux cloud worker (as in row 7).
+- **Advisor judgement:** none needed; no migration and no database object.
+- **The output's own running frame (the PR's automated review, P1).** After Publish, an output keeps
+  an on-air graphic's old frame, its embedded reader included, until the graphic is cleared
+  (`src/output/swapPlan.ts`), and a Publish that fails after refreshing the copy leaves the output
+  on the old version with a clean copy. The copy alone cannot prove the reader stopped, so the gate
+  also reads two observations of the output. The published payload this page last saw (at its
+  resolve, or its own successful Publish, read from the record as published) still carrying the
+  block keeps "Publish first". And for any graphic this page has seen with a reader (design, copy
+  or payload), Connect waits while a connected output has not wholly taken the published version:
+  it reports a change preparing, failed or waiting for an on-air graphic's clear, or holds another
+  version. A first cut read only the per-graphic "waiting for clear" list; a review of it found
+  that list misses a failed preparation, whole-page reloads and more than six graphics, so the
+  wider rule replaced it. It is limited to graphics seen with a reader, so a routine republish of
+  any other on-air graphic never blocks Connect. Not covered: the Data overview's own-reader list reads
+  design and copy only; a teammate's Publish is not seen until this page resolves again (which only
+  keeps Connect waiting longer).
+- **Every binding door reads the output too** (the automated review's second P1): the Playout page
+  records what Connect holds back per production in this browser (`src/model/ownReaderHolds.ts`,
+  key `spx-gfx-own-reader-holds:<id>`, never synced), and the binding write path and the Data
+  view's tab (through the `storage` event) refuse those graphics as well. A device-local record:
+  only a page that observes the outputs can say what they run.
+- **Across a reload** (the automated review's third P1): the graphics seen with a reader are kept in
+  the same device-local store (`spx-gfx-own-reader-former:<id>`) and restored when the page opens,
+  so a page reloaded after the migration and Publish still holds Connect and the binding doors
+  while an output runs an old frame. An entry clears only when verified: presence has joined, no
+  output reports anything pending or another version, and nothing reads in the design, the copy
+  or the published payload (an output that connects later loads the published version afresh).
+  This closes the reload gap listed above for this browser; another browser that never saw the
+  reader still does not know it.
+- **Only positive evidence clears it** (the automated review's fourth P1): an output can drop out of
+  Presence and keep running its frames, so absence proves nothing. While a graphic's history entry
+  exists, Connect and the binding doors hold it ("take it out, then connect"); the entry clears
+  only when the graphic is off air (every output still following the log takes its Out and swaps
+  to the published version), presence has joined, no output reports anything pending or another
+  version, and nothing reads in the design, the copy or the published payload. And only once this page
+  has recovered the production's live state (its resolve has answered, the wire's on-air map and
+  the rows after it applied): an empty on-air map before that is no evidence (the fifth P1).
+- **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
+  (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
+  legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.
+- **One rule for "reads a Sheet in its own code".** The sources line, the Data overview and Connect
+  data… all ask `ownReaderGate` through `ownSheetReader` (SourcesLine.tsx), so a published
+  graphic whose copy still has the block after the migration stays listed until Publish replaces
+  it, and nothing can be offered the migration without being listed (review and simplify findings).
+- `src/control/failedSends.ts` and `scripts/failed-sends.test.mjs` are touched for `owed()`;
+  `src/model/liveDataMark.ts` (new) holds the block's marker for the binding refusal;
+  `src/model/ownReaderHolds.ts` (new) carries the Playout page's holds to the other doors.
+- **Assessment A** (fresh read-only `/so` session on the diff at `bc97f3b`): PASS WITH NOTES. Its
+  findings and what was done: the binding doors (fixed, above); the CasparCG hop named as the
+  Bridge (fixed); journeys for a library graphic on a published production (added: the scope
+  count, the design stripped and the copy kept, Publish first, the own-reader line kept); the
+  `confirmed` state name (renamed `logged`); the page logic and the cross-production effect
+  (recorded above). The refusal for an unlinked graphic on a published production is pinned in
+  Node only.
+- **Traps.**
+  - The production page reads the library once per mount; a design change made from the page
+    itself must re-read it or the monitors keep the old design.
+  - The SPX export cannot be imported in Node with the `.ts` resolver (it imports `.txt` licence
+    files); bundle it with rolldown to a temp file, as `ograf-timed-exit.test.mjs` does.
+  - `context.setOffline(true)` fires the browser's `offline` event, which is what the page reads.
+
 ## Row 12, data-sources C5: "Another system" card and Pause
 
 - **Previous verified `main` sha:** `503b029976d78c5b49a758aae449df87b9649f0b` (row 11, C4, #1599 and

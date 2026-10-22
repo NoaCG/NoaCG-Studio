@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   deletePath,
   flattenLeaves,
@@ -18,12 +18,16 @@ import {
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
-import { addGraphicToShow, fillsFields, preparedMessageField, sourceKindWord, setFieldBinding, setFieldBindings, setShowSeedData, type FieldShowSource, type Show } from '../../model/shows';
+import { addGraphicToShow, fillsFields, ownSheetGraphics, preparedMessageField, sourceKindWord, setFieldBinding, setFieldBindings, setShowSeedData, type FieldShowSource, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
-import { readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
+import { OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
+import { loadGraphics } from '../../model/library';
+import { ownReaderHolds, subscribeOwnReaderHolds } from '../../model/ownReaderHolds';
+import { stripLiveData } from '../../control/liveData';
+import { nameList } from './CueRundown';
 import { useDeferredEdits } from './useDeferredEdits';
 import { isApiPath } from '../../control/anotherSystem';
 
@@ -518,6 +522,8 @@ function DataOverview({
   const pushed = leaves.filter((leaf) => isApiPath(leaf.path));
   // Bindings outlive a graphic removed from the pool; only graphics still in it show anything.
   const pool = new Set(show.graphics.map((g) => g.name));
+  // A graphic reading a Sheet in its own code is a source too, one Pause cannot reach (C6).
+  const ownReaders = useMemo(() => ownSheetReaders(show.graphics, loadGraphics(), !!show.hostedSlug), [show.graphics, show.hostedSlug]);
   const row = (leaf: DataLeaf, key: string | null) => {
     const users = usersOf(show, pool, leaf.path);
     return (
@@ -542,6 +548,11 @@ function DataOverview({
           {leaves
             .filter((leaf) => isSourcePath(source.id, leaf.path))
             .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id, source.kind).length + 1)))}
+        </div>
+      ))}
+      {ownReaders.map((reader) => (
+        <div className="pd-bind-graphic" key={`own:${reader.graphic}`}>
+          <OwnReaderLine reader={reader} />
         </div>
       ))}
       {pushed.length > 0 && (
@@ -620,6 +631,15 @@ function BindingTable({
   const [armed, setArmed] = useState<string | null>(null);
   /** The last "Bind all by title" outcome, per button. Cleared by the next press of any. */
   const [bindAllNote, setBindAllNote] = useState<{ scope: BindAllScope; text: string } | null>(null);
+  /** Graphics still reading a Sheet in their own code: their fields take no binding (C6). */
+  const holdsRev = useSyncExternalStore(
+    useCallback((onChange: () => void) => subscribeOwnReaderHolds(show.id, onChange), [show.id]),
+    () => [...ownReaderHolds(show.id)].join('\n'),
+  );
+  const ownGraphics = useMemo(
+    () => new Set([...ownSheetGraphics(show, loadGraphics()), ...(holdsRev ? holdsRev.split('\n') : [])]),
+    [show, holdsRev],
+  );
 
   const graphicsWithFields = show.graphics
     .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))
@@ -655,7 +675,13 @@ function BindingTable({
     targets: { g: Show['graphics'][number]; descriptors: FieldDescriptor[] }[],
   ) => {
     const entries: { graphic: string; fieldId: string; path: string }[] = [];
+    const skipped: string[] = [];
     for (const { g, descriptors } of targets) {
+      // Its own code reads a Sheet: the binding would be refused (shows.ts `ownSheetGraphics`).
+      if (ownGraphics.has(g.name)) {
+        skipped.push(g.name);
+        continue;
+      }
       const suggestions = unambiguousSuggestions(descriptors, bindings[g.name], leaves);
       for (const fieldId of Object.keys(suggestions)) entries.push({ graphic: g.name, fieldId, path: suggestions[fieldId] });
     }
@@ -665,9 +691,12 @@ function BindingTable({
     setBindAllNote({
       scope,
       text:
-        entries.length > 0
+        (entries.length > 0
           ? `✓ ${entries.length} field${entries.length === 1 ? '' : 's'} bound`
-          : 'Nothing left to bind. No empty field has exactly one matching path.',
+          : skipped.length > 0
+            ? 'Nothing bound.'
+            : 'Nothing left to bind. No empty field has exactly one matching path.') +
+        (skipped.length > 0 ? ` ${nameList(skipped)} ${skipped.length === 1 ? 'reads' : 'read'} a Sheet in its own code: Connect data… moves it here first.` : ''),
     });
   };
   const hasFields = graphicsWithFields.length > 0;
@@ -734,6 +763,9 @@ function BindingTable({
               // the operator approved. setFieldBinding refuses it whatever the door; this says why
               // here, and offers the way that works - a separate card for the live data.
               const refused = !path && preparedMessageField(show, g.name, d.key);
+              // Its own code reads a Sheet: no new path, until Connect data… moves it here (C6). A
+              // binding saved before that stays, and can still be unbound.
+              const ownReader = !refused && ownGraphics.has(g.name);
               return (
                 <div className="pd-bind-row" key={d.key}>
                   <span className="pd-bind-field">
@@ -741,7 +773,7 @@ function BindingTable({
                   </span>
                   <input
                     value={bindEdits.text(key, path)}
-                    readOnly={refused}
+                    readOnly={refused || ownReader}
                     data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
@@ -757,14 +789,20 @@ function BindingTable({
                       Prepared messages use this field, so it cannot follow data.{' '}
                       <button
                         className="pd-bind-suggest"
-                        onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, name: separateName(g.name) }, {}).shows)}
+                        // The separate card never brings the graphic's own Sheet reader with it.
+                        onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, js: stripLiveData(g.template.js ?? ''), name: separateName(g.name) }, {}).shows)}
                         data-testid={`bind-separate-${g.name}-${d.key}`}
                       >
                         Add a separate card for live data
                       </button>
                     </span>
                   )}
-                  {suggestion && !refused && (
+                  {ownReader && (
+                    <span className="pd-bind-miss" data-testid={`bind-own-reader-${g.name}-${d.key}`}>
+                      {g.name} reads a Sheet in its own code. Connect data… on its cue moves it here first.
+                    </span>
+                  )}
+                  {suggestion && !refused && !ownReader && (
                     <button
                       className="pd-bind-suggest"
                       onClick={() => setShows(setFieldBinding(show.id, g.name, d.key, suggestion))}

@@ -119,3 +119,52 @@ test('red is for loss and faults, named, and the deciding check comes first', ()
   // A Bridge fault means nothing with CasparCG off.
   assert.deepEqual(pair(status({ bridge: { state: 'bridge', detail: '' } })), ['ok', 'Connected']);
 });
+
+test('PROGRAM says what is known of the last command, and never more (data-sources C6, AC-16)', async () => {
+  const { programAir } = await import('../src/control/playoutStatus.ts');
+  const at = Date.UTC(2026, 9, 22, 12, 3, 4);
+  const hms = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const air = (f) => programAir({ published: true, sending: 0, owed: false, loggedAt: null, lost: false, ...f });
+  // Unpublished: a local simulation, whatever else is true.
+  assert.equal(programAir({ published: false, sending: 2, owed: true, loggedAt: at, lost: true }).state, 'local');
+  assert.equal(air({}).state, 'idle', 'nothing pressed yet: nothing to say');
+  assert.equal(air({}).text, '');
+  assert.equal(air({ sending: 1, owed: true, loggedAt: at }).state, 'pending', 'a send in flight outranks the last answer');
+  const logged = air({ loggedAt: at });
+  assert.equal(logged.state, 'logged');
+  assert.equal(logged.text, `logged ${hms(at)}`);
+  // A logged command is a write the log took, never a picture somebody saw.
+  assert.match(logged.title, /not confirmed here/);
+  assert.doesNotMatch(logged.text, /on air/i);
+  // A failed send still owed outranks a later logged one: its graphic's air is not known.
+  assert.equal(air({ owed: true, loggedAt: at }).state, 'unknown');
+  // A lost connection outranks everything, and names the last time the log took a command.
+  const lost = air({ sending: 1, owed: true, loggedAt: at, lost: true });
+  assert.equal(lost.state, 'stale');
+  assert.equal(lost.text, `last logged ${hms(at)}`);
+  assert.equal(air({ lost: true }).state, 'stale');
+  assert.equal(air({ lost: true }).text, '', 'nothing logged: no time is claimed');
+});
+
+test('TAKE names where it sends: this page, the outputs and the CasparCG slot, or a server slot (C6)', async () => {
+  const { takeTargets } = await import('../src/control/playoutStatus.ts');
+  const t = (f) => takeTargets({ published: true, outputs: 0, caspar: null, casparLoaded: false, server: null, ...f });
+  assert.equal(t({ published: false, outputs: 3, caspar: '1-20', casparLoaded: true }), 'To: this page only');
+  assert.equal(t({ outputs: 1 }), 'To: 1 output');
+  assert.equal(t({ outputs: 2, caspar: '1-20', casparLoaded: true }), 'To: 2 outputs · CasparCG 1-20');
+  assert.equal(t({ caspar: '1-20' }), 'To: 0 outputs · CasparCG 1-20 (not loaded)');
+  assert.equal(t({ published: false, server: '2-10' }), 'To: CasparCG 2-10');
+  assert.equal(t({ outputs: 1, serverToo: true }), 'To: 1 output · server cues');
+});
+
+test('a picture that may no longer be air says which hop is lost: this page, NoaCG Bridge, or CasparCG behind it (C6)', async () => {
+  const { staleWords } = await import('../src/control/playoutStatus.ts');
+  assert.equal(staleWords(false, null), null);
+  assert.equal(staleWords(true, null).tag, 'CONNECTION LOST · NOT LIVE');
+  assert.equal(staleWords(true, 'server').tag, 'CONNECTION LOST · NOT LIVE', 'the page itself first');
+  assert.equal(staleWords(false, 'bridge').tag, 'BRIDGE NOT ANSWERING · NOT LIVE');
+  // The Bridge answered but CasparCG behind it did not: name CasparCG, not the Bridge.
+  assert.equal(staleWords(false, 'server').tag, 'CASPARCG NOT ANSWERING · NOT LIVE');
+  assert.match(staleWords(false, 'server').badge, /^CasparCG is not answering/);
+  assert.match(staleWords(false, 'bridge').badge, /^NoaCG Bridge is not answering/);
+});

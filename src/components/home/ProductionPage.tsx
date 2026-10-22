@@ -17,6 +17,8 @@ import {
   setShowOutputSetup,
   setShowProfile,
   refreshGraphicCopies,
+  setGraphicCopyScript,
+  productionsContaining,
   updateShowCue,
   updateShowCueChecked,
   playoutItemOf,
@@ -137,12 +139,15 @@ import { groupCueFields } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
-import SourcesLine from './SourcesLine';
+import SourcesLine, { ownSheetReader, ownSheetReaders } from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
+import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import type { SavedGraphic } from '../../model/packets';
+import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
+import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
 import { setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
@@ -270,7 +275,7 @@ import {
 import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import RailResizer, { useRailWidth } from './RailResizer';
-import CueEditor, { type CueEditorView } from './CueEditor';
+import CueEditor, { type CueEditorView, type OwnReader } from './CueEditor';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
 import { isImageAsset } from '../../assets/assetUtils';
@@ -307,7 +312,7 @@ import { useCueShortcutSet } from '../playoutKeys';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
 import { commandPathsOf, slotHolds, type PrepRequest } from '../../control/prepareLive';
-import { casparOutputTarget, describePlayoutStatus, relevantPlayout, type SlotReading, type StatusCheck, type StatusFacts } from '../../control/playoutStatus';
+import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type SlotReading, type StatusCheck, type StatusFacts } from '../../control/playoutStatus';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
@@ -424,7 +429,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     window.addEventListener('spx-data-changed', onDataChanged);
     return () => window.removeEventListener('spx-data-changed', onDataChanged);
   }, []);
-  const library = useMemo(() => loadGraphics(), []);
+  /** Bumped when this page changes a library design itself (the own-reader migration, data-sources
+   *  C6), so the monitors rebuild on the design the production now plays. */
+  const [libraryRev, setLibraryRev] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when this page changed a design
+  const library = useMemo(() => loadGraphics(), [libraryRev]);
   // Fresh picker choices must not replace the library identity held by running monitor frames.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- data-change events refresh shows and the library together
   const pickerLibrary = useMemo(() => loadGraphics(), [shows]);
@@ -710,6 +719,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * anything, which is also the offline and unpublished case - there is no channel to judge.
    */
   const [follow, setFollow] = useState<ControlFollowStatus | null>(null);
+  /** WHAT IS KNOWN OF THE LAST GRAPHIC COMMAND (data-sources C6, AC-16; control/playoutStatus.ts
+   *  `programAir`): sends still waiting for the log's answer, whether a failed one is still owed
+   *  (`sendDebts`, the one record of that), and when the log last took one. Published only; an
+   *  unpublished Take never leaves this page. */
+  const [sendingNow, setSendingNow] = useState(0);
+  const [sendOwed, setSendOwed] = useState(false);
+  const [loggedAt, setLoggedAt] = useState<number | null>(null);
+  /** The browser has no network: nothing from the server reaches this page. */
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
+  useEffect(() => {
+    const on = () => setOffline(false);
+    const off = () => setOffline(true);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
   /** The FAST road's own join status (null until it reports), for this page's Presence entry. */
   const [commandStatus, setCommandStatus] = useState<string | null>(null);
   /** The follow's resolve has FAILED and is being asked again (a database or PostgREST outage).
@@ -745,6 +773,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [outputSeenAt, setOutputSeenAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const hostedSlug = show?.hostedSlug ?? null;
+  // Another production, or the same one published or unpublished: the last answer was not its.
+  useEffect(() => {
+    setSendOwed(false);
+    setLoggedAt(null);
+  }, [hostedSlug]);
+  /** The graphics whose PUBLISHED payload still reads a Sheet in its own code, as this page last saw
+   *  it (its resolve, its own successful Publish): what the output runs, not what the copy says, so
+   *  a Publish that failed after refreshing the copy unlocks nothing (C6). */
+  const [publishedReaders, setPublishedReaders] = useState<ReadonlySet<string>>(() => new Set());
+  /** Every graphic this browser has seen with a reader (design, copy or published payload) and not
+   *  yet seen gone from every output: the ones whose outputs must be wholly on the published version
+   *  before Connect (C6). Kept across a reload (model/ownReaderHolds.ts), because a reloaded page
+   *  sees only clean scripts while an output may still run an old on-air frame. */
+  const [formerReaders, setFormerReadersState] = useState<ReadonlySet<string>>(() => new Set());
+  /** The production's live state is recovered from the wire (its resolve and the rows after it):
+   *  until then an empty on-air map is not evidence that a graphic is off air. */
+  const [liveRecovered, setLiveRecovered] = useState(false);
+  useEffect(() => {
+    setLiveRecovered(false);
+    setPublishedReaders(new Set());
+    setFormerReadersState(show ? storedFormerReaders(show.id) : new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- per production, not per record write
+  }, [hostedSlug, show?.id]);
   // Timed cues on a published production need a backend that keeps their arms (0075); with none
   // at all, nothing does.
   const armsServer = hostedSlug && !backendConfigured ? 'missing' : armsServerState;
@@ -844,6 +895,44 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     stamp: readyStamp,
     onForget: forgetOutput,
   });
+  /** WHAT THIS PAGE HAS SEEN THE PUBLISHED OUTPUT RUN, for the own-reader gate (C6): the payload's
+   *  readers, and the graphics an output keeps on an earlier frame until they are cleared (its
+   *  per-graphic replacement report, `chg.w`). */
+  // An output that reports anything still pending (preparing, failed, waiting for clear), or that
+  // holds another version than the published one, has not taken it wholly.
+  const outputsBehind = livePresence.peers.some(
+    (p) => p.kind === 'output' && !!p.ready && (!!p.ready.chg || (!!publishedVer && p.ready.v?.h !== publishedVer.h)),
+  );
+  const outputObservations = useMemo(() => ({ reads: publishedReaders, former: formerReaders }), [publishedReaders, formerReaders]);
+  const ownReaders = useMemo(
+    () => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug, outputObservations) : []),
+    [show, library, hostedSlug, outputObservations],
+  );
+  // What Connect data… holds back, recorded for the binding write path and the Data view's tab
+  // (model/ownReaderHolds.ts), so no door binds a field the old reader may still write.
+  useEffect(() => {
+    if (!show) return;
+    setOwnReaderHolds(show.id, show.graphics.filter((g) => ownSheetReader(g, library, !!hostedSlug, outputObservations).gate !== 'none').map((g) => g.name));
+  }, [show, library, hostedSlug, outputObservations]);
+  useEffect(() => {
+    if (!show) return;
+    const seen = [...publishedReaders, ...ownReaders.map((r) => r.graphic)].filter((name) => !formerReaders.has(name));
+    // Gone only on positive evidence, never on an output's absence (one can drop out of Presence and
+    // keep its frames): the graphic is off air, so every output still following the log has taken
+    // its Out and swaps it to the published version (output/swapPlan.ts); presence has joined and no
+    // output reports anything pending or another version; and nothing reads in the design, the copy
+    // or the published payload. An output that connects later loads the published version afresh.
+    // An empty on-air map before the live state is recovered is not evidence (a page reopened
+    // onto a graphic that is still up), so nothing clears until the resolve has answered.
+    const verified = !!hostedSlug && liveRecovered && livePresence.status === 'joined' && !outputsBehind;
+    const gone = verified
+      ? [...formerReaders].filter((name) => !liveCue[name] && !publishedReaders.has(name) && !ownReaders.some((r) => r.graphic === name))
+      : [];
+    if (seen.length === 0 && gone.length === 0) return;
+    const next = new Set([...formerReaders, ...seen].filter((name) => !gone.includes(name)));
+    setFormerReadersState(next);
+    setStoredFormerReaders(show.id, next);
+  }, [show, hostedSlug, liveRecovered, publishedReaders, ownReaders, formerReaders, livePresence.status, outputsBehind, liveCue]);
   /** Something that can air a graphic is reporting right now: a renderer, or this production on its
    *  CasparCG slot. Read by the send path, which decides "No output" (AC-2). */
   const usableOutput =
@@ -1099,6 +1188,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const settle = sendDebts.current.heard(items);
       if (settle) {
         setNote(settle);
+        // A failed send landed after all: the log has it now.
+        setSendOwed(sendDebts.current.owed() > 0);
+        setLoggedAt(Date.now());
         // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
         setTakeMisses((m) => {
           const kept = Object.entries(m).filter(([, missed]) => settle(missed) !== null);
@@ -1839,6 +1931,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const ver = resolved.output?.ver;
       setPublishedStamp(ver ?? null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
+      setPublishedReaders(new Set((resolved.output?.graphics ?? []).filter((g) => hasLiveData(g.js)).map((g) => g.key)));
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;
@@ -1903,6 +1996,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // see the effect below for what that distinction cost.
         setBootLive(resolved.liveCue);
       }
+      // What air holds is now known here: the wire's own answer and the rows after it.
+      setLiveRecovered(true);
       // Seed each graphic's machine state from its last published report — the page may be
       // opening onto a production another operator drove mid-sequence.
       for (const [graphic, report] of Object.entries(resolved.live)) {
@@ -2369,6 +2464,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           return spec ? { ...item, msg: { ...item.msg, auto: markerAuto(spec) } } : item;
         }),
       );
+      setSendingNow((n) => n + 1);
       try {
         // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
         // page's own monitor in zero hops - it used to wait for the whole round trip, because
@@ -2385,6 +2481,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           allOut,
         });
         setNote(sendDebts.current.landed(marked.flat()));
+        setSendOwed(sendDebts.current.owed() > 0);
+        setLoggedAt(Date.now());
         // A graphic went up with nothing reporting that could air it: the status says "No output"
         // in red until something connects (playout-workflow-simplification AC-2). Never blocked.
         if (!allOut && !usableOutputRef.current && marked.some((batch) => batch.some((item) => item.msg.t === 'play'))) setNoOutputTake(true);
@@ -2406,7 +2504,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.
         const landed = verbsLanded(e);
         sendDebts.current.failed([...(verbSentItems(e) ?? marked[landed] ?? []), ...marked.slice(landed + 1).flat()], note);
+        setSendOwed(true);
         return { ok: false, note };
+      } finally {
+        setSendingNow((n) => Math.max(0, n - 1));
       }
     },
     [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand, setCueArms],
@@ -2871,9 +2972,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer
         // is recomputed here from the library this publish pinned.
+        const pinned = loadGraphics();
         fastEventGraphicsRef.current = fastEventGraphics(
-          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, loadGraphics()) })),
+          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, pinned) })),
         );
+        // What this publish carried, read from the record as it now stands (a retry may have taken a
+        // teammate's change in): the graphics whose payload still reads a Sheet in its own code.
+        const carried = loadShows().find((s) => s.id === show.id)?.graphics ?? [];
+        setPublishedReaders(new Set(carried.filter((g) => hasLiveData(templateForSavedGraphic(g, pinned).js)).map((g) => g.name)));
         // REHEARSAL ENDS AT THE FIRST PUBLISH (AC-7): what a Take put up before it played on this
         // page only, so it leaves PROGRAM rather than be mistaken for air.
         if (!wasStarted) {
@@ -3253,6 +3359,42 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const chipGraphic = chipLane(cueArms);
 
+  /**
+   * A GRAPHIC'S OWN SHEET READER, as Connect data… meets it (sheet-data-flow AC-10, data-sources
+   * C6): whether its code still reads a Sheet where it plays, and the explicit migration that
+   * removes it (control/liveData.ts says where the block goes and why).
+   */
+  const ownReaderOf = (graphic: SavedGraphic): OwnReader => {
+    const { gate, url } = ownSheetReader(graphic, library, !!hostedSlug, outputObservations);
+    const doc = gate === 'reader' ? resolveSavedGraphicDoc(graphic, library) : undefined;
+    return {
+      gate,
+      url,
+      // Read from every stored production, so only when the migration is on offer.
+      elsewhere: doc ? productionsContaining(doc.id).filter((s) => s.id !== show?.id).length : 0,
+      remove: async () => {
+        if (!show) return 'This production is no longer open.';
+        const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
+        const plan = ownReaderRemoval({ library: !!fresh, published: !!hostedSlug });
+        if (!plan) return `${graphic.name} has no library record here, so Publish could not take the change to the output. Keep its own reader.`;
+        if (plan.library && fresh && hasLiveData(fresh.template.js)) {
+          const saved = updateGraphic(fresh.id, { template: { ...fresh.template, js: stripLiveData(fresh.template.js) } });
+          if (saved.error) return saved.error;
+        }
+        let refused: string | null = null;
+        if (plan.copy && hasLiveData(graphic.template.js)) {
+          const copied = setGraphicCopyScript(show.id, graphic.id, graphic.template.js, stripLiveData(graphic.template.js));
+          setShows(copied.shows);
+          refused = copied.error;
+        }
+        // The library write above stands whether or not the copy's did: land it and show it, so
+        // the gate and the monitors read the design as it now is.
+        const failure = await commitDurableWrites();
+        setLibraryRev((n) => n + 1);
+        return failure ? `Not saved: ${failure}` : refused;
+      },
+    };
+  };
   const takeCue = async (cue: ShowCue) => {
     if (cue.source === 'playout') {
       if (await playoutVerb(cue, 'take', 'Take')) {
@@ -3670,6 +3812,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         disabled: selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked),
         title: spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title,
       };
+
+  /** WHERE TAKE SENDS THE SELECTION (C6): a server cue to its slot, a graphic to the outputs and
+   *  the CasparCG slot this production's output is set to, or this page only before Publish. */
+  const takeTarget = (() => {
+    const held = selectedFolder ? (rundown.members.get(selectedFolder.id) ?? []) : [];
+    const serverOnly = selectedFolder ? held.length > 0 && held.every((c) => c.source === 'playout') : !!selectedPlayoutItem;
+    return takeTargets({
+      published: !!hostedSlug,
+      outputs: readiness.outputs.filter((line) => line.present).length,
+      caspar: casparOn ? `${playoutSettings.channel}-${playoutSettings.layer}` : null,
+      casparLoaded: outputSlot?.holds === 'ours',
+      server: serverOnly
+        ? selectedFolder && folderMode(selectedFolder) === 'through'
+          ? folderSlotOf(selectedFolder)
+          : [...new Set((selectedFolder ? held : selectedCue ? [selectedCue] : []).map((c) => playoutItemFor(c)).filter((i): i is PlayoutItem => !!i).map(addressOfItem))].join(', ') || null
+        : null,
+      serverToo: !!selectedFolder && !serverOnly && held.some((c) => c.source === 'playout'),
+    });
+  })();
 
   /** Run a folder's Take once at a time, and let Out and All out stop it. */
   const runFolder = async (folderId: string, work: (run: { stop: null | 'out' | 'all-out' }) => Promise<void>) => {
@@ -4899,6 +5060,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onState={noteProgramState}
           onReady={restoreProgram}
           onOverflow={notePreviewOverflow}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
+          serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (
               <ProgramAutoChip
@@ -5037,6 +5200,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 </>
               )}
             </span>
+            {/* Where TAKE sends the selection (C6, AC-16): the outputs, or this page only. */}
+            <span className="pd-onair-line pd-target-line" data-testid="verb-target">
+              {takeTarget}
+            </span>
             <SpaceModeToggle mode={spaceMode} onChange={changeSpaceMode} testId="space-mode" />
           </span>
         </div>
@@ -5052,7 +5219,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
-        <SourcesLine show={show} setShows={setShows} store={sourceStatus} />
+        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&
@@ -5066,7 +5233,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 members={heldMembers}
                 items={playoutItems}
                 air={folderStates[id]}
-                missed={heldMembers.filter((c) => c.id in takeMisses).length}
+                misses={takeMisses}
+                graphicsAir={!!hostedSlug}
                 ability={playbackAbility}
                 playoutSettings={playoutSettings}
                 slot={{ channel: slot.channel, layer: slot.layer, set: selectedFolder.slot?.channel !== undefined || selectedFolder.slot?.layer !== undefined }}
@@ -5155,6 +5323,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             sourceStatus={sourceStatus}
             fieldsOf={fieldsOf}
             onConnectPreview={(values) => setConnectPreview(values ? { graphic: poolGraphic.name, values } : null)}
+            ownReader={ownReaderOf(poolGraphic)}
             endsRow={() => {
               const auto = readAuto(editingCue);
               const nextId = nextGraphicCue(cues, editingCue.id);

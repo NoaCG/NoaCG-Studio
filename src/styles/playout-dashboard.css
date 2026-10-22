@@ -821,6 +821,28 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-still-tag { left: 8px; top: 8px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; border: 1px solid rgba(255, 255, 255, 0.2); }
 .pd-frame-length { right: 8px; bottom: 8px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* A LOST CONNECTION LEAVES NO FRESH-LOOKING PICTURE (data-sources C6, AC-16): PROGRAM keeps the
+   last picture it knew, dimmed and desaturated, with words over it, so nobody reads it as air. */
+.pd-frame-stale > :not(.pd-stale-tag):not(.pd-air-state) { filter: grayscale(1) brightness(0.55); }
+.pd-stale-tag {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--amber);
+  background: rgba(12, 14, 18, 0.9);
+  color: var(--amber);
+  pointer-events: none;
+  white-space: nowrap;
+}
 .pd-monitor { display: flex; flex-direction: column; min-width: 0; }
 .pd-monitor h2 {
   margin: 0 0 5px;
@@ -865,6 +887,32 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   font-family: var(--mono, monospace);
   flex: none;
 }
+/* What is known of the last command (C6), in PROGRAM's bottom-left corner like PREVIEW's length
+   tag: words first, the colour only beside them. Pending, not confirmed and a lost connection are
+   amber; logged stays quiet, since it is no claim about the picture on air. */
+.pd-air-state {
+  position: absolute;
+  z-index: 3;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(12, 14, 18, 0.82);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.pd-air-pending,
+.pd-air-unknown,
+.pd-air-stale { color: var(--amber); }
+.pd-server-badge[data-stale] { color: var(--amber); }
 .pd-pvw h2 { color: var(--amber); }
 .pd-pvw .pd-dot { background: var(--amber); }
 .pd-pgm h2 { color: #ef4444; }
@@ -2647,6 +2695,12 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-folder-editor .pd-folder-where li::before { content: counter(where); min-width: 16px; text-align: right; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .pd-folder-editor .pd-folder-where-cue { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pd-folder-editor .pd-folder-where .pd-cue-layer { flex: none; font-family: var(--mono, monospace); font-size: 11px; color: var(--text-dim); }
+/* Each child's outcome (C6): the tags sit beside its address; why a Take missed it takes its own
+   line under the name, and a collision on one address reads in the clash amber of the rundown. */
+.pd-folder-editor .pd-folder-where li { flex-wrap: wrap; }
+.pd-folder-editor .pd-folder-where .pd-tag { flex: none; }
+.pd-folder-editor .pd-folder-where .pd-cue-layer.clash { color: var(--amber); }
+.pd-folder-editor .pd-folder-where-why { flex: 1 0 100%; padding-left: 26px; font-size: 11px; }
 .pd-add-field { display: flex; gap: 6px; align-items: center; }
 .pd-add-field input { flex: 1; min-width: 0; }
 /* On the PROGRAM header, what is up on the server - a badge beside the layer badge, dimmer:

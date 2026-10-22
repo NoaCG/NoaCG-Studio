@@ -1723,15 +1723,32 @@ CG 1-20 STOP</code></pre>
             shows nothing else is needed.
           </p>
 
-          <h3 id="data-sheets">A Google Sheet (or any published CSV)</h3>
+          <h3 id="data-sheets">A Google Sheet</h3>
           <p>
-            A graphic that follows a published sheet changes when the sheet does. Connecting a new
-            sheet to a graphic is not available in the studio yet, and a graphic that already
-            follows one keeps following it.
+            A Sheet connects to the production, not to the graphic. On the Playout tab, select a
+            cue of the graphic and press <strong>Connect data&hellip;</strong>. Paste the link
+            from the Sheet's <strong>Share</strong> button and press <strong>Read</strong>. Every
+            field is offered a column or a row of that tab; check the list on the PREVIEW monitor
+            and press <strong>Connect</strong> once.
           </p>
+          <ul>
+            <li>The production reads the tab about every five seconds while a page of it is open.
+              Published, the server reads it about once a minute when every page is closed.</li>
+            <li>The Sheet's line under the cue editor, and the production's <strong>Data</strong>
+              tab, say when it was last checked and last changed. <strong>Pause</strong> there
+              holds the values on air until <strong>Resume</strong>.</li>
+            <li>The same tab can feed several graphics: choose it again under
+              <strong>Use existing content&hellip;</strong>.</li>
+          </ul>
           <p>
-            To bring a sheet into a show today, import it as a table on the production's
-            <strong>Data</strong> tab, or push the values with the Production Data API below.
+            <strong>A graphic that reads a Sheet in its own code.</strong> Older graphics could
+            carry their own Sheet reader. They keep working, in the studio and in every export.
+            The production lists such a graphic beside its sources and says that Pause does not
+            stop it. To connect it here instead, press <strong>Connect data&hellip;</strong> on it
+            and choose <strong>Stop its own reader</strong>: the reader leaves the graphic's code
+            (in every production that uses it), and then you connect the Sheet as above. On a
+            published production, publish the change first, so only one reader ever writes the
+            fields.
           </p>
 
           <h3 id="data-api">The Production Data API</h3>
