@@ -335,7 +335,7 @@ test('a hosted graphic that has never reported airs what was commanded before it
 
   await graphic.goto('http://hosted-cold.local/board.html', { waitUntil: 'load' });
 
-  // Both rows run, in log order. Seeded from the head this read [] for the whole airing.
+  // Both commands run once, in log order. Seeded from the head this read [] for the whole airing.
   await expect
     .poll(() => appliedIn(graphic), { timeout: 30_000 })
     .toEqual(['update:AIRED', 'play']);
