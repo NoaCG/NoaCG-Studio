@@ -1614,7 +1614,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             sourceId,
             label: () => sourcesRef.current?.find((s) => s.id === sourceId)?.label ?? 'Messages',
             backend: () => messagesRef.current,
-            onProblem: (problem) => problem && setNote(`Message Sheet: ${problem}.`),
+            // The note is this Sheet's only while the problem lasts.
+            onProblem: (problem) =>
+              setNote((prev) => (problem ? `Message Sheet: ${problem}.` : prev?.startsWith('Message Sheet:') ? null : prev)),
           }),
         ]),
     );

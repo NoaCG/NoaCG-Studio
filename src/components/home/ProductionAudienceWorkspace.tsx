@@ -524,8 +524,12 @@ function MessageSources({
       const parsed = parseSheetLink(sheetLink);
       if ('error' in parsed) return setNote(parsed.error);
       const { link } = parsed;
+      // The same tab already followed for fields gains the inbox rather than a second reader.
+      const same = (show.sources ?? []).find(
+        (s): s is SheetShowSource => s.kind === 'sheet' && s.config.sheetId === link.sheetId && s.config.gid === link.gid,
+      );
       const source: SheetShowSource = {
-        id: uuid(),
+        id: same?.id ?? uuid(),
         kind: 'sheet',
         label: 'Messages',
         config: { sheetId: link.sheetId, gid: link.gid, ...(link.published ? { published: true } : {}), shape: 'lines' },
@@ -565,6 +569,15 @@ function MessageSources({
     const runtime = intake.forSource(sourceId);
     if (runtime) intake.remove(runtime.id);
     await save(removeMessageSource(show.id, sourceId), 'Removing the source');
+  };
+
+  /** A chat that stopped on a refusal (not live yet, quota, key) reads again from the start. */
+  const reconnect = (source: YouTubeShowSource) => {
+    const runtime = intake.forSource(source.id);
+    const apiKey = youtubeKey();
+    if (!apiKey || !claimChatRead(source.id)) return;
+    if (runtime) intake.remove(runtime.id);
+    intake.add({ platform: 'youtube', videoId: source.config.videoId, apiKey, sourceId: source.id });
   };
 
   const pauseSource = async (source: YouTubeShowSource) => {
@@ -640,6 +653,11 @@ function MessageSources({
                 {!chat && !needsKey && (
                   <button type="button" disabled={fetching === source.id} onClick={() => void fetchNewest(source.id, source.config.videoId, youtubeKey() ?? '')} data-testid="comments-fetch">
                     {fetching === source.id ? 'Fetching…' : 'Fetch newest'}
+                  </button>
+                )}
+                {chat && runtime?.status === 'error' && !source.paused && (
+                  <button type="button" onClick={() => reconnect(source)} data-testid="chat-source-reconnect">
+                    Reconnect
                   </button>
                 )}
                 {chat && !needsKey && (

@@ -28,6 +28,7 @@ function inbox() {
   const backend = createLocalAudience({ productionName: 'Test' });
   const calls = [];
   const door = {
+    list: () => backend.list(),
     addCandidates: (items) => (calls.push(['add', items.length]), backend.addCandidates(items)),
     settleImported: (prefix, present) => (calls.push(['settle', present.length]), backend.settleImported(prefix, present)),
   };
@@ -128,11 +129,38 @@ test('a refresh, a reorder or a reconnect never duplicates; an unchanged read co
   await h.read([CY, BO, ANA]);
   assert.equal((await h.list()).length, 3);
   assert.deepEqual(h.calls, [['add', 3], ['settle', 3]]);
-  // A second consumer on the same inbox (a reload, a reconnect) adds nothing new.
-  const again = createSheetInbox({ sourceId: 's1', label: () => 'Messages', backend: () => h.backend });
+  // A second consumer on the same inbox (a reload, a reconnect) adds nothing and sends nothing:
+  // it starts from what the inbox already holds.
+  const calls = [];
+  const door = {
+    list: () => h.backend.list(),
+    addCandidates: (items) => (calls.push(['add', items.length]), h.backend.addCandidates(items)),
+    settleImported: (p, present) => (calls.push(['settle', present.length]), h.backend.settleImported(p, present)),
+  };
+  const again = createSheetInbox({ sourceId: 's1', label: () => 'Messages', backend: () => door });
   again.take([HEAD, BO, ANA, CY]);
   for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
   assert.equal((await h.list()).length, 3);
+  assert.deepEqual(calls, []);
+});
+
+test('a tab whose Message heading is gone is not an empty tab: nothing leaves the inbox', async () => {
+  const problems = [];
+  const h = inbox();
+  await h.read([ANA, BO]);
+  const sheet = createSheetInbox({
+    sourceId: 's1',
+    label: () => 'Messages',
+    backend: () => h.backend,
+    onProblem: (p) => problems.push(p),
+  });
+  sheet.take([['Name', 'Messages'], ['Ana', 'x']]);
+  for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0));
+  assert.equal((await h.list()).length, 2);
+  assert.match(problems.at(-1), /Message heading/);
+  // A tab with its heading and no rows is empty, and its unused candidates leave.
+  await h.read([]);
+  assert.equal((await h.list()).length, 0);
 });
 
 test('a vanished row leaves an unused candidate and keeps a used one, marked, with its original', async () => {
@@ -200,6 +228,7 @@ test('after stop, a late read revives nothing and an add in flight goes no furth
   let sheet;
   const calls = [];
   const door = {
+    list: () => backend.list(),
     addCandidates: async (items) => {
       calls.push('add');
       const added = await backend.addCandidates(items);
@@ -219,6 +248,7 @@ test('a refused add is said and tried again at the next read', async () => {
   let refuse = true;
   const problems = [];
   const door = {
+    list: () => backend.list(),
     addCandidates: async (items) => {
       if (refuse) throw new Error('offline');
       return backend.addCandidates(items);

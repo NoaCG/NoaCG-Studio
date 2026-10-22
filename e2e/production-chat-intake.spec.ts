@@ -307,8 +307,9 @@ test('YouTube live chat: the first page arrives as earlier, the quota line count
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Chat Live');
   let page2 = false;
+  let live = false;
   const calls = await stubYouTube(page, {
-    videos: () => youtubeFixture('video-live.json'),
+    videos: () => youtubeFixture(live ? 'video-live.json' : 'video-not-live.json'),
     'liveChat/messages': () => {
       // The first page of each connection is the history; after it, three new lines, then quiet.
       const name = !page2 ? 'chat-first-page.json' : 'chat-later-page.json';
@@ -326,12 +327,17 @@ test('YouTube live chat: the first page arrives as earlier, the quota line count
   await audience.getByTestId('chat-add-remember').check();
   await audience.getByTestId('chat-add-connect').click();
 
+  // Connected before the stream is live: it says so and what to do, then Reconnect reads it.
   const rows = audience.locator('.pd-aud-row');
   const source = audience.getByTestId('chat-source-youtube');
+  await expect(source.getByTestId('chat-source-detail')).toContainText('That video has no open live chat. Connect it while the stream is live');
+  live = true;
+  await source.getByTestId('chat-source-reconnect').click();
   await expect(rows).toHaveCount(68);
+  await expect(source.getByTestId('chat-source-reconnect')).toHaveCount(0);
   await expect(rows.first().getByTestId('audience-provenance')).toHaveText('YouTube chat · earlier');
   await expect(rows.first().locator('.pd-aud-author')).toHaveText('Chatter 0');
-  // Units: 1 for the lookup and 5 for the page, so 2 h 46 min are left of today's 10,000.
+  // Units: 1 for each lookup and 5 for the page, so 2 h 46 min are left of today's 10,000.
   await expect(source.getByTestId('youtube-quota')).toHaveText(
     "About 2 h 46 min of chat left today, counting this browser's use since midnight Pacific time; other users of the key are not counted.",
   );

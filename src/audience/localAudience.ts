@@ -160,12 +160,19 @@ export async function moveKeptMessages(showId: string, to: AudienceBackend): Pro
       const added = await to.addCandidates(
         chunk.map((r) => ({ author: r.author, body: r.body, externalId: r.externalId, source: r.source, reference: r.reference })),
       );
-      for (const row of added) {
+      // A row the published inbox already held (a Sheet or YouTube import got there first since
+      // publishing) is not added again; it still takes this browser's moderation of it.
+      const addedIds = new Set(added.map((r) => r.externalId));
+      const held = chunk.some((r) => !addedIds.has(r.externalId))
+        ? (await to.list()).filter((r) => r.externalId && byExternal.has(r.externalId) && !addedIds.has(r.externalId))
+        : [];
+      for (const row of [...added, ...held]) {
         const was = row.externalId ? byExternal.get(row.externalId) : undefined;
         if (!was) continue;
         const { broadcastAuthor, broadcastBody, anonymize, status, shortlisted, usedAt } = was;
         if (
-          broadcastAuthor !== row.broadcastAuthor || broadcastBody !== row.broadcastBody || anonymize || status !== 'new' || shortlisted || usedAt
+          broadcastAuthor !== row.broadcastAuthor || broadcastBody !== row.broadcastBody || anonymize !== row.anonymize ||
+          status !== row.status || shortlisted !== row.shortlisted || (usedAt ?? null) !== (row.usedAt ?? null)
         ) {
           await to.update(row.id, { broadcastAuthor, broadcastBody, anonymize, status, shortlisted, usedAt });
         }

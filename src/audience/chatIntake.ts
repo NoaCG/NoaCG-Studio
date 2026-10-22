@@ -106,6 +106,10 @@ export type ChatSubmit = (deviceToken: string, author: string, body: string) => 
 /** The operator door, as the production's audience backend offers it (`addCandidates`). */
 export type ChatAdd = (items: CandidateInput[]) => Promise<AudienceSubmission[]>;
 
+/** A refused YouTube add is tried again this often, this many times, before it counts as dropped. */
+export const CHAT_ADD_RETRY_MS = 5_000;
+export const CHAT_ADD_TRIES = 3;
+
 /** The provenance a YouTube chat line carries; the first page says it was said earlier. */
 export const CHAT_SOURCE = 'YouTube chat';
 export const CHAT_SOURCE_EARLIER = 'YouTube chat · earlier';
@@ -290,30 +294,47 @@ export function createChatIntake(): ChatIntake {
   const changed = () => listeners.forEach((cb) => cb());
   /** YouTube lines waiting for the operator door, per source: a page goes in as one call. */
   const outbox = new Map<SourceRuntime, CandidateInput[]>();
-  const flush = (runtime: SourceRuntime) => {
-    const items = outbox.get(runtime) ?? [];
+  /** Lines the door refused, kept for another try: the driver has read past them, so a dropped
+   *  line would never come back. The database skips an id it already holds, so a retry is safe. */
+  const retries = new Map<SourceRuntime, { items: CandidateInput[]; tries: number }>();
+  const retryLater = (runtime: SourceRuntime, items: CandidateInput[]) => {
+    const held = retries.get(runtime) ?? { items: [], tries: 0 };
+    held.items.push(...items);
+    held.tries += 1;
+    if (held.tries > CHAT_ADD_TRIES) {
+      runtime.state.dropped += held.items.length;
+      retries.delete(runtime);
+      changed();
+      return;
+    }
+    retries.set(runtime, held);
+    if (held.items.length === items.length) setTimeout(() => flush(runtime), CHAT_ADD_RETRY_MS);
+  };
+  function flush(runtime: SourceRuntime) {
+    const held = retries.get(runtime);
+    const items = [...(held?.items ?? []), ...(outbox.get(runtime) ?? [])];
     outbox.delete(runtime);
+    if (held) held.items = [];
+    if (runtime.state.status === 'stopped') {
+      retries.delete(runtime);
+      return;
+    }
     const send = add;
+    if (!send) return retryLater(runtime, items);
     for (let at = 0; at < items.length; at += OPERATOR_ADD_MAX) {
       const chunk = items.slice(at, at + OPERATOR_ADD_MAX);
-      if (!send || runtime.state.status === 'stopped') {
-        runtime.state.dropped += chunk.length;
-        continue;
-      }
       send(chunk)
         .then((added) => {
           // The database skips an id it already holds: that is a dedupe, counted as dropped.
           runtime.state.submitted += added.length;
           runtime.state.dropped += chunk.length - added.length;
+          if (retries.get(runtime)?.items.length === 0) retries.delete(runtime);
           changed();
         })
-        .catch(() => {
-          runtime.state.dropped += chunk.length;
-          changed();
-        });
+        .catch(() => retryLater(runtime, chunk));
     }
     changed();
-  };
+  }
 
   /** Deterministic fallback ids for platforms/messages that carry none - still deduped, so a
    *  driver re-delivering the exact same line in the same moment cannot double-post. */

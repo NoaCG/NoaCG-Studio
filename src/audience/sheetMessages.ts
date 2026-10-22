@@ -113,7 +113,7 @@ export interface SheetInboxOptions {
   /** The source's name now (a rename is only words). */
   label: () => string;
   /** The production's inbox now: it changes when the production is published. */
-  backend: () => Pick<AudienceBackend, 'addCandidates' | 'settleImported'> | null;
+  backend: () => Pick<AudienceBackend, 'list' | 'addCandidates' | 'settleImported'> | null;
   /** Said once per change: why the tab gives fewer messages, or that the inbox refused them. */
   onProblem?: (problem: string | null) => void;
 }
@@ -147,14 +147,20 @@ export function createSheetInbox(o: SheetInboxOptions): SheetInbox {
   const settle = async (rows: readonly (readonly string[])[]) => {
     const backend = o.backend();
     if (!backend) return;
-    if (backend !== knownFor) {
-      known = new Set();
-      knownFor = backend;
-    }
     const { items, problem } = sheetMessages(o.sourceId, o.label(), rows);
+    // A tab that cannot be read as messages (its Message heading renamed) is not an empty tab:
+    // settling it would take every unused candidate out of the inbox.
+    if (problem && items.length === 0) return say(problem);
     const ids = items.map((i) => i.externalId);
-    if (ids.length === known.size && ids.every((id) => known.has(id))) return say(problem);
     try {
+      if (backend !== knownFor) {
+        // What the inbox already holds from this tab: a reload re-sends nothing it has.
+        const prefix = sheetMessagePrefix(o.sourceId);
+        known = new Set((await backend.list()).flatMap((r) => (r.externalId?.startsWith(prefix) ? [r.externalId] : [])));
+        knownFor = backend;
+        if (stopped) return;
+      }
+      if (ids.length === known.size && ids.every((id) => known.has(id))) return say(problem);
       const arrived = items.filter((i) => !known.has(i.externalId));
       for (let at = 0; at < arrived.length; at += OPERATOR_ADD_MAX) {
         if (stopped) return;
