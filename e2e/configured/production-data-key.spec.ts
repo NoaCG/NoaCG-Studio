@@ -9,6 +9,7 @@
 // covers: src/control/productionDataApi.ts, src/components/home/ProductionDataPanel.tsx
 // covers: api/data/**, scripts/dataDevPlugin.mjs
 // covers: src/control/productionDataSession.ts
+// covers: src/components/home/ProductionDataWorkspace.tsx, src/control/anotherSystem.ts, supabase/migrations/0100_data_api_pause.sql
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
@@ -100,6 +101,100 @@ test('a published production shows its data key, and that key writes the product
   const body = (await state.json()) as { data?: { e2e?: { dataKey?: string } } };
   expect(body.data?.e2e?.dataKey).toBe('reached');
 
+  await data.close();
+  await clearShows(page);
+});
+
+// ANOTHER SYSTEM AND ITS PAUSE (data-sources C5, AC-3 and AC-7; docs/DATA_API.md "Pause").
+//
+// A graphic connected to Another system through Connect data… on a published production; the
+// card's key writes it, the receipt shows within 5 s; Pause holds a push, a push with a null and an
+// /update (each answer says so, and nothing reaches the log); Resume appends exactly the final
+// values once. The cases behind it run in migration 0100's self-check; this is the walk through the
+// product and the deployed route.
+test('Another system: the card key pushes a connected graphic, Pause holds every write and says so, Resume sends the final values once', async ({ page }) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearShows(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Count Board' });
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
+  const showId = await openProductionWithCurrent(page, `Another System ${Date.now()}`);
+
+  // ── Connect data…, Another system, one confirmation, then publish. ──
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-api').click();
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const paths = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === id)?.bindings?.['Count Board'] ?? {};
+  }, showId);
+  expect(paths.f0).toMatch(/^api\.count_board\./);
+  expect(paths.f1).toMatch(/^api\.count_board\./);
+  const leaf = (p: string) => p.split('.')[2];
+  const body = (f0: unknown, f1?: unknown) => ({ api: { count_board: { [leaf(paths.f0)]: f0, ...(f1 === undefined ? {} : { [leaf(paths.f1)]: f1 }) } } });
+
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  const slug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.hostedSlug ?? '', showId);
+  const updates = () =>
+    page.evaluate(async (slug) => {
+      const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+      return (await hostedControlTail(slug, 0))
+        .filter((row) => (row.msg as { t?: string }).t === 'update')
+        .map((row) => ({ id: row.id, src: (row.msg as { src?: string }).src ?? null, data: (row.msg as { data?: Record<string, string> }).data ?? {} }));
+    }, slug);
+
+  // ── The card: address, the key behind Reveal, the example, nothing received yet. ──
+  const data = await openWorkspace(page, 'data');
+  const card = data.getByTestId('data-api-card');
+  await expect(card.getByTestId('data-api-address')).toHaveText(/\/api\/data\/patch$/);
+  await expect(card.getByTestId('data-api-curl')).toContainText(leaf(paths.f0));
+  await expect(card.getByTestId('data-api-received')).toHaveText('Nothing received yet', { timeout: 10_000 });
+  await expect(card.getByTestId('data-key-value')).toHaveText(/^•+$/);
+  await card.getByTestId('data-key-reveal').click();
+  const key = ((await card.getByTestId('data-key-value').textContent()) ?? '').trim();
+  const auth = { authorization: `Bearer ${key}`, 'content-type': 'application/json' };
+  const push = async (payload: unknown) => {
+    const res = await data.request.patch('/api/data/patch', { headers: auth, data: payload });
+    expect(res.status(), await res.text()).toBe(200);
+    return res.json();
+  };
+
+  // ── A push moves the connected field once and shows as received within 5 s. ──
+  const first = await push(body('Harbour List', '38 %'));
+  expect(first.paused).toBeUndefined();
+  expect(first.writes).toHaveLength(1);
+  await expect(card.getByTestId('data-api-received')).toHaveText(/^Received \d+ s ago$/, { timeout: 5_000 });
+
+  // ── Pause: a push, a push with a null and an /update are held, each answer says so. ──
+  await card.getByTestId('data-api-pause').click();
+  await expect(card.getByTestId('data-api-received')).toContainText('Paused');
+  await expect(card.getByTestId('data-api-pause')).toHaveText('Resume');
+  const pausedAt = (await updates()).reduce((max, row) => Math.max(max, row.id), 0);
+  const held = await push(body('Second'));
+  expect(held).toMatchObject({ ok: true, paused: true, writes: [] });
+  expect(held.message).toMatch(/paused Another system/);
+  const nulled = await push(body('Second', null));
+  expect(nulled).toMatchObject({ ok: true, paused: true, writes: [] });
+  const update = await data.request.post('/api/data/update', { headers: auth, data: { graphic: 'Count Board', values: { f0: 'Third' } } });
+  expect(update.status(), await update.text()).toBe(200);
+  expect(await update.json()).toMatchObject({ ok: true, event: null, paused: true, applied: { f0: 'Third' } });
+  expect((await updates()).filter((row) => row.id > pausedAt), 'nothing reached the log while paused').toEqual([]);
+
+  // ── Resume: one row, the final values once. The null sent nothing for f1 (it keeps 38 %), and
+  //    the held /update is laid over the patched f0. ──
+  await card.getByTestId('data-api-pause').click();
+  await expect(card.getByTestId('data-api-note')).toContainText('Sent the latest values to 1 graphic');
+  const resumed = (await updates()).filter((row) => row.id > pausedAt);
+  expect(resumed).toEqual([{ id: expect.any(Number), src: 'api', data: { f0: 'Third' } }]);
+  // A second Resume press is a Pause; the card is back to receiving.
+  await expect(card.getByTestId('data-api-pause')).toHaveText('Pause');
   await data.close();
   await clearShows(page);
 });
