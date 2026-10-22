@@ -1715,21 +1715,54 @@ test('one way to connect a Sheet: a graphic with its own reader still updates on
   await expect(program.locator('#f0')).toHaveText('Bo Chen');
 });
 
-test('a library graphic with its own reader on a published production: Stop removes it from the design for every production, and Connect waits for Publish (C6)', async ({ page }) => {
-  test.setTimeout(90_000);
-  // Stand in the backend on the network (as production-controls.spec.ts does): no remote project.
+/**
+ * A PUBLISHED PRODUCTION FOR THE OWN-READER MIGRATION (C6), with no remote project: the backend is
+ * stood in on the network (as production-controls.spec.ts does), its resolve answers `wire.fixture`,
+ * and its Realtime socket plays one output's Presence entry, `wire.output` (null: none joined), so
+ * the page's positive evidence (presence joined, the outputs' versions, what is on air) is driven
+ * here. Every other request answers empty.
+ */
+interface LegacyWire {
+  fixture: Record<string, unknown> | null;
+  output: { ver: { n: number; h: string }; waiting?: string[] } | null;
+}
+
+async function standInBackend(page: Page, wire: LegacyWire): Promise<void> {
   const backend = 'https://legacy.supabase.test';
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
     export function loadBackendConfig() { return { url: '${backend}', anonKey: 'anon-test-key' }; }
     export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
   ` }));
-  let resolveFixture: unknown = null;
   await page.route(`${backend}/**`, (route) => {
     const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ status: 200, headers, body: path.endsWith('/rpc/control_show_resolve') ? JSON.stringify(resolveFixture) : '[]' });
+    return route.fulfill({ status: 200, headers, body: path.endsWith('/rpc/control_show_resolve') ? JSON.stringify(wire.fixture) : '[]' });
   });
+  // Realtime, protocol 2.0.0 (JSON arrays): every push is answered ok, and a join of a `live-`
+  // topic is answered with the output's Presence entry.
+  await page.routeWebSocket(/legacy\.supabase\.test\/realtime\/v1\/websocket/, (ws) => {
+    ws.onMessage((message) => {
+      if (typeof message !== 'string') return;
+      const [joinRef, ref, topic, event, payload] = JSON.parse(message) as [string | null, string | null, string, string, Record<string, unknown>];
+      if (ref === null) return;
+      const changes = event === 'phx_join' ? ((payload.config as { postgres_changes?: object[] } | undefined)?.postgres_changes ?? []) : [];
+      const response = event === 'phx_join' ? { postgres_changes: changes.map((c, i) => ({ ...c, id: i + 1 })) } : {};
+      ws.send(JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response }]));
+      if (event !== 'phx_join' || !topic.startsWith('realtime:live-') || !wire.output) return;
+      const { ver, waiting } = wire.output;
+      const entry = {
+        kind: 'output', id: 'legacyout01', engine: 'OBS · Chromium 127', build: 'test', proto: 1, surface: 'output', log: true, cmd: true, at: Date.now(),
+        ready: { n: 1, of: 1, v: ver, is: [], ...(waiting ? { chg: { s: 'waiting', v: ver, of: 1, n: 0, air: waiting.length, w: waiting } } : {}) },
+      };
+      ws.send(JSON.stringify([joinRef, null, topic, 'presence_state', { legacyout01: { metas: [{ phx_ref: 'legacy-ref-1', ...entry }] } }]));
+    });
+  });
+}
+
+/** Seed a library graphic whose code reads a Sheet, used by a published production ("Live Night")
+ *  and one other, with the resolve answering what it published. */
+async function seedPublishedLegacy(page: Page, wire: LegacyWire): Promise<{ docId: string; showId: string; cueId: string }> {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
@@ -1750,18 +1783,79 @@ test('a library graphic with its own reader on a published production: Stop remo
     setShowOutputSlug(live.id, 'legacy-output');
     const other = createShowNamed('Other Night');
     addGraphicToShow(other.id, doc.template, { graphicId: doc.id });
-    const output = await buildOutputPayload(loadShows().find((s) => s.id === live.id)!);
+    const show = loadShows().find((s) => s.id === live.id)!;
+    const output = await buildOutputPayload(show);
     output.ver = await stampPayload(output, null);
-    return { docId: doc.id, fixture: { id: live.id, title: live.name, output, live: {}, staged: {}, last_event_id: 0 } };
+    const cueId = show.cues!.find((c) => c.sourceId === show.graphics[0].id)!.id;
+    return { docId: doc.id, cueId, fixture: { id: live.id, title: live.name, output, live: {}, staged: {}, last_event_id: 0 } };
   });
-  resolveFixture = seeded.fixture;
+  wire.fixture = seeded.fixture;
   await settleDurableWrites(page);
-  await page.goto(`/app#/production/${seeded.fixture.id}`);
+  return { docId: seeded.docId, showId: seeded.fixture.id, cueId: seeded.cueId };
+}
+
+/** What Publish does after Stop (refresh the copy from the design, publish a payload without the
+ *  reader, a new version), with the graphic still on air: the output keeps its old frame. */
+async function publishWithoutReader(page: Page, wire: LegacyWire, ids: { showId: string; cueId: string }): Promise<{ n: number; h: string }> {
+  const fixture = wire.fixture as { output: { ver: unknown } };
+  const published = await page.evaluate(async ({ showId, previous }) => {
+    const { loadShows, refreshGraphicCopies } = await import('/src/model/shows.ts');
+    const { loadGraphics, resolveSavedGraphicDoc } = await import('/src/model/library.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const library = loadGraphics();
+    refreshGraphicCopies(showId, (g) => {
+      const doc = resolveSavedGraphicDoc(g, library);
+      return doc ? { template: doc.template, updatedAt: doc.updatedAt } : undefined;
+    });
+    const output = await buildOutputPayload(loadShows().find((s) => s.id === showId)!);
+    output.ver = await stampPayload(output, previous as never);
+    return output;
+  }, { showId: ids.showId, previous: fixture.output.ver });
+  await settleDurableWrites(page);
+  wire.fixture = { ...wire.fixture, output: published, live_cue: { v: 2, layers: { 'Library Card': { cue: ids.cueId } } } };
+  const ver = (published as { ver: { n: number; h: string } }).ver;
+  return { n: ver.n, h: ver.h };
+}
+
+/** The production's record and this browser's own-reader stores, read through the app. */
+async function ownReaderState(page: Page, showId: string) {
+  return page.evaluate(async (showId) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { formerReaders, ownReaderHolds } = await import('/src/model/ownReaderHolds.ts');
+    const show = loadShows().find((s) => s.id === showId)!;
+    return {
+      stops: show.ownReaderStops ?? [],
+      copy: show.graphics[0].template.js.includes('== LIVE DATA'),
+      former: [...formerReaders(showId)],
+      holds: [...ownReaderHolds(showId)],
+    };
+  }, showId);
+}
+
+/** Try the binding write directly, as any door does; answers what it stored. */
+async function bindAnyway(page: Page, showId: string) {
+  return page.evaluate(async (showId) => {
+    const { setFieldBinding, loadShows } = await import('/src/model/shows.ts');
+    setFieldBinding(showId, 'Library Card', 'f0', 'guest.name');
+    return loadShows().find((s) => s.id === showId)!.bindings?.['Library Card'] ?? null;
+  }, showId);
+}
+
+async function openLegacyConnect(page: Page, showId: string) {
+  await page.goto(`/app#/production/${showId}`);
   await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
-
   await page.getByTestId('cue-connect').click();
-  const menu = page.getByTestId('cue-connect-menu');
+  return page.getByTestId('cue-connect-menu');
+}
+
+test('a library graphic with its own reader on a published production: Stop removes it from the design for every production, Connect waits for Publish, then for the clear, across a reload (C6)', async ({ page }) => {
+  test.setTimeout(110_000);
+  const wire: LegacyWire = { fixture: null, output: null };
+  await standInBackend(page, wire);
+  const ids = await seedPublishedLegacy(page, wire);
+  let menu = await openLegacyConnect(page, ids.showId);
   // The removal reaches the shared design, and says how far.
   await expect(menu.getByTestId('cue-connect-retire-scope')).toContainText('also in 1 other production using it');
   await menu.getByTestId('cue-connect-retire').click();
@@ -1769,19 +1863,90 @@ test('a library graphic with its own reader on a published production: Stop remo
   await expect(menu.getByTestId('cue-connect-publish-first')).toContainText('Publish changes, then connect here');
   await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
   await expect(page.getByTestId('own-reader-line')).toContainText('Sheet in Library Card’s own code');
-  const after = await page.evaluate(async ({ docId, showId }) => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
-    return {
-      design: loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'),
-      copy: loadShows().find((s) => s.id === showId)!.graphics[0].template.js.includes('== LIVE DATA'),
-    };
-  }, { docId: seeded.docId, showId: seeded.fixture.id });
-  expect(after).toEqual({ design: false, copy: true });
-  // What Connect holds back is recorded for the other binding doors and the Data view's tab.
-  await expect
-    .poll(() => page.evaluate(async (showId) => [...(await import('/src/model/ownReaderHolds.ts')).ownReaderHolds(showId)], seeded.fixture.id))
-    .toEqual(['Library Card']);
+  const design = await page.evaluate(async (docId) => (await import('/src/model/library.ts')).loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'), ids.docId);
+  expect(design).toBe(false);
+  // The copy keeps it, and the stop is recorded on the production itself, for every browser.
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: ['Library Card'], copy: true, former: ['Library Card'], holds: ['Library Card'] });
+
+  // ── Published without the reader, still on air: the output keeps the old frame until the clear. ──
+  const ver = await publishWithoutReader(page, wire, ids);
+  wire.output = { ver, waiting: ['Library Card'] };
+  // A reload in the middle: the copy, the design and the payload are clean, and the hold restores.
+  await page.reload();
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('cue-connect').click();
+  menu = page.getByTestId('cue-connect-menu');
+  await expect(menu.getByTestId('cue-connect-clear-first')).toContainText('take it out, then connect here');
+  await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+  await expect(page.getByTestId('own-reader-line')).toHaveCount(0);
+  expect(await bindAnyway(page, ids.showId)).toBeNull();
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: ['Library Card'], copy: false, former: ['Library Card'], holds: ['Library Card'] });
+
+  // ── Positive evidence: off air, the live state recovered, the output on the published version. ──
+  wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: {} } };
+  wire.output = { ver };
+  menu = await openLegacyConnect(page, ids.showId);
+  await expect(menu.getByTestId('cue-connect-link')).toBeVisible();
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: [], copy: false, former: [], holds: [] });
+  expect(await bindAnyway(page, ids.showId)).toEqual({ f0: 'guest.name' });
+});
+
+test('a reader stopped in one browser holds the graphic in another that never saw it, until positive evidence releases it (C6)', async ({ page, browser }) => {
+  test.setTimeout(110_000);
+  const wire: LegacyWire = { fixture: null, output: null };
+  await standInBackend(page, wire);
+  const ids = await seedPublishedLegacy(page, wire);
+  // Browser A stops the reader and publishes while the graphic is on air.
+  const menuA = await openLegacyConnect(page, ids.showId);
+  await menuA.getByTestId('cue-connect-retire').click();
+  await expect(menuA.getByTestId('cue-connect-publish-first')).toBeVisible();
+  const ver = await publishWithoutReader(page, wire, ids);
+  wire.output = { ver, waiting: ['Library Card'] };
+  // What reaches another browser is the synced production record and library design, exactly as
+  // A stored them; nothing of A's own device-local history comes with it.
+  const synced = await page.evaluate(async () => {
+    const { durable } = await import('/src/model/durableStore.ts');
+    return { shows: durable.getItem('spx-gfx-shows'), graphics: durable.getItem('spx-gfx-graphics') };
+  });
+  await page.close();
+
+  const other = await browser.newContext();
+  try {
+    const b = await other.newPage();
+    await standInBackend(b, wire);
+    await b.goto('/app#/home');
+    await expect(b.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+    await awaitDurableReady(b);
+    await b.evaluate(async (synced) => {
+      const { durable } = await import('/src/model/durableStore.ts');
+      durable.setItem('spx-gfx-graphics', synced.graphics!);
+      durable.setItem('spx-gfx-shows', synced.shows!);
+      await new Promise((r) => setTimeout(r));
+    }, synced);
+    await settleDurableWrites(b);
+    // It never saw the reader: design, copy and payload are clean, and it has no history of its own.
+    expect(await ownReaderState(b, ids.showId)).toEqual({ stops: ['Library Card'], copy: false, former: [], holds: [] });
+    // Every binding door refuses, Connect included, while the output may still run the old frame.
+    expect(await bindAnyway(b, ids.showId)).toBeNull();
+    let menu = await openLegacyConnect(b, ids.showId);
+    await expect(menu.getByTestId('cue-connect-clear-first')).toBeVisible();
+    await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+    await expect.poll(() => ownReaderState(b, ids.showId)).toMatchObject({ stops: ['Library Card'], holds: ['Library Card'] });
+    const data = await openData(b);
+    await expect(data.getByTestId('bind-own-reader-Library Card-f0')).toContainText('reads a Sheet in its own code');
+    await data.close();
+
+    // Taken out and the output on the published version: released, here and on the record.
+    wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: {} } };
+    wire.output = { ver };
+    menu = await openLegacyConnect(b, ids.showId);
+    await expect(menu.getByTestId('cue-connect-link')).toBeVisible();
+    await expect.poll(() => ownReaderState(b, ids.showId)).toEqual({ stops: [], copy: false, former: [], holds: [] });
+    expect(await bindAnyway(b, ids.showId)).toEqual({ f0: 'guest.name' });
+  } finally {
+    await other.close();
+  }
 });
 
 test('a new graphic is offered no graphic-level Sheet panel (C6)', async ({ page }) => {

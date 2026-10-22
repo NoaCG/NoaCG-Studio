@@ -18,6 +18,8 @@ import {
   setShowProfile,
   refreshGraphicCopies,
   setGraphicCopyScript,
+  setOwnReaderStops,
+  publishedReaderStops,
   productionsContaining,
   updateShowCue,
   updateShowCueChecked,
@@ -903,7 +905,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const outputsBehind = livePresence.peers.some(
     (p) => p.kind === 'output' && !!p.ready && (!!p.ready.chg || (!!publishedVer && p.ready.v?.h !== publishedVer.h)),
   );
-  const outputObservations = useMemo(() => ({ reads: publishedReaders, former: formerReaders }), [publishedReaders, formerReaders]);
+  // A stop recorded on the production (`ownReaderStops`, by whichever browser pressed it) holds here
+  // too: this browser may never have seen the reader the output still runs.
+  const stopsKey = show ? publishedReaderStops(show).join('\n') : '';
+  const stops = useMemo(() => (stopsKey ? stopsKey.split('\n') : []), [stopsKey]);
+  const outputObservations = useMemo(() => ({ reads: publishedReaders, former: formerReaders, stops }), [publishedReaders, formerReaders, stops]);
   const ownReaders = useMemo(
     () => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug, outputObservations) : []),
     [show, library, hostedSlug, outputObservations],
@@ -926,13 +932,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // onto a graphic that is still up), so nothing clears until the resolve has answered.
     const verified = !!hostedSlug && liveRecovered && livePresence.status === 'joined' && !outputsBehind;
     const gone = verified
-      ? [...formerReaders].filter((name) => !liveCue[name] && !publishedReaders.has(name) && !ownReaders.some((r) => r.graphic === name))
+      ? [...new Set([...formerReaders, ...stops])].filter((name) => !liveCue[name] && !publishedReaders.has(name) && !ownReaders.some((r) => r.graphic === name))
       : [];
-    if (seen.length === 0 && gone.length === 0) return;
+    // The production's own record clears on the same evidence, for every browser.
+    const stopsGone = gone.filter((name) => stops.includes(name));
+    if (stopsGone.length > 0) {
+      // A refused write keeps the hold (and is not retried until something else changes).
+      const cleared = setOwnReaderStops(show.id, { clear: stopsGone });
+      if (!cleared.error) {
+        setShows(cleared.shows);
+        void commitDurableWrites();
+      }
+    }
+    const formerGone = gone.filter((name) => formerReaders.has(name));
+    if (seen.length === 0 && formerGone.length === 0) return;
     const next = new Set([...formerReaders, ...seen].filter((name) => !gone.includes(name)));
     setFormerReadersState(next);
     setStoredFormerReaders(show.id, next);
-  }, [show, hostedSlug, liveRecovered, publishedReaders, ownReaders, formerReaders, livePresence.status, outputsBehind, liveCue]);
+  }, [show, hostedSlug, liveRecovered, publishedReaders, ownReaders, formerReaders, stops, livePresence.status, outputsBehind, liveCue]);
   /** Something that can air a graphic is reporting right now: a renderer, or this production on its
    *  CasparCG slot. Read by the send path, which decides "No output" (AC-2). */
   const usableOutput =
@@ -3377,6 +3394,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
         const plan = ownReaderRemoval({ library: !!fresh, published: !!hostedSlug });
         if (!plan) return `${graphic.name} has no library record here, so Publish could not take the change to the output. Keep its own reader.`;
+        // Published, the output keeps an on-air graphic's old frame, reader included, until it is
+        // cleared: recorded on the production first, so every browser holds the graphic until then.
+        if (hostedSlug) {
+          const marked = setOwnReaderStops(show.id, { add: graphic.name });
+          if (marked.error) return marked.error;
+          setShows(marked.shows);
+        }
         if (plan.library && fresh && hasLiveData(fresh.template.js)) {
           const saved = updateGraphic(fresh.id, { template: { ...fresh.template, js: stripLiveData(fresh.template.js) } });
           if (saved.error) return saved.error;

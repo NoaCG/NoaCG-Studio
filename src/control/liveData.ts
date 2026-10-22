@@ -46,6 +46,9 @@ export function liveDataUrl(js: string): string | null {
  * unlocks nothing; and `outputBehind`, a graphic seen with a reader that no output is yet proven
  * rid of: an on-air frame keeps running until it is cleared (src/output/swapPlan.ts), and an output
  * that drops out of Presence proves nothing, so only positive evidence clears it (ProductionPage).
+ * `stopRecorded` is the same fact as the production's record keeps it (`Show.ownReaderStops`):
+ * the reader was stopped while published, in whichever browser, and is not yet proven gone, so a
+ * browser that never saw the reader holds the graphic too.
  * - `reader`: the block still runs here; Connect offers the explicit migration first.
  * - `publish`: the design no longer has it, but the published output still runs it until Publish.
  * - `clear`: published, but an output has not yet taken the published version (often until Out).
@@ -53,12 +56,19 @@ export function liveDataUrl(js: string): string | null {
  */
 export type OwnReaderGate = 'none' | 'reader' | 'publish' | 'clear';
 
-export function ownReaderGate(input: { copyJs: string; resolvedJs: string; published: boolean; outputReads?: boolean; outputBehind?: boolean }): OwnReaderGate {
+export function ownReaderGate(input: {
+  copyJs: string;
+  resolvedJs: string;
+  published: boolean;
+  outputReads?: boolean;
+  outputBehind?: boolean;
+  stopRecorded?: boolean;
+}): OwnReaderGate {
   if (hasLiveData(input.resolvedJs)) return 'reader';
   if (hasLiveData(input.copyJs)) return input.published ? 'publish' : 'reader';
   if (!input.published) return 'none';
   if (input.outputReads) return 'publish';
-  return input.outputBehind ? 'clear' : 'none';
+  return input.outputBehind || input.stopRecorded ? 'clear' : 'none';
 }
 
 /**

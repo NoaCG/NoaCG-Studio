@@ -1,4 +1,4 @@
-// guards: src/control/liveData.ts, src/model/ownReaderHolds.ts, src/export/targets/spxStarter.ts, src/export/common.ts, src/blocks/animMigration.ts, scripts/fixtures/show-saved-before-c1a.json
+// guards: src/control/liveData.ts, src/model/ownReaderHolds.ts, src/model/shows.ts, src/model/publishedRecord.ts, src/export/targets/spxStarter.ts, src/export/common.ts, src/blocks/animMigration.ts, scripts/fixtures/show-saved-before-c1a.json
 //
 // ONE WAY TO CONNECT A SHEET, AND THE OLD WAY STILL RUNS (sheet-data-flow AC-10, data-sources C6).
 // New graphics are no longer offered the graphic-level Sheet block, but a graphic saved with one
@@ -8,7 +8,9 @@
 // byte for byte, and that block, run against a CSV, still hands the graphic its values.
 //
 // The migration's two rules are pinned here too: when Connect data… must wait for the reader to
-// stop (`ownReaderGate`), and where "Stop its own reader" removes it (`ownReaderRemoval`).
+// stop (`ownReaderGate`), and where "Stop its own reader" removes it (`ownReaderRemoval`). So is
+// the binding write itself (shows.ts `applyBindings`, bundled like the export): it refuses a
+// graphic the Playout page holds back and one whose stop the production's record still carries.
 
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -117,6 +119,11 @@ test('Connect data… waits while the graphic\'s own reader can still run where 
   assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: true, outputBehind: true }), 'clear');
   // Unpublished, nothing runs outside this page.
   assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: false, outputReads: true, outputBehind: true }), 'none');
+  // Stopped while published, in another browser: this one never saw the reader, its copy, design
+  // and payload are clean and it has no history, but the production's record carries the stop
+  // until positive evidence clears it, so Connect waits here too.
+  assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: true, stopRecorded: true }), 'clear');
+  assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: false, stopRecorded: true }), 'none');
 });
 
 test('"Stop its own reader" removes it from the design, and from the copy only before Publish', () => {
@@ -149,6 +156,80 @@ test('what the Playout page holds back reaches the other binding doors, per prod
     assert.deepEqual([...ownReaderHolds('a')], [], 'history is not a hold');
     setFormerReaders('a', []);
     assert.deepEqual([...formerReaders('a')], []);
+  } finally {
+    globalThis.localStorage = previous;
+  }
+});
+
+/** model/shows.ts, bundled for node (it imports `.txt` licence files) and imported from a file. */
+async function loadShowsModule() {
+  const bundle = await rolldown({ input: path.join(root, 'src/model/shows.ts'), platform: 'node', plugins: [rawSuffix], logLevel: 'silent' });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  const file = path.join(dir, 'shows.mjs');
+  writeFileSync(file, output[0].code);
+  return import(pathToFileURL(file).href);
+}
+
+test('the binding write refuses a held graphic and a recorded stop, whichever browser binds (C6)', async () => {
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => stored.get(k) ?? null,
+    setItem: (k, v) => stored.set(k, String(v)),
+    removeItem: (k) => stored.delete(k),
+    key: (i) => [...stored.keys()][i] ?? null,
+    get length() {
+      return stored.size;
+    },
+  };
+  try {
+    const shows = await loadShowsModule();
+    const { publishedRecordDigest } = await import('../src/model/publishedRecord.ts');
+    const plain = { ...hairline.template, js: stripLiveData(hairline.template.js) };
+    const make = (name) => {
+      const show = shows.createShowNamed(name);
+      shows.addGraphicToShow(show.id, plain);
+      shows.addGraphicToShow(show.id, { ...plain, name: 'Other' });
+      shows.setShowHostedSlug(show.id, `${name}-slug`);
+      return show.id;
+    };
+    const read = (id) => shows.loadShows().find((s) => s.id === id);
+    const bind = (id, graphic) => {
+      shows.setFieldBinding(id, graphic, 'f0', 'guest.name');
+      return read(id).bindings?.[graphic]?.f0 ?? null;
+    };
+
+    // Held by this browser's Playout page (model/ownReaderHolds.ts): refused, the rest binds.
+    const held = make('held');
+    stored.set(`spx-gfx-own-reader-holds:${held}`, JSON.stringify(['Hairline']));
+    assert.equal(bind(held, 'Hairline'), null, 'a held graphic takes no binding');
+    assert.equal(bind(held, 'Other'), 'guest.name');
+    shows.setFieldBindings(held, [{ graphic: 'Hairline', fieldId: 'f1', path: 'guest.title' }]);
+    assert.equal(read(held).bindings?.Hairline, undefined, 'Bind all and Connect take the same refusal');
+
+    // Stopped while published in another browser: nothing held here, the copy and design are
+    // clean, and the production's record alone carries the stop. Refused until it clears.
+    const synced = make('synced');
+    assert.deepEqual(shows.setOwnReaderStops(synced, { add: 'Hairline' }).error, null);
+    assert.deepEqual(read(synced).ownReaderStops, ['Hairline']);
+    assert.deepEqual([...shows.ownSheetGraphics(read(synced), [])], ['Hairline']);
+    assert.equal(bind(synced, 'Hairline'), null, 'a recorded stop takes no binding');
+    assert.equal(bind(synced, 'Other'), 'guest.name');
+    const digest = publishedRecordDigest(read(synced));
+    // Recording a stop is not a change to publish: it never reaches an output.
+    shows.setOwnReaderStops(synced, { add: 'Other' });
+    assert.equal(publishedRecordDigest(read(synced)), digest);
+    shows.setOwnReaderStops(synced, { clear: ['Hairline', 'Other'] });
+    assert.equal(read(synced).ownReaderStops, undefined, 'cleared, the record carries nothing');
+    assert.equal(bind(synced, 'Hairline'), 'guest.name', 'cleared on evidence, it binds');
+
+    // Unpublished, no output runs, so a stale stop holds nothing.
+    const quiet = make('quiet');
+    shows.setOwnReaderStops(quiet, { add: 'Hairline' });
+    shows.setShowHostedSlug(quiet, undefined);
+    assert.deepEqual(shows.publishedReaderStops(read(quiet)), []);
+    assert.equal(bind(quiet, 'Hairline'), 'guest.name');
   } finally {
     globalThis.localStorage = previous;
   }
