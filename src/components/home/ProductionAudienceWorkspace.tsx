@@ -554,12 +554,19 @@ function MessageSources({
     const apiKey = keyToUse(key, remember);
     if (!apiKey) return setNote('Paste your YouTube Data API key - YouTube has no anonymous read.');
     const mode = pick === 'youtube-chat' ? 'chat' : 'comments';
-    const source: YouTubeShowSource = { id: uuid(), kind: 'youtube', label: videoId, config: { videoId, mode }, inbox: true };
-    if (!(await save(addMessageSource(show.id, source), 'The YouTube source'))) return;
+    // The same video in the same mode is the same source: connecting it again reads it again (with
+    // the key just given), never a second record no reader serves.
+    const same = (show.sources ?? []).find(
+      (s): s is YouTubeShowSource => s.kind === 'youtube' && s.config.videoId === videoId && s.config.mode === mode,
+    );
+    const source: YouTubeShowSource = same ?? { id: uuid(), kind: 'youtube', label: videoId, config: { videoId, mode }, inbox: true };
+    if (!same && !(await save(addMessageSource(show.id, source), 'The YouTube source'))) return;
     setVideo('');
     setKey('');
     if (mode === 'chat') {
-      claimChatRead(source.id);
+      if (!claimChatRead(source.id)) return setNote('That stream is read in another tab of this production.');
+      const running = intake.forSource(source.id);
+      if (running) intake.remove(running.id);
       intake.add({ platform: 'youtube', videoId, apiKey, sourceId: source.id });
     } else void fetchNewest(source.id, videoId, apiKey);
   };

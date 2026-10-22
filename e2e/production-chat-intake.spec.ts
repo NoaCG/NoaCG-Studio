@@ -261,6 +261,12 @@ test('YouTube comments: one press brings the newest 100; the source is remembere
   await expect(source.getByTestId('comments-source-detail')).toContainText('0 new of the newest 100');
   await expect(rows).toHaveCount(100);
   expect(calls.commentThreads).toBe(2);
+  // Connecting the same video again reads the same source again: still one source.
+  await audience.getByTestId('chat-add-video').fill('jNQXAC9IVRw');
+  await audience.getByTestId('chat-add-connect').click();
+  await expect.poll(() => calls.commentThreads).toBe(3);
+  await expect(audience.getByTestId('comments-source-youtube')).toHaveCount(1);
+  await expect(rows).toHaveCount(100);
 
   // The key stayed in memory: not in browser storage, not in the production's record.
   await settleDurableWrites(audience);
@@ -345,6 +351,14 @@ test('YouTube live chat: the first page arrives as earlier, the quota line count
   await expect(rows).toHaveCount(71, { timeout: 15_000 });
   await expect(rows.filter({ hasText: 'Chat line 70' }).getByTestId('audience-provenance')).toHaveText('YouTube chat');
   await expect(source.getByTestId('chat-source-stats')).toHaveText('71 in · 0 dropped');
+
+  // Connecting the same stream again restarts its one reader: still one source, still no copies.
+  page2 = false;
+  await audience.getByTestId('chat-add-video').fill('4xDzrJKXOOY');
+  await audience.getByTestId('chat-add-connect').click();
+  await expect(source.getByTestId('chat-source-stats')).toHaveText('0 in · 68 dropped', { timeout: 15_000 });
+  await expect(audience.getByTestId('chat-source-youtube')).toHaveCount(1);
+  await expect(rows).toHaveCount(71);
 
   // Reload with the key remembered: the source reconnects by itself, and the history it reads
   // again is already in the inbox, so nothing is added twice.
