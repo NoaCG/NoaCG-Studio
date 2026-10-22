@@ -118,14 +118,13 @@ test('published, a Take is pending until the command log answers, then logged, n
     const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const path = new URL(req.url()).pathname;
-    console.log('DBG', req.method(), path, (req.postData() ?? '').slice(0, 200));
     if (path.endsWith('/rpc/control_show_resolve')) return route.fulfill({ status: 200, headers, body: JSON.stringify(resolveFixture) });
-    if (path.endsWith('/rpc/control_send_many')) {
+    if (path.endsWith('/rpc/control_send_seq')) {
       sends += 1;
       // Held until the spec has seen the pending state; an attempt the page abandons meanwhile is
-      // simply gone, and its resend is held the same way.
+      // simply gone, and its resend is held the same way. Then the numbered road's plain "landed".
       await held;
-      return route.fulfill({ status: 200, headers, body: 'null' }).catch(() => {});
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, epoch: null, head: { graphics: {} }, skipped: [] }) }).catch(() => {});
     }
     return route.fulfill({ status: 200, headers, body: '[]' });
   });
@@ -162,7 +161,6 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
   await page.getByTestId('verb-take').click();
   const air = page.getByTestId('program-air');
-  page.on('console', (m) => console.log('PAGE', m.text().slice(0, 300)));
   await expect(air).toHaveAttribute('data-state', 'pending');
   await expect(air).toHaveText('sending…');
   expect(sends).toBeGreaterThan(0);
