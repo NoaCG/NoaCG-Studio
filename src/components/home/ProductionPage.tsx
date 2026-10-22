@@ -146,6 +146,7 @@ import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
+import { setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
 import { setGraphicSounds } from '../../model/shows';
@@ -903,6 +904,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     () => (show ? ownSheetReaders(show.graphics, library, !!hostedSlug, outputObservations) : []),
     [show, library, hostedSlug, outputObservations],
   );
+  // What Connect data… holds back, recorded for the binding write path and the Data view's tab
+  // (model/ownReaderHolds.ts), so no door binds a field the old reader may still write.
+  useEffect(() => {
+    if (!show) return;
+    setOwnReaderHolds(show.id, show.graphics.filter((g) => ownSheetReader(g, library, !!hostedSlug, outputObservations).gate !== 'none').map((g) => g.name));
+  }, [show, library, hostedSlug, outputObservations]);
   useEffect(() => {
     const seen = [...publishedReaders, ...ownReaders.map((r) => r.graphic)].filter((name) => !formerReaders.has(name));
     if (seen.length > 0) setFormerReaders((set) => new Set([...set, ...seen]));

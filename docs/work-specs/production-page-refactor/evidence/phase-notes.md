@@ -123,11 +123,14 @@ changes a spec's digest.
   that list misses a failed preparation, whole-page reloads and more than six graphics, so the
   wider rule replaced it. It is limited to graphics seen with a reader, so a routine republish of
   any other on-air graphic never blocks Connect. Not covered: a page reloaded after the migration
-  and Publish no longer knows the graphic had a reader; the model's binding refusal reads the
-  design and the copy only (after a failed Publish the Advanced bindings door would accept a
-  binding until the next resolve or Publish); the Data overview's list reads design and copy only;
-  a teammate's Publish is not seen until this page resolves again (which only keeps Connect
-  waiting longer).
+  and Publish no longer knows the graphic had a reader; the Data overview's own-reader list reads
+  design and copy only; a teammate's Publish is not seen until this page resolves again (which only
+  keeps Connect waiting longer).
+- **Every binding door reads the output too** (the automated review's second P1): the Playout page
+  records what Connect holds back per production in this browser (`src/model/ownReaderHolds.ts`,
+  key `spx-gfx-own-reader-holds:<id>`, never synced), and the binding write path and the Data
+  view's tab (through the `storage` event) refuse those graphics as well. A device-local record:
+  only a page that observes the outputs can say what they run.
 - **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
   (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
   legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.
@@ -136,7 +139,8 @@ changes a spec's digest.
   graphic whose copy still has the block after the migration stays listed until Publish replaces
   it, and nothing can be offered the migration without being listed (review and simplify findings).
 - `src/control/failedSends.ts` and `scripts/failed-sends.test.mjs` are touched for `owed()`;
-  `src/model/liveDataMark.ts` (new) holds the block's marker for the binding refusal.
+  `src/model/liveDataMark.ts` (new) holds the block's marker for the binding refusal;
+  `src/model/ownReaderHolds.ts` (new) carries the Playout page's holds to the other doors.
 - **Assessment A** (fresh read-only `/so` session on the diff at `bc97f3b`): PASS WITH NOTES. Its
   findings and what was done: the binding doors (fixed, above); the CasparCG hop named as the
   Bridge (fixed); journeys for a library graphic on a published production (added: the scope

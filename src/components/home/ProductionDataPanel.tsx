@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   deletePath,
   flattenLeaves,
@@ -25,6 +25,7 @@ import type { FieldDescriptor } from '../../model/fieldModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
 import { OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
 import { loadGraphics } from '../../model/library';
+import { ownReaderHolds, subscribeOwnReaderHolds } from '../../model/ownReaderHolds';
 import { stripLiveData } from '../../control/liveData';
 import { nameList } from './CueRundown';
 import { useDeferredEdits } from './useDeferredEdits';
@@ -631,7 +632,14 @@ function BindingTable({
   /** The last "Bind all by title" outcome, per button. Cleared by the next press of any. */
   const [bindAllNote, setBindAllNote] = useState<{ scope: BindAllScope; text: string } | null>(null);
   /** Graphics still reading a Sheet in their own code: their fields take no binding (C6). */
-  const ownGraphics = useMemo(() => ownSheetGraphics(show, loadGraphics()), [show]);
+  const holdsRev = useSyncExternalStore(
+    useCallback((onChange: () => void) => subscribeOwnReaderHolds(show.id, onChange), [show.id]),
+    () => [...ownReaderHolds(show.id)].join('\n'),
+  );
+  const ownGraphics = useMemo(
+    () => new Set([...ownSheetGraphics(show, loadGraphics()), ...(holdsRev ? holdsRev.split('\n') : [])]),
+    [show, holdsRev],
+  );
 
   const graphicsWithFields = show.graphics
     .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))

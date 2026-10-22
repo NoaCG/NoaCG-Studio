@@ -1,4 +1,4 @@
-// guards: src/control/liveData.ts, src/export/targets/spxStarter.ts, src/export/common.ts, src/blocks/animMigration.ts, scripts/fixtures/show-saved-before-c1a.json
+// guards: src/control/liveData.ts, src/model/ownReaderHolds.ts, src/export/targets/spxStarter.ts, src/export/common.ts, src/blocks/animMigration.ts, scripts/fixtures/show-saved-before-c1a.json
 //
 // ONE WAY TO CONNECT A SHEET, AND THE OLD WAY STILL RUNS (sheet-data-flow AC-10, data-sources C6).
 // New graphics are no longer offered the graphic-level Sheet block, but a graphic saved with one
@@ -125,4 +125,24 @@ test('"Stop its own reader" removes it from the design, and from the copy only b
   assert.deepEqual(ownReaderRemoval({ library: false, published: false }), { library: false, copy: true });
   // Published with no library record, nothing could carry the removal to the output.
   assert.equal(ownReaderRemoval({ library: false, published: true }), null);
+});
+
+test('what the Playout page holds back reaches the other binding doors, per production, and clears (C6)', async () => {
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, String(v)), removeItem: (k) => stored.delete(k) };
+  try {
+    const { ownReaderHolds, setOwnReaderHolds } = await import('../src/model/ownReaderHolds.ts');
+    assert.deepEqual([...ownReaderHolds('a')], []);
+    setOwnReaderHolds('a', ['Score', 'Card']);
+    assert.deepEqual([...ownReaderHolds('a')].sort(), ['Card', 'Score']);
+    assert.deepEqual([...ownReaderHolds('b')], [], 'another production holds nothing');
+    setOwnReaderHolds('a', []);
+    assert.deepEqual([...ownReaderHolds('a')], []);
+    assert.equal(stored.size, 0, 'an empty hold leaves no key behind');
+    stored.set('spx-gfx-own-reader-holds:a', '{not json');
+    assert.deepEqual([...ownReaderHolds('a')], [], 'an unreadable record holds nothing rather than throwing');
+  } finally {
+    globalThis.localStorage = previous;
+  }
 });

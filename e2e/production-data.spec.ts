@@ -1778,6 +1778,10 @@ test('a library graphic with its own reader on a published production: Stop remo
     };
   }, { docId: seeded.docId, showId: seeded.fixture.id });
   expect(after).toEqual({ design: false, copy: true });
+  // What Connect holds back is recorded for the other binding doors and the Data view's tab.
+  await expect
+    .poll(() => page.evaluate(async (showId) => [...(await import('/src/model/ownReaderHolds.ts')).ownReaderHolds(showId)], seeded.fixture.id))
+    .toEqual(['Library Card']);
 });
 
 test('a new graphic is offered no graphic-level Sheet panel (C6)', async ({ page }) => {

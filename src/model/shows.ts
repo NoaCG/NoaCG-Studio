@@ -15,6 +15,7 @@ import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, 
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { hasLiveData } from './liveDataMark';
+import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
@@ -1761,7 +1762,8 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
 function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
   const before = show.bindings ?? {};
   let ownReaders: Set<string> | null = null;
-  const readsOwn = (graphic: string) => (ownReaders ??= ownSheetGraphics(show, loadGraphics())).has(graphic);
+  const readsOwn = (graphic: string) =>
+    (ownReaders ??= new Set([...ownSheetGraphics(show, loadGraphics()), ...ownReaderHolds(show.id)])).has(graphic);
   const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || readsOwn(graphic));
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
@@ -1776,6 +1778,8 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
  * which a published output runs until Publish replaces it. The same reach as control/liveData.ts
  * `ownReaderGate`. Such a graphic takes no new binding, whatever the door: its block writes the
  * fields by their titles, so a binding would make two writers. Connect data… migrates it first.
+ * The binding write also refuses what the Playout page holds back for the published output
+ * (model/ownReaderHolds.ts): a frame that may still run the reader after Publish.
  */
 export function ownSheetGraphics(show: Pick<Show, 'graphics'>, library: GraphicDoc[]): Set<string> {
   const out = new Set<string>();
