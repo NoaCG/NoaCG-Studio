@@ -76,7 +76,9 @@ export function normalize(example, records) {
   const missing = [];
   const used = new Set();
   for (const field of example.fields ?? []) {
-    const hit = find(field.label) ?? find(field.path.split('.').pop());
+    // A path through a list index would replace the whole list: never sent.
+    const indexed = field.path.split('.').some((part) => /^\d+$/.test(part));
+    const hit = indexed ? undefined : find(field.label) ?? find(field.path.split('.').pop());
     if (!hit || hit === AMBIGUOUS) {
       missing.push(field.label);
       continue;

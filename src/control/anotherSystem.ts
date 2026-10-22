@@ -89,9 +89,14 @@ export interface ApiDestination {
   sample: string;
 }
 
+/** A path that runs through a list index (`api.drivers.0.gap`, possible only by hand under
+ *  Advanced): a merge patch cannot write one element, it replaces the whole list. */
+export const isIndexedPath = (path: string): boolean => path.split('.').some((part) => /^\d+$/.test(part));
+
 /** Every destination connected to Another system, graphics still in the production only, in
  *  path order so the example reads the same on every render. One path filling two fields (an
- *  explicit share) is one destination. */
+ *  explicit share) is one destination. An indexed path is left out: an example that wrote it
+ *  would replace the whole list and lose its other entries. */
 export function apiDestinations(
   bindings: ProductionBindings | undefined,
   graphics: { name: string; fields: { key: string; label: string }[]; values: Record<string, string> }[],
@@ -99,7 +104,7 @@ export function apiDestinations(
   const byPath = new Map<string, ApiDestination>();
   for (const g of graphics) {
     for (const [fieldId, path] of Object.entries(bindings?.[g.name] ?? {})) {
-      if (!isApiPath(path) || byPath.has(path)) continue;
+      if (!isApiPath(path) || isIndexedPath(path) || byPath.has(path)) continue;
       const field = g.fields.find((f) => f.key === fieldId);
       byPath.set(path, { path, graphic: g.name, fieldId, label: field?.label || fieldId, sample: g.values[fieldId] ?? '' });
     }

@@ -184,6 +184,9 @@ test('the example nests the connected paths, and neither the command nor the sen
   const dests = apiDestinations(bindings, [{ name: 'Card', fields: [{ key: 'f0', label: 'Score' }, { key: 'f2', label: "O'Neil" }], values: { f0: '3', f2: 'Ann' } }]);
   assert.deepEqual(dests.map((d) => d.path), ['api.card.name', 'api.card.score'], 'only graphics still in the production, in path order');
   assert.deepEqual(examplePatch(dests), { api: { card: { name: 'Ann', score: '3' } } });
+  // An indexed path (hand-bound under Advanced) is never in the example: it would replace the list.
+  const indexed = apiDestinations({ Grid: { f0: 'api.drivers.0.gap', f1: 'api.grid.lap' } }, [{ name: 'Grid', fields: [], values: {} }]);
+  assert.deepEqual(indexed.map((d) => d.path), ['api.grid.lap']);
   const curl = exampleCurl('https://noacg.test/api/data/patch', { api: { q: "it's" } });
   assert.match(curl, /\$NOACG_DATA_KEY/);
   assert.match(curl, /it'\\''s/, 'a quote in a value cannot end the shell string');
@@ -222,6 +225,9 @@ test('the sender names its synthetic records after the unfamiliar fields, and re
   const twins = normalize({ fields: [{ path: 'api.x.m', label: 'Margin' }, { path: 'api.x.c', label: 'Counted' }] }, { 'Margin %': '1', margin: '2', Counted: '3', '%%': '4' });
   assert.deepEqual(twins.patch, { api: { x: { c: '3' } } });
   assert.deepEqual(twins.missing, ['Margin']);
+  const listed = normalize({ fields: [{ path: 'api.drivers.0.gap', label: 'Gap' }] }, { Gap: '3' });
+  assert.deepEqual(listed.patch, {});
+  assert.deepEqual(listed.missing, ['Gap']);
 });
 
 test('a failed acquisition sends nothing: a cut-off file, a missing one, no records, a value that is not text', async () => {
