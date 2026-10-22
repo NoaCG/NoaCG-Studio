@@ -68,7 +68,7 @@ jobs:
                     s=json.loads(line).get('snapshot',{}); q=s.get('request',{}); r=s.get('response',{}); u=urlsplit(q.get('url','')); endpoint=u.path.split('/')[-1]
                     if endpoint not in paths or not (u.hostname or '').endswith('.supabase.co'): continue
                     print('TIMINGS', endpoint, s.get('timings',{}))
-                    if endpoint=='token': print('AUTH_META',sorted(s.keys()),sorted(q.keys()),sorted(r.keys()))
+                    if endpoint=='token': print('AUTH_META',s.get('startedDateTime'),sorted(s.keys()),sorted(q.keys()),sorted(r.keys()))
                     print('HTTP',s.get('_monotonicTime'),q.get('method'),endpoint,round(s.get('time',0)),r.get('status'),'failed' if s.get('_failureText') else '',summarize(body(z,r.get('content',{}))))
                     if endpoint=='control_tail':
                       rows=body(z,r.get('content',{})) or []; ids=[x.get('msg',{}).get('oid') for x in rows if isinstance(x,dict) and x.get('msg',{}).get('t')=='play']; print('PLAY_IDS',len(ids),len(set(ids)),sum(isinstance(x,str) and bool(x) for x in ids))
