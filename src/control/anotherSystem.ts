@@ -35,12 +35,13 @@ export function apiGroup(bindings: ProductionBindings | undefined, graphic: stri
   };
   const own = groupOf(bindings?.[graphic]);
   if (own) return own;
-  const taken = new Set(
-    Object.entries(bindings ?? {})
-      .filter(([g]) => g !== graphic)
-      .map(([, fields]) => groupOf(fields))
-      .filter((g): g is string => g !== null),
-  );
+  // Every group another graphic's fields use, not only its first: a graphic bound by hand under
+  // Advanced can span several.
+  const taken = new Set<string>();
+  for (const [g, fields] of Object.entries(bindings ?? {})) {
+    if (g === graphic) continue;
+    for (const path of Object.values(fields)) if (isApiPath(path) && path.split('.')[1]) taken.add(path.split('.')[1]);
+  }
   const base = pathKey(graphic, 'graphic');
   let group = base;
   for (let n = 2; taken.has(group); n += 1) group = `${base}_${n}`;

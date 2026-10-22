@@ -173,6 +173,8 @@ test('a graphic keeps its group and its connected paths; two graphics never shar
   const bindings = { 'Score Bug': { f0: 'api.score_bug.home' }, 'score bug!': { f0: 'match.home' } };
   assert.equal(apiGroup(bindings, 'Score Bug'), 'score_bug');
   assert.equal(apiGroup(bindings, 'score bug!'), 'score_bug_2', 'the same name made unique');
+  // Every group another graphic uses is taken, not only its first.
+  assert.equal(apiGroup({ Existing: { f0: 'api.existing.name', f1: 'api.score_bug.score' } }, 'Score Bug'), 'score_bug_2');
   const kept = apiOffers(bindings, 'Score Bug', [{ key: 'f0', label: 'Home goals' }, { key: 'f1', label: 'Home' }], {});
   assert.deepEqual(kept.map((o) => o.path), ['api.score_bug.home', 'api.score_bug.home_2']);
 });
