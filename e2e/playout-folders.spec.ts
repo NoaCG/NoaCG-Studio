@@ -868,7 +868,7 @@ test('All together names a known layer collision and its policy: two graphics on
     folders: [{ labels: ['Hairline', 'Strap'], name: 'Pair', mode: 'together' }],
   });
   await holdFolder(page, 'Pair');
-  const child = (label: string) => page.getByTestId('folder-child').filter({ hasText: label });
+  const child = (label: string) => page.getByTestId('folder-child').filter({ has: page.locator('.pd-folder-where-cue', { hasText: new RegExp(`^${label}$`) }) });
   await expect(child('Hairline')).toContainText('L20');
   await expect(child('Strap').getByTestId('folder-child-clash')).toHaveText('replaces Hairline');
   await expect(child('Hairline').getByTestId('folder-child-clash')).toHaveCount(0);

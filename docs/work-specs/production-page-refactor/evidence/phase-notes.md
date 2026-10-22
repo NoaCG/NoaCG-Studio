@@ -5,6 +5,86 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 13, data-sources C6: Compatibility, truthful operation and docs
+
+- **Previous verified `main` sha:** `7057915b44e237fa9879ec49f2363b8ab15bc123` (row 12, C5, #1604);
+  this branch starts at `a285d94` (that plus the quarantine entry #1605).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no persisted field: a
+  reverted build reads every record this one wrote. A graphic whose reader was removed through
+  "Stop its own reader" stays without it after a revert (the removal is an ordinary design edit;
+  Undo in the editor or re-adding the block by hand restores it).
+- **One way to connect a Sheet (sheet AC-10).**
+  - The editor's graphic-level panel (`LiveDataControls`, in `editorFoundation/`, where the former
+    `ControlPanel.tsx` panel moved) offers nothing to a graphic without the block. A graphic that
+    has one sees what it reads and "Remove live data". The `liveData.set` editor operation stays
+    (records and tests still create the block); no UI reaches it.
+  - Exports are unchanged: `scripts/legacy-sheet-block.test.mjs` builds the SPX package from the
+    C1a fixture's Hairline, finds the block byte for byte in `js/template.js`, and runs it against
+    a CSV: it fetches its address and hands `update` the mapped row.
+  - **The explicit migration.** Connect data… on a graphic whose code reads a Sheet offers "Stop
+    its own reader" or "Keep it" instead of the review (`ownReaderGate`). Stop removes the block
+    from the library record (the design every production plays, so other productions using the
+    graphic lose it too, and the panel says how many) and, before Publish, from the production's
+    copy (`ownReaderRemoval`). Published, the copy is what the output runs, so it is left for
+    Publish to replace (`refreshGraphicCopies` takes the newer record), and Connect says "Publish
+    changes, then connect" until the copy no longer has it. A published graphic with no library
+    record cannot carry the removal to its output, so the migration is refused with that reason
+    (a rare case: an unlinked legacy copy on a published production). Competing writers are
+    therefore impossible through the UI: the review only opens once no copy that plays has the
+    block.
+  - **Pause is honest.** Every graphic still reading in its own code is listed under the cue editor
+    (the Playout sources line) and on the Data overview as "Sheet in X's own code · read by the
+    graphic · Pause does not stop it", with no Pause button.
+  - The page's library snapshot is re-read after the migration (`libraryRev`), so PREVIEW and
+    PROGRAM rebuild on the design the production now plays; otherwise the old block would keep
+    running in the page's own monitors until a reload. The production's copy write sets `savedAt`
+    for the same reason (ProgramStage's pool signature).
+  - `/docs` (docs.html, "A Google Sheet") now describes Connect data… and the migration;
+    `docs/PRODUCTION_DATA_PLAN.md` carries the supersession note in its status block.
+- **AC-9.** Setup's "Messages…" and "Data…", the Data overview, the Playout sources line with
+  Pause, local content without freshness and the reader/cadence/checked/changed details were
+  C1c's and are unchanged; C6 adds the own-reader line to both lists (the "explicit fallback" for
+  a reader Pause cannot reach).
+- **AC-16 presentation: which observations the output route supplies.** This page observes:
+  whether the production is published; each graphic send's answer from the command log
+  (`control_send_many` / the seq road), an accepted write and never a rendered picture; whether it
+  can reach the server (the browser's `online`/`offline`, and the resolve retrying); the outputs'
+  presence (READY); for server cues, the Bridge's answers and the server's own slot readings.
+  No output reports its picture back, and there is no per-command render acknowledgement, so
+  nothing says a picture is confirmed on air. What was added:
+  - PROGRAM's chip (`programAir`): "this page only" unpublished (the local simulation, beside
+    the existing PROGRAM · NOT PUBLISHED), "sending…" while a send waits, "logged HH:MM:SS" once
+    the log took it (its tooltip says outputs do not report their picture), "not confirmed" when a
+    send that moved this monitor may not have reached the log, and "connection lost · last logged
+    HH:MM:SS" when the page cannot reach the server. Nothing pressed yet shows nothing.
+  - A lost connection dims PROGRAM and puts "LAST KNOWN · NOT LIVE" over it; so does NoaCG Bridge
+    not answering while server cues are up, whose badge then reads "server, last known: …".
+  - The target line under the verbs (`takeTargets`): "To: this page only", "To: N outputs ·
+    CasparCG 1-20", "(not loaded)" when the output is not on its slot, or a server cue's slot
+    "through NoaCG Bridge".
+  - The folder panel lists every child's own outcome (ON AIR, NOT TAKEN with the reason) and, in
+    All together, a graphic that replaces an earlier one on the same layer, with the policy
+    ("the later one stays on air"). Server-slot and same-graphic collisions were already refused
+    before sending, so they are not shown as replacements.
+  - Selection, PREVIEW and staged edits already had their own words (the cursor, PREVIEW's label,
+    the unsent line and ✎ Update); they are unchanged.
+  - No new confirmation protocol, renderer acknowledgement or composite renderer.
+- **Files beyond the phase's list, and why.** `src/control/liveData.ts` (the gate and removal
+  rules, Node-testable), `src/model/shows.ts` (`setGraphicCopyScript`, the copy write),
+  `src/control/playoutStatus.ts` (`programAir`, `takeTargets`: the existing Node status contract),
+  `src/control/folderAir.ts` (`folderChildren`: the existing folder contract),
+  `src/components/home/SourcesLine.tsx` and `src/components/home/ProductionDataPanel.tsx` (the
+  own-reader line on Playout and the Data overview), `src/styles/playout-dashboard.css` (the chip,
+  the stale picture, the folder rows), `docs.html` (the /docs page is this file).
+- **Advisor judgement:** none needed; no migration and no database object.
+- **Traps.**
+  - The production page reads the library once per mount; a design change made from the page
+    itself must re-read it or the monitors keep the old design.
+  - The SPX export cannot be imported in Node with the `.ts` resolver (it imports `.txt` licence
+    files); bundle it with rolldown to a temp file, as `ograf-timed-exit.test.mjs` does.
+  - `context.setOffline(true)` fires the browser's `offline` event, which is what the page reads.
+
 ## Row 12, data-sources C5: "Another system" card and Pause
 
 - **Previous verified `main` sha:** `503b029976d78c5b49a758aae449df87b9649f0b` (row 11, C4, #1599 and
