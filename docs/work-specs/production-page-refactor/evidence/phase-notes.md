@@ -41,10 +41,10 @@ changes a spec's digest.
   ladder. The numeric must now be the IRC command. Found by the new test.
 - **Mutation check** (each mutant alone, its test run):
   - `scripts/twitch-chat.test.mjs`, 18 mutants of the reader and the intake: the old ` 366 `
-    substring, the 30 s ceiling, the ladder reset, the first wait, PONG, the CAP request, `\s`
+    substring, the tagged end-of-names allowance, the 30 s ceiling, the ladder reset, the first wait, PONG, the CAP request, `\s`
     unescaping, the CTCP strip, the nickname range, the display-name fallback, the asynchronous
     error, a 26-character login, binary frames, the 10-a-window throttle, the device-token
-    prefix and the dedupe each turn it red. One survives by design: `stop()` without its
+    prefix and the dedupe each turn it red (17). One survives by design: `stop()` without its
     `clearTimeout` (the pending retry still finds the driver stopped and opens nothing), an
     equivalent mutant.
   - Quiz beside a clock: a data write that also re-takes every graphic goes red (the quiz returns
@@ -70,6 +70,8 @@ changes a spec's digest.
     that must not be committed is held to the five-minute small selection.
   - A Playwright config outside the repository resolves the base config's relative paths against
     its own folder; run a one-off spec from inside `e2e/` instead, and delete it after.
+
+## Row 13, data-sources C6: Compatibility, truthful operation and docs
 
 - **Previous verified `main` sha:** `7057915b44e237fa9879ec49f2363b8ab15bc123` (row 12, C5, #1604);
   this branch starts at `a285d94` (that plus the quarantine entry #1605).

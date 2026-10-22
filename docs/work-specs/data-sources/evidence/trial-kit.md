@@ -9,22 +9,24 @@ it when there is time and reports; each finding becomes an issue.
 
 - The build to trial: noacg.studio, or a local dev server on a known commit. Write the commit (or
   the date and time for noacg.studio) in the results table.
-- A signed-in account and a **fresh, unpublished production** made from a scoreboard
-  (for example Club Scorebug) and a news ticker. Add a lower third and a custom graphic only when
-  task 5 starts (below).
+- A signed-in account and two productions, both fresh:
+  - **Production A** for tasks 1 to 5: a news ticker and a scoreboard (for example Club
+    Scorebug), unpublished until task 4. Add the custom graphic when task 5 starts (below).
+  - **Production B** for tasks 6 to 8: one scoreboard only, unpublished throughout (audience-flow
+    AC-7's setting).
 - A Google Sheet shared as "Anyone with the link can view", with one tab of five ticker lines
   under a header `Text`, and a second Sheet for messages with columns `Name` and `Message` and
-  three rows, one of them with a first name and a surname. Keep both open on a second screen
+  three rows; the second row's Name is a first name and a surname (for example `Liisa Korhonen`). Keep both open on a second screen
   for the proctor, out of the participant's sight.
 - A public RSS or Atom feed address (any news site's feed) in a text file on the desktop.
-- For task 4: the production published, its "Another system" card's generated sender file saved
+- For task 4: production A published, its "Another system" card's generated sender file saved
   on the desktop, and a terminal or a double-click that runs it. The proctor prepares this; the
   participant only runs it.
 - For task 5: a custom graphic with at least five text fields with unfamiliar labels (the blank
-  template, labels in a language the participant does not expect is fine), added to the
-  production as a cue.
+  template, labels in a language the participant does not expect is fine), added to production A
+  as a cue.
 - For tasks 6 to 8: a chat window (any messaging app, or a text file) on the same screen holding
-  this raw message: `Hi from Tampere! Is the second half starting soon? -Mikko Laine, 040 123 4567`
+  this raw message: `Hi from Tampere! Is the second half starting soon? -Mikko Laine, 000 000 0000`
   and a second one: `Great match so far, greetings to the commentators -Aino`.
 - A timer and this page for notes. Do not help, point or explain while the clock runs. If the
   participant is stuck for two minutes, note where, help, and count that task as not done.
@@ -32,7 +34,7 @@ it when there is time and reports; each finding becomes an issue.
 ## Tasks
 
 Read each task aloud as written. Start the timer at the start of each task and note the time at
-its end. Data tasks (data-sources AC-14, sheet-data-flow AC-12):
+its end. Data tasks, on production A (data-sources AC-14, sheet-data-flow AC-12):
 
 1. **Paste rows.** "Put these five lines on the ticker and put it on air." (Hand over the five
    ticker lines as copied cells from the Sheet.)
@@ -48,7 +50,7 @@ its end. Data tasks (data-sources AC-14, sheet-data-flow AC-12):
    new Sheet tab, fills it and connects it. Before they connect, the proctor renames one Field ID
    in the Sheet so that it matches nothing. "One value is not showing. Fix that."
 
-Message tasks (audience-flow AC-7; tasks 6 and 7 repeat the paste pilot):
+Message tasks, on production B (audience-flow AC-7; tasks 6 and 7 repeat the paste pilot):
 
 6. **Paste a message.** "Put the viewer message from the chat window on air on the scoreboard's
    message card. Leave out the phone number. Show the name as just 'Mikko' and shorten the text if
@@ -56,7 +58,8 @@ Message tasks (audience-flow AC-7; tasks 6 and 7 repeat the paste pilot):
 7. **A second message while the first is on air.** "Prepare the second message so it is ready
    next, without changing what is on air." (PROGRAM must not change.)
 8. **Messages from a Sheet.** "Viewers' messages also come in through this Sheet. Connect it and
-   put the second message on air, without the surname." Give the message Sheet's link. While the
+   put the second message on air, showing only the first name." Give the message Sheet's link (the
+   second row is the one with a surname). While the
    participant works, the proctor edits one message's text and moves the rows into a different
    order. Note whether what was prepared or aired changed.
 

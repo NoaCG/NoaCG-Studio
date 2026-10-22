@@ -332,6 +332,12 @@ test('a guest row loads into a lower third and airs on Take; editing or deleting
   const rows = data.locator('.pd-dataset tbody tr');
   await rows.nth(1).locator('td input').nth(1).fill('Assistant referee');
   await settleDurableWrites(data);
+  await expect(page.getByTestId('cue-load-row').locator('option', { hasText: 'Guests: Leo Berg' })).toHaveCount(1);
+  expect(await data.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const rows = loadShows().find((s) => s.name === 'Guest Night')?.datasets?.[0]?.rows ?? [];
+    return rows.some((r) => Object.values(r.values).includes('Assistant referee'));
+  }), 'the edit landed in the table').toBe(true);
   // A negative needs time to be wrong in: give a send that would follow the edit a moment.
   await page.waitForTimeout(1_500);
   await expect(program.locator('#f1')).toHaveText('Referee, FIFA');

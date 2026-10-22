@@ -49,12 +49,12 @@ marked **(new)**.
 | A Sheet ticker | `production-data` "Connect data previews the whole graphic…", "twelve Sheet rows reach a ticker on air…" | whole-graphic connect in one confirmation; twelve rows reach a running ticker with no new entrance; an emptied tab clears it | pass |
 | Schedule, standings and credits from a Sheet | `production-data` "Sheet tabs fill a schedule, standings and credits on air…" **(new)** | each board connected to its own tab; each tab's change reaches its board on air; no new entrance | pass |
 | A feed | `production-data` "a pasted news feed fills a ticker…"; `scripts/feed-source.test.mjs`; `e2e/configured/feed-route.spec.ts` | headlines fill a ticker; a failed fetch keeps the list and says since when; two readers make one upstream fetch | pass |
-| A pushed score | `production-data` "Another system connects a whole graphic in one confirmation…"; `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…" | a prepared sender pushes a connected graphic; Pause holds every write; Resume sends the final values once | pass (configured spec quarantined, see Known issues) |
+| A pushed score | `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…"; `scripts/data-pause.test.mjs` (the sender); offline, `production-data` "Another system connects a whole graphic in one confirmation…" connects the graphic and generates the sender but pushes nothing | the card key pushes a connected graphic; Pause holds every write; Resume sends the final values once | rests on the configured spec alone (quarantined, see Known issues): see "Runs" |
 | A guest row | `production-data` "a guest row loads into a lower third and airs on Take…" **(new)** | one table row fills one cue; Take airs it; editing and deleting the row leave PROGRAM as taken | pass |
 | Pasted messages | `e2e/production-audience.spec.ts` "a pasted message airs exactly as prepared…"; `e2e/configured/audience-live.spec.ts` "a pasted message on a published production…" | the prepared version airs; a second message, an edit and a new arrival cannot change it; published through the operator door | pass |
 | Sheet messages | `production-audience` "a message Sheet: rows arrive as candidates…"; `audience-live` "a message Sheet on a published production…"; `scripts/sheet-messages.test.mjs` | rows become candidates; reorder, edit and identical rows keep identity; a vanished row keeps a used candidate | pass |
-| YouTube comments | `e2e/production-chat-intake.spec.ts` "YouTube comments: one press brings the newest 100…", "…a refusal says what to do next", "…a source removed while its fetch is out…"; `scripts/youtube-comments.test.mjs` | on Q's recorded shapes | pass (recorded responses; no live comments call in C7) |
-| YouTube live chat | `production-chat-intake` "YouTube live chat: the first page arrives as earlier…"; `scripts/youtube-chat.test.mjs`; the live smoke below | recorded shapes in CI; the app's own reader on a public stream in the smoke | pass (live smoke: 24 new lines in 3.5 minutes, nothing dropped) |
+| YouTube comments | `scripts/youtube-comments.test.mjs` on Q's recorded shapes; `e2e/production-chat-intake.spec.ts` "YouTube comments: one press brings the newest 100…", "…a refusal says what to do next", "…a source removed while its fetch is out…" | on Q's recorded shapes | pass on the Node test. The journey spec is quarantined (#1595), so CI does not run it on a branch; its three comments journeys passed in this worker's local run (see "Runs"). No live comments call in C7; the live receipt is Q's |
+| YouTube live chat | `scripts/youtube-chat.test.mjs` on recorded shapes; the live smoke below; `production-chat-intake` "YouTube live chat: the first page arrives as earlier…" | the app's own reader on a public stream in the smoke | pass on the Node test and the live smoke (24 new lines in 3.5 minutes, nothing dropped). The journey is quarantined (#1595) and failed in this worker's local run, as filed |
 | Twitch chat (regression) | `scripts/twitch-chat.test.mjs` **(new)** on `scripts/fixtures/twitch/anonymous-read.json` | the existing anonymous reader on recorded IRC frames, through the intake | pass; one defect found and fixed (below) |
 | A staged vote | `production-audience` "the vote reaches air the same way a question does…"; `audience-live` "the published walk…" **(new)** | votes counted; staging writes a cue and stops; only Take airs | pass |
 
@@ -68,7 +68,7 @@ marked **(new)**.
 | Pause | "Connect data previews… Pause"; "the Playout sources line… pauses there"; `production-data-key-tick` "holds a Pause from the row"; `production-data-key` "Pause holds every write" | pass |
 | Disconnect | "Connect data previews… Disconnect"; `scripts/sheet-source.test.mjs` "a late read after Disconnect writes nothing"; `scripts/feed-source.test.mjs` "an answer that arrives after Disconnect or Stop writes nothing" | pass |
 | Reload | "a bound field takes the LIVE value on air…" (the tree survives a reload); "Paste rows…" (reload keeps pasted rows); "the audience workspace survives a workspace round trip and a reload"; "a reader stopped in one browser…"; `production-data-key-tick` (Pause shows after reload) | pass |
-| Operator-page closure | `e2e/configured/production-data-key-tick.spec.ts` (the server tick reads a published source whose lease expired, skips a leased one, holds a Pause from the row) | pass on the local stack with its test secret; production's switch untouched |
+| Operator-page closure | `e2e/configured/production-data-key-tick.spec.ts` (with the page gone, the server tick reads a published source whose lease expired, skips a leased one, holds a Pause from the row) | the spec checks the rows the tick writes to the command log, not PROGRAM or an output picture; on the local stack with its test secret; production's switch untouched. See "Runs" |
 
 ### Custom graphics, overrides and readers
 
@@ -94,9 +94,19 @@ marked **(new)**.
 
 ### Recorded only by later walks
 
-Bridge and CasparCG versions, channels and layers on a real server, fonts and assets on a target,
-Take/Update/Continue/Out on CasparCG and OBS, stacked graphics on a real output, and a real
-restart or reconnect: **unverified in C7**. They are the laptop helper's scratch walks on C7's
+A ticker, a schedule, a standings board and credits watched updating through the actual
+CasparCG/NoaCG Bridge route and an ordinary OBS/browser source; the actual consumer used in
+production; Bridge and CasparCG versions, channels and layers on a real server, fonts and assets
+on a target, Take/Update/Continue/Out on CasparCG and OBS, stacked graphics on a real output, and
+a real restart or reconnect: **unverified in C7**.
+
+**Browser outputs, in software.** No test here loads the published output page and watches a
+*data* update arrive on it. What is proven: published data updates are written to the command log
+as ordinary update rows (`production-data-key-tick`, `production-data-key-dispatch`), and the
+published output renderer applies update rows from that log (`e2e/configured/scorebug-output.spec.ts`
+"a published scorebug takes a score bump and a running clock on the real output renderer", and the
+other `*-output` configured specs). The two halves are each proven; the combination on one output
+page is **not walked in C7**. They are the laptop helper's scratch walks on C7's
 merge SHA (non-gating) and parent phase S's real-studio receipts. The fake Bridge journeys above
 cover the page's side of the same verbs.
 
@@ -164,8 +174,8 @@ Result: **pass** for the YouTube live chat route on a live stream, as far as a k
 
 2. **No other defect found.** Every new journey passed on its first run except the quiz walk,
    whose first cut asserted a class the reveal itself replaces (a test error, corrected: the walk
-   now compares the whole board before and after the update). The two known flakes below
-   reproduced in the local affected-spec run and nothing else did.
+   now compares the whole board before and after the update). In the local affected-spec run two
+   journeys failed, both already filed (#1595, #1603), and nothing else did.
 3. **Observed, not a defect:** a clock's reading survives a re-take of its graphic, because the
    clock resumes from its stored start time. A check that only reads the clock cannot tell a
    re-take; the quiz walk also reads the graphic's machine state for that reason.
