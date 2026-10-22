@@ -162,7 +162,13 @@ Result: **pass** for the YouTube live chat route on a live stream, as far as a k
    must now be the IRC command (`/^(?:@\S+ )?:\S+ 366 /`, an optional tag block, then the server, then the numeric). Blocking for the Twitch route's honesty (a
    silent drop), small and in the reader under test, so fixed and retested here.
 
-FINDINGS_PLACEHOLDER
+2. **No other defect found.** Every new journey passed on its first run except the quiz walk,
+   whose first cut asserted a class the reveal itself replaces (a test error, corrected: the walk
+   now compares the whole board before and after the update). The two known flakes below
+   reproduced in the local affected-spec run and nothing else did.
+3. **Observed, not a defect:** a clock's reading survives a re-take of its graphic, because the
+   clock resumes from its stored start time. A check that only reads the clock cannot tell a
+   re-take; the quiz walk also reads the graphic's machine state for that reason.
 
 ## Known issues touching these routes (filed, not re-fixed)
 
