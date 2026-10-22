@@ -5161,6 +5161,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 items={playoutItems}
                 air={folderStates[id]}
                 misses={takeMisses}
+                graphicsAir={!!hostedSlug}
                 ability={playbackAbility}
                 playoutSettings={playoutSettings}
                 slot={{ channel: slot.channel, layer: slot.layer, set: selectedFolder.slot?.channel !== undefined || selectedFolder.slot?.layer !== undefined }}

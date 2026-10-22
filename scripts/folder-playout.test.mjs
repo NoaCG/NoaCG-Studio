@@ -453,6 +453,10 @@ test('a folder lists every child\'s own outcome, and All together names the cues
   assert.equal(children[0].why, undefined, 'a cue on air carries no old miss');
   // Both sides of each collision are named, graphics and server cues alike.
   assert.deepEqual(children.map((c) => c.sharesWith ?? []), [['Credits'], ['Clip 2'], [], ['Score'], ['Clip']]);
+  // Before the first publish a graphic that is up plays on this page only, as its row says; a
+  // server cue airs either way.
+  const unpublished = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'b'], misses: {}, graphicsAir: false });
+  assert.deepEqual(unpublished.slice(0, 2).map((c) => c.outcome), ['up', 'air']);
   // One by one and Play through use one place in turn by design: no collision.
   for (const mode of ['manual', 'through']) {
     assert.ok(folderChildren(members, { mode, address: (c) => address[c.id], onAir: [], misses: {} }).every((c) => c.sharesWith === undefined), mode);

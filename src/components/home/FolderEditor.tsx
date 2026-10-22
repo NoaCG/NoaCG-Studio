@@ -39,6 +39,7 @@ export default function FolderEditor({
   items,
   air,
   misses,
+  graphicsAir,
   ability,
   playoutSettings,
   slot,
@@ -57,6 +58,8 @@ export default function FolderEditor({
   air: FolderAir | undefined;
   /** Why the folder's last Take missed each cue it missed, by cue id. */
   misses: Readonly<Record<string, string>>;
+  /** The production is published: a graphic that is up airs, rather than playing here only. */
+  graphicsAir: boolean;
   ability: PlaybackAbility | null;
   playoutSettings: PlayoutSettings;
   /** Where a Play-through folder plays: the channel and layer, and whether either is its own. */
@@ -86,6 +89,7 @@ export default function FolderEditor({
     address: (c) => (mode === 'through' && c.source === 'playout' ? slotAddress(slot) : addressOf(c)),
     onAir: air?.onAir ?? [],
     misses,
+    graphicsAir,
   });
   const words = folderAirWords(air, children.filter((c) => c.outcome === 'miss').length);
   const throughOff = offerBlocked(ability, NEEDS.through);
@@ -252,6 +256,11 @@ export default function FolderEditor({
           <li key={c.id} data-outcome={c.outcome} data-testid="folder-child">
             <span className="pd-folder-where-cue">{c.label}</span>
             {c.outcome === 'air' && <span className="pd-tag air">ON AIR</span>}
+            {c.outcome === 'up' && (
+              <span className="pd-tag up" title="Up on this page only: the production is not published.">
+                UP
+              </span>
+            )}
             {c.outcome === 'miss' && (
               <span className="pd-tag miss" title={c.why} data-testid="folder-child-miss">
                 NOT TAKEN

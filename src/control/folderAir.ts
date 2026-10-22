@@ -142,8 +142,9 @@ export interface FolderChild {
   label: string;
   /** Where it plays: `2-10` on the server, `L20` for a graphic. */
   address: string;
-  /** On air now, missed by the folder's last Take (with why), or neither. */
-  outcome: 'air' | 'miss' | 'off';
+  /** On air now, up on this page only (a graphic before the first publish), missed by the
+   *  folder's last Take (with why), or neither. */
+  outcome: 'air' | 'up' | 'miss' | 'off';
   why?: string;
   /** All together: the other cues of this folder on the same address. */
   sharesWith?: string[];
@@ -159,7 +160,15 @@ export interface FolderChild {
  */
 export function folderChildren(
   members: readonly ShowCue[],
-  input: { mode: ShowFolder['mode']; address: (cue: ShowCue) => string; onAir: readonly string[]; misses: Readonly<Record<string, string>> },
+  input: {
+    mode: ShowFolder['mode'];
+    address: (cue: ShowCue) => string;
+    onAir: readonly string[];
+    misses: Readonly<Record<string, string>>;
+    /** The production is published, so a graphic that is up airs. False, it is up on this page
+     *  only, as its rundown row says (D12). Absent reads as published. */
+    graphicsAir?: boolean;
+  },
 ): FolderChild[] {
   const at = members.map((cue) => input.address(cue));
   return members.map((cue, i) => {
@@ -170,7 +179,7 @@ export function folderChildren(
       id: cue.id,
       label: cue.label,
       address: at[i],
-      outcome: live ? 'air' : why ? 'miss' : 'off',
+      outcome: live ? (input.graphicsAir === false && cue.source !== 'playout' ? 'up' : 'air') : why ? 'miss' : 'off',
       ...(why ? { why } : {}),
       ...(shares.length ? { sharesWith: shares } : {}),
     };

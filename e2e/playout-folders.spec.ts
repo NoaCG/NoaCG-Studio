@@ -847,7 +847,8 @@ test('All together: one Take starts every cue in it, a refused one is NOT TAKEN 
   // (data-sources C6, AC-16).
   const child = (label: string) => page.getByTestId('folder-child').filter({ hasText: label });
   await expect(child('OPENER')).toHaveAttribute('data-outcome', 'air');
-  await expect(child('Hairline')).toHaveAttribute('data-outcome', 'air');
+  // Not published: the graphic is up on this page only, as its row says.
+  await expect(child('Hairline')).toHaveAttribute('data-outcome', 'up');
   await expect(child('STING')).toHaveAttribute('data-outcome', 'miss');
   await expect(child('STING').getByTestId('folder-child-why')).toContainText('File not found');
 
