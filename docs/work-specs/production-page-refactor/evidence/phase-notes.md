@@ -168,21 +168,27 @@ changes a spec's digest.
     publishes while G is on air: the output keeps G's old frame and reader until G is cleared, but
     another browser (a teammate, a second device, A with cleared site data) saw only clean design,
     copy and payload and empty device-local stores, so every binding door let it bind G's fields.
-    Fix: the stop is recorded on the production's own synced record (`Show.ownReaderStops`, by
-    graphic name, written by "Stop its own reader" only while published, before the design
-    write). Every browser reads it: the gate answers `clear` for a recorded stop (`ownReaderGate`
-    `stopRecorded`, through `ownSheetReader`), and `ownSheetGraphics`, which every binding door
-    and the Data view already ask, includes it, so `applyBindings` refuses there too. It clears on
+    Fix: the production's own synced record carries the stop (`Show.ownReaderStops`, by graphic
+    name). It is written by Publish, in the same write that refreshes the copies
+    (`refreshGraphicCopies`), for every published graphic that publish takes a reader from: its copy
+    loses one to the refreshed design (this production's Stop, or another production sharing the
+    design: the fresh assessment's finding), or the payload the page saw published reads and the
+    copy no longer does. Until Publish the synced copy still reads, so every door already refuses
+    on it. Every browser reads the record: the gate answers `clear` for a recorded stop
+    (`ownReaderGate` `stopRecorded`, through `ownSheetReader`), and `ownSheetGraphics`, which every
+    binding door and the Data view ask, includes it, so `applyBindings` refuses too. It clears on
     the same positive evidence as the device-local history (off air, live state recovered,
     Presence joined, no output behind, nothing reading), from whichever Playout page sees that
-    first, and the clear syncs back. Read only while published (`publishedReaderStops`), left out
-    of the published-record digest (it never reaches an output), and inert on duplicates and
-    conflict copies, which drop the hosted slug. Chosen over "hold whatever an output reports
-    waiting for its clear": that would cover only a browser with the Playout page open and its
-    outputs in Presence, not the Data view, a typed binding, or an output that dropped out of
-    Presence and still runs its frame. The record is a JSON field: no migration, no database
-    object, no advisor judgement. The device-local stores stay: they also carry what this page saw
-    in a payload a teammate published.
+    first, and the clear syncs. Read only while published (`publishedReaderStops`); unpublishing
+    drops it (a re-publish mints a new output URL); left out of the published-record digest (it
+    never reaches an output); inert on duplicates and conflict copies, which drop the hosted slug.
+    A refused team save merges it by name (`teamShowMerge.ts`): an added stop is kept, one goes
+    only when a side cleared it and the other had it unchanged, and a binding the merge leaves on a
+    stopped graphic is dropped and reported. Chosen over "hold whatever an output reports waiting
+    for its clear": that covers only a browser with the Playout page open and its outputs in
+    Presence, not the Data view, a typed binding, or an output that dropped out of Presence and
+    still runs its frame. A JSON field on the record: no migration, no database object, no advisor
+    judgement. The device-local stores stay: they also carry what this page saw in a payload.
   - *Finding 2, the migrated path uncovered.* The published-migration journey now runs past
     "Publish first": a Publish without the reader while G is on air, a reload in the middle (the
     clear gate `cue-connect-clear-first` restores; the binding write refuses), three reloads that
@@ -194,14 +200,28 @@ changes a spec's digest.
     Node (`scripts/legacy-sheet-block.test.mjs`, shows.ts bundled like the export): the gate holds
     a recorded stop, and the binding write refuses a held graphic and a recorded stop, ignores a
     stop while unpublished, and binds once cleared.
-  - *Mutation check* (each applied alone, Node test and the four C6 journeys run): the checker's
-    two mutants (verified at once and the history forgotten on load; `applyBindings` without the
-    holds) and seven on the new rules (the page ignoring the record; the binding doors ignoring
-    it; the gate ignoring it; release before the live state is recovered; release while on air;
-    release without Presence; release while an output is behind) each turn at least one red.
+  - *Mutation check* (each applied alone; the two Node files and the four C6 journeys run): the
+    checker's two mutants (verified at once and the history forgotten on load; `applyBindings`
+    without the holds) and twelve on the new rules (the page ignoring the record; the binding doors
+    ignoring it; the gate ignoring it; release before the live state is recovered, while on air,
+    without Presence, while an output is behind; Publish recording no stop; Publish ignoring the
+    payload's readers; the merge letting theirs win; the merge keeping a binding on a stopped
+    graphic; unpublish keeping the stops) each turn at least one test red.
+  - *Fresh `/so` assessment* (read-only, on the first cut): FAIL, because the stop was written by
+    the Stop button for its own production only, so a second production sharing the design took
+    the clean copy at its own Publish with nothing recorded; and a team merge could drop a stop.
+    Both fixed as above, with the unpublish clear it suggested. Its notes kept as gaps below.
+  - The journeys stand in for Publish (`publishWithoutReader` calls the app's own
+    `refreshGraphicCopies` and builds the payload): the real Publish button needs a signed-in
+    account, which the offline suite has not got. Publish's recording is pinned in Node.
   - Known gaps now: the Data overview's own-reader list reads design and copy only; a teammate's
     Publish is seen at this page's next resolve; a browser binding from a record older than the
-    stop (before sync brings it) is the record's ordinary last-write-wins case.
+    stop (before sync brings it) is the record's ordinary last-write-wins case; stops and the
+    history are keyed by graphic name, so renaming an on-air graphic before its clear escapes the
+    hold (as the history already did); the clear is an automatic record write, so on a personal
+    production two devices clearing at once can leave a conflicted copy (rare: once per stop); an
+    output that stays behind (a stuck prepare, an old output tab) now holds the graphic for every
+    browser until it catches up or is closed.
 - **Traps.**
   - The production page reads the library once per mount; a design change made from the page
     itself must re-read it or the monitors keep the old design.
