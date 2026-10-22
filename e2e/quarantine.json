@@ -42,6 +42,11 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39619250773"
     },
+    "e2e/configured/production-data-key.spec.ts": {
+      "since": "2026-10-22",
+      "count": 4,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39810829163"
+    },
     "e2e/configured/publish-output-default.spec.ts": {
       "since": "2026-10-21",
       "count": 1,
@@ -98,10 +103,6 @@
     "e2e/configured/late-send-abandoned.spec.ts": {
       "count": 13,
       "last": "2026-10-21"
-    },
-    "e2e/configured/production-data-key.spec.ts": {
-      "count": 3,
-      "last": "2026-10-17"
     },
     "e2e/cross-tab.spec.ts": {
       "count": 1,
