@@ -42,8 +42,7 @@ create table if not exists public.feed_cache (
   error           text,
   fix             text,
   failing_since   timestamptz,
-  refused         boolean not null default false,
-  updated_at      timestamptz not null default now()
+  refused         boolean not null default false
 );
 alter table public.feed_cache enable row level security;   -- no policy: the service role only
 revoke all on table public.feed_cache from public, anon, authenticated;

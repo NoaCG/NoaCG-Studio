@@ -112,7 +112,20 @@ changes a spec's digest.
   builders and a regex cache in the parser, one read path in Connect. Skipped: a shared byte-cap
   helper with C2's `cappedFetch` (would reshape C2's tested path), a `sourceShape` helper (two
   call sites), a longer renewal (30 s keeps margin under the one-minute row lease).
+- **Assessment A** (a fresh read-only session with the `/so` brief, on `45f7cf91`): AGREE WITH
+  CORRECTIONS. Its four corrections are in: (1) the parser was quadratic on hostile markup (its
+  lazy regexes rescanned to the end from every unclosed tag; 400 KB of `<item>` took 5 s), which
+  could hold the public route and the tick; it now scans forward only (`indexOf`, an element
+  without its end stops the scan, a headline's markup is read up to 16 KB), and `feed-fetch` feeds
+  it nine 5 MB hostile documents, each under 2 s (slowest 352 ms; the old comment regex turns it
+  red); (2) a tick cut-off was saved as the feed's failure for every reader for 5 minutes; a read
+  the caller cuts short now lets only the claim go; (3) the real connection had no test; two now
+  run `nodeFeedNet` against a local server, one reaching it only through the pinned address under
+  an unresolvable name (with gzip), one proving a stalled compressed body ends at the abort (both
+  red when the `lookup` or `pipeline` is removed); (4) the never-written `updated_at` column is
+  gone from 0099. The real receipt was repeated on the final code with the same result.
 - **Traps.**
+  - A lazy regex over a body someone else wrote is a denial of service at 5 MB; scan forward.
   - `node:http`'s `lookup` option must answer both shapes (`all: true` gets an array); a typed
     `LookupFunction` cast keeps the root tsconfig's check.
   - The configured walk replaces `feedNetwork.current` in the route's own process, so the guard

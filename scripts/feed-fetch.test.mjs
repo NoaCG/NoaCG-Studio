@@ -29,7 +29,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import './lib/tsResolve.mjs';
 import { buildApiRuntime } from './api-runtime-build.mjs';
 
-const { feedKey, guardedFetch, normalizeFeedAddress, parseFeed, publicAddress, readFeed } = await import('../api/_lib/feedFetch.ts');
+const { feedKey, guardedFetch, nodeFeedNet, normalizeFeedAddress, parseFeed, publicAddress, readFeed } = await import('../api/_lib/feedFetch.ts');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = (name) => readFileSync(path.join(root, 'docs/work-specs/data-sources/evidence/feeds', name), 'utf8');
@@ -341,6 +341,30 @@ test('a headline of 300 characters is kept whole, and a longer one is cut to 300
   assert.ok(over.endsWith('…'));
 });
 
+test('hostile markup of 5 MB parses in under 2 seconds each: the parser scans forward only', () => {
+  // A lazy regex rescans to the end from every unclosed tag: 400 KB of `<item>` took 5 s that way,
+  // and 5 MB would hold the route and the tick for minutes.
+  const MB5 = 5_000_000;
+  const fill = (head, unit, tail = '') => head + unit.repeat(Math.floor((MB5 - head.length - tail.length) / unit.length)) + tail;
+  const cases = {
+    'unclosed items': fill('<rss>', '<item>'),
+    'unclosed comments': fill('<rss>', '<!--'),
+    'unclosed feed tags': fill('', '<feed'),
+    'unclosed titles in one item': fill('<rss><item>', '<title', '</item></rss>'),
+    'unclosed links in one entry': fill('<feed><entry><title>x</title>', '<link', '</entry></feed>'),
+    'unclosed tags in one title': fill('<rss><item><title>', '<a', '</title></item></rss>'),
+    'an unclosed attribute': fill('<rss><item><title type="', 'a', '>x</title></item></rss>'),
+    'entities in one title': fill('<rss><item><title>', '&a', '</title></item></rss>'),
+    'many small items': fill('<rss>', '<item><title>t</title><guid>g</guid></item>', '</rss>'),
+  };
+  for (const [name, xml] of Object.entries(cases)) {
+    const started = performance.now();
+    parseFeed(xml);
+    const ms = performance.now() - started;
+    assert.ok(ms < 2000, `${name}: ${Math.round(ms)} ms`);
+  }
+});
+
 test('a page that is not a feed is said plainly', () => {
   const html = parseFeed('<!doctype html><html><head><title>Home</title></head></html>');
   assert.equal(html.ok, false);
@@ -598,6 +622,30 @@ test('a headline is cut by characters, never inside an emoji', () => {
   assert.doesNotMatch(cut, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
 });
 
+test('a read the caller cuts short (the tick’s deadline) leaves the row’s headlines, wait and health as they were', async () => {
+  let reads = 0;
+  const net = fakeNet({ 'news.example': [PUBLIC] }, ({ signal }) =>
+    (reads += 1) === 1
+      ? reply(200, RSS(['Good']))
+      : new Promise((_, reject) => signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))),
+  );
+  const env = io(net);
+  await readFeed(ADDRESS, env);
+  env.clock.t += 5 * MIN;
+  const before = structuredClone(env.store.rows.get(feedKey(ADDRESS)));
+  const cut = new AbortController();
+  const pending = readFeed(ADDRESS, env, { cut: cut.signal });
+  await new Promise((r) => setImmediate(r));
+  cut.abort();
+  const answer = await pending;
+  assert.equal(answer.ok, false);
+  assert.match(answer.error, /cut short/);
+  const after = env.store.rows.get(feedKey(ADDRESS));
+  assert.deepEqual({ ...after, claimed_until: before.claimed_until }, before, 'nothing but the claim changed');
+  assert.ok(after.claimed_until <= new Date(env.clock.t).toISOString(), 'the claim is let go');
+  assert.equal(after.error, null);
+});
+
 test('a read that takes 10 seconds is cut off there, and one inside 10 seconds is not', async () => {
   mock.timers.enable({ apis: ['setTimeout'] });
   try {
@@ -619,6 +667,63 @@ test('a read that takes 10 seconds is cut off there, and one inside 10 seconds i
     assert.deepEqual((await inTime).items, ['In time']);
   } finally {
     mock.timers.reset();
+  }
+});
+
+// ── The real connection ───────────────────────────────────────────────────────
+
+test('the real connection goes to the checked address whatever the name says, and reads a gzip body', async () => {
+  const { createServer } = await import('node:http');
+  const { gzipSync } = await import('node:zlib');
+  const hosts = [];
+  const server = createServer((req, res) => {
+    hosts.push(req.headers.host);
+    res.writeHead(200, { 'content-type': 'application/rss+xml', 'content-encoding': 'gzip' });
+    res.end(gzipSync(RSS(['Pinned'])));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const { port } = server.address();
+    // `pinned.invalid` resolves nowhere: only a connection pinned to the address given can answer.
+    const response = await nodeFeedNet.request({
+      url: new URL(`http://pinned.invalid:${port}/feed.xml`),
+      address: '127.0.0.1',
+      family: 4,
+      headers: { 'accept-encoding': 'gzip' },
+      signal: new AbortController().signal,
+    });
+    const chunks = [];
+    for await (const chunk of response.body) chunks.push(Buffer.from(chunk));
+    assert.equal(response.status, 200);
+    assert.deepEqual(parseFeed(Buffer.concat(chunks).toString('utf8')).items.map((i) => i.title), ['Pinned']);
+    assert.deepEqual(hosts, [`pinned.invalid:${port}`], 'the site’s name still travels in Host');
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('the real connection: a compressed body that stalls is ended by the abort, not waited on for ever', async () => {
+  const { createServer } = await import('node:http');
+  const { gzipSync } = await import('node:zlib');
+  const server = createServer((req, res) => {
+    res.writeHead(200, { 'content-encoding': 'gzip' });
+    res.write(gzipSync(RSS(['x'])).subarray(0, 12)); // the gzip header, then nothing
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const { port } = server.address();
+    const abort = new AbortController();
+    const response = await nodeFeedNet.request({ url: new URL(`http://pinned.invalid:${port}/`), address: '127.0.0.1', family: 4, headers: {}, signal: abort.signal });
+    const started = Date.now();
+    setTimeout(() => abort.abort(), 200);
+    await assert.rejects(async () => {
+      for await (const chunk of response.body) void chunk;
+    });
+    assert.ok(Date.now() - started < 3000, 'the read ended at the abort');
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
   }
 });
 

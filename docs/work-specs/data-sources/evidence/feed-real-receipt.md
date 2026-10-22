@@ -36,6 +36,11 @@ at the epoch. After the 304, `fetched_at` moved to the conditional read and `nex
 The headlines arrived as plain text with their Finnish characters (ä, ö) intact through gzip;
 their wording is Yle's and is not copied here (the spec's "Feed rights" risk).
 
+Repeated at 06:26 UTC on the branch's final parser and migration (after the check's review and
+the independent assessment): 200 with 11 headlines in 535 ms, the row answering the second read in
+4 ms with no request, and a conditional request answered 304 in 53 ms with the headlines
+unchanged.
+
 ## Judgement
 
 The route reads a real RSS 2.0 feed through the guard, keeps one shared row, serves it without

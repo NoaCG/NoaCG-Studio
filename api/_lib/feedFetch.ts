@@ -362,8 +362,19 @@ function decodeEntities(text: string, named: Record<string, string>): string {
   });
 }
 
-/** Markup out: a tag that breaks a line becomes a space, any other goes. */
-const stripTags = (text: string): string => text.replace(/<\/?(?:br|p|div|li|tr|td|h\d)\b[^>]*>/gi, ' ').replace(/<[^>]*>/g, '');
+/** Markup out, in one pass: a tag that breaks a line becomes a space, any other goes, and a `<`
+ *  with no `>` after it is text. */
+function stripTags(text: string): string {
+  let out = '';
+  let at = 0;
+  for (let lt = text.indexOf('<'); lt >= 0; lt = text.indexOf('<', at)) {
+    const gt = text.indexOf('>', lt);
+    if (gt < 0) break;
+    out += text.slice(at, lt) + (/^<\/?(?:br|p|div|li|tr|td|h\d)\b/i.test(text.slice(lt, Math.min(gt + 1, lt + 8))) ? ' ' : '');
+    at = gt + 1;
+  }
+  return out + text.slice(at);
+}
 const escapeHtml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /**
@@ -390,16 +401,46 @@ function plainText(inner: string, html: boolean): string {
   return chars.length > FEED_TITLE_CHARS ? `${chars.slice(0, FEED_TITLE_CHARS - 1).join('').trimEnd()}…` : out;
 }
 
-/** The first child element `name` (no namespace prefix) of `xml`: its attributes and inner text. */
-const childPatterns = new Map<string, RegExp>();
-function child(xml: string, name: string): { attrs: string; inner: string } | null {
-  let pattern = childPatterns.get(name);
-  if (!pattern) childPatterns.set(name, (pattern = new RegExp(`<${name}\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${name}\\s*>)`, 'i')));
-  const m = pattern.exec(xml);
-  return m ? { attrs: m[1], inner: m[2] ?? '' } : null;
+// THE PARSER SCANS FORWARD ONLY. A feed is up to 5 MB of text someone else wrote, and a lazy
+// regex rescans to the end from every unclosed tag (quadratic: 400 KB of `<item>` took 5 s), which
+// would hold the route and the tick. Every search below is an `indexOf` from where the last one
+// ended, and an element without its end stops the scan. Tag names match as written (XML is case
+// sensitive), without a namespace prefix.
+
+/** Comments out; an unclosed comment ends the document. */
+function stripComments(xml: string): string {
+  if (!xml.includes('<!--')) return xml;
+  let out = '';
+  let at = 0;
+  for (let open = xml.indexOf('<!--'); open >= 0; open = xml.indexOf('<!--', at)) {
+    out += xml.slice(at, open);
+    const close = xml.indexOf('-->', open + 4);
+    if (close < 0) return out;
+    at = close + 3;
+  }
+  return out + xml.slice(at);
 }
 
-const attr = (attrs: string, name: string): string | null => new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i').exec(attrs)?.slice(2).find((v) => v !== undefined) ?? null;
+/** The first element `name` at or after `from`: its attributes, inner text and where it ends. */
+function element(xml: string, name: string, from = 0): { attrs: string; inner: string; end: number } | null {
+  let open = xml.indexOf(`<${name}`, from);
+  while (open >= 0 && !/[\s/>]/.test(xml.charAt(open + name.length + 1))) open = xml.indexOf(`<${name}`, open + 1);
+  if (open < 0) return null;
+  const gt = xml.indexOf('>', open);
+  if (gt < 0) return null;
+  const attrs = xml.slice(open + name.length + 1, gt);
+  if (attrs.endsWith('/')) return { attrs: attrs.slice(0, -1), inner: '', end: gt + 1 };
+  const close = xml.indexOf(`</${name}`, gt);
+  if (close < 0) return null;
+  const end = xml.indexOf('>', close);
+  return { attrs, inner: xml.slice(gt + 1, close), end: end < 0 ? xml.length : end + 1 };
+}
+
+/** An element's text, cut to what a headline or an id can use before any parsing of it. */
+const textOf = (e: { inner: string } | null, cap = 2048): string => (e ? plainText(e.inner.slice(0, cap), false) : '');
+
+const attr = (attrs: string, name: string): string | null =>
+  new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i').exec(attrs.slice(0, 2048))?.slice(2).find((v) => v !== undefined) ?? null;
 
 export interface FeedItem {
   title: string;
@@ -417,36 +458,33 @@ export type FeedParse = { ok: true; items: FeedItem[]; ttlMs: number | null } | 
  * FEED_ITEMS. `<ttl>` (minutes) is returned as the feed's own wait.
  */
 export function parseFeed(xml: string): FeedParse {
-  const body = xml.includes('<!--') ? xml.replace(/<!--[\s\S]*?-->/g, '') : xml;
+  const body = stripComments(xml);
   const rss = /<(?:[\w-]+:)?(?:rss|RDF)\b/.test(body);
-  const atom = /<(?:[\w-]+:)?feed\b[^>]*>/.test(body);
+  const atom = /<(?:[\w-]+:)?feed\b/.test(body);
   if (!rss && !atom) {
     return { ok: false, error: 'that address is not an RSS or Atom feed', fix: 'Paste the feed’s own address (it often ends in .xml, /rss or /feed).' };
   }
+  const tag = atom && !rss ? 'entry' : 'item';
   const items: FeedItem[] = [];
-  const re = /<(?:[\w-]+:)?(item|entry)\b[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?\1\s*>/g;
-  for (let m = re.exec(body); m; m = re.exec(body)) {
-    const inner = m[2];
-    const t = child(inner, 'title');
+  for (let e = element(body, tag); e; e = element(body, tag, e.end)) {
+    const inner = e.inner;
+    const t = element(inner, 'title');
     if (!t) continue;
-    const title = plainText(t.inner, (attr(t.attrs, 'type') ?? '').toLowerCase() === 'html');
+    // A headline keeps 300 characters, so 16 KB of its markup is plenty to read.
+    const title = plainText(t.inner.slice(0, 16_384), (attr(t.attrs, 'type') ?? '').toLowerCase() === 'html');
     if (!title) continue;
     let link: string | null;
-    let id: string | null;
-    if (m[1] === 'entry') {
-      const links = [...inner.matchAll(/<link\b([^>]*)\/?>/gi)].map((l) => l[1]);
+    if (tag === 'entry') {
+      const links: string[] = [];
+      for (let l = element(inner, 'link'); l && links.length < 20; l = element(inner, 'link', l.end)) links.push(l.attrs);
       const alternate = links.find((a) => (attr(a, 'rel') ?? 'alternate') === 'alternate') ?? links[0];
       link = alternate ? attr(alternate, 'href') : null;
-      const i = child(inner, 'id');
-      id = i ? plainText(i.inner, false) || null : null;
     } else {
-      const l = child(inner, 'link');
-      link = l ? plainText(l.inner, false) || null : null;
-      const g = child(inner, 'guid');
-      id = g ? plainText(g.inner, false) || null : null;
+      link = textOf(element(inner, 'link')) || null;
     }
-    const date = child(inner, 'pubDate') ?? child(inner, 'updated') ?? child(inner, 'published') ?? child(inner, 'dc:date');
-    const at = date ? Date.parse(plainText(date.inner, false)) : NaN;
+    const id = textOf(element(inner, tag === 'entry' ? 'id' : 'guid')) || null;
+    const date = element(inner, 'pubDate') ?? element(inner, 'updated') ?? element(inner, 'published') ?? element(inner, 'dc:date');
+    const at = Date.parse(textOf(date, 256));
     items.push({ title, id, link, at: Number.isNaN(at) ? null : at });
   }
   const seen = new Set<string>();
@@ -541,7 +579,11 @@ export function nextWait(asked: (number | null | undefined)[]): number {
 /** Fetch under the claim, and keep what came of it on the row. */
 async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise<FeedAnswer> {
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), FEED_TIMEOUT_MS);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    abort.abort();
+  }, FEED_TIMEOUT_MS);
   const stop = () => abort.abort();
   outer?.addEventListener('abort', stop);
   if (outer?.aborted) abort.abort();
@@ -553,6 +595,12 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
   } finally {
     clearTimeout(timer);
     outer?.removeEventListener('abort', stop);
+  }
+  // Cut short by the caller (the tick's deadline), not by the feed: nothing is learnt about the
+  // feed, so the row keeps its headlines, its wait and its health, and only the claim goes.
+  if (result.kind === 'problem' && abort.signal.aborted && !timedOut) {
+    await io.store.save(row.key, { claimed_until: EPOCH });
+    return { ok: false, status: 503, error: 'the read was cut short', fix: RETRY_FIX, failingSince: row.failing_since };
   }
   const now = io.now();
   const good = (etag: string | null, lastModified: string | null, waitMs: number, items?: string[]): Partial<FeedRow> => ({
