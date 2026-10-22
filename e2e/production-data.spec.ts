@@ -1720,11 +1720,17 @@ test('one way to connect a Sheet: a graphic with its own reader still updates on
  * stood in on the network (as production-controls.spec.ts does), its resolve answers `wire.fixture`,
  * and its Realtime socket plays one output's Presence entry, `wire.output` (null: none joined), so
  * the page's positive evidence (presence joined, the outputs' versions, what is on air) is driven
- * here. Every other request answers empty.
+ * here. `silent` leaves the Presence join unanswered; `resolveDelayMs` holds the resolve back so
+ * Presence answers first; `resolved` and `presenceSent` count what was answered. Every other
+ * request answers empty.
  */
 interface LegacyWire {
   fixture: Record<string, unknown> | null;
   output: { ver: { n: number; h: string }; waiting?: string[] } | null;
+  silent?: boolean;
+  resolveDelayMs?: number;
+  resolved?: number;
+  presenceSent?: number;
 }
 
 async function standInBackend(page: Page, wire: LegacyWire): Promise<void> {
@@ -1737,7 +1743,14 @@ async function standInBackend(page: Page, wire: LegacyWire): Promise<void> {
     const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ status: 200, headers, body: path.endsWith('/rpc/control_show_resolve') ? JSON.stringify(wire.fixture) : '[]' });
+    if (!path.endsWith('/rpc/control_show_resolve')) return route.fulfill({ status: 200, headers, body: '[]' });
+    const body = JSON.stringify(wire.fixture);
+    return new Promise<void>((done) => setTimeout(done, wire.resolveDelayMs ?? 0))
+      .then(() => route.fulfill({ status: 200, headers, body }))
+      .then(() => {
+        wire.resolved = (wire.resolved ?? 0) + 1;
+      })
+      .catch(() => {});
   });
   // Realtime, protocol 2.0.0 (JSON arrays): every push is answered ok, and a join of a `live-`
   // topic is answered with the output's Presence entry.
@@ -1746,6 +1759,7 @@ async function standInBackend(page: Page, wire: LegacyWire): Promise<void> {
       if (typeof message !== 'string') return;
       const [joinRef, ref, topic, event, payload] = JSON.parse(message) as [string | null, string | null, string, string, Record<string, unknown>];
       if (ref === null) return;
+      if (event === 'phx_join' && topic.startsWith('realtime:live-') && wire.silent) return;
       const changes = event === 'phx_join' ? ((payload.config as { postgres_changes?: object[] } | undefined)?.postgres_changes ?? []) : [];
       const response = event === 'phx_join' ? { postgres_changes: changes.map((c, i) => ({ ...c, id: i + 1 })) } : {};
       ws.send(JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response }]));
@@ -1756,6 +1770,7 @@ async function standInBackend(page: Page, wire: LegacyWire): Promise<void> {
         ready: { n: 1, of: 1, v: ver, is: [], ...(waiting ? { chg: { s: 'waiting', v: ver, of: 1, n: 0, air: waiting.length, w: waiting } } : {}) },
       };
       ws.send(JSON.stringify([joinRef, null, topic, 'presence_state', { legacyout01: { metas: [{ phx_ref: 'legacy-ref-1', ...entry }] } }]));
+      wire.presenceSent = (wire.presenceSent ?? 0) + 1;
     });
   });
 }
@@ -1880,6 +1895,33 @@ test('a library graphic with its own reader on a published production: Stop remo
   await expect(page.getByTestId('own-reader-line')).toHaveCount(0);
   expect(await bindAnyway(page, ids.showId)).toBeNull();
   await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: ['Library Card'], copy: false, former: ['Library Card'], holds: ['Library Card'] });
+
+  // ── Anything short of positive evidence keeps it held, whatever else is true. ──
+  const stillHeld = async (why: string, answered: () => boolean) => {
+    menu = await openLegacyConnect(page, ids.showId);
+    await expect.poll(answered, { message: `${why}: the wire answered` }).toBe(true);
+    // Settled: a release would have been written by now (it is one effect after the answer).
+    await page.waitForTimeout(1_000);
+    await expect(menu.getByTestId('cue-connect-clear-first'), why).toBeVisible();
+    expect((await ownReaderState(page, ids.showId)).stops, why).toEqual(['Library Card']);
+  };
+  const answeredAfter = (resolved: number, presence: number) => () => (wire.resolved ?? 0) > resolved && (wire.presenceSent ?? 0) > presence;
+  // Off air, but the output still holds the version before (it has not taken the Out's swap).
+  wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: {} } };
+  wire.output = { ver: { n: ver.n - 1, h: 'the-version-before' } };
+  await stillHeld('an output on another version', answeredAfter(wire.resolved ?? 0, wire.presenceSent ?? 0));
+  // Off air, but Presence never joins: no output can be judged.
+  wire.output = { ver };
+  wire.silent = true;
+  await stillHeld('Presence not joined', ((r) => () => (wire.resolved ?? 0) > r)(wire.resolved ?? 0));
+  wire.silent = false;
+  // On air with no output in Presence (one can drop out and keep its frame), and the page reopened:
+  // an on-air map is not evidence until the resolve has answered, however late.
+  wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: { 'Library Card': { cue: ids.cueId } } } };
+  wire.output = null;
+  wire.resolveDelayMs = 2_500;
+  await stillHeld('live state not yet recovered', ((r) => () => (wire.resolved ?? 0) > r)(wire.resolved ?? 0));
+  wire.resolveDelayMs = 0;
 
   // ── Positive evidence: off air, the live state recovered, the output on the published version. ──
   wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: {} } };
