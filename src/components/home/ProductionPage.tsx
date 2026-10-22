@@ -787,7 +787,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  before Connect (C6). Kept across a reload (model/ownReaderHolds.ts), because a reloaded page
    *  sees only clean scripts while an output may still run an old on-air frame. */
   const [formerReaders, setFormerReadersState] = useState<ReadonlySet<string>>(() => new Set());
+  /** The production's live state is recovered from the wire (its resolve and the rows after it):
+   *  until then an empty on-air map is not evidence that a graphic is off air. */
+  const [liveRecovered, setLiveRecovered] = useState(false);
   useEffect(() => {
+    setLiveRecovered(false);
     setPublishedReaders(new Set());
     setFormerReadersState(show ? storedFormerReaders(show.id) : new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps -- per production, not per record write
@@ -918,7 +922,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // its Out and swaps it to the published version (output/swapPlan.ts); presence has joined and no
     // output reports anything pending or another version; and nothing reads in the design, the copy
     // or the published payload. An output that connects later loads the published version afresh.
-    const verified = !!hostedSlug && livePresence.status === 'joined' && !outputsBehind;
+    // An empty on-air map before the live state is recovered is not evidence (a page reopened
+    // onto a graphic that is still up), so nothing clears until the resolve has answered.
+    const verified = !!hostedSlug && liveRecovered && livePresence.status === 'joined' && !outputsBehind;
     const gone = verified
       ? [...formerReaders].filter((name) => !liveCue[name] && !publishedReaders.has(name) && !ownReaders.some((r) => r.graphic === name))
       : [];
@@ -926,7 +932,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const next = new Set([...formerReaders, ...seen].filter((name) => !gone.includes(name)));
     setFormerReadersState(next);
     setStoredFormerReaders(show.id, next);
-  }, [show, hostedSlug, publishedReaders, ownReaders, formerReaders, livePresence.status, outputsBehind, liveCue]);
+  }, [show, hostedSlug, liveRecovered, publishedReaders, ownReaders, formerReaders, livePresence.status, outputsBehind, liveCue]);
   /** Something that can air a graphic is reporting right now: a renderer, or this production on its
    *  CasparCG slot. Read by the send path, which decides "No output" (AC-2). */
   const usableOutput =
@@ -1990,6 +1996,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // see the effect below for what that distinction cost.
         setBootLive(resolved.liveCue);
       }
+      // What air holds is now known here: the wire's own answer and the rows after it.
+      setLiveRecovered(true);
       // Seed each graphic's machine state from its last published report — the page may be
       // opening onto a production another operator drove mid-sequence.
       for (const [graphic, report] of Object.entries(resolved.live)) {

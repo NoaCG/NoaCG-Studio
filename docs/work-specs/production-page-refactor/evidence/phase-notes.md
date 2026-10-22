@@ -143,7 +143,9 @@ changes a spec's digest.
   exists, Connect and the binding doors hold it ("take it out, then connect"); the entry clears
   only when the graphic is off air (every output still following the log takes its Out and swaps
   to the published version), presence has joined, no output reports anything pending or another
-  version, and nothing reads in the design, the copy or the published payload.
+  version, and nothing reads in the design, the copy or the published payload. And only once this page
+  has recovered the production's live state (its resolve has answered, the wire's on-air map and
+  the rows after it applied): an empty on-air map before that is no evidence (the fifth P1).
 - **Kept on purpose.** The editor's `liveData.set` operation stays: nothing but its own Node test
   (`editor-project.test.mjs`) sends it now that the panel offers no Add, and the specs build the
   legacy block through `liveDataBlock`. Removing it would widen the phase into the editor.
