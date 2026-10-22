@@ -5,7 +5,8 @@
 // address names, so every read goes through NoaCG's guarded route `/api/data/feed`
 // (api/_lib/feedFetch.ts): it checks the address, reads it at most once every 5 minutes for every
 // reader, and answers the headlines as plain text. The browser reader asks it every 5 minutes
-// while a page is open; the server tick reads through the same cache otherwise. Before anyone
+// while a page is open, renewing its claim every 30 s in between; the server tick reads through the
+// same cache otherwise. Before anyone
 // signs in this works too: the route is public.
 //
 // A feed's headlines are a Sheet tab of one column to the rest of the reader: one row per
@@ -21,6 +22,9 @@ import { createSheetReader, type SheetFetch, type SheetRead, type SheetReader, t
 
 /** How often an open page asks for a feed's headlines (spec DS4, DS15). */
 export const FEED_READ_MS = 5 * 60_000;
+/** How often an open page renews its claim between reads, inside the published row's one-minute
+ *  lease, so neither another tab nor the tick takes the feed while the page is open. */
+export const FEED_RENEW_MS = 30_000;
 /** How long the page waits for the route: its own 10-second read, or another instance's first
  *  read it waits out, plus the database. */
 export const FEED_ROUTE_TIMEOUT_MS = 25_000;
@@ -85,11 +89,12 @@ export async function readFeedRoute(fetcher: SheetFetch, address: string, signal
 }
 
 /** The browser reader of one feed: the Sheet reader's machinery with the feed's read and cadence. */
-export function createFeedReader(o: Omit<SheetReaderOptions, 'link' | 'read' | 'everyMs' | 'timeoutMs' | 'shape'> & { url: string }): SheetReader {
+export function createFeedReader(o: Omit<SheetReaderOptions, 'link' | 'read' | 'everyMs' | 'renewMs' | 'timeoutMs' | 'shape'> & { url: string }): SheetReader {
   return createSheetReader({
     ...o,
     shape: 'lines',
     everyMs: FEED_READ_MS,
+    renewMs: FEED_RENEW_MS,
     timeoutMs: FEED_ROUTE_TIMEOUT_MS,
     read: (signal) => readFeedRoute(o.io.fetch, o.url, signal),
   });

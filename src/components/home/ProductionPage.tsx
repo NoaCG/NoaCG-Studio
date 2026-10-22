@@ -94,7 +94,7 @@ import { createPlayoutSession, type PlayoutSession } from '../../control/playout
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, leaseOf, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
-import { FEED_READ_MS, createFeedReader } from '../../control/feedSource';
+import { FEED_READ_MS, FEED_RENEW_MS, createFeedReader } from '../../control/feedSource';
 import { useStorePart } from './useStorePart';
 import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
@@ -1649,7 +1649,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   owner: readerTab,
                   hold: dataSession.holdServerTree,
                   note: setNote,
-                  leaseMs: leaseOf({ everyMs: feed ? FEED_READ_MS : undefined }),
+                  leaseMs: leaseOf(feed ? { everyMs: FEED_READ_MS, renewMs: FEED_RENEW_MS } : {}),
                 })
               : undefined,
           },

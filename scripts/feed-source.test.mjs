@@ -223,7 +223,32 @@ test('an answer that arrives after Disconnect or Stop writes nothing', async () 
   assert.ok(!a.writes.some((w) => w.feed.f1.lines === 'Later'), 'stopped meanwhile');
 });
 
-test('one tab reads: a second waits out the first’s lease of 15 minutes and then takes over', async () => {
+test('one tab reads: the open page renews its lease every 30 s between 5-minute reads, so a second tab never takes it', async () => {
+  const b = browser();
+  const a = tab(b, 'A');
+  await b.clock.advance(0);
+  const c = tab(b, 'C');
+  for (let i = 0; i < 4; i += 1) await b.clock.advance(5 * MIN);
+  assert.ok(c.statuses.every((s) => s.reader !== 'this'), 'C never reads while A is open');
+  assert.equal(b.route.asked.length, 5, 'A alone asked the route, every 5 minutes');
+  assert.ok(b.leases.get('prod-1:f1').until - b.clock.now() <= 90_000);
+  a.reader.stop();
+  c.reader.stop();
+});
+
+test('Resume or Connect reads at once, whatever the time since the last read', async () => {
+  const b = browser();
+  const a = tab(b, 'A');
+  await b.clock.advance(0);
+  await b.clock.advance(MIN);
+  assert.equal(b.route.asked.length, 1);
+  a.reader.poke();
+  await b.clock.advance(0);
+  assert.equal(b.route.asked.length, 2);
+  a.reader.stop();
+});
+
+test('one tab reads: a second waits out the first’s lease of 90 seconds and then takes over', async () => {
   const b = browser();
   const a = tab(b, 'A');
   await b.clock.advance(0);
@@ -231,13 +256,14 @@ test('one tab reads: a second waits out the first’s lease of 15 minutes and th
   await b.clock.advance(0);
   assert.equal(b.route.asked.length, 1, 'the second tab does not read');
   assert.equal(c.status().reader, 'other');
-  // A's page freezes (a suspended tab runs no timers and no cleanup): its lease runs out 15
-  // minutes after its last read, and only then does C read.
+  // A's page freezes (a suspended tab runs no timers and no cleanup): its lease runs out 90 s after
+  // its last renewal, and only then does C read. C tries every 30 s.
   a.frozen = true;
-  await b.clock.advance(15 * MIN - 1);
+  assert.equal(b.leases.get('prod-1:f1').until - b.clock.now(), 90_000);
+  await b.clock.advance(90_000 - 1);
   assert.ok(c.statuses.every((s) => s.reader !== 'this'), 'C waits while the lease lasts');
   assert.equal(b.route.asked.length, 1);
-  await b.clock.advance(1);
+  await b.clock.advance(30_000);
   assert.equal(c.status().reader, 'this', 'C reads once the lease lapsed');
   assert.equal(b.route.asked.length, 2);
   c.reader.stop();

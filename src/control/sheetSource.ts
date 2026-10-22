@@ -184,7 +184,7 @@ export function sheetContent(shape: SheetShape, rows: string[][]): SheetContent 
  * What a source offers a graphic's mapping review: each leaf's path, label and sample, and the
  * field it was made for when the source says so (a list adapter's own field, a Field ID).
  */
-export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed' = 'sheet'): OfferedValue[] {
+export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed'): OfferedValue[] {
   const prefix = sourcePrefix(sourceId, kind);
   if (shape !== 'values') {
     return listLeaves(shape).map((l) => ({ path: `${prefix}.${l.leaf}`, label: l.label, sample: content.leaves[l.leaf] ?? '', key: l.field }));
@@ -415,10 +415,13 @@ export interface SheetReaderOptions {
   link?: SheetLink;
   /** One read of another kind of source, in a Sheet read's form (control/feedSource.ts). */
   read?: (signal: AbortSignal) => Promise<SheetRead>;
-  /** How often it reads (SHEET_READ_MS), and how long one read may take (SHEET_TIMEOUT_MS). The
-   *  lease lasts three reads, as a Sheet's does. */
+  /** How often it reads (SHEET_READ_MS), and how long one read may take (SHEET_TIMEOUT_MS). */
   everyMs?: number;
   timeoutMs?: number;
+  /** How often the lease is renewed between reads (everyMs): a published row holds a lease at most
+   *  a minute (0097), so a source read every 5 minutes renews it in between. The lease lasts three
+   *  renewals, as a Sheet's lasts three reads. */
+  renewMs?: number;
   shape: SheetShape;
   /** This page, among the browser's tabs. */
   tab: string;
@@ -537,8 +540,8 @@ function patchOf(writes: Record<string, string>): JsonObject {
 
 let claims = 0;
 
-/** A reader's lease: three of its reads, so a closed tab hands over soon. */
-export const leaseOf = (o: Pick<SheetReaderOptions, 'everyMs'>): number => 3 * (o.everyMs ?? SHEET_READ_MS);
+/** A reader's lease: three of its renewals (its reads, for a Sheet), so a closed tab hands over soon. */
+export const leaseOf = (o: Pick<SheetReaderOptions, 'everyMs' | 'renewMs'>): number => 3 * (o.renewMs ?? o.everyMs ?? SHEET_READ_MS);
 
 /** The unpublished lease: this browser's storage, shared by its tabs. */
 function localLeaseDoor(o: SheetReaderOptions, alive: () => boolean): SheetLeaseDoor {
@@ -609,6 +612,10 @@ function localLeaseDoor(o: SheetReaderOptions, alive: () => boolean): SheetLease
 export function createSheetReader(o: SheetReaderOptions): SheetReader {
   const { io } = o;
   const every = o.everyMs ?? SHEET_READ_MS;
+  const renew = o.renewMs ?? every;
+  /** When this page last read, and whether the next turn must read whatever the time (Connect, Resume). */
+  let lastRead: number | null = null;
+  let forced = false;
   let stopped = false;
   let timer: unknown = null;
   let busy = false;
@@ -664,13 +671,13 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       claimId = null;
       const fix = 'Reading carries on by itself.';
       report(missedStatus(shown ?? initialStatus('this'), { error: `the published production did not answer (${answer.message})`, fix }, io.now(), 'this'));
-      schedule(every);
+      schedule(renew);
       return;
     }
     if (!answer.held) {
       claimId = null;
       report({ ...(answer.status ?? initialStatus(answer.reader)), reader: answer.reader });
-      schedule(every);
+      schedule(renew);
       return;
     }
     claimId = answer.claim;
@@ -681,9 +688,16 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       const status: SheetStatus = { ...held.status, state: 'paused', reader: 'this' };
       await door.settle(answer.claim, {}, { ...held, status }).catch(() => false);
       if (!stopped) report(status);
-      schedule(every);
+      schedule(renew);
       return;
     }
+    // Between reads, the claim above has only renewed the lease.
+    if (!forced && lastRead !== null && io.now() - lastRead < every) {
+      schedule(Math.min(renew, lastRead + every - io.now()));
+      return;
+    }
+    forced = false;
+    lastRead = started;
     const abort = new AbortController();
     const cut = io.setTimer(() => abort.abort(), o.timeoutMs ?? SHEET_TIMEOUT_MS);
     let result: SheetRead;
@@ -706,19 +720,22 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
       // Handed over, disconnected or let go meanwhile: claim again at the next read, and show the
       // owner's status then rather than inventing one now.
       claimId = null;
-      schedule(every);
+      schedule(renew);
       return;
     }
     // Only the lease's holder feeds the inbox: an old owner's late read would put back what the
     // new owner's newer read took out.
     if (result.ok && o.inbox) o.inbox(result.rows.map((r) => Object.freeze([...r])));
     report(next.status);
-    schedule(Math.max(0, started + every - io.now()));
+    schedule(Math.max(0, started + renew - io.now()));
   };
 
   schedule(0);
   return {
-    poke: () => schedule(0),
+    poke: () => {
+      forced = true;
+      schedule(0);
+    },
     holds: () => !stopped && claimId !== null,
     stop: () => {
       if (stopped) return;

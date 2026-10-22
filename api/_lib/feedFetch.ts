@@ -28,6 +28,7 @@ import { lookup as dnsLookup } from 'node:dns/promises';
 import { request as httpRequest, type IncomingMessage } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { isIP, type LookupFunction } from 'node:net';
+import { pipeline } from 'node:stream';
 import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib';
 
 /** Never fetched more often than this, whatever the readers (spec DS4, AC-6). */
@@ -49,6 +50,8 @@ export const FEED_ITEMS = 20;
 export const FEED_TITLE_CHARS = 300;
 /** The longest address accepted. */
 export const FEED_ADDRESS_CHARS = 2048;
+/** A row whose wait ended this long ago is an address nobody reads any more, and goes. */
+export const FEED_PRUNE_MS = 24 * 60 * 60_000;
 /** How often a reader waiting for another instance's first read looks at the row again. */
 export const FEED_WAIT_POLL_MS = 250;
 
@@ -222,6 +225,25 @@ function retryAfterMs(header: string | undefined, now: number): number | null {
   return Number.isNaN(at) ? null : Math.max(0, at - now);
 }
 
+/** A promise that rejects once `signal` aborts, so a lookup counts against the read's time. */
+function underSignal<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new Error('aborted'));
+  return new Promise<T>((resolve, reject) => {
+    const stop = () => reject(new Error('aborted'));
+    signal.addEventListener('abort', stop, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', stop);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', stop);
+        reject(error);
+      },
+    );
+  });
+}
+
 /** Decode a body by the charset its header or its XML declaration names, UTF-8 otherwise. */
 function decodeBody(bytes: Uint8Array, contentType: string | undefined): string {
   const declared =
@@ -263,18 +285,25 @@ export async function guardedFetch(
       const why = addressRefusal(url);
       if (why) return refuse(hop === 0 ? why.replace(/\.$/, '') : `it redirects to an address that cannot be read (${why.replace(/\.$/, '')})`, PRIVATE_FIX);
       const host = url.hostname.replace(/^\[|\]$/g, '');
-      const answers = isIP(host) ? [{ address: host, family: isIP(host) }] : await net.lookup(host);
+      const answers = isIP(host) ? [{ address: host, family: isIP(host) }] : await underSignal(net.lookup(host), signal);
       if (answers.length === 0) return { kind: 'problem', error: 'that address does not exist', fix: 'Check the address.' };
       if (!answers.every((a) => publicAddress(a.address))) {
         return refuse(hop === 0 ? 'that address is not on the public internet' : 'it redirects to an address that is not on the public internet', PRIVATE_FIX);
       }
-      const { address: ip, family } = answers[0];
+      // IPv4 first when the name has both: a function without IPv6 egress cannot reach the rest.
+      const { address: ip, family } = answers.find((a) => a.family === 4) ?? answers[0];
       const response = await net.request({ url, address: ip, family, headers, signal });
       const location = response.headers.location;
       if (response.status >= 300 && response.status < 400 && response.status !== 304 && location) {
         response.cancel();
         if (hop >= FEED_MAX_REDIRECTS) return refuse(`it redirects more than ${FEED_MAX_REDIRECTS} times`, 'Use the address the feed finally lands on.');
-        url = new URL(location, url);
+        const next = new URL(location, url);
+        // The validators are the first site's: another site could match one by chance and answer 304.
+        if (next.origin !== url.origin) {
+          delete headers['if-none-match'];
+          delete headers['if-modified-since'];
+        }
+        url = next;
         continue;
       }
       const cacheMs = maxAgeMs(response.headers['cache-control']);
@@ -386,7 +415,9 @@ function plainText(inner: string, html: boolean): string {
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return out.length > FEED_TITLE_CHARS ? `${out.slice(0, FEED_TITLE_CHARS - 1).trimEnd()}…` : out;
+  // Counted in characters, not UTF-16 units, so an emoji is never cut in half.
+  const chars = Array.from(out);
+  return chars.length > FEED_TITLE_CHARS ? `${chars.slice(0, FEED_TITLE_CHARS - 1).join('').trimEnd()}…` : out;
 }
 
 /** The first child element `name` (no namespace prefix) of `xml`: its attributes and inner text. */
@@ -478,6 +509,8 @@ export interface FeedRow {
   error: string | null;
   fix: string | null;
   failing_since: string | null;
+  /** The failure is the guard's refusal of the address itself (answered 400, not 502). */
+  refused: boolean;
 }
 
 /** The shared store, as the reader uses it (the service-role client in production). */
@@ -489,6 +522,8 @@ export interface FeedStore {
    *  update; false when another instance holds it, or the row was read meanwhile. */
   claim: (key: string, now: string, until: string) => Promise<boolean>;
   save: (key: string, patch: Partial<FeedRow>) => Promise<void>;
+  /** Delete the rows whose wait ended before `before`: addresses nobody reads any more. */
+  prune: (before: string) => Promise<void>;
 }
 
 export interface FeedIo {
@@ -511,7 +546,7 @@ function answerOf(row: FeedRow): FeedAnswer {
   if (row.error) {
     return {
       ok: false,
-      status: 502,
+      status: row.refused ? 400 : 502,
       error: row.error,
       fix: row.fix ?? RETRY_FIX,
       failingSince: row.failing_since,
@@ -557,8 +592,9 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
           error: null,
           fix: null,
           failing_since: null,
+          refused: false,
         }
-      : { error: parsed.error, fix: parsed.fix, failing_since: row.failing_since ?? iso(now), next_allowed_at: iso(now + FEED_FLOOR_MS) };
+      : { error: parsed.error, fix: parsed.fix, failing_since: row.failing_since ?? iso(now), next_allowed_at: iso(now + FEED_FLOOR_MS), refused: false };
   } else if (result.kind === 'not-modified') {
     patch = {
       etag: result.etag,
@@ -568,22 +604,34 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
       error: null,
       fix: null,
       failing_since: null,
+      refused: false,
     };
   } else {
-    patch = { error: result.error, fix: result.fix, failing_since: row.failing_since ?? iso(now), next_allowed_at: iso(now + nextWait([result.retryMs])) };
+    patch = {
+      error: result.error,
+      fix: result.fix,
+      failing_since: row.failing_since ?? iso(now),
+      next_allowed_at: iso(now + nextWait([result.retryMs])),
+      refused: result.refused === true,
+    };
   }
   const next: FeedRow = { ...row, ...patch, claimed_until: EPOCH };
   await io.store.save(row.key, { ...patch, claimed_until: EPOCH });
-  const answer = answerOf(next);
-  return !answer.ok && result.kind === 'problem' && result.refused ? { ...answer, status: 400 } : answer;
+  // Rows nobody has read for a day go: an address read at all is fetched at least hourly.
+  await io.store.prune(iso(now - FEED_PRUNE_MS)).catch(() => {});
+  return answerOf(next);
 }
 
 /**
  * One reader's read of an address: the cached headlines while they are fresh; else this instance
  * takes the claim and fetches, or another holds it and the stale row is served with its age (or,
- * before any first read, awaited until that read settles).
+ * before any first read, awaited until that read settles). `wait` ends that waiting (the route
+ * passes its request's signal: a reader gone needs no answer); `cut` also cuts this instance's own
+ * fetch short (the tick passes its deadline). A client leaving never cuts a fetch, whose failure
+ * every other reader would then be served.
  */
-export async function readFeed(text: string, io: FeedIo, signal?: AbortSignal): Promise<FeedAnswer> {
+export async function readFeed(text: string, io: FeedIo, signals: { wait?: AbortSignal; cut?: AbortSignal } = {}): Promise<FeedAnswer> {
+  const { wait: signal, cut } = signals;
   const normal = normalizeFeedAddress(text);
   if ('error' in normal) return { ok: false, status: 400, error: normal.error.replace(/\.$/, '').toLowerCase(), fix: 'Paste the feed’s address.', failingSince: null };
   const key = feedKey(normal.url);
@@ -604,10 +652,11 @@ export async function readFeed(text: string, io: FeedIo, signal?: AbortSignal): 
       error: null,
       fix: null,
       failing_since: null,
+      refused: false,
     };
-    if (await io.store.create(fresh)) return fetchHeld(fresh, io, signal);
+    if (await io.store.create(fresh)) return fetchHeld(fresh, io, cut);
   } else if (await io.store.claim(key, iso(now), until)) {
-    return fetchHeld({ ...row, claimed_until: until }, io, signal);
+    return fetchHeld({ ...row, claimed_until: until }, io, cut);
   }
   // Another instance holds the claim. Headlines in hand are served with their age; before the
   // first read, wait for that read to settle rather than fetching a second time.
@@ -649,8 +698,9 @@ export const nodeFeedNet: FeedNet = {
         (res: IncomingMessage) => {
           const encoding = String(res.headers['content-encoding'] ?? '').toLowerCase();
           const decoder = encoding === 'gzip' || encoding === 'x-gzip' ? createGunzip() : encoding === 'deflate' ? createInflate() : encoding === 'br' ? createBrotliDecompress() : null;
-          const body = decoder ? res.pipe(decoder) : res;
-          if (decoder) decoder.on('error', () => res.destroy());
+          // pipeline, not pipe: a response cut off (the 10-second abort) must end the decoder too,
+          // or the read waits on it for ever.
+          const body = decoder ? pipeline(res, decoder, () => {}) : res;
           const flat: Record<string, string | undefined> = {};
           for (const [k, v] of Object.entries(res.headers)) flat[k] = Array.isArray(v) ? v.join(', ') : v;
           resolve({
@@ -709,6 +759,10 @@ export function supabaseFeedStore(db: {
     },
     save: async (key, patch) => {
       const { error } = await db.from('feed_cache').update(patch).eq('key', key);
+      fail(error);
+    },
+    prune: async (before) => {
+      const { error } = await db.from('feed_cache').delete().lt('next_allowed_at', before).lt('claimed_until', before);
       fail(error);
     },
   };

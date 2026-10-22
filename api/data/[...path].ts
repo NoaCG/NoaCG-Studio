@@ -245,7 +245,7 @@ async function tick(req: Request): Promise<Response> {
       record: (startedAt, durationMs, sources) =>
         rpc('control_data_tick_record', { p_started: new Date(startedAt).toISOString(), p_duration_ms: durationMs, p_sources: sources }),
       fetch: cappedFetch(fetch),
-      feed: async (address, signal) => readFeed(address, await feedIo(), signal),
+      feed: async (address, signal) => readFeed(address, await feedIo(), { wait: signal, cut: signal }),
       setTimer: (run, ms) => setTimeout(run, ms),
       clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
     });
@@ -279,7 +279,7 @@ async function feed(req: Request): Promise<Response> {
   if (!address) return json({ ok: false, error: 'no feed address', fix: 'Paste the feed’s address.', failingSince: null }, 400);
   if (!adminConfigured()) return apiError('unavailable', 'The feed reader is not configured on this deployment.', 503);
   try {
-    const answer = await readFeed(address, await feedIo());
+    const answer = await readFeed(address, await feedIo(), { wait: req.signal });
     if (answer.ok) return json(answer);
     const { status, ...body } = answer;
     return json(body, status);

@@ -110,6 +110,9 @@ function fakeStore() {
     save: async (key, patch) => {
       rows.set(key, { ...rows.get(key), ...structuredClone(patch) });
     },
+    prune: async (before) => {
+      for (const [key, row] of rows) if (row.next_allowed_at < before && row.claimed_until < before) rows.delete(key);
+    },
   };
 }
 
@@ -529,15 +532,70 @@ test('a publisher that asks to be left alone is: Retry-After 1800 on a 503 holds
   assert.deepEqual((await readFeed(ADDRESS, env)).items, ['Back']);
 });
 
-test('a refused address answers 400 and is not fetched again for 5 minutes', async () => {
+test('a refused address answers 400, from the row too, and is not looked up again for 5 minutes', async () => {
   const net = fakeNet({ 'internal.example': ['10.1.2.3'] }, () => reply(200, RSS(['x'])));
   const env = io(net);
   const refused = await readFeed('https://internal.example/feed', env);
   assert.equal(refused.ok, false);
   assert.equal(refused.status, 400);
-  await readFeed('https://internal.example/feed', env);
+  const cached = await readFeed('https://internal.example/feed', env);
+  assert.equal(cached.status, 400, 'a refusal stays a refusal when served from the row');
   assert.equal(net.lookups.length, 1);
   assert.equal(net.requests.length, 0);
+  // A passing failure is 502, from the fetch and from the row.
+  const busy = io(fakeNet({ 'news.example': [PUBLIC] }, () => reply(500)));
+  assert.equal((await readFeed(ADDRESS, busy)).status, 502);
+  assert.equal((await readFeed(ADDRESS, busy)).status, 502);
+});
+
+test('a row nobody has read for a day is deleted at the next fetch; a row in use is kept', async () => {
+  const env = io(feedServer().net);
+  await readFeed('https://news.example/old.xml', env);
+  env.clock.t = T0 + 24 * 60 * MIN + 5 * MIN;
+  await readFeed('https://news.example/in-use.xml', env);
+  assert.ok(env.store.rows.has(feedKey('https://news.example/old.xml')), 'exactly a day after its wait ended: kept');
+  env.clock.t += 1;
+  await readFeed('https://news.example/third.xml', env);
+  assert.equal(env.store.rows.has(feedKey('https://news.example/old.xml')), false, 'a day after its wait ended');
+  assert.ok(env.store.rows.has(feedKey('https://news.example/in-use.xml')));
+});
+
+test('the validators go only to the same site: a redirect to another site is asked unconditionally', async () => {
+  const net = fakeNet({ 'news.example': [PUBLIC], 'cdn.example': ['93.184.215.15'] }, ({ n }) =>
+    n === 1 ? reply(301, '', { location: 'https://cdn.example/feed.xml' }) : reply(200, RSS(['Moved'])),
+  );
+  const result = await guardedFetch(ADDRESS, { etag: 'W/"1"', lastModified: 'Tue, 20 Oct 2026 19:52:24 GMT' }, net, new AbortController().signal);
+  assert.equal(result.kind, 'body');
+  assert.equal(net.requests[0].headers['if-none-match'], 'W/"1"');
+  assert.equal(net.requests[1].headers['if-none-match'], undefined);
+  assert.equal(net.requests[1].headers['if-modified-since'], undefined);
+  const same = fakeNet({ 'news.example': [PUBLIC] }, ({ n }) => (n === 1 ? reply(302, '', { location: '/v2.xml' }) : reply(304)));
+  await guardedFetch(ADDRESS, { etag: 'W/"1"', lastModified: null }, same, new AbortController().signal);
+  assert.equal(same.requests[1].headers['if-none-match'], 'W/"1"', 'the same site keeps them');
+});
+
+test('a name with IPv6 and IPv4 answers is connected over IPv4, after every answer was checked', async () => {
+  const net = fakeNet({ 'news.example': ['2606:4700::6810:84e5', PUBLIC] }, () => reply(200, RSS(['x'])));
+  await ok(net);
+  assert.equal(net.requests[0].address, PUBLIC);
+  const mixed = fakeNet({ 'news.example': ['fd00::1', PUBLIC] }, () => reply(200, RSS(['x'])));
+  assert.equal((await ok(mixed)).refused, true, 'a private IPv6 answer refuses the name even with a public IPv4 one');
+});
+
+test('a lookup that never answers counts against the read’s time', async () => {
+  const net = { lookup: () => new Promise(() => {}), request: async () => reply(200, RSS(['x'])) };
+  const abort = new AbortController();
+  const pending = guardedFetch(ADDRESS, { etag: null, lastModified: null }, net, abort.signal);
+  abort.abort();
+  assert.match((await pending).error, /did not answer in 10 seconds/);
+});
+
+test('a headline is cut by characters, never inside an emoji', () => {
+  const title = `${'x'.repeat(298)}🧰${'y'.repeat(10)}`;
+  const cut = parseFeed(RSS([title])).items[0].title;
+  assert.equal(Array.from(cut).length, 300);
+  assert.ok(cut.endsWith('x🧰…'), cut.slice(-4));
+  assert.doesNotMatch(cut, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
 });
 
 test('a read that takes 10 seconds is cut off there, and one inside 10 seconds is not', async () => {

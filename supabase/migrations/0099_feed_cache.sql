@@ -10,7 +10,9 @@
 -- when, and `claimed_until`, the lease one instance takes with a conditional update before it
 -- fetches a stale row, so two readers at once make one upstream fetch while the others serve the
 -- stale row with its age (api/_lib/feedFetch.ts). The two lease times default to the epoch rather
--- than NULL so the conditional update is one plain comparison each.
+-- than NULL so the conditional update is one plain comparison each. `refused` marks a failure that
+-- is the guard refusing the address itself. A row whose wait ended a day ago is an address nobody
+-- reads any more (any address in use is fetched at least hourly), and the reader deletes it.
 --
 -- It is reached only by the service role, from the public route `/api/data/feed` and the server
 -- tick. Clients get nothing: RLS on with no policy is deny-all, and every client privilege is
@@ -40,6 +42,7 @@ create table if not exists public.feed_cache (
   error           text,
   fix             text,
   failing_since   timestamptz,
+  refused         boolean not null default false,
   updated_at      timestamptz not null default now()
 );
 alter table public.feed_cache enable row level security;   -- no policy: the service role only

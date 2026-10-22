@@ -524,11 +524,11 @@ export function parseDataTree(text: string): { data: JsonObject | null; error: s
 
 /** A data source's paths: everything under `sheet.<id>`, or `feed.<id>` for a news feed
  *  (control/sheetSource.ts and control/feedSource.ts write them). */
-export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed' = 'sheet'): string => `${kind}.${sourceId}`;
+export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed'): string => `${kind}.${sourceId}`;
 
 /** Whether a connected path is one this source writes. Source ids are unique, so the id decides. */
 export const isSourcePath = (sourceId: string, path: string): boolean =>
-  path.startsWith(`${sourcePrefix(sourceId)}.`) || path.startsWith(`${sourcePrefix(sourceId, 'feed')}.`);
+  path.startsWith(`${sourcePrefix(sourceId, 'sheet')}.`) || path.startsWith(`${sourcePrefix(sourceId, 'feed')}.`);
 
 /** The source a connected path follows, or null for a path no source writes. */
 export const sourceIdOf = (path: string | undefined): string | null =>
