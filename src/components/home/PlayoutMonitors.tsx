@@ -4,7 +4,7 @@ import type { PlayoutItem, Show } from '../../model/shows';
 import type { Resolution, SpxTemplate } from '../../model/types';
 import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
-import type { AirState } from '../../control/playoutStatus';
+import { staleWords, type AirState, type LostHop } from '../../control/playoutStatus';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
@@ -108,7 +108,7 @@ export default function PlayoutMonitors({
   air?: { state: AirState; text: string; title: string } | null;
   /** The hop that stopped answering while server cues are up (NoaCG Bridge, or CasparCG behind
    *  it): their names are the last known. */
-  serverLost?: 'bridge' | 'server' | null;
+  serverLost?: LostHop | null;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
@@ -169,8 +169,8 @@ export default function PlayoutMonitors({
     return () => ro.disconnect();
   }, [stageEl]);
   const stageAspect = `${stage.width} / ${stage.height}`;
-  const lost = air?.state === 'stale';
-  const stale = lost || (!!serverLost && serverLayers.length > 0);
+  // A lost hop matters only while server cues are up; a lost connection always does.
+  const stale = staleWords(air?.state === 'stale', serverLayers.length > 0 ? serverLost : null);
   // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
   // is the production's shape now, so a cue of another shape has to fit inside it rather than
   // overflow its height.
@@ -278,7 +278,7 @@ export default function PlayoutMonitors({
           {serverLayers.length > 0 && (
             <span
               className="pd-layer-badge pd-server-badge"
-              title={serverLost ? `${serverLost === 'bridge' ? 'NoaCG Bridge' : 'CasparCG'} is not answering: this is what the server last reported, and it may have changed.` : 'Playing on the playout server through NoaCG Bridge.'}
+              title={staleWords(false, serverLost)?.badge ?? 'Playing on the playout server through NoaCG Bridge.'}
               data-testid="playout-on-air"
               data-stale={serverLost ? true : undefined}
             >
@@ -293,7 +293,7 @@ export default function PlayoutMonitors({
             className={`pd-frame pd-frame-pgm${stale ? ' pd-frame-stale' : ''}`}
             style={{ aspectRatio: stageAspect }}
             data-testid="program-frame"
-            data-stale={stale || undefined}
+            data-stale={stale ? true : undefined}
           >
             {/* What is known of the last command (C6): pending, logged, not confirmed, or a lost
                 connection. In the frame's corner, so the header keeps its names. Unpublished, the
@@ -304,8 +304,8 @@ export default function PlayoutMonitors({
               </span>
             )}
             {stale && (
-              <span className="pd-stale-tag" title={lost ? air.title : `${serverLost === 'bridge' ? 'NoaCG Bridge' : 'CasparCG'} is not answering: this is what the server last reported.`} data-testid="program-stale">
-                {lost ? 'CONNECTION LOST · NOT LIVE' : `${serverLost === 'bridge' ? 'BRIDGE' : 'CASPARCG'} NOT ANSWERING · NOT LIVE`}
+              <span className="pd-stale-tag" title={stale.title} data-testid="program-stale">
+                {stale.tag}
               </span>
             )}
             <ServerStill thumb={programClip ? programThumb : null} testId="program" />

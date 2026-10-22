@@ -35,9 +35,17 @@ changes a spec's digest.
   - **Every other binding door refuses too** (assessment A found the Advanced bindings table,
     Bind all by title and a typed path could still bind such a graphic): the binding write path
     (`applyBindings` in shows.ts, beside the prepared-message refusal) refuses a new binding on a
-    graphic whose copy has the block (`readsOwnSheet`), and the table says why. The block's marker
+    graphic whose copy or library design has the block (`ownSheetGraphics`, the same reach as
+    `ownReaderGate`), and the table says why; Bind all by title names what it skipped, a binding
+    saved before C6 stays (and can be unbound) but takes no new path, the prepared-message
+    "separate card" offer leaves the block behind, and Connect's refusal names the reader when that
+    is the cause (the delta review's findings). The block's marker
     moved to `src/model/liveDataMark.ts` so the model can test for it without importing control/.
     Bindings saved before C6 on such a graphic stay as they were (the C1a fixture has one).
+    Not guarded, by scope: a door that gives an already-bound graphic the block afterwards (adding
+    a legacy template under the same name, or Publish taking an older library design that still
+    has it). Nothing in the app offers the block to a graphic any more, so neither has a way in
+    short of hand-editing code.
   - **Cross-production effect, on purpose.** Stop on a library graphic changes the shared design:
     every production using it loses the reader (a published one at its next Publish). The panel
     names how many other productions use it before the press.

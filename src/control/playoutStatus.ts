@@ -235,6 +235,23 @@ export function programAir(f: AirFacts): { state: AirState; text: string; title:
   };
 }
 
+/** The hop of a server cue's route that stopped answering: NoaCG Bridge, or CasparCG behind it. */
+export type LostHop = 'bridge' | 'server';
+
+const hopName = (hop: LostHop) => (hop === 'bridge' ? 'NoaCG Bridge' : 'CasparCG');
+
+/**
+ * The words over a PROGRAM picture that may no longer be air (C6): this page's connection lost
+ * first, else the server cues' hop that stopped answering; null while neither. `badge` is the
+ * server badge's tooltip for a lost hop.
+ */
+export function staleWords(lost: boolean, hop: LostHop | null): { tag: string; title: string; badge: string | null } | null {
+  const badge = hop ? `${hopName(hop)} is not answering: this is what the server last reported, and it may have changed.` : null;
+  if (lost) return { tag: 'CONNECTION LOST · NOT LIVE', title: 'This page cannot reach the server, so PROGRAM keeps the last picture it knew. Air may have changed since.', badge };
+  if (!hop) return null;
+  return { tag: `${hop === 'bridge' ? 'BRIDGE' : 'CASPARCG'} NOT ANSWERING · NOT LIVE`, title: `${hopName(hop)} is not answering: this is what the server last reported.`, badge };
+}
+
 /** Where TAKE sends the selected cue or folder, in the words beside the verbs. */
 export function takeTargets(f: {
   published: boolean;

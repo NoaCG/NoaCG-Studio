@@ -156,3 +156,15 @@ test('TAKE names where it sends: this page, the outputs and the CasparCG slot, o
   assert.equal(t({ published: false, server: '2-10' }), 'To: CasparCG 2-10 through NoaCG Bridge');
   assert.equal(t({ outputs: 1, serverToo: true }), 'To: 1 output · server cues through NoaCG Bridge');
 });
+
+test('a picture that may no longer be air says which hop is lost: this page, NoaCG Bridge, or CasparCG behind it (C6)', async () => {
+  const { staleWords } = await import('../src/control/playoutStatus.ts');
+  assert.equal(staleWords(false, null), null);
+  assert.equal(staleWords(true, null).tag, 'CONNECTION LOST · NOT LIVE');
+  assert.equal(staleWords(true, 'server').tag, 'CONNECTION LOST · NOT LIVE', 'the page itself first');
+  assert.equal(staleWords(false, 'bridge').tag, 'BRIDGE NOT ANSWERING · NOT LIVE');
+  // The Bridge answered but CasparCG behind it did not: name CasparCG, not the Bridge.
+  assert.equal(staleWords(false, 'server').tag, 'CASPARCG NOT ANSWERING · NOT LIVE');
+  assert.match(staleWords(false, 'server').badge, /^CasparCG is not answering/);
+  assert.match(staleWords(false, 'bridge').badge, /^NoaCG Bridge is not answering/);
+});

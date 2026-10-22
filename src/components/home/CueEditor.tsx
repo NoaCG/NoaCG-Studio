@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectShowSource, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectShowSource, ownSheetGraphics, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
 import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
@@ -12,6 +12,7 @@ import { nameList } from './CueRundown';
 import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspace';
 import LibMenu from './LibMenu';
 import { commitDurableWrites } from '../../model/durableStore';
+import { loadGraphics } from '../../model/library';
 import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
 import type { OwnReaderGate } from '../../control/liveData';
 import { uuid } from '../../model/id';
@@ -305,10 +306,15 @@ function CueConnectReview({
       setSaveError(`Not saved: ${failure}`);
       return;
     }
+    const fields = result.refused.map((r) => r.fieldId.toUpperCase()).join(', ');
     onRefused(
-      result.refused.length > 0
-        ? `${result.refused.map((r) => r.fieldId.toUpperCase()).join(', ')} not connected: prepared messages use it. Add a separate card for messages.`
-        : null,
+      result.refused.length === 0
+        ? null
+        : // Refused because its own code still reads a Sheet (C6): the gate normally stops this
+          // first, but a copy that changed while the review was open lands here.
+          ownSheetGraphics(result.shows.find((x) => x.id === show.id) ?? show, loadGraphics()).has(poolGraphic.name)
+          ? `${fields} not connected: ${poolGraphic.name} still reads a Sheet in its own code. Open Connect data… again.`
+          : `${fields} not connected: prepared messages use it. Add a separate card for messages.`,
     );
     if (sourceToRead) store.poke(sourceToRead);
     close();

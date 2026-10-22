@@ -15,6 +15,7 @@ import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, 
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { hasLiveData } from './liveDataMark';
+import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -1759,7 +1760,9 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
  *  with its last field whichever door unbound it, so no reader keeps reading for nothing. */
 function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
   const before = show.bindings ?? {};
-  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || readsOwnSheet(show, graphic));
+  let ownReaders: Set<string> | null = null;
+  const readsOwn = (graphic: string) => (ownReaders ??= ownSheetGraphics(show, loadGraphics())).has(graphic);
+  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || readsOwn(graphic));
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
   else delete show.bindings;
@@ -1768,13 +1771,18 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
 }
 
 /**
- * A graphic whose copy still reads a Sheet in its own code (the retired block, data-sources C6)
- * takes no new binding, whatever the door: its block writes the fields by their titles, so a
- * binding would make two writers. Connect data… migrates it first ("Stop its own reader"); on a
- * published production the copy keeps the block until Publish replaces it, and so does this.
+ * The production's graphics that still read a Sheet in their own code (the retired block,
+ * data-sources C6): in the design they play (the library record) or in the production's copy,
+ * which a published output runs until Publish replaces it. The same reach as control/liveData.ts
+ * `ownReaderGate`. Such a graphic takes no new binding, whatever the door: its block writes the
+ * fields by their titles, so a binding would make two writers. Connect data… migrates it first.
  */
-export function readsOwnSheet(show: Pick<Show, 'graphics'>, graphic: string): boolean {
-  return show.graphics.some((g) => g.name === graphic && hasLiveData(g.template.js ?? ''));
+export function ownSheetGraphics(show: Pick<Show, 'graphics'>, library: GraphicDoc[]): Set<string> {
+  const out = new Set<string>();
+  for (const g of show.graphics) {
+    if (hasLiveData(g.template.js ?? '') || hasLiveData(resolveSavedGraphicDoc(g, library)?.template.js ?? '')) out.add(g.name);
+  }
+  return out;
 }
 
 /** Drop the sources no field follows and no inbox reads. */
