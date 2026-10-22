@@ -18,6 +18,8 @@
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -190,6 +192,8 @@ test('the receipt reads in seconds, then minutes, and says when nothing arrived'
   const now = Date.parse('2026-10-22T12:00:00Z');
   assert.equal(receivedWords(null, now), 'Nothing received yet');
   assert.equal(receivedWords('2026-10-22T11:59:56Z', now), 'Received 4 s ago');
+  assert.equal(receivedWords('2026-10-22T11:59:01Z', now), 'Received 59 s ago');
+  assert.equal(receivedWords('2026-10-22T11:59:00Z', now), 'Received 1 min ago');
   assert.equal(receivedWords('2026-10-22T11:57:00Z', now), 'Received 3 min ago');
 });
 
@@ -249,6 +253,20 @@ test('a report and its correction are two sends with the key from the environmen
   assert.match(log.join('\n'), /Received \(200\): Riverside count \(f1\)/);
   assert.match(log.join('\n'), /Held \(200\)/);
   assert.match(receipt({ status: 401, body: { ok: false, error: { message: 'Unknown data key.' } } }), /Refused \(401\): Unknown data key/);
+});
+
+test('a report that names no connected field sends nothing', async () => {
+  const requests = [];
+  const log = [];
+  const read = async () => '{"synthetic":true,"records":{"Weather":"Rain"}}';
+  const { records } = await acquire('x', read);
+  assert.deepEqual(normalize(example, records).sent, []);
+  const input = path.join(await mkdtemp(path.join(tmpdir(), 'sender-')), 'weather.json');
+  await writeFile(input, await read());
+  const code = await main(['--example', `${FIXTURES}/another-system.json`, '--input', input], { log: (l) => log.push(l), env: { NOACG_DATA_KEY: 'k' }, fetchImpl: async (...a) => requests.push(a) });
+  assert.equal(code, 1);
+  assert.equal(requests.length, 0);
+  assert.match(log.join('\n'), /Nothing matched a connected field/);
 });
 
 test('without a key the sender sends nothing and says where the key is', async () => {

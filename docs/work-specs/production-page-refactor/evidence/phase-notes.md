@@ -5,6 +5,84 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 12, data-sources C5: "Another system" card and Pause
+
+- **Previous verified `main` sha:** `503b029976d78c5b49a758aae449df87b9649f0b` (row 11, C4, #1599 and
+  repair #1601). This branch starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0100 is additive and stays applied:
+  a reverted build never calls `control_data_pause_by_slug`, so no production is paused and the
+  widened `control_data_apply` and `control_data_send` behave exactly as 0097's and 0047's. Resume
+  any paused production before reverting (the card's Resume), or its held writes stay held until
+  someone calls the function. Fields connected to `api.` paths stay ordinary bindings; a reverted
+  page shows them as bound paths with no "Another system" name.
+- **The tested Pause, named explicitly: suppress-and-diff, not the fallback.** The spec's smallest
+  design proved proportionate, so the "to freeze, stop the sender" fallback is not used:
+  - `/patch` while paused: `control_data_apply` with `'api'` merges into `data` and skips the
+    resolve-diff-append; it answers `paused: true` with no writes, and the route adds `paused` and
+    a `message`.
+  - `/update` while paused: `control_data_send` keeps the values in `data_held`, a per-graphic
+    last-write map, and answers NULL; the route answers `event: null`, `paused: true`.
+  - Operator presses and the server tick still air while paused. They are diffed against
+    `data_dispatched` (the tree at Pause plus every write that aired since), not against `data`, so
+    a press of a value the API also holds still reaches air, and a press on a held path wins.
+    Diffing them against `data` was the first draft; the case "a press of the value the API holds
+    still airs" in the table is what that draft got wrong.
+  - Resume diffs `data` against `data_dispatched`, lays the held `/update` values over it (the
+    spec's "applied after", as one row so a field is never aired twice), and appends one row per
+    graphic, `src: 'api'`, under the 50-per-5-s cap; Pause twice or Resume unpaused is a no-op.
+  - A null while paused deletes the path, so Resume sends nothing for it: the same as an unpaused
+    null today (a missing path resolves to nothing). The configured walk pins it.
+  - `data_received_at` is written by every API write, held or not: the card's "Received N s ago".
+  The cases are `scripts/data-pause-conformance.mjs`, embedded as a `$pause$` literal in 0100 and
+  run by its self-check on the real bodies (eleven cases); `data-pause` fails when the two differ.
+- **Decisions.**
+  - Another system is the data key as ONE source with no `Show.sources` record (AC-8: no
+    per-sender attribution or Pause). Its fields are ordinary bindings to `api.<graphic>.<field>`
+    paths, so no persisted format changed (show-fixture-compat proves an older record with such
+    bindings still reads and plays). The group is the graphic's name, made unique against other
+    graphics' groups; a connected field keeps its path.
+  - Connect data… gains an "Another system" button beside Read: nothing to read, every field is
+    offered its path keyed by its field, so the review proposes the whole graphic; the mapping
+    table, repair, "Used by", the preview monitor and the one confirmation are the Sheet's.
+    `connectApiFields` (shows.ts) is the write, through the one binding path (prepared-message
+    fields refused). The connected field says "Another system", names its path, and has
+    Disconnect.
+  - The card is on the Data view under Production data: published, the address, the key behind
+    Reveal and Copy (moved here from the panel's "▾ Data key", so there is one place), the
+    receipt and Pause/Resume read from the row every 2 s while open, the connected paths, a curl
+    example that reads the key from `$NOACG_DATA_KEY`, and "⬇ For the sample sender" (address,
+    example body, which field each path fills; never the key). Local, it says publishing is the
+    step, with the page's own Publish on the card. A team member without the key is told it is on
+    the owner's view.
+  - Pause is on the control slug (`control_data_pause_by_slug`, anon and authenticated like
+    `control_data_patch_by_slug`); the judgement is in ACCEPTED_CLASSES and the two entries in the
+    advisor baseline (185), with a line in `docs/STACK_FRESHNESS.md` (lesson 1).
+  - The sample sender (`scripts/data-sample-sender.mjs`) reads one local synthetic file, names its
+    records after the destination labels, sends one patch and prints the receipt; a failed
+    acquisition (missing, cut off, no records, a non-scalar value) or a report naming no field
+    sends nothing; the key comes from `NOACG_DATA_KEY` and is never printed. Fixtures are an
+    unfamiliar custom "Riverside count" board and invented count-night numbers, labelled
+    synthetic.
+  - "Offline e2e: the receipt": the offline suite has no backend, so it cannot hold a receipt;
+    it covers the card, the Connect flow, the example and the sender file, and the receipt's
+    words are in `data-pause`; the receipt within 5 s is the configured walk.
+- **Files beyond the phase's list, and why.** `api/_lib/dataIngest.ts` (the held answers),
+  `src/control/anotherSystem.ts` (new: paths, example and words, Node-testable),
+  `src/control/productionDataApi.ts` (read the row's Pause and receipt; the Pause RPC),
+  `src/model/shows.ts` (`connectApiFields`), `src/components/home/ProductionDataPanel.tsx` (the key
+  moved to the card; API values grouped as "Another system" in the overview),
+  `src/components/home/ProductionPage.tsx` (hands Publish to the card), `src/styles/feedback.css`
+  (the example block), `docs.html` (the /docs page renders the Data API section itself),
+  `scripts/supabase-advisors.mjs`, `supabase/advisor-baseline.json`, `docs/STACK_FRESHNESS.md`
+  (lesson 1), `scripts/data-pause-conformance.mjs` and `scripts/fixtures/data-sample/`.
+- **Traps.**
+  - `bootstrapGraphic`'s `name` is the catalog VARIANT, not a name for the graphic.
+  - A plpgsql `case ... when ... then perform` is a statement and needs every branch, so the
+    self-check's unknown step raises.
+  - The local stack started before the migration file existed; `supabase@2.111.0 migration up`
+    applies a new file to a running stack.
+
 ## Row 11, data-sources C4: Feeds
 
 - **Repair, 2026-10-22 (P11 repair 1, the check's FAIL on `ed8394c`).** `childrenOf` copied an
