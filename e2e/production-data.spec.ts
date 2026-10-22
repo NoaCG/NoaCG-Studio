@@ -305,6 +305,53 @@ test('a quiz bank imported from CSV loads into a cue and airs — the Phase 2 wa
   await expect(program.locator('#f2')).toHaveText('Mars');
 });
 
+test('a guest row loads into a lower third and airs on Take; editing or deleting the row afterwards leaves PROGRAM alone (C7)', async ({ page }) => {
+  // data-sources AC-16's guest row: one table row fills one cue, never joined, and the cue keeps
+  // what it was loaded with.
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Guest Night');
+  const data = await openWorkspace(page, 'data');
+  await data.getByTestId('import-dataset').setInputFiles({
+    name: 'Guests.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('Name,Title\nAino Virtanen,Head coach\nLeo Berg,"Referee, FIFA"\n'),
+  });
+  await expect(data.getByTestId('import-note')).toContainText('Imported 2 rows');
+  await settleDurableWrites(data);
+
+  await page.getByTestId('cue-load-row').selectOption({ label: 'Guests: Leo Berg' });
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Leo Berg');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('Referee, FIFA');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Leo Berg');
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+
+  // The source moves: the row is edited, then deleted. What is on air stays as it was taken.
+  const rows = data.locator('.pd-dataset tbody tr');
+  await rows.nth(1).locator('td input').nth(1).fill('Assistant referee');
+  await settleDurableWrites(data);
+  await expect(page.getByTestId('cue-load-row').locator('option', { hasText: 'Guests: Leo Berg' })).toHaveCount(1);
+  expect(await data.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const rows = loadShows().find((s) => s.name === 'Guest Night')?.datasets?.[0]?.rows ?? [];
+    return rows.some((r) => Object.values(r.values).includes('Assistant referee'));
+  }), 'the edit landed in the table').toBe(true);
+  // A negative needs time to be wrong in: give a send that would follow the edit a moment.
+  await page.waitForTimeout(1_500);
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+  // Removing a row is armed: the first press asks, the second removes.
+  const remove = rows.nth(1).locator('[data-testid^="row-delete-"]');
+  await remove.click();
+  await remove.click();
+  await expect(rows).toHaveCount(1);
+  await settleDurableWrites(data);
+  await page.waitForTimeout(1_500);
+  await expect(program.locator('#f0')).toHaveText('Leo Berg');
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+});
+
 test('the downloaded template is a file the importer accepts, with the columns a cue can bind', async ({
   page,
 }) => {
@@ -880,6 +927,70 @@ test('a ± press on a bound field moves the shared value, and every graphic boun
   await expect(page.getByTestId('cue-field-f3')).toHaveValue(String(awayBefore + 1));
   // The shared value did not move for it.
   await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('1');
+});
+
+test('a quiz revealed beside a running clock: bound values update both, the clock keeps counting and the quiz stays revealed (C7)', async ({ page }) => {
+  // data-sources AC-16: independent behaviour stays independent. A data write changes values
+  // only: it never restarts another graphic's clock, re-takes a graphic or moves a machine.
+  test.setTimeout(90_000);
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  const showId = await productionFor(page, 'Quiz Clock Night');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  const chip = page.getByTestId('machine-state-chip');
+
+  const data = await openData(page);
+  await addValue(data, 'quiz.question', 'Which planet is largest?');
+  await addValue(data, 'match.home.score', '0');
+  await data.getByTestId('bind-Arena Quiz-f0').fill('quiz.question');
+  await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
+  await expect(data.getByTestId('bind-value-Club Scorebug-f1')).toHaveText('0');
+  await settleDurableWrites(data);
+
+  const quiz = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect(chip).toContainText(/running/i);
+  const clock = bug.locator('.scoreboard-clock');
+  const seconds = async (): Promise<number> => {
+    const [m, s] = ((await clock.textContent()) ?? '').trim().split(':').map(Number);
+    return m * 60 + s;
+  };
+  const start = await seconds();
+
+  await cues.nth(0).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(quiz.locator('#f0')).toHaveText('Which planet is largest?');
+  await page.getByTestId('cue-field-f6-opt-B').click();
+  await page.getByTestId('cue-action-select').click();
+  await page.getByTestId('cue-action-lock').click();
+  await page.getByTestId('cue-action-judge').click();
+  await expect(chip).toHaveText('Reveal');
+  await expect(quiz.locator('.quiz-correct')).toHaveCount(1);
+  const board = () => quiz.locator('.quiz, .quiz-option').evaluateAll((els) => els.map((el) => el.className));
+  const revealed = await board();
+
+  // The clock has run a few seconds while the quiz was played.
+  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+  const runBefore = Math.abs((await seconds()) - start);
+
+  // The data moves: both graphics take the new values on air, nothing else changes.
+  await data.getByTestId('data-value-quiz.question').fill('Which planet has the most moons?');
+  await data.getByTestId('data-value-match.home.score').fill('2');
+  await settleDurableWrites(data);
+  await expect(quiz.locator('#f0')).toHaveText('Which planet has the most moons?');
+  await expect(bug.locator('#f1')).toHaveText('2');
+
+  // The clock was not reset: it stands at least where it stood, and it still runs.
+  expect(Math.abs((await seconds()) - start), 'the clock was reset').toBeGreaterThanOrEqual(runBefore);
+  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 10_000 }).toBeGreaterThanOrEqual(runBefore + 2);
+  // Two seconds on, the quiz has not advanced or gone back: still revealed, the same answer marked.
+  await expect(chip).toHaveText('Reveal');
+  expect(await board(), 'the board is exactly as revealed').toEqual(revealed);
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(chip).toContainText(/running/i);
 });
 
 test('an adjust on a bound field patches the tree, and the event still fires', async ({ page }) => {
@@ -1532,6 +1643,58 @@ test('twelve Sheet rows reach a ticker on air without a new entrance, and an emp
   tab.csv = '';
   await expect(program.locator('#f0')).toHaveText('', { timeout: 12_000 });
   await expect(page.getByTestId('sources-line')).toContainText('empty');
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+});
+
+test('Sheet tabs fill a schedule, standings and credits on air, and each follows its own tab without a new entrance (C7)', async ({ page }) => {
+  // data-sources AC-16: schedule, standings and credits from a Sheet, beside the ticker above.
+  test.setTimeout(120_000);
+  const tabs: Record<string, string> = {
+    '1': 'Time,Programme\n20:00,News at Eight\n22:00,Late show\n',
+    '2': 'Name,P,W,PTS\nLiquid,5,4,12\nNAVI,5,3,9\n',
+    '3': 'Role,Name\n# CREW,\nDirector,Ann Lee\n',
+  };
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      headers: { 'access-control-allow-origin': '*' },
+      body: tabs[new URL(route.request().url()).searchParams.get('gid') ?? ''] ?? '',
+    }),
+  );
+  await bootstrapGraphic(page, { name: 'Schedule Board' });
+  const showId = await productionFor(page, 'Sheet Boards');
+  for (const name of ['League Table', 'Classic Roll']) await addCatalogGraphic(page, showId, name);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(3);
+  for (const [i, gid] of ['1', '2', '3'].entries()) {
+    await cues.nth(i).locator('.pd-cue-label').click();
+    const review = await readSheetTab(page, SHEET_LINK.replace('gid=0', `gid=${gid}`));
+    await review.getByTestId('cue-connect-confirm').click();
+    await expect(review).toBeHidden();
+    await page.getByTestId('verb-take').click();
+  }
+  const program = (title: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${title}"]`);
+  const schedule = program('Schedule Board');
+  const table = program('League Table');
+  const roll = program('Classic Roll');
+  await expect(schedule.locator('.infographic-row')).toHaveCount(2, { timeout: 12_000 });
+  await expect(schedule.locator('.infographic-row').nth(0)).toContainText('News at Eight');
+  await expect(table.locator('.results-board-col')).toHaveText(['P', 'W', 'PTS'], { timeout: 12_000 });
+  await expect(table.locator('.results-board-row')).toHaveCount(2);
+  await expect(roll.locator('#credits-track')).toContainText('Ann Lee', { timeout: 12_000 });
+  const stage = page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first();
+  const plays = await stage.getAttribute('data-plays');
+
+  // Each tab changes; each board follows its own, and nothing is taken again.
+  tabs['1'] = 'Time,Programme\n20:00,News at Eight\n22:00,Late show\n23:00,Night film\n';
+  tabs['2'] = 'Name,P,W,PTS\nNAVI,6,4,12\nLiquid,6,4,12\nG2,6,1,3\n';
+  tabs['3'] = 'Role,Name\n# CREW,\nDirector,Ann Lee\nCamera,Bo Chen\n';
+  await expect(schedule.locator('.infographic-row')).toHaveCount(3, { timeout: 12_000 });
+  await expect(schedule.locator('.infographic-row').nth(2)).toContainText('Night film');
+  await expect(table.locator('.results-board-row')).toHaveCount(3, { timeout: 12_000 });
+  await expect(table.locator('.results-board-row').nth(0)).toContainText('NAVI');
+  await expect(roll.locator('#credits-track')).toContainText('Bo Chen', { timeout: 12_000 });
   expect(await stage.getAttribute('data-plays')).toBe(plays);
 });
 
