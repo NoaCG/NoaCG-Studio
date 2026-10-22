@@ -401,6 +401,13 @@ export interface Show {
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
   hostedSlug?: string;
+  /** Graphics whose own Sheet reader was stopped here while published (data-sources C6), by name,
+   *  until a Playout page has positive evidence that no output runs the old frame (off air, the
+   *  live state recovered, every output on the published version). On the synced record, so every
+   *  browser and every binding door holds them, not only the one that pressed Stop: the output
+   *  keeps an on-air graphic's old frame, reader included, until it is cleared. Read only while
+   *  published. ADDITIVE OPTIONAL; never reaches an output. */
+  ownReaderStops?: string[];
   /** The browser-output URL's capability slug, once published (docs/CLOUD_PLAYOUT.md §3).
    *  ADDITIVE OPTIONAL, stripped from conflict copies exactly like hostedSlug. */
   outputSlug?: string;
@@ -621,6 +628,7 @@ export function duplicateShowChecked(sourceId: string): { show: Show | null; err
   delete copy.publishedAt;
   delete copy.publishedRecord;
   delete copy.outputOpenedAt;
+  delete copy.ownReaderStops;
   delete copy.deleted;
   const all = loadAllShows();
   all.push(copy);
@@ -774,18 +782,35 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
  * than reverting it. Name, id, layer and sounds stay: they are the production's. The copy takes
  * the record's edit time, never now, so the two read as the same edit. Only Publish calls it: an
  * edit reaches the production only through Publish.
+ *
+ * A published graphic that this publish takes its own Sheet reader from (its copy loses it here,
+ * the design's reader having been stopped in this production or another sharing it; or the payload
+ * the caller saw published, `publishedReaders`, has it and the copy no longer does) is recorded in
+ * `ownReaderStops` in the same write (data-sources C6): the output keeps an on-air graphic's old
+ * frame, reader included, until it is cleared, so no browser may bind its fields before then.
  */
 export function refreshGraphicCopies(
   showId: string,
   newer: (graphic: SavedGraphic) => { template: SpxTemplate; updatedAt: string } | undefined,
+  publishedReaders: ReadonlySet<string> = new Set(),
 ): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, show => {
     let changed = false;
+    const dropped: string[] = [];
     for (const graphic of show.graphics) {
       const doc = newer(graphic);
-      if (!doc || !(Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt))) continue;
-      graphic.template = doc.template;
-      graphic.savedAt = doc.updatedAt;
+      const fresh = !!doc && Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt);
+      const read = publishedReaders.has(graphic.name) || hasLiveData(graphic.template.js ?? '');
+      if (fresh) {
+        graphic.template = doc.template;
+        graphic.savedAt = doc.updatedAt;
+        changed = true;
+      }
+      if (read && !hasLiveData(graphic.template.js ?? '')) dropped.push(graphic.name);
+    }
+    const stops = show.hostedSlug ? [...new Set([...(show.ownReaderStops ?? []), ...dropped])] : [];
+    if (stops.length > (show.ownReaderStops ?? []).length) {
+      show.ownReaderStops = stops;
       changed = true;
     }
     return changed;
@@ -1778,15 +1803,36 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
  * which a published output runs until Publish replaces it. The same reach as control/liveData.ts
  * `ownReaderGate`. Such a graphic takes no new binding, whatever the door: its block writes the
  * fields by their titles, so a binding would make two writers. Connect data… migrates it first.
- * The binding write also refuses what the Playout page holds back for the published output
- * (model/ownReaderHolds.ts): a frame that may still run the reader after Publish.
+ * A reader stopped while published stays here too until it is proven gone from every output
+ * (`ownReaderStops`), whichever browser asks. The binding write also refuses what the Playout page
+ * holds back for the published output (model/ownReaderHolds.ts): a frame that may still run the
+ * reader after Publish.
  */
-export function ownSheetGraphics(show: Pick<Show, 'graphics'>, library: GraphicDoc[]): Set<string> {
-  const out = new Set<string>();
+export function ownSheetGraphics(show: Pick<Show, 'graphics' | 'hostedSlug' | 'ownReaderStops'>, library: GraphicDoc[]): Set<string> {
+  const out = new Set<string>(publishedReaderStops(show));
   for (const g of show.graphics) {
     if (hasLiveData(g.template.js ?? '') || hasLiveData(resolveSavedGraphicDoc(g, library)?.template.js ?? '')) out.add(g.name);
   }
   return out;
+}
+
+/** The graphics whose own reader was stopped while published and is not yet proven gone from every
+ *  output (`Show.ownReaderStops`). Nothing while unpublished: no output runs then. */
+export function publishedReaderStops(show: Pick<Show, 'hostedSlug' | 'ownReaderStops'>): string[] {
+  return show.hostedSlug ? (show.ownReaderStops ?? []) : [];
+}
+
+/** Record on the production that graphics' own readers left what it publishes while published, or
+ *  clear the graphics proven gone from every output (ProductionPage, data-sources C6). */
+export function setOwnReaderStops(showId: string, edit: { add?: readonly string[]; clear?: readonly string[] }): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const before = show.ownReaderStops ?? [];
+    const next = [...new Set([...before, ...(edit.add ?? [])])].filter((name) => !edit.clear?.includes(name));
+    if (next.length === before.length && next.every((name, i) => name === before[i])) return false;
+    if (next.length > 0) show.ownReaderStops = next;
+    else delete show.ownReaderStops;
+    return true;
+  });
 }
 
 /** Drop the sources no field follows and no inbox reads. */
@@ -2186,7 +2232,11 @@ export function setShowHostedSlug(showId: string, slug: string | undefined): Sho
   const show = all.find((s) => s.id === showId);
   if (show) {
     if (slug) show.hostedSlug = slug;
-    else delete show.hostedSlug;
+    else {
+      delete show.hostedSlug;
+      // Unpublished, no output follows this production again (a re-publish mints a new slug).
+      delete show.ownReaderStops;
+    }
     show.updatedAt = nowIso();
     saveAll(all);
   }

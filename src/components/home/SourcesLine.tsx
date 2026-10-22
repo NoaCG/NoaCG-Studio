@@ -16,10 +16,13 @@ export interface OwnSheetReader {
 
 /** What this page has observed of the published output (ProductionPage): the graphics whose
  *  published payload still reads a Sheet, and the graphics seen with a reader that no output is
- *  yet proven rid of (cleared only on positive evidence: off air, every output on the version). */
+ *  yet proven rid of (cleared only on positive evidence: off air, every output on the version).
+ *  `stops` is the production record's own list of readers stopped while published
+ *  (`Show.ownReaderStops`), which every browser reads. */
 export interface OutputObservations {
   reads: ReadonlySet<string>;
   former: ReadonlySet<string>;
+  stops: readonly string[];
 }
 
 /** One graphic's own Sheet reader where it plays (control/liveData.ts `ownReaderGate`): the design
@@ -35,6 +38,7 @@ export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], pub
       published,
       outputReads: output?.reads.has(graphic.name),
       outputBehind: !!output?.former.has(graphic.name),
+      stopRecorded: !!output?.stops.includes(graphic.name),
     }),
   };
 }

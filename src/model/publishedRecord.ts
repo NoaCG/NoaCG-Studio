@@ -9,7 +9,7 @@
 //
 // What the digest leaves out:
 //   - what a publish writes BACK (the slugs, `publishedAt`, this digest) and bookkeeping that never
-//     reaches an output (`updatedAt`, `outputOpenedAt`, the tombstone);
+//     reaches an output (`updatedAt`, `outputOpenedAt`, `ownReaderStops`, the tombstone);
 //   - each pool graphic's save time, so re-adding the same design is no change;
 //   - the embedded template of a graphic with no library link. What it RENDERS is compared by
 //     content already (`libraryGraphicDigests` against the published stamp, usePublishDrift), and
@@ -25,7 +25,7 @@ import { contentHash } from './contentHash.ts';
 import type { Show } from './shows';
 
 /** Record fields a publish does not read from the record, or writes back itself. */
-const NOT_PUBLISHED = new Set(['updatedAt', 'publishedAt', 'publishedRecord', 'hostedSlug', 'outputSlug', 'joinSlug', 'presenterSlug', 'outputOpenedAt', 'deleted']);
+const NOT_PUBLISHED = new Set(['updatedAt', 'publishedAt', 'publishedRecord', 'hostedSlug', 'outputSlug', 'joinSlug', 'presenterSlug', 'outputOpenedAt', 'ownReaderStops', 'deleted']);
 
 /** JSON with every object's keys sorted, so a record read back from the server (Postgres jsonb
  *  re-orders keys) or rewritten by a mutator digests the same. */

@@ -23,6 +23,11 @@
 // is settled at the end, whichever side each list came from, and a settle is reported as `gathered`:
 // nothing of either side was replaced by it, so it is never one of the `lost` fields.
 //
+// STOPPED SHEET READERS MERGE BY NAME (`ownReaderStops`, data-sources C6). Each name holds a graphic
+// whose output may still run its own reader, so a stop either side added is kept, and one goes only
+// when a side cleared it and the other still had it as in `base`. A binding the merge leaves on a
+// stopped graphic goes, as on a prepared field: two writers would write it.
+//
 // Pure - no storage, no clock beyond the stamp it is given - so the one place it can be wrong is
 // here, on a page of code. Its one runtime import is the folder rules, which are pure too; the `.ts`
 // is what lets Node resolve it.
@@ -44,6 +49,7 @@ const FIELD_LABEL: Record<string, string> = {
   profile: 'the control panel layout',
   look: 'the look',
   brandId: 'the brand',
+  ownReaderStops: 'the stopped Sheet readers',
 };
 
 /** Fields the merge never decides: the stamp is written fresh, and `teamId` is the server's. */
@@ -198,6 +204,12 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
   for (const key of keys) {
     if (IGNORED.has(key)) continue;
     if (same(o[key], b[key])) continue; // Our side did not touch it: theirs, already in `doc`.
+    if (key === 'ownReaderStops') {
+      const stops = mergeStops(b[key], o[key], t[key]);
+      if (stops.length > 0) doc[key] = stops;
+      else delete doc[key];
+      continue;
+    }
     if (same(t[key], b[key]) || same(t[key], o[key])) {
       // Only we changed it (or we both made the same change).
       if (o[key] === undefined) delete doc[key];
@@ -220,11 +232,33 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     if (settled.folders.length) doc.folders = settled.folders;
     else delete doc.folders;
   }
-  if (dropBindingsOnPreparedFields(doc as unknown as Show) && !lost.includes(FIELD_LABEL.bindings)) {
+  const dropped = dropBindingsOnPreparedFields(doc as unknown as Show);
+  if ((dropBindingsOnStoppedReaders(doc as unknown as Show) || dropped) && !lost.includes(FIELD_LABEL.bindings)) {
     lost.push(FIELD_LABEL.bindings);
   }
   doc.updatedAt = at;
   return { doc: doc as unknown as Show, lost, gathered: settled.changed };
+}
+
+/** Stopped readers by name: kept when either side has it, unless one side cleared it from `base`
+ *  while the other left it as it was. */
+function mergeStops(base: unknown, ours: unknown, theirs: unknown): string[] {
+  const list = (v: unknown) => new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  const b = list(base);
+  const o = list(ours);
+  const t = list(theirs);
+  return [...new Set([...t, ...o])].filter((name) => (o.has(name) && t.has(name)) || !b.has(name));
+}
+
+/** A binding on a graphic whose stopped reader may still run on the published output: dropped,
+ *  whichever side made it (`ownReaderStops`, read only while published). True when one went. */
+function dropBindingsOnStoppedReaders(doc: Show): boolean {
+  const stops = doc.hostedSlug ? (doc.ownReaderStops ?? []) : [];
+  if (!doc.bindings || !stops.some((name) => doc.bindings![name])) return false;
+  const bindings = Object.fromEntries(Object.entries(doc.bindings).filter(([graphic]) => !stops.includes(graphic)));
+  if (Object.keys(bindings).length > 0) doc.bindings = bindings;
+  else delete doc.bindings;
+  return true;
 }
 
 /**
