@@ -162,11 +162,13 @@ const writeClaims = (claims: Claims) => {
   }
 };
 
-/** Claim (or renew) the reading of a chat source for this tab; false while another tab holds it. */
-export function claimChatRead(sourceId: string, now = Date.now()): boolean {
+/** Claim (or renew) the reading of a chat source for this tab; false while another tab holds it.
+ *  `take` is the operator's own press here (Connect, Reconnect, a key): it takes the reading over,
+ *  and the other tab stops at its next look. */
+export function claimChatRead(sourceId: string, now = Date.now(), take = false): boolean {
   const claims = readClaims();
   const held = claims[sourceId];
-  if (held && held.tab !== thisTab && held.until > now) return false;
+  if (!take && held && held.tab !== thisTab && held.until > now) return false;
   claims[sourceId] = { tab: thisTab, until: now + CHAT_CLAIM_MS };
   writeClaims(claims);
   return true;

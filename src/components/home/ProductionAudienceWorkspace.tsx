@@ -560,11 +560,13 @@ function MessageSources({
       (s): s is YouTubeShowSource => s.kind === 'youtube' && s.config.videoId === videoId && s.config.mode === mode,
     );
     const source: YouTubeShowSource = same ?? { id: uuid(), kind: 'youtube', label: videoId, config: { videoId, mode }, inbox: true };
+    // The tab the operator pressed Connect in reads it: claimed before the record is saved, so a
+    // tab that hears of the new source first finds it taken.
+    if (mode === 'chat') claimChatRead(source.id, Date.now(), true);
     if (!same && !(await save(addMessageSource(show.id, source), 'The YouTube source'))) return;
     setVideo('');
     setKey('');
     if (mode === 'chat') {
-      if (!claimChatRead(source.id)) return setNote('That stream is read in another tab of this production.');
       const running = intake.forSource(source.id);
       if (running) intake.remove(running.id);
       intake.add({ platform: 'youtube', videoId, apiKey, sourceId: source.id });
@@ -578,7 +580,7 @@ function MessageSources({
     setKey('');
     setKeyFor(null);
     if (source.config.mode === 'chat') {
-      if (!claimChatRead(source.id)) return;
+      claimChatRead(source.id, Date.now(), true);
       intake.add({ platform: 'youtube', videoId: source.config.videoId, apiKey, sourceId: source.id });
     } else void fetchNewest(source.id, source.config.videoId, apiKey);
   };
@@ -593,7 +595,8 @@ function MessageSources({
   const reconnect = (source: YouTubeShowSource) => {
     const runtime = intake.forSource(source.id);
     const apiKey = youtubeKey();
-    if (!apiKey || !claimChatRead(source.id)) return;
+    if (!apiKey) return;
+    claimChatRead(source.id, Date.now(), true);
     if (runtime) intake.remove(runtime.id);
     intake.add({ platform: 'youtube', videoId: source.config.videoId, apiKey, sourceId: source.id });
   };
