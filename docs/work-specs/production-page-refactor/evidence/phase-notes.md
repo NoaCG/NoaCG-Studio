@@ -124,6 +124,13 @@ changes a spec's digest.
   an unresolvable name (with gzip), one proving a stalled compressed body ends at the abort (both
   red when the `lookup` or `pipeline` is removed); (4) the never-written `updated_at` column is
   gone from 0099. The real receipt was repeated on the final code with the same result.
+- **Codex review** of `90033f8` (two P2 findings, both regressions this branch introduced, both
+  fixed in `a142a68` with a test that fails on `90033f8`): the forward-only parser no longer read
+  an Atom feed written with a namespace prefix (`<atom:feed>`, `<atom:entry>`), so such a feed
+  would read as empty and clear the ticker; the prefix is now taken from the root and used for the
+  entries and their children. And a 304 forgot the feed's own `<ttl>` (only the body carries it),
+  dropping an hourly feed to every 5 minutes; 0099 gains `feed_wait_ms`, kept with the headlines
+  and applied after a 304.
 - **Traps.**
   - A lazy regex over a body someone else wrote is a denial of service at 5 MB; scan forward.
   - `node:http`'s `lookup` option must answer both shapes (`all: true` gets an array); a typed
