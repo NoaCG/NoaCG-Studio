@@ -5,6 +5,82 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 20, phase 9: cueArmEngine.ts and the `arms` part
+
+- **Previous verified `main` sha:** phase 8 passed on main (#1631 at `dedd457`); this branch
+  starts at `3bfd237` (a quarantine entry after it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No storage key, persisted format, sentence,
+  request or marker shape changes; the part lives only in memory.
+- **Decisions.**
+  - *One engine per session, read the page fresh at every call.* The page starts it in one effect
+    keyed on the session (`startCueArmEngine(session, CUE_ARM_IO, () => armPage.current)`,
+    stopped in its cleanup, and by the session's end) and hands it `{ published, timedCues }` in
+    a second effect keyed on `[session, hostedSlug, timedCues]`. `armPage` is set every render
+    where `armSpecRef` and `fireLaneRef` were, so a fire or a marker reads the same render it read
+    before. The engine is started early in the page (after the session), not where the timer
+    effect stood: the data dispatch effect sends through `sendVerb` and is declared before it.
+  - *The countdowns are the session's `arms` part* (set after `data` and `bridge`), read with
+    `useStorePart(session.arms)`; `armsRef.current` became `session.arms.get()`, and the wire's
+    `get`/`set` read and write the part. The part outlives an engine restart (StrictMode's second
+    mount), as the page state did.
+  - *Old effects, mapped:*
+    - timer and tab `[cueArms, hostedSlug]`: while unpublished the engine subscribes to the part
+      and sets the timer again at each write; `hostedSlug` is the `published` input, which starts
+      or stops the timer and the tab listener.
+    - clearing `[timedCues, setCueArms]`: on a change of `timedCues` (and the first update after a
+      start) to false, the part is cleared.
+  - *Temporary interface* (`CueArmPage`): `send` (`sendVerb`), `cueView`, `liveCueOf`
+    (`() => liveCueRef.current`), `withBoundValues`, `cues` (the spec's `cuesOf`), plus what
+    `fireLane`, Hold and Manual already called: `graphicOf` (`cueGraphicName`), `setLiveCue`,
+    `took` (`clearMisses` and `noteStep`), `flush` (`flushDraft` and `closeGroup`, not awaited),
+    `log` (`logAuto`), `note` (`setNote`), `wire` (`armWire.current`), and the two facts
+    `published` and `timedOff`. The timer, the clock and the tab are `io` (`CUE_ARM_IO`, whose
+    `onVisible` is the Bridge watch's).
+  - *Non-mechanical changes,* all listed:
+    - the timer is set again at the write to the part, not after the render that followed it:
+      the same wake, a commit earlier;
+    - one tab listener while unpublished, instead of one removed and added at every arms change;
+    - the clear on `timedCues` going false skips a part that is already empty (the old effect set
+      a new empty map, which only rendered the page once more);
+    - a stopped engine (unmount, production change, StrictMode's first mount) writes nothing:
+      runDue, the timer, the tab, markers, Hold, Manual and PROGRAM's reply are no-ops after its
+      stop, and the session's end stops it. The old page kept running a stale `runDueRef` after
+      a production change; the route keys the page by production, so that never happened in use.
+      A fire already sending when the engine stops finishes as before: its answer still moves
+      `liveCue`, the folder step and the log, exactly as the old `fireLane` did.
+    - the `arms` part is per session, so a production change starts with no countdowns (the old
+      page state would have carried them, again only in theory because of the route key).
+    - between an engine's stop and the next one's start (StrictMode's remount, or the unmount),
+      the published paths reach no engine: a server-confirmed fire from the wire is dropped and a
+      Take's marker goes out without `auto`. The old refs always held the last render's closures.
+      Both windows are inside one synchronous commit or after the page is gone.
+    - the wire's writes go through `session.apply`, so after the session ends they change
+      nothing; the old `setCueArms` still wrote page state after the unmount.
+- **Assessment A** (fresh read-only `/so` session on `4e1f0d0`): PASS WITH NOTES, nothing
+  blocking. Its notes: the two paths above (now listed), the `armPage.current!` assertion (safe
+  today because the arms are empty until a full render has sent a Take), and that it did not
+  rerun the mutation checks itself.
+  - **Mutation checks** against `scripts/cue-arm-engine.test.mjs` (fake clock, timers, tab and
+    page; intervals and thresholds pinned as numbers): all 23 caught: dropping the clear on
+    re-arm, on stop, or the tab listener's stop; firing twice; keeping a fired arm; the 15 ms floor
+    at 10; the 5 s late limit at 6 s; the 3 s air wait at 2 s; firing a missed cue late; ignoring
+    Hold; no re-arm on an early timer; no catch-up on visibility; no stopped guard in `runDue`;
+    a published Hold not sent to the wire; an anchor while published; the timer kept while
+    published; no clear when `timedCues` goes false; an Out sent without this page's view; no
+    flush before the next Take; `leftAlone` ignored; the session's end not stopping the engine;
+    `timedOff` ignored; the missed line dropped.
+  - **Extra files:** `e2e/rundown-timing.spec.ts` and `e2e/configured/rundown-timing-recovery.spec.ts`
+    gain `cueArmEngine.ts` in a `// covers:` line. No assertion or selector changes.
+- **Traps.**
+  - The spec's line numbers (535-564, 2303-2337, 2982-3098) are from `cc3500f2`; on `3bfd237`
+    the code was at 521-549, 2161-2178 and 2195-2203 (`sendVerb`), 2283-2318 (the two effects),
+    2571-2686 (the handlers) and 1745-1768 (the wire).
+  - `startCueArmEngine` registers its stop with `session.onDispose`, which runs the stop at once on
+    an ended session: the unregister must exist before that call, or the stop meets it unset.
+  - No e2e spec patches the arm code's served source (checked with a grep of `e2e/` for
+    `request.get('/src/`).
+
 ## Row 19, phase 8: useRundownAuthoring (rundown edits, clipboard, pictures, refresh)
 
 - **Previous verified `main` sha:** phase 6 passed on main (#1627 at `325c246`); this branch

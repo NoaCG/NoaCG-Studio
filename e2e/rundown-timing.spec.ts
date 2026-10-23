@@ -5,6 +5,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/components/home/CueActions.tsx
 // covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/cueArmEngine.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
