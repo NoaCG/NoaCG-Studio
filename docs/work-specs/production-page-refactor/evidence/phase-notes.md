@@ -5,6 +5,64 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 21, phase 10: folderPlayout.ts and the `folders` part
+
+- **Previous verified `main` sha:** phase 9 passed on main (#1634 at `919fbc9`); this branch
+  starts at `74cf458` (a quarantine entry after it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No storage key, persisted format, sentence,
+  request or marker shape changes; the part lives only in memory.
+- **Decisions.**
+  - *One module per session, created with it* (`useMemo(() => createFolderPlayout(session,
+    FOLDER_IO, () => folderPage.current!), [session])`), registering `stopAll('ended')` with the
+    session's end. `folderPage` is set every render beside the folder verbs it replaced; each
+    verb reads it once at the press, so the press sees the render it was made from, as the page's
+    closures did. Server ownership and `liveCue` are read through getters at each check, as the
+    page read `serverPlayout.ownership.get()` and `liveCueRef.current`.
+  - *The part* (`session.folders`, set after `arms`) holds `folderSteps`, `takeMisses` and
+    `sending`; the page reads it with `useStorePart`. *The runs* and their stop flags stay inside
+    the module, not in the part: nothing draws them, and a flag must be set synchronously and read
+    between members, which a stored immutable value would not give (a departure from the spec's
+    "Owns" column, which lists `runs` in the part). `sending` is their drawn face, written in the
+    same synchronous step as the run's registration and removal.
+  - *Old state and callbacks, mapped:* `folderRuns` (ref) to the module's runs, `running(id)` and
+    `stopAll(reason)`; `folderSteps`, `takeMisses`, `sendingFolders` (page state) to the part;
+    `clearMisses`, `noteStep` to the module's (the page keeps the names); `runFolder`, `offLate`,
+    `takeFolder`, `graphicsOff`, `outFolder`, `stepOff`, `stepFolder` to `take`, `out`, `step`,
+    `off`; All out's two lines to `stopAll('all-out')`; `hearCommand`'s misses fold to
+    `settleMisses(settle)`.
+  - *Temporary interface* (`FolderPage`): `serverVerb`, `takeGraphic` (`takeGraphicCue`), `send`
+    (`sendVerb`), `liveCueOf`, `setLiveCue`, `flush` (`flushDraft` and `closeGroup`, awaited), plus
+    what the moved code already called: `takeCue` (a step takes its next cue exactly as its own
+    TAKE does; moving `takeCue` belongs to phase 12), `note`, `ownership`, the rundown
+    (`cues`, `folders`, `members`, `items`, `itemOf`, `graphicOf`, `stepMembers`, `folderName`),
+    `takeBlocker`, `stepBlocker` and the All-together `together` rundown. The clock that stamps a
+    server take is `io.now` (`performance.now`).
+  - *Non-mechanical changes,* all listed:
+    - the session's end stops every run (`stopAll('ended')`): nothing more is sent, a member that
+      lands after it is not taken back off (§4.1 R3: what the server accepted stands), and the
+      run writes no misses and no note. A Take or step whose save wait ends after the session's
+      end never registers a run. The old page kept a run sending after the unmount; the route
+      keys the page by production, so this is only the leave-the-page case.
+    - `folderUp` asks `running(id)` (the module's runs) where it asked `folderRuns.current.has`;
+      `sending` is written synchronously now, not at the next render, which only makes the drawn
+      value catch up a render sooner.
+    - a step reads its memory from the part (`session.folders.get().folderSteps`) where it read
+      the render's `folderSteps`: the same value unless a write landed after the render that
+      handled the key, and then the part's is the newer one.
+    - `noteStep` finds the cue's folder in the latest render's rundown, not the calling closure's.
+- **S3 kept.** A press registers its run only after the save wait, as phase 1 recorded (refuted
+  there); a Node test pins that order.
+- **Traps.**
+  - The spec's line numbers (3515-3674, 2954-2980) are from `cc3500f2`; on `74cf458` the state was
+    at 473-488, `clearMisses`/`noteStep` at 2492-2518, All out's stop at 2696-2701, `folderUp` at
+    2840 and the verbs at 2928-3088. A seventh writer of `takeMisses` sat in `hearCommand`
+    (1099-1102, a failed send that landed after all), which the spec does not list.
+  - The repo's commit hook refuses `Co-Authored-By` trailers.
+  - Playwright here wants `chromium_headless_shell-1228` while the image ships `-1243`; a symlink
+    under `/opt/pw-browsers` (outside the repo) made the queued run start. Nothing in the repo
+    changed for it.
+
 ## Row 20, phase 9: cueArmEngine.ts and the `arms` part
 
 - **Previous verified `main` sha:** phase 8 passed on main (#1631 at `dedd457`); this branch
