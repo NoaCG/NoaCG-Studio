@@ -11,3 +11,4 @@ the exact merge SHA of the phase whose `extensions.md` row names it. Speed bench
 | [../perf/phase-1-baselines.md](../perf/phase-1-baselines.md) | 3 | `0ca774269` | two speed baselines, local and published; they agree within §7 |
 | [c7-casparcg-obs-walk.md](c7-casparcg-obs-walk.md) | 14 | `44bfa8955` | ticker, schedule, standings and credits through CasparCG/Bridge and OBS; one older defect filed (#1618) |
 | [../perf/phase-11-repeat.md](../perf/phase-11-repeat.md) | 22 | `08389cfc1` | speed repeat after the liveCue move; every gesture within §7 against baseline 1 |
+| [h0-1-companion.md](h0-1-companion.md) | 2 | `995272d56` | Companion guide on Windows in about 30 s; Take and Out on CasparCG, OBS and vMix; AC-8 p50 243 ms, over 192, not attributed |
