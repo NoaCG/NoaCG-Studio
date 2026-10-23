@@ -10,7 +10,7 @@
 // order. `rundownActions` is called by the page after the return on every render, so each handler
 // closes over that render's values exactly as the inline code did.
 
-import { useRef, useState, type RefObject } from 'react';
+import { useRef, useState } from 'react';
 import {
   addShowCue,
   addFolderFromSelection,
@@ -56,8 +56,8 @@ import type { useAuthUi } from '../auth/authUi';
 import type { useRundownHistory } from './useRundownHistory';
 
 /** The rundown's authoring state: the range, the clipboard, what authoring last said, and the
- *  refresh in flight. Page memory, never saved. `owner` is who the page is for in this render (the
- *  page's `publishOwner`): a refresh whose answer arrives for another is dropped. */
+ *  refresh in flight. Page memory, never saved. `owner` is who the page is for in this render: a
+ *  refresh whose answer arrives for another is dropped. */
 export function useRundownAuthoring(owner: { id: string; userId: string | undefined }) {
   /** THE SHIFT-CLICK RANGE (owner, 2026-09-28), by cue id as it was when clicked: what New folder
    *  takes. No on-air verb reads it, so a stray shift-click changes nothing that airs. */
@@ -109,7 +109,7 @@ export interface RundownActionsIo {
   /** Land the cue being typed; false when it did not. */
   flush: () => Promise<boolean>;
   /** The production this page is on now, for an answer that arrives after a switch. */
-  draftOwner: RefObject<string>;
+  draftOwner: { readonly current: string };
   backendConfigured: boolean;
   user: AuthUiState['user'];
   openSignIn: ReturnType<typeof useAuthUi.getState>['openSignIn'];
@@ -129,7 +129,7 @@ export function rundownActions(state: RundownAuthoringState, io: RundownActionsI
   } = io;
 
   const refreshRundown = async () => {
-    if (refreshingId.current || !show) return;
+    if (refreshingId.current) return;
     if (!backendConfigured) { setRundownNote('This is a local workspace. There is no cloud rundown to refresh.'); return; }
     if (!user || !canAuthorAccount()) { openSignIn('Sign in to refresh your rundown. Pending work is preserved.', 'resume'); return; }
     const owner = { id, userId: user.id };
@@ -423,7 +423,7 @@ export function rundownActions(state: RundownAuthoringState, io: RundownActionsI
   };
 
   return {
-    refreshRundown, uploadPictures, removeCue, removeGraphic, writeRundown, freshShow, editIds, pastePlace, pasteAt,
+    refreshRundown, uploadPictures, removeCue, removeGraphic, writeRundown, editIds,
     duplicateCues, takeOutOfFolders, removeCues, cutIds, newFolder, removeFolderOf, moveRundown, toggleFolder, editVerb,
   };
 }

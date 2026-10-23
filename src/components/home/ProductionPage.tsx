@@ -424,8 +424,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     };
     // authStatus re-asks once the session resolves, and after a sign-in from the prompt below.
   }, [id, hasShow, backendConfigured, authStatus]);
-  const publishOwner = useRef({ id, userId: user?.id });
-  publishOwner.current = { id, userId: user?.id };
   const [accentPreview, setAccentPreview] = useState<{ productionId: string; cueId: string; color: string } | null>(null);
   /** The account's "Use CasparCG in new productions": it decides the CasparCG switch of a new
    *  production until the operator sets it (model/outputSetup.ts), so only a production whose
@@ -481,7 +479,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * `selectedCueId` keeps the folder's first cue, so the cursor stays where the folder stood if it goes.
    */
   const [selectedFolderRow, setSelectedFolderRow] = useState<{ folderId: string; rowId: string } | null>(null);
-  const authoring = useRundownAuthoring(publishOwner.current);
+  const authoring = useRundownAuthoring({ id, userId: user?.id });
   const { rangeIds, setRangeIds, setRangeEnd, rundownNote, setRundownNote, rundownFeedback, refreshingRundown } = authoring;
   /** Why each cue of the last folder Take did not go on air, by cue id - until that cue is taken, the
    *  folder is taken again, or it is taken off. Page memory. */

@@ -19,7 +19,7 @@ changes a spec's digest.
   - *A hook plus a plain function, in one module,* as phase 4 did and for the same reason: the
     page returns early while its production is missing, and the handlers read values computed
     after that return. `useRundownAuthoring(owner)` holds the five states and three refs that
-    stood together in the page (`rangeIds`, `rangeEnd`, `clip`, `pendingClip`, `rundownNote`,
+    stood together in the page, plus the owner ref below, (`rangeIds`, `rangeEnd`, `clip`, `pendingClip`, `rundownNote`,
     `rundownFeedback`, `refreshingRundown`, `refreshingId`) and is called where they stood, so
     the page's hooks keep their order. `rundownActions(state, io)` is called by the page after
     the return, where `writeRundown` stood, on every render, so each handler closes over that
@@ -44,15 +44,15 @@ changes a spec's digest.
     - `editVerb` answers whether it took the key: each `return;` in the moved branches became
       `return true;`, it ends with `return false;`, and `onVerb` reads `if (editVerb(key))
       return;` where the branches stood, so the keys after them see the same flow.
-    - `refreshRundown` reads `pageOwner.current` (a ref in the hook, set on every render from the
-      page's `publishOwner.current`, which is set from `id` and `user` a few lines earlier in the
-      same render) instead of the page's `publishOwner` ref. Handing the page's ref itself to
-      `rundownActions` made the React Compiler skip the whole page (seven
-      `preserve-manual-memoization` errors: a ref written during render, passed to a function,
-      reads as possibly mutated); the hook's own ref holds the same value at every point a
-      refresh reads it.
-    - `refreshRundown` and `uploadPictures` are now defined after the early return (they were
-      before it and after it); both are plain functions called only from the JSX.
+    - `refreshRundown` reads `pageOwner.current`, a new ref in the hook set on every render from
+      `{ id, userId: user?.id }`, instead of the page's `publishOwner` ref, which only the refresh
+      read and is gone. Handing the page's ref to `rundownActions` made the React Compiler skip
+      the whole page (seven `preserve-manual-memoization` errors: a ref written during render,
+      passed to a function, reads as possibly mutated). Both refs held the same value, set at the
+      same point of every render, so the refresh's owner check compares the same values.
+    - `refreshRundown` is now defined after the early return (it was before it), so its
+      `|| !show` guard is gone: `show` cannot be missing there. `uploadPictures` was already after
+      the return. Both are plain functions called only from the JSX.
     - `selectCue` and `selectFolder` list `setRangeIds` in their dependency arrays: a setter
       from a custom hook is not known to be stable to `exhaustive-deps`. It is a React state
       setter, so the callbacks keep their identity exactly as before.
