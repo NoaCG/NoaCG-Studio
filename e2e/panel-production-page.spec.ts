@@ -3,6 +3,7 @@
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 //
 // HARDWARE PANELS ON THE PRODUCTION PAGE, OFFLINE (docs/work-specs/hardware-panel-control/spec.md
 // D6; protocol.md §6): what can be checked without a backend. The Panel door is in the header's

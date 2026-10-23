@@ -8,6 +8,7 @@
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // focus
 //
 // THE CLIP CLOCK AND THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.3, §6.4 and §6.7, phase 2):

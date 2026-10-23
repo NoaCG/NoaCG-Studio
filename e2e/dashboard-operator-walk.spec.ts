@@ -5,6 +5,7 @@
 // covers: src/components/home/CueActions.tsx
 // covers: src/components/home/useRundownAuthoring.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 //
 // It presses Take, Update, Next and Out on the production page, so a change there runs it
 // (production-page refactor phase 1, AC-1).

@@ -4,6 +4,7 @@
 // covers: src/components/home/CueActions.tsx
 // covers: src/components/home/useProductionPublish.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 //
 // TWO ⚡ ADJUST PRESSES INSIDE ONE ROUND TRIP MOVE A SHARED VALUE TWICE (production-page refactor,
 // phase 1, S1; docs/work-specs/production-page-refactor/spec.md §1.3).

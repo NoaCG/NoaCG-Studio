@@ -17,6 +17,7 @@
 // spec that actually drives it.
 // covers: src/templates/picture.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';

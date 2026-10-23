@@ -4,6 +4,7 @@
 // covers: src/control/{localReceiver.ts,receiverScript.ts,hostedReceiver.ts,hostedControl.ts,controlModel.ts,productionControllerHtml.ts,realtimeControl.ts,logFollow.ts}
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // focus
 
 import { test, expect } from '@playwright/test';

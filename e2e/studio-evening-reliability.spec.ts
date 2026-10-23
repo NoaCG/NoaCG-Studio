@@ -8,6 +8,7 @@
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 import { test, expect, type Page } from '@playwright/test';
 import { seedSettings, fakeBridge } from './_fakeBridge';
 import { awaitDurableReady, settleDurableWrites } from './_durable';

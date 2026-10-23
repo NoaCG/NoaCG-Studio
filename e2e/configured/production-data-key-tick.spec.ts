@@ -3,6 +3,7 @@
 // covers: src/components/home/SourcesLine.tsx, src/components/home/ProductionPage.tsx
 // covers: src/components/home/useProductionPublish.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 //
 // PUBLISHED OWNERSHIP AND THE SERVER TICK (data-sources C2; data AC-3 published half, AC-11;
 // sheet-data-flow AC-4, AC-5, AC-7), against the real database of the configured stack
