@@ -5,6 +5,109 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 21, phase 10: folderPlayout.ts and the `folders` part
+
+- **Previous verified `main` sha:** phase 9 passed on main (#1634 at `919fbc9`); this branch
+  starts at `74cf458` (a quarantine entry after it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No storage key, persisted format, sentence,
+  request or marker shape changes; the part lives only in memory.
+- **Decisions.**
+  - *One module per session, created with it* (`useMemo(() => createFolderPlayout(session,
+    FOLDER_IO, () => folderPage.current!), [session])`), registering `stopAll('ended')` with the
+    session's end. `folderPage` is set every render beside the folder verbs it replaced; each
+    verb reads it once at the press, so the press sees the render it was made from, as the page's
+    closures did. Server ownership and `liveCue` are read through getters at each check, as the
+    page read `serverPlayout.ownership.get()` and `liveCueRef.current`.
+  - *The part* (`session.folders`, set after `arms`) holds `folderSteps`, `takeMisses` and
+    `sending`; the page mirrors it into its own state (Traps says why it is not `useStorePart`). *The runs* and their stop flags stay inside
+    the module, not in the part: nothing draws them, and a flag must be set synchronously and read
+    between members, which a stored immutable value would not give (a departure from the spec's
+    "Owns" column, which lists `runs` in the part). `sending` is their drawn face, written in the
+    same synchronous step as the run's registration and removal.
+  - *Old state and callbacks, mapped:* `folderRuns` (ref) to the module's runs, `running(id)` and
+    `stopAll(reason)`; `folderSteps`, `takeMisses`, `sendingFolders` (page state) to the part;
+    `clearMisses`, `noteStep` to the module's (the page keeps the names); `runFolder`, `offLate`,
+    `takeFolder`, `graphicsOff`, `outFolder`, `stepOff`, `stepFolder` to `take`, `out`, `step`,
+    `off`; All out's two lines to `stopAll('all-out')`; `hearCommand`'s misses fold to
+    `settleMisses(settle)`.
+  - *Temporary interface* (`FolderPage`): `serverVerb`, `takeGraphic` (`takeGraphicCue`), `send`
+    (`sendVerb`), `liveCueOf`, `setLiveCue`, `flush` (`flushDraft` and `closeGroup`, awaited), plus
+    what the moved code already called: `takeCue` (a step takes its next cue exactly as its own
+    TAKE does; moving `takeCue` belongs to phase 12), `note`, `ownership`, the rundown
+    (`cues`, `folders`, `members`, `items`, `itemOf`, `graphicOf`, `stepMembers`, `folderName`),
+    `takeBlocker`, `stepBlocker` and the All-together `together` rundown. The clock that stamps a
+    server take is `io.now` (`performance.now`).
+  - *Non-mechanical changes,* all listed:
+    - the session's end stops every run (`stopAll('ended')`): nothing more is sent, a member that
+      lands after it is not taken back off (§4.1 R3: what the server accepted stands), and the
+      run writes no misses and no note. A Take or step whose save wait ends after the session's
+      end never registers a run. The old page kept a run sending after the unmount; the route
+      keys the page by production, so this is only the leave-the-page case.
+    - `folderUp` asks `running(id)` (the module's runs) where it asked `folderRuns.current.has`;
+      `sending` is written synchronously now, not at the next render, which only makes the drawn
+      value catch up a render sooner.
+    - `noteStep` finds the cue's folder in the latest render's rundown, not the calling closure's.
+- **Check findings** (code-review, high; all verified against the code):
+  - fixed: a step read its memory from the part, not from the render that drew PREVIEW and the
+    NEXT mark; it reads the render's again (`FolderPage.folderSteps`). The two identical part
+    folds became one helper.
+  - kept: the session's end stopping every run without taking late members back off (§3 and §4.1
+    R3 ask for it; listed above); `folderPage.current!` before the first full render (no verb or
+    `noteStep` can run before it, as with `armPage`); the factory's `onDispose` registration
+    inside `useMemo` (a discarded StrictMode instance holds an empty runs map and stops nothing);
+    `folderUp` asking both `running(id)` and `sending` (the old ref plus state shape); the page's
+    own `cueOnAirNow` beside the module's (the take-cue key and the panel still need it until
+    phase 11).
+  - reported, not changed: a Play-through folder's late Out calls `serverVerb` with a graphic
+    member's null item. Not reachable: a graphic cannot be put in a Play-through folder (pinned
+    in `playout-folders`), as before the move.
+- **Mutation checks** against `scripts/folder-playout.test.mjs` (a scripted page whose server
+  verbs, graphic Takes, sends and save wait answer only when the test says): all 29 caught.
+  Dropping the stop flags in `stopAll`; applying a late answer (misses and note after a stop);
+  not taking a late Play-through member back off; ignoring `stopped()` in the run; reordering Out's
+  server and graphics sends; a step taking before its graphics go off; folding liveCue before the
+  answer; ignoring `leftAlone`; skipping the save wait in Take or in step; registering the run
+  before the save wait (S3's order); dropping the once-only guard in Take or in step; taking a
+  member back off after the session's end; no alive check before a run; the session's end not
+  stopping runs; All out not cutting; All out keeping the steps; a stopped step keeping its step;
+  Out keeping the step; Out or Take not clearing misses; misses not recorded; the clock rank
+  dropped; `sending` never cleared; `clearMisses` writing when nothing moved; `noteStep` for any
+  folder; a step going on after its graphics failed to go off; Out not stopping the run. Four of
+  them fail by a held send never answering, which cancels the test: still a failure.
+- **Verification on this branch.** Node: `folder-playout` 33 and `playout-session` 8 pass, with
+  `cue-arm-engine`, `bridge-watch` and `production-data-session` (96 in all). `tsc`, `eslint` on
+  the changed files, `npm run depcruise` (no violations) and `gates.mjs run --changed origin/main`
+  (103 tests) pass. Browser, through the queue on this cloud machine: `playout-folders` 52/52 and
+  `playout-air-contract` 6/6 on the final source (two jobs; in the first, two Play-through tests
+  missed ON AIR inside 7 s at twice their usual duration and then passed 3 of 3 each; a folder
+  SPACE is dropped silently while the Bridge status is still unanswered, `!folderCanTake`, which
+  fits a stalled machine). The configured dispatch (take-behind-out, command-sequence) is
+  recorded in the pull request with its run URL and head sha.
+- **Assessment A** (fresh read-only `/so` session on `2d0e0ff`): PASS WITH NOTES, nothing
+  blocking. AC-2, AC-3, AC-4 and AC-8 pass; it ran depcruise and the two Node files itself. Its
+  notes: the stale "reads it with `useStorePart`" sentence here (fixed), the `folderPage.current`
+  read (as `armPage`), and the unreachable Play-through `itemOf(m)!` (reported above).
+- **S3 kept.** A press registers its run only after the save wait, as phase 1 recorded (refuted
+  there); a Node test pins that order.
+- **Traps.**
+  - The spec's line numbers (3515-3674, 2954-2980) are from `cc3500f2`; on `74cf458` the state was
+    at 473-488, `clearMisses`/`noteStep` at 2492-2518, All out's stop at 2696-2701, `folderUp` at
+    2840 and the verbs at 2928-3088. A seventh writer of `takeMisses` sat in `hearCommand`
+    (1099-1102, a failed send that landed after all), which the spec does not list.
+  - *`useStorePart` is not a drop-in for page state whose render timing a key press depends on.*
+    `useSyncExternalStore` renders a store change synchronously, where a `setState` from async
+    code waits for the scheduler's next task. Read through `useStorePart`, the folder Take's
+    `sending` write re-rendered before the next key event, so the second of two SPACE presses
+    one task apart read the folder as up and took it off: `playout-air-contract` S3 failed
+    (`Strap played once`, 0 against 1). The page now mirrors the part into its own state with a
+    subscription in an effect, which renders at the old pace, and S3 passes. Phases 11-13 moving
+    more page state into parts should expect the same.
+  - The repo's commit hook refuses `Co-Authored-By` trailers.
+  - Playwright here wants `chromium_headless_shell-1228` while the image ships `-1243`; a symlink
+    under `/opt/pw-browsers` (outside the repo) made the queued run start. Nothing in the repo
+    changed for it.
+
 ## Row 20, phase 9: cueArmEngine.ts and the `arms` part
 
 - **Previous verified `main` sha:** phase 8 passed on main (#1631 at `dedd457`); this branch

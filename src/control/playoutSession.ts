@@ -10,7 +10,8 @@
 // Its parts are store parts (./storePart.ts), each its own subscription: `data` holds the
 // production's live tree (./productionDataSession.ts writes it), `bridge` what NoaCG Bridge last said
 // (./bridgeWatch.ts writes it), `arms` the timed cues' countdowns (./cueArmEngine.ts and, published,
-// ./cueArmWire.ts write it), and later phases add the rest.
+// ./cueArmWire.ts write it), `folders` what the folders remember and which are still being sent
+// (./folderPlayout.ts writes it), and later phases add the rest.
 // Every write is one synchronous `apply(fold)`, parts set in a fixed order (D4). No React and only
 // `.ts` runtime imports, so a Node test drives it as it is.
 
@@ -50,6 +51,22 @@ export interface BridgePart {
 
 export const NO_BRIDGE: BridgePart = { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null };
 
+/** What the folders remember on this page (./folderPlayout.ts says the rules). Page memory: never saved, never shared. */
+export interface FoldersPart {
+  /** WHERE EACH ONE-BY-ONE FOLDER'S STEP STANDS (docs/CLIP_PLAYBACK_PLAN.md §20.1): its cue taken
+   *  last in this page, by any route, or null once it went back to the top. A folder with no entry
+   *  reads its step off the air (./folderStep.ts). */
+  folderSteps: Readonly<Record<string, string | null>>;
+  /** Why each cue of the last folder Take did not go on air, by cue id - until that cue is taken,
+   *  the folder is taken again, or it is taken off. */
+  takeMisses: Readonly<Record<string, string>>;
+  /** Folders whose Take or step is still being sent: a folder still being sent counts as up, so Out
+   *  and SPACE can stop it even before anything of it has landed. */
+  sending: ReadonlySet<string>;
+}
+
+export const NO_FOLDERS: FoldersPart = { folderSteps: {}, takeMisses: {}, sending: new Set() };
+
 export interface PlayoutSession {
   /** The production this session belongs to. */
   readonly key: string;
@@ -61,6 +78,8 @@ export interface PlayoutSession {
   bridge: StorePart<BridgePart>;
   /** The timed cues' countdowns, one per graphic layer (./cueAuto.ts). */
   arms: StorePart<CueArms>;
+  /** What the folders remember: their steps, their last Take's misses, which are being sent. */
+  folders: StorePart<FoldersPart>;
   /** Move the session's parts with one fold, in a fixed order. A no-op once disposed. */
   apply: (fold: (parts: SessionParts) => SessionParts) => void;
   /** Run `stop` when the session is disposed (at once if it already is); answers an unregister. */
@@ -74,6 +93,7 @@ export interface SessionParts {
   data: DataPart;
   bridge: BridgePart;
   arms: CueArms;
+  folders: FoldersPart;
 }
 
 export function createPlayoutSession(productionId: string): PlayoutSession {
@@ -82,19 +102,22 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
   const data = storePart<DataPart>(NO_DATA);
   const bridge = storePart<BridgePart>(NO_BRIDGE);
   const arms = storePart<CueArms>({});
+  const folders = storePart<FoldersPart>(NO_FOLDERS);
   return {
     key: productionId,
     alive: () => alive,
     data,
     bridge,
     arms,
+    folders,
     apply: (fold) => {
       if (!alive) return;
-      const next = fold({ data: data.get(), bridge: bridge.get(), arms: arms.get() });
+      const next = fold({ data: data.get(), bridge: bridge.get(), arms: arms.get(), folders: folders.get() });
       // The fixed order: later parts are set after `data`, as D4 lists them.
       data.set(next.data);
       bridge.set(next.bridge);
       arms.set(next.arms);
+      folders.set(next.folders);
     },
     onDispose: (stop) => {
       if (!alive) {
