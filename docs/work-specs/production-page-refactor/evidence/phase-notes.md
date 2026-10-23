@@ -69,8 +69,18 @@ changes a spec's digest.
     - a poll started from the status callback uses the inputs of the last commit; the update
       after the next render checks the same keys again, so nothing is lost or asked twice.
   - **Extra files:** 10 e2e specs gain one comment line naming `bridgeWatch.ts` (the same ten
-    phase 5 mapped to `serverVerbs.ts`). No assertion or selector changes.
+    phase 5 mapped to `serverVerbs.ts`). `playout-feedback-health` gains the same line and its
+    fault injection follows the moved code: it rewrites the served source to delay `setSlotRev`
+    (still in the page) and to count slot replies at the stale-read guard, which is now
+    `if (!live || actionRev !== slotActions)` in `bridgeWatch.ts`, so it patches both modules.
+    Its assertions are unchanged, and its own mutant (`HEALTH_MUTATE_STALE_SLOT=1`, the guard
+    without the action check) still fails on "an older slot reply must not restore intent after
+    Unload".
 - **Traps.**
+  - `e2e/playout-feedback-health.spec.ts` fault-injects by rewriting the served text of the
+    modules it names, so moving the code it patches breaks it at its first `toContain` even
+    though behaviour is unchanged. The phase-6 matrix row does not list it; CI found it. Grep
+    `e2e/` for `request.get('/src/` before moving code out of the page.
   - The spec's line numbers (1134-1327, 1141-1143) are from `cc3500f2`; on `fe95daa` the seven
     effects were at 1222-1415.
   - A Node test that starts a real state poll keeps Node alive through its `setTimeout`: stop
