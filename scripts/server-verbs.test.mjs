@@ -82,7 +82,7 @@ function harness({ states = [], flush, settings = () => SETTINGS, values = () =>
   return { store, recorded, io, log, sent };
 }
 
-const intentOf = (rundown, c, verb, extra = {}) => ({ cue: c, item: rundown.itemOf(c), verb, label: 'Take', readable: true, rundown, ...extra });
+const intentOf = (rundown, c, verb, extra = {}) => ({ cue: c, item: rundown.itemOf(c), verb, label: 'Take', blocked: null, readable: true, rundown, ...extra });
 
 test('a refused Take is said at once: nothing saved, read, sent, folded or woken', async () => {
   const r = rundownOf([cue('a', 'a')], [vt('a')]);

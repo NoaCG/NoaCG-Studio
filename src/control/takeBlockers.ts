@@ -51,6 +51,9 @@ export interface TakeContext {
   slots: SlotRules;
 }
 
+/** Where a server item plays on its own by the render's settings, `2-10`. */
+const addressOf = (ctx: TakeContext) => (i: PlayoutItem) => slotAddress(ctx.slots.itemSlot(ctx.settings, i));
+
 /** A native cue is not taken while the production's CasparCG switch is off (AC-4): the one place
  *  that says so, read by the TAKE button's title, the cue editor, a One-by-one step and the send.
  *  An All-together folder still takes its other cues and marks such a member NOT TAKEN. */
@@ -65,7 +68,7 @@ export const casparOffRefusal = (cue: ShowCue, casparOn: boolean): string | null
  */
 export const takePlans = (target: ShowCue | ShowFolder, ctx: TakeContext): { slot: string; cueIds: () => readonly string[]; folderId?: string }[] => {
   const { cues, items: playoutItems, folders, places } = ctx;
-  const addressOfItem = (i: PlayoutItem) => slotAddress(ctx.slots.itemSlot(ctx.settings, i));
+  const addressOfItem = addressOf(ctx);
   const folderSlotOf = (folder: ShowFolder) => slotAddress(ctx.slots.folderSlot(ctx.settings, folder));
   if (!('sourceId' in target)) {
     const members = ctx.members.get(target.id) ?? [];
@@ -117,7 +120,7 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
     const onOutput = outputSlotRefusal(plan.slot, ctx.settings);
     if (onOutput) return onOutput;
   }
-  const addressOfItem = (i: PlayoutItem) => slotAddress(ctx.slots.itemSlot(ctx.settings, i));
+  const addressOfItem = addressOf(ctx);
   const blocked = takeBlocker(target, ctx.cues, ctx.items, addressOfItem, ctx.ability, ctx.folders, ctx.graphicOf);
   if (blocked) return blocked;
   const throughFolderIdOf = (cueId: string) => ctx.places.get(cueId)?.folder.id;
@@ -136,7 +139,7 @@ export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutS
   if (off) return off;
   const item = ctx.itemOf(cue);
   if (!item) return `${cue.label} has no media file.`;
-  const addressOfItem = (i: PlayoutItem) => slotAddress(ctx.slots.itemSlot(ctx.settings, i));
+  const addressOfItem = addressOf(ctx);
   return outputSlotRefusal(slotAddress(ctx.slots.itemSlot(settings, item)), settings) ?? takeBlocker(cue, [cue], ctx.items, addressOfItem, ctx.ability, [], ctx.graphicOf);
 };
 

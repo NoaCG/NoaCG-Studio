@@ -2822,7 +2822,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         verb,
         label,
         options,
-        ...(verb === 'take' ? { blocked: options.direct ? directBlocker(cue) : takeBlockerFor(cue) } : {}),
+        blocked: verb === 'take' ? (options.direct ? directBlocker(cue) : takeBlockerFor(cue)) : null,
         readable: stateReadable(bridgeStatus),
         rundown: takeContext,
       },

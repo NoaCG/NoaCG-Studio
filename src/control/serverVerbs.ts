@@ -44,8 +44,9 @@ export interface ServerVerbIntent {
   verb: ServerVerb;
   label: string;
   options?: { cut?: boolean; takenAt?: number; direct?: boolean };
-  /** A Take's refusal (./takeBlockers.ts), asked at the press; never for another verb. */
-  blocked?: string | null;
+  /** A Take's refusal (./takeBlockers.ts), asked at the press: null when it may go, and always
+   *  null for another verb, which is never refused. Required, so no caller can leave it unasked. */
+  blocked: string | null;
   /** The Bridge reads the server (control/playoutLink.ts `stateReadable`). */
   readable: boolean;
   rundown: Pick<TakeContext, 'cues' | 'items' | 'folders' | 'members' | 'places' | 'itemOf'>;
