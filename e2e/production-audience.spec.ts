@@ -18,6 +18,7 @@
 // nothing at all.
 // covers: {join.html,src/join/**}
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/ProductionShell.tsx
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';

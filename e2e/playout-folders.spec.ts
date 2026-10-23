@@ -4,6 +4,7 @@
 // covers: src/components/playoutKeys.ts, src/styles/playout-dashboard.css
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
+// covers: src/components/home/ProductionShell.tsx
 // focus
 //
 // A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, §6.5, §6.6 and §7, phase 4). The rundown half:

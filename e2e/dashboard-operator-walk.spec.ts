@@ -2,6 +2,7 @@
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/{controlModel,hostedControl}.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/CueActions.tsx
 //
 // It presses Take, Update, Next and Out on the production page, so a change there runs it
 // (production-page refactor phase 1, AC-1).
