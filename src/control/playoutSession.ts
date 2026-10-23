@@ -9,10 +9,12 @@
 //
 // Its parts are store parts (./storePart.ts), each its own subscription: `data` holds the
 // production's live tree (./productionDataSession.ts writes it), `bridge` what NoaCG Bridge last said
-// (./bridgeWatch.ts writes it), and later phases add the rest.
+// (./bridgeWatch.ts writes it), `arms` the timed cues' countdowns (./cueArmEngine.ts and, published,
+// ./cueArmWire.ts write it), and later phases add the rest.
 // Every write is one synchronous `apply(fold)`, parts set in a fixed order (D4). No React and only
 // `.ts` runtime imports, so a Node test drives it as it is.
 
+import type { CueArms } from './cueAuto';
 import type { JsonObject } from '../model/productionData';
 import type { PlayoutResult } from './playoutLink';
 import type { SlotReading, StatusCheck } from './playoutStatus';
@@ -57,6 +59,8 @@ export interface PlayoutSession {
   data: StorePart<DataPart>;
   /** What NoaCG Bridge last said. */
   bridge: StorePart<BridgePart>;
+  /** The timed cues' countdowns, one per graphic layer (./cueAuto.ts). */
+  arms: StorePart<CueArms>;
   /** Move the session's parts with one fold, in a fixed order. A no-op once disposed. */
   apply: (fold: (parts: SessionParts) => SessionParts) => void;
   /** Run `stop` when the session is disposed (at once if it already is); answers an unregister. */
@@ -69,6 +73,7 @@ export interface PlayoutSession {
 export interface SessionParts {
   data: DataPart;
   bridge: BridgePart;
+  arms: CueArms;
 }
 
 export function createPlayoutSession(productionId: string): PlayoutSession {
@@ -76,17 +81,20 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
   const stops = new Set<() => void>();
   const data = storePart<DataPart>(NO_DATA);
   const bridge = storePart<BridgePart>(NO_BRIDGE);
+  const arms = storePart<CueArms>({});
   return {
     key: productionId,
     alive: () => alive,
     data,
     bridge,
+    arms,
     apply: (fold) => {
       if (!alive) return;
-      const next = fold({ data: data.get(), bridge: bridge.get() });
+      const next = fold({ data: data.get(), bridge: bridge.get(), arms: arms.get() });
       // The fixed order: later parts are set after `data`, as D4 lists them.
       data.set(next.data);
       bridge.set(next.bridge);
+      arms.set(next.arms);
     },
     onDispose: (stop) => {
       if (!alive) {
