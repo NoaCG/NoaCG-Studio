@@ -56,16 +56,24 @@ changes a spec's digest.
     - `selectCue` and `selectFolder` list `setRangeIds` in their dependency arrays: a setter
       from a custom hook is not known to be stable to `exhaustive-deps`. It is a React state
       setter, so the callbacks keep their identity exactly as before.
-  - *Write order.* The moved code writes in the same order as before; nothing was reordered.
-    `removeCue`/`removeCues`/`removeGraphic` take the graphic and any live server cue off before
-    the rundown write (pinned by `e2e/playout-folders.spec.ts` and `production-controls`'
-    removal walks, which assert the output clears); `pasteAt` clears the clipboard and sets the
-    selection only after the write lands (`rundown-history`, `playout-rundown-feedback`);
-    `uploadPictures` waits for the pool write's durable commit before writing cues
-    (`production-controls`' picture upload, and `storage-full` for the refused save).
-    `refreshRundown`'s order (flush event, history settle, durable commit, team or sync
-    confirmation, owner check, reload) has no browser spec that would catch a reorder: it needs
-    a configured backend. That gap predates this phase.
+  - *Write order and the mutation checks.* The moved code writes in the same order as before;
+    nothing was reordered. Mutants run against the moved code, each with the specs that drive it:
+    - a cut whose paste leaves the clipboard set (`setClip(null)` dropped in `pasteAt`): caught
+      by `playout-folders.spec.ts:371` (Ctrl+X, Ctrl+V);
+    - Shift+Down that does not move the range's far end (`setRangeEnd` dropped in `editVerb`):
+      caught by `playout-folders.spec.ts:407`;
+    - an upload whose first picture keeps the graphic's name as its cue label: caught by
+      `productions.spec.ts:1130` and `:1207`;
+    - an upload that goes on writing cues after the pictures' save was refused: caught by
+      `productions.spec.ts:1207` (it said "✓ 1 picture added.");
+    - **not caught:** removals that take nothing off air (`offAir` and `serverOut` as no-ops)
+      passed all seven removal walks (`playout-cues:818`, `rundown-history:188/230/269`,
+      `productions:117`, `playout-folders:338`, `studio-feedback:76`). No spec deletes a cue
+      that is on air and checks that its graphic or server cue goes off first. The gap predates
+      this phase (the inline code had no test either) and AC-2 keeps assertions unchanged here,
+      so it is [#1630](https://github.com/NoaCG/NoaCG-Studio/issues/1630), not a test added in this PR.
+    - `refreshRundown`'s order (flush event, history settle, durable commit, team or sync
+      confirmation, owner check, reload) needs a configured backend; no browser spec covers it.
   - **Extra files:** 8 e2e specs gain one comment line naming `useRundownAuthoring.ts`: the
     specs selected for the page that drive a moved flow and were not already selected for the
     new module (`playout-folders`, `rundown-history`, `studio-feedback`,
