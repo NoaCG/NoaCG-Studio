@@ -223,7 +223,6 @@ import {
   nextGraphicCue,
   readAuto,
   takesNext,
-  type CueArms,
 } from '../../control/cueAuto';
 import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { startCueArmEngine, writeArms, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
@@ -544,7 +543,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * set every render, so the send path reads this rundown and never a stale one.
    */
   const cueArms = useStorePart(session.arms);
-  const setCueArms = useCallback((arms: CueArms) => writeArms(session, arms), [session]);
   const armPage = useRef<CueArmPage | null>(null);
   const armEngine = useRef<CueArmEngine | null>(null);
   useEffect(() => {
@@ -1737,7 +1735,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const wire = createCueArmWire({
           slug: hostedSlug,
           get: session.arms.get,
-          set: setCueArms,
+          set: (arms) => writeArms(session, arms),
           fire: (graphic, arm) => armEngine.current?.fire(graphic, arm),
           note: setNote,
           rpc: CUE_ARM_RPC,

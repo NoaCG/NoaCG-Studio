@@ -47,6 +47,8 @@ changes a spec's digest.
       runDue, the timer, the tab, markers, Hold, Manual and PROGRAM's reply are no-ops after its
       stop, and the session's end stops it. The old page kept running a stale `runDueRef` after
       a production change; the route keys the page by production, so that never happened in use.
+      A fire already sending when the engine stops finishes as before: its answer still moves
+      `liveCue`, the folder step and the log, exactly as the old `fireLane` did.
     - the `arms` part is per session, so a production change starts with no countdowns (the old
       page state would have carried them, again only in theory because of the route key).
   - **Mutation checks** against `scripts/cue-arm-engine.test.mjs` (fake clock, timers, tab and
