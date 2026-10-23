@@ -5,6 +5,92 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 19, phase 8: useRundownAuthoring (rundown edits, clipboard, pictures, refresh)
+
+- **Previous verified `main` sha:** phase 6 passed on main (#1627 at `325c246`); this branch
+  starts at `acfad2f` (a quarantine release after it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. A move of code only: no state shape,
+  storage key, persisted format, sentence or write order changes.
+- **Brief.** The coordinator's first brief for row 19 named parent phase 7, which landed in row
+  4 (phase 2+7); `extensions.md` row 19 is phase 8. The builder stopped before any edit and the
+  coordinator corrected the brief to phase 8.
+- **Decisions.**
+  - *A hook plus a plain function, in one module,* as phase 4 did and for the same reason: the
+    page returns early while its production is missing, and the handlers read values computed
+    after that return. `useRundownAuthoring(owner)` holds the five states and three refs that
+    stood together in the page, plus the owner ref below, (`rangeIds`, `rangeEnd`, `clip`, `pendingClip`, `rundownNote`,
+    `rundownFeedback`, `refreshingRundown`, `refreshingId`) and is called where they stood, so
+    the page's hooks keep their order. `rundownActions(state, io)` is called by the page after
+    the return, where `writeRundown` stood, on every render, so each handler closes over that
+    render's values as the inline code did. The module has no effect.
+  - *What moved.* `refreshRundown`, `uploadPictures`, `removeCue`, `removeGraphic`, the
+    authoring block (`writeRundown`, `freshShow`, `editIds`, `pastePlace`, `pasteAt`,
+    `duplicateCues`, `takeOutOfFolders`, `removeCues`, `cutIds`, `newFolder`, `removeFolderOf`,
+    `moveRundown`, `toggleFolder`), and the rundown-editing keys of `onVerb` (the account-pause
+    refusal, copy, cut, paste, select-clear, extend-prev/next, folder-new, folder-toggle) as
+    `editVerb(key)`.
+  - *What stayed.* `selectCue`, `selectFolder` and `clickRow` (the cursor is the page's, and
+    `selectedCueId` may not move); `useRundownHistory` and `flushDraft` (the draft is phase
+    13b's); the inline `onEditKey` (delete, undo, redo) and the folder editor's `onRename` in
+    the JSX, which call `editIds`, `removeCues`, `writeRundown` and `setRundownNote` from the
+    module.
+  - *The temporary interface* is `offAir` (the page's `takeOffAir`), `serverOut` (the page's
+    `playoutVerb(cue, 'out', 'Out')`) and `flush` (the page's `flushDraft`), plus 24 render
+    values (`RundownActionsIo`). Nothing in the module sends to air.
+  - *Non-mechanical changes,* all listed (the two-way diff of the moved lines shows only these):
+    - `playoutVerb(x, 'out', 'Out')` became `serverOut(x)` in `removeCue`, `removeGraphic` and
+      `removeCues`; the page binds `serverOut` to exactly that call.
+    - `editVerb` answers whether it took the key: each `return;` in the moved branches became
+      `return true;`, it ends with `return false;`, and `onVerb` reads `if (editVerb(key))
+      return;` where the branches stood, so the keys after them see the same flow.
+    - `refreshRundown` reads `pageOwner.current`, a new ref in the hook set on every render from
+      `{ id, userId: user?.id }`, instead of the page's `publishOwner` ref, which only the refresh
+      read and is gone. Handing the page's ref to `rundownActions` made the React Compiler skip
+      the whole page (seven `preserve-manual-memoization` errors: a ref written during render,
+      passed to a function, reads as possibly mutated). Both refs held the same value, set at the
+      same point of every render, so the refresh's owner check compares the same values.
+    - `refreshRundown` is now defined after the early return (it was before it), so its
+      `|| !show` guard is gone: `show` cannot be missing there. `uploadPictures` was already after
+      the return. Both are plain functions called only from the JSX.
+    - `selectCue` and `selectFolder` list `setRangeIds` in their dependency arrays: a setter
+      from a custom hook is not known to be stable to `exhaustive-deps`. It is a React state
+      setter, so the callbacks keep their identity exactly as before.
+  - *Write order and the mutation checks.* The moved code writes in the same order as before;
+    nothing was reordered. Mutants run against the moved code, each with the specs that drive it:
+    - a cut whose paste leaves the clipboard set (`setClip(null)` dropped in `pasteAt`): caught
+      by `playout-folders.spec.ts:371` (Ctrl+X, Ctrl+V);
+    - Shift+Down that does not move the range's far end (`setRangeEnd` dropped in `editVerb`):
+      caught by `playout-folders.spec.ts:407`;
+    - an upload whose first picture keeps the graphic's name as its cue label: caught by
+      `productions.spec.ts:1130` and `:1207`;
+    - an upload that goes on writing cues after the pictures' save was refused: caught by
+      `productions.spec.ts:1207` (it said "✓ 1 picture added.");
+    - **not caught:** removals that take nothing off air (`offAir` and `serverOut` as no-ops)
+      passed all seven removal walks (`playout-cues:818`, `rundown-history:188/230/269`,
+      `productions:117`, `playout-folders:338`, `studio-feedback:76`). No spec deletes a cue
+      that is on air and checks that its graphic or server cue goes off first. The gap predates
+      this phase (the inline code had no test either) and AC-2 keeps assertions unchanged here,
+      so it is [#1630](https://github.com/NoaCG/NoaCG-Studio/issues/1630), not a test added in this PR.
+    - `refreshRundown`'s order (flush event, history settle, durable commit, team or sync
+      confirmation, owner check, reload) needs a configured backend; no browser spec covers it.
+  - **Extra files:** 8 e2e specs gain one comment line naming `useRundownAuthoring.ts`: the
+    specs selected for the page that drive a moved flow and were not already selected for the
+    new module (`playout-folders`, `rundown-history`, `studio-feedback`,
+    `playout-rundown-feedback`, `studio-release-completion`, `rundown-timing`,
+    `publish-output-setup`, `dashboard-operator-walk`). No assertion or selector changes.
+  - No Node test: the row requires none, and the module is a React hook over browser-only
+    imports (pictures, sync), so a Node test would need the very adapters phase 8 does not add.
+- **Traps.**
+  - The spec's line numbers (1360-1396, 2472-2552, 3190-3220, 3676-3747, 4049-4103) are from
+    `cc3500f2`; on `acfad2f` the code was at 507-520, 1323-1359, 2475-2563, 2981-3011,
+    3413-3484 and 3793-3848.
+  - Passing a ref that the page writes during render (`publishOwner.current = ...`) into a
+    plain function makes the React Compiler skip the whole page. `eslint` names the memos it
+    could not keep, not the call that caused it; bisect the call's arguments.
+  - `e2e/playout-feedback-health.spec.ts` still patches `setSlotRev` in the page's served text;
+    this phase did not move it.
+
 ## Row 18, phase 6: bridgeWatch.ts and the `bridge` part
 
 - **Previous verified `main` sha:** phase 5 passed on main (#1626 at `fe95daa`); this branch
