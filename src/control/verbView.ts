@@ -53,7 +53,7 @@ export interface VerbInputs {
   bridgeDown: boolean;
   /** Why the selected cue's Take would not go, or null. */
   takeBlocked: string | null;
-  /** The selected graphic's machine can advance from where it reports. */
+  /** A graphic is selected and its machine can advance from where it reports. */
   advances: boolean;
   folder: HeldFolder | null;
   clearing: boolean;
@@ -116,7 +116,7 @@ export function verbView(input: VerbInputs): VerbView {
   const spaceNext = spaceAction(input.spaceMode, { live: selectedCueIsLive, previewed: selectedCueStaged });
   /** A server cue cannot be taken while the server is off or the Bridge says it is not there. */
   const canTake = !!selectedCue && !(selectedCue.source === 'playout' && (!input.casparOn || input.bridgeDown));
-  const nextMoves = (!!selectedGraphic && input.advances) || (selectedPlayoutLive && input.selectedItemKind === 'template');
+  const nextMoves = input.advances || (selectedPlayoutLive && input.selectedItemKind === 'template');
 
   const folderUp = !!folder && folder.up;
   const step = folder?.step ?? null;

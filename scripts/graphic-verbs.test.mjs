@@ -827,3 +827,45 @@ test('a press sends with the page of its press, even when a later render changed
   r.sends[0].answer.resolve({ ...noneLeft });
   await updating;
 });
+
+test('a press whose save wait ends after the production closed moves nothing: no cue write, no tree write, no Bridge clear', async () => {
+  // An unbound bump: the cue is not written alone.
+  const a = rig({ flushHeld: true });
+  const bumping = a.verbs.bump(sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: true }), 'f3', 1);
+  await settle();
+  a.session.dispose();
+  a.flushes[0].resolve();
+  await bumping;
+  assert.deepEqual(a.log, [['flush']]);
+  // A bound bump: the tree is not written.
+  const b = rig({ flushHeld: true, bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
+  const bound = b.verbs.bump(sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true }), 'home', 1);
+  await settle();
+  b.session.dispose();
+  b.flushes[0].resolve();
+  await bound;
+  assert.equal(b.log.filter(([k]) => k === 'patch').length, 0);
+  // An adjust event: the moved figure is not written into the cue.
+  const c = rig({ flushHeld: true, aired: { Score: { home: '4' } } });
+  const pressing = c.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true, airCue: graphicCue('a1', 'Score') }), goal);
+  await settle();
+  c.session.dispose();
+  c.flushes[0].resolve();
+  await pressing;
+  assert.equal(c.log.filter(([k]) => k === 'writeLive' || k === 'send').length, 0);
+  // All out refused at the end does not clear through the Bridge.
+  const d = rig({ liveCue: { Strap: 'c1' } });
+  const outs = [];
+  d.page.livePlayoutLayers = [{ cue: serverCue('v1') }];
+  d.page.playoutVerb = () => {
+    const h = held();
+    outs.push(h);
+    return h.promise;
+  };
+  const clearing = d.verbs.allOut();
+  d.session.dispose();
+  outs[0].resolve(true);
+  await clearing;
+  assert.equal(d.sends.length, 0);
+  assert.deepEqual(d.notes, []);
+});

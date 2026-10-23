@@ -10,6 +10,10 @@
 // (docs/PLAYOUT_DASHBOARD.md §2; the decision is ./spaceMode.ts). The keyboard's map from a key to a
 // verb is components/playoutKeys.ts.
 //
+// The rundown's editing keys (copy, cut, paste, Escape, extend, folders) are the editor's own
+// (components/home/useRundownAuthoring.ts `editVerb`), which the page asks before this; none of
+// them is a verb here.
+//
 // Moved out of ProductionPage's `onVerb` with its order and rules unchanged. Runtime imports carry
 // `.ts` so Node resolves them (scripts/verb-dispatch.test.mjs); everything else is a type.
 
@@ -66,8 +70,6 @@ export type VerbDecision =
   /** Take a cue off as a step does (a panel's `take-cue` on a cue that is on air). */
   | { do: 'take-off'; cue: ShowCue }
   | { do: 'take'; cue: ShowCue }
-  /** The rundown's editing keys (copy, cut, paste, Escape, extend), which air nothing. */
-  | { do: 'edit' }
   | { do: 'folder-step' | 'folder-out' | 'folder-take'; folderId: string }
   /** SPACE on a cue on air: Out, and it lands on PREVIEW. */
   | { do: 'out-and-stage'; cueId: string }
@@ -82,8 +84,6 @@ export type VerbDecision =
 const NONE: VerbDecision = { do: 'none' };
 /** The verbs a held folder row answers: SPACE, TAKE and Out act on the folder; the rest have nothing to act on. */
 const FOLDER_KEYS = new Set<VerbKey>(['take', 'retake', 'update', 'next', 'out', 'pause', 'resume']);
-/** The rundown's editing keys (components/home/useRundownAuthoring.ts `editVerb`). */
-const EDIT_KEYS = new Set<VerbKey>(['copy', 'cut', 'paste', 'select-clear', 'extend-prev', 'extend-next', 'folder-new', 'folder-toggle']);
 
 export function decideVerb(key: VerbKey, press: Press | undefined, view: DispatchView): VerbDecision {
   if (key === 'trigger-cue') {
@@ -114,8 +114,6 @@ export function decideVerb(key: VerbKey, press: Press | undefined, view: Dispatc
     if (view.onAirNow(cue)) return { do: 'take-off', cue };
     return view.stepBlocked(cue) ? NONE : { do: 'take', cue };
   }
-  // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
-  if (EDIT_KEYS.has(key)) return { do: 'edit' };
   // A HELD FOLDER ROW: a held key fires once, since a folder's Take is several actions.
   if (view.folderId && FOLDER_KEYS.has(key)) {
     if (press?.repeat) return NONE;

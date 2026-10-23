@@ -176,10 +176,10 @@ test("a panel's Take key airs its cue whatever the mode, takes it off when it is
   assert.deepEqual(decideVerb('take-cue', press({ cue: 'c1', repeat: true }), view()), { do: 'none' });
 });
 
-test("the rundown's editing keys go to the editor and air nothing", () => {
+test("the rundown's editing keys are the editor's (the page asks it first): here they air nothing", () => {
   for (const key of ['copy', 'cut', 'paste', 'select-clear', 'extend-prev', 'extend-next', 'folder-new', 'folder-toggle']) {
-    assert.deepEqual(decideVerb(key, press(), view(live)), { do: 'edit' }, key);
-    assert.deepEqual(decideVerb(key, press(), heldView(folder({ up: true }))), { do: 'edit' }, key);
+    assert.deepEqual(decideVerb(key, press(), view(live)), { do: 'none' }, key);
+    assert.deepEqual(decideVerb(key, press(), heldView(folder({ up: true }))), { do: 'none' }, key);
   }
 });
 

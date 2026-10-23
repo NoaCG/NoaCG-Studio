@@ -70,7 +70,7 @@ export interface VerbSelection {
   airCue: ShowCue | null;
 }
 
-/** A layer that is up, with the cue that put it there. */
+/** A graphic layer that is up, by its graphic's name. */
 export interface UpLayer {
   graphic: string;
 }
@@ -293,9 +293,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** A graphic cue's Take, reporting nothing: its sentence comes back, for one cue or a folder's
    *  whole Take to say. Null when its graphic is gone. */
-  const takeGraphic = async (cue: ShowCue, label: string, direct = false): Promise<GraphicTake | null> => {
-    const s = sender();
-    const p = page();
+  const takeGraphicWith = async (s: VerbSender, p: GraphicPage, cue: ShowCue, label: string, direct = false): Promise<GraphicTake | null> => {
     const graphic = p.graphicOf(cue);
     if (!graphic) return null;
     await p.flush();
@@ -310,6 +308,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };
 
+  const takeGraphic = (cue: ShowCue, label: string, direct = false) => takeGraphicWith(sender(), page(), cue, label, direct);
+
   const take = async (cue: ShowCue) => {
     const s = sender();
     const p = page();
@@ -320,7 +320,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       }
       return;
     }
-    const taken = await takeGraphic(cue, 'Take');
+    const taken = await takeGraphicWith(s, p, cue, 'Take');
     if (taken && !taken.ok) s.note(taken.note);
     else if (taken?.ok) p.noteStep(cue);
   };
@@ -355,12 +355,15 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (path) {
       await afterBoundPress(graphic, async () => {
         await p.flush();
-        if (!p.boundReady()) return;
+        // A press queued or waiting when the production closed moves nothing (§4.1 R3).
+        if (!session.alive() || !p.boundReady()) return;
         await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
       });
       return;
     }
     await p.flush();
+    // The cue and the air never drift apart: once the production closed, neither moves.
+    if (!session.alive()) return;
     const base = p.aired[graphic]?.[fieldKey] ?? p.cueView(editingCue).values[fieldKey] ?? '0';
     const next = io.adjustedValue(base, delta);
     p.writeCue(editingCue.id, { [fieldKey]: next });
@@ -427,7 +430,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     try {
       const sent = await sendWith(s, clearAllCueBatches(cleared), 'All out', true);
       if (!sent.ok) {
-        s.note(await p.clearThroughBridge(sent.note));
+        // Refused because the production closed: nothing to clear through the Bridge for it.
+        if (session.alive()) s.note(await p.clearThroughBridge(sent.note));
         return;
       }
       // A graphic this page pressed again while the All out was on its way stays as that later
@@ -463,7 +467,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
           : values[key],
     );
     // Persist accepted live values directly; a live event is outside preparation history.
-    if (Object.keys(adjusted).length > 0 && sel.airCue) p.writeLive(sel.airCue.id, adjusted);
+    // Not once the production closed: the send below would refuse, and the cue must not move alone.
+    if (Object.keys(adjusted).length > 0 && sel.airCue && session.alive()) p.writeLive(sel.airCue.id, adjusted);
     const msg = payload ? { t: 'event' as const, event: button.event, payload } : { t: 'event' as const, event: button.event };
     // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT: the tree write is a separate row, so nothing
     // but this order keeps the two in step.

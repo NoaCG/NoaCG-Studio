@@ -2683,6 +2683,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * not yet on PREVIEW goes there first, airing nothing.
    */
   const onVerb = (key: PlayoutVerb, press?: VerbPress) => {
+    // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2): its keys are the editor's, and air nothing.
+    if (editVerb(key)) return;
     const decision = decideVerb(key, press, {
       ...view,
       cues,
@@ -2726,17 +2728,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       case 'take':
         void takeCue(decision.cue);
         return;
-      case 'edit':
-        editVerb(key);
-        return;
       case 'folder-step':
-        void stepFolder(selectedFolder!);
+        void stepFolder(rundown.folders.get(decision.folderId)!);
         return;
       case 'folder-out':
-        void outFolder(selectedFolder!);
+        void outFolder(rundown.folders.get(decision.folderId)!);
         return;
       case 'folder-take':
-        void takeFolder(selectedFolder!);
+        void takeFolder(rundown.folders.get(decision.folderId)!);
         return;
       case 'note':
         setNote(decision.text);
