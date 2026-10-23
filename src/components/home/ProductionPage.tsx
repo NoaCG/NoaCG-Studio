@@ -51,20 +51,13 @@ import {
 } from '../../control/playoutLink';
 import type { Slot } from '../../control/playoutProtocol';
 import {
-  clockRank,
   playNextTarget,
-  runTogether,
   serverCueLive,
   takeBlocker,
   serverLayers,
   throughPlaces,
   type ThroughRole,
-  togetherNote,
-  togetherPlan,
-  type GraphicMember,
-  type MemberResult,
   type MemberTake,
-  type SequenceMember,
   type ServerVerb,
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
@@ -225,6 +218,7 @@ import {
   takesNext,
 } from '../../control/cueAuto';
 import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
+import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
 import { startCueArmEngine, writeArms, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import CueEditor, { type CueEditorView, type OwnReader } from './CueEditor';
@@ -324,6 +318,9 @@ const CUE_ARM_IO: CueArmEngineIo = {
   clearTimer: (timer) => window.clearTimeout(timer as number),
   onVisible: BRIDGE_IO.onVisible,
 };
+
+/** A folder's Take's browser half (control/folderPlayout.ts): the clock a server take is stamped with. */
+const FOLDER_IO: FolderPlayoutIo = { now: () => performance.now() };
 
 /** A Sheet source's reader lease and memory, shared by this browser's tabs (control/sheetSource.ts).
  *  Runtime state like the live tree: localStorage, never the show record. */
@@ -470,22 +467,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [selectedFolderRow, setSelectedFolderRow] = useState<{ folderId: string; rowId: string } | null>(null);
   const authoring = useRundownAuthoring({ id, userId: user?.id });
   const { rangeIds, setRangeIds, setRangeEnd, rundownNote, setRundownNote, rundownFeedback, refreshingRundown } = authoring;
-  /** Why each cue of the last folder Take did not go on air, by cue id - until that cue is taken, the
-   *  folder is taken again, or it is taken off. Page memory. */
-  const [takeMisses, setTakeMisses] = useState<Readonly<Record<string, string>>>({});
-  /** WHERE EACH ONE-BY-ONE FOLDER'S STEP STANDS (docs/CLIP_PLAYBACK_PLAN.md §20.1): its cue taken last
-   *  in this page, by any route, or null once it went back to the top. A folder with no entry reads its
-   *  step off the air (control/folderStep.ts). Page memory: never saved, never shared. */
-  const [folderSteps, setFolderSteps] = useState<Readonly<Record<string, string | null>>>({});
-  /** Folder Takes still being sent: what dispatch reads (a ref, never a stale render), and whether
-   *  Out or All out has stopped each since. */
-  const folderRuns = useRef(new Map<string, { stop: null | 'out' | 'all-out' }>());
   /** The last press moving a bound field still being handled on each graphic, which the next one
    *  waits for (`afterBoundPress`). */
   const boundPresses = useRef(new Map<string, Promise<void>>());
-  /** The same, for the verb bar to draw: a folder still being sent counts as up, so Out and SPACE can
-   *  stop it even before anything of it has landed. */
-  const [sendingFolders, setSendingFolders] = useState<ReadonlySet<string>>(() => new Set());
   /**
    * THE CUE ON PREVIEW in the 'preview-then-take' SPACE mode (docs/PLAYOUT_DASHBOARD.md §2,
    * "Two Space modes"). In 'take' mode the selection IS the preview and this is unused; in the
@@ -553,6 +537,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       armEngine.current = null;
     };
   }, [session]);
+  /**
+   * A FOLDER'S TAKE, OUT AND STEP (control/folderPlayout.ts): one per session, with what the folders
+   * remember - where each One-by-one folder's step stands, why the last folder Take missed each cue,
+   * and which folders are still being sent - in the session's `folders` part. It reads this page
+   * through `folderPage`, set every render, so a press sees the render it was made from.
+   */
+  const { folderSteps, takeMisses, sending: sendingFolders } = useStorePart(session.folders);
+  const folderPage = useRef<FolderPage | null>(null);
+  const folderPlayout = useMemo(() => createFolderPlayout(session, FOLDER_IO, () => folderPage.current!), [session]);
   const serverOwnership = useStorePart(serverPlayout.ownership);
   const serverOnAir = serverOwnership.onAir;
   /** How many times this page has rendered - published on its root as `data-renders`, which is how
@@ -1097,14 +1090,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setSendOwed(sendDebts.current.owed() > 0);
         setLoggedAt(Date.now());
         // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
-        setTakeMisses((m) => {
-          const kept = Object.entries(m).filter(([, missed]) => settle(missed) !== null);
-          return kept.length === Object.keys(m).length ? m : Object.fromEntries(kept);
-        });
+        folderPlayout.settleMisses(settle);
       }
       applyCommand(items);
     },
-    [applyCommand],
+    [applyCommand, folderPlayout],
   );
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
@@ -2490,8 +2480,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   /** Forget why these cues' last folder Take missed them: they were taken since, or taken off. */
-  const clearMisses = (ids: readonly string[]) =>
-    setTakeMisses((m) => (ids.some((id) => id in m) ? Object.fromEntries(Object.entries(m).filter(([id]) => !ids.includes(id))) : m));
+  const { clearMisses } = folderPlayout;
 
   /** A graphic cue's Take, reporting nothing: its sentence comes back, for one cue or a folder's
    *  whole Take to say. Null when its graphic is gone. */
@@ -2512,10 +2501,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   /** A cue of a One-by-one folder went on air, by whatever route: the folder's step stands on it, so
    *  the next press continues after it (docs/CLIP_PLAYBACK_PLAN.md §20.1). */
-  const noteStep = (cue: ShowCue) => {
-    const folder = cue.folderId ? rundown.folders.get(cue.folderId) : undefined;
-    if (folder && folderMode(folder) === 'manual') setFolderSteps((m) => (m[folder.id] === cue.id ? m : { ...m, [folder.id]: cue.id }));
-  };
+  const { noteStep } = folderPlayout;
 
   // ── TIMED CUES, the unpublished engine (control/cueArmEngine.ts; docs/RUNDOWN_AUTOMATION_PLAN.md
   // §2.0, phase 1) reads this page through `armPage`: what it sends with, the rundown, the cue as the
@@ -2695,10 +2681,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  server stay where they are. */
   const outAll = async () => {
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:
-    // nothing airs after the panic control.
-    for (const run of folderRuns.current.values()) run.stop = 'all-out';
-    // Every One-by-one folder starts again from its first cue.
-    setFolderSteps((m) => Object.fromEntries(Object.keys(m).map((id) => [id, null])));
+    // nothing airs after the panic control. Every One-by-one folder starts again from its first cue.
+    folderPlayout.stopAll('all-out');
     // The panic control cuts, as it always did, whatever fade out a clip is set to.
     for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out', { cut: true });
     await outUnnamed();
@@ -2837,7 +2821,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── A FOLDER'S TAKE AND OUT (docs/CLIP_PLAYBACK_PLAN.md §6.6, phase 4): the `take` and `out` verbs
   // with a folder row held. ──
   /** Up, for SPACE and the verbs: any of it on air, or its Take still being sent. */
-  const folderUp = (folderId: string) => (folderStates[folderId]?.onAir.length ?? 0) > 0 || folderRuns.current.has(folderId) || sendingFolders.has(folderId);
+  const folderUp = (folderId: string) => (folderStates[folderId]?.onAir.length ?? 0) > 0 || folderPlayout.running(folderId) || sendingFolders.has(folderId);
   const selectedFolderUp = !!selectedFolder && folderUp(selectedFolder.id);
   historySafety.current = (expected, replacement) => {
     const ownership = serverPlayout.ownership.get();
@@ -2925,166 +2909,34 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     });
   })();
 
-  /** Run a folder's Take once at a time, and let Out and All out stop it. */
-  const runFolder = async (folderId: string, work: (run: { stop: null | 'out' | 'all-out' }) => Promise<void>) => {
-    const run: { stop: null | 'out' | 'all-out' } = { stop: null };
-    folderRuns.current.set(folderId, run);
-    setSendingFolders((set) => new Set(set).add(folderId));
-    try {
-      await work(run);
-    } finally {
-      folderRuns.current.delete(folderId);
-      setSendingFolders((set) => {
-        const next = new Set(set);
-        next.delete(folderId);
-        return next;
-      });
-    }
+  folderPage.current = {
+    cues,
+    folders: rundown.folders,
+    members: rundown.members,
+    items: playoutItems,
+    itemOf: playoutItemFor,
+    graphicOf: cueGraphicName,
+    stepMembers: stepMembersOf,
+    folderName,
+    takeBlocker: takeBlockerFor,
+    stepBlocker,
+    together: { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => (casparOffRefusal(c) ? null : takeBlockerFor(c)) },
+    ownership: serverPlayout.ownership.get,
+    liveCueOf: () => liveCueRef.current,
+    setLiveCue,
+    serverVerb,
+    takeGraphic: takeGraphicCue,
+    takeCue,
+    send: sendVerb,
+    flush: async () => {
+      await flushDraft(); await history.closeGroup();
+    },
+    note: setNote,
   };
-  /** Take back off a member whose take landed after Out or All out stopped its folder's Take. */
-  const offLate = async (m: SequenceMember | GraphicMember, cut: boolean) => {
-    if ('item' in m) {
-      const off = await serverVerb(m.cue, 'out', cut ? 'All out' : 'Out', cut ? { cut: true } : {});
-      if (off && !off.ok) setNote(off.note);
-      return;
-    }
-    const sent = await sendVerb([clearCueItems(m.graphic)], 'Out');
-    if (!sent.ok) setNote(sent.note);
-    else if (!leftAlone(sent).includes(m.graphic)) setLiveCue((lc) => withLiveCue(lc, m.graphic, null));
-  };
-  const takeFolder = async (folder: ShowFolder) => {
-    const members = rundown.members.get(folder.id) ?? [];
-    const blocked = takeBlockerFor(folder);
-    if (blocked) {
-      setNote(`Take was not sent: ${blocked}`);
-      return;
-    }
-    if (folderRuns.current.has(folder.id)) return;
-    await flushDraft(); await history.closeGroup();
-    await runFolder(folder.id, async (run) => {
-      clearMisses(members.map((c) => c.id));
-      if (folderMode(folder) === 'through') {
-        const outcome = await serverVerb(members[0], 'take', `Take of ${folderName(folder)}`);
-        if (!outcome) return;
-        if (run.stop) {
-          // Out came while the Take was on its way: what it put up goes back off.
-          if (outcome.ok) for (const m of members) if (cueOnAirNow(m)) await offLate({ cue: m, item: playoutItemFor(m)! }, run.stop === 'all-out');
-          return;
-        }
-        setNote(outcome.note);
-        return;
-      }
-      const plan = togetherPlan(members, { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => (casparOffRefusal(c) ? null : takeBlockerFor(c)) });
-      if (!plan.ok) {
-        setNote(`Take was not sent: ${plan.reason}`);
-        return;
-      }
-      // The clock follows the longest file that ends: each take is stamped by its rank.
-      const t0 = performance.now();
-      const rank = clockRank(plan.server);
-      const results: MemberResult[] = await runTogether(plan, {
-        server: async (m) => (await serverVerb(m.cue, 'take', `Take of ${m.cue.label}`, { takenAt: t0 + (rank.get(m.cue.id) ?? 0) })) ?? { ok: false, note: `${m.cue.label} plays a file this production no longer lists.` },
-        graphic: async (g) => (await takeGraphicCue(g.cue, `Take of ${g.cue.label}`)) ?? { ok: false, note: `${g.cue.label} points at a graphic this production no longer has.` },
-        off: (m) => offLate(m, run.stop === 'all-out'),
-        stopped: () => run.stop !== null,
-      });
-      if (run.stop) return;
-      setTakeMisses((m) => ({ ...m, ...Object.fromEntries(results.filter((r) => !r.ok).map((r) => [r.cueId, r.note])) }));
-      setNote(togetherNote(folderName(folder), results));
-    });
-  };
+  const { take: takeFolder, out: outFolder, step: stepFolder, off: stepOff } = folderPlayout;
   /** Whether a cue is on air now, from the store as it stands and liveCue as last set. */
   const cueOnAirNow = (cue: ShowCue) =>
     cueOnAir(cue, { items: playoutItems, ownership: serverPlayout.ownership.get(), liveCue: liveCueRef.current, graphicName: cueGraphicName });
-  /** Take these graphic cues' graphics off together, as one Out. The failure's sentence, or null. */
-  const graphicsOff = async (graphicCues: readonly ShowCue[]): Promise<string | null> => {
-    const graphics = [...new Set(graphicCues.map(cueGraphicName).filter((g): g is string => !!g))];
-    if (!graphics.length) return null;
-    const sent = await sendVerb(clearAllCueBatches(graphics), 'Out');
-    if (!sent.ok) return sent.note;
-    const off = graphics.filter((g) => !leftAlone(sent).includes(g));
-    setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
-    return null;
-  };
-  /** Out on a folder takes all of it off - each server cue with its own fade out, its graphics
-   *  together - and nothing that is not in it. A Take of it still being sent stops. */
-  const outFolder = async (folder: ShowFolder) => {
-    const run = folderRuns.current.get(folder.id);
-    if (run && !run.stop) run.stop = 'out';
-    // A One-by-one folder taken off starts again from its first cue.
-    setFolderSteps((m) => (m[folder.id] === null ? m : { ...m, [folder.id]: null }));
-    const members = rundown.members.get(folder.id) ?? [];
-    clearMisses(members.map((c) => c.id));
-    const notes: string[] = [];
-    for (const cue of members.filter((c) => c.source === 'playout' && cueOnAirNow(c))) {
-      const off = await serverVerb(cue, 'out', `Out of ${cue.label}`);
-      if (off && !off.ok) notes.push(off.note);
-    }
-    const graphicsFailed = await graphicsOff(members.filter((c) => c.source !== 'playout' && cueOnAirNow(c)));
-    if (graphicsFailed) notes.push(graphicsFailed);
-    setNote(notes.length ? `Out: ${folderName(folder)} did not take all of it off. ${notes.join(' ')}` : `✓ Out: ${folderName(folder)}`);
-  };
-
-  /** Take cues off for a step: a server template by its own Out, the graphics together. False, with
-   *  the note said, when one did not go off - and then the step goes no further. */
-  const stepOff = async (off: readonly ShowCue[]): Promise<boolean> => {
-    for (const cue of off.filter((c) => c.source === 'playout')) {
-      const out = await serverVerb(cue, 'out', `Out of ${cue.label}`);
-      if (out && !out.ok) {
-        setNote(out.note);
-        return false;
-      }
-    }
-    const failed = await graphicsOff(off.filter((c) => c.source !== 'playout'));
-    if (failed) setNote(failed);
-    return !failed;
-  };
-  /**
-   * ONE PRESS ON A ONE-BY-ONE FOLDER (docs/CLIP_PLAYBACK_PLAN.md §20.1), decided again from the store
-   * as it stands at the press: the folder's graphics that are up go off, then the next cue's own
-   * Take; or, at the end, the graphics off and back to the top. A clip or audio file is never stopped.
-   * Nothing at all is sent when the next cue could not be taken. Out and All out stop a press still
-   * being sent, as they stop a folder's Take.
-   */
-  const stepFolder = async (folder: ShowFolder) => {
-    if (folderRuns.current.has(folder.id)) return;
-    const name = folderName(folder);
-    const up = new Set((rundown.members.get(folder.id) ?? []).filter(cueOnAirNow).map((c) => c.id));
-    const step = folderStep(stepMembersOf(folder.id), folderSteps[folder.id], up);
-    if (step.kind === 'none') {
-      setNote(`Everything in ${name} is on air. 0 takes it off.`);
-      return;
-    }
-    const next = step.kind === 'take' ? cues.find((c) => c.id === step.cueId) : undefined;
-    const blocked = next ? stepBlocker(next) : null;
-    if (blocked) {
-      setNote(`Take was not sent: ${blocked}`);
-      return;
-    }
-    await flushDraft(); await history.closeGroup();
-    await runFolder(folder.id, async (run) => {
-      const off = step.off.map((id) => cues.find((c) => c.id === id)).filter((c): c is ShowCue => !!c);
-      if (!(await stepOff(off))) return;
-      if (!next) {
-        setFolderSteps((m) => ({ ...m, [folder.id]: null }));
-        setNote(`✓ ${name}: back to its first cue`);
-        return;
-      }
-      if (run.stop) return;
-      await takeCue(next);
-      // Out or All out came while the take was on its way: what it put up goes back off, and the
-      // folder stays back at the top, where Out put it, whatever that take remembered.
-      if (!run.stop) return;
-      const item = playoutItemFor(next);
-      if (item) {
-        if (cueOnAirNow(next)) await offLate({ cue: next, item }, run.stop === 'all-out');
-      } else {
-        const graphic = cueGraphicName(next);
-        if (graphic) await offLate({ cue: next, graphic, layer: 0 }, run.stop === 'all-out');
-      }
-      setFolderSteps((m) => ({ ...m, [folder.id]: null }));
-    });
-  };
 
   // ── AUTHORING THE RUNDOWN (home/useRundownAuthoring.ts): its edits, the clipboard, the pictures and
   // the refresh. Nothing there airs; a removal takes its graphic or server cue off through these verbs. ──

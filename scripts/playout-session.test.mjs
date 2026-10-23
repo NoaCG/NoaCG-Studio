@@ -90,3 +90,18 @@ test('apply sets data before bridge, and a bridge-only fold is heard by the brid
   session.apply((parts) => ({ data: { ...parts.data, dataKey: 'k' }, bridge: { ...parts.bridge, slotSeenOurs: false } }));
   assert.deepEqual(heard, ['bridge data=undefined', 'data bridge=true', 'bridge data=k'], 'data is set first, then bridge');
 });
+
+test('the folders part starts empty and is set after the arms, in one fold', async () => {
+  const { NO_FOLDERS } = await import('../src/control/playoutSession.ts');
+  const session = createPlayoutSession('prod-1');
+  assert.equal(session.folders.get(), NO_FOLDERS);
+  assert.deepEqual({ ...NO_FOLDERS, sending: [...NO_FOLDERS.sending] }, { folderSteps: {}, takeMisses: {}, sending: [] });
+  const heard = [];
+  session.arms.subscribe(() => heard.push(`arms folders=${Object.keys(session.folders.get().folderSteps)}`));
+  session.folders.subscribe(() => heard.push(`folders arms=${Object.keys(session.arms.get())}`));
+  session.apply((parts) => ({ ...parts, arms: { G: {} }, folders: { ...parts.folders, folderSteps: { M: null } } }));
+  assert.deepEqual(heard, ['arms folders=', 'folders arms=G'], 'arms first, then folders');
+  session.dispose();
+  session.apply((parts) => ({ ...parts, folders: NO_FOLDERS }));
+  assert.deepEqual(session.folders.get().folderSteps, { M: null }, 'a fold after the end changes nothing');
+});
