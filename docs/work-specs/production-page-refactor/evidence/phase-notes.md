@@ -62,6 +62,12 @@ changes a spec's digest.
       so React folds the two;
     - the status callback checks its own stop as well as the link's (a late status writes
       nothing even through a fake link).
+    - Check again no longer clears the file check's last result at the press: the check stops
+      with the cleared status and clears its result when it restarts on the next answer. The
+      operator cannot see the difference, because the page shows the file check only while the
+      Bridge answers.
+    - a poll started from the status callback uses the inputs of the last commit; the update
+      after the next render checks the same keys again, so nothing is lost or asked twice.
   - **Extra files:** 10 e2e specs gain one comment line naming `bridgeWatch.ts` (the same ten
     phase 5 mapped to `serverVerbs.ts`). No assertion or selector changes.
 - **Traps.**
