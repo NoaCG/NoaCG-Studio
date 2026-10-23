@@ -813,3 +813,17 @@ test('every verb reaches the wire only through the one sender, with the page of 
   await settle();
   assert.deepEqual(r.sends.map((s) => s.slug), ['slug-1', 'slug-1', 'slug-2']);
 });
+
+test('a press sends with the page of its press, even when a later render changed it during the save wait', async () => {
+  const r = rig({ flushHeld: true });
+  const live = sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: true });
+  const updating = r.verbs.update(live);
+  await settle();
+  // The first publish lands while the save is still going.
+  r.state.sender = { ...r.sender, published: 'slug-2' };
+  r.flushes[0].resolve();
+  await settle();
+  assert.equal(r.sends[0].slug, 'slug-1');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await updating;
+});

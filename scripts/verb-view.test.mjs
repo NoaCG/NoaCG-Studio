@@ -137,6 +137,10 @@ test("a One-by-one folder's TAKE names its step, and Out goes once it was starte
   assert.equal(next.take.title, 'Take C2, and C1 off');
   assert.equal(next.disabled.out, false);
   assert.equal(next.heldStarted, true);
+  // A step asks the Bridge of the cue it takes (its own refusal), never of the folder's other cues.
+  const graphicStep = verbView(held(folder({ serverMembers: true, step: { kind: 'take', cueId: 'c1', off: [] } }), { bridgeDown: true }));
+  assert.equal(graphicStep.take.disabled, false);
+  assert.equal(graphicStep.folderCanTake, true);
   // Its next cue refused: the button says why and greys.
   const refused = verbView(held(folder({ step: { kind: 'take', cueId: 'c2', off: [] }, stepBlocked: 'Bridge is down', takeBlocked: 'ignored' })));
   assert.deepEqual([refused.take.disabled, refused.take.title, refused.folderBlocked], [true, 'Bridge is down', 'Bridge is down']);
