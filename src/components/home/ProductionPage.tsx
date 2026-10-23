@@ -456,7 +456,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const publishState = useProductionPublish({ authStatus, signInOpen });
   const {
     statusOpen, setStatusOpen, linksOpen, setLinksOpen, busy, publishing, copied, nameDraft, setNameDraft, nameNote,
-    setNameNote, replaceAsk, setReplaceAsk, slotBusy, publishRef,
+    setNameNote, setReplaceAsk, slotBusy,
   } = publishState;
 
   const [note, setNote] = useState<string | null>(null);
@@ -2699,8 +2699,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   preparePublishRef.current = () => publishNow();
 
-  publishRef.current = publish;
-
   /** The layers that are up, each with the cue that put it there, front to back. */
   const liveLayers = show.graphics
     .map((g) => ({ layer: graphicLayer(g), graphic: g.name, cueId: liveCue[g.name] ?? null }))
@@ -4306,10 +4304,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
-  const { headerAction, casparFacts } = publishFacts({
-    started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, replaceAsk, cues, backendConfigured,
-    needsSignIn, slotWhere, outputUrl, requiresPreparation, authoringAllowed, playoutStatus, playoutSettings,
-    casparOutputMemory, casparTarget, busy, flowBusy, slotBusy, publish, loadOnSlot,
+  const { headerAction, casparFacts } = publishFacts(publishState, {
+    started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, cues, backendConfigured, needsSignIn, slotWhere,
+    outputUrl, requiresPreparation, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
+    flowBusy, publish, loadOnSlot,
   });
   /** The panel's own lines for what went wrong where no row of its own says it. */
   const problemChecks = [

@@ -143,7 +143,7 @@ export interface PublishActionsIo {
 
 /** The publish, slot and links handlers, built on every render after the page's early return. */
 export function publishActions(state: ProductionPublishState, io: PublishActionsIo) {
-  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn } = state;
+  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef } = state;
   const {
     show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
     hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, casparOn, accountCaspar, publishedReaders,
@@ -304,8 +304,8 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     return said ? `${base.replace(/\.?$/, '.')} ${said}` : base;
   };
 
-  /** Publish; the version it wrote, or null when it did not (the note says why). `forPrepare`:
-   *  The readiness flow owns preparation and reports the result in the status panel. */
+  /** Publish; the version it wrote, or null when it did not (the note says why). The readiness
+   *  flow owns preparation and reports the result in the status panel. */
   const publishNow = async (): Promise<HeldVersion | null> => {
     if (accountBlocks(PUBLISH_NEEDS_ACCOUNT)) {
       // Only a real sign-in prompt is worth finishing; the "still checking" answer is not one.
@@ -423,17 +423,18 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     if (!hostedSlug) setStatusOpen(true);
     await prepareFlow.run();
   };
+  // What the sign-in follow-through presses (`useProductionPublish`).
+  publishRef.current = publish;
   return { claimName, downloadEmbed, copy, loadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish };
 }
 
 /** The header's one action and the Playout panel's CasparCG facts, from this render's values. */
-export function publishFacts(io: {
+export function publishFacts(state: ProductionPublishState, io: {
   started: boolean;
   casparOn: boolean;
   playoutIsConfigured: boolean;
   bridgeOk: boolean;
   outputSlot: SlotReading | undefined;
-  replaceAsk: boolean;
   cues: readonly unknown[];
   backendConfigured: boolean;
   needsSignIn: boolean;
@@ -445,17 +446,16 @@ export function publishFacts(io: {
   playoutSettings: PlayoutSettings;
   casparOutputMemory: string | undefined;
   casparTarget: string;
-  busy: boolean;
   flowBusy: boolean;
-  slotBusy: boolean;
   publish: () => Promise<void>;
   loadOnSlot: (url: string, replace?: boolean) => Promise<void>;
 }) {
   const {
-    started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, replaceAsk, cues, backendConfigured, needsSignIn,
-    slotWhere, outputUrl, requiresPreparation, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory,
-    casparTarget, busy, flowBusy, slotBusy, publish, loadOnSlot,
+    started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, cues, backendConfigured, needsSignIn, slotWhere,
+    outputUrl, requiresPreparation, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
+    flowBusy, publish, loadOnSlot,
   } = io;
+  const { replaceAsk, busy, slotBusy } = state;
   /** The CasparCG slot is this page's to show and act on: published, switched on, and the Bridge
    *  paired and answering. The header's Load and the panel's slot row read the same gate. */
   const slotInPlay = started && casparOn && playoutIsConfigured && bridgeOk;
