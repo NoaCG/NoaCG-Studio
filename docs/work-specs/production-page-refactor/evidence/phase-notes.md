@@ -48,6 +48,20 @@ changes a spec's digest.
       `sending` is written synchronously now, not at the next render, which only makes the drawn
       value catch up a render sooner.
     - `noteStep` finds the cue's folder in the latest render's rundown, not the calling closure's.
+- **Check findings** (code-review, high; all verified against the code):
+  - fixed: a step read its memory from the part, not from the render that drew PREVIEW and the
+    NEXT mark; it reads the render's again (`FolderPage.folderSteps`). The two identical part
+    folds became one helper.
+  - kept: the session's end stopping every run without taking late members back off (§3 and §4.1
+    R3 ask for it; listed above); `folderPage.current!` before the first full render (no verb or
+    `noteStep` can run before it, as with `armPage`); the factory's `onDispose` registration
+    inside `useMemo` (a discarded StrictMode instance holds an empty runs map and stops nothing);
+    `folderUp` asking both `running(id)` and `sending` (the old ref plus state shape); the page's
+    own `cueOnAirNow` beside the module's (the take-cue key and the panel still need it until
+    phase 11).
+  - reported, not changed: a Play-through folder's late Out calls `serverVerb` with a graphic
+    member's null item. Not reachable: a graphic cannot be put in a Play-through folder (pinned
+    in `playout-folders`), as before the move.
 - **S3 kept.** A press registers its run only after the save wait, as phase 1 recorded (refuted
   there); a Node test pins that order.
 - **Traps.**
@@ -55,6 +69,14 @@ changes a spec's digest.
     at 473-488, `clearMisses`/`noteStep` at 2492-2518, All out's stop at 2696-2701, `folderUp` at
     2840 and the verbs at 2928-3088. A seventh writer of `takeMisses` sat in `hearCommand`
     (1099-1102, a failed send that landed after all), which the spec does not list.
+  - *`useStorePart` is not a drop-in for page state whose render timing a key press depends on.*
+    `useSyncExternalStore` renders a store change synchronously, where a `setState` from async
+    code waits for the scheduler's next task. Read through `useStorePart`, the folder Take's
+    `sending` write re-rendered before the next key event, so the second of two SPACE presses
+    one task apart read the folder as up and took it off: `playout-air-contract` S3 failed
+    (`Strap played once`, 0 against 1). The page now mirrors the part into its own state with a
+    subscription in an effect, which renders at the old pace, and S3 passes. Phases 11-13 moving
+    more page state into parts should expect the same.
   - The repo's commit hook refuses `Co-Authored-By` trailers.
   - Playwright here wants `chromium_headless_shell-1228` while the image ships `-1243`; a symlink
     under `/opt/pw-browsers` (outside the repo) made the queued run start. Nothing in the repo
