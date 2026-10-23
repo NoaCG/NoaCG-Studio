@@ -69,21 +69,35 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
   const out: ControlSendItem[] = [];
   let clocks = air.clocks;
   let speaking = air.speaking;
+  /** The item with its clock write before or after it, as the effect says. */
+  const around = (item: ControlSendItem, clockItem: ControlSendItem, when: 'before' | 'after') => {
+    if (when === 'before') out.push(clockItem);
+    out.push(item);
+    if (when === 'after') out.push(clockItem);
+  };
   for (const item of items) {
     const msg = item.msg;
+    // An update writes the fields, and an accepted event's payload rides the same field paths.
+    const carried = msg.t === 'update' ? msg.data : msg.t === 'event' ? msg.payload : undefined;
     const pair = specs.pairs.get(item.graphic);
     if (pair) {
       // A debate board's two clocks: one clock verb settles one field, a `switch` settles both.
       const held = { ...(speaking[item.graphic] ?? {}) };
-      const carried = msg.t === 'update' ? msg.data : msg.t === 'event' ? msg.payload : undefined;
+      let moved = false;
       for (const field of [pair.fieldA, pair.fieldB]) {
         const value = carried?.[field];
-        if (value !== undefined) held[field] = clockValueAfterUpdate(held[field], value);
+        if (value !== undefined) {
+          held[field] = clockValueAfterUpdate(held[field], value);
+          moved = true;
+        }
       }
       // The allowance and the penalty size ride the wire plain and are read back as themselves.
       for (const field of [pair.allowanceField, pair.penaltyField]) {
         const value = field ? carried?.[field] : undefined;
-        if (field && value !== undefined) held[field] = value;
+        if (field && value !== undefined) {
+          held[field] = value;
+          moved = true;
+        }
       }
       // The monitor is sent what is held, not what the row carried (src/output/main.ts's rule).
       let staged: ControlSendItem = item;
@@ -95,15 +109,9 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
         staged = { graphic: item.graphic, msg: { ...msg, data: forwarded } };
       }
       const effect = speakingClockRowEffect({ msg, created_at: item.created_at }, pair, held, now);
-      speaking = { ...speaking, [item.graphic]: effect ? { ...held, ...effect.values } : held };
-      if (!effect) {
-        out.push(staged);
-        continue;
-      }
-      const clockItem: ControlSendItem = { graphic: item.graphic, msg: { t: 'update', data: effect.values } };
-      if (effect.when === 'before') out.push(clockItem);
-      out.push(staged);
-      if (effect.when === 'after') out.push(clockItem);
+      if (effect || moved) speaking = { ...speaking, [item.graphic]: effect ? { ...held, ...effect.values } : held };
+      if (effect) around(staged, { graphic: item.graphic, msg: { t: 'update', data: effect.values } }, effect.when);
+      else out.push(staged);
       continue;
     }
     const clock = specs.clocks.get(item.graphic);
@@ -111,8 +119,8 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
       out.push(item);
       continue;
     }
-    const carried = msg.t === 'update' ? msg.data?.[clock.field] : msg.t === 'event' ? msg.payload?.[clock.field] : undefined;
-    if (carried !== undefined) clocks = { ...clocks, [item.graphic]: clockValueAfterUpdate(clocks[item.graphic], carried) };
+    const value = carried?.[clock.field];
+    if (value !== undefined) clocks = { ...clocks, [item.graphic]: clockValueAfterUpdate(clocks[item.graphic], value) };
     if (msg.t === 'stop' && item.graphic in clocks) clocks = without(clocks, item.graphic);
     const effect = clockRowEffect({ msg, created_at: item.created_at }, clock, clocks[item.graphic], now);
     if (!effect) {
@@ -120,10 +128,7 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
       continue;
     }
     clocks = { ...clocks, [item.graphic]: effect.value };
-    const clockItem: ControlSendItem = { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } };
-    if (effect.when === 'before') out.push(clockItem);
-    out.push(item);
-    if (effect.when === 'after') out.push(clockItem);
+    around(item, { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } }, effect.when);
   }
   return { air: clocks === air.clocks && speaking === air.speaking ? air : { ...air, clocks, speaking }, out };
 }
@@ -149,11 +154,10 @@ export function claimAndApply(
     if (!applied.claim(item.msg)) continue;
     const msg = item.msg;
     if (msg.t === 'cue') next = moveLiveCue(next, (m) => withLiveCue(m, item.graphic, msg.cue));
-    else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
-      next = { ...rememberAired(next, [{ graphic: item.graphic, msg }]), bootReplay: null, commands: next.commands + 1 };
-      program.push({ graphic: item.graphic, msg });
-    }
+    else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') program.push({ graphic: item.graphic, msg });
   }
+  // A marker never touches what was aired, so the commands are remembered together, in order.
+  if (program.length > 0) next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length };
   return programItems(next, program, specs, now);
 }
 

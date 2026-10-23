@@ -93,13 +93,22 @@ changes a spec's digest.
     and `selectedCueId`"): the spec's owner decision 1.1.2 moves `liveCue` once, in this phase,
     to one owner (the session); `selectedCueId` stays in the page. That folder guidance is
     rewritten in phase 14 (AC-12) and is outside this phase's fence.
+- **Simplify** (four read-only passes: reuse, simplification, efficiency, altitude): applied the
+  page's one `logHere` helper for its three log writes; one clock-placement helper and one
+  carried-fields read in `programItems`, which also leaves a debate board's memory alone when a
+  command moved none of it; `claimAndApply` remembering a batch's commands in one write; the
+  wire's IO typed from the real functions (`typeof controlShowBySlug` and so on, type-only), so
+  the scripted test is checked against the real API; the adapters passed as the setters
+  themselves; a stale "below" comment; an always-true guard. Not taken: a `wire` status part to
+  narrow the page adapter (a later phase can, if a part is wanted), and sharing the "is a
+  renderer command" rule (its other copies are in files outside the fence).
 - **Mutation checks** against `scripts/air-state.test.mjs`, `scripts/session-wire.test.mjs`
-  and `scripts/playout-session.test.mjs`: all 37 caught. Inverting the moves guard (12 tests
+  and `scripts/playout-session.test.mjs`: all 38 caught. Inverting the moves guard (12 tests
   fail) and dropping it; applying a duplicate twice; not counting a marker write; replaying the
   rows over a newer command; skipping the aired fold; a command not forgetting the boot replay;
-  commands not counted; typing reaching PROGRAM; the seed not setting `bootLive`; the seed
+  commands counted once per batch; typing reaching PROGRAM; the seed not setting `bootLive`; the seed
   merging instead of replacing; the baseline keeping the clock stamp; the clock start written
-  after; a resend erasing the origin; off air keeping the clock; a debate update forwarding the
+  after; the clock hold written before; a resend erasing the origin; off air keeping the clock; a debate update forwarding the
   plain time; the rebuild keeping clock memory while replaying, dropping the snap, always
   playing, or rebuilding from aired at boot; a silent log line not spending its id; the wire
   reading the request once (not per attempt); the wire keeping a late follow; rows after the

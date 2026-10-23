@@ -180,7 +180,7 @@ import {
 } from '../../control/hostedControl';
 import type { ReplayItem } from '../../control/outputRecovery';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts } from '../../control/failedSends';
-import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry } from '../../control/eventLog';
+import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockSpecFromHtml,
   fastEventGraphics,
@@ -620,8 +620,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * THE ONE MARKER WRITE (control/airState.ts `moveLiveCue`), and why every write is counted in the
    * `air` part's `moves`.
    *
-   * The boot resolve below reads the production over the wire and then SEEDS this map with
-   * the answer. That read is a round trip - about a millisecond against a local stack and
+   * The boot resolve (control/sessionWire.ts) reads the production over the wire and then SEEDS
+   * this map with the answer (control/airState.ts `seedFromResolve`). That read is a round trip - about a millisecond against a local stack and
    * ~170 ms from a runner to hosted staging - and a Take pressed while it is in flight moves
    * the map first. The answer then lands carrying the picture from BEFORE that press and
    * replaces it, so the dashboard says nothing is on air about a graphic that is.
@@ -639,6 +639,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const setLiveCue = useCallback(
     (next: LiveCueMap | ((map: LiveCueMap) => LiveCueMap)) => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, next) })),
+    [session],
+  );
+  /** Lines only this page writes into the action log (an unpublished send, a timed cue, a note). */
+  const logHere = useCallback(
+    (lines: ((id: number) => LogEntry | null)[]) => session.apply((parts) => ({ ...parts, log: loggedHere(parts.log, lines, appendLogEntries) })),
     [session],
   );
   /**
@@ -1559,7 +1564,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // through `wirePage`, set every render; it writes the `air` and `log` parts itself. ──
   const wirePage = useRef<SessionWirePage | null>(null);
   wirePage.current = {
-    resolveWaiting: (waiting) => setResolveWaiting(waiting),
+    resolveWaiting: setResolveWaiting,
     // The page is reused when the route moves to another production: the previous show's answer
     // must not decide this one's road while the round trip is in flight. Graphic keys are
     // per-production layer names and collide freely.
@@ -1584,18 +1589,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
     },
     cues: () => cuesRef.current,
-    clocks: () => clockSpecsOf(),
+    clocks: clockSpecsOf,
     armWire: (wire) => {
       armWire.current = wire;
     },
-    armsServer: (state) => setArmsServer(state),
+    armsServer: setArmsServer,
     fire: (graphic, arm) => armEngine.current?.fire(graphic, arm),
-    note: (text) => setNote(text),
+    note: setNote,
     // Reported on every status change AND on every poll tick, so this stays true rather than
     // recording only the first answer.
-    follow: (status) => setFollow(status),
-    commandStatus: (status) => setCommandStatus(status),
-    hear: (items) => hearCommand(items),
+    follow: setFollow,
+    commandStatus: setCommandStatus,
+    hear: hearCommand,
     // A 'live' row is the renderer REPORTING what it applied — machine state included, which is
     // what keeps the action buttons' greying honest about air.
     machineState: (graphic, state) => noteMachineState(graphic, state),
@@ -1604,7 +1609,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // Take, so missing a hosted press would put its figure back the moment somebody took a cue.
     refreshData: () => void dataSession.refresh(),
     describe: (row) => describeLogRow(row, cueLabel, eventLabel),
-    seenAt: (at) => setOutputSeenAt(at),
+    seenAt: setOutputSeenAt,
     tick: () => setNow(Date.now()),
   };
   useEffect(() => {
@@ -1901,7 +1906,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }
         const at = new Date().toISOString();
         const lines = batches.flat().map((item) => (id: number) => describeLogRow({ id, graphic: item.graphic, msg: item.msg, created_at: at }, cueLabel, eventLabel));
-        session.apply((parts) => ({ ...parts, log: loggedHere(parts.log, lines, appendLogEntries) }));
+        logHere(lines);
         return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
       }
       // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the
@@ -1960,7 +1965,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setSendingNow((n) => Math.max(0, n - 1));
       }
     },
-    [session, hostedSlug, showId, cueLabel, eventLabel, applyProgram, applyCommand],
+    [hostedSlug, showId, cueLabel, eventLabel, applyProgram, applyCommand, logHere],
   );
   /** Send, and say so if it failed. What it came to when it landed, or null when it did not. */
   const runVerb = useCallback(
@@ -2252,7 +2257,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── TIMED CUES, the unpublished engine (control/cueArmEngine.ts; docs/RUNDOWN_AUTOMATION_PLAN.md
   // §2.0, phase 1) reads this page through `armPage`: what it sends with, the rundown, the cue as the
   // operator sees it, and the lines it writes. ──────────────────────────────────────────────────
-  const logAuto = (graphic: string, text: string) => session.apply((parts) => ({ ...parts, log: loggedHere(parts.log, [(id) => autoEntry(id, graphic, text)], appendLogEntries) }));
+  const logAuto = (graphic: string, text: string) => logHere([(id) => autoEntry(id, graphic, text)]);
   armPage.current = {
     published: !!hostedSlug,
     timedOff: !!hostedSlug && armsServer === 'missing',
@@ -3116,7 +3121,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // A key that names a row or a clip carries it as `cue`; the verbs that act on the selection never read it.
     (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
     // A refused press is a note in the activity feed, not a command row: nothing was sent.
-    (text) => session.apply((parts) => ({ ...parts, log: loggedHere(parts.log, [(id) => noteEntry(id, text)], appendLogEntries) })),
+    (text) => logHere([(id) => noteEntry(id, text)]),
   );
 
   /** LIVE ACTIONS FIRST (docs/research/control-surfaces-review-2026-10-02 slice 4; owner,

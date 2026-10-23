@@ -23,11 +23,19 @@
 // page's own facts and setters through `page()`, read at each call, so a Node test drives the whole
 // lifetime with a scripted wire. Only `.ts` runtime imports.
 
-import type { CueArmWire, CueArmWireOptions } from './cueArmWire';
+import type { CueArmWire, CueArmWireOptions, createCueArmWire } from './cueArmWire';
 import type { LaneArm } from './cueAuto';
 import type { LogEntry } from './eventLog';
-import type { ControlCommandItem, ControlEventRow, ControlFollowStatus, ResolvedControlShow } from './hostedControl';
-import type { ReplayItem } from './outputRecovery';
+import type {
+  ControlEventRow,
+  ControlFollowStatus,
+  ResolvedControlShow,
+  bootMonitorReplay,
+  controlOutputSeenAt,
+  controlShowBySlug,
+  followControlLog,
+  untilAnswered,
+} from './hostedControl';
 import type { PlayoutSession } from './playoutSession';
 import { airAtRequest, forgetBootReplay, logged, seedFromResolve, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
 import { writeArms } from './cueArmEngine.ts';
@@ -38,27 +46,15 @@ export const LOG_HISTORY_SPAN = 400;
 /** How often the output's last heartbeat is asked, and the header clock moved. */
 export const SEEN_EVERY_MS = 30_000;
 
-type Answer<T> = { ok: true; value: T } | { ok: false; error: string };
-
 /** The browser-only calls (./hostedControl.ts, ./cueArmRpc.ts) and the timer. */
 export interface SessionWireIo {
-  controlShowBySlug: (slug: string) => Promise<Answer<ResolvedControlShow | null>>;
-  untilAnswered: <T>(attempt: () => Promise<Answer<T>>, opts: { stop?: () => boolean; onRetry?: () => void }) => Promise<Answer<T>>;
-  bootMonitorReplay: (slug: string, resolved: ResolvedControlShow) => Promise<ReplayItem[]>;
+  controlShowBySlug: typeof controlShowBySlug;
+  untilAnswered: typeof untilAnswered;
+  bootMonitorReplay: typeof bootMonitorReplay;
   hostedControlTail: (slug: string, after: number) => Promise<ControlEventRow[]>;
-  followControlLog: (opts: {
-    showId: string;
-    from: number;
-    tail: (after: number) => Promise<ControlEventRow[]>;
-    seq?: ResolvedControlShow['seq'];
-    onEpochReset?: () => void;
-    onStatus?: (status: ControlFollowStatus) => void;
-    onCommandStatus?: (status: string) => void;
-    onCommand?: (items: ControlCommandItem[]) => void;
-    onRow: (row: ControlEventRow) => void;
-  }) => Promise<() => void>;
-  controlOutputSeenAt: (showId: string) => Promise<string | null>;
-  createCueArmWire: (options: CueArmWireOptions) => CueArmWire;
+  followControlLog: typeof followControlLog;
+  controlOutputSeenAt: typeof controlOutputSeenAt;
+  createCueArmWire: typeof createCueArmWire;
   /** How the action log takes new lines (./eventLog.ts `appendLogEntries`). */
   appendLog: AppendLog;
   armRpc: CueArmWireOptions['rpc'];
@@ -160,7 +156,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
         if (!live()) return;
         if (state === 'missing') {
           wire.stop();
-          if (arm === wire) arm = null;
+          arm = null;
           page().armWire(null);
         }
         page().armsServer(state);
