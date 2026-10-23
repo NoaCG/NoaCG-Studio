@@ -121,7 +121,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // Before the await: the previous answer must not decide this one's road while it is in flight.
     page().starting();
     session.apply((parts) => ({ ...parts, air: forgetBootReplay(parts.air) }));
-    let at: AirAtRequest = airAtRequest(session.air.get());
+    let at!: AirAtRequest;
     const answer = await io.untilAnswered(
       () => {
         // At the start of the round trip that ANSWERS: an answer older than the screen must not

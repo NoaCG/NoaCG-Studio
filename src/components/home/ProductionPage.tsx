@@ -345,6 +345,7 @@ function usePacedPart<T, S>(part: StorePart<T>, select: (value: T) => S): S {
   }, [part, select]);
   return value;
 }
+const wholePart = <T,>(value: T) => value;
 const liveCueOf = (air: AirPart) => air.liveCue;
 const airedOf = (air: AirPart) => air.aired;
 const bootLiveOf = (air: AirPart) => air.bootLive;
@@ -545,10 +546,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [session]);
   // ── Live status: which cue is on air ON EACH LAYER, and what each graphic was last sent. Several
   // graphics are up at once by design, so the marker is a map keyed by graphic name. Both live in
-  // the session's `air` part, written only by the folds of control/airState.ts; the page draws them
-  // at React's pace, and a verb reads the part itself (`liveCueRef`), so it sees the newest. ──
+  // the session's `air` part, written only by the folds of control/airState.ts. The page draws them
+  // at React's pace, and the reads after a wait (`liveCueRef`, `airedRef`) take the render's copy,
+  // so a press, its checks and the modules it calls all see the one map the render drew. ──
   const liveCue = usePacedPart(session.air, liveCueOf);
+  /** The live map the last render drew, for the verbs and the modules that read it after a wait. */
+  const drawnLiveCue = useRef(liveCue);
+  drawnLiveCue.current = liveCue;
+  // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
+  // reads a plain ref handed to the render-time publish call as read during render).
+  const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
   const airedData = usePacedPart(session.air, airedOf);
+  const airedRef = useRef(airedData);
+  airedRef.current = airedData;
   /** What the WIRE said was live when this page resolved the production - null until it seeded,
    *  and never written by anything this operator does. The boot recovery below is keyed on it. */
   const bootLive = usePacedPart(session.air, bootLiveOf);
@@ -585,11 +595,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * already registered), rather than one that reads the folder as up and takes it off
    * (e2e/playout-air-contract.spec.ts S3).
    */
-  const [folderMemory, setFolderMemory] = useState(session.folders.get);
-  useEffect(() => {
-    setFolderMemory(session.folders.get());
-    return session.folders.subscribe(() => setFolderMemory(session.folders.get()));
-  }, [session]);
+  const folderMemory = usePacedPart(session.folders, wholePart);
   const { folderSteps, takeMisses, sending: sendingFolders } = folderMemory;
   const folderPage = useRef<FolderPage | null>(null);
   const folderPlayout = useMemo(() => createFolderPlayout(session, FOLDER_IO, () => folderPage.current!), [session]);
@@ -971,19 +977,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * The ONE way a command reaches the PROGRAM monitor, so the clock cannot be handled on one
    * route and missed on the other (the wire follower and the offline verbs both come here).
    * control/airState.ts `programItems` writes each clock's value around its verb, against the
-   * LOCAL receive instant, and the stage is handed what that fold returns.
+   * LOCAL receive instant, and the stage is handed what that fold returns. `remember` also
+   * records the items as aired, in the same write (an unpublished send).
    */
-  const applyProgram = useCallback(
-    (items: ReplayItem[]) => {
+  const foldProgram = useCallback(
+    (fold: (air: AirPart, specs: ClockSpecs, now: number) => { air: AirPart; out: ControlSendItem[] }) => {
       let out: ControlSendItem[] = [];
       session.apply((parts) => {
-        const run = programItems(parts.air, items, clockSpecsOf(), Date.now());
+        const run = fold(parts.air, clockSpecsOf(), Date.now());
         out = run.out;
         return { ...parts, air: run.air };
       });
       programRef.current?.apply(out);
     },
     [session, clockSpecsOf],
+  );
+  const applyProgram = useCallback(
+    (items: ReplayItem[], remember = false) =>
+      foldProgram((air, specs, now) => programItems(remember ? rememberAired(air, items) : air, items, specs, now)),
+    [foldProgram],
   );
 
   /**
@@ -1007,16 +1019,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * must happen once per ROW and is not what an operator is waiting for.
    */
   const applyCommand = useCallback(
-    (items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
-      let out: ControlSendItem[] = [];
-      session.apply((parts) => {
-        const run = claimAndApply(parts.air, items, session.applied, clockSpecsOf(), Date.now());
-        out = run.out;
-        return { ...parts, air: run.air };
-      });
-      programRef.current?.apply(out);
-    },
-    [session, clockSpecsOf],
+    (items: { graphic: string; msg: ControlEventRow['msg'] }[]) =>
+      foldProgram((air, specs, now) => claimAndApply(air, items, session.applied, specs, now)),
+    [session, foldProgram],
   );
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
@@ -1544,8 +1549,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A button naming a player ("+1 ANNA") is logged by the name on air when the row arrives.
   const eventLabel = useCallback(
     (graphic: string, event: string) =>
-      eventLogLabel(withLiveLabels(poolButtonsRef.current.get(graphic) ?? [], session.air.get().aired[graphic] ?? null), event),
-    [session],
+      eventLogLabel(withLiveLabels(poolButtonsRef.current.get(graphic) ?? [], airedRef.current[graphic] ?? null), event),
+    [],
   );
 
   // ── Live tracking (control/sessionWire.ts): resolve the production, seed the marker from the
@@ -1627,23 +1632,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // STAGE being fresh, not on the page being new.
   // Read through the part and a ref: the replay must use the FRESHEST answer at the moment a stage
   // comes up, and it must not re-run every time a take changes either of them.
-  /** The live map as it stands, for the verbs and the modules that read it after a wait. */
-  const liveCueRef = useMemo(() => ({ get current() { return session.air.get().liveCue; } }), [session]);
   const machineStatesRef = useRef(machineStates);
   machineStatesRef.current = machineStates;
   /** Rebuild a fresh PROGRAM stage from what air holds (control/airState.ts `restoreItems`): at
    *  boot the reports and the rows after them, later what this page aired. */
-  const restoreProgram = useCallback(() => {
-    let out: ControlSendItem[] = [];
-    session.apply((parts) => {
-      const specs = clockSpecsOf();
-      const restore = restoreItems(parts.air, machineStatesRef.current, specs);
-      const run = programItems(restore.air, restore.items, specs, Date.now());
-      out = run.out;
-      return { ...parts, air: run.air };
-    });
-    programRef.current?.apply(out);
-  }, [session, clockSpecsOf]);
+  const restoreProgram = useCallback(
+    () =>
+      foldProgram((air, specs, now) => {
+        const restore = restoreItems(air, machineStatesRef.current, specs);
+        return programItems(restore.air, restore.items, specs, now);
+      }),
+    [foldProgram],
+  );
   // The boot half: the wire resolve lands after the stage is already up, so the first time the
   // WIRE says a layer is live there is nothing to have signalled.
   //
@@ -1895,8 +1895,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // Not published: the verbs still drive the local PROGRAM monitor, which is what makes
         // the whole surface usable (and provable) offline. Nothing leaves the machine.
         for (const batch of batches) {
-          session.apply((parts) => ({ ...parts, air: rememberAired(parts.air, batch) }));
-          applyProgram(batch);
+          applyProgram(batch, true);
           // A cue marker moves its layer's countdown (control/cueArmEngine.ts `onMarker`).
           armEngine.current?.onMarker(batch);
         }

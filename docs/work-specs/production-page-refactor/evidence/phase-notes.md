@@ -33,10 +33,12 @@ changes a spec's digest.
     value the operator acts on: it is set in the same synchronous step as the part (the
     listener runs inside the fold's `set`), so it joins the same React batch as the old
     `setLiveCueState` did and renders at exactly the old moment; everything drawn from it
-    (chip, ON AIR rows, Out, Update and Next greying) is the render the old state gave. Every
-    read after a wait (`cueOnAirNow`, the history safety check, the arm engine's and the
-    folders' `liveCueOf`, `restoreProgram`, the publish flow's `liveCueRef`) reads the part
-    itself, which is never older than the mirror.
+    (chip, ON AIR rows, Out, Update and Next greying) is the render the old state gave. The
+    reads after a wait (`cueOnAirNow`, the history safety check, the arm engine's and the
+    folders' `liveCueOf`, the publish flow's `liveCueRef`, the log's event labels through
+    `airedRef`) take the render's copy, as the old refs did, so a press, its checks and the
+    modules it calls all see the one map that render drew. The folds themselves (and
+    `restoreProgram`, which runs only after a render) read the part.
   - *The wire* (`control/sessionWire.ts`) is started by one effect keyed on the session, the
     slug, the backend and the production id, and also stops with the session's end. It reads
     the page through `wirePage` (set every render) for the page's own facts and setters:
@@ -44,11 +46,12 @@ changes a spec's digest.
     and the machine states, cues, clocks, the arm wire ref, arms state, fire, note, follow and
     command statuses, `hear` (`hearCommand`), the data refresh and the log's row naming.
   - *Phases 9 and 10's interfaces are replaced by the session without touching those modules:*
-    `liveCueOf` is `() => session.air.get().liveCue` and `setLiveCue` is the `moveLiveCue` fold.
+    `liveCueOf` reads the render's copy of the part and `setLiveCue` is the `moveLiveCue` fold.
     `cueArmEngine.ts` and `folderPlayout.ts` keep their interface names (AC-8's fence does not
     list them); phase 12 can drop them.
-  - *Old effects, refs and callbacks, mapped:* `liveCue` state and `liveCueRef` to `air.liveCue`
-    (a getter object keeps the publish flow's `{ current }` shape); `liveCueMoves` to
+  - *Old effects, refs and callbacks, mapped:* `liveCue` state to `air.liveCue`, drawn by
+    `usePacedPart`, and `liveCueRef` to the render's copy of it (a getter, which the compiler lint
+    accepts where a plain ref handed to the render-time publish call was refused); `liveCueMoves` to
     `air.moves`; `bootLive` state to `air.bootLive`; `airedData` state and `airedRef` to
     `air.aired`; `clockValues`, `speakingValues` refs to `air.clocks`, `air.speaking`;
     `commandsApplied`, `liveReportsRef`, `bootReplayRef` refs to `air.commands`,
@@ -58,9 +61,6 @@ changes a spec's digest.
     (400, unchanged). The boot recovery effect, `restoreProgram` as the stage's `onReady`,
     `hearCommand` and `sendVerb` stay in the page and call the folds.
   - *Non-mechanical changes,* all listed:
-    - reads after a wait see the newest marker: the old `liveCueRef` caught up only at the next
-      render, so a read between a write and its render saw the older map. The writes, and what
-      every render draws, are unchanged.
     - a follow that answers after the wire stopped is unsubscribed at once. The old effect
       assigned `unsubscribe` after its cleanup could run, so a stop during `followControlLog`'s
       await (an unpublish, or a StrictMode remount in development) left that follower running.
@@ -70,10 +70,29 @@ changes a spec's digest.
       unmount; the route keys the page by production, so this is only the leave-the-page case).
     - `programItems` takes one `Date.now()` per call where the old loop took one per item; the
       items of one call are applied in the same millisecond, so no clock reads differently.
+    - an unpublished send records what it aired and moves the clocks in one write
+      (`applyProgram(batch, true)`), where the page set the aired state, then the clock refs.
     - `claimAndApply` hands PROGRAM one batch per call instead of one per item; the stage
       applies a batch item by item, in order, so the commands and `data-plays` are the same.
     - the action log is per session (the old page state lived as long as the page, which the
       route keys by production).
+- **Check findings** (code-review, high; all verified against the code):
+  - fixed: reading the part after a wait made the press's checks and the modules it calls see a
+    newer map than the render that decided the press; `liveCueRef` and `airedRef` are the
+    render's copies again, as before. The unpublished send wrote the part twice (now once), the
+    three PROGRAM folds shared one helper (`foldProgram`), the folders part had its own copy of
+    the paced subscription (now `usePacedPart`), and the wire's first request read was dead.
+  - kept: the wire reading the page through `wirePage` at each call where the old effect kept the
+    closures of the render that started it. Every one it reaches is stable for the page's life
+    (`cueLabel`, `eventLabel`, `hearCommand`, `noteMachineState` and the data session are
+    `useCallback`/`useMemo` over refs or the session), so the calls are the same. Three
+    subscriptions on the `air` part: an unchanged selection bails out in React, and one
+    selector per drawn value keeps each one plain. The adapter object rebuilt per render, as
+    `armPage` and `folderPage` are.
+  - departure from the wording of `src/components/home/AGENTS.md` ("What may NOT move: `liveCue`
+    and `selectedCueId`"): the spec's owner decision 1.1.2 moves `liveCue` once, in this phase,
+    to one owner (the session); `selectedCueId` stays in the page. That folder guidance is
+    rewritten in phase 14 (AC-12) and is outside this phase's fence.
 - **Mutation checks** against `scripts/air-state.test.mjs`, `scripts/session-wire.test.mjs`
   and `scripts/playout-session.test.mjs`: all 37 caught. Inverting the moves guard (12 tests
   fail) and dropping it; applying a duplicate twice; not counting a marker write; replaying the
