@@ -204,7 +204,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   // ── The one sender. ONE place a verb's commands go somewhere: the wire when published, the local
   // PROGRAM monitor always, so the two can never drift into two behaviours. ──
   const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false): Promise<Sent> => {
-    if (!session.alive()) return { ok: false, note: ENDED_NOTE };
+    // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
+    // pressed before the end still takes off what it named, since a clear can air nothing stale.
+    if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };
     if (!p.published) {
       // Not published: the verbs still drive the local PROGRAM monitor, which is what makes the
       // whole surface usable (and provable) offline. Nothing leaves the machine.

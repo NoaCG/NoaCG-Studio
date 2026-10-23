@@ -3,7 +3,7 @@
 // ONE DISPATCHER FOR THE VERBS, in Node (production-page refactor spec §4.2's "Panel and keyboard"
 // row, phase 12): what each verb does from a key, the button that wears it or a hardware panel's key,
 // decided from the verb bar's view. `u` (update) and `n` (next) are pinned here as well as offline in
-// e2e/playout-drills.spec.ts. The keyboard's key-to-verb map is components/playoutKeys.ts.
+// e2e/live-actions-first.spec.ts. The keyboard's key-to-verb map is components/playoutKeys.ts.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -122,6 +122,8 @@ test('a held folder row: SPACE steps, takes, takes off or says why; 0 takes it o
   assert.deepEqual(decideVerb('take', press(), heldView(folder())), { do: 'folder-take', folderId: 'F' });
   assert.deepEqual(decideVerb('take', press(), heldView(folder({ up: true }))), { do: 'folder-out', folderId: 'F' });
   assert.deepEqual(decideVerb('take', press(), heldView(folder({ step: { kind: 'take', cueId: 'c2', off: [] } }))), { do: 'folder-step', folderId: 'F' });
+  // A One-by-one folder that is up steps on; SPACE never takes all of it off.
+  assert.deepEqual(decideVerb('take', press(), heldView(folder({ up: true, stepped: true, step: { kind: 'take', cueId: 'c2', off: ['c1'] } }))), { do: 'folder-step', folderId: 'F' });
   // A step goes even when its next cue is refused: the step itself says why (control/folderPlayout.ts).
   assert.deepEqual(decideVerb('take', press(), heldView(folder({ step: { kind: 'none' } }))), { do: 'folder-step', folderId: 'F' });
   assert.deepEqual(decideVerb('take', press(), heldView(folder({ takeBlocked: 'No slot' }))), { do: 'note', text: 'Take was not sent: No slot' });

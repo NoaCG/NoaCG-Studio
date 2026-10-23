@@ -52,6 +52,7 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
   const notes = [];
   const debtCalls = [];
   let sending = 0;
+  let owedCount = 0;
   const inFlight = [];
   const timers = [];
   const debts = {
@@ -60,7 +61,7 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
       return (shown) => shown;
     },
     failed: (items, note) => debtCalls.push(['failed', items.map((i) => `${i.graphic}:${i.msg.t}`), note]),
-    owed: () => 0,
+    owed: () => owedCount,
   };
   const sender = {
     published,
@@ -162,7 +163,7 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
   };
   const state = { sender };
   const verbs = createGraphicVerbs(session, io, () => state.sender, () => page);
-  return { timers, inFlight, state, session, verbs, log, sends, flushes, draft, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
+  return { setOwed: (n) => (owedCount = n), timers, inFlight, state, session, verbs, log, sends, flushes, draft, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
 }
 
 // ── The sender ──────────────────────────────────────────────────────────────────────────────────
@@ -827,7 +828,7 @@ test('a press sends with the page of its press, even when a later render changed
   await updating;
 });
 
-test('a press whose save wait ends after the production closed moves nothing: no cue write, no tree write, no Bridge clear', async () => {
+test('a press whose save wait ends after the production closed moves nothing here; only All out still clears what it named', async () => {
   // An unbound bump: the cue is not written alone.
   const a = rig({ flushHeld: true });
   const bumping = a.verbs.bump(sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: true }), 'f3', 1);
@@ -852,8 +853,9 @@ test('a press whose save wait ends after the production closed moves nothing: no
   c.flushes[0].resolve();
   await pressing;
   assert.equal(c.log.filter(([k]) => k === 'writeLive' || k === 'send').length, 0);
-  // All out refused at the end does not clear through the Bridge.
+  // All out pressed before the end still clears what it named, and its answer moves nothing here.
   const d = rig({ liveCue: { Strap: 'c1' } });
+  d.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c1' } } }));
   const outs = [];
   d.page.livePlayoutLayers = [{ cue: serverCue('v1') }];
   d.page.playoutVerb = () => {
@@ -864,7 +866,135 @@ test('a press whose save wait ends after the production closed moves nothing: no
   const clearing = d.verbs.allOut();
   d.session.dispose();
   outs[0].resolve(true);
+  await settle();
+  assert.deepEqual(d.sends.map((x) => x.allOut), [true]);
+  // A failed clear after the end does not go on to clear through the Bridge.
+  d.sends[0].answer.reject(new Error('down'));
   await clearing;
-  assert.equal(d.sends.length, 0);
   assert.ok(!d.notes.some((n) => n.startsWith('bridge:')));
+  assert.deepEqual(d.liveCue(), { Strap: 'c1' });
+});
+
+test('the gaps the assessment found: what each press keeps, counts and says', async (t) => {
+  await t.test('a Take sends with the page of its press across the save wait', async () => {
+    const r = rig({ flushHeld: true });
+    const taking = r.verbs.take(graphicCue('c1', 'Strap'));
+    await settle();
+    r.state.sender = { ...r.sender, published: 'slug-2' };
+    r.flushes[0].resolve();
+    await settle();
+    assert.equal(r.sends[0].slug, 'slug-1');
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await taking;
+  });
+  await t.test('three bound presses each count from the tree the one before left', async () => {
+    const tree = { Score: { home: '2' } };
+    const r = rig({ bound: { Score: { home: 'match.home' } }, tree });
+    const writes = [];
+    r.page.patchBound = (w) => {
+      tree.Score.home = w[0].text;
+      const h = held();
+      writes.push(h);
+      return h.promise;
+    };
+    const v = sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true });
+    const presses = [r.verbs.bump(v, 'home', 1), r.verbs.bump(v, 'home', 1), r.verbs.bump(v, 'home', 1)];
+    for (let i = 0; i < 3; i += 1) {
+      await settle();
+      assert.equal(writes.length, i + 1);
+      writes[i].resolve();
+    }
+    await Promise.all(presses);
+    assert.equal(tree.Score.home, '5');
+  });
+  await t.test('a press made after the first settled still waits for the second, still pending', async () => {
+    const tree = { Score: { home: '2' } };
+    const r = rig({ bound: { Score: { home: 'match.home' } }, tree });
+    const writes = [];
+    r.page.patchBound = (w) => {
+      tree.Score.home = w[0].text;
+      const h = held();
+      writes.push(h);
+      return h.promise;
+    };
+    const v = sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true });
+    const first = r.verbs.bump(v, 'home', 1);
+    const second = r.verbs.bump(v, 'home', 1);
+    await settle();
+    writes[0].resolve();
+    await first;
+    await settle();
+    // The second is writing; a third pressed now waits for it.
+    assert.equal(writes.length, 2);
+    const third = r.verbs.bump(v, 'home', 1);
+    await settle();
+    assert.equal(writes.length, 2);
+    writes[1].resolve();
+    await second;
+    await settle();
+    assert.equal(writes.length, 3);
+    writes[2].resolve();
+    await third;
+    assert.equal(tree.Score.home, '5');
+  });
+  await t.test('a bound key an event moves counts from the tree, not from what air shows', async () => {
+    const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '7' } }, aired: { Score: { home: '1' } } });
+    const pressing = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), goal);
+    await settle();
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await pressing;
+    assert.deepEqual(r.log.filter(([k]) => k === 'patch'), [['patch', 'match.home=8']]);
+  });
+  await t.test('an event that moves no bound field never waits on the tree being read', async () => {
+    const r = rig();
+    r.page.boundReady = () => false;
+    const pressing = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), reveal);
+    await settle();
+    assert.equal(r.sends.length, 1);
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await pressing;
+  });
+  await t.test('a landed send that leaves a debt keeps the owed mark; No output needs a play', async () => {
+    const r = rig();
+    r.setOwed(1);
+    r.state.sender = { ...r.sender, outputUsable: () => false };
+    const a = r.verbs.send([[{ graphic: 'Strap', msg: { t: 'update', data: {} } }]], 'Update');
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await a;
+    assert.deepEqual(r.log.filter(([k]) => k === 'owed'), [['owed', true]]);
+    assert.equal(r.log.filter(([k]) => k === 'noOutput').length, 0);
+  });
+  await t.test('a server Next goes only while the server cue is up', async () => {
+    const r = rig();
+    await r.verbs.next(sel({ selectedCue: serverCue('v1'), selectedPlayoutLive: false, selectedGraphic: 'Strap', selectedLayerLive: true }));
+    assert.deepEqual(r.log, []);
+    assert.equal(r.sends.length, 0);
+  });
+  await t.test('taking a graphic off reads the render the removal was pressed in, not the part', async () => {
+    const r = rig({ liveCue: {} });
+    r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c1' } } }));
+    await r.verbs.takeOff('Strap');
+    assert.equal(r.sends.length, 0);
+  });
+  await t.test('a failed Update or event says which press failed', async () => {
+    const r = rig();
+    const live = sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: true, selectedLayerLive: true });
+    const u = r.verbs.update(live);
+    await settle();
+    r.sends[0].answer.reject(new Error('x'));
+    await u;
+    const e = r.verbs.event(live, { event: 'go' });
+    await settle();
+    r.sends[1].answer.reject(new Error('y'));
+    await e;
+    assert.deepEqual(r.notes, ['Update failed: x', 'Event go failed: y']);
+  });
+  await t.test('an adjust event writes the moved figure into the on-air cue', async () => {
+    const r = rig({ aired: { Score: { home: '4' } } });
+    const pressing = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true, airCue: graphicCue('a1', 'Score') }), goal);
+    await settle();
+    assert.deepEqual(r.log.find(([k]) => k === 'writeLive'), ['writeLive', 'a1', '{"home":"5"}']);
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await pressing;
+  });
 });

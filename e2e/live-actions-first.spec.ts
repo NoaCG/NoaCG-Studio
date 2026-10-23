@@ -275,4 +275,8 @@ test('N moves the live graphic on to its next step, from the keyboard, and stops
   await expect(chip).toHaveText('Reveal');
   await expect(page.getByTestId('verb-next')).toBeDisabled();
   await expect(page.getByTestId('verb-next-target')).toHaveText('last step');
+  // N on the last step sends nothing: the graphic stays where it is.
+  await parkFocusOffControls(page);
+  await page.keyboard.press('n');
+  await expect(chip).toHaveText('Reveal');
 });

@@ -76,6 +76,9 @@ test('Next is grey on a graphic that cannot advance, unless a server template is
   const clip = verbView(inputs({ selectedCue: v1, selectedGraphic: null, selectedPlayoutLive: true, selectedItemKind: 'media', advances: false }));
   assert.equal(clip.disabled.next, true);
   assert.equal(clip.selectedClipUp, true);
+  assert.deepEqual([clip.allowed.pause, clip.allowed.resume], [true, true]);
+  // Pause and Resume are a clip's: a server template that is up has neither.
+  assert.deepEqual([template.allowed.pause, template.allowed.resume], [false, false]);
 });
 
 test("'preview-then-take': a cue not on PREVIEW previews first, then takes, and a refusal only holds up the take", () => {
@@ -134,6 +137,8 @@ test("a One-by-one folder's TAKE names its step, and Out goes once it was starte
   assert.deepEqual(first.take, { space: 'take', disabled: false, title: 'Take C1', step: { text: '⟳ TAKE', title: 'Take C1', tone: 'take' } });
   const next = verbView(held(folder({ stepped: true, step: { kind: 'take', cueId: 'c2', off: ['c1'] } })));
   assert.equal(next.take.step.text, '⟳ NEXT');
+  // Up but never stepped here (another surface took it): the press still moves it on.
+  assert.equal(verbView(held(folder({ up: true, step: { kind: 'take', cueId: 'c2', off: [] } }))).take.step.text, '⟳ NEXT');
   assert.equal(next.take.title, 'Take C2, and C1 off');
   assert.equal(next.disabled.out, false);
   assert.equal(next.heldStarted, true);
