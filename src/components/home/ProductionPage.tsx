@@ -57,7 +57,6 @@ import {
   serverLayers,
   throughPlaces,
   type ThroughRole,
-  type MemberTake,
   type ServerVerb,
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
@@ -71,13 +70,16 @@ import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
 import { useStorePart } from './useStorePart';
-import { applyClearedSlot, clipClock, followedClip, pauseTarget } from '../../control/serverState';
+import { applyClearedSlot, clipClock, followedClip } from '../../control/serverState';
 import { segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
-import { folderStep, stepFace, type FolderStep, type StepMember } from '../../control/folderStep';
+import { folderStep, type FolderStep, type StepMember } from '../../control/folderStep';
 import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
+import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSender } from '../../control/graphicVerbs';
+import { decideVerb } from '../../control/verbDispatch';
+import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, sourcePaths, type ResolvedValues } from '../../model/productionData';
@@ -91,7 +93,6 @@ import {
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import {
   revealCue,
-  spaceAction,
   stepSelection,
   takeFace,
   useSpaceMode,
@@ -102,7 +103,7 @@ import {
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
 import { SpaceModeToggle } from '../SpaceModeToggle';
-import { PREVIEW_EMPTY_LABEL, type SpaceAction } from '../../control/spaceMode';
+import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
 import { cueDataRows, hasSideFields, rowsForSide } from '../../control/cueData';
 import { groupCueFields } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
@@ -123,7 +124,6 @@ import {
   adjustWords,
   controlName,
   labelCarriesDelta,
-  adjustedValue,
   arrangeControls,
   arrangeFor,
   eventButtons,
@@ -138,6 +138,7 @@ import {
   machineStateGroups,
   machineStateNames,
   movedStateNames,
+  adjustedValue,
   movedKeys,
   pressSend,
   type ArrangedControl,
@@ -148,7 +149,6 @@ import {
   clearAllCueBatches,
   headsSay,
   headsStillOn,
-  clearCueItems,
   controlOutputSeenAt,
   controlPageUrl,
   controlShowBySlug,
@@ -162,24 +162,19 @@ import {
   publishedLeaseDoor,
   firstPublishedSources,
   sendControlVerbs,
-  staleSentence,
-  takeCueItems,
   untilAnswered,
   verbAired,
   verbStale,
   verbsLanded,
   verbSentItems,
-  leftAlone,
-  withLiveCue,
   writePublishedSources,
   type ControlEventRow,
   type ControlFollowStatus,
   type ControlSendItem,
   type LiveCueMap,
-  type VerbSent,
 } from '../../control/hostedControl';
 import type { ReplayItem } from '../../control/outputRecovery';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts } from '../../control/failedSends';
+import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockSpecFromHtml,
@@ -202,14 +197,12 @@ import ProductionExportDialog from './ProductionExportDialog';
 import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
-import { ALL_OUT_CONFIRM_MS, allOutTargets } from '../../control/allOut';
 import CueRundown, { nameList } from './CueRundown';
 import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGate';
 import ServerDiagnostics from './ServerDiagnostics';
 import { CueEndsRow, ProgramAutoChip } from './CueTiming';
 import {
   chipLane,
-  markerAuto,
   nextGraphicCue,
   readAuto,
   takesNext,
@@ -234,7 +227,6 @@ import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
 import { usePublishDrift } from './usePublishDrift';
-import { directCue } from '../../model/cueShortcuts';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
 import { commandPathsOf, type PrepRequest } from '../../control/prepareLive';
@@ -314,6 +306,27 @@ const CUE_ARM_IO: CueArmEngineIo = {
 
 /** A folder's Take's browser half (control/folderPlayout.ts): the clock a server take is stamped with. */
 const FOLDER_IO: FolderPlayoutIo = { now: () => performance.now() };
+/** This machine's clock (ms), outside the render: the lint reads `Date.now` in a callback built
+ *  during render as called there. */
+const wallClock = () => Date.now();
+/** The verbs' browser half (control/graphicVerbs.ts): the wire's doors, the press rules of
+ *  control/controlModel.ts (which Node cannot load), the clock and the bound presses' timer. */
+const GRAPHIC_VERB_IO: GraphicVerbIo = {
+  sendControlVerbs,
+  verbStale,
+  verbAired,
+  verbsLanded,
+  verbSentItems,
+  headsSay,
+  headsStillOn,
+  adjustedValue,
+  movedKeys,
+  pressSend,
+  nameList,
+  now: wallClock,
+  setTimeout: (run, ms) => setTimeout(run, ms),
+  clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+};
 /** What a published production's wire calls (control/sessionWire.ts): the backend's, and the timer. */
 const SESSION_WIRE_IO: SessionWireIo = {
   controlShowBySlug,
@@ -496,9 +509,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [selectedFolderRow, setSelectedFolderRow] = useState<{ folderId: string; rowId: string } | null>(null);
   const authoring = useRundownAuthoring({ id, userId: user?.id });
   const { rangeIds, setRangeIds, setRangeEnd, rundownNote, setRundownNote, rundownFeedback, refreshingRundown } = authoring;
-  /** The last press moving a bound field still being handled on each graphic, which the next one
-   *  waits for (`afterBoundPress`). */
-  const boundPresses = useRef(new Map<string, Promise<void>>());
   /**
    * THE CUE ON PREVIEW in the 'preview-then-take' SPACE mode (docs/PLAYOUT_DASHBOARD.md §2,
    * "Two Space modes"). In 'take' mode the selection IS the preview and this is unused; in the
@@ -1282,34 +1292,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  `resolved` waits for the next render. */
   const boundNow = (graphic: string): Record<string, string> => resolveBindings(session.data.get().liveData, bindings)[graphic] ?? {};
 
-  /**
-   * A PRESS MOVING A BOUND FIELD WAITS FOR THE ONE BEFORE IT on its graphic, then counts from the
-   * tree that press left (`boundNow`). The ⚡ press writes its figure only once its event has gone,
-   * a round trip after the press, and the ± press's answer replaces the tree, so a second press in
-   * that round trip counted from the same tree and wrote the same figure: two goals, one point
-   * (production-page refactor S1, e2e/configured/playout-adjust-race.spec.ts). The wait ends when
-   * the press before it has had a send's whole window and an attempt's time for its write
-   * (failedSends.ts), so a link that never answers cannot hold the next press; past it, the press
-   * counts from the tree as it stands.
-   */
-  const afterBoundPress = (graphic: string, press: () => Promise<void>): Promise<void> => {
-    const before = boundPresses.current.get(graphic);
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const waited = before
-      ? Promise.race([before, new Promise<void>((resolve) => (timer = setTimeout(resolve, RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS)))])
-      : Promise.resolve();
-    const run = waited.then(() => {
-      clearTimeout(timer);
-      return press();
-    });
-    // The next press waits for this one whether or not it failed.
-    const settled = run.catch(() => {});
-    boundPresses.current.set(graphic, settled);
-    void settled.then(() => {
-      if (boundPresses.current.get(graphic) === settled) boundPresses.current.delete(graphic);
-    });
-    return run;
-  };
 
   /**
    * The values a Take, an Update or the PREVIEW must carry for one graphic — bound fields
@@ -1610,7 +1592,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     refreshData: () => void dataSession.refresh(),
     describe: (row) => describeLogRow(row, cueLabel, eventLabel),
     seenAt: setOutputSeenAt,
-    tick: () => setNow(Date.now()),
+    tick: () => setNow(wallClock()),
   };
   useEffect(() => {
     if (!hostedSlug || !backendConfigured || !show) return;
@@ -1886,96 +1868,38 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setSpaceMode(mode);
   };
 
-  // ── The verbs. ONE place a verb's commands go somewhere: the wire when published, the local
-  // PROGRAM monitor always, so the two can never drift into two behaviours. `sendVerb` reports its
-  // outcome as its own sentence; `runVerb` below puts that on the note line, as every verb did. A
-  // folder's Take sends through `sendVerb` and says once, at its end, how all of it went. ──
-  const sendVerb = useCallback(
-    async (
-      batches: ControlSendItem[][],
-      label: string,
-      allOut = false,
-    ): Promise<({ ok: true } & VerbSent) | { ok: false; note: string }> => {
-      if (!hostedSlug) {
-        // Not published: the verbs still drive the local PROGRAM monitor, which is what makes
-        // the whole surface usable (and provable) offline. Nothing leaves the machine.
-        for (const batch of batches) {
-          applyProgram(batch, true);
-          // A cue marker moves its layer's countdown (control/cueArmEngine.ts `onMarker`).
-          armEngine.current?.onMarker(batch);
-        }
-        const at = new Date().toISOString();
-        const lines = batches.flat().map((item) => (id: number) => describeLogRow({ id, graphic: item.graphic, msg: item.msg, created_at: at }, cueLabel, eventLabel));
-        logHere(lines);
-        return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
-      }
-      // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the
-      // same countdown from the Take's own row (control/cueArmWire.ts). Every Take leaves here,
-      // whichever control pressed it, so this is the one place that adds it.
-      const marked = batches.map((batch) =>
-        batch.map((item) => {
-          if (item.msg.t !== 'cue' || !item.msg.cue || item.msg.auto || item.msg.direct) return item;
-          const spec = armEngine.current?.specFor(item.msg.cue) ?? null;
-          return spec ? { ...item, msg: { ...item.msg, auto: markerAuto(spec) } } : item;
-        }),
-      );
-      setSendingNow((n) => n + 1);
-      try {
-        // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
-        // page's own monitor in zero hops - it used to wait for the whole round trip, because
-        // applying locally as well as off the log would have doubled every command it sent, and
-        // the minted id is what makes doing both safe. Every other surface gets the database's
-        // own broadcast on the production's private topic, with the durable row behind it, and
-        // applies whichever won. Several batches are ONE press: numbered and based together, now.
-        const sent = await sendControlVerbs({
-          slug: hostedSlug,
-          showId,
-          batches: marked,
-          applyHere: applyCommand,
-          fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
-          allOut,
-        });
-        setNote(sendDebts.current.landed(marked.flat()));
-        setSendOwed(sendDebts.current.owed() > 0);
-        setLoggedAt(Date.now());
-        // A graphic went up with nothing reporting that could air it: the status says "No output"
-        // in red until something connects (playout-workflow-simplification AC-2). Never blocked.
-        if (!allOut && !usableOutputRef.current && marked.some((batch) => batch.some((item) => item.msg.t === 'play'))) setNoOutputTake(true);
-        return { ok: true, ...sent };
-      } catch (e) {
-        // A verb whose picture MOVED HERE and then failed to send is a different sentence from
-        // one that never happened, and an operator has to be told which they are looking at: this
-        // monitor applied the commands before the round trip, so what is in front of them is not
-        // what any other screen is showing. The broadcast and the row are written together, so a
-        // refused verb aired nowhere else - and a send that failed on the way BACK may have aired
-        // everywhere, which is why this says "may".
-        // A press another screen had already overtaken was refused by the server, so it is its own
-        // sentence rather than "send it again" (protocol 2, migration 0071).
-        const note = verbStale(e)
-          ? staleSentence(e as Error)
-          : verbAired(e)
-            ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
-            : `${label} failed: ${(e as Error).message}`;
-        // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.
-        const landed = verbsLanded(e);
-        sendDebts.current.failed([...(verbSentItems(e) ?? marked[landed] ?? []), ...marked.slice(landed + 1).flat()], note);
-        setSendOwed(true);
-        return { ok: false, note };
-      } finally {
-        setSendingNow((n) => Math.max(0, n - 1));
-      }
+  // ── The verbs (control/graphicVerbs.ts): the ONE sender, the wire when published and the local
+  // PROGRAM monitor always, and the operator's verbs over it. They read this page through
+  // `verbSender` (what a send needs, set here, before the production may still be opening) and
+  // `verbPage` (the rest, set below), both set every render, so a press reads the render it was
+  // made from, as the page's closures did. ──
+  const verbSender = useRef<VerbSender | null>(null);
+  verbSender.current = {
+    published: hostedSlug,
+    showId,
+    here: (batch) => {
+      applyProgram(batch, true);
+      // A cue marker moves its layer's countdown (control/cueArmEngine.ts `onMarker`).
+      armEngine.current?.onMarker(batch);
     },
-    [hostedSlug, showId, cueLabel, eventLabel, applyProgram, applyCommand, logHere],
-  );
-  /** Send, and say so if it failed. What it came to when it landed, or null when it did not. */
-  const runVerb = useCallback(
-    async (batches: ControlSendItem[][], label: string): Promise<VerbSent | null> => {
-      const sent = await sendVerb(batches, label);
-      if (!sent.ok) setNote(sent.note);
-      return sent.ok ? sent : null;
+    logSent: (items) => {
+      const at = new Date().toISOString();
+      logHere(items.map((item) => (id: number) => describeLogRow({ id, graphic: item.graphic, msg: item.msg, created_at: at }, cueLabel, eventLabel)));
     },
-    [sendVerb],
-  );
+    armSpecFor: (cueId) => armEngine.current?.specFor(cueId) ?? null,
+    applyHere: applyCommand,
+    fastEvent: (graphic) => fastEventGraphicsRef.current.has(graphic),
+    debts: () => sendDebts.current,
+    outputUsable: () => usableOutputRef.current,
+    sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),
+    owed: setSendOwed,
+    loggedAt: setLoggedAt,
+    noOutput: () => setNoOutputTake(true),
+    note: setNote,
+  };
+  const verbPage = useRef<GraphicPage | null>(null);
+  const verbs = useMemo(() => createGraphicVerbs(session, GRAPHIC_VERB_IO, () => verbSender.current!, () => verbPage.current!), [session]);
+  const { send: sendVerb, run: runVerb } = verbs;
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
    *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
@@ -2108,29 +2032,100 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
   const selectedPlayoutLive = serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
-  /** The selected cue is a clip this page has up on the server: what Pause and Resume act on. */
-  const selectedClipUp = !!selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media';
-  /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
-  const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
-  const selectedLayerLive = !!selectedLayerCueId || selectedPlayoutLive;
-  /** The cue the editor is actually pointed at (§2): the previewed one, or the live one. */
-  const airCue = selectedLayerCueId ? cues.find((c) => c.id === selectedLayerCueId) ?? null : null;
-  const editingCue = editTarget === 'air' && airCue ? airCue : selectedCue;
-  const editingIsLive =
-    (!!editingCue && !!selectedGraphic && liveCue[selectedGraphic] === editingCue.id) ||
-    (selectedPlayoutLive && editingCue === selectedCue);
+  /** What the Bridge and its server can do, for a cue's settings: null while it is still being
+   *  asked, and a studio with no Bridge set up says so rather than being asked forever. */
+  const playbackAbility = bridgeStatus ?? (playoutIsConfigured ? null : { state: 'config' as const });
+  /** Where a server item plays on its own, `2-10`. */
+  const addressOfItem = (i: PlayoutItem) => slotAddress(itemSlot(playoutSettings, i));
+  /** A graphic cue's pool graphic, for an All-together folder's refusals. */
+  const graphicOfCue = (c: ShowCue) => {
+    const g = graphicByPoolId.get(c.sourceId);
+    return g ? { name: g.name, layer: graphicLayer(g) } : null;
+  };
+  const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
+  /** This render's facts for the Take refusals (control/takeBlockers.ts). */
+  const takeContext: TakeContext = {
+    cues,
+    items: playoutItems,
+    folders,
+    members: rundown.members,
+    places,
+    ownership: serverOwnership,
+    settings: playoutSettings,
+    ability: playbackAbility,
+    casparOn,
+    bridgeDown,
+    itemOf: playoutItemFor,
+    graphicOf: graphicOfCue,
+    slots: PLAYOUT_SLOTS,
+  };
+  const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);
+  const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
+  const selectedTakeBlocked = takeBlockerFor(selectedCue);
+  const directBlocker = (cue: ShowCue): string | null => directBlockerOf(cue, takeContext, loadPlayoutSettings());
+  /** Up, for SPACE and the verbs: any of it on air, or its Take still being sent. */
+  const folderUp = (folderId: string) => (folderStates[folderId]?.onAir.length ?? 0) > 0 || folderPlayout.running(folderId) || sendingFolders.has(folderId);
+  /** A held One-by-one header's next cue, the one its press takes. */
+  const heldStepCue = heldStep?.kind === 'take' ? (cues.find((c) => c.id === heldStep.cueId) ?? null) : null;
+  const stepBlocker = (next: ShowCue): string | null => stepBlockerOf(next, takeContext);
+  /** What plays on a slot this rundown uses now - an item's, or a Play-through folder's - with no cue
+   *  of this page to take it off: an unidentified item, or what replaced a cue's clip. A slot the
+   *  rundown no longer uses is left alone, whatever the page last heard about it. */
+  const unnamedSlots = (own: typeof serverOwnership): Map<string, Slot> => {
+    const used = new Set([
+      ...playoutItems.map((i) => slotAddress(itemSlot(playoutSettings, i))),
+      ...folders.filter((f) => folderMode(f) === 'through').map((f) => slotAddress(folderSlot(playoutSettings, f))),
+    ]);
+    const taken = new Set(livePlayoutLayers.map((l) => slotAddress(l.slot)));
+    const out = new Map<string, Slot>();
+    for (const s of [...own.unidentified.map((u) => u.slot), ...Object.values(own.replaced).map((r) => r.slot)]) {
+      const a = slotAddress(s);
+      if (used.has(a) && !taken.has(a)) out.set(a, s);
+    }
+    return out;
+  };
+  const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
+  /** Would » Next move the selected layer's graphic? False on its last step (a quiz on its Reveal),
+   *  where the press used to do nothing on air while the log still wrote "Next step". */
+  const advances = !!selectedGraphic && canAdvance(poolMachines.get(selectedGraphic)?.js ?? '', machineState);
+  /** THE VERB BAR'S FACTS (control/verbView.ts): what each verb would do and whether it may go, from
+   *  this render. The bar greys with it, the dispatcher decides with it, the panel lights from it,
+   *  and the verbs take it as the selection they act on. */
+  const view = verbView({
+    spaceMode,
+    published: !!hostedSlug,
+    cues,
+    selectedCue,
+    selectedGraphic,
+    liveCue,
+    selectedPlayoutLive,
+    selectedItemKind: selectedPlayoutItem?.kind ?? null,
+    editTarget,
+    previewCueId: previewCue?.id ?? null,
+    casparOn,
+    bridgeDown,
+    takeBlocked: selectedTakeBlocked,
+    advances,
+    folder: selectedFolder
+      ? {
+          name: folderName(selectedFolder),
+          up: folderUp(selectedFolder.id),
+          stepped: typeof folderSteps[selectedFolder.id] === 'string',
+          step: heldStep,
+          stepBlocked: heldStepCue ? stepBlocker(heldStepCue) : null,
+          takeBlocked: heldStep ? null : takeBlockerFor(selectedFolder),
+          serverMembers: heldMembers.some((c) => c.source === 'playout'),
+          labelOf: (id) => cues.find((c) => c.id === id)?.label ?? 'a cue',
+        }
+      : null,
+    clearing,
+    anyUp: liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0,
+    unnamedUp: () => unnamedSlots(serverOwnership).size > 0,
+  });
+  const { selectedLayerLive, airCue, editingCue, editingIsLive, selectedCueStaged, nextMoves } = view;
   /** Its place in the rundown, 1-based - the only thing that tells two cues of the same graphic
    *  apart, since they share a name and a tally. 0 when there is no cue to name. */
   const editingCueNo = editingCue ? cues.findIndex((c) => c.id === editingCue.id) + 1 : 0;
-  /** The SELECTED cue is the one on air (not merely something on its layer) - what SPACE
-   *  toggles off, and what makes ⟳ TAKE a deliberate re-take rather than a first airing. */
-  const selectedCueIsLive = (!!selectedCue && selectedLayerCueId === selectedCue.id) || selectedPlayoutLive;
-  /** The SELECTED cue is the one on PREVIEW - always, in 'take' mode. In the other mode this
-   *  is the difference between SPACE previewing and SPACE airing. */
-  const selectedCueStaged = !!selectedCue && previewCue?.id === selectedCue.id;
-  /** What SPACE - and the TAKE button, which IS the key - does next (components/playoutKeys.ts). */
-  const spaceNext = spaceAction(spaceMode, { live: selectedCueIsLive, previewed: selectedCueStaged });
-  const face = takeFace(spaceNext);
   /**
    * UNSENT CHANGES on the cue that is on air (acceptance pass, 2026-08-06: "there needs to be
    * an alert when something changes and you need to send that update - I had problems with my
@@ -2235,20 +2230,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   /** A graphic cue's Take, reporting nothing: its sentence comes back, for one cue or a folder's
    *  whole Take to say. Null when its graphic is gone. */
-  const takeGraphicCue = async (cue: ShowCue, label: string, direct = false): Promise<MemberTake | null> => {
-    const graphic = cueGraphicName(cue);
-    if (!graphic) return null;
-    await flushDraft(); await history.closeGroup();
-    // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
-    // (plan §2.7) — otherwise taking an old cue would re-air a stale score.
-    const values = withBoundValues(graphic, cueView(cue).values);
-    const sent = await sendVerb([takeCueItems({ id: cue.id, graphic, values, ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
-    if (!sent.ok) return { ok: false, note: sent.note };
-    // Superseded: this page's later press on the graphic stands, and its own handler set the chip.
-    if (!leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cue.id));
-    clearMisses([cue.id]);
-    return { ok: true, note: `✓ ${label}: ${cue.label}` };
-  };
+  const takeGraphicCue = verbs.takeGraphic;
 
   /** A cue of a One-by-one folder went on air, by whatever route: the folder's step stands on it, so
    *  the next press continues after it (docs/CLIP_PLAYBACK_PLAN.md §20.1). */
@@ -2330,156 +2312,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       },
     };
   };
-  const takeCue = async (cue: ShowCue) => {
-    if (cue.source === 'playout') {
-      if (await playoutVerb(cue, 'take', 'Take')) {
-        clearMisses([cue.id]);
-        noteStep(cue);
-      }
-      return;
-    }
-    const taken = await takeGraphicCue(cue, 'Take');
-    if (taken && !taken.ok) setNote(taken.note);
-    else if (taken?.ok) noteStep(cue);
-  };
+  // The operator's verbs on the selection this render drew (`view`); control/graphicVerbs.ts says
+  // what each sends, waits on and reads after the wait. ✎ Update sends the cue's whole value set;
+  // ± bumps one number field on air (a bound field moves the production tree instead).
+  const takeCue = verbs.take;
+  const updateLive = () => verbs.update(view);
+  const bumpLive = (fieldKey: string, delta: number) => verbs.bump(view, fieldKey, delta);
+  const nextLive = () => verbs.next(view);
+  const outLive = () => verbs.out(view);
 
-  const updateLive = async () => {
-    if (editingCue?.source === 'playout') {
-      if (selectedPlayoutLive) await playoutVerb(editingCue, 'update', 'Update');
-      return;
-    }
-    if (!editingCue || !selectedGraphic || !editingIsLive) return;
-    await flushDraft(); await history.closeGroup();
-    // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
-    const data = withBoundValues(selectedGraphic, cueView(editingCue).values);
-    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data } }]], 'Update');
-  };
-
-  /**
-   * One press bumps a number field ON AIR: a PARTIAL update carrying just that field, plus the
-   * same value into the edited cue so the cue and the air cannot drift apart. Game-show points
-   * and match scores change constantly, and stepper-then-✎-Update was two presses under
-   * pressure — this is the one data write that airs immediately, which is why it renders with
-   * the on-air controls rather than in the cue editor above.
-   *
-   * PARTIAL on purpose: ✎ Update sends the cue's whole value set, so riding it here would also
-   * air every OTHER staged edit the operator has not sent yet — a bump must never publish a
-   * half-typed name. Receivers write exactly the fields a message carries, and the logs merge
-   * partial data, so recovery replays it correctly (docs/CONTROL_LAYER.md).
-   *
-   * A BOUND FIELD TAKES THE OTHER ROAD (plan §2.9's Phase 3). The figure is not this graphic's
-   * to own — it is one shared value several graphics follow — so the press moves the production
-   * tree and every bound graphic follows through the ordinary diff, and nothing is written into
-   * this cue at all (§2.7: a bound field is never a cue value). It counts from the TREE and not
-   * from the wire because the tree is the authority: the wire is only its last resolution, and a
-   * feed that moved the value a moment ago has already changed what "+1" means.
-   */
-  const bumpLive = async (fieldKey: string, delta: number) => {
-    if (!editingCue || !selectedGraphic || !editingIsLive) return;
-    const graphic = selectedGraphic;
-    const path = boundFields(graphic)[fieldKey];
-    if (path) {
-      await afterBoundPress(graphic, async () => {
-        await flushDraft(); await history.closeGroup();
-        if (!boundPressReady()) return;
-        await patchBoundValues([{ path, text: adjustedValue(boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
-      });
-      return;
-    }
-    await flushDraft(); await history.closeGroup();
-    const base = airedData[selectedGraphic]?.[fieldKey] ?? cueView(editingCue).values[fieldKey] ?? '0';
-    const next = adjustedValue(base, delta);
-    setShows(updateShowCueChecked(id, editingCue.id, { values: { [fieldKey]: next } }).shows);
-    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
-  };
-
-  const nextLive = async () => {
-    if (selectedCue?.source === 'playout') {
-      if (selectedPlayoutLive) await playoutVerb(selectedCue, 'next', 'Next');
-      return;
-    }
-    if (!selectedGraphic || !selectedLayerLive) return;
-    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'next' } }]], 'Next');
-  };
-
-  const outLive = async () => {
-    if (selectedCue?.source === 'playout') {
-      if (selectedPlayoutLive) await playoutVerb(selectedCue, 'out', 'Out');
-      return;
-    }
-    if (!selectedGraphic || !selectedLayerLive) return;
-    const sent = await runVerb([clearCueItems(selectedGraphic)], 'Out');
-    if (sent && !leftAlone(sent).includes(selectedGraphic)) setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
-  };
-
-  /**
-   * Play a named graphic off air, if it is up. Removal goes through this first: the output page
-   * follows the LOG, not the payload, so a pool graphic deleted while live would keep rendering
-   * on its layer with nothing left on this surface able to take it off.
-   */
-  const takeOffAir = async (graphic: string) => {
-    if (!liveCue[graphic]) return;
-    const sent = await runVerb([clearCueItems(graphic)], 'Out');
-    if (sent && !leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, null));
-  };
-
-  /** Clear the screen — the one an operator reaches for under pressure, which is why it sits
-   *  apart from the others, in the header, and a named verb a hardware panel can press
-   *  (`all-out`). Every server cue this page put up goes off on the channel and layer it was
-   *  taken to, so a rundown airing graphics on 1 and inserts on 2 clears both; and so does
-   *  whatever plays on a slot this rundown uses that no cue here can name (below). A layer this
-   *  rundown does not use is never touched, so another client's layers elsewhere on the same
-   *  server stay where they are. */
-  const outAll = async () => {
-    // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:
-    // nothing airs after the panic control. Every One-by-one folder starts again from its first cue.
-    folderPlayout.stopAll('all-out');
-    // The panic control cuts, as it always did, whatever fade out a clip is set to.
-    for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out', { cut: true });
-    await outUnnamed();
-    // WHAT THE SERVER SAYS IS ON, not only what this page believes (AC-13): a graphic whose cue
-    // marker went missing, or one a renderer kept across a republish, is cleared too.
-    const cleared = allOutTargets({
-      local: liveLayers.map((l) => l.graphic),
-      heads: hostedSlug ? headsSay(hostedSlug) : null,
-      all: show.graphics.map((g) => g.name),
-      published: !!hostedSlug,
-    });
-    if (cleared.length === 0) return;
-    setClearing(true);
-    try {
-      const sent = await sendVerb(clearAllCueBatches(cleared), 'All out', true);
-      if (!sent.ok) {
-        setNote(await clearThroughBridge(sent.note));
-        return;
-      }
-      // A graphic this page pressed again while the All out was on its way stays as that later press
-      // left it (the server skipped it, protocol 2), so it is not marked off here.
-      const off = cleared.filter((g) => !leftAlone(sent).includes(g));
-      setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
-      // Clearing… until the heads say each is off; one still on is named, never assumed gone.
-      const still = hostedSlug ? await headsStillOn(hostedSlug, off, ALL_OUT_CONFIRM_MS) : [];
-      if (still.length > 0) setNote(await clearThroughBridge(`All out did not clear ${nameList(still)}`));
-    } finally {
-      setClearing(false);
-    }
-  };
-  /** What plays on a slot this rundown uses now - an item's, or a Play-through folder's - with no cue
-   *  of this page to take it off: an unidentified item, or what replaced a cue's clip. A slot the
-   *  rundown no longer uses is left alone, whatever the page last heard about it. */
-  const unnamedSlots = (own: typeof serverOwnership): Map<string, Slot> => {
-    const used = new Set([
-      ...playoutItems.map((i) => slotAddress(itemSlot(playoutSettings, i))),
-      ...folders.filter((f) => folderMode(f) === 'through').map((f) => slotAddress(folderSlot(playoutSettings, f))),
-    ]);
-    const taken = new Set(livePlayoutLayers.map((l) => slotAddress(l.slot)));
-    const out = new Map<string, Slot>();
-    for (const s of [...own.unidentified.map((u) => u.slot), ...Object.values(own.replaced).map((r) => r.slot)]) {
-      const a = slotAddress(s);
-      if (used.has(a) && !taken.has(a)) out.set(a, s);
-    }
-    return out;
-  };
+  /** Play a named graphic off air, if it is up (a removal goes through this first). */
+  const takeOffAir = verbs.takeOff;
+  /** Clear the screen — the one an operator reaches for under pressure, which is why it sits apart
+   *  from the others, in the header, and a named verb a hardware panel can press (`all-out`). A layer
+   *  this rundown does not use is never touched (control/graphicVerbs.ts `allOut`). */
+  const outAll = verbs.allOut;
   /**
    * All out's second half (docs/CLIP_PLAYBACK_PLAN.md §20.1): what plays on a slot this rundown uses
    * with no cue of this page to take it off - an unidentified item, or what replaced a cue's clip.
@@ -2497,6 +2344,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     bridgeWatch.current?.wake();
     if (failed.length) setNote(`All out: ${failed.join(' ')}`);
+  };
+  verbPage.current = {
+    published: hostedSlug,
+    graphics: show.graphics.map((g) => g.name),
+    liveCue,
+    aired: airedData,
+    liveLayers,
+    livePlayoutLayers,
+    graphicOf: cueGraphicName,
+    cueView,
+    resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
+    flush: async () => {
+      await flushDraft(); await history.closeGroup();
+    },
+    boundFields,
+    boundNow,
+    boundReady: boundPressReady,
+    patchBound: patchBoundValues,
+    writeCue: (cueId, values) => setShows(updateShowCueChecked(id, cueId, { values }).shows),
+    writeLive: (cueId, values) => {
+      if (canAuthorAccount()) setShows(updateShowCue(id, cueId, { values }));
+    },
+    playoutVerb,
+    clearMisses,
+    noteStep,
+    stopFolders: () => folderPlayout.stopAll('all-out'),
+    outUnnamed,
+    clearThroughBridge,
+    clearing: setClearing,
   };
   const clearSlot = async (slot: Slot) => {
     const result = await act(loadPlayoutSettings(), { verb: 'clear', slot });
@@ -2524,93 +2400,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const cueImages = editorTemplate
     ? editorTemplate.assets.filter((a) => isImageAsset(a.path)).map((a) => ({ value: a.path }))
     : [];
-  /** What the Bridge and its server can do, for a cue's settings: null while it is still being
-   *  asked, and a studio with no Bridge set up says so rather than being asked forever. */
-  const playbackAbility = bridgeStatus ?? (playoutIsConfigured ? null : { state: 'config' as const });
-  /** Where a server item plays on its own, `2-10`. */
-  const addressOfItem = (i: PlayoutItem) => slotAddress(itemSlot(playoutSettings, i));
   /** Where Play next goes from a server clip, by the rundown as it stands (plan §6.6). */
   const playNextFor = (cue: ShowCue | null) => {
     const item = cue ? playoutItemFor(cue) : null;
     return cue && item?.kind === 'media' ? playNextTarget(cues, playoutItems, cue.id, addressOfItem, folders) : null;
   };
-  /** A graphic cue's pool graphic, for an All-together folder's refusals. */
-  const graphicOfCue = (c: ShowCue) => {
-    const g = graphicByPoolId.get(c.sourceId);
-    return g ? { name: g.name, layer: graphicLayer(g) } : null;
-  };
   /** Where a Play-through folder plays: its own slot, else layer 10 on the clip channel. */
   const folderSlotOf = (folder: ShowFolder) => slotAddress(folderSlot(playoutSettings, folder));
   const throughRoleOf = (cue: ShowCue): { folder: ShowFolder; role: ThroughRole } | null => places.get(cue.id) ?? null;
-  const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
-  /** This render's facts for the Take refusals (control/takeBlockers.ts). */
-  const takeContext: TakeContext = {
-    cues,
-    items: playoutItems,
-    folders,
-    members: rundown.members,
-    places,
-    ownership: serverOwnership,
-    settings: playoutSettings,
-    ability: playbackAbility,
-    casparOn,
-    bridgeDown,
-    itemOf: playoutItemFor,
-    graphicOf: graphicOfCue,
-    slots: PLAYOUT_SLOTS,
-  };
-  const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);
-  const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
-  const selectedTakeBlocked = takeBlockerFor(selectedCue);
-  const directBlocker = (cue: ShowCue): string | null => directBlockerOf(cue, takeContext, loadPlayoutSettings());
-  /** A server cue cannot be taken while the Bridge says the server is not there: the editor
-   *  names the hop, and the key stays quiet rather than sending a command that will fail. A setting
-   *  this Bridge or server cannot honour holds up only the take itself (`playoutVerb`), never taking
-   *  the cue off or staging it on PREVIEW. */
-  const canTake = !!selectedCue && !(selectedCue.source === 'playout' && (!casparOn || (bridgeStatus !== null && bridgeStatus.state !== 'ok')));
 
   // ── A FOLDER'S TAKE AND OUT (docs/CLIP_PLAYBACK_PLAN.md §6.6, phase 4): the `take` and `out` verbs
   // with a folder row held. ──
-  /** Up, for SPACE and the verbs: any of it on air, or its Take still being sent. */
-  const folderUp = (folderId: string) => (folderStates[folderId]?.onAir.length ?? 0) > 0 || folderPlayout.running(folderId) || sendingFolders.has(folderId);
-  const selectedFolderUp = !!selectedFolder && folderUp(selectedFolder.id);
   historySafety.current = (expected, replacement) => {
     const ownership = serverPlayout.ownership.get();
     const liveIds = new Set([...Object.values(liveCueRef.current).filter((cue): cue is string => !!cue), ...Object.values(ownership.onAir).map(item => item.cueId)]);
     const sources = new Set(expected.cues.filter(c => liveIds.has(c.id)).map(c => c.sourceId));
     for (const itemId of Object.keys(ownership.onAir)) sources.add(itemId);
     return liveRundownRefusal(expected, replacement, { cues: liveIds, sources, folders: new Set(folders.filter(f => folderUp(f.id)).map(f => f.id)), unidentifiedServer: ownership.unidentified.length > 0 });
-  };
-  /** A held One-by-one header's next cue, the one its press takes. */
-  const heldStepCue = heldStep?.kind === 'take' ? (cues.find((c) => c.id === heldStep.cueId) ?? null) : null;
-  const stepBlocker = (next: ShowCue): string | null => stepBlockerOf(next, takeContext);
-  /** Why the held folder's press would not go: a One-by-one folder's is its next cue's. */
-  const selectedFolderBlocked = !selectedFolder
-    ? null
-    : heldStep
-      ? heldStep.kind === 'none'
-        ? `Everything in ${folderName(selectedFolder)} is on air. 0 takes it off.`
-        : heldStepCue
-          ? stepBlocker(heldStepCue)
-          : null
-      : takeBlockerFor(selectedFolder);
-  /** A One-by-one folder under way: a cue of it taken in this page. `0` on its header then sends it
-   *  back to the top even when nothing of it is up any more. */
-  const heldStarted = !!selectedFolder && typeof folderSteps[selectedFolder.id] === 'string';
-  /** A folder is never previewed: SPACE takes it, or takes it off (the same decision as a cue already
-   *  on PREVIEW, so `spaceAction` and the exported controller's table are untouched). */
-  const folderSpace = spaceAction(spaceMode, { live: selectedFolderUp, previewed: true });
-  /** Like a server cue's: a folder with a server cue in it waits while the Bridge says the server is
-   *  not there. A One-by-one folder's step asks it of the cue it takes (`stepBlocker`). */
-  const folderCanTake = !!heldStep || !heldMembers.some((c) => c.source === 'playout') || !bridgeDown;
-  /** A One-by-one folder's TAKE face, from its step: what one press does, the cues named. */
-  const stepButton = (folder: ShowFolder, step: FolderStep) => {
-    const started = typeof folderSteps[folder.id] === 'string' || folderUp(folder.id);
-    const words = stepFace(step, folderName(folder), (id) => cues.find((c) => c.id === id)?.label ?? 'a cue', started);
-    const space: SpaceAction = words.tone === 'off' ? 'take-off' : words.tone === 'still' ? 'preview' : 'take';
-    const face = { ...words, className: takeFace(space).className };
-    const blocked = step.kind === 'take' ? !folderCanTake || !!selectedFolderBlocked : step.kind === 'none';
-    return { face, space, disabled: blocked, title: step.kind === 'take' ? (selectedFolderBlocked ?? words.title) : words.title };
   };
   /** The TAKE button, which IS the key: with a folder held its face, state and title are the
    *  folder's, from the same decision SPACE runs. */
@@ -2622,24 +2428,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (selectedFolder
       ? (rundown.members.get(selectedFolder.id) ?? []).every((c) => c.source !== 'playout')
       : !selectedPlayoutItem);
-  const takeButton = selectedFolder
-    ? heldStep
-      ? stepButton(selectedFolder, heldStep)
-      : {
-          face: takeFace(folderSpace),
-          space: folderSpace,
-          disabled: folderSpace === 'take-off' ? false : !folderCanTake || !!selectedFolderBlocked,
-          title:
-            folderSpace === 'take-off'
-              ? `Take all of ${folderName(selectedFolder)} off`
-              : (selectedFolderBlocked ?? `Take ${folderName(selectedFolder)}`),
-        }
-    : {
-        face,
-        space: spaceNext,
-        disabled: selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked),
-        title: spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title,
-      };
+  const takeButton = {
+    ...view.take,
+    face: view.take.step ? { ...view.take.step, className: takeFace(view.take.space).className } : takeFace(view.take.space),
+  };
 
   /** WHERE TAKE SENDS THE SELECTION (C6): a server cue to its slot, a graphic to the outputs and
    *  the CasparCG slot this production's output is set to, or this page only before Publish. */
@@ -2756,13 +2548,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── Graphic-specific ACTIONS (the ⚡ buttons — docs/PLAYOUT_DASHBOARD.md §8). They act ON
   // AIR the moment they are pressed, like ✎ Update, so they follow Update's legality: live
   // only while the selected cue's graphic is up on its layer. ──
-  const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
   const stateLabel = formatMachineState(stateNames, machineState);
-  /** Would » Next move the selected layer? False on a graphic's last step (a quiz on its
-   *  Reveal), where the press used to do nothing on air while the log still wrote "Next step". */
-  const nextMoves =
-    (!!selectedGraphic && canAdvance(poolMachines.get(selectedGraphic)?.js ?? '', machineState)) ||
-    (selectedPlayoutLive && selectedPlayoutItem?.kind === 'template');
   /** The states ✎ Update will KEEP on the live layer, in the author's words ("Reveal", "Final").
    *  Update is data only by design, so after a reveal it airs new words under the old verdict;
    *  the surface names what stays and points at ⟳ Re-take (controlModel `movedStateNames`).
@@ -2821,82 +2607,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           : null
       : null;
 
-  /** The data that belongs to AIR: the cue live on the selected layer, draft included when it
-   *  is also the one being edited. Events and snaps act on the live graphic, so their values
-   *  must come from ITS cue — sourcing them from the previewed cue would air unprepared
-   *  content the operator never took (staged data airs only on an explicit take). */
-  const airValues = (): Record<string, string> => (airCue ? cueView(airCue).values : {});
-
-  /** Fire a machine event on the live graphic. Payload values ride from the ON-AIR cue, and
-   *  land only if the machine accepts the event (the structural guard). An `adjust` field (a
-   *  goal's +1 on that side's score) rides moved by its delta from what AIR shows - the same
-   *  base the ± live-number bump counts from - and the new figure is mirrored into the on-air
-   *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it.
-   *
-   *  A press moving a bound field waits for the one before it on its graphic (`afterBoundPress`). */
-  const fireEvent = (button: ControlButton): Promise<void> => {
-    if (!selectedGraphic || !selectedLayerLive) return Promise.resolve();
-    const graphic = selectedGraphic;
-    const bound = boundFields(graphic);
-    if (!movedKeys(button).some((key) => bound[key])) return pressEvent(button, graphic, bound);
-    return afterBoundPress(graphic, () => pressEvent(button, graphic, bound));
-  };
-  const pressEvent = async (button: ControlButton, selectedGraphic: string, bound: Record<string, string>) => {
-    await flushDraft(); await history.closeGroup();
-    const values = airValues();
-    // A press that would move a SHARED value waits for the tree, and the EVENT waits with it: a
-    // graphic playing its goal animation while the figure the production follows stayed put is
-    // worse than a press that plainly did not happen.
-    if (movedKeys(button).some((key) => bound[key]) && !boundPressReady()) return;
-    // A field the press MOVES counts from what AIR shows (a goal's +1, a Reveal letter's list);
-    // a field it only READS (the guess, the number to call) is the cue's own value. A BOUND
-    // field is neither: it reads from the production tree, because that is the one figure every
-    // graphic bound to the path is showing (plan §2.7).
-    const moved = new Set(movedKeys(button));
-    const boundValues = boundNow(selectedGraphic);
-    const { payload, fields: adjusted, tree } = pressSend(button, bound, (key) =>
-      bound[key]
-        ? boundValues[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
-        : moved.has(key)
-          ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : ''))
-          : values[key],
-    );
-    if (Object.keys(adjusted).length > 0 && airCue && canAuthorAccount()) {
-      // Persist accepted live values directly; a live event is outside preparation history.
-      setShows(updateShowCue(id, airCue.id, { values: adjusted }));
-    }
-    const msg = payload
-      ? { t: 'event' as const, event: button.event, payload }
-      : { t: 'event' as const, event: button.event };
-    // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT. The tree write is a separate row by
-    // construction — it reaches graphics this event never touched — so nothing but this order
-    // keeps the two in step, and a press that failed on the way to the log must not leave every
-    // other bound graphic showing a figure this one never took.
-    const sent = await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`);
-    // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
-    if (sent && ![...sent.skipped, ...sent.superseded].includes(selectedGraphic)) await patchBoundValues(tree);
-  };
-
-  /** Snap the live graphic straight to a state — recovery, never an animation. A null group
-   *  resets EVERY group to its initial. Recovery is BOTH halves (docs/STATE_MACHINE_SCHEMA.md:
-   *  reset is two operations), so the snap rides with an update of the ON-AIR cue's values:
-   *  the snap replays intermediate states with suppressed callbacks, and it is the trailing
-   *  data write that lets their call-painted looks (a quiz's selection under a lock) repaint
-   *  from the fields. */
-  const snapTo = async (groupId: string | null, stateId: string) => {
-    if (!selectedGraphic || !selectedLayerLive) return;
-    await flushDraft(); await history.closeGroup();
-    const snap = groupId === null ? null : { [groupId]: stateId };
-    await runVerb(
-      [
-        [
-          { graphic: selectedGraphic, msg: { t: 'snap' as const, snap } },
-          { graphic: selectedGraphic, msg: { t: 'update' as const, data: airValues() } },
-        ],
-      ],
-      'Snap',
-    );
-  };
+  /** Fire a machine event on the live graphic, or snap it straight to a state (control/graphicVerbs.ts
+   *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
+   *  waits for the one before it on its graphic. */
+  const fireEvent = (button: ControlButton): Promise<void> => verbs.event(view, button);
+  const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
 
   /** One ⚡ button. Written once because the block draws the same button in three places now —
    *  pinned above the fold, inside its section, and under the collapsed "More" — and three copies
@@ -2968,112 +2683,94 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * not yet on PREVIEW goes there first, airing nothing.
    */
   const onVerb = (key: PlayoutVerb, press?: VerbPress) => {
-    if (key === 'trigger-cue') {
-      if (press?.repeat) return;
-      const original = cues.find(c => c.id === press?.cue);
-      if (!original) return;
-      window.dispatchEvent(new CustomEvent('noacg-direct-cue'));
-      const cue = directCue(original);
-      const blocked = directBlocker(cue) ?? (cue.source === 'playout' && bridgeDown ? 'NoaCG Bridge is not connected.' : null);
-      if (blocked) { setNote(`Trigger ${cue.label} was not sent: ${blocked}`); return; }
-      if (cue.source === 'playout') void serverVerb(cue, 'take', `Trigger ${cue.label}`, { direct: true }).then(r => r && setNote(r.note));
-      else void takeGraphicCue(cue, `Trigger ${cue.label}`, true).then(r => r && setNote(r.note));
-      return;
-    }
-    // H holds or resumes the chip's countdown, whatever is selected (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8).
-    if (key === 'hold') {
-      if (!press?.repeat) toggleHold(chipGraphic);
-      return;
-    }
-    if (key === 'all-out') {
-      if (!press?.repeat) void outAll();
-      return;
-    }
-    // A hardware panel's per-row keys (docs/work-specs/hardware-panel-control/spec.md D4), with the
-    // row in `press.cue`. Select moves the cursor there and airs nothing: a folder row holds the
-    // folder. Take airs that cue whatever the SPACE mode, or takes it off when it is the one on air,
-    // and leaves the cursor where the operator put it.
-    if (key === 'select-cue') {
-      // The drawn row: the cue's own, its collapsed folder's header, or the header pressed.
-      const shown = press?.cue ? rundown.rows.find((r) => r.id === (rundown.rowOf.get(press.cue!) ?? press.cue)) : undefined;
-      if (!shown) return;
-      if (shown.kind === 'folder' && shown.id === press!.cue) selectFolder(shown.folder.id, shown.id);
-      else selectCue(press!.cue!);
-      revealCue(rowTestId(shown));
-      return;
-    }
-    if (key === 'take-cue') {
-      const cue = press?.repeat ? undefined : cues.find((c) => c.id === press?.cue);
-      if (!cue) return;
-      if (cueOnAirNow(cue)) void stepOff([cue]);
-      else if (!stepBlocker(cue)) void takeCue(cue);
-      return;
-    }
-    // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
-    if (editVerb(key)) return;
-    // A HELD FOLDER ROW: SPACE, TAKE and Out act on the folder, and the cue verbs have nothing to act
-    // on. A held key fires once: a folder's Take is several actions, never ten a second.
-    if (selectedFolder && ['take', 'retake', 'update', 'next', 'out', 'pause', 'resume'].includes(key)) {
-      if (press?.repeat) return;
-      if (key === 'take') {
-        // One by one steps: each press takes the next cue (docs/CLIP_PLAYBACK_PLAN.md §20.1).
-        if (heldStep) void stepFolder(selectedFolder);
-        else if (folderSpace === 'take-off') void outFolder(selectedFolder);
-        else if (!folderCanTake) return;
-        else if (selectedFolderBlocked) setNote(`Take was not sent: ${selectedFolderBlocked}`);
-        else void takeFolder(selectedFolder);
+    const decision = decideVerb(key, press, {
+      ...view,
+      cues,
+      items: playoutItems,
+      rows: rundown.rows,
+      rowOf: rundown.rowOf,
+      folderId: selectedFolder?.id ?? null,
+      step: heldStep,
+      onAirNow: cueOnAirNow,
+      stepBlocked: stepBlocker,
+      directBlocked: directBlocker,
+      ownership: serverPlayout.ownership.get,
+      timing: serverPlayout.timing.get,
+    });
+    switch (decision.do) {
+      case 'trigger': {
+        window.dispatchEvent(new CustomEvent('noacg-direct-cue'));
+        const { cue, label, refused } = decision;
+        if (refused) setNote(refused);
+        else if (cue.source === 'playout') void serverVerb(cue, 'take', label, { direct: true }).then((r) => r && setNote(r.note));
+        else void takeGraphicCue(cue, label, true).then((r) => r && setNote(r.note));
+        return;
       }
-      if (key === 'out' && (selectedFolderUp || heldStarted)) void outFolder(selectedFolder);
-      return;
-    }
-    // Staging REPLACES what was on PREVIEW; a replaced cue that is on air stays on air, because
-    // PREVIEW is a check and never a tally. Editing follows the selection, so no draft moves.
-    // A cue taken off lands on PREVIEW in both modes: in 'take' mode the id is never read.
-    if (key === 'take' && canTake && selectedCue) {
-      if (spaceNext === 'take-off') {
+      case 'hold':
+        toggleHold(chipGraphic);
+        return;
+      case 'all-out':
+        void outAll();
+        return;
+      case 'select-folder':
+        selectFolder(decision.folderId, decision.rowId);
+        revealCue(decision.reveal);
+        return;
+      case 'select-cue':
+        selectCue(decision.cueId);
+        revealCue(decision.reveal);
+        return;
+      case 'take-off':
+        void stepOff([decision.cue]);
+        return;
+      case 'take':
+        void takeCue(decision.cue);
+        return;
+      case 'edit':
+        editVerb(key);
+        return;
+      case 'folder-step':
+        void stepFolder(selectedFolder!);
+        return;
+      case 'folder-out':
+        void outFolder(selectedFolder!);
+        return;
+      case 'folder-take':
+        void takeFolder(selectedFolder!);
+        return;
+      case 'note':
+        setNote(decision.text);
+        return;
+      case 'out-and-stage':
         void outLive();
-        setStagedCueId(selectedCue.id);
-      } else if (spaceNext === 'preview') setStagedCueId(selectedCue.id);
-      else void takeCue(selectedCue);
-    }
-    // Re-take: play a live cue's entrance again from the start. Only meaningful on a cue
-    // that IS live - on anything else it would just be Take under a second name.
-    if (key === 'retake' && selectedCueIsLive && selectedCue) void takeCue(selectedCue);
-    if (key === 'update' && editingIsLive) void updateLive();
-    if (key === 'next' && selectedLayerLive && nextMoves) void nextLive();
-    if (key === 'out' && selectedLayerLive) void outLive();
-    // A server clip's transport. Only the cue this page has up on the server: nothing to pause
-    // anywhere else, and a panel or a key pressing it on another cue must not reach the slot.
-    if ((key === 'pause' || key === 'resume') && selectedCue && selectedClipUp) {
-      void playoutVerb(selectedCue, key, key === 'pause' ? 'Pause' : 'Resume');
-    }
-    // P: pause the clip on air, or resume it - the selected cue's when it is the one up, else the
-    // one the clip clock follows (control/serverState.ts `pauseTarget`). Read from the store at the
-    // press, not from a render, since the page does not follow a clip's timing.
-    // A panel's key names the clip its clock follows (protocol.md §7.3), and that clip is the one it
-    // pauses, as the key showed it; P names none and goes by the selection.
-    if (key === 'pause-toggle') {
-      const target = pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, press?.cue || (selectedCue?.id ?? null));
-      const cue = target ? cues.find((c) => c.id === target.cueId) : undefined;
-      if (target && cue) void playoutVerb(cue, target.paused ? 'resume' : 'pause', target.paused ? 'Resume' : 'Pause');
-    }
-    // Walk the rundown. Selecting a cue is the same act as clicking it - in 'take' mode it
-    // goes to PREVIEW and in the other mode it does not, and nothing airs either way - so an
-    // operator can line the next item up and take it without touching the mouse.
-    // The walk goes over the rows as drawn: a folder's header is a stop, and a collapsed folder's
-    // cues are not.
-    if (key === 'select-prev' || key === 'select-next') {
-      const next = stepSelection(rundown.rows, cursorRow, key === 'select-next' ? 1 : -1);
-      if (!next) return;
-      if (next.kind === 'cue') selectCue(next.cue.id);
-      else selectFolder(next.folder.id, next.id);
-      revealCue(rowTestId(next));
+        setStagedCueId(decision.cueId);
+        return;
+      case 'stage':
+        setStagedCueId(decision.cueId);
+        return;
+      case 'update':
+        void updateLive();
+        return;
+      case 'next':
+        void nextLive();
+        return;
+      case 'out':
+        void outLive();
+        return;
+      case 'server':
+        void playoutVerb(decision.cue, decision.verb, decision.label);
+        return;
+      case 'walk': {
+        const next = stepSelection(rundown.rows, cursorRow, decision.step);
+        if (!next) return;
+        if (next.kind === 'cue') selectCue(next.cue.id);
+        else selectFolder(next.folder.id, next.id);
+        revealCue(rowTestId(next));
+        return;
+      }
     }
   };
 
-  // A folder's Take still being sent counts: All out is what stops it before any of it lands.
-  // Published, always: the page's own list is not the authority on what is on (AC-13, D11).
-  const allOutEnabled = !clearing && (!!hostedSlug || liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || unnamedSlots(serverOwnership).size > 0);
 
   // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
   // only while the page answers a panel, at each publish and each press.
@@ -3084,39 +2781,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     () => {
       const live = new Set(cues.filter(cueOnAirNow).map((c) => c.id));
       takeRefused ??= new Set(cues.filter((c) => !!stepBlocker(c)).map((c) => c.id));
-      const refused = takeRefused;
-      // The clip the clock follows: what the panel counts down, and what its pause-toggle key names.
-      const clip = panelClipNow(serverPlayout, playoutItems, cues);
-      return {
+      return panelSnapshot(view, {
         title: show.name,
-        // The row the verbs act on: a held folder's header, else the selected cue itself, even while
-        // its folder is collapsed, since the panel's rows list a collapsed folder's cues.
-        selected: selectedFolder ? cursorRow : (selectedCue?.id ?? null),
-        space: selectedFolder || selectedCue ? takeButton.space : null,
-        live: [...live],
-        allowed: {
-          // onVerb's Take of a cue also waits for `canTake` (a server cue while the Bridge is down).
-          take: !takeButton.disabled && (!!selectedFolder || canTake),
-          retake: selectedCueIsLive,
-          update: editingIsLive,
-          next: selectedLayerLive && nextMoves,
-          out: selectedFolder ? selectedFolderUp || heldStarted : selectedLayerLive,
-          'select-prev': rundown.rows.length > 0,
-          'select-next': rundown.rows.length > 0,
-          pause: selectedClipUp,
-          resume: selectedClipUp,
-          'pause-toggle': clip !== null,
-          'all-out': allOutEnabled,
-        },
-        // A cue's own Take key is refused when its Take would not go; taking one off air never is.
-        blocked: [
-          ...rundown.rows.filter((r) => r.kind === 'folder').map((r) => r.id),
-          ...cues.filter((c) => !live.has(c.id) && refused.has(c.id)).map((c) => c.id),
-        ],
-        clip,
-        bridge: !playoutIsConfigured ? 'off' : bridgeDown ? 'down' : 'ok',
+        cursorRow,
+        cueIds: cues.map((c) => c.id),
+        live,
+        refused: takeRefused,
+        folderRows: rundown.rows.filter((r) => r.kind === 'folder').map((r) => r.id),
+        // The clip the clock follows: what the panel counts down, and what its pause-toggle key names.
+        clip: panelClipNow(serverPlayout, playoutItems, cues),
+        configured: playoutIsConfigured,
+        rowCount: rundown.rows.length,
         rows: panelRows,
-      };
+      });
     },
     // A key that names a row or a clip carries it as `cue`; the verbs that act on the selection never read it.
     (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
@@ -3325,7 +3002,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // is nowhere to go back to. Home, beside it, always goes to the dashboard.
       onBack={() => goBack({ view: 'home', section: 'productions' })}
       onAllOut={() => void outAll()}
-      allOutEnabled={allOutEnabled}
+      allOutEnabled={view.allOutEnabled}
       allOutClearing={clearing}
       panel={panel}
       onPanel={() => setPanelOpen(true)}
@@ -3486,7 +3163,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               goes live, which is when an operator is least looking at the bar. */}
           <button
             className="pd-verb pd-verb-secondary"
-            disabled={!selectedCueIsLive}
+            disabled={view.disabled.retake}
             onClick={() => selectedCue && void takeCue(selectedCue)}
             title="Re-take: play this cue’s entrance again from the start"
             data-testid="verb-retake"
@@ -3495,7 +3172,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           </button>
           <button
             className={`pd-verb pd-verb-update${hasUnsent ? ' pd-unsent' : ''}`}
-            disabled={!editingIsLive}
+            disabled={view.disabled.update}
             onClick={() => void updateLive()}
             title={
               keptStates
@@ -3513,7 +3190,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           </button>
           <button
             className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
-            disabled={!selectedLayerLive || !nextMoves}
+            disabled={view.disabled.next}
             onClick={() => void nextLive()}
             title={
               selectedGraphic && selectedLayerLive && !nextMoves
@@ -3538,7 +3215,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           </button>
           <button
             className="pd-verb"
-            disabled={selectedFolder ? !selectedFolderUp && !heldStarted : !selectedLayerLive}
+            disabled={view.disabled.out}
             onClick={() => onVerb('out')}
             data-testid="verb-out"
           >
@@ -3614,7 +3291,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 playoutSettings={playoutSettings}
                 slot={{ channel: slot.channel, layer: slot.layer, set: selectedFolder.slot?.channel !== undefined || selectedFolder.slot?.layer !== undefined }}
                 hasServerCue={cues.some((c) => c.source === 'playout')}
-                takeBlocked={selectedFolderBlocked}
+                takeBlocked={view.folderBlocked}
                 addressOf={(c) => {
                   const item = playoutItemFor(c);
                   const g = graphicByPoolId.get(c.sourceId);
