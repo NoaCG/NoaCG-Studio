@@ -2916,6 +2916,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     items: playoutItems,
     itemOf: playoutItemFor,
     graphicOf: cueGraphicName,
+    folderSteps,
     stepMembers: stepMembersOf,
     folderName,
     takeBlocker: takeBlockerFor,

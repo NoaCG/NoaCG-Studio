@@ -506,6 +506,9 @@ function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => 
     items,
     itemOf,
     graphicOf,
+    get folderSteps() {
+      return session.folders.get().folderSteps;
+    },
     stepMembers: (folderId) => cues.filter((c) => c.folderId === folderId).map((c) => (itemOf(c) ? { id: c.id, graphic: itemOf(c).kind === 'template', replaces: `item:${c.sourceId}` } : { id: c.id, graphic: true, replaces: `pool:${c.sourceId}` })),
     folderName: (f) => f.name,
     takeBlocker: () => null,

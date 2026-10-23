@@ -47,9 +47,6 @@ changes a spec's digest.
     - `folderUp` asks `running(id)` (the module's runs) where it asked `folderRuns.current.has`;
       `sending` is written synchronously now, not at the next render, which only makes the drawn
       value catch up a render sooner.
-    - a step reads its memory from the part (`session.folders.get().folderSteps`) where it read
-      the render's `folderSteps`: the same value unless a write landed after the render that
-      handled the key, and then the part's is the newer one.
     - `noteStep` finds the cue's folder in the latest render's rundown, not the calling closure's.
 - **S3 kept.** A press registers its run only after the save wait, as phase 1 recorded (refuted
   there); a Node test pins that order.

@@ -59,6 +59,9 @@ export interface FolderPage {
   items: readonly PlayoutItem[];
   itemOf: (cue: ShowCue) => PlayoutItem | null;
   graphicOf: (cue: ShowCue) => string | null;
+  /** Where each One-by-one folder's step stands, as this render drew it (the PREVIEW and NEXT
+   *  marks read the same). */
+  folderSteps: FoldersPart['folderSteps'];
   /** A One-by-one folder's cues as its step reads them. */
   stepMembers: (folderId: string) => StepMember[];
   folderName: (folder: ShowFolder) => string;
@@ -119,16 +122,14 @@ function writeFolders(session: PlayoutSession, fold: (folders: FoldersPart) => F
 
 export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo, page: () => FolderPage): FolderPlayout {
   const runs = new Map<string, Run>();
-  const steps = (fold: (m: FoldersPart['folderSteps']) => FoldersPart['folderSteps']) =>
+  /** Move one field of the part; a fold that answers the same object writes nothing. */
+  const field = <K extends 'folderSteps' | 'takeMisses'>(key: K) => (fold: (m: FoldersPart[K]) => FoldersPart[K]) =>
     writeFolders(session, (f) => {
-      const folderSteps = fold(f.folderSteps);
-      return folderSteps === f.folderSteps ? f : { ...f, folderSteps };
+      const next = fold(f[key]);
+      return next === f[key] ? f : { ...f, [key]: next };
     });
-  const misses = (fold: (m: FoldersPart['takeMisses']) => FoldersPart['takeMisses']) =>
-    writeFolders(session, (f) => {
-      const takeMisses = fold(f.takeMisses);
-      return takeMisses === f.takeMisses ? f : { ...f, takeMisses };
-    });
+  const steps = field('folderSteps');
+  const misses = field('takeMisses');
 
   const clearMisses = (ids: readonly string[]) =>
     misses((m) => (ids.some((id) => id in m) ? Object.fromEntries(Object.entries(m).filter(([id]) => !ids.includes(id))) : m));
@@ -272,7 +273,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     const p = page();
     const name = p.folderName(folder);
     const up = new Set((p.members.get(folder.id) ?? []).filter((c) => onAirNow(p, c)).map((c) => c.id));
-    const next = folderStep(p.stepMembers(folder.id), session.folders.get().folderSteps[folder.id], up);
+    const next = folderStep(p.stepMembers(folder.id), p.folderSteps[folder.id], up);
     if (next.kind === 'none') {
       p.note(`Everything in ${name} is on air. 0 takes it off.`);
       return;
