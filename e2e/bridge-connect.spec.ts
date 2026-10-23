@@ -1,5 +1,6 @@
 // covers: src/components/{SettingsDialog,BridgePairPage,RecentServers,InfoLine,CopyPairingLink}.tsx
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 //
 // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
 // already mapped elsewhere for their own reasons - SettingsDialog to analytics/auth, ProductionPage

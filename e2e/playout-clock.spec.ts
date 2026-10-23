@@ -5,6 +5,7 @@
 // covers: src/components/playoutKeys.ts
 // covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // focus
 //
 // THE CLIP CLOCK AND THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.3, §6.4 and §6.7, phase 2):

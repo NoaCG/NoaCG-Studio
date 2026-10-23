@@ -56,7 +56,6 @@ import {
   readState,
   slotAddress,
   slotOf,
-  outputSlotRefusal,
   stateReadable,
   subscribeTargetStatus,
   syncStudio,
@@ -66,12 +65,8 @@ import {
 import type { Slot } from '../../control/playoutProtocol';
 import {
   clockRank,
-  folderRun,
   playNextTarget,
-  runServerVerb,
   runTogether,
-  sequenceAction,
-  sequenceMembers,
   serverCueLive,
   takeBlocker,
   serverLayers,
@@ -93,11 +88,13 @@ import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
 import { useStorePart } from './useStorePart';
-import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
-import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
+import { applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
+import { mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, stepFace, type FolderStep, type StepMember } from '../../control/folderStep';
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
+import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
+import { runAndRecord } from '../../control/serverVerbs';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, sourcePaths, type ResolvedValues } from '../../model/productionData';
@@ -308,8 +305,8 @@ interface CueDraft extends CueEditorView {
  *  ceiling on rows READ, not on rows shown — a busy instance yields fewer of this show's. */
 const LOG_HISTORY_SPAN = 400;
 
-/** How long a native cue's verb lets the local save run before it sends (AC-14). */
-const LOCAL_SAVE_HEAD_START_MS = 250;
+/** Where an item and a Play-through folder play, for the Take refusals and the server verbs. */
+const PLAYOUT_SLOTS: SlotRules = { itemSlot, folderSlot };
 
 /**
  * THE PLAYOUT DASHBOARD (route `#/production/<id>`) — the surface an operator runs a production
@@ -2808,86 +2805,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   ): Promise<ServerVerbOutcome | null> => {
     const item = playoutItemFor(cue);
     if (!item) return null;
-    // A Take never goes the old way with a setting dropped (docs/CLIP_PLAYBACK_PLAN.md §6.9). SPACE,
-    // the button and Re-take all come through here, so the check is made once, where it cannot be
-    // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it.
-    if (verb === 'take') {
-      const blocked = options.direct ? directBlocker(cue) : takeBlockerFor(cue);
-      if (blocked) return { ok: false, note: `${label} was not sent: ${blocked}`, accepted: [] };
-    }
-    // A NATIVE CUE NEVER WAITS ON THE CLOUD (playout-workflow-simplification AC-14). Its values come
-    // from this page's own draft (`cueView`), so the save only has to start first: a team
-    // production's save goes to the server, which on a network that swallows requests would hold
-    // the Take for seconds. The local write gets a moment, then the Take goes and the save finishes
-    // behind it.
-    // A save that fails reports itself through the save state; it must not hold or abort the Take.
-    const saved = (async () => { await flushDraft(); await history.closeGroup(); })().catch(() => undefined);
-    await Promise.race([saved, new Promise((resolve) => setTimeout(resolve, LOCAL_SAVE_HEAD_START_MS))]);
-    const settings = loadPlayoutSettings();
-    const through = !options.direct && verb === 'take' && item.kind === 'media' ? places.get(cue.id)?.folder : undefined;
-    const run = through ? folderRun(through, cues, playoutItems, cue.id) : null;
-    if (run && !run.ok) return { ok: false, note: `${label} was not sent: ${run.reason}`, accepted: [] };
-    const first: SequenceMember = run?.ok ? run.run.members[0] : { cue, item };
-    // Play next: the clips a Take plays one after another, found in the rundown as it stands NOW
-    // (docs/CLIP_PLAYBACK_PLAN.md §6.6). The Take is off with the reason when they cannot be found.
-    const chain =
-      !options.direct && !run && verb === 'take' && item.kind === 'media' && effectiveEnd(cue, item) === 'next'
-        ? sequenceMembers(cues, playoutItems, cue.id, (i) => slotAddress(itemSlot(settings, i)), folders)
-        : null;
-    const members = run?.ok ? (run.run.members.length > 1 ? run.run.members : undefined) : chain?.ok && chain.members.length > 1 ? chain.members : undefined;
-    const loop = !!run?.ok && run.run.loop;
-    const slotNow = through ? folderSlot(settings, through) : itemSlot(settings, item);
-    if (through) {
-      // The folder was moved to another slot while it played: its run there goes first, whichever of
-      // its clips is up, so a move is a move and never a second run.
-      const own = serverPlayout.ownership.get().onAir;
-      for (const member of rundown.members.get(through.id) ?? []) {
-        const m = playoutItemFor(member);
-        const live = m ? own[m.id] : undefined;
-        if (!m || !live || live.cueId !== member.id || slotAddress(live.slot) === slotAddress(slotNow)) continue;
-        const off = await runServerVerb({ verb: 'out', cue: member, item: m, label, live, slotNow: live.slot, values: () => ({}), act: (action) => act(settings, action), cut: true });
-        for (const a of off.accepted) serverPlayout.apply((parts) => applyAccepted(parts, { ...a, itemId: m.id, cueId: member.id, now: performance.now(), readable: stateReadable(bridgeStatus) }));
-        if (!off.ok) return off;
-      }
-    }
-    const outcome = await runServerVerb({
-      verb,
-      cue: first.cue,
-      item,
-      label,
-      // Read from the store as it stands now, not from this render: a reading may have moved it
-      // while the verb was waiting its turn.
-      live: serverPlayout.ownership.get().onAir[item.id],
-      slotNow,
-      values: () => cueView(cue).values,
-      act: (action) => act(settings, action),
-      sequence: members,
-      loop,
-      ...(options.cut ? { cut: true } : {}),
-    });
-    const readable = stateReadable(bridgeStatus);
-    for (const a of outcome.accepted) {
-      serverPlayout.apply((parts) =>
-        applyAccepted(parts, {
-          ...a,
-          itemId: item.id,
-          cueId: cue.id,
-          // The take's own count until the server's first reading: the part of the file it plays.
-          length: segmentSeconds(first.cue, item),
-          loop: effectiveEnd(first.cue, item) === 'loop',
-          // What this take sent for its end, which the clock says until the next Take.
-          end: effectiveEnd(first.cue, item),
-          now: performance.now(),
-          readable,
-          ...(options.takenAt !== undefined && a.verb === 'take' ? { takenAt: options.takenAt } : {}),
-          ...(a.verb === 'take' && members ? { sequence: { next: sequenceAction(members, a.slot, loop).entries.slice(1), ...(loop ? { loop: true } : {}) } } : {}),
-        }),
-      );
-    }
-    // Read the server at once rather than at the next half second: the clock and the rows then
-    // show the server's own word for the clip that was just taken.
-    if (outcome.accepted.length) statePoll.current?.wake();
-    return outcome;
+    return runAndRecord(
+      serverPlayout,
+      {
+        act,
+        loadSettings: loadPlayoutSettings,
+        now: () => performance.now(),
+        wake: () => statePoll.current?.wake(),
+        flush: async () => { await flushDraft(); await history.closeGroup(); },
+        cueView,
+        slots: PLAYOUT_SLOTS,
+      },
+      {
+        cue,
+        item,
+        verb,
+        label,
+        options,
+        ...(verb === 'take' ? { blocked: options.direct ? directBlocker(cue) : takeBlockerFor(cue) } : {}),
+        readable: stateReadable(bridgeStatus),
+        rundown: takeContext,
+      },
+    );
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
@@ -3324,88 +3263,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   /** Where a Play-through folder plays: its own slot, else layer 10 on the clip channel. */
   const folderSlotOf = (folder: ShowFolder) => slotAddress(folderSlot(playoutSettings, folder));
-  const throughFolderIdOf = (cueId: string) => places.get(cueId)?.folder.id;
   const throughRoleOf = (cue: ShowCue): { folder: ShowFolder; role: ThroughRole } | null => places.get(cue.id) ?? null;
-  /**
-   * WHERE A TAKE OF THIS CUE - OR THIS FOLDER - LANDS on the server: one plan per slot it plays on,
-   * with the cues that will hold it. A Play-through folder plays on its own slot; another folder's
-   * server cues each on their own; a cue on its Play-through folder's slot when it is in one, else on
-   * its own. The cues are worked out only when asked, since only the air-clash check needs them.
-   */
-  const takePlans = (target: ShowCue | ShowFolder): { slot: string; cueIds: () => readonly string[]; folderId?: string }[] => {
-    if (!('sourceId' in target)) {
-      const members = rundown.members.get(target.id) ?? [];
-      if (folderMode(target) === 'through') return [{ slot: folderSlotOf(target), cueIds: () => members.map((c) => c.id), folderId: target.id }];
-      return members.flatMap((c) => {
-        const item = playoutItemFor(c);
-        return item ? [{ slot: addressOfItem(item), cueIds: () => [c.id] }] : [];
-      });
-    }
-    const item = playoutItemFor(target);
-    if (!item) return [];
-    const through = places.get(target.id)?.folder;
-    if (through) {
-      return [
-        {
-          slot: folderSlotOf(through),
-          cueIds: () => {
-            const run = folderRun(through, cues, playoutItems, target.id);
-            return run.ok ? run.run.members.map((m) => m.cue.id) : [target.id];
-          },
-          folderId: through.id,
-        },
-      ];
-    }
-    return [
-      {
-        slot: addressOfItem(item),
-        cueIds: () => {
-          const chain = item.kind === 'media' && effectiveEnd(target, item) === 'next' ? sequenceMembers(cues, playoutItems, target.id, addressOfItem, folders) : null;
-          return chain?.ok ? chain.members.map((m) => m.cue.id) : [target.id];
-        },
-      },
-    ];
+  const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
+  /** This render's facts for the Take refusals (control/takeBlockers.ts). */
+  const takeContext: TakeContext = {
+    cues,
+    items: playoutItems,
+    folders,
+    members: rundown.members,
+    places,
+    ownership: serverOwnership,
+    settings: playoutSettings,
+    ability: playbackAbility,
+    casparOn,
+    bridgeDown,
+    itemOf: playoutItemFor,
+    graphicOf: graphicOfCue,
+    graphicName: cueGraphicName,
+    slots: PLAYOUT_SLOTS,
   };
-  /** A native cue is not taken while the production's CasparCG switch is off (AC-4): the one place
-   *  that says so, read by the TAKE button's title, the cue editor, a One-by-one step and the send.
-   *  An All-together folder still takes its other cues and marks such a member NOT TAKEN. */
-  const casparOffRefusal = (cue: ShowCue): string | null =>
-    cue.source === 'playout' && !casparOn ? 'CasparCG is off for this production.' : null;
-  /**
-   * WHY A TAKE OF THIS CUE - OR THIS FOLDER - WOULD NOT GO, or null (plan §6.9): a setting nobody here
-   * can honour is never dropped on the way to air, a Play next whose clips cannot be found is never
-   * taken as a Hold, a folder answers by how it plays, and a file this page already has up on another
-   * slot is never taken onto a second. FIRST of all, nothing is taken onto the NoaCG output's own slot,
-   * which would replace the output and every graphic on it - so that is the reason the operator reads.
-   */
-  const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => {
-    if (!target) return null;
-    const off = 'source' in target ? casparOffRefusal(target) : null;
-    if (off) return off;
-    const plans = takePlans(target);
-    for (const plan of plans) {
-      const onOutput = outputSlotRefusal(plan.slot, playoutSettings);
-      if (onOutput) return onOutput;
-    }
-    const blocked = takeBlocker(target, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue);
-    if (blocked) return blocked;
-    for (const plan of plans) {
-      const why = airClash({ slot: plan.slot, cueIds: plan.cueIds(), folderId: plan.folderId }, serverOwnership, cues, throughFolderIdOf);
-      if (why) return why;
-    }
-    return null;
-  };
+  const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);
+  const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
-  /** Direct cues use their own route and end action, independently of their folder or neighbours. */
-  const directBlocker = (cue: ShowCue): string | null => {
-    if (cue.source !== 'playout') return !cueGraphicName(cue) ? `${cue.label} has no graphic.` : null;
-    const off = casparOffRefusal(cue);
-    if (off) return off;
-    const item = playoutItemFor(cue);
-    if (!item) return `${cue.label} has no media file.`;
-    const settings = loadPlayoutSettings();
-    return outputSlotRefusal(slotAddress(itemSlot(settings, item)), settings) ?? takeBlocker(cue, [cue], playoutItems, addressOfItem, playbackAbility, [], graphicOfCue);
-  };
+  const directBlocker = (cue: ShowCue): string | null => directBlockerOf(cue, takeContext, loadPlayoutSettings());
   /** A server cue cannot be taken while the Bridge says the server is not there: the editor
    *  names the hop, and the key stays quiet rather than sending a command that will fail. A setting
    *  this Bridge or server cannot honour holds up only the take itself (`playoutVerb`), never taking
@@ -3426,20 +3306,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   /** A held One-by-one header's next cue, the one its press takes. */
   const heldStepCue = heldStep?.kind === 'take' ? (cues.find((c) => c.id === heldStep.cueId) ?? null) : null;
-  const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
-  /** Why a step's next cue cannot be taken, or null: its file or graphic gone, NoaCG Bridge not there
-   *  for a server cue, or its own Take check. Asked before anything of the step is sent, so a press
-   *  that cannot take its cue takes nothing else off either. */
-  const stepBlocker = (next: ShowCue): string | null =>
-    next.source === 'playout'
-      ? !playoutItemFor(next)
-        ? `${next.label} plays a file this production no longer lists.`
-        : bridgeDown
-          ? `${next.label} plays on the playout server, and NoaCG Bridge is not connected.`
-          : takeBlockerFor(next)
-      : !cueGraphicName(next)
-        ? `${next.label} points at a graphic this production no longer has.`
-        : takeBlockerFor(next);
+  const stepBlocker = (next: ShowCue): string | null => stepBlockerOf(next, takeContext);
   /** Why the held folder's press would not go: a One-by-one folder's is its next cue's. */
   const selectedFolderBlocked = !selectedFolder
     ? null

@@ -2,6 +2,7 @@
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // covers: src/components/home/CueEditor.tsx
 // covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // focus
 //
 // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
