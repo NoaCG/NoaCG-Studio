@@ -4,6 +4,7 @@
 // pace was set by (about thirty seconds), rolled from Illustrator's own output.
 // covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,artworkFields,svg}.ts,endCredits/shared.ts}
 // covers: e2e/fixtures/credits-roll.svg
+// covers: src/components/home/CueActions.tsx
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';

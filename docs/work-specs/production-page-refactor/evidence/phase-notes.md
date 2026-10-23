@@ -28,11 +28,15 @@ changes a spec's digest.
   - The markup's own expressions move with it unchanged (the section `heading`, the live
     number's `disabled` and `title`, the Recovery select's value parsing). They are part of the
     block as it was; this phase does not re-home them.
-  - **Extra files:** 22 e2e specs gain one comment line naming `ProductionShell.tsx`,
-    `CueActions.tsx` or both: the ones that drive the moved test ids (the header's
-    `verb-out-all`, back, home, tabs, follow line, panel status, team note, `data-renders`; the
-    block's `cue-action-*`, `cue-actions*`, `machine-state-chip`, `machine-snap`,
-    `live-number*`) and already covered the page by name. No assertion or selector changes.
+  - **Extra files:** 34 e2e specs gain one comment line naming `ProductionShell.tsx`,
+    `CueActions.tsx` or both: every spec with a `// covers:` header that drives the moved test
+    ids (the header's `verb-out-all`, back, home, tabs, follow line, panel status, team note,
+    `data-renders`; the block's `cue-action-*`, `cue-actions*`, `machine-state-chip`,
+    `machine-snap`, `live-number*`) and was not already selected by the new files. No assertion
+    or selector changes. Left without: `score-tracker-moments` (declares `covers: none`, which a
+    second line would make malformed) and four configured specs with no covers header at all
+    (`bridge-real-server`, `dashboard-hosted-walk`, `follow-status-is-visible`,
+    `hosted-control-profile`), which never mapped to the page either.
 - **Traps.**
   - The element at `liveBlock`'s place changes type (a fragment becomes `CueActions`), so React
     mounts it fresh once per page load. Within a session the type is stable, so the Recovery

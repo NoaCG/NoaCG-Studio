@@ -8,6 +8,7 @@
 //
 // The host document moved out of src/bridge/ (both entries load it) and took its specs along.
 // covers: src/control/ografHost.ts
+// covers: src/components/home/CueActions.tsx
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
