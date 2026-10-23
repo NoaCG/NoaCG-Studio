@@ -40,8 +40,10 @@ changes a spec's digest.
     (`graphicVerbs.ts`, `serverVerbs.ts`, `cueArmEngine.ts`, `folderPlayout.ts`,
     `useRundownAuthoring.ts`, as phase 11 left `liveCueOf`); the page no longer fills them from its
     own refs: `cueView` is `cueDraft.view` (the part over the newest record), `flush` is
-    `cueDraft.flush` then the history's `closeGroup`, `resolvedOf` is `boundNow` (the session's
-    `data` part as it stands, the newest tree). Old state and refs: `draft`/`draftRef` to the part;
+    `cueDraft.flush` then the history's `closeGroup`. `resolvedOf` is not the draft's: it stays the
+    render's resolution, which PREVIEW, the timed cues and the folders' Takes read too, so a bound
+    field airs the same value whichever of them reads it (moving it alone to the newest tree split
+    Take from PREVIEW: the check's review). Old state and refs: `draft`/`draftRef` to the part;
     `draftPending`, `flushTimer` to the module; `editDraft` to `cueDraft.edit(editingCue, patch)`;
     `flushDraft`, `cancelDraft` to `flush`, `cancel`; `retainClosingDraft` and its effect to `listen`
     and the session's end; `cueLabel`'s draft half to `label`; `unsentOf` to `unsent` and
@@ -49,16 +51,16 @@ changes a spec's digest.
     above; the id-change `cancelDraft` effect to the new session's empty part. `draftOwner` stays
     in the page (the rundown authoring's long-lived writes check it).
   - *Non-mechanical changes,* all listed:
-    - `resolvedOf` reads the newest tree (`boundNow`) where it read the last render's `resolved`;
-      they differ only when the tree moved during a verb's wait and no render ran since, and then
-      Take, Update and an event air the newer bound value, which §4.1 R2 asks for.
-    - the rundown authoring's `setDraft(null)` is `cancel()`: the draft and its idle save go at
-      once, where the old state cleared at the next render and the timer then found nothing.
+    - the rundown authoring's `setDraft(null)` is `dropDraft`, a `cancel()` one task later: the old
+      state cleared at the next render, so `writeRundown`'s flush in the same tick still saved the
+      edit and a failed save still stopped the removal. Cancelling at once lost that edit (the
+      check's review).
     - leaving a production: the old effect cleanup and the new `listen` stop both save at once; the
       new session's end, one task later, saves again only what is still owed (nothing). A draft of a
       production the page has left is never written through the page's history (now the next
       production's): `writeCue` answers "not saved" and the end saves it directly, where the old
-      `flushDraft` refused it. The route keys the page by production, so this is only defensive.
+      `flushDraft` answered "nothing to save". Only that session's own timer and closures can call
+      it, and the route keys the page by production, so this is only defensive.
     - `cancel` no longer resets "owed" (with no draft nothing is owed, and the next edit owes its
       own); `flush` no longer checks the session (after its end nothing is owed). Both were
       equivalent mutants.
@@ -66,6 +68,18 @@ changes a spec's digest.
       renders the page per keystroke, as before; a value field never does.
     - the sound is a render function the editor calls with the text it shows (the 13a trap: its key
       reads the picture being typed).
+- **Check findings** (code-review, high; all verified against the code). Fixed: the removal's
+  draft drop (above); `resolvedOf` back to the render's resolution (above); the editor's headings
+  reading the bound map once, not per field. Kept, with the reason: the whole rundown subscribes,
+  so a keystroke redraws its rows (the page redrew them before too; a per-row component is a
+  larger move than this phase's); `useDrawnDraft`'s closure over the render (one per render, the
+  pattern `verbPage` already uses); a draft cleared by a confirmed save renders its subscribers
+  from the render's record, which the history handed the page when the store accepted the write,
+  before the confirm, so the record already holds the text unless the store confirms before React
+  renders that change (then the editor and PREVIEW draw the old text until the next frame; the
+  verbs read the same record as the old `cueView` did). The modules outside the fence
+  (`graphicVerbs.ts` and the others) still describe `cueView`, `flush` and `resolvedOf` as phase
+  13's temporary interfaces; phase 14 (AC-12) rewrites that guidance.
 - **Render counts (§7, AC-7, AC-9 render targets).** New in `e2e/playout-air-contract.spec.ts`,
   timers frozen while ten keys go into the on-air cue: the first keystroke renders the page at most
   once and the nine after it not at all; the editor at most once per key. The dev server runs under

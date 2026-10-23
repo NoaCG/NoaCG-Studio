@@ -2173,6 +2173,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const hasUnsent = unsentFields.length > 0;
   const unsentOnAir = new Set(unsent.cues);
 
+  /** A removal drops the draft as the page state it replaced went: after this task, so the save
+   *  the removal waits for first (`writeRundown` flushes in the same tick) still writes it. */
+  const dropDraft = () => {
+    setTimeout(cancelDraft);
+  };
+
   /** Type into the edited cue (control/cueDraft.ts `edit`). */
   const editDraft = (patch: CueEdit) => {
     if (editingCue) cueDraft.edit(editingCue, patch);
@@ -2352,7 +2358,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     livePlayoutLayers,
     graphicOf: cueGraphicName,
     cueView,
-    resolvedOf: boundNow,
+    resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
     flush: async () => {
       await flushDraft(); await history.closeGroup();
     },
@@ -2485,7 +2491,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     refreshRundown, uploadPictures, removeCue, removeGraphic, writeRundown, editIds, removeCues, cutIds,
     newFolder, duplicateCues, takeOutOfFolders, removeFolderOf, moveRundown, toggleFolder, editVerb,
   } = rundownActions(authoring, {
-    id, show, setShows, setNote, setDraft: cancelDraft, library, cues, graphicByPoolId, playoutItems, serverOnAir, playoutItemFor, rundown, range,
+    id, show, setShows, setNote, setDraft: dropDraft, library, cues, graphicByPoolId, playoutItems, serverOnAir, playoutItemFor, rundown, range,
     cursorRow, selectedCue, selectedFolder, heldMembers, inRundownOrder, selectCue, history, flush: flushDraft, draftOwner,
     backendConfigured, user, openSignIn, offAir: takeOffAir,
     serverOut: (cue) => playoutVerb(cue, 'out', 'Out'),

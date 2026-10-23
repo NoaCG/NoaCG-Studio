@@ -778,12 +778,13 @@ export default function CueEditor({
   const renders = useRef(0);
   renders.current += 1;
   const editingView = viewOf(useStorePart(draft.part), editingCue);
+  const bound = boundFields(selectedGraphic);
   /** What a band HEADING reads, resolved the way the field boxes under it resolve: the live tree
    *  for a bound field, then the cue's own value, then the authored default. */
   const headingValues: Record<string, FieldValue> = Object.fromEntries(
     descriptors.map((d) => [
       d.key,
-      (boundFields(selectedGraphic)[d.key] ? resolved[selectedGraphic ?? '']?.[d.key] : undefined) ??
+      (bound[d.key] ? resolved[selectedGraphic ?? '']?.[d.key] : undefined) ??
         editingView.values[d.key] ??
         d.defaultValue ??
         '',
@@ -802,7 +803,6 @@ export default function CueEditor({
   // What the cue shows now, field by field, as the band headings read it: starter rows and the
   // data template both start from it. A bound field is not a cue value, so a fill skips it.
   const currentValues = Object.fromEntries(Object.entries(headingValues).map(([k, v]) => [k, String(v)]));
-  const bound = boundFields(selectedGraphic);
   /** Return connected fields to the cue, each holding the value it last showed. */
   const disconnect = (fieldIds: string[]) => {
     const last = Object.fromEntries(fieldIds.map((f) => [f, resolved[poolGraphic.name]?.[f] ?? editingView.values[f] ?? '']));
