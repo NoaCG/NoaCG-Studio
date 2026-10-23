@@ -3,6 +3,7 @@
 // covers: src/model/shows.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
 // focus
 //
 // PLAY NEXT (docs/CLIP_PLAYBACK_PLAN.md §6.4, §6.6 and §6.10, phase 3): a clip that plays the next

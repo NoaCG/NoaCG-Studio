@@ -3,6 +3,7 @@
 // covers: src/model/shows.ts, src/backend/{teamProductions,syncController}.ts, src/control/{cuePlayback,serverPlayout,playoutProtocol}.ts, src/styles/playout-dashboard.css
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
 import { test, expect, type Page } from '@playwright/test';
 import { seedSettings, fakeBridge } from './_fakeBridge';
 import { settleDurableWrites } from './_durable';
