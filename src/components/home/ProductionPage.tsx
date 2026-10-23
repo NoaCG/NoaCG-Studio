@@ -90,7 +90,7 @@ import { applyClearedSlot, clipClock, followedClip, pauseTarget } from '../../co
 import { segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, stepFace, type FolderStep, type StepMember } from '../../control/folderStep';
-import { startBridgeWatch, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
+import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
 import ClipClock from './ClipClock';
@@ -784,7 +784,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (show && result.state === 'ok') {
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), casparOutput: what === 'air' ? target : undefined });
       // Unloading on purpose is not losing the slot.
-      if (what === 'stop') session.apply((parts) => (parts.bridge.slotSeenOurs ? { ...parts, bridge: { ...parts.bridge, slotSeenOurs: false } } : parts));
+      if (what === 'stop') writeBridge(session, { slotSeenOurs: false });
     }
     setSlotRev((n) => n + 1);
   };

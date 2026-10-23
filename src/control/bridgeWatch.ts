@@ -136,7 +136,7 @@ function keyed() {
 
 /** Move the `bridge` part by `change`; a change that changes nothing keeps the part as it is, so
  *  the page does not render for it. */
-function write(session: PlayoutSession, change: Partial<BridgePart>) {
+export function writeBridge(session: PlayoutSession, change: Partial<BridgePart>) {
   session.apply((parts) => {
     const bridge = parts.bridge;
     const same = (Object.keys(change) as (keyof BridgePart)[]).every((k) => Object.is(bridge[k], change[k]));
@@ -159,13 +159,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
 
   // THE SERVER'S STATUS, re-asked every few seconds while a Bridge is set up and CasparCG is on:
   // what the header shows, and what every other poll here waits on. Cleared at each restart.
-  const startStatus = (target: string | null) => () => {
-    write(session, { status: null });
+  const startStatus = (target: string | null) => {
+    writeBridge(session, { status: null });
     if (target === null) return;
     let live = true;
     const off = io.subscribeTargetStatus(io.loadSettings(), (result) => {
       if (!live) return;
-      write(session, { status: result });
+      writeBridge(session, { status: result });
       follow();
     });
     return () => {
@@ -177,14 +177,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   // WHAT THE NOACG OUTPUT'S SLOT HOLDS: this production's output, another's, or nothing. Read every
   // 10 s with the settings of the start, never two reads at once; an unchanged reading keeps the
   // part as it is. A Bridge too old to say reads as `unreadable`, never as a fault.
-  const startSlot = (i: BridgeInputs, answers: boolean, readable: boolean) => () => {
+  const startSlot = (i: BridgeInputs, answers: boolean, readable: boolean) => {
     const settings = io.loadSettings();
     if (!i.hostedSlug || !i.casparOn || !answers || !io.configured(settings)) {
-      write(session, { outputSlot: undefined });
+      writeBridge(session, { outputSlot: undefined });
       return;
     }
     if (!readable) {
-      write(session, { outputSlot: { holds: 'unreadable' } });
+      writeBridge(session, { outputSlot: { holds: 'unreadable' } });
       return;
     }
     let live = true;
@@ -193,10 +193,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const settle = (next: SlotReading | undefined) => {
       if (next?.holds === 'ours' && i.showId) {
         io.rememberOutput(i.showId, i.casparTarget);
-        write(session, { slotSeenOurs: true });
+        writeBridge(session, { slotSeenOurs: true });
       }
       const prev = session.bridge.get().outputSlot;
-      write(session, { outputSlot: prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next });
+      writeBridge(session, { outputSlot: prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next });
     };
     const read = () => {
       if (reading) return; // a slow Bridge: never stack reads
@@ -228,9 +228,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
 
   // WHETHER THE RUNDOWN'S SERVER FILES ARE THERE: the server's lists, once per key while the Bridge
   // answers. Read-only listing; never a playback action.
-  const startFiles = (key: string) => () => {
+  const startFiles = (key: string) => {
     let live = true;
-    write(session, { serverFiles: null });
+    writeBridge(session, { serverFiles: null });
     void (async () => {
       const settings = io.loadSettings();
       const requirements = JSON.parse(key) as { items: Pick<PlayoutItem, 'id' | 'kind' | 'name'>[]; refs: string[] };
@@ -242,7 +242,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       const orphan = requirements.refs.some(id => !requirements.items.some(i => i.id === id));
       const check: StatusCheck | null = unavailable ? { key: 'files', tone: 'warn', short: 'Server files unavailable', label: 'CasparCG file list unavailable', advice: unavailable.result.detail }
         : missing.length || orphan ? { key: 'files', tone: 'bad', short: 'Server files missing', label: `Unavailable CasparCG files: ${missing.map(i => i.name).join(', ')}${orphan ? ' (cue has no file definition)' : ''}`, advice: 'Copy the required pictures and videos to the server manually, then Check Readiness again.' } : null;
-      write(session, { serverFiles: { key, check } });
+      writeBridge(session, { serverFiles: { key, check } });
     })();
     return () => {
       live = false;
@@ -254,11 +254,12 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   // rev. Only a missing fact is filled, and the answer is the production's whenever it lands.
   const learnFacts = (i: BridgeInputs) => {
     if (!i.showId) return;
+    const key = `${i.showId} ${i.settingsRev}`;
+    if (session.bridge.get().learntFacts === key) return;
     // A still has no length to learn.
     const missing = i.playoutItems.filter((m) => m.kind === 'media' && (!m.mediaKind || (m.mediaKind !== 'still' && !(m.frames && m.fps))));
-    const key = `${i.showId} ${i.settingsRev}`;
-    if (!missing.length || session.bridge.get().learntFacts === key) return;
-    write(session, { learntFacts: key });
+    if (!missing.length) return;
+    writeBridge(session, { learntFacts: key });
     const showId = i.showId;
     void (async () => {
       const { items } = await io.listLibrary(io.loadSettings(), 'media');
@@ -318,8 +319,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const now = session.bridge.get().status;
     const answers = now?.state === 'ok';
     const readable = io.readable(now);
-    slot.run(JSON.stringify([i.hostedSlug, i.casparOn, answers, readable, i.outputSlug, i.slotRev, i.showId, i.casparTarget]), startSlot(i, answers, readable));
-    files.run(JSON.stringify(answers && i.serverFiles), () => (answers && i.serverFiles !== null ? startFiles(i.serverFiles)() : undefined));
+    slot.run(JSON.stringify([i.hostedSlug, i.casparOn, answers, readable, i.outputSlug, i.slotRev, i.showId, i.casparTarget]), () => startSlot(i, answers, readable));
+    // The file key is already a string; '' while there is nothing to check.
+    const filesKey = answers ? (i.serverFiles ?? '') : '';
+    files.run(filesKey, () => (filesKey ? startFiles(filesKey) : undefined));
     // A SETUP CHANGE MADE WHILE THE BRIDGE WAS AWAY goes to it as soon as it answers again (D17).
     pending.run(String(answers), () => {
       if (answers && io.loadSettings().studioPending) void io.syncStudio();
@@ -333,7 +336,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     update: (next) => {
       if (!alive) return;
       inputs = next;
-      status.run(JSON.stringify([next.target, next.checkAgain]), startStatus(next.target));
+      status.run(JSON.stringify([next.target, next.checkAgain]), () => startStatus(next.target));
       // THE STUDIO SETUP THE BRIDGE KEEPS, read once as the page opens, so a channel, output slot
       // or New media channel another browser set is the one this page plays to. Not guarded by
       // the start that asked: the settings it writes are the page's whichever start asks.
