@@ -20,7 +20,7 @@ changes a spec's digest.
     closures did. Server ownership and `liveCue` are read through getters at each check, as the
     page read `serverPlayout.ownership.get()` and `liveCueRef.current`.
   - *The part* (`session.folders`, set after `arms`) holds `folderSteps`, `takeMisses` and
-    `sending`; the page reads it with `useStorePart`. *The runs* and their stop flags stay inside
+    `sending`; the page mirrors it into its own state (Traps says why it is not `useStorePart`). *The runs* and their stop flags stay inside
     the module, not in the part: nothing draws them, and a flag must be set synchronously and read
     between members, which a stored immutable value would not give (a departure from the spec's
     "Owns" column, which lists `runs` in the part). `sending` is their drawn face, written in the
@@ -62,6 +62,32 @@ changes a spec's digest.
   - reported, not changed: a Play-through folder's late Out calls `serverVerb` with a graphic
     member's null item. Not reachable: a graphic cannot be put in a Play-through folder (pinned
     in `playout-folders`), as before the move.
+- **Mutation checks** against `scripts/folder-playout.test.mjs` (a scripted page whose server
+  verbs, graphic Takes, sends and save wait answer only when the test says): all 29 caught.
+  Dropping the stop flags in `stopAll`; applying a late answer (misses and note after a stop);
+  not taking a late Play-through member back off; ignoring `stopped()` in the run; reordering Out's
+  server and graphics sends; a step taking before its graphics go off; folding liveCue before the
+  answer; ignoring `leftAlone`; skipping the save wait in Take or in step; registering the run
+  before the save wait (S3's order); dropping the once-only guard in Take or in step; taking a
+  member back off after the session's end; no alive check before a run; the session's end not
+  stopping runs; All out not cutting; All out keeping the steps; a stopped step keeping its step;
+  Out keeping the step; Out or Take not clearing misses; misses not recorded; the clock rank
+  dropped; `sending` never cleared; `clearMisses` writing when nothing moved; `noteStep` for any
+  folder; a step going on after its graphics failed to go off; Out not stopping the run. Four of
+  them fail by a held send never answering, which cancels the test: still a failure.
+- **Verification on this branch.** Node: `folder-playout` 33 and `playout-session` 8 pass, with
+  `cue-arm-engine`, `bridge-watch` and `production-data-session` (96 in all). `tsc`, `eslint` on
+  the changed files, `npm run depcruise` (no violations) and `gates.mjs run --changed origin/main`
+  (103 tests) pass. Browser, through the queue on this cloud machine: `playout-folders` 52/52 and
+  `playout-air-contract` 6/6 on the final source (two jobs; in the first, two Play-through tests
+  missed ON AIR inside 7 s at twice their usual duration and then passed 3 of 3 each; a folder
+  SPACE is dropped silently while the Bridge status is still unanswered, `!folderCanTake`, which
+  fits a stalled machine). The configured dispatch (take-behind-out, command-sequence) is
+  recorded in the pull request with its run URL and head sha.
+- **Assessment A** (fresh read-only `/so` session on `2d0e0ff`): PASS WITH NOTES, nothing
+  blocking. AC-2, AC-3, AC-4 and AC-8 pass; it ran depcruise and the two Node files itself. Its
+  notes: the stale "reads it with `useStorePart`" sentence here (fixed), the `folderPage.current`
+  read (as `armPage`), and the unreachable Play-through `itemOf(m)!` (reported above).
 - **S3 kept.** A press registers its run only after the save wait, as phase 1 recorded (refuted
   there); a Node test pins that order.
 - **Traps.**
