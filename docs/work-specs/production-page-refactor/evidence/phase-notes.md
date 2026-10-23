@@ -5,6 +5,169 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 23, phase 12: graphicVerbs.ts, verbDispatch.ts, verbView.ts
+
+- **Previous verified `main` sha:** phase 11 passed on main (#1639 at `08389cf`); this branch
+  starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No storage key, persisted format, sentence,
+  request, row or marker shape changes; the modules hold no state but the bound presses' queue.
+- **Decisions.**
+  - *Three modules, created or called by the page:* `createGraphicVerbs(session, io, sender,
+    page)` once per session (`useMemo` on the session, as the folder module is); `verbView(inputs)`
+    once per render; `decideVerb(key, press, view)` at each press. `panelSnapshot(view, facts)` is
+    part of `verbView.ts`, as the spec's §2 says.
+  - *Two page interfaces, not one.* `verbSender` (what a send needs: slug, show id, PROGRAM and the
+    arm engine's `onMarker`, the log line, the arm spec, `applyCommand`, the fast events, the send
+    debts, the drawn send state and the note line) is set where `sendVerb` stood, before the page's
+    "production not found" return, because the data dispatch effect sends with it while a
+    production is still opening. `verbPage` (the rest) is set after the verbs' facts. Both are set
+    every render, and each verb reads both once at the press, so a press sends with the render it
+    was made from, as the old closures did.
+  - *Selection is passed in.* Each verb takes a `VerbSelection` (selected cue and graphic, layer
+    live, server cue live, editing cue, editing live, air cue): the page passes `view`, the
+    render's. `cueView`, `resolvedOf` and `flush` stay on the page interface as the temporary
+    interfaces phase 13 removes.
+  - *The mirrors:* the verbs read `liveCue` and `aired` from `verbPage`, which the page fills from
+    the render's `usePacedPart` copies (as `takeOffAir` and `airedData` were read before); the
+    marker folds write the `air` part through `session.apply` and `moveLiveCue`, as `setLiveCue`
+    did.
+  - *Browser-only doors through `io`* (`GRAPHIC_VERB_IO` in the page): `sendControlVerbs`, the four
+    error readers, `headsSay`, `headsStillOn` (control/hostedControl.ts), `adjustedValue`,
+    `movedKeys`, `pressSend` (control/controlModel.ts, which Node cannot load), `nameList`
+    (CueRundown), the wall clock and the bound presses' timer. `verbDispatch.ts` takes the verb as a
+    plain string: `PlayoutVerb` lives in `components/playoutKeys.ts`, which `control/` does not import.
+  - *The panel's offline half.* The inventory asks for the snapshot's `allowed` map against the
+    bar's disabled states "read through the existing panel dialog". Offline that dialog only says
+    "publish first" (`panel-unpublished`) and shows no snapshot; reading it there would need new UI,
+    which this phase may not add. The equivalence is pinned in Node over every state the bar can be
+    in (`verb-view`, 500+ states), and the published half stays
+    `e2e/configured/panel-production-page.spec.ts` in the configured run. `u` and `n` are pressed
+    offline in two new tests in `e2e/live-actions-first.spec.ts`.
+  - *Old callbacks, refs and handlers, mapped:* `sendVerb`, `runVerb` to `send`, `run`;
+    `takeGraphicCue`, `takeCue` to `takeGraphic`, `take`; `updateLive`, `bumpLive`, `nextLive`,
+    `outLive` to `update`, `bump`, `next`, `out` (the page keeps the names as one-line calls with
+    `view`); `takeOffAir`, `outAll` to `takeOff`, `allOut`; `fireEvent`, `pressEvent`, `airValues`
+    to `event`; `snapTo` to `snap`; `afterBoundPress` and the `boundPresses` ref to the module's
+    queue; `onVerb`'s rules to `decideVerb` (the page carries the decision out: selection, staging,
+    the walk and `editVerb` stay in the page); the bar's derived facts (`selectedClipUp`,
+    `selectedLayerCueId`, `selectedLayerLive`, `airCue`, `editingCue`, `editingIsLive`,
+    `selectedCueIsLive`, `selectedCueStaged`, `spaceNext`, `canTake`, `nextMoves`,
+    `selectedFolderUp`, `selectedFolderBlocked`, `heldStarted`, `folderSpace`, `folderCanTake`,
+    `stepButton`, `takeButton`, `allOutEnabled`) to `verbView`; the panel feed's object to
+    `panelSnapshot`. The take refusals (`takeContext`, `takeBlockerFor`, `directBlocker`,
+    `stepBlocker`), `folderUp`, `heldStepCue`, `unnamedSlots`, `playbackAbility`, `addressOfItem`,
+    `graphicOfCue`, `bridgeDown` and `machineState` moved up the page unchanged, above the view that
+    needs them.
+  - *Non-mechanical changes,* all listed:
+    - after the session's end `send` refuses: nothing is applied here and nothing is sent, and the
+      press is told "This production is closed, so nothing was sent." (§5.3's "dispose() refuses
+      the next send", deferred to this phase by phase 11). The page's writes a verb makes after a
+      wait (a cue's values, the production tree, All out's clear through the Bridge) move nothing
+      once the session ended either: the module wraps them once, so a bump, an adjust event or a
+      queued bound press cannot move the cue or the tree alone. One exception, on purpose: All out
+      pressed before the end still sends its clear of the graphics it named (its targets were
+      taken at the press, and a clear can air nothing stale), so leaving the page during the
+      Bridge's round trip never leaves a lower third up; its answer moves nothing here and a
+      failed clear does not go on to the Bridge. This end rule covers the graphic sends; the server
+      verbs (`serverVerb`, phase 5) and the folder runs (phase 10) keep their own rules. The route
+      keys the page by production, so this is only the leave-the-page case.
+    - `runVerb` is one function for the session, not a `useCallback` keyed on the slug and the
+      log's labels, so the data dispatch effect no longer re-runs when only those change. It sends
+      what the tree changed since its last send (`diffResolved` against `lastResolved`), so such a
+      re-run sent nothing.
+    - a caller outside the module reads the page as it stands when it calls, where the old
+      closures were the render its caller captured: the data dispatch, a folder run and a timed cue
+      send with the newest sender; a One-by-one step's `takeCue`, called after its save wait, takes
+      with the newest render (its server verb's rundown, `graphicOf`, `liveCue`); and a removal of
+      several graphics checks each one's `liveCue` in the render of that moment, so a graphic
+      another operator took off meanwhile gets no Out and one taken meanwhile is taken off. All of
+      these read fresher facts; none sends what the operator did not press.
+    - the in-flight count's two writes are one `sending(delta)` (`n + 1` never needed the floor).
+    - one module clock, `wallClock`, serves the timed cues' engine, the verbs and the wire's 1 s
+      tick, which called `Date.now()` inline: with `onVerb`'s and the sender's bodies gone from the
+      component, the compiler lint analyses it and reads `Date.now` in a render-built callback as
+      called during render.
+    - `onVerb` asks `editVerb` first: its keys and the dispatcher's are disjoint, and `editVerb`
+      does nothing for a key that is not its own, so the order changes nothing.
+    - the held folder's "Everything in ... is on air" refusal is `stepFace`'s own sentence, and a
+      server cue's CasparCG-off rule is `casparOffRefusal`, rather than copies of them.
+- **Mutation checks** (`scripts/graphic-verbs.test.mjs`, `verb-view`, `verb-dispatch`, plus
+  `air-state` and `live-cue` for the two inversions): all 96 caught, including the 13 the
+  assessment's survivors suggested (below). Take: no save wait; the draft
+  read before the wait; the marker folded before the answer; `leftAlone` dropped; misses cleared on
+  a failure; a server take stepping when it did not go. Send: no alive check; an answer after the
+  end applied; no arm marker; in-flight never decremented; only the failed batch owed; No output on
+  All out; the sender read at the send. Out: `leftAlone` dropped; folded before the answer. All out:
+  folders stopped late; server outs not awaited in turn; heads read at the press; `leftAlone`
+  dropped; Clearing never cleared; 4 s instead of 5; not paced. Update: no bound overlay; no save
+  wait; sent when not live. Bump: base from the cue before air; cue written after the send; bound
+  press not queued; bound counted before the save; readiness ignored; a 6 s fallback; a failed press
+  holding the next. Next waiting on the save. Event: tree patched when skipped, with `leftAlone`, or
+  before the send; air values read before the wait; not queued; the moved figure from the cue.
+  Snap: update first; no save wait. `takeOff` when not up. View: Re-take, Update or Next greyed by
+  the wrong fact; folder Out ignoring started; TAKE ignoring or overusing the refusal; the Bridge
+  ignored; All out ignoring Clearing; unnamed slots asked first; the editor following air unasked;
+  a step waiting on the Bridge; the step reading the folder's refusal. Panel: `update` from the
+  layer (the wrong button), `take` ignoring `canTake`, a live cue refused, the Bridge always ok.
+  Dispatch: `u` mapped to next and `n` to update; `n` ignoring advancing; Re-take on any live
+  layer; take-off not staging; take ignoring `canTake`; a folder's repeat firing; its refusal
+  silent; its Bridge wait loud; take-cue ignoring air or refusing a take-off; a trigger ignoring the
+  Bridge or keeping its folder; H repeating; paste not an edit key; a folder header selected as a
+  cue; Pause on any cue; P ignoring the panel's clip; the walk inverted. After the end:
+  the Bridge clear, the cue write, the tree write and the bump's cue write each unguarded. **AC-4's
+  two inversions:**
+  the inverted moves guard (`airState.seedFromResolve`) fails 7 tests; the inverted `leftAlone`
+  (answering nothing) fails 5. In the browser, `u` and `n` mapped to nothing in `decideVerb` fail
+  both new `live-actions-first` tests.
+- **§4.2 rows to tests.** Take graphic, Re-take, Out, All out, Update, ± bump, Next, ⚡ event,
+  Snap and the sender: `scripts/graphic-verbs.test.mjs` (held save waits, late, reordered and
+  post-end answers; "Take waits for the save, then reads the draft and the bound values as they
+  stand after the wait" is the read-after-the-wait test). Panel and keyboard:
+  `scripts/verb-dispatch.test.mjs` and `scripts/verb-view.test.mjs`. Take server: phase 5's
+  `scripts/server-verbs.test.mjs` (`runAndRecord` is outside this fence); here only its hand-off
+  (`take` of a server cue). Folder Take, Out and step: phase 10's `scripts/folder-playout.test.mjs`.
+  Timed fire: phase 9's `scripts/cue-arm-engine.test.mjs`. Data dispatch: phase 7's
+  `scripts/production-data-session.test.mjs`. The seed's moves guard: phase 11's
+  `scripts/air-state.test.mjs`.
+- **Assessment A+** (a fresh deciding-tier read-only `/so` session on `c807773`): PASS WITH NOTES,
+  nothing blocking. It compared every moved verb, `onVerb` and the bar and panel facts with the base
+  line by line, ran the Node files, `tsc`, depcruise and eslint, and 178 mutants of its own (155
+  caught, 6 equivalent, 17 surviving where only a test was missing). Its notes, all handled: All
+  out's clear refused after the end (now sent, above); the outside callers' fresher reads (listed
+  above); the missing tests (now pinned: a One-by-one folder that is up steps, a Take keeps its page
+  across the wait, a third bound press waits for the second, a bound key counts from the tree,
+  Pause only on a clip, the owed mark after a landed send, No output only with a play, a server Next
+  only while up, readiness only for bound events, the moved figure written, the removal reading the
+  render, the failure labels, the step face's started); the §4.2 row map (above); the test wording.
+  The panel-against-bar sweep in `verb-view` is true by construction now that `disabled` is
+  `!allowed`; it guards against a second rule coming back, and the per-state tests pin the rules.
+- **Check findings** (code-review, high; all verified against the code). Fixed: All out refused at
+  the end cleared through the Bridge; a bump or adjust event whose save wait ended after the end
+  wrote the cue or tree; the dispatcher kept a copy of `editVerb`'s keys; a folder decision acted
+  on the selection instead of its own folder id; Take read the page twice; `nextMoves` checked the
+  selection twice. Simplify (reuse, simplification, efficiency, altitude): the end guard moved to
+  one wrapper; `allowed` is computed once and `disabled`, the panel and the dispatcher read it; one
+  `clearOne` for Out and the removal; `movedKeys` once per press; one `published` (the sender's);
+  the names list and the panel's cue ids built only when read; unused exports dropped. Kept: the
+  sender and page as two objects (phase 13 removes the temporary page); rebuilding both every
+  render, as `armPage` and `folderPage` are; the direct trigger's Bridge sentence (its home,
+  `takeBlockers.directBlocker`, is outside the fence).
+- **Traps.**
+  - The spec's line numbers (2160-2258, 2960-3305, 3879-3935, 4006-4162, 2756-2830, 3486-3513,
+    4173-4210) are from `cc3500f2`; on `08389cf` the sender was at 1889-1978, the verb facts at
+    2104-2167 and 2560-2643, the verbs at 2238-2464, events and snap at 2828-2902, `onVerb` at
+    2970-3073 and the panel feed at 3076-3124.
+  - The queue's shell guard refuses a foreground poll; `node scripts/jobs.mjs wait <id>` is the
+    bounded wait.
+  - Playwright wants `chromium_headless_shell-1228` while the image ships `-1243`; the same symlink
+    under `/opt/pw-browsers` as phases 10 and 11. Nothing in the repo changed for it.
+  - The commit hook scans the whole command line for co-author trailer words, a heredoc included.
+  - **Extra files:** the 37 e2e specs that phase 11 mapped to `airState.ts` and `sessionWire.ts`
+    gain one comment line naming the three new modules, so `e2e-affected` selects them for the
+    moved code; `e2e/live-actions-first.spec.ts` gains that line, an import and two tests. No
+    assertion or selector changes in any existing test.
+
 ## Row 22, phase 11: airState.ts, sessionWire.ts, the `air` and `log` parts (the liveCue move)
 
 - **Previous verified `main` sha:** phase 10 passed on main (#1636 at `40a92d5`); this branch

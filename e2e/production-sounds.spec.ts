@@ -5,6 +5,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/components/home/CueActions.tsx
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // focus
 import { test, expect } from '@playwright/test';
 import { awaitDurableReady } from './_durable';

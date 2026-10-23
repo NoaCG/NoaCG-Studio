@@ -3,11 +3,13 @@
 // covers: src/styles/playout-dashboard.css
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/CueActions.tsx
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
+import { parkFocusOffControls } from './_keys';
 
 // LIVE ACTIONS FIRST (docs/research/control-surfaces-review-2026-10-02 slice 4; the AC of the
 // backlog item it closed, "the Playout page buries live actions"). A graphic that declares
@@ -236,4 +238,45 @@ test('the duel score: one compact row, and its point buttons name the players ON
   await page.getByTestId('verb-update').click();
   await expect(page.getByTestId('cue-action-undoB')).toHaveText('⚡ −1 BEA');
   await expect(pointB).toHaveText('⚡ Goal right');
+});
+
+// U and N are keys of their own (components/playoutKeys.ts), and until phase 12 of the
+// production-page refactor no spec pressed either (its §5.3 inventory). Each does what its button
+// does, and only while its button would.
+test('U sends the edited values to the cue on air, from the keyboard', async ({ page }) => {
+  await catalogProduction(page, 'lt01', 'Hairline');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('verb-update')).toBeEnabled();
+  await page.getByTestId('cue-field-f0').fill('Typed live');
+  await expect(page.getByTestId('verb-update')).toHaveClass(/pd-unsent/);
+  await expect(program.locator('#f0')).not.toHaveText('Typed live');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('u');
+  await expect(program.locator('#f0')).toHaveText('Typed live');
+  await expect(page.getByTestId('verb-update')).not.toHaveClass(/pd-unsent/);
+  // Off air, U has nothing to update: the edit stays unsent and PROGRAM is left alone.
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('verb-update')).toBeDisabled();
+  await page.getByTestId('cue-field-f0').fill('Typed off air');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('u');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await expect(program.locator('#f0')).not.toHaveText('Typed off air');
+});
+
+test('N moves the live graphic on to its next step, from the keyboard, and stops at the last one', async ({ page }) => {
+  await catalogProduction(page, 'qz02', 'House Quiz');
+  const chip = page.getByTestId('machine-state-chip');
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('n');
+  await expect(chip).toHaveText('Reveal');
+  await expect(page.getByTestId('verb-next')).toBeDisabled();
+  await expect(page.getByTestId('verb-next-target')).toHaveText('last step');
+  // N on the last step sends nothing: the graphic stays where it is.
+  await parkFocusOffControls(page);
+  await page.keyboard.press('n');
+  await expect(chip).toHaveText('Reveal');
 });

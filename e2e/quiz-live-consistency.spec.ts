@@ -9,6 +9,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/CueActions.tsx
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 //
 // Every catalog quiz and the imported docs quiz: a key corrected on air lights with Reveal,
 // the two answer models stay what they are, and a clock-free event takes the fast road.

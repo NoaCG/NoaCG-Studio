@@ -14,6 +14,7 @@
 // green with it (run 38055648571).
 // covers: src/control/failedSends.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';

@@ -8,6 +8,7 @@
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
