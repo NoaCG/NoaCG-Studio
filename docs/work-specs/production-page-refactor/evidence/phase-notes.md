@@ -5,6 +5,57 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 16, phase 4: useProductionPublish (publish, slot, links)
+
+- **Previous verified `main` sha:** phase 3 passed on main (#1620 at `799924c`); this branch
+  starts there. Receipt: `phase-4.md`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. A move of code only: no state shape, storage
+  key, persisted format or write order changes.
+- **Decisions.**
+  - *A hook plus two plain functions, in one module.* The page returns early while its production
+    is missing, and every handler and both facts read values computed after that return
+    (`outputUrl`, `playoutStatus`, the slot gate). A hook cannot be called after it. So
+    `useProductionPublish` holds the nine states, `slotBusyRef` and the sign-in follow-through,
+    and is called where that effect always stood (effect order unchanged); `publishActions` and
+    `publishFacts` are plain functions the page calls after the return on every render, so each
+    handler closes over that render's values exactly as the inline code did. A ref-based "latest
+    deps" hook was rejected: an `await` inside `publishNow` would then read a later render's
+    values (`casparOn`, `show`), which is a behaviour change. The spec's "returns handlers,
+    `casparFacts`, `headerAction`" is met by the module, not by the hook's own return.
+  - *What moved.* The account gate and its two sentences, the audience-name claim, the output
+    embed download, `copy`, the slot actions (`slotAction`, `loadOnSlot`, `takeOffSlot`,
+    `unloadFromSlot`, `clearThroughBridge`), `publishNow` (with C2/C6's `refreshGraphicCopies`
+    with `publishedReaders`, which records the own-reader stops a Publish drops in the same write,
+    the published-readers set and the fast-event recompute, all inside it, unchanged), `publish`, and the header action and CasparCG facts with their gates
+    (`slotInPlay`, `loadDue`, the two check lines, `slotLoadedHere`).
+  - *What stayed.* `uploadPictures` (it sat between the handlers but is rundown authoring, phase
+    8), `setCaspar` (the output setup switch; it only calls `setReplaceAsk`), `problemChecks`,
+    `flowBusy`, the C6 effect that clears own-reader stops on evidence and the first
+    published-sources write (`firstPublishedSources`, the data session's), and the rehearsal clear:
+    `onFirstPublish(rehearsed)` keeps `applyProgram` and `setLiveCue({})` in the page, as the
+    spec's temporary interface says.
+  - *Non-mechanical changes,* all listed: the rehearsal clear becomes `onFirstPublish(rehearsed)`;
+    `publishRef.current = publish` is set inside `publishActions` instead of three lines later in
+    the page (same render, same point relative to any effect); `publishFacts` reads `replaceAsk`,
+    `busy` and `slotBusy` from the hook state; `publishNow`'s comment drops a `forPrepare`
+    parameter it never had. Everything else is byte-identical (`phase-4.md` has the diff).
+  - **Extra files:** 19 e2e specs gain one comment line naming `useProductionPublish.ts`: the
+    specs with a `// covers:` header naming the page that drive Publish, Load, Replace, Unload,
+    the output copy or template, or the name claim, directly or through `e2e/_publish.ts`, and
+    were not already selected, plus `configured/playout-status` (it covers the panel the facts
+    feed). No assertion or selector changes. Left without, as in phase 3: configured specs with
+    no covers header (`production-links`, `audience-live` and others), where a first header
+    would change how they are selected.
+- **Traps.**
+  - The spec's line numbers (427-445, 2387-2456, 2565-2755, 4412-4541) are from `cc3500f2`; on
+    `799924c` the code was at 479-497, 518-531, 663-667, 2650-3017 and 4624-4688.
+  - `PublishActionsIo` is the temporary interface: 26 inputs, most of them page state that later
+    phases move (`liveCueRef` in 11, `flushDraft` in 13b, `outputSlot` and `slotReadable` in 6).
+    Each of those phases should shrink it rather than add to it.
+  - The hook returns its setters because `publishActions` needs them; the page destructures only
+    what its JSX reads.
+
 ## Row 15, phase 3: ProductionShell and CueActions, props-only
 
 - **Previous verified `main` sha:** C7 passed on main (#1615 at `44bfa89`); this branch starts at
