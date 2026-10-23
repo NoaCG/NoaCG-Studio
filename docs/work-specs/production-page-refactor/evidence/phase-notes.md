@@ -5,6 +5,108 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 22, phase 11: airState.ts, sessionWire.ts, the `air` and `log` parts (the liveCue move)
+
+- **Previous verified `main` sha:** phase 10 passed on main (#1636 at `40a92d5`); this branch
+  starts at `d67d2a6` (production-data-key released from quarantine after it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No storage key, persisted format, sentence,
+  request, row or marker shape changes; both parts live only in memory.
+- **Decisions.**
+  - *The `air` part* (`session.air`, set after `folders`, then `log`) holds the marker
+    (`liveCue`), its write count (`moves`), what was aired (`aired`), the monitor's clock memory
+    (`clocks`, `speaking`), the commands applied (`commands`) and the boot facts (`reports`,
+    `bootReplay`, `bootLive`). One part rather than D4's separate `aired`: the phase names two
+    parts, and every reader takes the fields it draws through a selector, so a clock or count
+    write renders nothing. The once-set (`createAppliedOnce`) is `session.applied`, one per
+    session, not a part: it is mutable memory that nothing draws.
+  - *Every write is a named fold in `control/airState.ts`*, applied with `session.apply`:
+    `moveLiveCue` (the page's `setLiveCue`, and through it the arm engine's and the folders'),
+    `rememberAired`, `programItems` (the page's `applyProgram` and `applySpeakingClocks`),
+    `claimAndApply` (`applyCommand`), `seedFromResolve` (the seed block and its moves guard),
+    `restoreItems` (`restoreProgram`), `withReports`, `forgetBootReplay`, and the `log` part's
+    `logged` and `loggedHere`. No `useState<LiveCueMap>` is left under `components/home/`.
+  - *The page draws the parts at React's pace* (`usePacedPart`, a subscription in an effect
+    that sets page state, as the `folders` part already is): `liveCue`, `airedData`, `bootLive`
+    and the log entries. Read through `useStorePart` they would render synchronously, which is
+    what broke `playout-air-contract` S3 for the folders. Why the mirror cannot show a stale
+    value the operator acts on: it is set in the same synchronous step as the part (the
+    listener runs inside the fold's `set`), so it joins the same React batch as the old
+    `setLiveCueState` did and renders at exactly the old moment; everything drawn from it
+    (chip, ON AIR rows, Out, Update and Next greying) is the render the old state gave. Every
+    read after a wait (`cueOnAirNow`, the history safety check, the arm engine's and the
+    folders' `liveCueOf`, `restoreProgram`, the publish flow's `liveCueRef`) reads the part
+    itself, which is never older than the mirror.
+  - *The wire* (`control/sessionWire.ts`) is started by one effect keyed on the session, the
+    slug, the backend and the production id, and also stops with the session's end. It reads
+    the page through `wirePage` (set every render) for the page's own facts and setters:
+    resolve waiting, the resolved facts (heartbeat, stamp, fast events, readers), recovered
+    and the machine states, cues, clocks, the arm wire ref, arms state, fire, note, follow and
+    command statuses, `hear` (`hearCommand`), the data refresh and the log's row naming.
+  - *Phases 9 and 10's interfaces are replaced by the session without touching those modules:*
+    `liveCueOf` is `() => session.air.get().liveCue` and `setLiveCue` is the `moveLiveCue` fold.
+    `cueArmEngine.ts` and `folderPlayout.ts` keep their interface names (AC-8's fence does not
+    list them); phase 12 can drop them.
+  - *Old effects, refs and callbacks, mapped:* `liveCue` state and `liveCueRef` to `air.liveCue`
+    (a getter object keeps the publish flow's `{ current }` shape); `liveCueMoves` to
+    `air.moves`; `bootLive` state to `air.bootLive`; `airedData` state and `airedRef` to
+    `air.aired`; `clockValues`, `speakingValues` refs to `air.clocks`, `air.speaking`;
+    `commandsApplied`, `liveReportsRef`, `bootReplayRef` refs to `air.commands`,
+    `air.reports`, `air.bootReplay`; the `applied` ref to `session.applied`; `wireLog` state and
+    `localLogId` ref to the `log` part; the wire effect (resolve, seed, arm wire, history,
+    follow, the 30 s heartbeat, cleanup) to `startSessionWire`; `LOG_HISTORY_SPAN` moved with it
+    (400, unchanged). The boot recovery effect, `restoreProgram` as the stage's `onReady`,
+    `hearCommand` and `sendVerb` stay in the page and call the folds.
+  - *Non-mechanical changes,* all listed:
+    - reads after a wait see the newest marker: the old `liveCueRef` caught up only at the next
+      render, so a read between a write and its render saw the older map. The writes, and what
+      every render draws, are unchanged.
+    - a follow that answers after the wire stopped is unsubscribed at once. The old effect
+      assigned `unsubscribe` after its cleanup could run, so a stop during `followControlLog`'s
+      await (an unpublish, or a StrictMode remount in development) left that follower running.
+      Rows and commands that arrive after the stop now reach nothing.
+    - after the session's end every fold is a no-op, so a late command or resolve changes
+      nothing and PROGRAM is handed nothing (the old page state still took writes after the
+      unmount; the route keys the page by production, so this is only the leave-the-page case).
+    - `programItems` takes one `Date.now()` per call where the old loop took one per item; the
+      items of one call are applied in the same millisecond, so no clock reads differently.
+    - `claimAndApply` hands PROGRAM one batch per call instead of one per item; the stage
+      applies a batch item by item, in order, so the commands and `data-plays` are the same.
+    - the action log is per session (the old page state lived as long as the page, which the
+      route keys by production).
+- **Mutation checks** against `scripts/air-state.test.mjs`, `scripts/session-wire.test.mjs`
+  and `scripts/playout-session.test.mjs`: all 37 caught. Inverting the moves guard (12 tests
+  fail) and dropping it; applying a duplicate twice; not counting a marker write; replaying the
+  rows over a newer command; skipping the aired fold; a command not forgetting the boot replay;
+  commands not counted; typing reaching PROGRAM; the seed not setting `bootLive`; the seed
+  merging instead of replacing; the baseline keeping the clock stamp; the clock start written
+  after; a resend erasing the origin; off air keeping the clock; a debate update forwarding the
+  plain time; the rebuild keeping clock memory while replaying, dropping the snap, always
+  playing, or rebuilding from aired at boot; a silent log line not spending its id; the wire
+  reading the request once (not per attempt); the wire keeping a late follow; rows after the
+  stop reaching the page; the stop not unsubscribing, keeping the timer or the arm wire; the
+  wire not stopped by the session's end; seeding after a stop during the replay; acting on a
+  resolve after a stop; a live report keeping the boot replay; a typing row refreshing the
+  tree; a heartbeat after the stop; a stood-down arm wire still fed; starting on an ended
+  session; the session setting air before folders; one once-set shared by every session.
+- **Traps.**
+  - `control/eventLog.ts` cannot be loaded in Node (it imports `./cueAuto` without `.ts`), and it
+    is outside the fence, so the log folds take `appendLogEntries` as an argument (`AppendLog`)
+    rather than import it. A later phase that may touch it can make it importable.
+  - The spec's line numbers (806-828, 907-994, 1013-1034, 1685-1869, 1723-1764, 1896-1921) are
+    from `cc3500f2`; on `d67d2a6` the state was at 492 and 597-605, `airedData` at 872-884, the
+    clocks and `applyProgram` at 945-1047, `applyCommand` at 1067-1092, the wire at 1626-1840 and
+    the rebuild at 1853-1920.
+  - The broader browser selection is admitted once per source state; one that fails before any
+    test (here the Playwright browser path) spends it. Fix the browser symlink before queueing.
+  - Playwright here wants `chromium_headless_shell-1228` while the image ships `-1243`; a symlink
+    under `/opt/pw-browsers` (outside the repo) made the queued run start, as in phase 10.
+  - **Extra files:** 37 e2e specs gain one comment line naming `airState.ts` and `sessionWire.ts`
+    (the specs whose covers named the page or `liveCue.ts`, and the §5.3 air specs), and two
+    configured specs' comments name the new homes of `liveCueMoves` and `applyCommand`. No
+    assertion or selector changes. No e2e spec patches the moved code's served source.
+- **Left for the laptop helper:** AC-9's timing repeat on this phase's merge SHA (non-gating).
+
 ## Row 21, phase 10: folderPlayout.ts and the `folders` part
 
 - **Previous verified `main` sha:** phase 9 passed on main (#1634 at `919fbc9`); this branch
