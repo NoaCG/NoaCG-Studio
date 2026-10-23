@@ -34,14 +34,21 @@ import {
 } from '../../control/sheetSource';
 import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
-import { viewOf, type CueDraft } from '../../control/cueDraft';
-import { useStorePart } from './useStorePart';
+import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
 
 /** The edited cue's text, as the draft shows it. */
-export interface CueEditorView {
-  label: string;
-  note: string;
-  values: Record<string, string>;
+export type CueEditorView = CueText;
+
+/** A cue's text as it is being typed: the draft over `cue` (control/cueDraft.ts). The component
+ *  redraws when this cue's draft moves, and not for another cue's. */
+export function useCueView(draft: Pick<CueDraft, 'part'>, cue: ShowCue): CueText;
+export function useCueView(draft: Pick<CueDraft, 'part'>, cue: ShowCue | null): CueText | null;
+export function useCueView(draft: Pick<CueDraft, 'part'>, cue: ShowCue | null): CueText | null {
+  const own = useSyncExternalStore(draft.part.subscribe, () => {
+    const d = draft.part.get();
+    return d && d.cueId === cue?.id ? d : null;
+  });
+  return cue ? viewOf(own, cue) : null;
 }
 
 /** A file name a spreadsheet will not argue with, from the graphic's own name. */
@@ -777,7 +784,7 @@ export default function CueEditor({
    *  page's: e2e/playout-air-contract.spec.ts proves typing moves this one and not that one. */
   const renders = useRef(0);
   renders.current += 1;
-  const editingView = viewOf(useStorePart(draft.part), editingCue);
+  const editingView = useCueView(draft, editingCue);
   const bound = boundFields(selectedGraphic);
   /** What a band HEADING reads, resolved the way the field boxes under it resolve: the live tree
    *  for a bound field, then the cue's own value, then the authored default. */

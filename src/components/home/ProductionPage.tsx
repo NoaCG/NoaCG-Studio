@@ -62,7 +62,7 @@ import {
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
-import { createCueDraft, unsentNow, viewOf, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
+import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
 import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, type ClockSpecs } from '../../control/airState';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
@@ -212,7 +212,7 @@ import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
 import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
-import CueEditor, { type OwnReader } from './CueEditor';
+import CueEditor, { useCueView, type OwnReader } from './CueEditor';
 import CueActions from './CueActions';
 import ProductionShell from './ProductionShell';
 import ServerCueEditor from './ServerCueEditor';
@@ -400,7 +400,7 @@ const wholePart = <T,>(value: T) => value;
 /** The cue's text as it is typed, for an editor that takes it as a prop (home/ServerCueEditor): this
  *  child redraws with the draft, the page does not (production-page refactor D12). */
 function DraftView({ draft, cue, children }: { draft: Pick<CueDraft, 'part'>; cue: ShowCue; children: (view: CueText) => ReactNode }) {
-  return <>{children(viewOf(useStorePart(draft.part), cue))}</>;
+  return <>{children(useCueView(draft, cue))}</>;
 }
 const liveCueOf = (air: AirPart) => air.liveCue;
 const airedOf = (air: AirPart) => air.aired;

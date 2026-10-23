@@ -5,9 +5,9 @@
 // Moved out of ProductionPage with its order, timing and guards unchanged. The draft lives in the
 // session's `draft` part, written only here with one `session.apply` each, so the editor, the
 // rundown rows and the PREVIEW monitor each subscribe to it themselves and typing re-renders none of
-// the page (D12). The page subscribes to one value only: `unsentKey`, which changes when the list of
-// unsent fields does and not with every character. Whether a save is owed and its idle timer are
-// this module's: nothing draws them.
+// the page (D12). The page subscribes to one value only (its `useDrawnDraft` over `unsentNow`), which
+// changes when the list of unsent fields does and not with every character. Whether a save is owed
+// and its idle timer are this module's: nothing draws them.
 //
 // What a verb reads is right by construction: it awaits `flush` and then reads `view`, which reads
 // the part as it stands at that moment, never a render's copy. While the save is out the draft stays
@@ -19,7 +19,9 @@
 //   draft state, draftRef            the `draft` part
 //   draftPending, flushTimer         `pending` and `timer` here
 //   draftOwner (the save's guard)    the session: a session is one production, and its end drops
-//                                    every late answer
+//                                    every late answer. The page's `writeCue` still checks it,
+//                                    because the history it writes through is the page's and moves
+//                                    to the next production before this session ends
 //   editDraft                        `edit(cue, patch)`
 //   flushDraft, cancelDraft          `flush()`, `cancel()`
 //   retainClosingDraft               the synchronous save on `onPageHide` and at the session's end
@@ -36,11 +38,7 @@ import type { DraftPart, PlayoutSession } from './playoutSession';
 export const FLUSH_DELAY_MS = 300;
 
 /** A cue's text as the editor shows it. */
-export interface CueText {
-  label: string;
-  note: string;
-  values: Record<string, string>;
-}
+export type CueText = Omit<DraftPart, 'cueId'>;
 
 /** A cue's record, as much of it as the draft reads. */
 export interface CueRecord {

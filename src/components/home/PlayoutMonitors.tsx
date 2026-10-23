@@ -4,13 +4,13 @@ import type { PlayoutItem, Show, ShowCue } from '../../model/shows';
 import type { Resolution, SpxTemplate } from '../../model/types';
 import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
-import { viewOf, type CueDraft } from '../../control/cueDraft';
+import type { CueDraft } from '../../control/cueDraft';
 import { staleWords, type AirState, type LostHop } from '../../control/playoutStatus';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
 import { useServerThumbnail } from './serverThumbnail';
-import { useStorePart } from './useStorePart';
+import { useCueView } from './CueEditor';
 
 /**
  * A SERVER CLIP'S PICTURE on a monitor (docs/CLIP_PLAYBACK_PLAN.md §6.3): its thumbnail, marked
@@ -123,8 +123,7 @@ export default function PlayoutMonitors({
   serverLost?: LostHop | null;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
-  const typed = useStorePart(draft.part);
-  const previewView = previewCue ? viewOf(typed, previewCue) : null;
+  const previewView = useCueView(draft, previewCue);
   const settleData = previewCue && previewView ? settleOf(previewCue, previewView.values) : '';
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
   const programThumb = useServerThumbnail(programClip?.name ?? null);

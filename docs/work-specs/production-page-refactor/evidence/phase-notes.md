@@ -80,6 +80,15 @@ changes a spec's digest.
   verbs read the same record as the old `cueView` did). The modules outside the fence
   (`graphicVerbs.ts` and the others) still describe `cueView`, `flush` and `resolvedOf` as phase
   13's temporary interfaces; phase 14 (AC-12) rewrites that guidance.
+- **Simplify** (four read-only passes: reuse, simplification, efficiency, altitude). Applied: one
+  `useCueView(draft, cue)` (in `CueEditor.tsx`) for the editor, PREVIEW and `DraftView`, which
+  redraws only when that cue's draft moves, so PREVIEW no longer redraws while another cue is
+  typed; one text type (`CueText`, from the part's own shape); the module header naming what the
+  page subscribes to and why the page still checks `draftOwner`. Not taken: folding `useDrawnDraft`
+  into `usePacedPart` (that hook's selector is a module function that never restarts; this one
+  reads the render's inputs, so the two would need a comparator and a latest-ref they do not share);
+  moving the removal's drop into `useRundownAuthoring.ts` (outside the fence); a per-row rundown
+  subscription (above); `unsentNow` calling `unsentFields` directly (`unsent` is the spec's API).
 - **Render counts (§7, AC-7, AC-9 render targets).** New in `e2e/playout-air-contract.spec.ts`,
   timers frozen while ten keys go into the on-air cue: the first keystroke renders the page at most
   once and the nine after it not at all; the editor at most once per key. The dev server runs under
