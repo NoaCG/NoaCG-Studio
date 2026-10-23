@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 
 const { LOCAL_SAVE_HEAD_START_MS, runAndRecord } = await import('../src/control/serverVerbs.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
+const { rundownView } = await import('../src/model/rundownRows.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
 const { NO_OWNERSHIP } = await import('../src/control/serverState.ts');
 
@@ -26,12 +27,10 @@ const vt = (id, extra = {}) => ({ id, adapter: 'casparcg', kind: 'media', name: 
 const strap = { id: 's', adapter: 'casparcg', kind: 'template', name: 'STRAP', layer: 21, channel: 1 };
 const cue = (id, sourceId, extra = {}) => ({ id, sourceId, source: 'playout', label: id.toUpperCase(), values: {}, ...extra });
 const tick = () => new Promise((resolve) => setImmediate(resolve));
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function rundownOf(cues, items, folders = []) {
-  const members = new Map();
-  for (const c of cues) if (c.folderId) members.set(c.folderId, [...(members.get(c.folderId) ?? []), c]);
-  return { cues, items, folders, members, places: throughPlaces(cues, items, folders), itemOf: (c) => items.find((i) => i.id === c.sourceId) ?? null };
+  const { members } = rundownView({ cues, folders });
+  return { cues, items, folders, members, places: throughPlaces(cues, items, folders), itemOf: (c) => items.find((i) => i.id === c.sourceId) ?? null, slots: SLOTS };
 }
 
 /** The page's io with every call written to `log`, in order. `states` script the Bridge's answers. */
@@ -77,7 +76,6 @@ function harness({ states = [], flush, settings = () => SETTINGS, values = () =>
       log.push(`view ${c.id}`);
       return { values: values() };
     },
-    slots: SLOTS,
   };
   return { store, recorded, io, log, sent };
 }
@@ -138,24 +136,24 @@ test('the settings, the store and the values are read after the wait, not at the
   assert.deepEqual(h2.sent.map((s) => s.action.slot), [slot(2, 7)]);
 });
 
-test('a save that takes long gets its head start and no more; a failed save holds nothing up', async () => {
+test('a save that takes long gets its head start and no more; a failed save holds nothing up', async (t) => {
   assert.equal(LOCAL_SAVE_HEAD_START_MS, 250);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const r = rundownOf([cue('a', 'a')], [vt('a')]);
   const h = harness({ flush: () => new Promise(() => {}) });
-  const started = Date.now();
   const pending = runAndRecord(h.recorded, h.io, intentOf(r, r.cues[0], 'take'));
-  await sleep(150);
+  await tick();
+  t.mock.timers.tick(LOCAL_SAVE_HEAD_START_MS - 1);
+  await tick();
   assert.deepEqual(h.sent, [], 'not before the head start is over');
-  await sleep(250);
+  t.mock.timers.tick(1);
+  await tick();
   assert.equal(h.sent.length, 1, 'and not after it either, with the save still running');
-  const outcome = await pending;
-  assert.equal(outcome.ok, true);
-  assert.ok(Date.now() - started >= LOCAL_SAVE_HEAD_START_MS - 5);
+  assert.equal((await pending).ok, true);
 
+  // A save that has already failed: the Take goes with no time passing at all.
   const failed = harness({ flush: () => Promise.reject(new Error('offline')) });
-  const quick = Date.now();
   assert.equal((await runAndRecord(failed.recorded, failed.io, intentOf(r, r.cues[0], 'take'))).ok, true);
-  assert.ok(Date.now() - quick < 200, 'a save that has already failed does not wait out the head start');
 });
 
 test('an accepted take is folded with the page\'s clock, the clip\'s length and what the Bridge said', async () => {

@@ -8,7 +8,7 @@ Gating acceptance: AC-2, AC-3, AC-8, phase 5's matrix row, assessment A. Built o
 - `src/control/takeBlockers.ts`: `takePlans`, `casparOffRefusal`, `takeBlockerFor`,
   `directBlocker` and `stepBlocker`, as plain functions over a `TakeContext` the page builds
   each render (`cues`, `items`, `folders`, `members`, `places`, `ownership`, `settings`,
-  `ability`, `casparOn`, `bridgeDown`, `itemOf`, `graphicOf`, `graphicName`, `slots`). The
+  `ability`, `casparOn`, `bridgeDown`, `itemOf`, `graphicOf`, `slots`). The
   page keeps one-line wrappers under the old names, so every caller is unchanged.
 - `src/control/serverVerbs.ts`: `runAndRecord(store, io, intent)`, the body of the page's
   `serverVerb` after its item check, with `LOCAL_SAVE_HEAD_START_MS`. The page's `serverVerb`
@@ -35,7 +35,7 @@ sed -n '2811,2890p' /tmp/p5-main.tsx | sed -E \
   -e 's/rundown\.members/intent.rundown.members/' \
   -e 's/flushDraft\(\); await history\.closeGroup\(\);/X/' \
   -e 's/loadPlayoutSettings\(\)/io.loadSettings()/' \
-  -e 's/itemSlot\(settings/io.slots.itemSlot(settings/g' -e 's/folderSlot\(settings/io.slots.folderSlot(settings/' \
+  -e 's/itemSlot\(settings/intent.rundown.slots.itemSlot(settings/g' -e 's/folderSlot\(settings/intent.rundown.slots.folderSlot(settings/' \
   -e 's/serverPlayout\.(ownership|apply)/store.\1/g' \
   -e 's/act\(settings, action\)/io.act(settings, action)/g' \
   -e 's/performance\.now\(\)/io.now()/g' -e 's/stateReadable\(bridgeStatus\)/readable/g' \
@@ -52,7 +52,7 @@ echo '== takePlans..takeBlockerFor, directBlocker, stepBlocker (page 3329-3397, 
   -e 's/playoutSettings\)/ctx.settings)/' -e 's/serverOwnership, cues,/ctx.ownership, ctx.cues,/' \
   -e 's/takeBlocker\(target, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue\)/takeBlocker(target, ctx.cues, ctx.items, addressOfItem, ctx.ability, ctx.folders, ctx.graphicOf)/' \
   -e 's/takeBlocker\(cue, \[cue\], playoutItems, addressOfItem, playbackAbility, \[\], graphicOfCue\)/takeBlocker(cue, [cue], ctx.items, addressOfItem, ctx.ability, [], ctx.graphicOf)/' \
-  -e 's/itemSlot\(settings, item\)/ctx.slots.itemSlot(settings, item)/' -e 's/cueGraphicName\(/ctx.graphicName(/g' -e 's/: bridgeDown$/: ctx.bridgeDown/' \
+  -e 's/itemSlot\(settings, item\)/ctx.slots.itemSlot(settings, item)/' -e 's/!cueGraphicName\((\w+)\)/!ctx.graphicOf(\1)?.name/g' -e 's/: bridgeDown$/: ctx.bridgeDown/' \
   > /tmp/p5-old-block.txt
 sed -n '/^export const casparOffRefusal/,$p' src/control/takeBlockers.ts | sed -E 's/^  (\s*)/\1/' > /tmp/p5-new-block.txt
 diff -w /tmp/p5-old-block.txt /tmp/p5-new-block.txt

@@ -44,10 +44,8 @@ export interface TakeContext {
   /** The Bridge has answered, and not with ok. */
   bridgeDown: boolean;
   itemOf: (cue: ShowCue) => PlayoutItem | null;
-  /** A graphic cue's pool graphic, for an All-together folder's refusals. */
+  /** A graphic cue's pool graphic, null when the production no longer has it. */
   graphicOf: (cue: ShowCue) => { name: string; layer: number } | null;
-  /** A graphic cue's graphic name, null when the production no longer has it. */
-  graphicName: (cue: ShowCue) => string | null;
   slots: SlotRules;
 }
 
@@ -134,7 +132,7 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
 /** Direct cues use their own route and end action, independently of their folder or neighbours.
  *  The output slot is judged by `settings` as they stand at the press, which the page reads then. */
 export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutSettings): string | null => {
-  if (cue.source !== 'playout') return !ctx.graphicName(cue) ? `${cue.label} has no graphic.` : null;
+  if (cue.source !== 'playout') return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : null;
   const off = casparOffRefusal(cue, ctx.casparOn);
   if (off) return off;
   const item = ctx.itemOf(cue);
@@ -153,6 +151,6 @@ export const stepBlocker = (next: ShowCue, ctx: TakeContext): string | null =>
       : ctx.bridgeDown
         ? `${next.label} plays on the playout server, and NoaCG Bridge is not connected.`
         : takeBlockerFor(next, ctx)
-    : !ctx.graphicName(next)
+    : !ctx.graphicOf(next)?.name
       ? `${next.label} points at a graphic this production no longer has.`
       : takeBlockerFor(next, ctx);

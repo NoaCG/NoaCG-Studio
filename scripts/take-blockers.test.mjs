@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 
 const { casparOffRefusal, directBlocker, stepBlocker, takeBlockerFor, takePlans } = await import('../src/control/takeBlockers.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
+const { rundownView } = await import('../src/model/rundownRows.ts');
 const { NO_OWNERSHIP } = await import('../src/control/serverState.ts');
 
 const slot = (channel, layer) => ({ adapter: 'casparcg', channel, layer });
@@ -29,8 +30,7 @@ const BRIDGE = { state: 'ok', features: ['state', 'playback', 'sequence', 'seque
 
 /** One render's facts, the way the page builds them. */
 function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP, settings = SETTINGS, ability = BRIDGE, casparOn = true, bridgeDown = false, graphics = {} } = {}) {
-  const members = new Map();
-  for (const c of cues) if (c.folderId) members.set(c.folderId, [...(members.get(c.folderId) ?? []), c]);
+  const { members } = rundownView({ cues, folders });
   return {
     cues,
     items,
@@ -44,7 +44,6 @@ function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP
     bridgeDown,
     itemOf: (c) => (c.source === 'playout' ? (items.find((i) => i.id === c.sourceId) ?? null) : null),
     graphicOf: (c) => (graphics[c.sourceId] ? { name: graphics[c.sourceId], layer: 1 } : null),
-    graphicName: (c) => graphics[c.sourceId] ?? null,
     slots: SLOTS,
   };
 }

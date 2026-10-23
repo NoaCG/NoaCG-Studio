@@ -2814,7 +2814,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         wake: () => statePoll.current?.wake(),
         flush: async () => { await flushDraft(); await history.closeGroup(); },
         cueView,
-        slots: PLAYOUT_SLOTS,
       },
       {
         cue,
@@ -3279,7 +3278,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridgeDown,
     itemOf: playoutItemFor,
     graphicOf: graphicOfCue,
-    graphicName: cueGraphicName,
     slots: PLAYOUT_SLOTS,
   };
   const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);

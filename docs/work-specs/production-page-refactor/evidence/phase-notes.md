@@ -19,7 +19,8 @@ changes a spec's digest.
     changes. The spec's `{cues, items, folders, places, ownership, settings, ability, casparOn}`
     gains `members` (the rundown's folder members, which `takePlans` reads), `bridgeDown` (a step's
     refusal; it is not the same as `ability`, which is `{state: 'config'}` when nothing is set up),
-    `itemOf`, `graphicOf`, `graphicName` and `slots`.
+    `itemOf`, `graphicOf` and `slots`. The verb's intent carries the same context as its rundown,
+    so the slot rules reach `runAndRecord` by one route.
   - *`slots` is an adapter.* `itemSlot` and `folderSlot` live in `control/playoutLink.ts`, which
     reads storage and imports `model/shows` without `.ts`, so Node cannot load it (spec §5.2).
     The page passes them in (`PLAYOUT_SLOTS`); the Node tests pass the same rule. Moving them into
@@ -41,7 +42,9 @@ changes a spec's digest.
     `takePlans` leave the page (their only reader was `takeBlockerFor`); `readable` is
     `stateReadable(bridgeStatus)` of the press render, computed once instead of twice from the same
     `const`; the flush is `io.flush` (the same `flushDraft` then `closeGroup`) with the same
-    `.catch`; `now` is `performance.now()` through `io`, still read inside each fold. The identity
+    `.catch`; `now` is `performance.now()` through `io`, still read inside each fold; the graphic
+    checks of `directBlocker` and `stepBlocker` read `graphicOf(cue)?.name` (the same pool lookup
+    as `cueGraphicName`, so one callback serves both; simplify pass). The identity
     diff in `phase-5.md` prints nothing else.
   - **Extra files:** 10 e2e specs gain one comment line naming both modules: those with a page
     covers header that take server cues through the fake Bridge (`playout-cues`, `playout-clock`,

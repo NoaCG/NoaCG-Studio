@@ -13,7 +13,7 @@ import type { PlayoutItem, ShowCue } from '../model/shows';
 import type { PlayoutResult, PlayoutSettings } from './playoutLink';
 import type { PlayoutAction } from './playoutProtocol';
 import type { ServerPlayoutStore } from './serverPlayoutStore';
-import type { SlotRules, TakeContext } from './takeBlockers';
+import type { TakeContext } from './takeBlockers';
 import { folderRun, runServerVerb, sequenceAction, sequenceMembers, type SequenceMember, type ServerVerb, type ServerVerbOutcome } from './serverPlayout.ts';
 import { applyAccepted } from './serverState.ts';
 import { slotAddress } from './playoutSlots.ts';
@@ -34,7 +34,6 @@ export interface ServerVerbIo {
   flush: () => Promise<unknown>;
   /** The cue as typed, draft included (temporary, until phase 13). */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
-  slots: SlotRules;
 }
 
 /** What was pressed, captured at the press with the render that handled it. */
@@ -44,12 +43,12 @@ export interface ServerVerbIntent {
   verb: ServerVerb;
   label: string;
   options?: { cut?: boolean; takenAt?: number; direct?: boolean };
-  /** A Take's refusal (./takeBlockers.ts), asked at the press: null when it may go, and always
-   *  null for another verb, which is never refused. Required, so no caller can leave it unasked. */
+  /** A Take's refusal (./takeBlockers.ts), asked at the press: null when it may go. Read for a
+   *  Take only, since no other verb is refused. Required, so no caller can leave it unasked. */
   blocked: string | null;
   /** The Bridge reads the server (control/playoutLink.ts `stateReadable`). */
   readable: boolean;
-  rundown: Pick<TakeContext, 'cues' | 'items' | 'folders' | 'members' | 'places' | 'itemOf'>;
+  rundown: Pick<TakeContext, 'cues' | 'items' | 'folders' | 'members' | 'places' | 'itemOf' | 'slots'>;
 }
 
 /**
@@ -92,11 +91,11 @@ export async function runAndRecord(
   // (docs/CLIP_PLAYBACK_PLAN.md §6.6). The Take is off with the reason when they cannot be found.
   const chain =
     !options.direct && !run && verb === 'take' && item.kind === 'media' && effectiveEnd(cue, item) === 'next'
-      ? sequenceMembers(cues, playoutItems, cue.id, (i) => slotAddress(io.slots.itemSlot(settings, i)), folders)
+      ? sequenceMembers(cues, playoutItems, cue.id, (i) => slotAddress(intent.rundown.slots.itemSlot(settings, i)), folders)
       : null;
   const members = run?.ok ? (run.run.members.length > 1 ? run.run.members : undefined) : chain?.ok && chain.members.length > 1 ? chain.members : undefined;
   const loop = !!run?.ok && run.run.loop;
-  const slotNow = through ? io.slots.folderSlot(settings, through) : io.slots.itemSlot(settings, item);
+  const slotNow = through ? intent.rundown.slots.folderSlot(settings, through) : intent.rundown.slots.itemSlot(settings, item);
   if (through) {
     // The folder was moved to another slot while it played: its run there goes first, whichever of
     // its clips is up, so a move is a move and never a second run.
