@@ -407,3 +407,24 @@ test('a session that had already ended asks nothing', async () => {
   assert.deepEqual(wire.calls, []);
   assert.equal(wire.timers.size, 0);
 });
+
+test('a restarted wire (unpublish, publish again) forgets the old boot replay, even when the guard skips the new seed', async () => {
+  const wire = scriptedWire();
+  const page = fakePage();
+  const session = createPlayoutSession('prod-1');
+  const first = start(wire, page, session);
+  await boot(wire, RESOLVED, [{ graphic: 'lt', msg: { t: 'update', data: { f1: 'old row' } } }]);
+  assert.notEqual(session.air.get().bootReplay, null);
+  first.stop();
+  const second = start(wire, page, session);
+  assert.equal(session.air.get().bootReplay, null, 'the old rows are not what air holds any more');
+  await flush();
+  // A Take while the new resolve is out: the seed is skipped, and the old rows must not survive it.
+  session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m) => withLiveCue(m, 'lt', 'c9')) }));
+  wire.resolves.at(-1).resolve({ ok: true, value: RESOLVED });
+  await flush();
+  wire.replays.at(-1).resolve([{ graphic: 'lt', msg: { t: 'update', data: { f1: 'new row' } } }]);
+  await flush();
+  assert.equal(session.air.get().bootReplay, null);
+  second.stop();
+});

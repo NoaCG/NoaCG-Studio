@@ -76,6 +76,13 @@ changes a spec's digest.
       applies a batch item by item, in order, so the commands and `data-plays` are the same.
     - the action log is per session (the old page state lived as long as the page, which the
       route keys by production).
+  - *Departure from D11* (defects apart from extraction): the late-follow unsubscribe above is a
+    defect fix inside this extraction. It is kept here because the wire's stop is this phase's
+    contract (AC-6, "stop"; the switch mid-flight test) and the fix is two lines with no
+    operator-visible change while the follow runs.
+  - *Deferred to phase 12:* §5.3's "dispose() refuses the next send". `sendVerb` gets no
+    `session.alive()` check here: the verbs move in phase 12, and adding it now would change a
+    verb this phase must leave alone (AC-2).
 - **Check findings** (code-review, high; all verified against the code):
   - fixed: reading the part after a wait made the press's checks and the modules it calls see a
     newer map than the render that decided the press; `liveCueRef` and `airedRef` are the
@@ -93,6 +100,12 @@ changes a spec's digest.
     and `selectedCueId`"): the spec's owner decision 1.1.2 moves `liveCue` once, in this phase,
     to one owner (the session); `selectedCueId` stays in the page. That folder guidance is
     rewritten in phase 14 (AC-12) and is outside this phase's fence.
+- **Assessment A+** (a fresh deciding-tier read-only `/so` session on `d66529b`): PASS WITH
+  NOTES, nothing blocking. It compared every listed behaviour with the base page, ran the Node
+  files, `tsc` and depcruise, and 33 mutants of its own (32 caught). Its notes, all handled:
+  the surviving mutant (the wire's start not forgetting the boot replay) is now a test;
+  `restoreProgram` reads the part (as listed above); the follow fix is named as a departure from
+  D11; the refuse-the-next-send item is recorded as deferred; the PR's counts were corrected.
 - **Simplify** (four read-only passes: reuse, simplification, efficiency, altitude): applied the
   page's one `logHere` helper for its three log writes; one clock-placement helper and one
   carried-fields read in `programItems`, which also leaves a debate board's memory alone when a
@@ -103,7 +116,7 @@ changes a spec's digest.
   narrow the page adapter (a later phase can, if a part is wanted), and sharing the "is a
   renderer command" rule (its other copies are in files outside the fence).
 - **Mutation checks** against `scripts/air-state.test.mjs`, `scripts/session-wire.test.mjs`
-  and `scripts/playout-session.test.mjs`: all 38 caught. Inverting the moves guard (12 tests
+  and `scripts/playout-session.test.mjs`: all 39 caught. Inverting the moves guard (12 tests
   fail) and dropping it; applying a duplicate twice; not counting a marker write; replaying the
   rows over a newer command; skipping the aired fold; a command not forgetting the boot replay;
   commands counted once per batch; typing reaching PROGRAM; the seed not setting `bootLive`; the seed
@@ -116,7 +129,8 @@ changes a spec's digest.
   wire not stopped by the session's end; seeding after a stop during the replay; acting on a
   resolve after a stop; a live report keeping the boot replay; a typing row refreshing the
   tree; a heartbeat after the stop; a stood-down arm wire still fed; starting on an ended
-  session; the session setting air before folders; one once-set shared by every session.
+  session; the session setting air before folders; one once-set shared by every session; a
+  restarted wire not forgetting the old boot replay (the assessor's surviving mutant, now pinned).
 - **Traps.**
   - `control/eventLog.ts` cannot be loaded in Node (it imports `./cueAuto` without `.ts`), and it
     is outside the fence, so the log folds take `appendLogEntries` as an argument (`AppendLog`)
