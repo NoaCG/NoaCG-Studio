@@ -51,6 +51,16 @@ changes a spec's digest.
       `liveCue`, the folder step and the log, exactly as the old `fireLane` did.
     - the `arms` part is per session, so a production change starts with no countdowns (the old
       page state would have carried them, again only in theory because of the route key).
+    - between an engine's stop and the next one's start (StrictMode's remount, or the unmount),
+      the published paths reach no engine: a server-confirmed fire from the wire is dropped and a
+      Take's marker goes out without `auto`. The old refs always held the last render's closures.
+      Both windows are inside one synchronous commit or after the page is gone.
+    - the wire's writes go through `session.apply`, so after the session ends they change
+      nothing; the old `setCueArms` still wrote page state after the unmount.
+- **Assessment A** (fresh read-only `/so` session on `4e1f0d0`): PASS WITH NOTES, nothing
+  blocking. Its notes: the two paths above (now listed), the `armPage.current!` assertion (safe
+  today because the arms are empty until a full render has sent a Take), and that it did not
+  rerun the mutation checks itself.
   - **Mutation checks** against `scripts/cue-arm-engine.test.mjs` (fake clock, timers, tab and
     page; intervals and thresholds pinned as numbers): all 23 caught: dropping the clear on
     re-arm, on stop, or the tab listener's stop; firing twice; keeping a fired arm; the 15 ms floor
