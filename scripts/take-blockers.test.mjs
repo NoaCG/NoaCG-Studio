@@ -120,6 +120,14 @@ test('a file up on another slot is not taken onto a second, and a folder\'s own 
   assert.equal(takeBlockerFor(cues[0], here), null);
 });
 
+test('a Play-through clip is checked for every clip of the run it starts, not only its own', () => {
+  const T = { id: 'T', name: 'Opening', mode: 'through' };
+  const cues = [cue('a', 'a', { folderId: 'T' }), cue('b', 'b', { folderId: 'T' }), cue('y', 'b')];
+  const ctx = context({ cues, items: [vt('a'), vt('b')], folders: [T], ownership: { ...NO_OWNERSHIP, onAir: { b: { cueId: 'y', slot: slot(2, 5) } } } });
+  assert.deepEqual(takePlans(cues[0], ctx).map((p) => [p.slot, p.cueIds(), p.folderId]), [['2-10', ['a', 'b'], 'T']]);
+  assert.equal(takeBlockerFor(cues[0], ctx), 'Y is up on 2-5. Take it off there first.');
+});
+
 test('a Play next is checked for every clip it will play, not only its own', () => {
   // P plays Q next on 2-10; Q's file is up on 3-10 as a Play-through folder's clip.
   const T = { id: 'T', name: 'Opening', mode: 'through', slot: { channel: 3, layer: 10 } };
