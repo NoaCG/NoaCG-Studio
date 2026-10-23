@@ -65,15 +65,24 @@ changes a spec's digest.
       the next send", deferred to this phase by phase 11). The page's writes a verb makes after a
       wait (a cue's values, the production tree, All out's clear through the Bridge) move nothing
       once the session ended either: the module wraps them once, so a bump, an adjust event or a
-      queued bound press cannot move the cue or the tree alone. The route keys the page by
-      production, so this is only the leave-the-page case.
+      queued bound press cannot move the cue or the tree alone. One exception, on purpose: All out
+      pressed before the end still sends its clear of the graphics it named (its targets were
+      taken at the press, and a clear can air nothing stale), so leaving the page during the
+      Bridge's round trip never leaves a lower third up; its answer moves nothing here and a
+      failed clear does not go on to the Bridge. This end rule covers the graphic sends; the server
+      verbs (`serverVerb`, phase 5) and the folder runs (phase 10) keep their own rules. The route
+      keys the page by production, so this is only the leave-the-page case.
     - `runVerb` is one function for the session, not a `useCallback` keyed on the slug and the
       log's labels, so the data dispatch effect no longer re-runs when only those change. It sends
       what the tree changed since its last send (`diffResolved` against `lastResolved`), so such a
       re-run sent nothing.
-    - a caller outside the module (the data dispatch, a folder run, a timed cue) sends with the page
-      as it stands when it sends, where the old `sendVerb` closure was the render its caller
-      captured. They differ only if the first publish lands inside that caller's wait.
+    - a caller outside the module reads the page as it stands when it calls, where the old
+      closures were the render its caller captured: the data dispatch, a folder run and a timed cue
+      send with the newest sender; a One-by-one step's `takeCue`, called after its save wait, takes
+      with the newest render (its server verb's rundown, `graphicOf`, `liveCue`); and a removal of
+      several graphics checks each one's `liveCue` in the render of that moment, so a graphic
+      another operator took off meanwhile gets no Out and one taken meanwhile is taken off. All of
+      these read fresher facts; none sends what the operator did not press.
     - the in-flight count's two writes are one `sending(delta)` (`n + 1` never needed the floor).
     - one module clock, `wallClock`, serves the timed cues' engine, the verbs and the wire's 1 s
       tick, which called `Date.now()` inline: with `onVerb`'s and the sender's bodies gone from the
@@ -84,7 +93,8 @@ changes a spec's digest.
     - the held folder's "Everything in ... is on air" refusal is `stepFace`'s own sentence, and a
       server cue's CasparCG-off rule is `casparOffRefusal`, rather than copies of them.
 - **Mutation checks** (`scripts/graphic-verbs.test.mjs`, `verb-view`, `verb-dispatch`, plus
-  `air-state` and `live-cue` for the two inversions): all 83 caught. Take: no save wait; the draft
+  `air-state` and `live-cue` for the two inversions): all 96 caught, including the 13 the
+  assessment's survivors suggested (below). Take: no save wait; the draft
   read before the wait; the marker folded before the answer; `leftAlone` dropped; misses cleared on
   a failure; a server take stepping when it did not go. Send: no alive check; an answer after the
   end applied; no arm marker; in-flight never decremented; only the failed batch owed; No output on
@@ -110,6 +120,28 @@ changes a spec's digest.
   the inverted moves guard (`airState.seedFromResolve`) fails 7 tests; the inverted `leftAlone`
   (answering nothing) fails 5. In the browser, `u` and `n` mapped to nothing in `decideVerb` fail
   both new `live-actions-first` tests.
+- **§4.2 rows to tests.** Take graphic, Re-take, Out, All out, Update, ± bump, Next, ⚡ event,
+  Snap and the sender: `scripts/graphic-verbs.test.mjs` (held save waits, late, reordered and
+  post-end answers; "Take waits for the save, then reads the draft and the bound values as they
+  stand after the wait" is the read-after-the-wait test). Panel and keyboard:
+  `scripts/verb-dispatch.test.mjs` and `scripts/verb-view.test.mjs`. Take server: phase 5's
+  `scripts/server-verbs.test.mjs` (`runAndRecord` is outside this fence); here only its hand-off
+  (`take` of a server cue). Folder Take, Out and step: phase 10's `scripts/folder-playout.test.mjs`.
+  Timed fire: phase 9's `scripts/cue-arm-engine.test.mjs`. Data dispatch: phase 7's
+  `scripts/production-data-session.test.mjs`. The seed's moves guard: phase 11's
+  `scripts/air-state.test.mjs`.
+- **Assessment A+** (a fresh deciding-tier read-only `/so` session on `c807773`): PASS WITH NOTES,
+  nothing blocking. It compared every moved verb, `onVerb` and the bar and panel facts with the base
+  line by line, ran the Node files, `tsc`, depcruise and eslint, and 178 mutants of its own (155
+  caught, 6 equivalent, 17 surviving where only a test was missing). Its notes, all handled: All
+  out's clear refused after the end (now sent, above); the outside callers' fresher reads (listed
+  above); the missing tests (now pinned: a One-by-one folder that is up steps, a Take keeps its page
+  across the wait, a third bound press waits for the second, a bound key counts from the tree,
+  Pause only on a clip, the owed mark after a landed send, No output only with a play, a server Next
+  only while up, readiness only for bound events, the moved figure written, the removal reading the
+  render, the failure labels, the step face's started); the §4.2 row map (above); the test wording.
+  The panel-against-bar sweep in `verb-view` is true by construction now that `disabled` is
+  `!allowed`; it guards against a second rule coming back, and the per-state tests pin the rules.
 - **Check findings** (code-review, high; all verified against the code). Fixed: All out refused at
   the end cleared through the Bridge; a bump or adjust event whose save wait ended after the end
   wrote the cue or tree; the dispatcher kept a copy of `editVerb`'s keys; a folder decision acted
