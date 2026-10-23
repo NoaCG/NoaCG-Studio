@@ -52,6 +52,8 @@ import { type HeldVersion } from '../../control/readiness';
 import { slotHolds } from '../../control/prepareLive';
 import { casparOutputTarget, type SlotReading, type StatusCheck } from '../../control/playoutStatus';
 import type { AuthUiState } from '../auth/useAuthState';
+import type { PrepareFlow } from '../control/PrepareForLive';
+import type { useRundownHistory } from './useRundownHistory';
 
 /**
  * What the account gate says, in the dialog's first line. Plain words about what the press does
@@ -112,7 +114,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
 export type ProductionPublishState = ReturnType<typeof useProductionPublish>;
 
 /** What the handlers read from the page: this render's values, and the page's own verbs. */
-export interface PublishActionsIo {
+interface PublishActionsIo {
   show: Show;
   setShows: (shows: Show[]) => void;
   setNote: (note: string | null) => void;
@@ -128,7 +130,7 @@ export interface PublishActionsIo {
   outputSlot: SlotReading | undefined;
   onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
   flushDraft: () => Promise<unknown>;
-  history: { closeGroup: () => Promise<unknown> };
+  history: Pick<ReturnType<typeof useRundownHistory>, 'closeGroup'>;
   casparOn: boolean;
   accountCaspar: boolean | null | undefined;
   publishedReaders: ReadonlySet<string>;
@@ -138,7 +140,7 @@ export interface PublishActionsIo {
   liveCueRef: { readonly current: LiveCueMap };
   /** The first publish found graphics taken in rehearsal: the page takes them out of PROGRAM. */
   onFirstPublish: (rehearsed: string[]) => void;
-  prepareFlow: { run: () => Promise<unknown> };
+  prepareFlow: Pick<PrepareFlow, 'run'>;
 }
 
 /** The publish, slot and links handlers, built on every render after the page's early return. */
