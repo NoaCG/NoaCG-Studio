@@ -15,6 +15,7 @@
 // covers: src/control/failedSends.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';

@@ -4,6 +4,7 @@
 // covers: src/components/home/useProductionPublish.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // PUBLISHED OWNERSHIP AND THE SERVER TICK (data-sources C2; data AC-3 published half, AC-11;
 // sheet-data-flow AC-4, AC-5, AC-7), against the real database of the configured stack

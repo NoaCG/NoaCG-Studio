@@ -13,7 +13,7 @@
 // ./cueArmWire.ts write it), `folders` what the folders remember and which are still being sent
 // (./folderPlayout.ts writes it), `air` what this page believes is on air and `log` the action log's
 // lines (./airState.ts holds every fold that writes them; ./sessionWire.ts follows the wire into
-// them), and later phases add the rest.
+// them), and `draft` the cue being typed (./cueDraft.ts writes it).
 // Every write is one synchronous `apply(fold)`, parts set in a fixed order (D4). No React and only
 // `.ts` runtime imports, so a Node test drives it as it is.
 
@@ -113,6 +113,15 @@ export interface LogPart {
 
 export const NO_LOG: LogPart = { entries: [], localId: 0 };
 
+/** The selected cue's unsaved edits, by its id (./cueDraft.ts says the rules): what the editor
+ *  shows, and what Take and Update air once the save they wait for answers. */
+export interface DraftPart {
+  cueId: string;
+  label: string;
+  note: string;
+  values: Record<string, string>;
+}
+
 export interface PlayoutSession {
   /** The production this session belongs to. */
   readonly key: string;
@@ -130,6 +139,8 @@ export interface PlayoutSession {
   air: StorePart<AirPart>;
   /** The action log's lines. */
   log: StorePart<LogPart>;
+  /** The cue being typed, null when nothing is. */
+  draft: StorePart<DraftPart | null>;
   /** The commands applied here, by the id their press minted, on whichever road came first. */
   readonly applied: AppliedOnce;
   /** Move the session's parts with one fold, in a fixed order. A no-op once disposed. */
@@ -148,6 +159,7 @@ export interface SessionParts {
   folders: FoldersPart;
   air: AirPart;
   log: LogPart;
+  draft: DraftPart | null;
 }
 
 export function createPlayoutSession(productionId: string): PlayoutSession {
@@ -159,6 +171,7 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
   const folders = storePart<FoldersPart>(NO_FOLDERS);
   const air = storePart<AirPart>(NO_AIR);
   const log = storePart<LogPart>(NO_LOG);
+  const draft = storePart<DraftPart | null>(null);
   return {
     key: productionId,
     alive: () => alive,
@@ -168,10 +181,11 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
     folders,
     air,
     log,
+    draft,
     applied: createAppliedOnce(),
     apply: (fold) => {
       if (!alive) return;
-      const next = fold({ data: data.get(), bridge: bridge.get(), arms: arms.get(), folders: folders.get(), air: air.get(), log: log.get() });
+      const next = fold({ data: data.get(), bridge: bridge.get(), arms: arms.get(), folders: folders.get(), air: air.get(), log: log.get(), draft: draft.get() });
       // The fixed order: later parts are set after `data`, as D4 lists them.
       data.set(next.data);
       bridge.set(next.bridge);
@@ -179,6 +193,7 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
       folders.set(next.folders);
       air.set(next.air);
       log.set(next.log);
+      draft.set(next.draft);
     },
     onDispose: (stop) => {
       if (!alive) {

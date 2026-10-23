@@ -3,6 +3,7 @@
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/CueActions.tsx
+// covers: src/control/cueDraft.ts
 // focus
 
 import { test, expect, type Page } from '@playwright/test';

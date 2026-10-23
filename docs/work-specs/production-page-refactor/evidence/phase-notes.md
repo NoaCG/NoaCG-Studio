@@ -5,6 +5,107 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 24, phase 13b: cueDraft.ts, the `draft` part, final editor subscriptions
+
+- **Previous verified `main` sha:** phase 12 passed on main (#1644 at `69cefde`); this branch
+  starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No storage key, persisted format, sentence,
+  request, row or marker shape changes; the draft lives only in memory, as the page state did.
+- **Decisions.**
+  - *The `draft` part* (`session.draft`, `DraftPart | null`, set last, after `log`) holds the cue
+    being typed: its id, label, note and values. Whether a save is owed and the 300 ms idle timer
+    are `control/cueDraft.ts`'s own: nothing draws them. `createCueDraft(session, io)` is made once
+    per session (`useMemo`, as the folder module is); the page's effect `cueDraft.listen(adapters)`
+    hears the browser (page hide, tab hidden, the account pausing: save at once; the account asking:
+    flush) and its stop saves at once, as the old effect's cleanup did. The session's end saves what
+    is owed, drops the idle save, and every later answer and edit changes nothing.
+  - *Who subscribes (D12, §7):* `CueEditor` (`useStorePart(draft.part)`, its boxes, headings, folded
+    summary and the sound's key, with `data-renders` on its root), `CueRundown` (each row's label,
+    note and words), `PlayoutMonitors` (PREVIEW's label and `settleData`, from the `previewCue`,
+    `draft` and the page's `settleOf`), and a `DraftView` child in the page for `ServerCueEditor`
+    (outside the fence, it takes the text as a prop). The page subscribes to one value through
+    `useDrawnDraft`: the edited cue's unsent fields, the on-air cues with any (`unsentNow`) and the
+    countdown chip's cue label, compared by value, so a keystroke renders the page only when one of
+    them reads differently (the first keystroke into a field that matched air).
+  - *No mirror a verb acts on.* The verbs, the timed cues, the server verbs and the folders read the
+    part itself at the call (`cueDraft.view`, `cueDraft.label`), after their wait, never a render's
+    copy. The page's one remembered value is `useDrawnDraft`'s last answer, kept only to compare;
+    what the bar draws from it (the Update dot and title, the rows' amber) is recomputed in every
+    render from the part, and Update's enabled state does not depend on the draft. So a Take or
+    Update pressed between a keystroke and a render airs the keystroke: it awaits `flush`, which
+    starts the save of the newest draft, then reads the part (pinned in Node: "Take waits for the
+    flush, then reads what was typed").
+  - *The temporary interfaces, mapped.* The modules outside this fence keep their interface names
+    (`graphicVerbs.ts`, `serverVerbs.ts`, `cueArmEngine.ts`, `folderPlayout.ts`,
+    `useRundownAuthoring.ts`, as phase 11 left `liveCueOf`); the page no longer fills them from its
+    own refs: `cueView` is `cueDraft.view` (the part over the newest record), `flush` is
+    `cueDraft.flush` then the history's `closeGroup`, `resolvedOf` is `boundNow` (the session's
+    `data` part as it stands, the newest tree). Old state and refs: `draft`/`draftRef` to the part;
+    `draftPending`, `flushTimer` to the module; `editDraft` to `cueDraft.edit(editingCue, patch)`;
+    `flushDraft`, `cancelDraft` to `flush`, `cancel`; `retainClosingDraft` and its effect to `listen`
+    and the session's end; `cueLabel`'s draft half to `label`; `unsentOf` to `unsent` and
+    `unsentNow`; `settleData`, `editingView`, `headingValues`, `setupSummary` to the subscribers
+    above; the id-change `cancelDraft` effect to the new session's empty part. `draftOwner` stays
+    in the page (the rundown authoring's long-lived writes check it).
+  - *Non-mechanical changes,* all listed:
+    - `resolvedOf` reads the newest tree (`boundNow`) where it read the last render's `resolved`;
+      they differ only when the tree moved during a verb's wait and no render ran since, and then
+      Take, Update and an event air the newer bound value, which §4.1 R2 asks for.
+    - the rundown authoring's `setDraft(null)` is `cancel()`: the draft and its idle save go at
+      once, where the old state cleared at the next render and the timer then found nothing.
+    - leaving a production: the old effect cleanup and the new `listen` stop both save at once; the
+      new session's end, one task later, saves again only what is still owed (nothing). A draft of a
+      production the page has left is never written through the page's history (now the next
+      production's): `writeCue` answers "not saved" and the end saves it directly, where the old
+      `flushDraft` refused it. The route keys the page by production, so this is only defensive.
+    - `cancel` no longer resets "owed" (with no draft nothing is owed, and the next edit owes its
+      own); `flush` no longer checks the session (after its end nothing is owed). Both were
+      equivalent mutants.
+    - the countdown chip's cue label is part of the page's drawn value, so renaming a counting cue
+      renders the page per keystroke, as before; a value field never does.
+    - the sound is a render function the editor calls with the text it shows (the 13a trap: its key
+      reads the picture being typed).
+- **Render counts (§7, AC-7, AC-9 render targets).** New in `e2e/playout-air-contract.spec.ts`,
+  timers frozen while ten keys go into the on-air cue: the first keystroke renders the page at most
+  once and the nine after it not at all; the editor at most once per key. The dev server runs under
+  `React.StrictMode`, which calls a component twice per render, so the spec counts 2 per render.
+  Beside the counts: the box, `cue-unsent`, the rundown row and Update show the typed text before
+  any save, PREVIEW's `#f0` holds it 200 ms on (it settles at 150, the save comes at 300), and
+  Update airs it. `e2e/configured/panel-production-page.spec.ts` gains the panel half: after typing
+  into the on-air cue the snapshot still allows `update`. A timing reading moving the page by 0 and
+  the clip clock moving stay `e2e/playout-clock.spec.ts`'s (unchanged).
+- **Mutation checks.** Browser: the page subscribed to the draft part (fails "the nine keystrokes
+  after it do not render the page"); the rundown row reading the record (fails the row); PREVIEW
+  reading the record (fails PREVIEW's `#f0`). Node (`scripts/cue-draft.test.mjs`,
+  `scripts/playout-session.test.mjs`), 29 mutants: the flush skipped before Take, written twice, the
+  idle save kept after the end, nothing saved at the end, unsent never true, never false, a bound
+  field counted, the label from the saved cue, a 250 ms delay, the timer not restarted, an answer
+  dropping a newer draft, a refused save not owed again, owed after a synchronous save, `view`
+  ignoring the newest record, ignoring the draft, reading it for any cue, an edit restarting from
+  the record, unsorted group keys, edit and flush ignoring the account, editing after the end, the
+  listen stop not saving, hide flushing instead of saving at once, the flush ask ignored, the note
+  saved as "", cancel keeping the timer, the history told after the draft is set: 27 caught; the
+  two equivalent ones (cancel resetting "owed", flush checking the session) were removed from the
+  code rather than kept.
+- **Traps.**
+  - Never run a mutation script against `src/` while a browser job runs: the dev server serves the
+    mutants to the running specs. Three unrelated failures here (production-data's quiz Take,
+    playout-drills' SPACE, the new render test) came from exactly that and passed on a clean re-run.
+  - `data-renders` counts calls, and StrictMode in development calls twice per render.
+  - A `useSyncExternalStore` selector cannot sit where the page draws the unsent state: the page's
+    one early return comes before it, so the subscription (`useDrawnDraft`) is a hook near the
+    session and the value is drawn later in the render.
+  - The spec's line numbers (1329-1359, 1654-1671, 2831-2846, 1990-1992) are from `cc3500f2`; on
+    `69cefde` the draft was at 1189-1245, `cueView` and `cueLabel` at 1509-1530, `settleData` at
+    1701, `unsentOf` and `editDraft` at 2135-2178.
+  - Playwright wants `chromium_headless_shell-1228` while the image ships `-1243`; the same symlink
+    under `/opt/pw-browsers` as phases 10 to 12 (#1647). Nothing in the repo changed for it.
+  - **Extra files:** 47 e2e specs (those whose covers named `CueEditor.tsx` or `graphicVerbs.ts`)
+    gain one comment line naming `src/control/cueDraft.ts`. No existing assertion or selector
+    changes; two specs gain new assertions (above).
+- **Left for the laptop helper:** AC-9's timing repeat on this phase's merge SHA (non-gating).
+
 ## Row 23, phase 12: graphicVerbs.ts, verbDispatch.ts, verbView.ts
 
 - **Previous verified `main` sha:** phase 11 passed on main (#1639 at `08389cf`); this branch

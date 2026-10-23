@@ -4,6 +4,7 @@
 // covers: src/components/home/useProductionPublish.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // ALL OUT CLEARS WHAT THE SERVER SAYS IS ON (docs/work-specs/playout-workflow-simplification D11,
 // AC-13). The production page used to clear only the graphics its own list had a cue marker for,
