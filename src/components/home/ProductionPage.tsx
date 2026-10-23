@@ -550,7 +550,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     armEngine.current = engine;
     return () => {
       engine.stop();
-      if (armEngine.current === engine) armEngine.current = null;
+      armEngine.current = null;
     };
   }, [session]);
   const serverOwnership = useStorePart(serverPlayout.ownership);

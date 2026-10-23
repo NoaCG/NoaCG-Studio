@@ -222,7 +222,6 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       unsubscribe();
       offVisible();
       if (timer !== undefined) io.clearTimer(timer);
-      timer = undefined;
     };
   };
 
