@@ -1,7 +1,8 @@
 # Phase 5 (row 17): takeBlockers.ts and serverVerbs.ts
 
 Gating acceptance: AC-2, AC-3, AC-8, phase 5's matrix row, assessment A. Built on `main`
-`ab9b5e485c9e1d80eb3ce0f55e7e70a87c0a069e`. Candidate code sha: CANDIDATE.
+`ab9b5e485c9e1d80eb3ce0f55e7e70a87c0a069e`. Candidate code sha: `413f9e47` (after it only this directory changes). The e2e runs are on
+`2d04ef7d`; `413f9e47` adds one Node test case and nothing else.
 
 ## What moved
 
@@ -71,7 +72,17 @@ top and taking `casparOn`, and `directBlocker` taking `settings` (the page passe
 
 | Item | Command | Result |
 | --- | --- | --- |
-RESULTS
+| Phase 5 row (offline, local) | `npm run test:e2e -- e2e/playout-cues.spec.ts e2e/playout-clock.spec.ts e2e/playout-sequence.spec.ts` and `npm run test:e2e -- e2e/playout-folders.spec.ts` (queue, two jobs) | 39 passed (j-0002) and 52 passed (j-0003) on `2d04ef7d`. A first single job on `262006aa` (all four) passed 57 of 57 before its time cap stopped it; not counted. |
+| Node (the row) | `node --test scripts/take-blockers.test.mjs scripts/server-verbs.test.mjs` | 30 of 30 pass on `413f9e47` |
+| Node (neighbours, unchanged) | `node --test scripts/server-playout.test.mjs scripts/folder-playout.test.mjs` | pass, unchanged |
+| Configured dispatch | not required by the row ("no") | not run |
+| e2e diff (AC-2) | `git diff origin/main...HEAD -- e2e \| grep '^[-+]' \| grep -v '^+++\|^---\|^+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts'` | empty: 10 specs gain one `// covers:` line each; no assertion or selector changes |
+| AC-3 | `// guards:` first line of both test files; runtime imports in both modules are `.ts` control/model modules; `npm run depcruise` | both modules load in Node; no dependency violations (1357 modules), `.dependency-cruiser.cjs` unchanged |
+| AC-8 | `git diff --name-only origin/main...HEAD -- src` | `src/components/home/ProductionPage.tsx`, `src/control/serverVerbs.ts`, `src/control/takeBlockers.ts` |
+| Covers | `node scripts/e2e-affected.mjs --list --files src/control/takeBlockers.ts` | selects the four specs of the row plus `bridge-connect`, `publish-output-setup`, `studio-evening-reliability`, `studio-release-completion`, `playout-air-contract` (before the covers lines: a 13-spec fallback with none of them) |
+| Assessment A | a fresh read-only `/so` session on `2d04ef7d` | **AGREE WITH NOTES**, nothing blocking: identity confirmed line by line, every difference listed, §4.1-4.2 order kept, AC-2/3/8 hold; 18 mutants of its own, 14 red, 2 equivalent, 2 gaps. One gap (a Play-through clip's air check over the rest of its run) is now pinned in `413f9e47`; the other (the fold's sequence on a non-Take verb) is an equivalent mutant (see below). Its other note: the `graphicOf` swap also calls the pure `graphicLayer`, no effect. |
+| `/check` | review delegated (8 findings: 2 fixed, the placeholders filled, 5 left with reasons in the pull request); simplify delegated (4 angles: 4 applied, the rest left) | pass |
+| Types, lint, gates | `npx tsc --noEmit -p .`, `npx eslint` on the changed files, `node scripts/gates.mjs run --changed origin/main` | clean; gates exit 0 |
 
 ## Mutation check
 
