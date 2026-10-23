@@ -542,8 +542,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * remember - where each One-by-one folder's step stands, why the last folder Take missed each cue,
    * and which folders are still being sent - in the session's `folders` part. It reads this page
    * through `folderPage`, set every render, so a press sees the render it was made from.
+   *
+   * The page draws the part at React's ordinary pace, as the page state it replaced did, and not
+   * through `useStorePart`, whose updates render synchronously: a second SPACE one task after a
+   * folder's Take must still meet the render the first press met, which ignores it (the run is
+   * already registered), rather than one that reads the folder as up and takes it off
+   * (e2e/playout-air-contract.spec.ts S3).
    */
-  const { folderSteps, takeMisses, sending: sendingFolders } = useStorePart(session.folders);
+  const [folderMemory, setFolderMemory] = useState(session.folders.get);
+  useEffect(() => {
+    setFolderMemory(session.folders.get());
+    return session.folders.subscribe(() => setFolderMemory(session.folders.get()));
+  }, [session]);
+  const { folderSteps, takeMisses, sending: sendingFolders } = folderMemory;
   const folderPage = useRef<FolderPage | null>(null);
   const folderPlayout = useMemo(() => createFolderPlayout(session, FOLDER_IO, () => folderPage.current!), [session]);
   const serverOwnership = useStorePart(serverPlayout.ownership);
