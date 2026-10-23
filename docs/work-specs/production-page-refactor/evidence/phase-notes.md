@@ -62,8 +62,11 @@ changes a spec's digest.
   - *Non-mechanical changes,* all listed:
     - after the session's end `send` refuses: nothing is applied here and nothing is sent, and the
       press is told "This production is closed, so nothing was sent." (§5.3's "dispose() refuses
-      the next send", deferred to this phase by phase 11). The route keys the page by production,
-      so this is only the leave-the-page case.
+      the next send", deferred to this phase by phase 11). The page's writes a verb makes after a
+      wait (a cue's values, the production tree, All out's clear through the Bridge) move nothing
+      once the session ended either: the module wraps them once, so a bump, an adjust event or a
+      queued bound press cannot move the cue or the tree alone. The route keys the page by
+      production, so this is only the leave-the-page case.
     - `runVerb` is one function for the session, not a `useCallback` keyed on the slug and the
       log's labels, so the data dispatch effect no longer re-runs when only those change. It sends
       what the tree changed since its last send (`diffResolved` against `lastResolved`), so such a
@@ -72,11 +75,16 @@ changes a spec's digest.
       as it stands when it sends, where the old `sendVerb` closure was the render its caller
       captured. They differ only if the first publish lands inside that caller's wait.
     - the in-flight count's two writes are one `sending(delta)` (`n + 1` never needed the floor).
-    - the wire's 1 s tick and the verbs' clock call a module `wallClock` rather than `Date.now()`
-      inline: with `onVerb`'s and the sender's bodies gone from the component, the compiler lint
-      analyses it and reads `Date.now` in a render-built callback as called during render.
+    - one module clock, `wallClock`, serves the timed cues' engine, the verbs and the wire's 1 s
+      tick, which called `Date.now()` inline: with `onVerb`'s and the sender's bodies gone from the
+      component, the compiler lint analyses it and reads `Date.now` in a render-built callback as
+      called during render.
+    - `onVerb` asks `editVerb` first: its keys and the dispatcher's are disjoint, and `editVerb`
+      does nothing for a key that is not its own, so the order changes nothing.
+    - the held folder's "Everything in ... is on air" refusal is `stepFace`'s own sentence, and a
+      server cue's CasparCG-off rule is `casparOffRefusal`, rather than copies of them.
 - **Mutation checks** (`scripts/graphic-verbs.test.mjs`, `verb-view`, `verb-dispatch`, plus
-  `air-state` and `live-cue` for the two inversions): all 80 caught. Take: no save wait; the draft
+  `air-state` and `live-cue` for the two inversions): all 83 caught. Take: no save wait; the draft
   read before the wait; the marker folded before the answer; `leftAlone` dropped; misses cleared on
   a failure; a server take stepping when it did not go. Send: no alive check; an answer after the
   end applied; no arm marker; in-flight never decremented; only the failed batch owed; No output on
@@ -96,10 +104,23 @@ changes a spec's digest.
   layer; take-off not staging; take ignoring `canTake`; a folder's repeat firing; its refusal
   silent; its Bridge wait loud; take-cue ignoring air or refusing a take-off; a trigger ignoring the
   Bridge or keeping its folder; H repeating; paste not an edit key; a folder header selected as a
-  cue; Pause on any cue; P ignoring the panel's clip; the walk inverted. **AC-4's two inversions:**
+  cue; Pause on any cue; P ignoring the panel's clip; the walk inverted. After the end:
+  the Bridge clear, the cue write, the tree write and the bump's cue write each unguarded. **AC-4's
+  two inversions:**
   the inverted moves guard (`airState.seedFromResolve`) fails 7 tests; the inverted `leftAlone`
   (answering nothing) fails 5. In the browser, `u` and `n` mapped to nothing in `decideVerb` fail
   both new `live-actions-first` tests.
+- **Check findings** (code-review, high; all verified against the code). Fixed: All out refused at
+  the end cleared through the Bridge; a bump or adjust event whose save wait ended after the end
+  wrote the cue or tree; the dispatcher kept a copy of `editVerb`'s keys; a folder decision acted
+  on the selection instead of its own folder id; Take read the page twice; `nextMoves` checked the
+  selection twice. Simplify (reuse, simplification, efficiency, altitude): the end guard moved to
+  one wrapper; `allowed` is computed once and `disabled`, the panel and the dispatcher read it; one
+  `clearOne` for Out and the removal; `movedKeys` once per press; one `published` (the sender's);
+  the names list and the panel's cue ids built only when read; unused exports dropped. Kept: the
+  sender and page as two objects (phase 13 removes the temporary page); rebuilding both every
+  render, as `armPage` and `folderPage` are; the direct trigger's Bridge sentence (its home,
+  `takeBlockers.directBlocker`, is outside the fence).
 - **Traps.**
   - The spec's line numbers (2160-2258, 2960-3305, 3879-3935, 4006-4162, 2756-2830, 3486-3513,
     4173-4210) are from `cc3500f2`; on `08389cf` the sender was at 1889-1978, the verb facts at
