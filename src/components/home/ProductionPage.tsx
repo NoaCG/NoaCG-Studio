@@ -295,10 +295,12 @@ const PRODUCTION_PANEL_VERBS: ReadonlySet<PanelVerb> = new Set<PanelVerb>(PANEL_
 const panelClipNow = (store: ServerPlayoutStore, items: readonly PlayoutItem[], cues: readonly ShowCue[]) =>
   panelClip(clipClock(store.ownership.get(), store.timing.get(), items, cues, performance.now()), Date.now());
 
+/** This machine's clock (ms): what timed cues count in, and when the log last took a send. */
+const wallClock = () => Date.now();
 /** The unpublished timed-cue engine's browser half (control/cueArmEngine.ts): the time it counts in,
  *  this machine's own (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0), its timer and the tab. */
 const CUE_ARM_IO: CueArmEngineIo = {
-  wallClock: () => Date.now(),
+  wallClock,
   setTimer: (run, ms) => window.setTimeout(run, ms),
   clearTimer: (timer) => window.clearTimeout(timer as number),
   onVisible: BRIDGE_IO.onVisible,
@@ -306,9 +308,6 @@ const CUE_ARM_IO: CueArmEngineIo = {
 
 /** A folder's Take's browser half (control/folderPlayout.ts): the clock a server take is stamped with. */
 const FOLDER_IO: FolderPlayoutIo = { now: () => performance.now() };
-/** This machine's clock (ms), outside the render: the lint reads `Date.now` in a callback built
- *  during render as called there. */
-const wallClock = () => Date.now();
 /** The verbs' browser half (control/graphicVerbs.ts): the wire's doors, the press rules of
  *  control/controlModel.ts (which Node cannot load), the clock and the bound presses' timer. */
 const GRAPHIC_VERB_IO: GraphicVerbIo = {
@@ -2346,8 +2345,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (failed.length) setNote(`All out: ${failed.join(' ')}`);
   };
   verbPage.current = {
-    published: hostedSlug,
-    graphics: show.graphics.map((g) => g.name),
+    graphics: show.graphics,
     liveCue,
     aired: airedData,
     liveLayers,
@@ -2783,7 +2781,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return panelSnapshot(view, {
         title: show.name,
         cursorRow,
-        cueIds: cues.map((c) => c.id),
+        cues,
         live,
         refused: takeRefused,
         folderRows: rundown.rows.filter((r) => r.kind === 'folder').map((r) => r.id),

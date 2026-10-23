@@ -169,7 +169,7 @@ test('All out: grey only while clearing or with nothing to clear; published it a
 const facts = (extra = {}) => ({
   title: 'Show',
   cursorRow: 'folder-row-F',
-  cueIds: ['c1', 'c2', 'v1'],
+  cues: [{ id: 'c1' }, { id: 'c2' }, { id: 'v1' }],
   live: new Set(),
   refused: new Set(),
   folderRows: [],

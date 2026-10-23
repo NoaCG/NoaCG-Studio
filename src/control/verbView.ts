@@ -14,9 +14,10 @@ import type { PanelClip, PanelRow, PanelSnapshot } from './panelFeedback';
 import type { VerbSelection } from './graphicVerbs';
 import { SPACE_FACES, spaceAction, type SpaceAction, type SpaceMode } from './spaceMode.ts';
 import { stepFace, type FolderStep } from './folderStep.ts';
+import { casparOffRefusal } from './takeBlockers.ts';
 
 /** A held folder row, as the render sees it. */
-export interface HeldFolder {
+interface HeldFolder {
   name: string;
   /** Any of it on air, or its Take still being sent. */
   up: boolean;
@@ -63,7 +64,7 @@ export interface VerbInputs {
   unnamedUp: () => boolean;
 }
 
-export interface TakeButton {
+interface TakeButton {
   space: SpaceAction;
   disabled: boolean;
   title: string;
@@ -96,7 +97,9 @@ export interface VerbView extends VerbSelection {
   folderSpace: SpaceAction;
   folderCanTake: boolean;
   take: TakeButton;
-  /** The bar's greyed verbs. */
+  /** Which of the bar's verbs may go: what a key or a panel's key may do, and, read backwards,
+   *  which of its buttons are grey. */
+  allowed: { retake: boolean; update: boolean; next: boolean; out: boolean; pause: boolean; resume: boolean };
   disabled: { retake: boolean; update: boolean; next: boolean; out: boolean };
   allOutEnabled: boolean;
 }
@@ -115,7 +118,7 @@ export function verbView(input: VerbInputs): VerbView {
   const selectedCueStaged = !!selectedCue && input.previewCueId === selectedCue.id;
   const spaceNext = spaceAction(input.spaceMode, { live: selectedCueIsLive, previewed: selectedCueStaged });
   /** A server cue cannot be taken while the server is off or the Bridge says it is not there. */
-  const canTake = !!selectedCue && !(selectedCue.source === 'playout' && (!input.casparOn || input.bridgeDown));
+  const canTake = !!selectedCue && !(casparOffRefusal(selectedCue, input.casparOn) || (selectedCue.source === 'playout' && input.bridgeDown));
   const nextMoves = input.advances || (selectedPlayoutLive && input.selectedItemKind === 'template');
 
   const folderUp = !!folder && folder.up;
@@ -125,7 +128,7 @@ export function verbView(input: VerbInputs): VerbView {
     ? null
     : step
       ? step.kind === 'none'
-        ? `Everything in ${folder.name} is on air. 0 takes it off.`
+        ? stepFace(step, folder.name, folder.labelOf, true).title
         : step.kind === 'take'
           ? folder.stepBlocked
           : null
@@ -158,6 +161,14 @@ export function verbView(input: VerbInputs): VerbView {
     };
   }
 
+  const allowed = {
+    retake: selectedCueIsLive,
+    update: editingIsLive,
+    next: selectedLayerLive && nextMoves,
+    out: folder ? folderUp || heldStarted : selectedLayerLive,
+    pause: selectedClipUp,
+    resume: selectedClipUp,
+  };
   // A folder's Take still being sent counts: All out is what stops it before any of it lands.
   // Published, always: the page's own list is not the authority on what is on (AC-13, D11).
   const allOutEnabled = !input.clearing && (input.published || input.anyUp || input.unnamedUp());
@@ -185,12 +196,8 @@ export function verbView(input: VerbInputs): VerbView {
     folderSpace,
     folderCanTake,
     take,
-    disabled: {
-      retake: !selectedCueIsLive,
-      update: !editingIsLive,
-      next: !selectedLayerLive || !nextMoves,
-      out: folder ? !folderUp && !heldStarted : !selectedLayerLive,
-    },
+    allowed,
+    disabled: { retake: !allowed.retake, update: !allowed.update, next: !allowed.next, out: !allowed.out },
     allOutEnabled,
   };
 }
@@ -200,7 +207,7 @@ export interface PanelFacts {
   title: string;
   /** The held folder's header row, when a folder is held. */
   cursorRow: string | null;
-  cueIds: readonly string[];
+  cues: readonly { id: string }[];
   /** The cues on air now, and those whose own Take would be refused. */
   live: ReadonlySet<string>;
   refused: ReadonlySet<string>;
@@ -226,19 +233,14 @@ export function panelSnapshot(view: VerbView, facts: PanelFacts): PanelSnapshot 
     allowed: {
       // The dispatcher's Take of a cue also waits for `canTake` (a server cue while the Bridge is down).
       take: !view.take.disabled && (view.folderHeld || view.canTake),
-      retake: view.selectedCueIsLive,
-      update: view.editingIsLive,
-      next: view.selectedLayerLive && view.nextMoves,
-      out: view.folderHeld ? view.folderUp || view.heldStarted : view.selectedLayerLive,
+      ...view.allowed,
       'select-prev': facts.rowCount > 0,
       'select-next': facts.rowCount > 0,
-      pause: view.selectedClipUp,
-      resume: view.selectedClipUp,
       'pause-toggle': facts.clip !== null,
       'all-out': view.allOutEnabled,
     },
     // A cue's own Take key is refused when its Take would not go; taking one off air never is.
-    blocked: [...facts.folderRows, ...facts.cueIds.filter((id) => !facts.live.has(id) && facts.refused.has(id))],
+    blocked: [...facts.folderRows, ...facts.cues.filter((c) => !facts.live.has(c.id) && facts.refused.has(c.id)).map((c) => c.id)],
     clip: facts.clip,
     bridge: !facts.configured ? 'off' : view.bridgeDown ? 'down' : 'ok',
     rows: facts.rows,

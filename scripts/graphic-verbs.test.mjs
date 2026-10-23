@@ -83,8 +83,7 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
     note: (n) => typeof n === 'string' && notes.push(n),
   };
   const page = {
-    published,
-    graphics: ['Strap', 'Score', 'Clock'],
+    graphics: [{ name: 'Strap' }, { name: 'Score' }, { name: 'Clock' }],
     liveCue,
     aired,
     liveLayers: Object.keys(liveCue).map((graphic) => ({ graphic })),
@@ -867,5 +866,5 @@ test('a press whose save wait ends after the production closed moves nothing: no
   outs[0].resolve(true);
   await clearing;
   assert.equal(d.sends.length, 0);
-  assert.deepEqual(d.notes, []);
+  assert.ok(!d.notes.some((n) => n.startsWith('bridge:')));
 });

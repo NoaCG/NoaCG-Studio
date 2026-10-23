@@ -138,13 +138,13 @@ export function decideVerb(key: VerbKey, press: Press | undefined, view: Dispatc
     return { do: 'take', cue: selectedCue };
   }
   // Re-take: play a live cue's entrance again from the start. Only on a cue that IS live.
-  if (key === 'retake') return view.selectedCueIsLive && selectedCue ? { do: 'take', cue: selectedCue } : NONE;
-  if (key === 'update') return view.editingIsLive ? { do: 'update' } : NONE;
-  if (key === 'next') return view.selectedLayerLive && view.nextMoves ? { do: 'next' } : NONE;
-  if (key === 'out') return view.selectedLayerLive ? { do: 'out' } : NONE;
+  if (key === 'retake') return view.allowed.retake && selectedCue ? { do: 'take', cue: selectedCue } : NONE;
+  if (key === 'update') return view.allowed.update ? { do: 'update' } : NONE;
+  if (key === 'next') return view.allowed.next ? { do: 'next' } : NONE;
+  if (key === 'out') return view.allowed.out ? { do: 'out' } : NONE;
   // A server clip's transport. Only the cue this page has up on the server.
   if (key === 'pause' || key === 'resume') {
-    return selectedCue && view.selectedClipUp ? { do: 'server', cue: selectedCue, verb: key, label: key === 'pause' ? 'Pause' : 'Resume' } : NONE;
+    return selectedCue && view.allowed[key] ? { do: 'server', cue: selectedCue, verb: key, label: key === 'pause' ? 'Pause' : 'Resume' } : NONE;
   }
   // P: pause the clip on air, or resume it - the selected cue's when it is the one up, else the one
   // the clip clock follows (control/serverState.ts `pauseTarget`). Read from the store at the press.
