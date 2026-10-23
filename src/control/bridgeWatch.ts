@@ -93,10 +93,9 @@ export interface BridgeInputs {
   /** The rundown's server files as a key (production, target, items, references), or null when
    *  it has no server cue. */
   serverFiles: string | null;
-  /** The rundown's server items, for the older clips' facts. */
+  /** The rundown's server items: the older clips' facts, and whether the server's state is worth
+   *  reading at all. */
   playoutItems: readonly PlayoutItem[];
-  /** The rundown has server items: the server's state is worth reading. */
-  hasServerItems: boolean;
   /** Bumped by Check again. */
   checkAgain: number;
   /** Bumped when the studio's settings changed (the Playout settings dialog, a studio sync). */
@@ -326,7 +325,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (answers && io.loadSettings().studioPending) void io.syncStudio();
     });
     if (answers) learnFacts(i);
-    state.run(JSON.stringify([readable && i.hasServerItems, i.settingsRev]), () => (readable && i.hasServerItems ? startState() : undefined));
+    const reads = readable && i.playoutItems.length > 0;
+    state.run(JSON.stringify([reads, i.settingsRev]), () => (reads ? startState() : undefined));
   };
 
   return {

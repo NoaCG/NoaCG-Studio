@@ -110,7 +110,6 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     casparTarget: '["caspar",5250,1,20]',
     serverFiles: JSON.stringify({ show: 'show-1', items: items.map(({ id, kind, name }) => ({ id, kind, name })), refs: items.map((i) => i.id) }),
     playoutItems: items,
-    hasServerItems: items.length > 0,
     checkAgain: 0,
     settingsRev: 0,
     slotRev: 0,
@@ -320,7 +319,7 @@ test('a new target restarts the status; unpublishing stops the slot; no server i
   assert.deepEqual(t.take(), []);
   assert.equal(t.session.bridge.get().outputSlot, undefined);
   assert.deepEqual(t.live(), { subs: 1, everys: 0, visibles: 1 });
-  t.update({ hasServerItems: false });
+  t.update({ playoutItems: [] });
   assert.deepEqual(t.live(), { subs: 1, everys: 0, visibles: 0 });
   t.update({ target: 'elsewhere' });
   assert.deepEqual(t.take(), ['status off', 'status']);

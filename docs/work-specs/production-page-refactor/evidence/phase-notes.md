@@ -39,8 +39,9 @@ changes a spec's digest.
       update; it was already guarded by `learntFacts` (`${show.id} ${rev}`), so asking again with
       the same inputs is a no-op exactly as before. `show` became `showId`.
     - server state `[serverReadable, hasServerItems, playoutSettingsRev, serverPlayout]`:
-      `serverReadable` from the part, the rest restart keys (`serverPlayout` is the watch's
-      adapter and constant for the page's life).
+      `serverReadable` from the part, `hasServerItems` read from the `playoutItems` input,
+      `playoutSettingsRev` a restart key, and `serverPlayout` the watch's adapter (constant for
+      the page's life, so the start effect keys on it with the session).
   - *What moved into the part:* `bridgeStatus`, `outputSlot`, `serverFiles`, `slotSeenOurs` and
     the `learntFacts` ref. `checkAgainRev` and `slotRev` stay page state (restart keys); the
     `slotActionRev` ref became the watch's `slotActed()`; `statePoll.current?.wake()` became

@@ -1283,7 +1283,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       casparTarget,
       serverFiles: needsServerFiles ? serverFileKey : null,
       playoutItems,
-      hasServerItems: playoutItems.length > 0,
       checkAgain: checkAgainRev,
       settingsRev: playoutSettingsRev,
       slotRev,
