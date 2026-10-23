@@ -34,6 +34,7 @@ import { raiseStorageAlert } from './store/storageAlert';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import StorageHealthNotice from './components/StorageHealthNotice';
 import AccountSaveNotice from './components/AccountSaveNotice';
+import { Analytics } from '@vercel/analytics/react';
 
 /** The page's own query string. Read once: only a document load can change it (the router writes
  *  the HASH, and carries the search along unchanged), so re-parsing it per render was the same
@@ -463,6 +464,7 @@ export default function App() {
           path, which is every ordinary browser. */}
       <StorageHealthNotice />
       <AccountSaveNotice />
+      <Analytics />
     </>
   );
 }
