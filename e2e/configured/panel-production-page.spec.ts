@@ -15,6 +15,7 @@
 // covers: src/control/panelRelay.ts, src/control/panelFeedback.ts, src/control/serverPlayoutStore.ts
 // covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 
 import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from '../_durable';
