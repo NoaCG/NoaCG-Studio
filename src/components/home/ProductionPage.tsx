@@ -378,7 +378,13 @@ function usePacedPart<T, S>(part: StorePart<T>, select: (value: T) => S): S {
  * value. Typing into a field that already differs from air redraws the editor, the rundown and
  * PREVIEW, which subscribe to the draft themselves, and not the page.
  */
-function useDrawnDraft(part: StorePart<DraftPart | null>): <T>(draw: () => T) => T {
+interface DrawnDraft {
+  /** The edited cue's unsent fields, and the on-air cues with any (control/cueDraft.ts). */
+  unsent: { fields: string[]; cues: string[] };
+  /** The countdown chip's cue label, as typed. */
+  chipLabel: string | null;
+}
+function useDrawnDraft(part: StorePart<DraftPart | null>): (draw: () => DrawnDraft) => DrawnDraft {
   const latest = useRef<(() => string) | null>(null);
   const drawn = useRef('');
   const [, redraw] = useState(0);
@@ -389,7 +395,7 @@ function useDrawnDraft(part: StorePart<DraftPart | null>): <T>(draw: () => T) =>
     check();
     return part.subscribe(check);
   }, [part]);
-  return <T,>(draw: () => T): T => {
+  return (draw) => {
     const answer = draw();
     latest.current = () => JSON.stringify(draw());
     drawn.current = JSON.stringify(answer);

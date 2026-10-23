@@ -89,6 +89,17 @@ changes a spec's digest.
   reads the render's inputs, so the two would need a comparator and a latest-ref they do not share);
   moving the removal's drop into `useRundownAuthoring.ts` (outside the fence); a per-row rundown
   subscription (above); `unsentNow` calling `unsentFields` directly (`unsent` is the spec's API).
+- **Assessment A+** (a fresh read-only `/so` session on `fbf2261`): PASS WITH NOTES, nothing
+  blocking. It compared the old and new draft paths line by line (edit, flush, the synchronous
+  saves, blur and tab flushes, undo, the removal's drop, every display), checked StrictMode and the
+  unmount, ran the Node files, depcruise and the fence, and 33 mutants of its own (30 caught). Its
+  notes, handled: the surviving "save at page hide ignores the account" is now a test; the module
+  header no longer says "by construction" for the record read after a confirmed save, and says
+  what it relies on (as the old `cueView` did); the configured comment says what it checks; the
+  render test also renames the live cue and reads the row's label. Kept: the two near-equivalent
+  survivors (the answer's session check, the end resetting "owed"), the StrictMode factor of 2
+  (the `cue-unsent` line still catches a page that never renders), and `useDrawnDraft` writing
+  refs in render as the page's other refs do.
 - **Render counts (§7, AC-7, AC-9 render targets).** New in `e2e/playout-air-contract.spec.ts`,
   timers frozen while ten keys go into the on-air cue: the first keystroke renders the page at most
   once and the nine after it not at all; the editor at most once per key. The dev server runs under
@@ -112,6 +123,10 @@ changes a spec's digest.
   two equivalent ones (cancel resetting "owed", flush checking the session) were removed from the
   code rather than kept.
 - **Traps.**
+  - `scripts/e2e-affected-copy.mjs` scans every `.tsx` with its own tag reader, which reads a generic
+    function type (`): <T>(draw: () => T) => T {`) as a tag and then fails on the page's
+    `<T,>(value: T)` arrow ("unexpected , in a tag"). CI's Build ran it; the changed-gates run here
+    did not. Keep generic type syntax out of `.tsx` return types (`useDrawnDraft` takes a named type).
   - Never run a mutation script against `src/` while a browser job runs: the dev server serves the
     mutants to the running specs. Three unrelated failures here (production-data's quiz Take,
     playout-drills' SPACE, the new render test) came from exactly that and passed on a clean re-run.

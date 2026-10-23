@@ -238,6 +238,18 @@ test('the page hiding saves at once, synchronously, without the history, and kee
   stop();
 });
 
+test('the page hiding saves nothing while the account may not write, and the edit stays owed', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Paused' } });
+  h.canWrite = false;
+  for (const run of h.listeners.hide) run();
+  assert.equal(h.retained.length, 0);
+  h.canWrite = true;
+  for (const run of h.listeners.hide) run();
+  assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Paused']);
+});
+
 test('a refused synchronous save stays owed', () => {
   const h = harness();
   h.draft.listen(h.adapters);

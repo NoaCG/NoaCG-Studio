@@ -341,4 +341,7 @@ test('typing into the on-air cue redraws the editor and not the page, and everyt
   await page.getByTestId('verb-update').click();
   await onProgram(page, '#f0', typed);
   await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  // The row's label follows the label being typed too.
+  await page.getByTestId('cue-label').fill('Renamed while live');
+  await expect(list(page).locator('.pd-cue', { hasText: 'Renamed while live' })).toHaveCount(1);
 });
