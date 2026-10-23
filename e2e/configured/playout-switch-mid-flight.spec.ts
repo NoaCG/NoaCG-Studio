@@ -1,5 +1,6 @@
 // covers: src/components/home/ProductionPage.tsx, src/control/{hostedControl,seqSend}.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useProductionPublish.ts
 //
 // A TAKE STILL ON ITS WAY WHEN THE OPERATOR OPENS ANOTHER PRODUCTION (production-page refactor,
 // phase 1; docs/work-specs/production-page-refactor/spec.md §3 and §5.3, "production change and

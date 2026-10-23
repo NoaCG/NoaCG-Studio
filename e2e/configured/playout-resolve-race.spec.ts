@@ -1,5 +1,6 @@
 // covers: src/components/home/ProductionPage.tsx, src/control/hostedControl.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useProductionPublish.ts
 //
 // A TAKE PRESSED WHILE THE PAGE'S FIRST RESOLVE IS STILL OUT STAYS ON THIS PAGE (production-page
 // refactor, phase 1; docs/work-specs/production-page-refactor/spec.md §5.3, "the initial resolve

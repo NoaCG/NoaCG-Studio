@@ -14,6 +14,7 @@
 // A graphic edited in the library counts as an unpublished change (docs/work-specs/studio-day-playout AC-5).
 // covers: src/components/home/usePublishDrift.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useProductionPublish.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
