@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 // NO OLD-EDITOR IMPORT, on purpose (owner, 2026-09-24). The old code editor (AppShell) was closed
 // then and deleted on 2026-10-17; nothing here may pull an editor shell (and Monaco behind it)
 // into the bundle every visitor downloads except the two surfaces below.
@@ -463,6 +464,7 @@ export default function App() {
           path, which is every ordinary browser. */}
       <StorageHealthNotice />
       <AccountSaveNotice />
+      <SpeedInsights />
     </>
   );
 }
