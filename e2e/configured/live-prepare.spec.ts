@@ -15,6 +15,7 @@
 // covers: src/components/home/usePublishDrift.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/useProductionPublish.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';

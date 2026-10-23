@@ -17,6 +17,7 @@
 // covers: src/components/home/ProductionShell.tsx
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 
 import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from '../_durable';

@@ -3,6 +3,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
 // covers: src/components/home/useProductionPublish.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';

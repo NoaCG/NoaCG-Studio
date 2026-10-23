@@ -16,6 +16,7 @@
 // reaches it - so the `src/templates` covers line would run thirty catalog specs and miss the one
 // spec that actually drives it.
 // covers: src/templates/picture.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';

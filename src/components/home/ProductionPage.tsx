@@ -62,7 +62,10 @@ import {
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
-import { createPlayoutSession, type PlayoutSession } from '../../control/playoutSession';
+import { createPlayoutSession, type AirPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
+import type { StorePart } from '../../control/storePart';
+import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, type ClockSpecs } from '../../control/airState';
+import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
@@ -173,20 +176,14 @@ import {
   type ControlFollowStatus,
   type ControlSendItem,
   type LiveCueMap,
-  type ResolvedControlShow,
   type VerbSent,
 } from '../../control/hostedControl';
-import { createAppliedOnce } from '../../control/commandRoads';
-import { airedAfter, type AiredMap, type ReplayItem } from '../../control/outputRecovery';
+import type { ReplayItem } from '../../control/outputRecovery';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts } from '../../control/failedSends';
-import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
+import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry } from '../../control/eventLog';
 import {
-  clockRowEffect,
   clockSpecFromHtml,
-  clockValueAfterUpdate,
   fastEventGraphics,
-  plainClockValue,
-  speakingClockRowEffect,
   speakingClocksFromHtml,
   type ClockSpec,
   type SpeakingClockPair,
@@ -219,7 +216,7 @@ import {
 } from '../../control/cueAuto';
 import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
-import { startCueArmEngine, writeArms, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
+import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import CueEditor, { type CueEditorView, type OwnReader } from './CueEditor';
 import CueActions from './CueActions';
@@ -253,10 +250,6 @@ interface CueDraft extends CueEditorView {
   productionId: string;
   cueId: string;
 }
-
-/** How far behind the log head the action log seeds its history. Global ids mean this is a
- *  ceiling on rows READ, not on rows shown — a busy instance yields fewer of this show's. */
-const LOG_HISTORY_SPAN = 400;
 
 /** Where an item and a Play-through folder play, for the Take refusals and the server verbs. */
 const PLAYOUT_SLOTS: SlotRules = { itemSlot, folderSlot };
@@ -321,6 +314,41 @@ const CUE_ARM_IO: CueArmEngineIo = {
 
 /** A folder's Take's browser half (control/folderPlayout.ts): the clock a server take is stamped with. */
 const FOLDER_IO: FolderPlayoutIo = { now: () => performance.now() };
+/** What a published production's wire calls (control/sessionWire.ts): the backend's, and the timer. */
+const SESSION_WIRE_IO: SessionWireIo = {
+  controlShowBySlug,
+  untilAnswered,
+  bootMonitorReplay,
+  hostedControlTail,
+  followControlLog,
+  controlOutputSeenAt,
+  createCueArmWire,
+  appendLog: appendLogEntries,
+  armRpc: CUE_ARM_RPC,
+  setInterval: (run, ms) => setInterval(run, ms),
+  clearInterval: (timer) => clearInterval(timer as ReturnType<typeof setInterval>),
+};
+
+/**
+ * A SESSION PART DRAWN AT REACT'S ORDINARY PACE: a subscription in an effect sets page state, so a
+ * write from async code renders when React's scheduler next runs, as the page state it replaced
+ * did, and not synchronously as `useStorePart` would (the `folderMemory` note says what that broke).
+ * The page only reads what this returns; the part's folds are its writers. `select` is a module
+ * function, so the subscription never restarts for it; an unchanged selection renders nothing.
+ */
+function usePacedPart<T, S>(part: StorePart<T>, select: (value: T) => S): S {
+  const [value, setValue] = useState(() => select(part.get()));
+  useEffect(() => {
+    const read = () => setValue(() => select(part.get()));
+    read();
+    return part.subscribe(read);
+  }, [part, select]);
+  return value;
+}
+const liveCueOf = (air: AirPart) => air.liveCue;
+const airedOf = (air: AirPart) => air.aired;
+const bootLiveOf = (air: AirPart) => air.bootLive;
+const entriesOf = (log: LogPart) => log.entries;
 
 /** A Sheet source's reader lease and memory, shared by this browser's tabs (control/sheetSource.ts).
  *  Runtime state like the live tree: localStorage, never the show record. */
@@ -487,9 +515,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Which side of a two-team board the next data-row load fills. */
   const [loadSide, setLoadSide] = useState<'A' | 'B'>('A');
 
-  // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
-  // graphics are up at once by design, so this is a map keyed by graphic name. ──
-  const [liveCue, setLiveCueState] = useState<LiveCueMap>({});
   /**
    * PUBLISHED (phase 2, migration 0075): the same countdowns, kept by the database so every
    * operator page and every reload counts the same second, and run by control/cueArmWire.ts on
@@ -518,6 +543,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       sessionEnd.current = { session, timer: setTimeout(() => session.dispose()) };
     };
   }, [session]);
+  // ── Live status: which cue is on air ON EACH LAYER, and what each graphic was last sent. Several
+  // graphics are up at once by design, so the marker is a map keyed by graphic name. Both live in
+  // the session's `air` part, written only by the folds of control/airState.ts; the page draws them
+  // at React's pace, and a verb reads the part itself (`liveCueRef`), so it sees the newest. ──
+  const liveCue = usePacedPart(session.air, liveCueOf);
+  const airedData = usePacedPart(session.air, airedOf);
+  /** What the WIRE said was live when this page resolved the production - null until it seeded,
+   *  and never written by anything this operator does. The boot recovery below is keyed on it. */
+  const bootLive = usePacedPart(session.air, bootLiveOf);
+  /** The action log's lines (the session's `log` part): the wire's rows and this page's own. */
+  const wireLog = usePacedPart(session.log, entriesOf);
   /**
    * TIMED CUES' COUNTDOWNS, one per graphic layer (control/cueAuto.ts; docs/RUNDOWN_AUTOMATION_PLAN.md
    * §2.0), in the session's `arms` part. Unpublished, this page is the one surface and its PROGRAM
@@ -575,7 +611,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A graphic Take went out while nothing that could air it was reporting (AC-2 "No output"). */
   const [noOutputTake, setNoOutputTake] = useState(false);
   /**
-   * HOW MANY TIMES THE LIVE MAP HAS MOVED HERE, and the only reason it is counted.
+   * THE ONE MARKER WRITE (control/airState.ts `moveLiveCue`), and why every write is counted in the
+   * `air` part's `moves`.
    *
    * The boot resolve below reads the production over the wire and then SEEDS this map with
    * the answer. That read is a round trip - about a millisecond against a local stack and
@@ -594,15 +631,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * nothing on air" while the server's `live_cue` held the take the spec had just asserted.
    * Only the hosted tier ever saw it, which is what that tier is for.
    */
-  const liveCueMoves = useRef(0);
-  const setLiveCue = useCallback<typeof setLiveCueState>((next) => {
-    liveCueMoves.current += 1;
-    setLiveCueState(next);
-  }, []);
-  /** What the WIRE said was live when this page resolved the production - null until it has
-   *  answered, and never written by anything this operator does. The boot recovery below is
-   *  keyed on it for exactly that reason. */
-  const [bootLive, setBootLive] = useState<LiveCueMap | null>(null);
+  const setLiveCue = useCallback(
+    (next: LiveCueMap | ((map: LiveCueMap) => LiveCueMap)) => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, next) })),
+    [session],
+  );
   /**
    * HAS THE LIVE LOG CONNECTION EVER JOINED, and what Realtime last said about it.
    *
@@ -859,29 +891,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   const programRef = useRef<ProgramStageHandle>(null);
   /**
-   * What each graphic was last SENT locally — the input to rebuilding the PROGRAM monitor after
-   * it is unmounted (the Data-workspace round trip). The wire report is a snapshot taken when
-   * this page resolved the published show and never moves again, and an unpublished production
-   * has no report at all, so after the first take this is the only current answer to "what is
-   * on air". Declared up here because the log follower below writes to it.
-   *
-   * It is STATE as well as a ref, because the same fact answers a second question: whether the
-   * values in front of the operator have actually been SENT. An on-air cue whose draft has
-   * moved past what air is showing has to say so rather than wait to be noticed.
+   * What each graphic was last SENT (`airedData`, the `air` part's `aired`) is the input to
+   * rebuilding the PROGRAM monitor after it is unmounted (the Data-workspace round trip): the wire
+   * report is a snapshot taken when this page resolved the published show and never moves again,
+   * and an unpublished production has no report at all, so after the first take it is the only
+   * current answer to "what is on air". It also answers whether the values in front of the
+   * operator have actually been SENT: an on-air cue whose draft has moved past what air is showing
+   * has to say so rather than wait to be noticed. control/airState.ts `rememberAired` merges it.
    */
-  const [airedData, setAiredData] = useState<AiredMap>({});
-  const airedRef = useRef(airedData);
-  airedRef.current = airedData;
-  const rememberAired = useCallback((items: ControlSendItem[]) => {
-    // MERGED, not replaced (control/outputRecovery.ts `airedAfter`): an update may be PARTIAL (a
-    // ± live-number bump carries one field on purpose), and replacing the baseline with it marked
-    // every other field as unsent. An accepted event's payload counts too; a stop forgets the
-    // graphic. (If the guard dropped an event this runs slightly ahead of the graphic; the greyed
-    // buttons make that the rare case, and the log stays self-consistent.)
-    setAiredData((prev) => items.reduce((next, item) => airedAfter(next, item.graphic, item.msg), prev));
-  }, []);
-  const [wireLog, setWireLog] = useState<LogEntry[]>([]);
-  const localLogId = useRef(0);
   /** The graphics a failed send left on this monitor alone, so its notice comes down once they
    *  have all been sent again (failedSends.ts `createSendDebts`). Per production: the page stays
    *  mounted across a switch, and a graphic's name is only unique within one production. */
@@ -943,109 +960,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const fastEventGraphicsRef = useRef<Set<string>>(new Set());
   /**
-   * The clock field's value ON THE WIRE per graphic — the monitor's own copy of what the
-   * renderer keeps in `mergedData`. Deliberately NOT folded into `airedData`: that one also
-   * answers "are the operator's values on air yet", and a stamped clock value differs from the
-   * cue's plain one forever, which would light an amber "1 change not on air yet" for the whole
-   * match. `restoreProgram` folds it back in at the one moment it is needed.
+   * The clocks the production's graphics carry, as control/airState.ts reads them. The monitor's
+   * clock memory (each clock field's value ON THE WIRE, stamped with its origin, and a debate
+   * board's pair) is the `air` part's `clocks` and `speaking`: deliberately NOT folded into
+   * `airedData`, which also answers "are the operator's values on air yet", and a stamped clock
+   * value differs from the cue's plain one forever.
    */
-  const clockValues = useRef<Record<string, string>>({});
-  /** The same, per FIELD, for a debate board's two clocks — the monitor's copy of what the
-   *  renderer keeps in `mergedData` for the pair. Kept out of `airedData` for the same reason. */
-  const speakingValues = useRef<Record<string, Record<string, string>>>({});
-  /**
-   * A debate board's two clocks, put through the same decision the hosted renderer makes. The
-   * pair is handled apart from the single match clock rather than folded in with it because the
-   * two share nothing but the stamp: one clock verb settles one field, a `switch` settles both.
-   */
-  const applySpeakingClocks = useCallback(
-    (out: ControlSendItem[], item: ReplayItem, pair: SpeakingClockPair) => {
-      const msg = item.msg;
-      const held = speakingValues.current[item.graphic] ?? {};
-      // A plain resend of the cue's own allowance must not erase a stamp, exactly as for the
-      // match clock: the cue stores "05:00" forever and every Take mid-debate re-sends it.
-      const carried = msg.t === 'update' ? msg.data : msg.t === 'event' ? msg.payload : undefined;
-      for (const field of [pair.fieldA, pair.fieldB]) {
-        const value = carried?.[field];
-        if (value !== undefined) held[field] = clockValueAfterUpdate(held[field], value);
-      }
-      // The allowance and the penalty size ride the wire plain and are read back as themselves.
-      for (const field of [pair.allowanceField, pair.penaltyField]) {
-        const value = field ? carried?.[field] : undefined;
-        if (field && value !== undefined) held[field] = value;
-      }
-      speakingValues.current[item.graphic] = held;
-      // The monitor is sent what we now hold, not what the row carried — the same rule
-      // `src/output/main.ts` states: once a clock has run away from the time the cue stores, a
-      // resend of that stored time is no longer recognisable as a resend to the template.
-      let staged = item;
-      if (msg.t === 'update' && msg.data) {
-        const forwarded = { ...msg.data };
-        for (const field of [pair.fieldA, pair.fieldB]) {
-          if (forwarded[field] !== undefined) forwarded[field] = held[field];
-        }
-        staged = { graphic: item.graphic, msg: { ...msg, data: forwarded } };
-      }
-      const effect = speakingClockRowEffect({ msg, created_at: item.created_at }, pair, held, Date.now());
-      if (!effect) {
-        out.push(staged);
-        return;
-      }
-      speakingValues.current[item.graphic] = { ...held, ...effect.values };
-      const clockItem: ControlSendItem = { graphic: item.graphic, msg: { t: 'update', data: effect.values } };
-      if (effect.when === 'before') out.push(clockItem);
-      out.push(staged);
-      if (effect.when === 'after') out.push(clockItem);
-    },
-    [],
-  );
+  const clockSpecsOf = useCallback((): ClockSpecs => ({ clocks: clockSpecsRef.current, pairs: speakingClocksRef.current }), []);
   /**
    * The ONE way a command reaches the PROGRAM monitor, so the clock cannot be handled on one
    * route and missed on the other (the wire follower and the offline verbs both come here).
-   * A clock verb gets its value written around it in the order `clockRowEffect` fixes: the
-   * origin BEFORE a start, so the runtime adopts it instead of minting one; the banked time
-   * AFTER a hold or a reset, because what is banked is what the graphic has just settled on.
+   * control/airState.ts `programItems` writes each clock's value around its verb, against the
+   * LOCAL receive instant, and the stage is handed what that fold returns.
    */
-  const applyProgram = useCallback((items: ReplayItem[]) => {
-    const out: ControlSendItem[] = [];
-    for (const item of items) {
-      const pair = speakingClocksRef.current.get(item.graphic);
-      if (pair) {
-        applySpeakingClocks(out, item, pair);
-        continue;
-      }
-      const clock = clockSpecsRef.current.get(item.graphic);
-      if (!clock) {
-        out.push(item);
-        continue;
-      }
-      const msg = item.msg;
-      // Track the clock field exactly as the renderer's own merged data does: an update writes
-      // it, and an accepted event's payload rides the same field path.
-      const carried =
-        msg.t === 'update' ? msg.data?.[clock.field] : msg.t === 'event' ? msg.payload?.[clock.field] : undefined;
-      // A plain resend of the cue's own time must not erase the origin (clockValueAfterUpdate):
-      // the cue stores "10:00" forever, so every Take mid-match re-sends it.
-      if (carried !== undefined) {
-        clockValues.current[item.graphic] = clockValueAfterUpdate(clockValues.current[item.graphic], carried);
-      }
-      if (msg.t === 'stop') delete clockValues.current[item.graphic];
-      const effect = clockRowEffect({ msg, created_at: item.created_at }, clock, clockValues.current[item.graphic], Date.now());
-      if (!effect) {
-        out.push(item);
-        continue;
-      }
-      clockValues.current[item.graphic] = effect.value;
-      const clockItem: ControlSendItem = {
-        graphic: item.graphic,
-        msg: { t: 'update', data: { [clock.field]: effect.value } },
-      };
-      if (effect.when === 'before') out.push(clockItem);
-      out.push(item);
-      if (effect.when === 'after') out.push(clockItem);
-    }
-    programRef.current?.apply(out);
-  }, [applySpeakingClocks]);
+  const applyProgram = useCallback(
+    (items: ReplayItem[]) => {
+      let out: ControlSendItem[] = [];
+      session.apply((parts) => {
+        const run = programItems(parts.air, items, clockSpecsOf(), Date.now());
+        out = run.out;
+        return { ...parts, air: run.air };
+      });
+      programRef.current?.apply(out);
+    },
+    [session, clockSpecsOf],
+  );
 
   /**
    * WHAT THE OPERATOR SEES, from whichever road the command arrived on.
@@ -1054,41 +993,30 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * production's private topic, about 100 ms after the press, and the durable row behind it at
    * 130-650 with a slow mode past 600. This page also presses the verbs itself, so
    * there is a third arrival that is faster than either - its own send. All three end up here and
-   * `applied` decides which one counts, on the id the press minted.
+   * the session's `applied` decides which one counts, on the id the press minted
+   * (control/airState.ts `claimAndApply`, which also moves the ON AIR marker on the same road as
+   * the picture: split across the two, the graphic would be up for a third of a second while the
+   * rundown still said the layer was clear).
    *
    * Getting that wrong is invisible. A second `play` re-runs an entrance and settles on the
    * picture that was already there, which is why `PayloadStage` counts them and why
    * e2e/configured/playout-both-roads.spec.ts reads the count rather than the screen.
    *
    * The DURABLE half of a row - the action log line, the renderer's own reports, the signal that
-   * the data API wrote - stays in the follower's `onRow` below, because that half must happen
-   * once per ROW and is not what an operator is waiting for.
+   * the data API wrote - stays in the wire's `onRow` (control/sessionWire.ts), because that half
+   * must happen once per ROW and is not what an operator is waiting for.
    */
-  const applied = useRef(createAppliedOnce());
   const applyCommand = useCallback(
     (items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
-      for (const item of items) {
-        if (!applied.current.claim(item.msg)) continue;
-        const msg = item.msg;
-        // The ON AIR marker rides the same road as the picture, deliberately: split across the
-        // two, the graphic would be up for a third of a second while the rundown still said the
-        // layer was clear.
-        if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
-        // 'staged' is another operator typing, 'live' is the renderer REPORTING and 'ping' is
-        // Prepare for Live's check of the command path - none is a command for the stage.
-        else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
-          rememberAired([{ graphic: item.graphic, msg }]);
-          applyProgram([{ graphic: item.graphic, msg }]);
-          // The monitor has moved past the boot snapshot, so a later rebuild recovers from what
-          // this page has seen since, not from the boot's replay.
-          bootReplayRef.current = null;
-          commandsApplied.current += 1;
-        }
-      }
+      let out: ControlSendItem[] = [];
+      session.apply((parts) => {
+        const run = claimAndApply(parts.air, items, session.applied, clockSpecsOf(), Date.now());
+        out = run.out;
+        return { ...parts, air: run.air };
+      });
+      programRef.current?.apply(out);
     },
-    // `setLiveCue` is stable (a useCallback with no deps), but it is no longer React's own
-    // setter identity, so it is declared rather than assumed.
-    [applyProgram, rememberAired, setLiveCue],
+    [session, clockSpecsOf],
   );
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
@@ -1616,110 +1544,30 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A button naming a player ("+1 ANNA") is logged by the name on air when the row arrives.
   const eventLabel = useCallback(
     (graphic: string, event: string) =>
-      eventLogLabel(withLiveLabels(poolButtonsRef.current.get(graphic) ?? [], airedRef.current[graphic] ?? null), event),
-    [],
+      eventLogLabel(withLiveLabels(poolButtonsRef.current.get(graphic) ?? [], session.air.get().aired[graphic] ?? null), event),
+    [session],
   );
 
-  // ── Live tracking: recover the marker from the log's tail, then follow. Rows also drive the
-  // PROGRAM monitor, so it shows what is really on air — including another operator's take. ──
-  useEffect(() => {
-    if (!hostedSlug || !backendConfigured || !show) return;
-    let alive = true;
-    let unsubscribe: (() => void) | null = null;
-    const tail = (after: number) => hostedControlTail(hostedSlug, after);
-    void (async () => {
-      // Read at the start of the round trip that ANSWERS: if a verb moves the live map while it
-      // is in flight, the answer below is older than the screen and must not overwrite it.
-      let movesAtRequest = 0;
-      let commandsAtRequest = 0;
-      // BEFORE the await, because this page is reused when the route moves to another
-      // production: the previous show's answer must not decide this one's road while the round
-      // trip is in flight. Graphic keys are per-production layer names and collide freely.
+  // ── Live tracking (control/sessionWire.ts): resolve the production, seed the marker from the
+  // wire's answer, then follow the log on both roads. Rows also drive the PROGRAM monitor, so it
+  // shows what is really on air — including another operator's take. The wire reads this page
+  // through `wirePage`, set every render; it writes the `air` and `log` parts itself. ──
+  const wirePage = useRef<SessionWirePage | null>(null);
+  wirePage.current = {
+    resolveWaiting: (waiting) => setResolveWaiting(waiting),
+    // The page is reused when the route moves to another production: the previous show's answer
+    // must not decide this one's road while the round trip is in flight. Graphic keys are
+    // per-production layer names and collide freely.
+    starting: () => {
       fastEventGraphicsRef.current = new Set();
-      bootReplayRef.current = null;
-      // A failed resolve is asked again on the renderer's backoff, and the header says so; only
-      // an ANSWER decides.
-      const answer = await untilAnswered(
-        () => {
-          movesAtRequest = liveCueMoves.current;
-          commandsAtRequest = commandsApplied.current;
-          return controlShowBySlug(hostedSlug);
-        },
-        { stop: () => !alive, onRetry: () => setResolveWaiting(true) },
-      );
-      if (!alive) return;
-      setResolveWaiting(false);
-      const resolved = answer.ok ? answer.value : null;
-      if (!resolved) return;
+    },
+    resolved: (resolved) => {
       setOutputSeenAt(resolved.outputSeenAt);
-      const ver = resolved.output?.ver;
-      setPublishedStamp(ver ?? null);
+      setPublishedStamp(resolved.output?.ver ?? null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       setPublishedReaders(new Set((resolved.output?.graphics ?? []).filter((g) => hasLiveData(g.js)).map((g) => g.key)));
-      // The boot-recovery effect below replays each live layer's last REPORT into the local
-      // monitor, so the reports must be in hand before the wire's picture commits and fires it.
-      liveReportsRef.current = resolved.live;
-      // …and the rows AFTER each report (control/outputRecovery.ts `monitorReplay`). A report
-      // trails its graphic's last change by 800 ms, so a page reloaded straight after a press
-      // rebuilt PROGRAM, and the not-on-air-yet baseline, from the picture before it (issue #762).
-      const sinceReports = await bootMonitorReplay(hostedSlug, resolved);
-      if (!alive) return;
-      // A command this page applied meanwhile is newer than those rows, so they are not replayed.
-      const replay = commandsApplied.current === commandsAtRequest ? sinceReports : [];
-      // THE SEED IS A WHOLESALE REPLACE, so it is skipped outright when this operator has
-      // already acted. Merging the two was the other option and it is worse: the wire's map
-      // is a snapshot, not a diff, so a layer this operator took OFF while the read was in
-      // flight would come back on air. What is lost by skipping is the seeding of layers
-      // another operator drove, and the follower's rows carry those in anyway.
-      if (liveCueMoves.current === movesAtRequest) {
-        setLiveCue(resolved.liveCue);
-        // WHAT AIR IS SHOWING, for a desk that opens onto layers somebody else put there - a
-        // teammate taking over, or the creator coming back (the three-member walk in
-        // e2e/configured/teams.spec.ts found it). `airedData` is otherwise only what THIS page
-        // sent, so a cold desk compared every on-air cue with nothing: its editor said "2 changes
-        // not on air yet" about values that were on air, and the rebuilt PROGRAM monitor showed
-        // the template's defaults. The renderer's own report is the best answer. A layer it has
-        // not reported (the report trails a take, and no renderer need be open at all) falls
-        // back to the live cue's values in the rundown, which is what its Take sent. The seed
-        // REPLACES whatever the map held for that layer: this page has sent nothing since the
-        // request (the guard above), and a value left from another production the page showed
-        // before is not what this one's air holds. A clock's reported value carries its origin
-        // stamp, which the baseline never holds (see `clockValues`), so the stamp goes back where
-        // `restoreProgram` reads it and the baseline keeps the plain time.
-        const seed: Record<string, Record<string, string>> = {};
-        for (const [graphic, cueId] of Object.entries(resolved.liveCue)) {
-          if (!cueId) continue;
-          const reported = resolved.live[graphic]?.data;
-          const base = reported && Object.keys(reported).length > 0 ? reported : cuesRef.current.find((c) => c.id === cueId)?.values;
-          // …then what air did after that report.
-          const values = {
-            ...replay.reduce<AiredMap>(
-              (aired, item) => (item.graphic === graphic ? airedAfter(aired, graphic, item.msg) : aired),
-              base ? { [graphic]: base } : {},
-            )[graphic],
-          };
-          const clock = clockSpecsRef.current.get(graphic);
-          const pair = speakingClocksRef.current.get(graphic);
-          // The wire values come from the report (stamped), not from a replayed plain resend;
-          // the rebuild below replays the rows onto them.
-          const wire = (field: string) => base?.[field] ?? values[field];
-          if (clock && values[clock.field] !== undefined) {
-            clockValues.current[graphic] = wire(clock.field);
-            values[clock.field] = plainClockValue(values[clock.field]);
-          }
-          if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
-            speakingValues.current[graphic] = { [pair.fieldA]: wire(pair.fieldA), [pair.fieldB]: wire(pair.fieldB) };
-            values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
-            values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
-          }
-          if (Object.keys(values).length > 0) seed[graphic] = values;
-        }
-        setAiredData((prev) => ({ ...prev, ...seed }));
-        bootReplayRef.current = replay;
-        // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
-        // see the effect below for what that distinction cost.
-        setBootLive(resolved.liveCue);
-      }
+    },
+    recovered: (resolved) => {
       // What air holds is now known here: the wire's own answer and the rows after it.
       setLiveRecovered(true);
       // Seed each graphic's machine state from its last published report — the page may be
@@ -1729,108 +1577,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           noteMachineState(graphic, (report as { state?: { groups?: Record<string, string> } | null }).state ?? null);
         }
       }
-      // TIMED CUES, published: the engine follows the same rows from here on, and reads what the
-      // server keeps (a reload mid-countdown picks it up where it was). Only on the numbered log:
-      // the arm rows are ordered by seq.
-      if (resolved.seq) {
-        const wire = createCueArmWire({
-          slug: hostedSlug,
-          get: session.arms.get,
-          set: (arms) => writeArms(session, arms),
-          fire: (graphic, arm) => armEngine.current?.fire(graphic, arm),
-          note: setNote,
-          rpc: CUE_ARM_RPC,
-        });
-        armWire.current = wire;
-        wire.start((state) => {
-          if (!alive) return;
-          if (state === 'missing') {
-            wire.stop();
-            armWire.current = null;
-          }
-          setArmsServer(state);
-        });
-      } else {
-        setArmsServer('missing');
-      }
-      const history = await hostedControlTail(hostedSlug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
-      if (!alive) return;
-      setWireLog((l) =>
-        appendLogEntries(
-          l,
-          history.map((r) => describeLogRow(r, cueLabel, eventLabel)).filter((e): e is LogEntry => !!e),
-        ),
-      );
-      unsubscribe = await followControlLog({
-        showId: show.id,
-        from: resolved.lastEventId,
-        tail,
-        // The numbered log when the server has it (migration 0071); absent, today's id road.
-        seq: resolved.seq,
-        onEpochReset: () => armWire.current?.reset(),
-        // Reported on every status change AND on every poll tick, so this stays true rather
-        // than recording only the first answer.
-        onStatus: (s) => {
-          if (alive) setFollow(s);
-        },
-        onCommandStatus: (s) => {
-          if (alive) setCommandStatus(s);
-        },
-        // THE FAST ROAD. The same verbs, broadcast by the database on the production's private
-        // topic and here before their rows are - which is what moves this page's PROGRAM monitor
-        // when the press came from another operator's phone.
-        onCommand: hearCommand,
-        onRow: (row) => {
-          const msg = row.msg;
-          // Mirror air locally: the PROGRAM monitor follows the wire, not just this page's own
-          // buttons, so a take from another operator's phone shows here too. It is the SAME
-          // door the broadcast above comes through, and `applyCommand` drops whichever copy is
-          // second - a duplicate entrance would leave no trace on screen.
-          hearCommand([{ graphic: row.graphic, msg }]);
-          // A timed cue's countdown moves with its cue rows, and starts at a renderer's report.
-          armWire.current?.row(row);
-          // A 'live' row is the renderer REPORTING what it applied — machine state included,
-          // which is what keeps the action buttons' greying honest about air. Durable only: a
-          // report is a row, not a verb, and it never travels the fast road.
-          if (msg.t === 'live') {
-            noteMachineState(row.graphic, msg.state ?? null);
-            // A newer report than the boot's: a rebuild reads what this page has seen since.
-            bootReplayRef.current = null;
-          }
-          // THE TREE MOVED SERVER-SIDE. Every row the patch RPC appends carries a `src` saying
-          // who moved it - `api` for a feed, `operator` for a press on another dashboard (a
-          // hosted control page's bound stepper, migration 0060) - and no other road writes one.
-          // The row carries the resolved FIELD values, not the tree, so re-read it, and reuse
-          // this signal rather than adding a second subscription on `control_shows` just to
-          // learn the same fact. It is ANY src and not `api` alone because this page's own
-          // `withBoundValues` airs the tree on the next Take: missing a hosted press here would
-          // put that press's figure back where it was the moment somebody took a cue.
-          // Durable only, and for a sharper reason: the patch RPC appends server-side and
-          // broadcasts nothing.
-          else if (msg.t !== 'staged' && msg.t !== 'cue' && typeof (msg as { src?: string }).src === 'string') {
-            void dataSession.refresh();
-          }
-          const entry = describeLogRow(row, cueLabel, eventLabel);
-          if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
-        },
-      });
-    })();
-    const seenTimer = setInterval(() => {
-      setNow(Date.now());
-      void controlOutputSeenAt(show.id).then((at) => {
-        if (alive && at !== null) setOutputSeenAt(at);
-      });
-    }, 30_000);
-    return () => {
-      alive = false;
-      setResolveWaiting(false);
-      unsubscribe?.();
-      clearInterval(seenTimer);
-      armWire.current?.stop();
-      armWire.current = null;
-      setArmsServer('pending');
-    };
-  }, [hostedSlug, backendConfigured, show?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    },
+    cues: () => cuesRef.current,
+    clocks: () => clockSpecsOf(),
+    armWire: (wire) => {
+      armWire.current = wire;
+    },
+    armsServer: (state) => setArmsServer(state),
+    fire: (graphic, arm) => armEngine.current?.fire(graphic, arm),
+    note: (text) => setNote(text),
+    // Reported on every status change AND on every poll tick, so this stays true rather than
+    // recording only the first answer.
+    follow: (status) => setFollow(status),
+    commandStatus: (status) => setCommandStatus(status),
+    hear: (items) => hearCommand(items),
+    // A 'live' row is the renderer REPORTING what it applied — machine state included, which is
+    // what keeps the action buttons' greying honest about air.
+    machineState: (graphic, state) => noteMachineState(graphic, state),
+    // THE TREE MOVED SERVER-SIDE: re-read it, rather than subscribing to `control_shows` a second
+    // time. Any `src`, not `api` alone: this page's own `withBoundValues` airs the tree on the next
+    // Take, so missing a hosted press would put its figure back the moment somebody took a cue.
+    refreshData: () => void dataSession.refresh(),
+    describe: (row) => describeLogRow(row, cueLabel, eventLabel),
+    seenAt: (at) => setOutputSeenAt(at),
+    tick: () => setNow(Date.now()),
+  };
+  useEffect(() => {
+    if (!hostedSlug || !backendConfigured || !show) return;
+    return startSessionWire(session, SESSION_WIRE_IO, { slug: hostedSlug, showId: show.id, page: () => wirePage.current! });
+  }, [session, hostedSlug, backendConfigured, show?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // RECOVERY for the PROGRAM monitor (docs/CLOUD_PLAYOUT.md's recovery discipline). The log
   // follower only sees rows that arrive AFTER this page opened, so reopening a production that
@@ -1850,55 +1625,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // unscaled because the measurement was keyed on the unchanged document): the state lives
   // outside the remounted thing and nothing re-established it. So the replay is keyed on the
   // STAGE being fresh, not on the page being new.
-  const liveReportsRef = useRef<ResolvedControlShow['live'] | null>(null);
-  /** The log rows after each live layer's report, read when the page opened (`monitorReplay`),
-   *  until this page applies a command; null after that. */
-  const bootReplayRef = useRef<ReplayItem[] | null>(null);
-  /** Commands this page has applied to its monitor, so a boot read can tell it is older. */
-  const commandsApplied = useRef(0);
-  // Read through refs: the replay must use the FRESHEST answer at the moment a stage comes up,
-  // and it must not re-run every time a take changes either of them.
-  const liveCueRef = useRef(liveCue);
-  liveCueRef.current = liveCue;
+  // Read through the part and a ref: the replay must use the FRESHEST answer at the moment a stage
+  // comes up, and it must not re-run every time a take changes either of them.
+  /** The live map as it stands, for the verbs and the modules that read it after a wait. */
+  const liveCueRef = useMemo(() => ({ get current() { return session.air.get().liveCue; } }), [session]);
   const machineStatesRef = useRef(machineStates);
   machineStatesRef.current = machineStates;
+  /** Rebuild a fresh PROGRAM stage from what air holds (control/airState.ts `restoreItems`): at
+   *  boot the reports and the rows after them, later what this page aired. */
   const restoreProgram = useCallback(() => {
-    for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
-      if (!cueId) continue;
-      const report = liveReportsRef.current?.[graphic] ?? null;
-      // AT BOOT, AIR IS THE REPORT PLUS THE ROWS AFTER IT (`monitorReplay`), rebuilt the way the
-      // renderer rebuilds itself: the reported data and state, then those rows through
-      // `applyProgram`, which moves the clocks on from the reported (stamped) values at each row's
-      // own time. A layer nothing has reported is rebuilt from what was aired, as below.
-      const rows = report ? (bootReplayRef.current ?? []).filter((item) => item.graphic === graphic) : [];
-      const replaying = rows.length > 0;
-      if (replaying) {
-        delete clockValues.current[graphic];
-        delete speakingValues.current[graphic];
-      }
-      const base = replaying ? report?.data : (airedRef.current[graphic] ?? report?.data);
-      // THE CLOCK'S WIRE VALUE OVERRIDES THE AIRED ONE. What this replays is what was SENT, and
-      // a clock's sent value is a plain time — so without this a rebuilt monitor came back at
-      // whatever the last Take carried and re-ran from there. The stamped value is kept apart
-      // from `airedData` on purpose (see applyProgram) and is folded back in only here.
-      const clock = clockSpecsRef.current.get(graphic);
-      const stamped = clock ? clockValues.current[graphic] : undefined;
-      let data = base && stamped !== undefined ? { ...base, [clock!.field]: stamped } : base;
-      // A debate board's pair replays the same way, both fields at once — the running one
-      // stamped, the held one plain, which is the whole state the floor was in.
-      const pair = speakingClocksRef.current.get(graphic);
-      const speaking = pair ? speakingValues.current[graphic] : undefined;
-      if (base && pair && speaking) data = { ...base, ...speaking };
-      const groups = replaying ? report?.state?.groups : machineStatesRef.current[graphic]?.groups;
-      const items: ReplayItem[] = [];
-      if (data) items.push({ graphic, msg: { t: 'update', data } });
-      if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
-      // Without a state the graphic plays in, unless the replayed rows carry its entrance.
-      else if (!rows.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
-      if (data) items.push({ graphic, msg: { t: 'update', data } });
-      applyProgram([...items, ...rows]);
-    }
-  }, [applyProgram]);
+    let out: ControlSendItem[] = [];
+    session.apply((parts) => {
+      const specs = clockSpecsOf();
+      const restore = restoreItems(parts.air, machineStatesRef.current, specs);
+      const run = programItems(restore.air, restore.items, specs, Date.now());
+      out = run.out;
+      return { ...parts, air: run.air };
+    });
+    programRef.current?.apply(out);
+  }, [session, clockSpecsOf]);
   // The boot half: the wire resolve lands after the stage is already up, so the first time the
   // WIRE says a layer is live there is nothing to have signalled.
   //
@@ -2150,23 +1895,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // Not published: the verbs still drive the local PROGRAM monitor, which is what makes
         // the whole surface usable (and provable) offline. Nothing leaves the machine.
         for (const batch of batches) {
-          rememberAired(batch);
+          session.apply((parts) => ({ ...parts, air: rememberAired(parts.air, batch) }));
           applyProgram(batch);
           // A cue marker moves its layer's countdown (control/cueArmEngine.ts `onMarker`).
           armEngine.current?.onMarker(batch);
         }
         const at = new Date().toISOString();
-        const entries = batches
-          .flat()
-          .map((item) =>
-            describeLogRow(
-              { id: (localLogId.current -= 1), graphic: item.graphic, msg: item.msg, created_at: at },
-              cueLabel,
-              eventLabel,
-            ),
-          )
-          .filter((e): e is LogEntry => !!e);
-        setWireLog((l) => appendLogEntries(l, entries));
+        const lines = batches.flat().map((item) => (id: number) => describeLogRow({ id, graphic: item.graphic, msg: item.msg, created_at: at }, cueLabel, eventLabel));
+        session.apply((parts) => ({ ...parts, log: loggedHere(parts.log, lines, appendLogEntries) }));
         return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
       }
       // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the
@@ -2225,7 +1961,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setSendingNow((n) => Math.max(0, n - 1));
       }
     },
-    [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand],
+    [session, hostedSlug, showId, cueLabel, eventLabel, applyProgram, applyCommand],
   );
   /** Send, and say so if it failed. What it came to when it landed, or null when it did not. */
   const runVerb = useCallback(
@@ -2517,7 +2253,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── TIMED CUES, the unpublished engine (control/cueArmEngine.ts; docs/RUNDOWN_AUTOMATION_PLAN.md
   // §2.0, phase 1) reads this page through `armPage`: what it sends with, the rundown, the cue as the
   // operator sees it, and the lines it writes. ──────────────────────────────────────────────────
-  const logAuto = (graphic: string, text: string) => setWireLog((l) => appendLogEntries(l, [autoEntry((localLogId.current -= 1), graphic, text)]));
+  const logAuto = (graphic: string, text: string) => session.apply((parts) => ({ ...parts, log: loggedHere(parts.log, [(id) => autoEntry(id, graphic, text)], appendLogEntries) }));
   armPage.current = {
     published: !!hostedSlug,
     timedOff: !!hostedSlug && armsServer === 'missing',
@@ -3381,7 +3117,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // A key that names a row or a clip carries it as `cue`; the verbs that act on the selection never read it.
     (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
     // A refused press is a note in the activity feed, not a command row: nothing was sent.
-    (text) => setWireLog((l) => appendLogEntries(l, [noteEntry((localLogId.current -= 1), text)])),
+    (text) => session.apply((parts) => ({ ...parts, log: loggedHere(parts.log, [(id) => noteEntry(id, text)], appendLogEntries) })),
   );
 
   /** LIVE ACTIONS FIRST (docs/research/control-surfaces-review-2026-10-02 slice 4; owner,

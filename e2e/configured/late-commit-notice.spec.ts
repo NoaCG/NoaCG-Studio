@@ -13,6 +13,7 @@
 // Red before the fix, at the first walk's notice assertion (configured-suite run 38055424031), and
 // green with it (run 38055648571).
 // covers: src/control/failedSends.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';

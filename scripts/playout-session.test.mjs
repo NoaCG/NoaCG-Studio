@@ -105,3 +105,58 @@ test('the folders part starts empty and is set after the arms, in one fold', asy
   session.apply((parts) => ({ ...parts, folders: NO_FOLDERS }));
   assert.deepEqual(session.folders.get().folderSteps, { M: null }, 'a fold after the end changes nothing');
 });
+
+test('the air and log parts start empty and are set last, air before log, in one fold', async () => {
+  const { NO_AIR, NO_LOG } = await import('../src/control/playoutSession.ts');
+  const session = createPlayoutSession('prod-1');
+  assert.equal(session.air.get(), NO_AIR);
+  assert.deepEqual(NO_AIR, { liveCue: {}, moves: 0, aired: {}, clocks: {}, speaking: {}, commands: 0, reports: null, bootReplay: null, bootLive: null });
+  assert.equal(session.log.get(), NO_LOG);
+  assert.deepEqual(NO_LOG, { entries: [], localId: 0 });
+  const heard = [];
+  session.data.subscribe(() => heard.push('data'));
+  session.folders.subscribe(() => heard.push('folders'));
+  session.air.subscribe(() => heard.push(`air log=${session.log.get().entries.length}`));
+  session.log.subscribe(() => heard.push(`log air=${Object.keys(session.air.get().liveCue)}`));
+  session.apply((parts) => ({
+    ...parts,
+    log: { entries: [{ id: -1 }], localId: -1 },
+    air: { ...parts.air, liveCue: { lt: 'c1' } },
+    folders: { ...parts.folders, takeMisses: { c: 'x' } },
+    data: { ...parts.data, dataKey: null },
+  }));
+  assert.deepEqual(heard, ['data', 'folders', 'air log=0', 'log air=lt'], 'the fixed order: the earlier parts, then air, then log');
+  session.apply((parts) => ({ ...parts, log: parts.log }));
+  assert.equal(heard.length, 4, 'an unmoved part is heard by nobody');
+  session.dispose();
+  session.apply((parts) => ({ ...parts, air: NO_AIR }));
+  assert.deepEqual(session.air.get().liveCue, { lt: 'c1' }, 'a fold after the end changes nothing');
+});
+
+test('each session remembers the commands it applied, apart from every other session', async () => {
+  const one = createPlayoutSession('prod-1');
+  const two = createPlayoutSession('prod-1');
+  assert.equal(one.applied.claim({ t: 'play', oid: 'p1' }), true);
+  assert.equal(one.applied.claim({ t: 'play', oid: 'p1' }), false, 'the echo');
+  assert.equal(two.applied.claim({ t: 'play', oid: 'p1' }), true, 'a reopened production starts with nothing applied');
+});
+
+test('AC-13: a session constructs from the production id alone, with no optional capability, and runs every part', async () => {
+  const { NO_AIR, NO_BRIDGE, NO_DATA, NO_FOLDERS, NO_LOG } = await import('../src/control/playoutSession.ts');
+  const { moveLiveCue } = await import('../src/control/airState.ts');
+  // No Bridge, no local data tree, no PROGRAM monitor, no folders: nothing else is passed.
+  const session = createPlayoutSession('hosted-reuse');
+  assert.equal(createPlayoutSession.length, 1, 'the id is the only input');
+  assert.equal(session.data.get(), NO_DATA);
+  assert.equal(session.bridge.get(), NO_BRIDGE);
+  assert.deepEqual(session.arms.get(), {});
+  assert.equal(session.folders.get(), NO_FOLDERS);
+  assert.equal(session.air.get(), NO_AIR);
+  assert.equal(session.log.get(), NO_LOG);
+  session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, { lt: 'c1' }) }));
+  assert.deepEqual(session.air.get().liveCue, { lt: 'c1' });
+  let stopped = 0;
+  session.onDispose(() => (stopped += 1));
+  session.dispose();
+  assert.equal(stopped, 1);
+});
