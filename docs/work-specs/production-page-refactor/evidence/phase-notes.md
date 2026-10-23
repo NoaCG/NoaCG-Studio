@@ -46,6 +46,10 @@ changes a spec's digest.
     stays in the page (it is a verb, not markup).
   - Phase 4 (`useProductionPublish`) passes the header's status and action through the same
     `status` slot; nothing here changes that slot.
+  - The spec's file table gives `CueActions` the `arranging` and folded state, but no phase in
+    the phase list moves them: `arrangingFor` stays page state (it only computes `arranging`),
+    and `foldedFields` is the cue editor's (13b). Assessment A flagged it; whichever phase next
+    touches `CueActions` either moves `arrangingFor` in or the table drops it.
 
 ## Row 14, data-sources C7: combined technical rehearsal (software) and the content trial kit
 
