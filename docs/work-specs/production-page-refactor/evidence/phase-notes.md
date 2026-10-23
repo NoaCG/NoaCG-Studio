@@ -5,6 +5,60 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 17, phase 5: takeBlockers.ts and serverVerbs.ts
+
+- **Previous verified `main` sha:** phase 4 passed on main (#1623 at `ab9b5e4`); this branch
+  starts there. Receipt: `phase-5.md`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. A move of code only: no state shape, storage
+  key, persisted format, sentence or send order changes.
+- **Decisions.**
+  - *One context object, the page's names kept.* The refusals read fourteen render values; the
+    page builds one `TakeContext` per render and keeps `takeBlockerFor`, `directBlocker`,
+    `stepBlocker` and `casparOffRefusal` as one-line wrappers, so none of their callers
+    changes. The spec's `{cues, items, folders, places, ownership, settings, ability, casparOn}`
+    gains `members` (the rundown's folder members, which `takePlans` reads), `bridgeDown` (a step's
+    refusal; it is not the same as `ability`, which is `{state: 'config'}` when nothing is set up),
+    `itemOf`, `graphicOf`, `graphicName` and `slots`.
+  - *`slots` is an adapter.* `itemSlot` and `folderSlot` live in `control/playoutLink.ts`, which
+    reads storage and imports `model/shows` without `.ts`, so Node cannot load it (spec §5.2).
+    The page passes them in (`PLAYOUT_SLOTS`); the Node tests pass the same rule. Moving them into
+    `playoutSlots.ts` would have meant a third `src` file outside AC-8's fence.
+  - *The Take refusal is asked by the page, at the press, and handed in as `intent.blocked`.*
+    `runAndRecord` then refuses before anything else, exactly where the inline check stood, and
+    never for another verb. This keeps `serverVerbs.ts` free of `takeBlockers.ts` at runtime (the
+    spec gives it serverPlayout, serverState and cuePlayback only) and keeps R1's "captured at the
+    press" visible in the intent.
+  - *The 250 ms head start stays a plain `setTimeout` inside the module*, with
+    `LOCAL_SAVE_HEAD_START_MS` moved in from the page (its only reader). Node has `setTimeout`; the
+    tests measure it with a held save.
+  - *What stayed:* `playoutVerb` (it says the note), `addressOfItem`, `folderSlotOf`,
+    `graphicOfCue`, `throughRoleOf` and `playbackAbility` (other readers: the editor, the rows,
+    All together, the problem list), `canTake`, `folderCanTake` and `selectedFolderBlocked` (bar
+    and panel facts: phase 12's `verbView`).
+  - *Non-mechanical changes,* all listed: `bridgeDown` moves up about twenty lines, above the
+    context that reads it (a plain derivation, read only after render); `throughFolderIdOf` and
+    `takePlans` leave the page (their only reader was `takeBlockerFor`); `readable` is
+    `stateReadable(bridgeStatus)` of the press render, computed once instead of twice from the same
+    `const`; the flush is `io.flush` (the same `flushDraft` then `closeGroup`) with the same
+    `.catch`; `now` is `performance.now()` through `io`, still read inside each fold. The identity
+    diff in `phase-5.md` prints nothing else.
+  - **Extra files:** 10 e2e specs gain one comment line naming both modules: those with a page
+    covers header that take server cues through the fake Bridge (`playout-cues`, `playout-clock`,
+    `playout-sequence`, `playout-folders`, `bridge-connect`, `studio-evening-reliability`,
+    `studio-release-completion`, `playout-air-contract`, `publish-output-setup`,
+    `configured/panel-production-page`). No assertion or selector changes.
+- **Traps.**
+  - The spec's line numbers (3344-3457, 2857-2945, 2894-2906) are from `cc3500f2`; on `ab9b5e4`
+    the verb was at 2803-2890 and the refusals at 3327-3442.
+  - A new `control/*.ts` file with no covers line falls back to a 13-spec catch-all selection that
+    misses every playout spec; the covers lines are what select the four of the row.
+  - `TakeContext` and the verb `io` are temporary in part: `cueView` and `flush` go in 13b,
+    `bridgeDown` and the slot facts may move into phase 6's `bridge` part. Shrink them there rather
+    than add.
+  - In a Node test, spreading a new `items` over an old context does not change `itemOf`, which
+    closes over the old list: build a fresh context instead (this bit the first draft of a test).
+
 ## Row 16, phase 4: useProductionPublish (publish, slot, links)
 
 - **Previous verified `main` sha:** phase 3 passed on main (#1620 at `799924c`); this branch
