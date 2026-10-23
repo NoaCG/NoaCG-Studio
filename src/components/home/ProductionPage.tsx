@@ -31,7 +31,6 @@ import {
   setFolderPlayback,
   setCueAuto,
   type PlayoutItem,
-  type PlayoutMediaKind,
   type SheetShowSource,
   type FeedShowSource,
   fillsFields,
@@ -60,7 +59,6 @@ import {
   subscribeTargetStatus,
   syncStudio,
   type PlayoutResult,
-  type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { Slot } from '../../control/playoutProtocol';
 import {
@@ -88,11 +86,11 @@ import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
 import { useStorePart } from './useStorePart';
-import { applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
-import { mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
+import { applyClearedSlot, clipClock, followedClip, pauseTarget } from '../../control/serverState';
+import { segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, stepFace, type FolderStep, type StepMember } from '../../control/folderStep';
-import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
+import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
 import ClipClock from './ClipClock';
@@ -287,8 +285,8 @@ import { addReadyGraphicToShow as addGraphicToShow } from '../../control/product
 import { readMarkerAuto } from '../../control/cueAuto';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
-import { commandPathsOf, slotHolds, type PrepRequest } from '../../control/prepareLive';
-import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type SlotReading, type StatusCheck, type StatusFacts } from '../../control/playoutStatus';
+import { commandPathsOf, type PrepRequest } from '../../control/prepareLive';
+import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
@@ -307,6 +305,28 @@ const LOG_HISTORY_SPAN = 400;
 
 /** Where an item and a Play-through folder play, for the Take refusals and the server verbs. */
 const PLAYOUT_SLOTS: SlotRules = { itemSlot, folderSlot };
+/** The Bridge watch's browser half (control/bridgeWatch.ts): the link, storage, timers and the tab. */
+const BRIDGE_IO: BridgeWatchIo = {
+  loadSettings: loadPlayoutSettings,
+  configured: playoutConfigured,
+  readable: stateReadable,
+  subscribeTargetStatus,
+  readState,
+  listLibrary,
+  syncStudio,
+  rememberOutput: (showId, target) => saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: target }),
+  every: (ms, run) => {
+    const timer = setInterval(run, ms);
+    return () => clearInterval(timer);
+  },
+  onVisible: (run) => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') run();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  },
+};
 
 /**
  * THE PLAYOUT DASHBOARD (route `#/production/<id>`) — the surface an operator runs a production
@@ -429,7 +449,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [id, hasShow, backendConfigured, authStatus]);
   const publishOwner = useRef({ id, userId: user?.id });
   publishOwner.current = { id, userId: user?.id };
-  const [serverFiles, setServerFiles] = useState<{ key: string; check: StatusCheck | null } | null>(null);
   const [accentPreview, setAccentPreview] = useState<{ productionId: string; cueId: string; color: string } | null>(null);
   /** The account's "Use CasparCG in new productions": it decides the CasparCG switch of a new
    *  production until the operator sets it (model/outputSetup.ts), so only a production whose
@@ -591,21 +610,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  e2e/playout-clock.spec.ts proves the server's readings do not re-render it. */
   const renders = useRef(0);
   renders.current += 1;
-  /** The Bridge's last word on the playout server, polled while this production has server
-   *  cues: what the editor shows beside a server cue, and what disables its Take. */
-  const [bridgeStatus, setBridgeStatus] = useState<PlayoutResult | null>(null);
-  /** What the NoaCG output's slot on the server holds (the effect beside the status poll below),
-   *  undefined until read (control/playoutStatus.ts `SlotReading`). */
-  const [outputSlot, setOutputSlot] = useState<SlotReading | undefined>(undefined);
+  /** What NoaCG Bridge last said: the server's status, the output's slot, the server files and
+   *  whether this session saw its output on the slot (control/bridgeWatch.ts asks, below). */
+  const { status: bridgeStatus, outputSlot, serverFiles, slotSeenOurs } = useStorePart(session.bridge);
+  /** The Bridge watch, while it runs: an output action and a server verb reach it here. */
+  const bridgeWatch = useRef<BridgeWatch | null>(null);
   /** Bumped by the Playout panel's Check again: the server and the slot are asked again at once. */
   const [checkAgainRev, setCheckAgainRev] = useState(0);
   /** Bumped by Put on air and Take off: only the slot changed, so only the slot is read again. */
   const [slotRev, setSlotRev] = useState(0);
-  /** Invalidate an in-flight slot read synchronously when an output action finishes. */
-  const slotActionRev = useRef(0);
-  /** This session saw this production on its CasparCG slot: losing it after that is red, while a
-   *  slot that was never loaded today is only a Load waiting to be pressed. Unload clears it. */
-  const [slotSeenOurs, setSlotSeenOurs] = useState(false);
   /** A graphic Take went out while nothing that could air it was reporting (AC-2 "No output"). */
   const [noOutputTake, setNoOutputTake] = useState(false);
   /**
@@ -767,11 +780,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
-    slotActionRev.current += 1;
+    bridgeWatch.current?.slotActed();
     if (show && result.state === 'ok') {
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), casparOutput: what === 'air' ? target : undefined });
       // Unloading on purpose is not losing the slot.
-      if (what === 'stop') setSlotSeenOurs(false);
+      if (what === 'stop') writeBridge(session, { slotSeenOurs: false });
     }
     setSlotRev((n) => n + 1);
   };
@@ -1226,200 +1239,55 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Every clip's place in its Play-through folder, worked out once per rundown: what its row, its
    *  panel and the two-slot check read. */
   const places = useMemo(() => throughPlaces(cues, playoutItems, folders), [cues, playoutItems, folders]);
-  // The server's state is re-asked every few seconds while a playout server is SET UP - one
-  // loopback request, so the header's Playout control shows whether CasparCG answers, and the
-  // editor can say "connected" or name the hop before a server cue's Take. Nothing is asked of a
-  // browser that was never paired with a Bridge: that page says "not set up" without a request,
-  // so nobody who only uses OBS or vMix ever meets a local-network prompt from this poll.
-  // It restarts only when WHERE it asks changes - the Bridge, its token, the server - or on Check
-  // again. A studio setup taken from the Bridge changes channels and the output slot, and restarting
-  // for it cleared the status and asked again at once, so every effect keyed on an answering Bridge
-  // ran twice as the page opened. With the production's CasparCG switch off nothing here asks the
-  // Bridge at all (playout-workflow-simplification AC-4).
+  // EVERYTHING THIS PAGE ASKS NOACG BRIDGE ON ITS OWN (control/bridgeWatch.ts): whether the server
+  // answers, the studio setup the Bridge keeps, what the output's slot holds, whether the rundown's
+  // server files are there, what an older clip is, and what each channel the rundown uses holds.
+  // One watch per session; after each render it is handed what the page knows, and each poll
+  // restarts on its own key (the module lists them), with the status read from the `bridge` part.
+  // The status is asked only while a playout server is SET UP and this production's CasparCG switch
+  // is on - one loopback request every few seconds, so a browser never paired with a Bridge meets
+  // no local-network prompt (playout-workflow-simplification AC-4). It restarts only when WHERE it
+  // asks changes - the Bridge, its token, the server - or on Check again.
   const linkSettings = loadPlayoutSettings();
   const statusTarget = casparOn && playoutConfigured(linkSettings)
     ? [linkSettings.agentUrl, linkSettings.agentToken, linkSettings.host.trim(), linkSettings.amcpPort].join(' ')
     : null;
-  useEffect(() => {
-    setBridgeStatus(null);
-    if (statusTarget === null) return;
-    return subscribeTargetStatus(loadPlayoutSettings(), setBridgeStatus);
-  }, [statusTarget, checkAgainRev]);
-  // THE STUDIO SETUP NOACG BRIDGE KEEPS for this server (docs/work-specs/studio-day-playout D17):
-  // read once as the page opens, so a channel, output slot or New media channel another browser set
-  // is the one this page plays to. A change it brings re-reads the settings like the dialog's close.
-  // Not guarded by the mount that started it: the settings it wrote are the page's whichever mount
-  // asks, and under StrictMode's remount a guard dropped the re-read in every dev run and e2e.
-  useEffect(() => {
-    if (!playoutConfigured(loadPlayoutSettings())) return;
-    void syncStudio().then((done) => {
-      if (done.changed) setPlayoutSettingsRev((n) => n + 1);
-    });
-  }, []);
-  // WHAT THE NOACG OUTPUT'S SLOT HOLDS on the server (docs/work-specs/studio-day-playout AC-7): this
-  // production's output, another production's, or nothing - the fact that says whether a Take will
-  // air on CasparCG at all, and that the studio day had to discover by looking at the programme.
-  // Read through the Bridge every 10 s while the production is started and the server answers, and
-  // at once after Put on air or Take off (`slotRev`); read-only (`/state`, an AMCP INFO). Check
-  // again and a settings change restart the Bridge poll, whose answer restarts this. A Bridge too
-  // old to say reads as `unreadable`, never as a fault.
-  const bridgeAnswers = bridgeStatus?.state === 'ok';
   const slotReadable = stateReadable(bridgeStatus);
-  const outputSlug = show?.outputSlug ?? null;
-  useEffect(() => {
-    const settings = loadPlayoutSettings();
-    if (!hostedSlug || !casparOn || !bridgeAnswers || !playoutConfigured(settings)) {
-      setOutputSlot(undefined);
-      return;
-    }
-    if (!slotReadable) {
-      setOutputSlot({ holds: 'unreadable' });
-      return;
-    }
-    let alive = true;
-    let reading = false;
-    const actionRev = slotActionRev.current;
-    // The same reading again keeps the same object, so an unchanged slot renders nothing.
-    const settle = (next: SlotReading | undefined) => {
-      if (next?.holds === 'ours' && showId) {
-        saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: casparTarget });
-        setSlotSeenOurs(true);
-      }
-      setOutputSlot((prev) => (prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next));
-    };
-    const read = () => {
-      if (reading) return; // a slow Bridge: never stack reads
-      reading = true;
-      readState(settings, settings.channel)
-        .then(
-          (r) => {
-            if (!alive || actionRev !== slotActionRev.current) return;
-            // A refused read is a fault the status names, never "Checking…" for ever.
-            settle(
-              r.reply
-                ? { holds: slotHolds(r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, outputSlug) }
-                : { holds: 'failed', detail: r.result.detail },
-            );
-          },
-          () => alive && settle(undefined),
-        )
-        .finally(() => {
-          reading = false;
-        });
-    };
-    read();
-    const timer = setInterval(read, 10_000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [hostedSlug, casparOn, bridgeAnswers, slotReadable, outputSlug, slotRev, showId, casparTarget]);
-
-  // ── WHAT AN OLDER CLIP IS (docs/CLIP_PLAYBACK_PLAN.md §7, §18 case 5). A clip saved before its kind
-  // was kept - or its length, by a record made elsewhere - learns both from the server's own list,
-  // once per production and Bridge, as soon as the Bridge answers: an audio file then plays as one,
-  // a still keeps its Hold, and Play next can check a follower's length. Only a missing fact is
-  // filled, and a file the list does not have stays unknown, which Play next says.
-  const learntFacts = useRef<string | null>(null);
   const bridgeOk = bridgeStatus?.state === 'ok';
   const serverFileItems = playoutItems.filter(i => cues.some(c => c.source === 'playout' && c.sourceId === i.id));
   const serverFileKey = JSON.stringify({ show: show?.id, target: statusTarget, items: serverFileItems.map(i => ({ id: i.id, kind: i.kind, name: i.name })), refs: cues.filter(c => c.source === 'playout').map(c => c.sourceId) });
   const needsServerFiles = cues.some(c => c.source === 'playout');
-  useEffect(() => {
-    if (!bridgeOk || !needsServerFiles) return;
-    let alive = true;
-    setServerFiles(null);
-    void (async () => {
-      const settings = loadPlayoutSettings();
-      const requirements = JSON.parse(serverFileKey) as { items: Pick<PlayoutItem, 'id' | 'kind' | 'name'>[]; refs: string[] };
-      const kinds = [...new Set(requirements.items.map(i => i.kind))];
-      const lists = await Promise.all(kinds.map(async kind => ({ kind, ...await listLibrary(settings, kind) })));
-      if (!alive) return;
-      const unavailable = lists.find(l => !l.items);
-      const missing = requirements.items.filter(i => !lists.find(l => l.kind === i.kind)?.items?.some(f => f.name.toLowerCase() === i.name.toLowerCase()));
-      const orphan = requirements.refs.some(id => !requirements.items.some(i => i.id === id));
-      const check: StatusCheck | null = unavailable ? { key: 'files', tone: 'warn', short: 'Server files unavailable', label: 'CasparCG file list unavailable', advice: unavailable.result.detail }
-        : missing.length || orphan ? { key: 'files', tone: 'bad', short: 'Server files missing', label: `Unavailable CasparCG files: ${missing.map(i => i.name).join(', ')}${orphan ? ' (cue has no file definition)' : ''}`, advice: 'Copy the required pictures and videos to the server manually, then Check Readiness again.' } : null;
-      setServerFiles({ key: serverFileKey, check });
-    })();
-    return () => { alive = false; };
-    // The key covers the captured production, target and referenced files, without re-reading
-    // on cue highlights or field edits. Read-only listing never sends a playback action.
-  }, [bridgeOk, needsServerFiles, serverFileKey, checkAgainRev]);
-  // A SETUP CHANGE MADE WHILE NOACG BRIDGE WAS AWAY goes to it as soon as the status says it answers
-  // again (D17), rather than waiting for the next page or Playout settings to open.
-  useEffect(() => {
-    if (bridgeOk && loadPlayoutSettings().studioPending) void syncStudio();
-  }, [bridgeOk]);
-  useEffect(() => {
-    if (!bridgeOk || !show) return;
-    // A still has no length to learn.
-    const missing = playoutItems.filter((i) => i.kind === 'media' && (!i.mediaKind || (i.mediaKind !== 'still' && !(i.frames && i.fps))));
-    const key = `${show.id} ${playoutSettingsRev}`;
-    if (!missing.length || learntFacts.current === key) return;
-    learntFacts.current = key;
-    void (async () => {
-      const { items } = await listLibrary(loadPlayoutSettings(), 'media');
-      if (!items) return;
-      const byName = new Map(items.map((x) => [x.name.toLowerCase(), x] as const));
-      const facts = new Map<string, { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }>();
-      for (const m of missing) {
-        const found = byName.get(m.name.toLowerCase());
-        if (found) facts.set(m.id, { ...mediaKindOf(found.kind), frames: found.frames, fps: found.fps });
-      }
-      if (facts.size) setShows(fillPlayoutItemFacts(show.id, facts));
-    })();
-  }, [bridgeOk, show, playoutItems, playoutSettingsRev]);
-
-  // ── THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.7). While this production has server cues
-  // and both the Bridge and the server can say what is playing, ask what each channel the rundown
-  // uses holds - twice a second while something is up there, every few seconds otherwise, and at
-  // once when the tab comes back into view - and fold each reading into the store. The page
-  // re-renders only when OWNERSHIP moves (a clip ended or was replaced on the server); the clock
-  // and the rows follow TIMING on their own. The poll only reads: nothing here can air a clip.
-  const statePoll = useRef<ServerStatePoll | null>(null);
-  const serverReadable = stateReadable(bridgeStatus);
-  const hasServerItems = playoutItems.length > 0;
   const rundownRef = useRef({ cues, playoutItems, folders });
   rundownRef.current = { cues, playoutItems, folders };
   useEffect(() => {
-    if (!serverReadable || !hasServerItems) return;
-    /** Each Play-through folder's slot: it plays there, not on its clips' own slots, so a reload in
-     *  the middle of one has to read it even when no item of the rundown uses that channel. */
-    const folderSlots = (settings: PlayoutSettings) =>
-      rundownRef.current.folders.filter((f) => folderMode(f) === 'through').map((f) => folderSlot(settings, f));
-    const poll = pollServerState({
-      read: (channel) => readState(loadPlayoutSettings(), channel),
-      channels: () => {
-        const settings = loadPlayoutSettings();
-        const channels = new Set(rundownRef.current.playoutItems.map((i) => itemSlot(settings, i).channel));
-        for (const s of folderSlots(settings)) channels.add(s.channel);
-        for (const l of Object.values(serverPlayout.ownership.get().onAir)) if (l.slot.adapter === 'casparcg') channels.add(l.slot.channel);
-        return [...channels].sort((a, b) => a - b);
-      },
-      busy: () => {
-        const own = serverPlayout.ownership.get();
-        return Object.keys(own.onAir).length > 0 || own.unidentified.length > 0;
-      },
-      onReading: (channel, reply, receivedAt) => {
-        const settings = loadPlayoutSettings();
-        const { cues: rundownCues, playoutItems: items } = rundownRef.current;
-        serverPlayout.apply((parts) =>
-          applyReading(parts, reply, { channel, now: receivedAt, cues: rundownCues, items, slotOf: (i) => itemSlot(settings, i), alsoSlots: folderSlots(settings) }),
-        );
-      },
+    const watch = startBridgeWatch(session, BRIDGE_IO, {
+      rundown: () => rundownRef.current,
+      slots: { itemSlot, folderSlot },
+      serverPlayout,
+      settingsChanged: () => setPlayoutSettingsRev((n) => n + 1),
+      learnt: (showId, facts) => setShows(fillPlayoutItemFacts(showId, facts)),
     });
-    statePoll.current = poll;
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') poll.wake();
-    };
-    document.addEventListener('visibilitychange', onVisible);
+    bridgeWatch.current = watch;
     return () => {
-      poll.stop();
-      statePoll.current = null;
-      document.removeEventListener('visibilitychange', onVisible);
+      watch.stop();
+      bridgeWatch.current = null;
     };
-  }, [serverReadable, hasServerItems, playoutSettingsRev, serverPlayout]);
+  }, [session, serverPlayout]);
+  useEffect(() => {
+    bridgeWatch.current?.update({
+      target: statusTarget,
+      hostedSlug,
+      casparOn,
+      outputSlug: show?.outputSlug ?? null,
+      showId,
+      casparTarget,
+      serverFiles: needsServerFiles ? serverFileKey : null,
+      playoutItems,
+      checkAgain: checkAgainRev,
+      settingsRev: playoutSettingsRev,
+      slotRev,
+    });
+  });
 
   // ── The cue draft: edits echo locally, persist on idle / switch / take / unmount. ──
   const [draft, setDraft] = useState<CueDraft | null>(null);
@@ -2811,7 +2679,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         act,
         loadSettings: loadPlayoutSettings,
         now: () => performance.now(),
-        wake: () => statePoll.current?.wake(),
+        wake: () => bridgeWatch.current?.wake(),
         flush: async () => { await flushDraft(); await history.closeGroup(); },
         cueView,
       },
@@ -3216,14 +3084,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const r = await act(settings, { verb: 'out', slot });
       if (r.state !== 'ok') failed.push(`${address} did not clear: ${r.detail}`);
     }
-    statePoll.current?.wake();
+    bridgeWatch.current?.wake();
     if (failed.length) setNote(`All out: ${failed.join(' ')}`);
   };
   const clearSlot = async (slot: Slot) => {
     const result = await act(loadPlayoutSettings(), { verb: 'clear', slot });
     if (result.state === 'ok') serverPlayout.apply(parts => applyClearedSlot(parts, { slot, generation: result.generation, session: result.session }));
     setNote(result.state === 'ok' ? `✓ Stop/Clear ${slotAddress(slot)} accepted. Check program to confirm it is clear.` : `Stop/Clear ${slotAddress(slot)} failed: ${result.detail}`);
-    statePoll.current?.wake();
+    bridgeWatch.current?.wake();
   };
 
   const descriptors = editorTemplate ? fieldDescriptors(editorTemplate.fields) : [];

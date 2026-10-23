@@ -5,6 +5,7 @@
 // covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/useProductionPublish.ts
+// covers: src/control/bridgeWatch.ts
 // focus
 
 import { test, expect } from '@playwright/test';
@@ -18,16 +19,23 @@ test('a browser production ignores a paired Bridge and old outputs, while Caspar
   // Prepare Vite's transformed module once, before navigation, and fulfill from memory on every
   // reload. Re-fetching it inside the route exposed the health assertions to a pooled Node
   // connection resetting (CI run 37163639314). The setup fetch still fails on any error.
-  const response = await request.get('/src/components/home/ProductionPage.tsx', { headers: { Connection: 'close' } });
-  await expect(response).toBeOK();
-  let body = await response.text();
-  await response.dispose();
-  const guard = 'if (!alive || actionRev !== slotActionRev.current)';
-  expect(body).toContain(guard);
+  // The slot rev lives in the page; the slot read and its guard in control/bridgeWatch.ts.
+  const fetchModule = async (path: string) => {
+    const response = await request.get(path, { headers: { Connection: 'close' } });
+    await expect(response).toBeOK();
+    const text = await response.text();
+    await response.dispose();
+    return text;
+  };
+  let body = await fetchModule('/src/components/home/ProductionPage.tsx');
+  let watch = await fetchModule('/src/control/bridgeWatch.ts');
+  const guard = 'if (!live || actionRev !== slotActions)';
+  expect(watch).toContain(guard);
   expect(body).toContain('setSlotRev((n) => n + 1);');
   body = body.replace('setSlotRev((n) => n + 1);', 'setTimeout(() => setSlotRev((n) => n + 1), 1000);');
-  body = body.replace(guard, `window.__healthSlotReplies = (window.__healthSlotReplies || 0) + 1; ${process.env.HEALTH_MUTATE_STALE_SLOT ? 'if (!alive)' : guard}`);
+  watch = watch.replace(guard, `window.__healthSlotReplies = (window.__healthSlotReplies || 0) + 1; ${process.env.HEALTH_MUTATE_STALE_SLOT ? 'if (!live)' : guard}`);
   await page.route('**/src/components/home/ProductionPage.tsx*', (route) => route.fulfill({ contentType: 'text/javascript', body }));
+  await page.route('**/src/control/bridgeWatch.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: watch }));
   // READY memory is enabled only for a configured production. Stand in the backend on the
   // network like output-ready.spec.ts; no remote project or authenticated data is involved.
   const backend = 'https://health.supabase.test';

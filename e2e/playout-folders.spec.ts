@@ -6,6 +6,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/components/home/ProductionShell.tsx
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
 // focus
 //
 // A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, §6.5, §6.6 and §7, phase 4). The rundown half:

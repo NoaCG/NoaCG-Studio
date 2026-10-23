@@ -5,6 +5,93 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 18, phase 6: bridgeWatch.ts and the `bridge` part
+
+- **Previous verified `main` sha:** phase 5 passed on main (#1626 at `fe95daa`); this branch
+  starts there.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No storage key, persisted format, sentence or
+  request shape changes; the part lives only in memory.
+- **Decisions.**
+  - *One watch per session, fed after every render.* The page starts it in one effect keyed on
+    the session (`startBridgeWatch(session, io, adapters)`, stopped in its cleanup) and hands it
+    what it knows in a second effect with no dependency list (`watch.update(inputs)`). Each poll
+    restarts on its own key, listed at the top of `control/bridgeWatch.ts`. A single restart rule
+    for all five polls, the spec's literal `useEffect(() => startBridgeWatch(...), [checkAgain,
+    settingsRev, slotRev])`, would restart the status subscription on Put on air and clear the
+    header's status for it, which the page never did; the three named keys are explicit inputs
+    instead, and the module's table says which poll each one restarts.
+  - *The status is read from the part, not from a render.* A poll waiting on an answering Bridge
+    is re-checked in the status callback itself and after each render, so it starts once per
+    answer.
+  - *Old dependencies, mapped:*
+    - status `[statusTarget, checkAgainRev]`: both restart keys (`target`, `checkAgain`).
+    - studio setup `[]`: once per start (StrictMode's remount still asks twice, as before).
+    - output slot `[hostedSlug, casparOn, bridgeAnswers, slotReadable, outputSlug, slotRev,
+      showId, casparTarget]`: all keep their place in its key; `bridgeAnswers` and
+      `slotReadable` are now read from the part.
+    - server files `[bridgeOk, needsServerFiles, serverFileKey, checkAgainRev]`: `bridgeOk` from
+      the part; `needsServerFiles` and `serverFileKey` are one input (`serverFiles`, null when not
+      needed); `checkAgainRev` is no longer needed, because Check again clears the status and the
+      check restarts with the next answer (the mutation check found it equivalent).
+    - pending studio change `[bridgeOk]`: from the part.
+    - older clips `[bridgeOk, show, playoutItems, playoutSettingsRev]`: evaluated on every
+      update; it was already guarded by `learntFacts` (`${show.id} ${rev}`), so asking again with
+      the same inputs is a no-op exactly as before. `show` became `showId`.
+    - server state `[serverReadable, hasServerItems, playoutSettingsRev, serverPlayout]`:
+      `serverReadable` from the part, `hasServerItems` read from the `playoutItems` input,
+      `playoutSettingsRev` a restart key, and `serverPlayout` the watch's adapter (constant for
+      the page's life, so the start effect keys on it with the session).
+  - *What moved into the part:* `bridgeStatus`, `outputSlot`, `serverFiles`, `slotSeenOurs` and
+    the `learntFacts` ref. `checkAgainRev` and `slotRev` stay page state (restart keys); the
+    `slotActionRev` ref became the watch's `slotActed()`; `statePoll.current?.wake()` became
+    `bridgeWatch.current?.wake()`.
+  - *Adapters:* `playoutConfigured` and `stateReadable` come in through `io`, because
+    `playoutLink.ts` cannot be loaded in Node; `itemSlot` and `folderSlot` through
+    `adapters.slots` (the phase-5 `SlotRules` type returns `Slot`, which has no `channel` on
+    every member, so the watch takes the CasparCG-typed pair).
+  - *Non-mechanical changes,* all listed:
+    - a poll waiting on the status starts in the status callback, one React commit earlier than
+      the effect that used to start it; the requests and their order are the same;
+    - two requests whose answers were always dropped are no longer made: on Check again the file
+      check listed the server's libraries once for the render that still showed the old status,
+      and on a settings change that also moved the target, the state poll read once for the same
+      stale render;
+    - writing `learntFacts` into the part renders the page once per production and settings rev
+      (a ref never rendered); it lands in the same task as the status answer that triggers it,
+      so React folds the two;
+    - the status callback checks its own stop as well as the link's (a late status writes
+      nothing even through a fake link).
+    - Check again no longer clears the file check's last result at the press: the check stops
+      with the cleared status and clears its result when it restarts on the next answer. The
+      operator cannot see the difference, because the page shows the file check only while the
+      Bridge answers.
+    - a poll started from the status callback uses the inputs of the last commit; the update
+      after the next render checks the same keys again, so nothing is lost or asked twice.
+  - **Extra files:** 10 e2e specs gain one comment line naming `bridgeWatch.ts` (the same ten
+    phase 5 mapped to `serverVerbs.ts`). `playout-feedback-health` gains the same line and its
+    fault injection follows the moved code: it rewrites the served source to delay `setSlotRev`
+    (still in the page) and to count slot replies at the stale-read guard, which is now
+    `if (!live || actionRev !== slotActions)` in `bridgeWatch.ts`, so it patches both modules.
+    Its assertions are unchanged, and its own mutant (`HEALTH_MUTATE_STALE_SLOT=1`, the guard
+    without the action check) still fails on "an older slot reply must not restore intent after
+    Unload".
+- **Traps.**
+  - `e2e/playout-feedback-health.spec.ts` fault-injects by rewriting the served text of the
+    modules it names, so moving the code it patches breaks it at its first `toContain` even
+    though behaviour is unchanged. The phase-6 matrix row does not list it; CI found it. Grep
+    `e2e/` for `request.get('/src/` before moving code out of the page.
+  - The spec's line numbers (1134-1327, 1141-1143) are from `cc3500f2`; on `fe95daa` the seven
+    effects were at 1222-1415.
+  - A Node test that starts a real state poll keeps Node alive through its `setTimeout`: stop
+    every watch after each test (`afterEach`), or the run never ends.
+  - In the test's fake Bridge the reply is built when `/state` is asked, not when it is
+    answered: change what the slot holds before the read you hold.
+  - `TakeContext`'s `bridgeDown` and `PublishActionsIo`'s `outputSlot`/`slotReadable` still read
+    the page's copies of the part; this phase did not shrink them (the fence keeps
+    `useProductionPublish.ts` and `takeBlockers.ts` out). A later phase that touches them can
+    read the part directly.
+
 ## Row 17, phase 5: takeBlockers.ts and serverVerbs.ts
 
 - **Previous verified `main` sha:** phase 4 passed on main (#1623 at `ab9b5e4`); this branch

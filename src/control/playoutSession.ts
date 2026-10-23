@@ -8,11 +8,14 @@
 // here and their effect on the server stands (§4.1 R3).
 //
 // Its parts are store parts (./storePart.ts), each its own subscription: `data` holds the
-// production's live tree (./productionDataSession.ts writes it), and later phases add the rest.
+// production's live tree (./productionDataSession.ts writes it), `bridge` what NoaCG Bridge last said
+// (./bridgeWatch.ts writes it), and later phases add the rest.
 // Every write is one synchronous `apply(fold)`, parts set in a fixed order (D4). No React and only
 // `.ts` runtime imports, so a Node test drives it as it is.
 
 import type { JsonObject } from '../model/productionData';
+import type { PlayoutResult } from './playoutLink';
+import type { SlotReading, StatusCheck } from './playoutStatus';
 import { storePart, type StorePart } from './storePart.ts';
 
 /** The production's live tree as this page holds it (./productionDataSession.ts says the rules). */
@@ -27,6 +30,24 @@ export interface DataPart {
 
 export const NO_DATA: DataPart = { liveData: {}, dataKey: undefined, treeRead: false };
 
+/** What NoaCG Bridge last said for this production (./bridgeWatch.ts asks it). */
+export interface BridgePart {
+  /** The Bridge's last word on the playout server, null until it answers: what the editor shows
+   *  beside a server cue, and what disables its Take. */
+  status: PlayoutResult | null;
+  /** What the NoaCG output's slot on the server holds, undefined until read. */
+  outputSlot: SlotReading | undefined;
+  /** The rundown's server files checked, under the key they were checked for; null while checking. */
+  serverFiles: { key: string; check: StatusCheck | null } | null;
+  /** This session saw this production on its CasparCG slot: losing it after that is red, while a
+   *  slot that was never loaded today is only a Load waiting to be pressed. Unload clears it. */
+  slotSeenOurs: boolean;
+  /** The production and settings rev whose older clips last asked the server what they are. */
+  learntFacts: string | null;
+}
+
+export const NO_BRIDGE: BridgePart = { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null };
+
 export interface PlayoutSession {
   /** The production this session belongs to. */
   readonly key: string;
@@ -34,6 +55,8 @@ export interface PlayoutSession {
   alive: () => boolean;
   /** The live tree. */
   data: StorePart<DataPart>;
+  /** What NoaCG Bridge last said. */
+  bridge: StorePart<BridgePart>;
   /** Move the session's parts with one fold, in a fixed order. A no-op once disposed. */
   apply: (fold: (parts: SessionParts) => SessionParts) => void;
   /** Run `stop` when the session is disposed (at once if it already is); answers an unregister. */
@@ -45,21 +68,25 @@ export interface PlayoutSession {
 /** The session's parts, as one fold sees them. */
 export interface SessionParts {
   data: DataPart;
+  bridge: BridgePart;
 }
 
 export function createPlayoutSession(productionId: string): PlayoutSession {
   let alive = true;
   const stops = new Set<() => void>();
   const data = storePart<DataPart>(NO_DATA);
+  const bridge = storePart<BridgePart>(NO_BRIDGE);
   return {
     key: productionId,
     alive: () => alive,
     data,
+    bridge,
     apply: (fold) => {
       if (!alive) return;
-      const next = fold({ data: data.get() });
+      const next = fold({ data: data.get(), bridge: bridge.get() });
       // The fixed order: later parts are set after `data`, as D4 lists them.
       data.set(next.data);
+      bridge.set(next.bridge);
     },
     onDispose: (stop) => {
       if (!alive) {

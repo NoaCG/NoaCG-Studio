@@ -77,3 +77,16 @@ test('apply moves the parts in one fold, and a part\'s listeners hear only its o
   assert.equal(session.data.get().dataKey, null, 'a fold after disposal changes nothing');
   assert.equal(heard, 1);
 });
+
+test('apply sets data before bridge, and a bridge-only fold is heard by the bridge part alone', async () => {
+  const { NO_BRIDGE } = await import('../src/control/playoutSession.ts');
+  const session = createPlayoutSession('prod-1');
+  assert.equal(session.bridge.get(), NO_BRIDGE);
+  const heard = [];
+  session.data.subscribe(() => heard.push(`data bridge=${session.bridge.get().slotSeenOurs}`));
+  session.bridge.subscribe(() => heard.push(`bridge data=${session.data.get().dataKey}`));
+  session.apply((parts) => ({ ...parts, bridge: { ...parts.bridge, slotSeenOurs: true } }));
+  assert.deepEqual(heard, ['bridge data=undefined']);
+  session.apply((parts) => ({ data: { ...parts.data, dataKey: 'k' }, bridge: { ...parts.bridge, slotSeenOurs: false } }));
+  assert.deepEqual(heard, ['bridge data=undefined', 'data bridge=true', 'bridge data=k'], 'data is set first, then bridge');
+});
