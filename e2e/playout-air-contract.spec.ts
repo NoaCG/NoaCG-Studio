@@ -6,6 +6,7 @@
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
 // covers: src/control/folderPlayout.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 //
 // THE PRODUCTION PAGE'S AIR CONTRACT, pinned before the page is split (production-page refactor,
 // phase 1; docs/work-specs/production-page-refactor/spec.md §5.3 and §1.3). Each test presses

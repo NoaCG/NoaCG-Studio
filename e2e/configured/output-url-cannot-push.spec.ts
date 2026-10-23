@@ -56,7 +56,7 @@ import {
 // THE PLAY IS THE DETECTOR, and it stands for every verb. A forged `stop` is at least as bad as a
 // forged `play` - taking the show off air mid-programme - and it is in the batch below, but only
 // an entrance leaves a count behind. It needs no assertion of its own: both verbs arrive through
-// one handler on one road (`onCommand` into `applyCommand`), so a road that cannot carry a play
+// one handler on one road (`onCommand` into `applyCommand`, control/airState.ts `claimAndApply`), so a road that cannot carry a play
 // cannot carry a stop either.
 //
 // THE RENDERER IS ANONYMOUS, in a context of its own with no session. That is what a browser

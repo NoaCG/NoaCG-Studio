@@ -2,6 +2,7 @@
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
 // covers: src/components/home/useProductionPublish.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 //
 // ALL OUT CLEARS WHAT THE SERVER SAYS IS ON (docs/work-specs/playout-workflow-simplification D11,
 // AC-13). The production page used to clear only the graphics its own list had a cue marker for,

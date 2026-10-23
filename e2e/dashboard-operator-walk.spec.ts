@@ -4,6 +4,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/CueActions.tsx
 // covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 //
 // It presses Take, Update, Next and Out on the production page, so a change there runs it
 // (production-page refactor phase 1, AC-1).

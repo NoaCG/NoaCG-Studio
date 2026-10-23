@@ -10,6 +10,7 @@
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
 // covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 //
 // PUBLISH ONCE, ONE SWITCH (docs/work-specs/playout-workflow-simplification AC-1, AC-3, AC-4, AC-5,
 // AC-8): no output chooser; the account's "Use CasparCG in new productions" starts a new

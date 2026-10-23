@@ -28,6 +28,7 @@
 // playout-both-roads.spec.ts). A migration that changed a grant and reported "covered" from the
 // offline plan would be covered by nothing.
 // covers: supabase/migrations/**
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';

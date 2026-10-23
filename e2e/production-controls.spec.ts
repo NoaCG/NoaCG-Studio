@@ -3,6 +3,7 @@
 // covers: src/components/playoutKeys.ts, src/components/{home,save}/**
 // covers: src/components/{ExportWindow,ExportSurface}.tsx
 // covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 // focus
 
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';

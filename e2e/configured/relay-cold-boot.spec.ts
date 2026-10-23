@@ -8,6 +8,7 @@
 // walks plus output-realtime-floor and relay-cold-boot, all in the configured suite - so a
 // change here that the offline plan reports as "covered" is covered by nothing.
 // covers: src/control/{hostedControl,hostedReceiver,outputRecovery,logFollow}.ts, src/output/**
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';

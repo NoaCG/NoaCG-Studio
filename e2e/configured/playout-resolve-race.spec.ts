@@ -1,6 +1,7 @@
 // covers: src/components/home/ProductionPage.tsx, src/control/hostedControl.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/useProductionPublish.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
 //
 // A TAKE PRESSED WHILE THE PAGE'S FIRST RESOLVE IS STILL OUT STAYS ON THIS PAGE (production-page
 // refactor, phase 1; docs/work-specs/production-page-refactor/spec.md §5.3, "the initial resolve
@@ -10,7 +11,8 @@
 // `control_show_resolve` or `control_show_by_slug`) and seeds its live map from the answer. An
 // answer that left before the operator's Take is older than the screen: seeding from it would mark
 // the graphic off while it is on air, and grey Out (the hosted-tier hang in ProductionPage's
-// `liveCueMoves` comment). The guard skips the seed when the live map moved while the read was out.
+// `setLiveCue` comment). The guard (control/airState.ts `seedFromResolve`) skips the seed when the
+// live map moved while the read was out.
 // The hold is in the browser, on the answer: the read reaches the server before the Take.
 
 import { publishProduction } from '../_publish';
