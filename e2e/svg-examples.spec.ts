@@ -13,6 +13,7 @@
 // imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out.
 // downloads.spec.ts rides along because it checks the committed zip still holds these files.
 // covers: docs/tutorials/svg-examples/**
+// covers: src/components/home/CueActions.tsx
 
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';

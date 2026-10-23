@@ -1,6 +1,7 @@
 // covers: src/components/home/ProductionPage.tsx, src/control/{hostedControl,seqSend,productionDataApi}.ts
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/CueActions.tsx
 //
 // TWO ⚡ ADJUST PRESSES INSIDE ONE ROUND TRIP MOVE A SHARED VALUE TWICE (production-page refactor,
 // phase 1, S1; docs/work-specs/production-page-refactor/spec.md §1.3).

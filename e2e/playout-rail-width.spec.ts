@@ -10,6 +10,7 @@
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/{CueActions,ProductionShell}.tsx
 //
 // THE RUNDOWN'S WIDTH AND ITS ONE-LINE ROWS (docs/CLIP_PLAYBACK_PLAN.md phase 1). The row layout
 // and the handle live in the CORE stylesheet and the width in model/prefs.ts, also CORE.

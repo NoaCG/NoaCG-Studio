@@ -5,6 +5,52 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 15, phase 3: ProductionShell and CueActions, props-only
+
+- **Previous verified `main` sha:** C7 passed on main (#1615 at `44bfa89`); this branch starts at
+  `823d160` (that plus the C7 walk receipt #1619). Receipt: `phase-3.md`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. A move of markup only: no state, storage key
+  or persisted format changes.
+- **Decisions.**
+  - *The shell moves with its own hooks.* `ProductionShell` was already a component at the bottom
+    of the page, and it already called its own hooks (the verb keys, the edit keys, the cue
+    shortcut set, the team state, the rail width). The spec calls this row "a file move" with "the
+    current props", so it moves verbatim, hooks included; nothing moves into it from the page, and
+    its props are unchanged. Lifting those hooks into the page would have changed the code under
+    a move, which this phase forbids. `NO_CUES` moves with it, as its only reader.
+  - *CueActions is the `liveBlock` fragment and nothing else.* The page keeps `liveBlock`,
+    gated on `selectedGraphic` exactly as before, so where and when the block mounts is unchanged.
+    One ⚡ button stays the page's `actionButton`, passed in as a render function (as 13a passed
+    `endsRow`): its greying, its name and its hover read `legality`, `machineState` and the
+    field descriptors, so drawing it inside the component would have meant deriving there. The
+    props keep the page's names, so the moved text is byte-identical.
+  - The markup's own expressions move with it unchanged (the section `heading`, the live
+    number's `disabled` and `title`, the Recovery select's value parsing). They are part of the
+    block as it was; this phase does not re-home them.
+  - **Extra files:** 34 e2e specs gain one comment line naming `ProductionShell.tsx`,
+    `CueActions.tsx` or both: every spec with a `// covers:` header that drives the moved test
+    ids (the header's `verb-out-all`, back, home, tabs, follow line, panel status, team note,
+    `data-renders`; the block's `cue-action-*`, `cue-actions*`, `machine-state-chip`,
+    `machine-snap`, `live-number*`) and was not already selected by the new files. No assertion
+    or selector changes. Left without: `score-tracker-moments` (declares `covers: none`, which a
+    second line would make malformed) and four configured specs with no covers header at all
+    (`bridge-real-server`, `dashboard-hosted-walk`, `follow-status-is-visible`,
+    `hosted-control-profile`), which never mapped to the page either.
+- **Traps.**
+  - The element at `liveBlock`'s place changes type (a fragment becomes `CueActions`), so React
+    mounts it fresh once per page load. Within a session the type is stable, so the Recovery
+    disclosure and the arranger keep their state across renders as before.
+  - The spec's line numbers (5398-5456, 4236-4410, 3945-3988) are from `cc3500f2`; the shell
+    was at 5518-5798 and the block at 4579-4753 on `823d160`. 3945-3988 was `fireEvent`, which
+    stays in the page (it is a verb, not markup).
+  - Phase 4 (`useProductionPublish`) passes the header's status and action through the same
+    `status` slot; nothing here changes that slot.
+  - The spec's file table gives `CueActions` the `arranging` and folded state, but no phase in
+    the phase list moves them: `arrangingFor` stays page state (it only computes `arranging`),
+    and `foldedFields` is the cue editor's (13b). Assessment A flagged it; whichever phase next
+    touches `CueActions` either moves `arrangingFor` in or the table drops it.
+
 ## Row 14, data-sources C7: combined technical rehearsal (software) and the content trial kit
 
 - **Previous verified `main` sha:** C6 passed on main (#1607 at `198b685`, repair #1610 at

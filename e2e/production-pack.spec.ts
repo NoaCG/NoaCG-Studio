@@ -10,6 +10,7 @@
 // The pack CONTENT and its builder: the sample-import test drives the built file end to
 // end (import gate included), so editing a pack graphic or the assembler selects it.
 // covers: {packs/**,public/packs/**,scripts/build-production-pack.mjs}
+// covers: src/components/home/ProductionShell.tsx
 
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';

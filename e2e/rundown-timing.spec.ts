@@ -3,6 +3,7 @@
 // covers: src/components/playoutKeys.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
+// covers: src/components/home/CueActions.tsx
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';

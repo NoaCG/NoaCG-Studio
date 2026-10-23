@@ -4,6 +4,7 @@
 // covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,serverState,serverStatePoll,playoutSlots}.ts
 // covers: src/components/playoutKeys.ts
 // covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/ProductionShell.tsx
 // focus
 //
 // THE CLIP CLOCK AND THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.3, §6.4 and §6.7, phase 2):

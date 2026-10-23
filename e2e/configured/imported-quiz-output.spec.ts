@@ -20,6 +20,7 @@
 // way in had said the configured suite was even reachable from that change.
 // covers: src/templates/behaviours/**, src/templates/importedDesign/{behaviour,behaviourRuntime}.ts
 // covers: src/blocks/behaviourData.ts
+// covers: src/components/home/CueActions.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
