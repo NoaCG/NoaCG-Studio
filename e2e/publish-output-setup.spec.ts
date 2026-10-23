@@ -6,6 +6,7 @@
 // covers: e2e/_publish.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/{CueActions,ProductionShell}.tsx
+// covers: src/components/home/useProductionPublish.ts
 //
 // PUBLISH ONCE, ONE SWITCH (docs/work-specs/playout-workflow-simplification AC-1, AC-3, AC-4, AC-5,
 // AC-8): no output chooser; the account's "Use CasparCG in new productions" starts a new

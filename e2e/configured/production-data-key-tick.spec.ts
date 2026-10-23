@@ -1,6 +1,7 @@
 // covers: api/_lib/dataTick.ts, api/_lib/systemSettings.ts, api/data/?...path?.ts
 // covers: src/control/sheetSource.ts, src/control/hostedControl.ts
 // covers: src/components/home/SourcesLine.tsx, src/components/home/ProductionPage.tsx
+// covers: src/components/home/useProductionPublish.ts
 //
 // PUBLISHED OWNERSHIP AND THE SERVER TICK (data-sources C2; data AC-3 published half, AC-11;
 // sheet-data-flow AC-4, AC-5, AC-7), against the real database of the configured stack

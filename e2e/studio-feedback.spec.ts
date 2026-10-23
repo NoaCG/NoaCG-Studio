@@ -5,6 +5,7 @@
 // covers: src/styles/wizard-and-dialogs.css
 // covers: e2e/_publish.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useProductionPublish.ts
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { setCasparSwitch } from './_publish';

@@ -18,6 +18,7 @@
 // covers: src/components/home/sections/ProductionsSection.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
+// covers: src/components/home/useProductionPublish.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';

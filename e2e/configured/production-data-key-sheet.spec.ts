@@ -1,5 +1,6 @@
 // covers: src/control/sheetSource.ts, src/control/productionDataSession.ts
 // covers: src/components/home/CueEditor.tsx, src/components/home/ProductionPage.tsx
+// covers: src/components/home/useProductionPublish.ts
 //
 // A CONNECTED SHEET LIST ON A PUBLISHED PRODUCTION (data-sources C1b; sheet-data-flow AC-1, AC-6;
 // data-sources AC-1's database half). Published, the browser reader writes through the operator's
