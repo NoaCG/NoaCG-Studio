@@ -12,14 +12,14 @@
 //   - anything else (an object, null, a list with no adapter, an item that is not flat) is not a
 //     value: the path writes nothing and the field keeps its last good value.
 // Then every field bound to that path must accept one and the same form of the text (`pathValue`,
-// the rule the Sheet reader already applies). E5.1 adds recipes and E7.1 keyed selectors here.
+// the rule the Sheet reader already applies). E5.1's recipes are below; E7.1 adds keyed selectors.
 //
 // ES2020 library surface, no DOM; `api/` imports it as `../../src/control/sourceMapping.js`.
 // scripts/source-mapping.test.mjs drives it.
 
 import { fillList, valueFor } from './contentFormats.js';
 import { atPath, isObject, type JsonValue, type SourceListAdapter } from './externalSource.js';
-import { sourcePaths, sourcePrefix } from '../model/productionData.js';
+import { sourcePaths, sourcePrefix, type RecipeFormat, type RecipeList, type RecipeValue, type SourceRecipe } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /**
@@ -92,6 +92,282 @@ function leafText(value: unknown, adapter: SourceListAdapter | undefined): strin
   return fillList({ adapter, main: 'text' }, rows).values.text ?? '';
 }
 
+// ── E5.1: the versioned recipe ───────────────────────────────────────────────────────────────
+//
+// A connector source may carry a declarative recipe (`config.mapping`, productionData
+// `SourceRecipe`). A bound leaf the recipe names reads what the recipe says instead of its own
+// path; every other bound leaf keeps the identity projection above, so a source with no recipe
+// evaluates exactly as before. The steps are fixed and few, in this order: an item identity, one
+// equality filter, one sort with the identity as its tie-break, a row limit, then each row's
+// cells, each with an optional number or date format and a fallback for a missing or null value.
+// No expression, no general path language: a path is dotted object keys.
+//
+// Typed until the cell: a filter compares typed values (1 is not "1"), a number format takes a
+// number only and a date format a time that states its zone, so nothing is guessed from text. The
+// result then passes the destination before it is written: a list through its registered native
+// adapter, every row of which must fit, and the text through every connected field (`pathValue`).
+// Anything that fails holds the leaf's last good value and names what to correct (`problems`);
+// a recipe that is invalid, made for another source or config revision, or of a later version
+// evaluates nothing at all, so no leaf of the source is written from half a recipe.
+
+const RECIPE_VERSION = 1;
+// The recipe's bounds. Each is pinned at its edge by scripts/source-mapping.test.mjs.
+const MAX_OUTPUTS = 32;
+const MAX_COLUMNS = 8;
+const MAX_LIMIT = 500;
+const MAX_SEGMENTS = 8;
+const MAX_DECIMALS = 6;
+const MAX_TEXT = 200;
+const RECIPE_PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
+const LOCALE = /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?$/;
+const SHOWS = new Set(['date', 'time', 'datetime']);
+// A time that states its zone: a time without one would read in the machine's own zone.
+const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(?:Z|([+-])(\d{2}):(\d{2}))$/;
+
+export type RecipeRead =
+  | { status: 'none' }
+  | { status: 'ok'; recipe: SourceRecipe }
+  /** A later version: kept as it is, never evaluated. */
+  | { status: 'read-only'; version: number }
+  | { status: 'invalid'; error: string };
+
+const hasOwn = (o: object, key: string): boolean => Object.prototype.hasOwnProperty.call(o, key);
+const onlyKeys = (o: Record<string, unknown>, keys: string[]): boolean => Object.keys(o).every((k) => keys.includes(k));
+const recipePath = (value: unknown): value is string =>
+  typeof value === 'string' && RECIPE_PATH.test(value) && value.split('.').length <= MAX_SEGMENTS;
+const shortText = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_TEXT;
+
+function supportedLocale(locale: unknown, kind: 'number' | 'date'): boolean {
+  if (typeof locale !== 'string' || !LOCALE.test(locale)) return false;
+  // A locale this runtime cannot format would quietly format in another: refuse it instead.
+  const supported = kind === 'number' ? Intl.NumberFormat.supportedLocalesOf([locale]) : Intl.DateTimeFormat.supportedLocalesOf([locale]);
+  return supported.length === 1;
+}
+
+function knownZone(zone: unknown): boolean {
+  if (typeof zone !== 'string' || zone.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function formatError(f: unknown): string | null {
+  if (!isObject(f)) return 'a format is an object';
+  if (f.kind === 'number') {
+    if (!onlyKeys(f, ['kind', 'locale', 'decimals'])) return 'a number format has kind, locale and decimals only';
+    if (!supportedLocale(f.locale, 'number')) return `a number format needs a locale this build formats, like fi-FI (not ${JSON.stringify(f.locale)})`;
+    const d = f.decimals;
+    if (typeof d !== 'number' || !Number.isInteger(d) || d < 0 || d > MAX_DECIMALS) return `decimals is a whole number from 0 to ${MAX_DECIMALS}`;
+    return null;
+  }
+  if (f.kind === 'date') {
+    if (!onlyKeys(f, ['kind', 'locale', 'timeZone', 'show'])) return 'a date format has kind, locale, timeZone and show only';
+    if (!supportedLocale(f.locale, 'date')) return `a date format needs a locale this build formats, like fi-FI (not ${JSON.stringify(f.locale)})`;
+    if (!knownZone(f.timeZone)) return `a date format needs a known time zone, like Europe/Helsinki (not ${JSON.stringify(f.timeZone)})`;
+    if (typeof f.show !== 'string' || !SHOWS.has(f.show)) return 'show is date, time or datetime';
+    return null;
+  }
+  return 'a format kind is number or date';
+}
+
+function valueError(v: unknown, where: string): string | null {
+  if (!isObject(v) || !onlyKeys(v, ['from', 'format', 'fallback'])) return `${where} has from, format and fallback only`;
+  if (!recipePath(v.from)) return `${where} reads a dotted path of at most ${MAX_SEGMENTS} keys`;
+  if (v.fallback !== undefined && !shortText(v.fallback)) return `${where}'s fallback is text of at most ${MAX_TEXT} characters`;
+  if (v.format !== undefined) {
+    const error = formatError(v.format);
+    if (error) return `${where}: ${error}`;
+  }
+  return null;
+}
+
+function listError(l: Record<string, unknown>, where: string): string | null {
+  if (!onlyKeys(l, ['from', 'id', 'where', 'sort', 'limit', 'columns'])) return `${where} has from, id, where, sort, limit and columns only`;
+  if (!recipePath(l.from)) return `${where} reads a dotted path of at most ${MAX_SEGMENTS} keys`;
+  if (l.id !== undefined && !recipePath(l.id)) return `${where}'s id is a dotted path`;
+  if (l.where !== undefined) {
+    const w = l.where;
+    if (!isObject(w) || !onlyKeys(w, ['path', 'equals']) || !recipePath(w.path)) return `${where} filters on one path that equals one value`;
+    const e = w.equals;
+    const literal = shortText(e) || typeof e === 'boolean' || (typeof e === 'number' && Number.isFinite(e));
+    if (!literal) return `${where}'s filter value is text, a number or true/false`;
+  }
+  if (l.sort !== undefined) {
+    const s = l.sort;
+    if (!isObject(s) || !onlyKeys(s, ['by', 'order']) || !recipePath(s.by) || (s.order !== 'asc' && s.order !== 'desc')) return `${where} sorts by one path, asc or desc`;
+    if (l.id === undefined) return `${where} sorts only with an id to break ties`;
+  }
+  if (l.limit !== undefined && (typeof l.limit !== 'number' || !Number.isInteger(l.limit) || l.limit < 1 || l.limit > MAX_LIMIT)) {
+    return `${where}'s limit is a whole number from 1 to ${MAX_LIMIT}`;
+  }
+  if (!Array.isArray(l.columns) || l.columns.length < 1 || l.columns.length > MAX_COLUMNS) return `${where} has 1 to ${MAX_COLUMNS} columns`;
+  for (let i = 0; i < l.columns.length; i += 1) {
+    const error = valueError(l.columns[i], `${where} column ${i + 1}`);
+    if (error) return error;
+  }
+  return null;
+}
+
+/**
+ * Read a source's recipe for this source at this config revision, or say why it cannot be used.
+ * Never throws. No recipe is `none` (the identity projection); a later `v` is `read-only`.
+ */
+export function readSourceRecipe(raw: unknown, sourceId: string, configRevision: number | undefined): RecipeRead {
+  if (raw === undefined) return { status: 'none' };
+  const no = (error: string): RecipeRead => ({ status: 'invalid', error });
+  if (!isObject(raw)) return no('the mapping is not a recipe');
+  if (typeof raw.v === 'number' && raw.v > RECIPE_VERSION) return { status: 'read-only', version: raw.v };
+  if (raw.v !== RECIPE_VERSION) return no('the mapping has no version');
+  if (!onlyKeys(raw, ['v', 'sourceId', 'configRevision', 'outputs'])) return no('the mapping has v, sourceId, configRevision and outputs only');
+  if (raw.sourceId !== sourceId) return no('the mapping was made for another source: connect it to this one again');
+  if (raw.configRevision !== configRevision) return no(`the mapping was made for config revision ${String(raw.configRevision)}, not ${String(configRevision)}: review it again`);
+  const outputs = raw.outputs;
+  if (!isObject(outputs)) return no('the mapping has no outputs');
+  const leaves = Object.keys(outputs);
+  if (leaves.length < 1 || leaves.length > MAX_OUTPUTS) return no(`the mapping has 1 to ${MAX_OUTPUTS} outputs`);
+  for (const leaf of leaves) {
+    if (!recipePath(leaf)) return no(`output ${JSON.stringify(leaf)} is not a dotted path of at most ${MAX_SEGMENTS} keys`);
+    const output = outputs[leaf];
+    const error = isObject(output) && 'columns' in output ? listError(output, `output ${leaf}`) : valueError(output, `output ${leaf}`);
+    if (error) return no(error);
+  }
+  return { status: 'ok', recipe: raw as unknown as SourceRecipe };
+}
+
+type Cell = { text: string } | { problem: string };
+
+/** One evaluation's formatters, made once per format rather than once per cell. */
+function formatters(): (format: RecipeFormat) => (value: number) => string {
+  const made = new Map<string, (value: number) => string>();
+  return (format) => {
+    const key = JSON.stringify(format);
+    let fn = made.get(key);
+    if (!fn) {
+      if (format.kind === 'number') {
+        const nf = new Intl.NumberFormat(format.locale, { minimumFractionDigits: format.decimals, maximumFractionDigits: format.decimals });
+        fn = (n) => nf.format(n);
+      } else {
+        const date = format.show !== 'time' ? { year: 'numeric', month: '2-digit', day: '2-digit' } as const : {};
+        const time = format.show !== 'date' ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const : {};
+        const df = new Intl.DateTimeFormat(format.locale, { timeZone: format.timeZone, ...date, ...time });
+        fn = (ms) => df.format(ms);
+      }
+      made.set(key, fn);
+    }
+    return fn;
+  };
+}
+
+/** A time that states its zone, or epoch milliseconds, as epoch milliseconds; else NaN. A date
+ *  that does not exist (30 February) is not a time: `Date.parse` would roll it into March. */
+function instant(value: JsonValue): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  const m = typeof value === 'string' ? INSTANT.exec(value) : null;
+  if (!m) return NaN;
+  const [y, mo, d, h, mi, s = 0] = [m[1], m[2], m[3], m[4], m[5], m[6]].map((part) => (part === undefined ? undefined : Number(part))) as number[];
+  const ms = m[7] === undefined ? 0 : Number(m[7].padEnd(3, '0'));
+  const at = new Date(Date.UTC(y, mo - 1, d, h, mi, s, ms));
+  const exists =
+    at.getUTCFullYear() === y && at.getUTCMonth() === mo - 1 && at.getUTCDate() === d && at.getUTCHours() === h && at.getUTCMinutes() === mi && at.getUTCSeconds() === s;
+  const [oh, om] = m[8] === undefined ? [0, 0] : [Number(m[9]), Number(m[10])];
+  if (!exists || oh > 14 || om > 59) return NaN;
+  return at.getTime() - (m[8] === '-' ? -1 : 1) * (oh * 60 + om) * 60_000;
+}
+
+function cellOf(spec: RecipeValue, value: JsonValue | undefined, format: ReturnType<typeof formatters>): Cell {
+  // Zero, false and "" are values; only a value that is not there, or null, takes the fallback.
+  if (value === undefined || value === null) return spec.fallback !== undefined ? { text: spec.fallback } : { problem: `${spec.from} has no value` };
+  if (!spec.format) {
+    const text = scalarText(value);
+    return text === null ? { problem: `${spec.from} is not text, a number or true/false` } : { text };
+  }
+  if (spec.format.kind === 'number') {
+    return typeof value === 'number' && Number.isFinite(value) ? { text: format(spec.format)(value) } : { problem: `${spec.from} is not a number` };
+  }
+  const ms = instant(value);
+  return Number.isNaN(ms) ? { problem: `${spec.from} is not a time with its zone` } : { text: format(spec.format)(ms) };
+}
+
+type Key = string | number | boolean;
+const keyOf = (value: JsonValue | undefined): Key | null =>
+  typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value)) ? value : null;
+const compareKeys = (a: Key, b: Key): number => {
+  if (typeof a !== typeof b) return typeof a < typeof b ? -1 : 1;
+  return a < b ? -1 : a > b ? 1 : 0;
+};
+
+/**
+ * A collection's items as the recipe orders them: every item a record, the identity unique, the
+ * filter, then the sort (ties by identity, always ascending), then the limit. E7.1's keyed
+ * selector reads the same items by identity.
+ */
+export function recipeItems(list: RecipeList, collection: JsonValue): { items: Record<string, JsonValue>[] } | { problem: string } {
+  if (!Array.isArray(collection)) return { problem: `${list.from} is not a list` };
+  const ids = new Map<Record<string, JsonValue>, Key>();
+  const seen = new Set<string>();
+  for (const item of collection) {
+    if (!isObject(item)) return { problem: `an item of ${list.from} is not a record` };
+    if (list.id === undefined) continue;
+    const id = atPath(item, list.id);
+    if (typeof id !== 'string' && (typeof id !== 'number' || !Number.isFinite(id))) return { problem: `an item of ${list.from} has no ${list.id}` };
+    const seenKey = `${typeof id}:${id}`;
+    if (seen.has(seenKey)) return { problem: `two items of ${list.from} share the ${list.id} ${JSON.stringify(id)}` };
+    seen.add(seenKey);
+    ids.set(item as Record<string, JsonValue>, id);
+  }
+  let items = collection as Record<string, JsonValue>[];
+  const where = list.where;
+  if (where) items = items.filter((item) => atPath(item, where.path) === where.equals);
+  const sort = list.sort;
+  if (sort) {
+    const keyed: { item: Record<string, JsonValue>; key: Key; id: Key }[] = [];
+    let type: string | null = null;
+    for (const item of items) {
+      const key = keyOf(atPath(item, sort.by));
+      if (key === null) return { problem: `an item of ${list.from} has no ${sort.by} to sort by` };
+      if (type !== null && typeof key !== type) return { problem: `${sort.by} mixes kinds of value, so it has no order` };
+      type = typeof key;
+      keyed.push({ item, key, id: ids.get(item)! });
+    }
+    const dir = sort.order === 'desc' ? -1 : 1;
+    keyed.sort((a, b) => dir * compareKeys(a.key, b.key) || compareKeys(a.id, b.id));
+    items = keyed.map((k) => k.item);
+  }
+  if (list.limit !== undefined) items = items.slice(0, list.limit);
+  return { items };
+}
+
+/** One recipe output as the text its leaf writes, before the fields judge it. */
+function outputText(
+  output: RecipeValue | RecipeList,
+  value: JsonValue,
+  adapter: SourceListAdapter | undefined,
+  format: ReturnType<typeof formatters>,
+): Cell {
+  if (!('columns' in output)) return cellOf(output, value, format);
+  if (!adapter) return { problem: 'no list adapter is registered for this leaf' };
+  const read = recipeItems(output, value);
+  if ('problem' in read) return read;
+  const rows: string[][] = [];
+  for (const item of read.items) {
+    const row: string[] = [];
+    for (const column of output.columns) {
+      const cell = cellOf(column, atPath(item, column.from), format);
+      if ('problem' in cell) return cell;
+      row.push(cell.text);
+    }
+    rows.push(row);
+  }
+  // The destination's own rules: a row the native list would mark is not written.
+  const fill = fillList({ adapter, main: 'text' }, rows);
+  const bad = fill.rows.findIndex((r) => r.problem);
+  if (bad >= 0) return { problem: `row ${bad + 1}: ${fill.rows[bad].problem}` };
+  return { text: fill.values.text ?? '' };
+}
+
 export interface SourceProjection {
   /** Bound path -> the text it now holds, for every bound path the payload gives a value. */
   writes: Record<string, string>;
@@ -99,11 +375,20 @@ export interface SourceProjection {
   missing: string[];
   /** Bound leaves whose value is not one, or that their fields cannot all hold: they keep theirs. */
   unfit: string[];
+  /** For a recipe output that holds, what to correct, by leaf. */
+  problems: Record<string, string>;
+  /** Set when the recipe evaluated nothing (a later version, or one that cannot be used): every
+   *  bound leaf of the source keeps its last good value. */
+  held?: { readOnly: boolean; error: string };
+  /** Where the writes come from: the source, and the recipe (null: the identity projection). */
+  provenance: { sourceId: string; recipe: { v: 1; configRevision: number } | null };
 }
 
 /**
  * Evaluate one source's payload for the production's bindings. `fieldsOf` answers a graphic's
- * fields as the reader sees them, or null when it has none. Pure; linear in the payload's size.
+ * fields as the reader sees them, or null when it has none. `mapping` is the registration's
+ * recipe as stored (read here) and `configRevision` the registration's. Pure; linear in the
+ * payload's size apart from one sort per sorted output.
  */
 export function projectSource(o: {
   sourceId: string;
@@ -111,24 +396,58 @@ export function projectSource(o: {
   bindings: Record<string, Record<string, string>> | undefined;
   fieldsOf: (graphic: string) => FieldDescriptor[] | null;
   lists?: Readonly<Record<string, SourceListAdapter>>;
+  mapping?: unknown;
+  configRevision?: number;
 }): SourceProjection {
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
   const paths = [...new Set(sourcePaths(o.bindings, o.sourceId).map((p) => p.path).filter((p) => p.startsWith(prefix) && p.length > prefix.length))].sort();
   const writes: Record<string, string> = {};
   const missing: string[] = [];
   const unfit: string[] = [];
+  const problems: Record<string, string> = {};
+  const read = readSourceRecipe(o.mapping, o.sourceId, o.configRevision);
+  if (read.status === 'read-only' || read.status === 'invalid') {
+    const error = read.status === 'invalid' ? read.error : `the mapping is version ${read.version}; this build reads version ${RECIPE_VERSION}, so it is held read-only`;
+    return { writes, missing, unfit: paths.map((p) => p.slice(prefix.length)), problems, held: { readOnly: read.status === 'read-only', error }, provenance: { sourceId: o.sourceId, recipe: null } };
+  }
+  const recipe = read.status === 'ok' ? read.recipe : null;
+  const format = formatters();
   for (const path of paths) {
     const leaf = path.slice(prefix.length);
-    const value = atPath(o.payload as JsonValue, leaf);
-    if (value === undefined) {
-      missing.push(leaf);
-      continue;
+    const adapter = o.lists && hasOwn(o.lists, leaf) ? o.lists[leaf] : undefined;
+    const output = recipe && hasOwn(recipe.outputs, leaf) ? recipe.outputs[leaf] : undefined;
+    let text: string | null;
+    if (output) {
+      if (!isObject(o.payload)) {
+        problems[leaf] = 'the payload is not a JSON object';
+        unfit.push(leaf);
+        continue;
+      }
+      const value = atPath(o.payload as JsonValue, output.from);
+      if (value === undefined && ('columns' in output || output.fallback === undefined)) {
+        missing.push(leaf);
+        continue;
+      }
+      const cell = outputText(output, value as JsonValue, adapter, format);
+      if ('problem' in cell) {
+        problems[leaf] = cell.problem;
+        unfit.push(leaf);
+        continue;
+      }
+      text = cell.text;
+    } else {
+      const value = atPath(o.payload as JsonValue, leaf);
+      if (value === undefined) {
+        missing.push(leaf);
+        continue;
+      }
+      text = leafText(value, adapter);
     }
-    const adapter = o.lists && Object.prototype.hasOwnProperty.call(o.lists, leaf) ? o.lists[leaf] : undefined;
-    const text = leafText(value, adapter);
     const result = text === null ? null : pathValue(connectedFields(o.bindings, path, o.fieldsOf), text);
-    if (result === null) unfit.push(leaf);
-    else writes[path] = result;
+    if (result === null) {
+      if (output) problems[leaf] = 'the connected fields cannot all hold this value';
+      unfit.push(leaf);
+    } else writes[path] = result;
   }
-  return { writes, missing, unfit };
+  return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: 1, configRevision: recipe.configRevision } : null } };
 }

@@ -404,6 +404,9 @@ export interface ExternalRegistration {
   configRevision: number;
   endpoint: string;
   lists?: Record<string, SourceListAdapter>;
+  /** E5.1's recipe as stored, judged by ./sourceMapping.ts `readSourceRecipe` (the database never
+   *  reads it: it changes what is written, not whether the agent may report). */
+  mapping?: unknown;
 }
 
 export type RegistrationRead =
@@ -430,7 +433,13 @@ export function readExternalRegistration(entry: unknown): RegistrationRead {
   }
   return {
     ok: true,
-    registration: { v: 1, configRevision, endpoint, ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}) },
+    registration: {
+      v: 1,
+      configRevision,
+      endpoint,
+      ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}),
+      ...(config.mapping !== undefined ? { mapping: config.mapping } : {}),
+    },
   };
 }
 

@@ -391,6 +391,8 @@ async function source(req: Request): Promise<Response> {
         bindings: context.bindings,
         fieldsOf: (graphic) => (context.fields[graphic] ? descriptorsOf(context.fields[graphic]) : null),
         lists: registration.ok ? registration.registration.lists : undefined,
+        mapping: registration.ok ? registration.registration.mapping : undefined,
+        configRevision: registration.ok ? registration.registration.configRevision : undefined,
       });
     }
     const answer = await rpc<Record<string, unknown>>('control_source_report_by_key', {
@@ -400,7 +402,10 @@ async function source(req: Request): Promise<Response> {
       p_writes: projection?.writes ?? {},
     });
     if (typeof answer.refused === 'string') return refused(answer as { refused: string });
-    return json({ ...answer, ...(projection && acquisition.status === 'changed' ? { missing: projection.missing, unfit: projection.unfit } : {}) });
+    if (!projection || acquisition.status !== 'changed') return json(answer);
+    // What the agent reports back to whoever runs it: what held, what to correct, and from where.
+    const { missing, unfit, problems, held, provenance } = projection;
+    return json({ ...answer, missing, unfit, problems, ...(held ? { held } : {}), provenance });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('unknown data key')) return apiError('unauthorized', 'Unknown data key.', 401);
