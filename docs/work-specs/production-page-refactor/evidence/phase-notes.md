@@ -76,8 +76,11 @@ changes a spec's digest.
   - *A reconnect keeps what the source already reads*: a leaf the recipe already has keeps its
     output whole (a format, fallback, filter, sort or limit made through the API has no control
     here and is not lost), and a list's columns change only with a pick that fits the list; a pick
-    made for another list (the field switched lists) never applies. The columns case was found by
-    the spec, the rest by the pull request's review.
+    made for another list (the field switched lists) never applies. Only the fields the review shows
+    can change a leaf at all: a field the graphic lost, or another graphic's reading of a shared
+    leaf, keeps its output and its list. Repair is judged by the input a saved output reads, not
+    by the leaf's own name. The columns case was found by the spec, the rest by the pull request's
+    review.
   - *The endpoint is non-secret*, stored, synced and sent to the feed reader for a sample; a key in
     its query string is not supported (`docs/DATA_API.md`), and the SPX package writes the address
     without its query anyway.
