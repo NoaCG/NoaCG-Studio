@@ -96,9 +96,9 @@ changes a spec's digest.
   format object, and the locale and zone verdicts are asked once per runtime. Left as it is: the
   separator check could move beside the row builders in `contentFormats.ts`, outside this row's
   files, and `signDisplay: 'negative'` is not in the api's ES2020 library types.
-- **Mutation checks** (on the final code): 67 single mutations of the evaluator, the registration,
+- **Mutation checks** (on the final code): 68 single mutations of the evaluator, the registration,
   the read-only gate and the route, each run against `scripts/source-mapping.test.mjs` (and
-  `scripts/show-fixture-compat.test.mjs` for the last three). 66 turned it red: every bound one
+  `scripts/show-fixture-compat.test.mjs` for the last three). 67 turned it red: every bound one
   either way, a filter by `==`, no tie-break, the tie-break applied in the sort's direction, no
   descending, kinds of id compared as values, mixed sort kinds allowed, duplicates allowed
   (string or number), `1` and `"1"` one id, no ids kept for the sort, a non-record item allowed, no limit, null not taking the fallback, falsy values
@@ -108,8 +108,8 @@ changes a spec's digest.
   source id, config revision or key checks dropped, a later version evaluated, an invalid recipe
   evaluating its valid parts, a held recipe reporting nothing unfit, a non-object payload read, a
   missing collection evaluated, a prototype key read as an output, any filter literal, no
-  provenance, the read-only gate, the registration or the route dropping the recipe, the time
-  bound either way, the year fix, the separator check or its per-adapter separator, the zero sign
+  provenance, the read-only gate, the registration or the route dropping the recipe, the kind check on an empty filter, a cleared
+  recipe read as invalid, a bare number read as a time, the year fix, the separator check or its per-adapter separator, the zero sign
   fix. One survived
   and is equivalent: a list output with a fallback, which the parser refuses before it is
   evaluated. A first run found five survivors, a later one a sixth (a duplicate number id); three gained tests and one (a fraction of a second
