@@ -118,8 +118,8 @@ permissions:
   issues: write # the rolling-issue steps
 
 jobs:
-  # WHICH SPEC FILES EACH RUNNER GETS. The weights are the last few runs' own merged reports,
-  # fetched best effort: a file no report measured weighs the median, and with no report at all
+  # WHICH SPEC FILES EACH RUNNER GETS. The weights are the last few main runs' own merged reports
+  # (main's, so a branch being debugged cannot skew main's packing), fetched best effort: a file no report measured weighs the median, and with no report at all
   # the split is by file count. The plan assigns every file exactly once or fails.
   plan:
     name: Configured shard plan
@@ -142,12 +142,11 @@ jobs:
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.run_id }}
         run: |
           set -uo pipefail
           REPORTS=""
-          for id in $(gh run list --workflow configured-suite.yml --status completed --limit 6 \
-            --json databaseId --jq ".[] | select(.databaseId != ${RUN_ID}) | .databaseId" | head -5); do
+          for id in $(gh run list --workflow configured-suite.yml --branch main --status completed --limit 5 \
+            --json databaseId --jq '.[].databaseId'); do
             if gh run download "$id" --name configured-report --dir "previous/$id" >/dev/null 2>&1 \
               && [ -f "previous/$id/configured-report.json" ]; then
               REPORTS="$REPORTS previous/$id/configured-report.json"
@@ -416,8 +415,9 @@ jobs:
       #
       # This shard's files from the plan, as the anchored filters ci.yml's shards use
       # (`specFilterArg`); `$SPECS` is unquoted for the same reason. An empty list is refused:
-      # Playwright reads no filter as EVERY test. 1800000 ms stops the run ten minutes inside the
-      # job cap, so an overrun ends as a report naming what it did not reach, not a cancelled job.
+      # Playwright reads no filter as EVERY test. 1500000 ms stops the run fifteen minutes inside
+      # the job cap, room for a cold install and the stack's image pulls, so an overrun ends as a
+      # report naming what it did not reach, not a cancelled job.
       #
       # TMPDIR ON THE RUNNER'S DISK, as hosted-latency.yml has it (issue 1574). The runner's /tmp
       # is a 7.9 GB tmpfs and Playwright starts Chromium with --disable-dev-shm-usage, so its shared
@@ -442,7 +442,7 @@ jobs:
           ')" || exit 1
           echo "::notice title=Configured E2E ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"
           code=0
-          npm run test:e2e:live -- --global-timeout=1800000 --reporter=list,blob $SPECS || code=$?
+          npm run test:e2e:live -- --global-timeout=1500000 --reporter=list,blob $SPECS || code=$?
           echo "exit=${code}" >> "$GITHUB_OUTPUT"
           # One blob name per shard: without --shard every shard writes the same file name, and the
           # verdict's download would keep only one of them.
@@ -486,7 +486,8 @@ jobs:
     # the floor says so, and the last step names the shard job's result.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Room for an uncached install (7.7 minutes measured, see the header) before the verdict.
+    timeout-minutes: 20
     # For the `quarantine` job: the specs to enter, and each quarantined spec's outcome.
     outputs:
       enter: ${{ steps.assert.outputs.enter || '[]' }}
@@ -519,13 +520,17 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: configured-report.json
           MATRIX: ${{ needs.plan.outputs.matrix }}
         run: |
-          missing=""
-          for i in $(jq -r '.shardIndex[]?' <<<"${MATRIX:-null}"); do
-            [ -f "all-blob-reports/report-${i}.zip" ] || missing="${missing} ${i}"
-          done
+          # The nightly's own check, for the same `report-<n>.zip` names.
+          missing="$(node --input-type=module -e '
+            import { existsSync, readdirSync } from "node:fs";
+            import { missingShards } from "./scripts/nightly-triage.mjs";
+            const names = existsSync("all-blob-reports") ? readdirSync("all-blob-reports") : [];
+            const shards = JSON.parse(process.env.MATRIX || "{}").shardTotal?.[0] ?? 0;
+            console.log(missingShards(names, shards).join(" "));
+          ')"
           if [ -n "$missing" ]; then
-            echo "::error title=A shard sent no report::Shard(s)${missing} uploaded no blob report, so their tests are not in this verdict."
-            echo "missing=${missing# }" >> "$GITHUB_OUTPUT"
+            echo "::error title=A shard sent no report::Shard(s) ${missing} uploaded no blob report, so their tests are not in this verdict."
+            echo "missing=${missing}" >> "$GITHUB_OUTPUT"
           fi
           if ls all-blob-reports/*.zip > /dev/null 2>&1; then
             npx --no-install playwright merge-reports --reporter=json all-blob-reports
@@ -615,7 +620,7 @@ jobs:
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MARKER="configured-failure-set: ${FAILHASH:-unknown}"
           if [ "$SHARDS" != "success" ] || [ -n "$MISSING" ]; then
-            SUMMARY="$(printf 'The shard jobs ended %s%s, so the report is missing their tests. %s' "$SHARDS" "${MISSING:+ (no report from shard ${MISSING})}" "${SUMMARY:-}")"
+            SUMMARY="$(printf 'Not every shard is in this verdict (shard jobs: %s%s). %s' "$SHARDS" "${MISSING:+; no report from shard ${MISSING}}" "${SUMMARY:-}")"
           fi
           BODY="$(printf 'The configured suite failed at %s.\n\n%s\n\nThis tier brings up a LOCAL Supabase stack on the runner, so it no longer depends on any hosted project or credential. What it can still go red for without a code fault: a Docker image pull, `supabase start` health checks, or a Supabase CLI change. The container logs are in the run; check those before bisecting.\n\nRun: %s\n\n<!-- %s -->' \
             "${{ github.sha }}" "${SUMMARY:-the stack or the account never came up - see the run log}" "$RUN_URL" "$MARKER")"

@@ -94,8 +94,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const plan = planConfigured({ suite: configuredSpecFiles(), reports });
   console.error(
-    `configured-shards: ${plan.shardSpecs.length} shards, predicted ${plan.predicted.join(', ')} test-minutes; ` +
-      `weights from ${reports.length} earlier report(s) for ${plan.weights.measured} files, the median for ${plan.weights.median}.`,
+    plan.weights.measured
+      ? `configured-shards: ${plan.shardSpecs.length} shards, predicted ${plan.predicted.join(', ')} test-minutes; ` +
+          `weights from ${reports.length} earlier report(s) for ${plan.weights.measured} files, the median for ${plan.weights.median}.`
+      : `configured-shards: ${plan.shardSpecs.length} shards of ${plan.predicted.join(', ')} files - no earlier report, so split by file count.`,
   );
   const out = process.env.GITHUB_OUTPUT;
   if (values['github-output'] && out) {
