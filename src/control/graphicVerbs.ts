@@ -46,7 +46,7 @@ import { moveLiveCue } from './airState.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS } from './failedSends.ts';
-import { leftAlone, withLiveCue } from './liveCue.ts';
+import { leftAlone, reachedOutput, withLiveCue } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence. */
@@ -338,7 +338,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
     // Superseded: this page's later press on the graphic stands, and its own handler set the chip.
     if (!leftAlone(sent).includes(graphic)) mark([graphic], cue.id);
-    captured.landed();
+    // The capture lands only with the values on the output; a later press that overtook it stands.
+    if (reachedOutput(sent, graphic)) captured.landed();
+    else captured.undo();
     p.clearMisses([cue.id]);
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };
@@ -381,7 +383,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
     const data = { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
     const captured = p.selectionAired(graphic, editingCue.id, selection);
-    if (await runWith(s, [[{ graphic, msg: { t: 'update', data } }]], 'Update')) captured.landed();
+    if (reachedOutput(await runWith(s, [[{ graphic, msg: { t: 'update', data } }]], 'Update'), graphic)) captured.landed();
     else captured.undo();
   };
 

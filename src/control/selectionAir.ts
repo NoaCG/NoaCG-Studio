@@ -22,7 +22,7 @@
 import { resolveSelection, selectionGate, type SelectionResolve } from './sourceMapping.ts';
 import type { CueSelection } from '../model/productionData';
 import type { FieldDescriptor } from '../model/fieldModel';
-import type { LiveCueMap } from './liveCue';
+import { reachedOutput, type LiveCueMap } from './liveCue.ts';
 import type { StorePart } from './storePart';
 
 /** One graphic layer's aired live candidate. */
@@ -325,10 +325,7 @@ export function followAired(
   if (air !== before) io.keep(air);
   for (const one of sends) {
     void o.send(one.graphic, one.values).then((sent) => {
-      // Landed only when this graphic's update was applied: one a later press overtook (skipped or
-      // superseded) never reached the output.
-      const landed = !!sent && !sent.skipped.includes(one.graphic) && !sent.superseded.includes(one.graphic);
-      io.keep(settleSelection(io.part.get(), one.graphic, one.advanced, landed, io.now()));
+      io.keep(settleSelection(io.part.get(), one.graphic, one.advanced, reachedOutput(sent, one.graphic), io.now()));
     });
   }
 }

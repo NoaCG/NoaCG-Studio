@@ -73,3 +73,10 @@ export interface VerbSent {
 export function leftAlone(sent: VerbSent): string[] {
   return [...sent.skipped, ...sent.superseded, ...sent.pressedAgain];
 }
+
+/** Whether a send's values reached `graphic`'s output: not failed (null), and not skipped or
+ *  superseded, which leave the output as a later press set it. A graphic pressed again after the
+ *  send did get it; the later press then replaces it. */
+export function reachedOutput(sent: { readonly skipped: readonly string[]; readonly superseded: readonly string[] } | null, graphic: string): boolean {
+  return !!sent && !sent.skipped.includes(graphic) && !sent.superseded.includes(graphic);
+}

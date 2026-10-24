@@ -1069,6 +1069,27 @@ test('Update moves an aired cue to its new selection only once the whole replace
   assert.deepEqual(refused.notes, ['A: Not ready: the collection is not JSON.']);
 });
 
+test('a candidate Take or Update a later press overtook (skipped or superseded) gives its capture back; one pressed again after it lands', async () => {
+  const live = { liveCue: { Strap: 'a' } };
+  for (const [left, lands] of [['skipped', false], ['superseded', false], ['pressedAgain', true]]) {
+    const t = rig({ selections: { a: candidate({ f0: 'Aino Aalto' }) } });
+    const taking = t.verbs.take(graphicCue('a', 'Strap', {}));
+    await settle();
+    t.sends[0].answer.resolve({ ...noneLeft, [left]: ['Strap'] });
+    await taking;
+    assert.equal(t.log.some(([k]) => k === (lands ? 'landed' : 'unaired')), true, `Take, ${left}`);
+    assert.equal(t.log.some(([k]) => k === (lands ? 'unaired' : 'landed')), false, `Take, ${left}`);
+
+    const u = rig({ ...live, selections: { a: candidate({ f0: 'Bertta Berg' }, 5) } });
+    const updating = u.verbs.update(sel({ editingCue: graphicCue('a', 'Strap', {}), selectedGraphic: 'Strap', editingIsLive: true }));
+    await settle();
+    u.sends[0].answer.resolve({ ...noneLeft, [left]: ['Strap'] });
+    await updating;
+    assert.equal(u.log.some(([k]) => k === (lands ? 'landed' : 'unaired')), true, `Update, ${left}`);
+    assert.equal(u.log.some(([k]) => k === (lands ? 'unaired' : 'landed')), false, `Update, ${left}`);
+  }
+});
+
 test('Snap and an event on an aired candidate send what its instance shows, never the prepared text; without an instance they leave those fields alone', async () => {
   const airCue = graphicCue('a', 'Strap', { f0: 'prepared', f1: 'prepared', f2: 'own' });
   const view = sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue });
