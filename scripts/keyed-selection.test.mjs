@@ -294,6 +294,8 @@ describe('the aired instance', () => {
       const again = follow(r.air, c, 9000);
       assert.equal(again.air, r.air, 'a hold keeps its first time');
     }
+    const first = follow(state, collection(6, []), 4000).air;
+    assert.deepEqual(follow(first, '{broken', 9000).air.Card.held, { reason: 'the collection is not JSON', since: 4000, revision: null }, 'another reason, the same hold: its age runs from the first');
   });
 
   test('a hold ends with a newer revision that holds A again, or the aired one read well', () => {
@@ -330,7 +332,7 @@ describe('the aired instance', () => {
   test('what is kept reads back; anything else is no instance', () => {
     const state = captured();
     assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state)), state);
-    for (const raw of [null, '', '{', '{"v":2,"graphics":{}}', JSON.stringify({ v: 1, graphics: { Card: { ...state.Card, revision: 'x' } } })]) {
+    for (const raw of [null, '', '{', JSON.stringify({ v: 2, graphics: state }), JSON.stringify({ v: 1, graphics: { Card: { ...state.Card, revision: 'x' } } })]) {
       assert.deepEqual(air.readSelectionAir(raw), {}, String(raw));
     }
   });
