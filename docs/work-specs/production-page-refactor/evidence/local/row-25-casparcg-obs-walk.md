@@ -54,7 +54,7 @@ Both players showed every board step, and their boxes agree at the 2:1 scale bet
 
 - **Update reached both players.** The schedule and the standings grew by the row each update added
   (the boxes above), and the CasparCG frame after the standings update shows the added fourth row
-  (G2). The ticker's frames after its update read "Walk update two" and "Second headline here". The
+  (G2). The ticker's later frames, in both players, read "Walk update two" and "Second headline here". The
   credits roll fills the frame, so its box cannot show a change.
 - **Boxes differ from C7's for the schedule and standings** because a board's height follows its
   rows, and this walk's pasted rows are its own (three schedule rows, three teams, one more of each
@@ -73,7 +73,7 @@ Both players showed every board step, and their boxes agree at the 2:1 scale bet
   After the Bridge was started again (same scratch config), the panel read "Output slot 1-20,
   Loaded" within about 10 s without any press, and Out cleared both players.
 - **CasparCG restart.** After AMCP `KILL` and a fresh start of the same scratch config, the panel
-  read "Output slot 1-20, Empty" with a Load button, and stayed so for 90 s. A Schedule Take then
+  read "Output slot 1-20, Empty" with a Load button, and stayed so for at least 90 s. A Schedule Take then
   reached OBS (250-709 x 180-359) but not CasparCG (nothing opaque), as the panel said. The page
   told the truth about the slot; it did not put the output back by itself. Whether it should is
   not stated in `docs/BRIDGE.md` (which records "recovering after ... a server `RESTART`" on
