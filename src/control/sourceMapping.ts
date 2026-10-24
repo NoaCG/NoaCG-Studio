@@ -375,7 +375,9 @@ function outputText(
   adapter: SourceListAdapter | undefined,
   format: ReturnType<typeof formatters>,
 ): Cell {
-  if (!('columns' in output)) return cellOf(output, value, format);
+  // A leaf registered as a list is written only through its list's grammar: a single value there
+  // would skip it (a schedule line with no "|" airs nothing).
+  if (!('columns' in output)) return adapter ? { problem: `this leaf is a ${adapter} list, so its output needs columns` } : cellOf(output, value, format);
   if (!adapter) return { problem: 'no list adapter is registered for this leaf' };
   const read = recipeItems(output, value);
   if ('problem' in read) return read;

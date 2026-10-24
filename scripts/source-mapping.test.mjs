@@ -408,6 +408,10 @@ describe('a recipe holds last good and names the correction, never a valid empty
     slots.slots.pop();
     assert.equal(written(mapped(slots, ticker, schedule, { lists: { board: 'schedule' } })), '20:00 | News');
     assert.match(held(mapped(results(), ticker, recipe(list({})))), /no list adapter/);
+    // A list leaf takes a list output only, fallback or not: one value would skip the list's grammar.
+    for (const value of [{ from: 'note' }, { from: 'nowhere', fallback: 'News' }]) {
+      assert.match(held(mapped(results(), ticker, recipe({ board: value }), { lists: { board: 'schedule' } })), /schedule list, so its output needs columns/);
+    }
     // A cell holding the list's own separator would become another cell: a tab in a ticker line,
     // a | in a schedule or credits row.
     const tab = { parties: [{ party_id: 'KOK', votes: 'a\tb' }] };
