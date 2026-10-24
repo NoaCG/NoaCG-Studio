@@ -104,6 +104,8 @@ const SOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const ENV_NAME = /^NOACG_SOURCE_[A-Z0-9_]{1,50}$/;
 /** A dotted path of object keys: the one path grammar of a connector and its recipe. */
 export const PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
+/** One key of a PATH. */
+export const SEGMENT = /^[A-Za-z0-9_-]+$/;
 
 export const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const optionalString = (value: unknown): value is string | null | undefined => value === undefined || value === null || typeof value === 'string';
@@ -453,7 +455,7 @@ export type SourceEnvelope =
   | { v: 1; op: 'release'; sourceId: string; configRevision: number; claim: string }
   | { v: 1; op: 'report'; sourceId: string; claim: string; acquisition: ExternalAcquisition }
   | { v: 1; op: 'sample'; sourceId: string; asked: string | null }
-  | { v: 1; op: 'sample'; sourceId: string; configRevision: number; claim: string; sample: JsonValue };
+  | { v: 1; op: 'sample'; sourceId: string; claim: string; sample: JsonValue };
 
 const STATUSES = new Set<AcquisitionStatus>(['changed', 'unchanged', 'stale', 'invalid', 'denied', 'refused', 'failed']);
 const CLAIM = /^agent:[A-Za-z0-9_-]{1,32}$/;
@@ -480,9 +482,8 @@ export function parseSourceEnvelope(body: unknown): { ok: true; envelope: Source
       if ('sample' in body) return no('a sample is posted under its claim');
       return { ok: true, envelope: { v: 1, op: 'sample', sourceId: body.sourceId, asked } };
     }
-    if (!revision(body.configRevision) || (body.configRevision as number) < 1) return no('configRevision must be a whole number from 1');
     if (!('sample' in body) || body.sample === undefined) return no('a sample carries its payload');
-    return { ok: true, envelope: { v: 1, op: 'sample', sourceId: body.sourceId, configRevision: body.configRevision as number, claim, sample: body.sample as JsonValue } };
+    return { ok: true, envelope: { v: 1, op: 'sample', sourceId: body.sourceId, claim, sample: body.sample as JsonValue } };
   }
   if (body.op !== 'report') return no('op must be claim, report, release or sample');
   if (claim === null) return no('a report needs its claim');

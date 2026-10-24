@@ -181,12 +181,11 @@ describe('the envelope', () => {
     assert.deepEqual(ext.parseSourceEnvelope({ v: 1, op: 'sample', sourceId: 'e1' }).envelope, { v: 1, op: 'sample', sourceId: 'e1', asked: null });
     assert.equal(ext.parseSourceEnvelope({ v: 1, op: 'sample', sourceId: 'e1', asked: '2026-10-24T12:00:00.000Z' }).envelope.asked, '2026-10-24T12:00:00.000Z');
     const posted = ext.parseSourceEnvelope({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'agent:abc', sample: { a: [1] } });
-    assert.deepEqual(posted.envelope, { v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'agent:abc', sample: { a: [1] } });
+    assert.deepEqual(posted.envelope, { v: 1, op: 'sample', sourceId: 'e1', claim: 'agent:abc', sample: { a: [1] } });
     for (const body of [
       { v: 1, op: 'sample', sourceId: 'e1', asked: 'yesterday' },
       { v: 1, op: 'sample', sourceId: 'e1', asked: 7 },
       { v: 1, op: 'sample', sourceId: 'e1', sample: { a: 1 } },
-      { v: 1, op: 'sample', sourceId: 'e1', claim: 'agent:abc', sample: { a: 1 } },
       { v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'agent:abc' },
       { v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'tick:abc', sample: {} },
       { v: 1, op: 'sample', sourceId: 'e1.sample' },

@@ -1945,8 +1945,8 @@ export function connectConnectorSource(
     if (existing && (existing.kind !== 'external' || externalReadOnly(existing))) return 'This connector was set up by a later version, so it is read-only here.';
     if ((existing ? JSON.stringify(existing.config) : null) !== fence) return 'This connector changed while the review was open. Read it again.';
     const before = JSON.stringify([show.bindings, show.sources]);
-    // A reused source keeps its label, Pause and id; only its configuration is the review's.
-    const next = existing ? { ...existing, config: source.config } : source;
+    // A reused source keeps its Pause and id; its name and configuration are the review's.
+    const next = existing ? { ...existing, label: source.label.trim() || existing.label, config: source.config } : source;
     show.sources = existing ? show.sources!.map((s, i) => (i === at ? next : s)) : [...(show.sources ?? []), next];
     refused = applyBindings(show, entries).refused;
     pruneSources(show);

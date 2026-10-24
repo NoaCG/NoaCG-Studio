@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
 import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectConnectorSource, connectShowSource, ownSheetGraphics, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
@@ -171,7 +171,7 @@ type ConnectRead =
   | { link: SheetLink; rows: string[][] }
   | { feed: string; rows: string[][] }
   | { api: true }
-  | { json: string; sample: unknown; via: 'agent' | 'hosted' }
+  | { json: string; sample: unknown }
   | { error: string; fix: string };
 
 /** A connector sample is waited on in steps of this (control/connectorReview `readConnectorSample`). */
@@ -246,7 +246,7 @@ function CueConnectReview({
   const refuses = (fieldId: string) => preparedMessageField(show, poolGraphic.name, fieldId);
   const holds = (fieldId: string, text: string) => fieldValue(byKey.get(fieldId)!, text) !== null;
   // A connector's sample: its values and its lists, a list field matched against the lists.
-  const offers = json ? jsonOffers(id, json.sample) : null;
+  const offers = useMemo(() => (json ? jsonOffers(id, json.sample) : null), [id, json]);
   const adapters: Record<string, SourceListAdapter> = {};
   if (json) {
     for (const d of fields) {
@@ -293,7 +293,7 @@ function CueConnectReview({
     ? connectorPlan({
         graphic: poolGraphic.name,
         bindings: show.bindings,
-        source: reusedConnector ?? { id, label: label.trim() || poolGraphic.name, endpoint: json.json },
+        source: reusedConnector ? { ...reusedConnector, label: label.trim() || reusedConnector.label } : { id, label: label.trim() || poolGraphic.name, endpoint: json.json },
         rows: mapping,
         choices,
         collections: offers!.collections,
@@ -308,38 +308,45 @@ function CueConnectReview({
   const leafOf = (path: string) => path.slice(`external.${id}.`.length);
   const writes = (path: string): string | null =>
     projection ? (projection.writes[path] ?? null) : pathValue(connectedFields(proposed, path, drawn), sample.get(path) ?? '');
+  /** Whether the read says anything for a path: a connector's whole sample, else its offered values. */
+  const readable = (path: string) => projection !== null || sample.has(path);
   const previewValues: Record<string, string> = {};
   for (const row of mapping) {
     const path = chosen(row);
-    const value = path !== null && row.status !== 'refused' && (projection || sample.has(path)) ? writes(path) : null;
+    const value = path !== null && row.status !== 'refused' && readable(path) ? writes(path) : null;
     if (value !== null) previewValues[row.fieldId] = value;
   }
-  const previewKey = content || api || json ? JSON.stringify(previewValues) : null;
+  /** Something was read (or Another system chosen), so the review has a mapping to show. */
+  const reviewing = Boolean(content || api || json);
+  const previewKey = reviewing ? JSON.stringify(previewValues) : null;
   useEffect(() => {
     previewRef.current(previewKey === null ? null : (JSON.parse(previewKey) as Record<string, string>));
   }, [previewKey]);
   useEffect(() => () => previewRef.current(null), []);
 
-  // Closing unmounts the review, which is its reset; a read still in flight then lands nowhere.
+  // Closing unmounts the review, which is its reset; a read still in flight then lands nowhere, and
+  // a connector's wait on its agent stops asking.
   const jsonRead = useRef<AbortController | null>(null);
-  useEffect(
-    () => () => {
-      readNo.current += 1;
-      jsonRead.current?.abort();
-    },
-    [],
-  );
-  const close = onClose;
-  /** Read a tab, or a feed's headlines through NoaCG's feed route (control/feedSource.ts), for
-   *  the review; an older read, or one arriving after the review closed, lands nowhere. */
-  const readInto = async (go: () => Promise<SheetRead>, as: (rows: string[][]) => ConnectRead) => {
-    const no = (readNo.current += 1);
+  const cancelRead = () => {
+    readNo.current += 1;
     jsonRead.current?.abort();
+  };
+  useEffect(() => cancelRead, []);
+  /** A new read: the last one cancelled and its review cleared; answers its number. */
+  const beginRead = () => {
+    cancelRead();
     setReading(true);
     setRead(null);
     setChoices({});
     setColumns({});
     setFirstTab(false);
+    return readNo.current;
+  };
+  const close = onClose;
+  /** Read a tab, or a feed's headlines through NoaCG's feed route (control/feedSource.ts), for
+   *  the review; an older read, or one arriving after the review closed, lands nowhere. */
+  const readInto = async (go: () => Promise<SheetRead>, as: (rows: string[][]) => ConnectRead) => {
+    const no = beginRead();
     const answer = await go();
     if (no !== readNo.current) return;
     setReading(false);
@@ -352,19 +359,13 @@ function CueConnectReview({
   /** A connector's sample: through its agent when one holds the registered source of this
    *  published production, else the hosted fetcher for a public address. Never applied. */
   const readJson = async (endpoint: string, registered: string | null) => {
-    const no = (readNo.current += 1);
-    // A read the review no longer wants stops asking (an agent's wait polls for up to 45 s).
-    jsonRead.current?.abort();
+    const no = beginRead();
     const stop = (jsonRead.current = new AbortController());
-    setReading(true);
-    setRead(null);
-    setChoices({});
-    setColumns({});
     const key = registered ? await productionDataKey(show.id).catch(() => null) : null;
     const answer = await readConnectorSample({ fetcher: (u, init) => fetch(u, init), endpoint, key, sourceId: registered, wait: waitMs, now: Date.now, signal: stop.signal });
     if (no !== readNo.current) return;
     setReading(false);
-    setRead(answer.ok ? { json: endpoint, sample: answer.sample, via: answer.via } : { error: answer.error, fix: answer.fix });
+    setRead(answer.ok ? { json: endpoint, sample: answer.sample } : { error: answer.error, fix: answer.fix });
   };
   /** Connect: one write, and the review closes only once storage has agreed to it, so a
    *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
@@ -373,9 +374,7 @@ function CueConnectReview({
     if ('api' in read) return finish(connectApiFields(show.id, entries), null);
     if ('json' in read) {
       if (!plan || 'error' in plan) return setSaveError(plan?.error ?? 'Nothing to connect.');
-      let result = connectConnectorSource(show.id, plan.source, plan.entries, plan.fence);
-      if (!result.error && reusedConnector && label.trim() && label.trim() !== reusedConnector.label) result = { ...result, shows: renameShowSource(show.id, reusedConnector.id, label) };
-      return finish(result, null);
+      return finish(connectConnectorSource(show.id, plan.source, plan.entries, plan.fence), null);
     }
     if (id === '') return;
     const source: ShowSource =
@@ -436,8 +435,7 @@ function CueConnectReview({
           onChange={(e) => {
             // A changed link is a new tab: the last read, its review and any read in flight go,
             // so Connect needs a fresh read of what the box now says.
-            readNo.current += 1;
-            jsonRead.current?.abort();
+            cancelRead();
             setLinkText(e.target.value);
             setReuse(null);
             setRead(null);
@@ -475,8 +473,7 @@ function CueConnectReview({
       <button
         type="button"
         onClick={() => {
-          readNo.current += 1;
-          jsonRead.current?.abort();
+          cancelRead();
           setReading(false);
           setReuse(null);
           setLinkText('');
@@ -499,8 +496,7 @@ function CueConnectReview({
             else if (source?.kind === 'feed') void readFeed(source.config.url);
             else if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
             else {
-              readNo.current += 1;
-              jsonRead.current?.abort();
+              cancelRead();
               setReading(false);
               setRead(null);
             }
@@ -528,7 +524,7 @@ function CueConnectReview({
           address, the key and an example.
         </p>
       )}
-      {(content || api || json) && (
+      {reviewing && (
         <>
           {content && noTab && (
             <label className="hint" data-testid="cue-connect-first-tab">
@@ -564,7 +560,11 @@ function CueConnectReview({
             <tbody>
               {mapping.map((row) => {
                 // A list field reading one of the sample's lists picks its columns on a line of its own.
-                const list = offers && adapters[row.fieldId] ? offers.collections.find((c) => c.path === chosen(row)) : undefined;
+                const path = chosen(row);
+                const list = offers && adapters[row.fieldId] ? offers.collections.find((c) => c.path === path) : undefined;
+                const options = optionsFor(row.fieldId);
+                const problem = projection && path !== null ? projection.problems[leafOf(path)] : undefined;
+                const value = path !== null && readable(path) ? writes(path) : undefined;
                 return [
                 <tr key={row.fieldId} data-testid={`cue-connect-row-${row.fieldId}`} data-status={row.status}>
                   <td>{row.fieldId.toUpperCase()} · {row.label}</td>
@@ -573,16 +573,16 @@ function CueConnectReview({
                       <span className="status-warn">used by prepared messages</span>
                     ) : (
                       <select
-                        value={chosen(row) ?? ''}
+                        value={path ?? ''}
                         onChange={(e) => setChoices((c) => ({ ...c, [row.fieldId]: e.target.value || null }))}
                         aria-label={`${row.label} follows`}
                         data-testid={`cue-connect-pick-${row.fieldId}`}
                       >
                         <option value="">Not connected</option>
-                        {row.current !== null && !optionsFor(row.fieldId).some((o) => o.path === row.current) && (
+                        {row.current !== null && !options.some((o) => o.path === row.current) && (
                           <option value={row.current}>Keep: {row.current}</option>
                         )}
-                        {optionsFor(row.fieldId).map((o) => (
+                        {options.map((o) => (
                           <option key={o.path} value={o.path}>
                             {o.label}
                           </option>
@@ -591,18 +591,18 @@ function CueConnectReview({
                     )}
                   </td>
                   <td className="muted">
-                    {repairs.has(row.fieldId) && chosen(row) === row.current ? (
+                    {repairs.has(row.fieldId) && path === row.current ? (
                       <span className="status-warn" data-testid={`cue-connect-repair-${row.fieldId}`}>not in the sample: pick another</span>
-                    ) : projection && chosen(row) !== null && projection.problems[leafOf(chosen(row)!)] ? (
-                      <span className="status-warn">{projection.problems[leafOf(chosen(row)!)]}</span>
+                    ) : problem ? (
+                      <span className="status-warn">{problem}</span>
                     ) : row.status === 'ambiguous'
                       ? 'several match: pick one'
-                      : row.current !== null && row.path !== null && row.current !== row.path && chosen(row) === row.current
+                      : row.current !== null && row.path !== null && row.current !== row.path && path === row.current
                         ? 'connected elsewhere: pick to replace'
-                        : chosen(row) !== null && (projection || sample.has(chosen(row)!)) && writes(chosen(row)!) === null
+                        : value === null
                           ? projection ? 'no value in the sample' : 'its other fields need it in another form: it would hold'
-                          : chosen(row) !== null && (projection || sample.has(chosen(row)!))
-                          ? writes(chosen(row)!)!.split('\n')[0]
+                          : value !== undefined
+                          ? value.split('\n')[0]
                           : row.status === 'unmatched'
                             ? 'no match'
                             : ''}
@@ -659,7 +659,7 @@ function CueConnectReview({
           </div>
         </>
       )}
-      {!content && !api && !json && (
+      {!reviewing && (
         <button
           type="button"
           onClick={() => {
@@ -1175,6 +1175,7 @@ export default function CueEditor({
                   const source = sourceOf(show, path);
                   const format = listFormatFor(poolGraphic, d.key);
                   if (path) {
+                    const unset = source?.kind === 'external' ? 'waits for the next read' : 'not set yet';
                     // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
                     // rather than on a hand-rolled label. The cue fields lay out in a grid,
                     // so a row of a different height sits its input a few pixels off its
@@ -1202,9 +1203,9 @@ export default function CueEditor({
                             connector's field fills at its source's next read, never from the
                             review's sample: until then it says so. */}
                         {format ? (
-                          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={source?.kind === 'external' ? 'waits for the next read' : 'not set yet'} rows={3} readOnly tabIndex={-1} />
+                          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} rows={3} readOnly tabIndex={-1} />
                         ) : (
-                          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={source?.kind === 'external' ? 'waits for the next read' : 'not set yet'} readOnly tabIndex={-1} />
+                          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} readOnly tabIndex={-1} />
                         )}
                         {/* The operator wins for values (±, a typed value on Data); a connected
                             list is read-only here and says where to edit it (sheet spec). */}

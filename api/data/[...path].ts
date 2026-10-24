@@ -23,7 +23,7 @@
 
 import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
 import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit } from '../_lib/rateLimit.js';
-import { FEED_TIMEOUT_MS, feedNetwork, guardedFetch, normalizeFeedAddress, readFeed, supabaseFeedStore, type FeedIo } from '../_lib/feedFetch.js';
+import { FEED_TIMEOUT_MS, feedNetwork, guardedFetch, normalizeFeedAddress, readFeed, supabaseFeedStore, type FeedIo, type GuardedRead } from '../_lib/feedFetch.js';
 import {
   dataApiConfigured,
   mapLabelsToFields,
@@ -318,16 +318,16 @@ async function jsonSample(text: string, outer: AbortSignal): Promise<Response> {
   outer.addEventListener('abort', stop, { once: true });
   let read: Awaited<ReturnType<typeof guardedFetch>>;
   try {
-    read = await guardedFetch(normal.url, { etag: null, lastModified: null }, feedNetwork.current, controller.signal, Date.now, { accept: 'application/json', maxBytes: SOURCE_BODY_BYTES });
+    read = await guardedFetch(normal.url, { etag: null, lastModified: null }, feedNetwork.current, controller.signal, Date.now, JSON_SAMPLE_READ);
   } finally {
     clearTimeout(timer);
     outer.removeEventListener('abort', stop);
   }
   const words = (t: string) => t.replace(/\bthe feed\b/g, 'the address').replace(/feed’s/g, 'endpoint’s');
   if (read.kind !== 'body') {
-    if (read.kind === 'not-modified') return json({ ok: false, error: 'the address answered without a body', fix: RETRY_WORDS }, 502);
-    if (/answered 40[13]\b/.test(read.error)) return json({ ok: false, error: 'the address needs a credential', fix: 'Its agent reads it: register it, start its agent, then read it again.' }, 502);
-    if (read.error.startsWith('the answer is over')) return json({ ok: false, error: read.error, fix: read.fix }, 413);
+    if (read.kind === 'not-modified') return json({ ok: false, error: 'the address answered without a body', fix: 'Try again in a moment.' }, 502);
+    if (read.status === 401 || read.status === 403) return json({ ok: false, error: 'the address needs a credential', fix: 'Its agent reads it: register it, start its agent, then read it again.' }, 502);
+    if (read.tooLarge) return json({ ok: false, error: read.error, fix: read.fix }, 413);
     return json({ ok: false, error: words(read.error), fix: words(read.fix) }, read.refused ? 422 : 502);
   }
   try {
@@ -337,7 +337,12 @@ async function jsonSample(text: string, outer: AbortSignal): Promise<Response> {
   }
 }
 
-const RETRY_WORDS = 'Try again in a moment.';
+/** The JSON sample's read: JSON asked for, and the source route's own 256 KiB. */
+const JSON_SAMPLE_READ: GuardedRead = {
+  accept: 'application/json',
+  maxBytes: SOURCE_BODY_BYTES,
+  tooLarge: { error: 'the answer is over 256 KiB', fix: 'Use an address that answers only what the graphics use.' },
+};
 
 /** A source refusal's HTTP status (migration 0101's codes). Everything is refused before writing. */
 const SOURCE_REFUSALS: Record<string, { status: number; message: string }> = {
@@ -400,17 +405,21 @@ async function source(req: Request): Promise<Response> {
   try {
     if (envelope.op === 'sample') return await sample(envelope, key, db, rpc, refused);
     if (envelope.op !== 'report') {
-      const answer = await rpc<Record<string, unknown>>('control_source_claim_by_key', {
-        p_key: key,
-        p_source: envelope.sourceId,
-        p_config_revision: envelope.configRevision,
-        p_claim: envelope.claim,
-        p_ttl_ms: envelope.op === 'release' ? 0 : SOURCE_LEASE_MS,
-      });
+      // Whether the page waits on a sample is asked beside the claim, not after it.
+      const [answer, wanted] = await Promise.all([
+        rpc<Record<string, unknown>>('control_source_claim_by_key', {
+          p_key: key,
+          p_source: envelope.sourceId,
+          p_config_revision: envelope.configRevision,
+          p_claim: envelope.claim,
+          p_ttl_ms: envelope.op === 'release' ? 0 : SOURCE_LEASE_MS,
+        }),
+        envelope.op === 'claim' ? sampleWanted(db, key, envelope.sourceId) : false,
+      ]);
       if (typeof answer.refused === 'string') return refused(answer as { refused: string });
       if (answer.held) return json({ ok: false, held: true, owner: answer.owner, message: 'Another agent holds this source. Try again once its claim has lapsed.' }, 409);
       // The page asked for a sample: the agent reads one and posts it (op `sample`).
-      return json(envelope.op === 'claim' && (await sampleWanted(db, key, envelope.sourceId)) ? { ...answer, sample: true } : answer);
+      return json(wanted ? { ...answer, sample: true } : answer);
     }
 
     const { acquisition } = envelope;
@@ -438,14 +447,17 @@ async function source(req: Request): Promise<Response> {
         configRevision: registration?.configRevision,
       });
     }
-    const answer = await rpc<Record<string, unknown>>('control_source_report_by_key', {
-      p_key: key,
-      p_source: envelope.sourceId,
-      p_report: { ...acquisition, claim: envelope.claim },
-      p_writes: projection?.writes ?? {},
-    });
+    const [answer, wanted] = await Promise.all([
+      rpc<Record<string, unknown>>('control_source_report_by_key', {
+        p_key: key,
+        p_source: envelope.sourceId,
+        p_report: { ...acquisition, claim: envelope.claim },
+        p_writes: projection?.writes ?? {},
+      }),
+      sampleWanted(db, key, envelope.sourceId),
+    ]);
     if (typeof answer.refused === 'string') return refused(answer as { refused: string });
-    if (await sampleWanted(db, key, envelope.sourceId)) answer.sample = true;
+    if (wanted) answer.sample = true;
     if (!projection) return json(answer);
     // What the agent reports back to whoever runs it: a recipe that holds the whole source on every
     // report, and for a changed one what held, what to correct, and from where.
@@ -486,9 +498,6 @@ async function showForKey(db: Db, key: string): Promise<string | null> {
   return (data as { id: string } | null)?.id ?? null;
 }
 
-/** A key's production, remembered by this instance for the agent's frequent question below only:
- *  a rotated key's stale entry can at worst tell an agent about an ask, never show it a sample. */
-const keyShows = new Map<string, string>();
 
 async function sampleRow(db: Db, showId: string, sourceId: string): Promise<{ payload: unknown; status: SampleStatus } | null> {
   const { data, error } = await db.from('production_source_snapshots').select('payload, status').eq('show_id', showId).eq('source_id', sampleRowId(sourceId)).maybeSingle();
@@ -500,17 +509,11 @@ const pending = (status: SampleStatus | undefined, now: number): boolean =>
   Boolean(status?.asked && !status.sampledAt && now - Date.parse(status.asked) < SAMPLE_WAIT_MS);
 
 /** Whether the page waits on a sample of this source: told to the agent with its claim or report.
- *  Best effort, after the claim or report has been taken: a lookup that fails answers no. */
+ *  Best effort: a lookup that fails answers no, and never fails the claim or report beside it. */
 async function sampleWanted(db: Db, key: string, sourceId: string): Promise<boolean> {
   try {
-    let showId = keyShows.get(key) ?? null;
-    if (!showId) {
-      showId = await showForKey(db, key);
-      if (!showId) return false;
-      if (keyShows.size >= 256) keyShows.clear();
-      keyShows.set(key, showId);
-    }
-    return pending((await sampleRow(db, showId, sourceId))?.status, Date.now());
+    const showId = await showForKey(db, key);
+    return showId !== null && pending((await sampleRow(db, showId, sourceId))?.status, Date.now());
   } catch {
     return false;
   }
@@ -523,7 +526,11 @@ async function sample(
   rpc: <T>(name: string, args: Record<string, unknown>) => Promise<T>,
   refused: (answer: { refused: string } & Record<string, unknown>) => Response,
 ): Promise<Response> {
-  const showId = await showForKey(db, key);
+  // The page's ask and read also need the registration: looked up beside the production.
+  const [showId, context] = await Promise.all([
+    showForKey(db, key),
+    'claim' in envelope ? null : rpc<{ entry: unknown } | null>('control_source_context_by_key', { p_key: key, p_source: envelope.sourceId }),
+  ]);
   if (!showId) return apiError('unauthorized', 'Unknown data key.', 401);
   const now = Date.now();
   const write = async (payload: unknown, status: SampleStatus) => {
@@ -541,14 +548,13 @@ async function sample(
   if ('claim' in envelope) {
     // The agent's post: only under the claim that holds the source now, read and not renewed (a
     // renewal of a lapsed lease would hand out a new claim nobody holds), and only to an ask.
-    if (!(await liveClaim(db, showId, envelope.sourceId, now, envelope.claim))) return refused({ refused: 'moved' });
-    const row = await sampleRow(db, showId, envelope.sourceId);
+    const [holds, row] = await Promise.all([liveClaim(db, showId, envelope.sourceId, now, envelope.claim), sampleRow(db, showId, envelope.sourceId)]);
+    if (!holds) return refused({ refused: 'moved' });
     if (!pending(row?.status, now)) return json({ ok: false, refused: 'not_asked', message: 'Nobody is waiting on a sample of this source.' }, 409);
     await write(envelope.sample, { asked: row!.status.asked, sampledAt: new Date(now).toISOString() });
     return json({ ok: true });
   }
 
-  const context = await rpc<{ entry: unknown } | null>('control_source_context_by_key', { p_key: key, p_source: envelope.sourceId });
   if (!context) return apiError('unauthorized', 'Unknown data key.', 401);
   const read = readExternalRegistration(context.entry);
   if (!read.ok) return refused({ refused: read.readOnly ? 'unsupported' : context.entry ? 'registration' : 'gone' });
@@ -562,9 +568,9 @@ async function sample(
   }
 
   // A new ask, kept only while an agent holds the source: without one the page reads the hosted way.
-  if (!(await liveClaim(db, showId, envelope.sourceId, now))) return json({ ok: false, agent: false });
+  const [held, open] = await Promise.all([liveClaim(db, showId, envelope.sourceId, now), sampleRow(db, showId, envelope.sourceId)]);
+  if (!held) return json({ ok: false, agent: false });
   // An ask still waiting is shared: a second review waits on the same sample, never cancels the first.
-  const open = await sampleRow(db, showId, envelope.sourceId);
   if (open && pending(open.status, now)) return json({ ok: false, waiting: true, asked: open.status.asked });
   const asked = new Date(now).toISOString();
   await write(null, { asked });

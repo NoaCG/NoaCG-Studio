@@ -44,7 +44,7 @@ describe('what a sample offers', () => {
         ['external.e1.f2', 'f2', 'Kaisaniemi', 'f2'],
       ],
     );
-    assert.deepEqual(collections, [{ path: 'external.e1.scorers', from: 'scorers', label: 'scorers', count: 2, keys: ['id', 'name', 'team', 'minute'], id: 'id' }]);
+    assert.deepEqual(collections, [{ path: 'external.e1.scorers', from: 'scorers', label: 'scorers', keys: ['id', 'name', 'team', 'minute'], id: 'id' }]);
   });
 
   test('null, a key the recipe cannot name, an empty list and a list that is not records are not offered', () => {
@@ -182,11 +182,13 @@ describe('the one write', () => {
     assert.equal(p.fence, JSON.stringify(stored), 'the write is fenced on the configuration as read');
   });
 
-  test('nothing but the recipe shape is written: a token or a local destination in the stored config is dropped', () => {
-    const stored = { v: 1, configRevision: 1, endpoint: 'https://results.example/live', token: 'SECRET-TOKEN', mode: 'local', headers: { authorization: 'Bearer SECRET-TOKEN' } };
+  test('nothing but the registration\'s own keys is written: a token is dropped, a local destination refused', () => {
+    const stored = { v: 1, configRevision: 1, endpoint: 'https://results.example/live', token: 'SECRET-TOKEN', headers: { authorization: 'Bearer SECRET-TOKEN' } };
     const p = plan({ source: { id: 'e1', label: 'Results', config: stored } });
-    assert.doesNotMatch(JSON.stringify(p.source), /SECRET-TOKEN|mode|headers/);
+    assert.doesNotMatch(JSON.stringify(p.source), /SECRET-TOKEN|headers/);
     assert.deepEqual(Object.keys(p.source.config).sort(), ['configRevision', 'endpoint', 'mapping', 'v']);
+    assert.match(plan({ source: { id: 'e1', label: 'Results', config: { ...stored, mode: 'local' } } }).error, /no configuration this build reads/);
+    assert.match(plan({ source: { id: 'e1', label: 'Results', config: { ...stored, lists: { scorers: 'standings' } } } }).error, /no configuration/, 'an adapter the route refuses');
   });
 
   test('a recipe the reader would refuse is never written: too many outputs is an error, not a write', () => {

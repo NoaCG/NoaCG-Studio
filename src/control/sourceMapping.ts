@@ -57,7 +57,8 @@ export function connectedFields(
   return out;
 }
 
-const scalarText = (value: unknown): string | null => {
+/** A string, a finite number or a boolean as its text; null for anything else. */
+export const scalarText = (value: unknown): string | null => {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
   if (typeof value === 'boolean') return value ? 'true' : 'false';
@@ -114,7 +115,7 @@ function leafText(value: unknown, adapter: SourceListAdapter | undefined): strin
 const MAX_OUTPUTS = 32;
 const MAX_COLUMNS = 8;
 const MAX_LIMIT = 500;
-const MAX_SEGMENTS = 8;
+export const MAX_SEGMENTS = 8;
 const MAX_DECIMALS = 6;
 const MAX_TEXT = 200;
 const LOCALE = /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?$/;

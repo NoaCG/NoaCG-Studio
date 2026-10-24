@@ -16,6 +16,7 @@
 //   back. That trap is there with or without a profile, so hiding it behind one would be wrong.
 
 import { continueEvents, eventButtons, fieldDescriptors } from '../control/controlModel';
+import { readExternalRegistration } from '../control/externalSource';
 import { readSourceRecipe } from '../control/sourceMapping';
 import type { Show } from '../model/shows';
 import type { SpxTemplate } from '../model/types';
@@ -60,16 +61,17 @@ export function spxLeftBehindMd(show: Show, graphics: PackagedGraphic[]): string
   // The endpoint is written without its query, where a provider's key could sit.
   for (const source of show.sources ?? []) {
     if (source.kind !== 'external') continue;
-    const config = source.config as { endpoint?: unknown; configRevision?: number; mapping?: unknown };
+    // Read the way the route reads it: a registration this build cannot read names nothing of it.
+    const read = readExternalRegistration(source);
     let where = 'no endpoint';
     try {
-      const url = new URL(String(config.endpoint));
+      const url = new URL(read.ok ? read.registration.endpoint : '');
       where = `${url.origin}${url.pathname}`;
     } catch {
       /* not an address: named as none */
     }
     // Only a recipe this build reads is written out: a later version's could hold anything.
-    const recipe = readSourceRecipe(config.mapping, source.id, config.configRevision);
+    const recipe = read.ok ? readSourceRecipe(read.registration.mapping, source.id, read.registration.configRevision) : ({ status: 'read-only' } as const);
     items.push(
       `- **The connector ${source.label}** (${where}) is read by NoaCG's agent with the\n` +
         `  production's data key, so it does not follow here. To use it again, register it in the new\n` +

@@ -17,13 +17,8 @@
 // fences it on the configuration this review read. scripts/connector-review.test.mjs drives it.
 
 import { mappingEntries, proposeMapping, sourcePaths, sourcePrefix, withBindings, type BindingEntry, type MappingRow, type OfferedValue, type ProductionBindings, type RecipeList, type RecipeValue, type SourceRecipe } from '../model/productionData.ts';
-import { isObject, type SourceListAdapter } from './externalSource.ts';
-import { readSourceRecipe } from './sourceMapping.ts';
-
-/** One key of a dotted path, as the recipe grammar takes it (externalSource `PATH`). */
-const SEGMENT = /^[A-Za-z0-9_-]+$/;
-/** The deepest value offered: the recipe reads paths of at most 8 keys. */
-const MAX_DEPTH = 8;
+import { isObject, readExternalRegistration, SEGMENT, type SourceListAdapter } from './externalSource.ts';
+import { MAX_SEGMENTS, readSourceRecipe, scalarText } from './sourceMapping.ts';
 /** How much of a sample is offered, so a hostile one costs a bounded walk. */
 export const MAX_OFFERS = 200;
 export const MAX_COLLECTIONS = 20;
@@ -38,7 +33,6 @@ export interface JsonCollection {
   path: string;
   from: string;
   label: string;
-  count: number;
   /** The first record's keys holding a text, a number or true/false, in order. */
   keys: string[];
   /** The record key: a key every record carries with a value no other record has, or null. */
@@ -49,9 +43,6 @@ export interface JsonOffers {
   scalars: OfferedValue[];
   collections: JsonCollection[];
 }
-
-const scalarText = (value: unknown): string | null =>
-  typeof value === 'string' ? value : typeof value === 'number' ? (Number.isFinite(value) ? String(value) : null) : typeof value === 'boolean' ? String(value) : null;
 
 const words = (keys: string[]) => keys.join(' ').replace(/[_-]+/g, ' ').trim();
 
@@ -74,7 +65,7 @@ function recordKey(items: Record<string, unknown>[], keys: string[]): string | n
  * What a sample offers, under its own words: every text, number or true/false value (a key that
  * names a field, `f0`, is that field's stable key), and every list of records. Values inside a
  * list are not offered one by one: a list is read whole, by its columns. Bounded: at most
- * MAX_OFFERS values and MAX_COLLECTIONS lists, 8 keys deep, and a walk of at most MAX_VISITS
+ * MAX_OFFERS values and MAX_COLLECTIONS lists, as deep as a recipe path reads (MAX_SEGMENTS keys), and a walk of at most MAX_VISITS
  * values, so a hostile sample costs a bounded walk.
  */
 export function jsonOffers(sourceId: string, sample: unknown): JsonOffers {
@@ -96,8 +87,8 @@ export function jsonOffers(sourceId: string, sample: unknown): JsonOffers {
         visits += child.length;
         const items = child as Record<string, unknown>[];
         const fields = Object.keys(items[0]).filter((k) => SEGMENT.test(k) && scalarText(items[0][k]) !== null);
-        if (fields.length > 0) collections.push({ path: `${prefix}.${from}`, from, label: words(at), count: items.length, keys: fields, id: recordKey(items, fields) });
-      } else if (isObject(child) && at.length < MAX_DEPTH) {
+        if (fields.length > 0) collections.push({ path: `${prefix}.${from}`, from, label: words(at), keys: fields, id: recordKey(items, fields) });
+      } else if (isObject(child) && at.length < MAX_SEGMENTS) {
         walk(child, at);
       }
     }
@@ -107,11 +98,11 @@ export function jsonOffers(sourceId: string, sample: unknown): JsonOffers {
   // home score"), so the matcher finds a field titled with those words.
   const named = (paths: string[]) => {
     const keys = paths.map((p) => p.split('.').slice(2));
+    // How many values end in each run of trailing keys, counted once.
+    const ends = new Map<string, number>();
+    for (const k of keys) for (let n = 1; n <= k.length; n += 1) ends.set(k.slice(-n).join('.'), (ends.get(k.slice(-n).join('.')) ?? 0) + 1);
     return keys.map((k) => {
-      for (let n = 1; n < k.length; n += 1) {
-        const tail = k.slice(-n).join('.');
-        if (keys.filter((other) => other.slice(-n).join('.') === tail).length === 1) return words(k.slice(-n));
-      }
+      for (let n = 1; n < k.length; n += 1) if (ends.get(k.slice(-n).join('.')) === 1) return words(k.slice(-n));
       return words(k);
     });
   };
@@ -197,9 +188,11 @@ export function connectorPlan(o: {
   columns: Record<string, string[]>;
 }): ConnectorPlan {
   const { id } = o.source;
-  const stored = isObject(o.source.config) ? o.source.config : null;
+  // A reused source is read the way the route reads it; a new one starts at config revision 1.
+  const reused = o.source.config === undefined ? null : readExternalRegistration({ id, kind: 'external', config: o.source.config });
+  if (reused && !reused.ok) return { error: 'This connector has no configuration this build reads.' };
+  const stored = reused?.ok ? reused.registration : null;
   const configRevision = stored ? stored.configRevision : 1;
-  if (typeof configRevision !== 'number' || !Number.isInteger(configRevision) || configRevision < 1) return { error: 'This connector has no configuration this build reads.' };
   const prefix = `${sourcePrefix(id, 'external')}.`;
   const entries = mappingEntries(o.graphic, o.rows, o.choices);
   const after = withBindings(o.bindings ?? {}, entries, () => false).bindings;
@@ -210,7 +203,7 @@ export function connectorPlan(o: {
   const outputs: Record<string, RecipeValue | RecipeList> = {};
   const lists: Record<string, SourceListAdapter> = {};
   if (before?.status === 'ok') for (const [leaf, out] of Object.entries(before.recipe.outputs)) if (bound.has(leaf)) outputs[leaf] = out;
-  if (stored && isObject(stored.lists)) for (const [leaf, adapter] of Object.entries(stored.lists)) if (bound.has(leaf) && typeof adapter === 'string') lists[leaf] = adapter as SourceListAdapter;
+  for (const [leaf, adapter] of Object.entries(stored?.lists ?? {})) if (bound.has(leaf)) lists[leaf] = adapter;
 
   const byPath = new Map(o.collections.map((c) => [c.path, c]));
   const mine = sourcePaths(after, id).filter((p) => p.graphic === o.graphic);
@@ -234,7 +227,7 @@ export function connectorPlan(o: {
   const config: ConnectorSource['config'] = {
     v: 1,
     configRevision,
-    endpoint: stored && typeof stored.endpoint === 'string' ? stored.endpoint : (o.source.endpoint ?? ''),
+    endpoint: stored ? stored.endpoint : (o.source.endpoint ?? ''),
     ...(Object.keys(lists).length > 0 ? { lists } : {}),
     ...(recipe ? { mapping: recipe } : {}),
   };

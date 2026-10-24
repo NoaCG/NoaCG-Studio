@@ -169,6 +169,19 @@ export interface FeedNet {
   request: (o: { url: URL; address: string; family: number; headers: Record<string, string>; signal: AbortSignal }) => Promise<FeedResponse>;
 }
 
+/** What one guarded read asks for and how much of the body it takes, with its words when that is too much. */
+export interface GuardedRead {
+  accept: string;
+  maxBytes: number;
+  tooLarge: { error: string; fix: string };
+}
+
+const FEED_READ: GuardedRead = {
+  accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5',
+  maxBytes: FEED_MAX_BYTES,
+  tooLarge: { error: `the feed is larger than ${FEED_MAX_BYTES / 1_000_000} MB`, fix: 'Use a smaller feed, such as one for a single category.' },
+};
+
 /** A refusal's or a failure's words, and how long the publisher asked to be left alone. */
 export interface FeedProblem {
   error: string;
@@ -177,6 +190,9 @@ export interface FeedProblem {
   refused?: boolean;
   /** The publisher's Retry-After, in ms. */
   retryMs?: number;
+  /** What a caller with words of its own branches on: the answer's HTTP status, or a body over the cap. */
+  status?: number;
+  tooLarge?: true;
 }
 
 export type FeedFetch =
@@ -242,8 +258,8 @@ export async function guardedFetch(
   net: FeedNet,
   signal: AbortSignal,
   now: () => number = Date.now,
-  /** Another reader's Accept header and body cap (the Connect review's JSON sample). */
-  as: { accept: string; maxBytes: number } = { accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5', maxBytes: FEED_MAX_BYTES },
+  /** What is asked for and how much is read: a feed's, or another reader's (the Connect review's JSON sample). */
+  as: GuardedRead = FEED_READ,
 ): Promise<FeedFetch> {
   let url: URL;
   try {
@@ -296,14 +312,12 @@ export async function guardedFetch(
           kind: 'problem',
           error: response.status === 404 || response.status === 410 ? 'the feed is not there' : `the feed answered ${response.status}`,
           fix: response.status === 404 || response.status === 410 ? 'Check the address.' : RETRY_FIX,
+          status: response.status,
           ...(retry !== null ? { retryMs: retry } : {}),
         };
       }
       const declared = Number(response.headers['content-length']);
-      const tooLarge = refuse(
-        as.maxBytes === FEED_MAX_BYTES ? `the feed is larger than ${FEED_MAX_BYTES / 1_000_000} MB` : `the answer is over ${Math.round(as.maxBytes / 1024)} KiB`,
-        as.maxBytes === FEED_MAX_BYTES ? 'Use a smaller feed, such as one for a single category.' : 'Use an address that answers only what the graphics use.',
-      );
+      const tooLarge: FeedFetch = { kind: 'problem', ...as.tooLarge, refused: true, tooLarge: true };
       // A declared length is the compressed size, which only ever understates; checked early, and
       // the decompressed count below decides.
       if (Number.isFinite(declared) && declared > as.maxBytes) {
