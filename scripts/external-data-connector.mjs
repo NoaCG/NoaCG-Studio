@@ -184,10 +184,23 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     }
   };
   // Redacted once here, at the seam, so no sender has to remember: a provider that echoes the
-  // credential in its answer cannot pass it on.
-  const deliver = (acquisition) => {
-    const text = credential ? JSON.stringify(acquisition) : '';
-    return send(credential && text.includes(credential) ? JSON.parse(redact(text)) : acquisition);
+  // credential in its answer cannot pass it on. Strings are redacted where they stand, so the
+  // value stays valid JSON; a number is data, never a bearer header's text.
+  const redactValue = (value) => {
+    if (typeof value === 'string') return redact(value);
+    if (Array.isArray(value)) return value.map(redactValue);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [redact(k), redactValue(v)]));
+    return value;
+  };
+  const deliver = (acquisition) => send(credential && JSON.stringify(acquisition).includes(credential) ? redactValue(acquisition) : acquisition);
+  const offer = async (acquisition) => {
+    try {
+      await deliver(acquisition);
+      return true;
+    } catch (error) {
+      say(`${config.sourceId} the sender failed: ${error?.message ?? error}`);
+      return false;
+    }
   };
 
   let state = initialSourceState();
@@ -198,6 +211,8 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
   let stopped = false;
   let lastReceiptAt = -Infinity;
   let nextDelay = config.pollMs;
+  /** An accepted revision the sender has not taken yet: offered again until it is. */
+  let undelivered = null;
 
   async function read() {
     const own = new AbortController();
@@ -228,13 +243,13 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     say(`${acquisition.checkedAt} ${config.sourceId} ${acquisition.status} accepted=${acquisition.acceptedRevision}${acquisition.error ? ` ${acquisition.error}` : ''} next=${nextDelay}ms`);
     const report = acquisition.status !== 'unchanged' || now - lastReceiptAt >= UNCHANGED_RECEIPT_MS;
     if (report && (acquisition.status === 'unchanged' || acquisition.status === 'changed')) lastReceiptAt = now;
-    if (report) {
-      try {
-        await deliver(acquisition);
-      } catch (error) {
-        say(`${config.sourceId} the sender failed: ${error?.message ?? error}`);
-      }
+    if (acquisition.status === 'changed') undelivered = null;
+    if (undelivered) {
+      if (await offer({ ...undelivered, checkedAt: acquisition.checkedAt })) undelivered = null;
+      // The payload offered again is this unchanged read's report.
+      if (acquisition.status === 'unchanged') return acquisition;
     }
+    if (report && !(await offer(acquisition)) && acquisition.status === 'changed') undelivered = acquisition;
     return acquisition;
   }
 

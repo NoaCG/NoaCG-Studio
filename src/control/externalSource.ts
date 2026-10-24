@@ -323,11 +323,12 @@ export function retryAfterMs(header: string | undefined | null, now: number): nu
 /**
  * How long until the next read. After a success, the poll interval. After `failures` failures in
  * a row, the interval doubled per failure and capped at BACKOFF_CAP_MS, then scaled by a jitter
- * of 50-100 % (`random` is in [0, 1)); never sooner than the provider's Retry-After, which itself
- * counts only up to RETRY_AFTER_CAP_MS.
+ * of 50-100 % (`random` is in [0, 1)); never sooner than the poll interval itself (a provider
+ * whose minimum is above the cap keeps it through an outage), nor than the provider's
+ * Retry-After, which counts only up to RETRY_AFTER_CAP_MS.
  */
 export function nextDelayMs(pollMs: number, failures: number, retryAfter: number | null, random: number): number {
   const backoff = failures <= 0 ? pollMs : Math.min(BACKOFF_CAP_MS, pollMs * 2 ** failures) * (0.5 + 0.5 * random);
   const asked = retryAfter === null ? 0 : Math.min(RETRY_AFTER_CAP_MS, retryAfter);
-  return Math.round(Math.max(backoff, asked));
+  return Math.round(Math.max(backoff, asked, pollMs));
 }

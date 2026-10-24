@@ -273,6 +273,8 @@ describe('schedule', () => {
     assert.equal(ext.nextDelayMs(5000, 0, 3_600_000, 0), 3_600_000);
     assert.equal(ext.nextDelayMs(5000, 0, 3_600_001, 0), 3_600_000);
     assert.equal(ext.retryAfterMs('Sat, 24 Oct 2026 12:00:30 GMT', T0), 30_000);
+    // A provider minimum above the cap holds through an outage.
+    assert.deepEqual([1, 5].map((n) => ext.nextDelayMs(120_000, n, null, 0)), [120_000, 120_000]);
   });
 
   async function readTimes({ random, respond, seconds }) {
@@ -423,6 +425,41 @@ describe('stopping and faults', () => {
     assert.equal(net.requests.length, 3);
     assert.equal(c.state.failures, 0);
     c.stop();
+  });
+
+  test('a revision the sender failed to take is offered again until it is', async () => {
+    const net = fakeNet(JSON_OK({ revision: 1, n: 1 }));
+    const offered = [];
+    let fail = 2;
+    const { c, clock } = connector({
+      net,
+      send: async (a) => {
+        offered.push([a.status, a.acceptedRevision, a.payload?.n ?? null, a.checkedAt]);
+        if (fail-- > 0) throw new Error('sender down');
+      },
+    });
+    await c.readOnce();
+    await clock.advance(5000);
+    await c.readOnce();
+    await clock.advance(5000);
+    await c.readOnce();
+    await clock.advance(5000);
+    await c.readOnce();
+    const at = (s) => new Date(T0 + s * 1000).toISOString();
+    assert.deepEqual(offered, [
+      ['changed', 1, 1, at(0)],
+      ['changed', 1, 1, at(5)],
+      ['changed', 1, 1, at(10)],
+      // Taken at last; the next is the ordinary receipt, 15 s after the change.
+      ['unchanged', 1, null, at(15)],
+    ]);
+  });
+
+  test('redaction keeps the payload valid, numbers untouched', async () => {
+    const net = fakeNet(() => response(200, JSON.stringify({ revision: 1, count: 123456, note: 'id 123456', list: ['123456'] })));
+    const { c, sent } = connector({ config: { credentialRef: 'NOACG_SOURCE_A' }, credential: '123456', net });
+    await c.readOnce();
+    assert.deepEqual(sent[0].payload, { revision: 1, count: 123456, note: `id ${REDACTED}`, list: [REDACTED] });
   });
 
   test('a provider that echoes the credential cannot pass it to the sender', async () => {
