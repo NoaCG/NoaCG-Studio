@@ -8,8 +8,9 @@
 //   node scripts/external-data-connector.mjs --config <file.json> --export   # the shareable config
 //
 // The configuration is non-secret (src/control/externalSource.ts `parseConnectorConfig`). The
-// bearer credential is read from the environment variable it names, held in memory only, sent
-// only to the configured origin, and replaced by "[redacted]" in anything the agent writes. An
+// bearer credential is read from the environment variable it names (NOACG_SOURCE_...), held in
+// memory only, sent only to the configured origin, and replaced by "[redacted]" in anything the
+// agent writes. An
 // exported configuration keeps the variable's name and is unbound: the agent refuses it until
 // the importing machine binds its own credential.
 //
@@ -55,7 +56,7 @@ const DONE = 'done';
 
 /** Refuse an exported configuration until this machine binds its own credential. */
 export function assertBound(config) {
-  if (config.credentialRef && !config.credentialBound) throw new Error(`this configuration was exported: bind ${config.credentialRef} on this machine before it reads (rebind)`);
+  if (config.credentialRef && !config.credentialBound) throw new Error(`this configuration is not bound on this machine (an export, say): bind ${config.credentialRef} here before it reads (rebind)`);
 }
 
 // ── The network ───────────────────────────────────────────────────────────────

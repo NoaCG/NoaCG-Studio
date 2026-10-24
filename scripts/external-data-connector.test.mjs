@@ -106,6 +106,7 @@ function config(over = {}) {
     endpoint: 'https://api.example.com/results',
     configRevision: 1,
     revisionPath: 'revision',
+    credentialBound: true,
     ...over,
   });
   assert.ok(parsed.ok, parsed.error);
@@ -137,7 +138,16 @@ describe('configuration', () => {
     assert.match(ext.parseConnectorConfig({ ...base, endpoint: 'https://127.0.0.1:9/x', mode: 'local' }).error, /caFile/);
     assert.match(ext.parseConnectorConfig({ ...base, endpoint: 'https://a.example/x', caFile: 'ca.pem' }).error, /local destination only/);
     assert.match(ext.parseConnectorConfig({ ...base, v: 2, endpoint: 'https://a.example/x' }).error, /version 2/);
-    assert.match(ext.parseConnectorConfig({ ...base, endpoint: 'https://a.example/x', credentialRef: 'T', credentialBound: 'false' }).error, /credentialBound/);
+    assert.match(ext.parseConnectorConfig({ ...base, endpoint: 'https://a.example/x', credentialRef: 'NOACG_SOURCE_T', credentialBound: 'false' }).error, /credentialBound/);
+  });
+
+  test('a credential is a NOACG_SOURCE_ variable, bound only when the config says so', () => {
+    const base = { v: 1, sourceId: 's', productionId: 'p', configRevision: 1, endpoint: 'https://a.example/x' };
+    for (const ref of ['SUPABASE_SERVICE_ROLE_KEY', 'CRON_SECRET', 'NOACG_SOURCE_', 'noacg_source_x']) assert.match(ext.parseConnectorConfig({ ...base, credentialRef: ref }).error, /NOACG_SOURCE_/, ref);
+    assert.equal(ext.parseConnectorConfig({ ...base, credentialRef: 'NOACG_SOURCE_X' }).config.credentialBound, false);
+    assert.equal(ext.parseConnectorConfig({ ...base, credentialRef: 'NOACG_SOURCE_X', credentialBound: true }).config.credentialBound, true);
+    assert.equal(ext.parseConnectorConfig(base).config.credentialBound, true);
+    assert.throws(() => ext.bindConnectorCredential(ext.parseConnectorConfig(base).config, 'CRON_SECRET'), /NOACG_SOURCE_/);
   });
 
   test('polls every 5 s by default, never under 1 s or the provider minimum', () => {
@@ -158,18 +168,18 @@ describe('configuration', () => {
 
   test('an export carries only the credential name, unbound, and the agent refuses it until rebound', () => {
     const token = makeToken();
-    const bound = config({ credentialRef: 'PROVIDER_TOKEN' });
-    const { c } = connector({ config: { credentialRef: 'PROVIDER_TOKEN' }, credential: token, net: fakeNet(JSON_OK()) });
+    const bound = config({ credentialRef: 'NOACG_SOURCE_PROVIDER' });
+    const { c } = connector({ config: { credentialRef: 'NOACG_SOURCE_PROVIDER' }, credential: token, net: fakeNet(JSON_OK()) });
     const exported = c.exportConfig();
     const text = JSON.stringify(exported);
     assert.equal(text.includes(token), false);
-    assert.equal(exported.credentialRef, 'PROVIDER_TOKEN');
+    assert.equal(exported.credentialRef, 'NOACG_SOURCE_PROVIDER');
     assert.equal(exported.credentialBound, false);
     const reread = ext.parseConnectorConfig(JSON.parse(text));
     assert.ok(reread.ok);
     assert.throws(() => createConnector({ config: reread.config, credential: token, clock: fakeClock() }), /rebind/);
-    const rebound = ext.bindConnectorCredential(reread.config, 'OTHER_TOKEN');
-    assert.deepEqual(rebound, { ...bound, credentialRef: 'OTHER_TOKEN' });
+    const rebound = ext.bindConnectorCredential(reread.config, 'NOACG_SOURCE_OTHER');
+    assert.deepEqual(rebound, { ...bound, credentialRef: 'NOACG_SOURCE_OTHER' });
     assert.doesNotThrow(() => createConnector({ config: rebound, credential: token, clock: fakeClock() }));
     assert.throws(() => createConnector({ config: rebound, credential: null, clock: fakeClock() }), /not set on this machine/);
   });
@@ -417,7 +427,7 @@ describe('stopping and faults', () => {
 
   test('a provider that echoes the credential cannot pass it to the sender', async () => {
     const net = fakeNet(() => response(200, JSON.stringify({ revision: 1, note: 'seen Bearer sekret-value here' })));
-    const { c, sent } = connector({ config: { credentialRef: 'TOKEN_A' }, credential: 'sekret-value', net });
+    const { c, sent } = connector({ config: { credentialRef: 'NOACG_SOURCE_A' }, credential: 'sekret-value', net });
     await c.readOnce();
     assert.equal(sent[0].payload.note, `seen Bearer ${REDACTED} here`);
   });
@@ -476,7 +486,7 @@ describe('hosted guard', () => {
   test('the bearer header goes to the configured origin only, kept on a same-origin redirect', async () => {
     const dns = { 'api.example.com': ['93.184.216.34'], 'cdn.example.net': ['93.184.216.35'] };
     const net = fakeNet((_req, n) => (n === 1 ? response(302, '', { location: '/moved' }) : n === 2 ? response(302, '', { location: 'https://cdn.example.net/r' }) : JSON_OK()()), dns);
-    const out = await connector({ config: { credentialRef: 'TOKEN_A' }, credential: 'sekret-value', net }).c.readOnce();
+    const out = await connector({ config: { credentialRef: 'NOACG_SOURCE_A' }, credential: 'sekret-value', net }).c.readOnce();
     assert.equal(out.status, 'changed');
     assert.deepEqual(
       net.requests.map((r) => [r.url.href, r.headers.authorization ?? null]),
@@ -519,7 +529,7 @@ describe('replay server', () => {
   });
   after(() => rmSync(dir, { recursive: true, force: true }));
 
-  const localConfig = (url, over = {}) => config({ endpoint: url, mode: 'local', caFile: 'ca.pem', credentialRef: 'REPLAY_TOKEN', eventTimePath: 'observed_at', ...over });
+  const localConfig = (url, over = {}) => config({ endpoint: url, mode: 'local', caFile: 'ca.pem', credentialRef: 'NOACG_SOURCE_REPLAY', eventTimePath: 'observed_at', ...over });
 
   test('the timeline, read through the agent under one fake clock, is exact; unchanged receipts every 15 s at most; nothing leaks the token', async () => {
     const clock = fakeClock();
@@ -623,7 +633,7 @@ describe('replay server', () => {
     try {
       let connections = 0;
       const counting = { ...nodeNet, request: (o) => (connections++, nodeNet.request(o)) };
-      const hosted = config({ endpoint: server.url, credentialRef: 'REPLAY_TOKEN' });
+      const hosted = config({ endpoint: server.url, credentialRef: 'NOACG_SOURCE_REPLAY' });
       const out = await createConnector({ config: hosted, credential: token, net: counting, clock: fakeClock() }).readOnce();
       assert.equal(out.status, 'refused');
       assert.equal(connections, 0);
@@ -635,7 +645,7 @@ describe('replay server', () => {
   test('a credential that reaches an error message is redacted in the log', async () => {
     const logs = [];
     const c = createConnector({
-      config: config({ credentialRef: 'PROVIDER_TOKEN' }),
+      config: config({ credentialRef: 'NOACG_SOURCE_PROVIDER' }),
       credential: token,
       net: fakeNet(JSON_OK()),
       clock: fakeClock(),
@@ -657,7 +667,7 @@ describe('replay server', () => {
       const file = path.join(dir, 'connector.json');
       writeFileSync(file, JSON.stringify({ ...localConfig(server.url), caFile: 'ca.pem', pollMs: 1000 }));
       const script = path.join(ROOT, 'scripts/external-data-connector.mjs');
-      const env = { ...process.env, REPLAY_TOKEN: token };
+      const env = { ...process.env, NOACG_SOURCE_REPLAY: token };
       const child = spawn(process.execPath, [script, '--config', file, '--minutes', '0.04'], { env, windowsHide: true });
       let out = '';
       let err = '';

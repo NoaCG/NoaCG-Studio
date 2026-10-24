@@ -15,7 +15,7 @@ changes a spec's digest.
 - **What landed.** `src/control/externalSource.ts` (the `v: 1` config, export/rebind, acceptance
   and schedule, pure), `scripts/external-data-connector.mjs` (the headless agent),
   `scripts/election-replay-server.mjs`, `scripts/replay-smoke.mjs` with the npm script
-  `endurance:replay-smoke`, and `scripts/external-data-connector.test.mjs` (35 tests).
+  `endurance:replay-smoke`, and `scripts/external-data-connector.test.mjs` (36 tests).
 - **Supported limits** (the recorded envelope; the config file cannot name any of them):
 
   | Limit | Default | Moved only by | Envelope |
@@ -50,11 +50,15 @@ changes a spec's digest.
     on any other, as `fetch` does.
   - *`local` mode* is the spec's "explicitly configured local agent destination": only the
     configured origin, checked against `caFile` (Node's `ca` option replaces the system
-    authorities), so a replay server on 127.0.0.1 is read with TLS validation on and nothing else
-    private is reachable. Hosted mode refuses the same loopback server before connecting.
+    authorities), so a replay server on 127.0.0.1 is read with TLS validation on and nothing
+    outside the configured origin is reachable. It trusts whoever writes the config, as the spec's
+    "trusted agent" does. Hosted mode refuses the same loopback server before connecting.
   - *Export and rebind*: the config never holds the secret; `credentialRef` names an environment
-    variable. An export copies only known fields and sets `credentialBound: false`; the agent
-    refuses it ("rebind") until `bindConnectorCredential` binds this machine's variable.
+    variable, which must be `NOACG_SOURCE_...` so a config cannot send the agent's other secrets
+    (a service key, `CRON_SECRET`) to its endpoint. A config is bound only when it says
+    `credentialBound: true`, so deleting the flag from an export does not skip the rebind. An
+    export copies only known fields and sets `credentialBound: false`; the agent refuses it
+    ("rebind") until `bindConnectorCredential` binds this machine's variable.
   - *Accepted revision is the source's own counter*, rising by one per accepted change; the
     provider's number travels as `providerSequence`. `ownerEpoch` is 0 until E4.2's claim.
   - *Invalid and stale reads do not back off*: the provider answered; only denied, refused and
@@ -75,7 +79,7 @@ changes a spec's digest.
     `endurance:election`.
   - *Extra file outside the fence:* `.gitignore` gains `endurance-output/`, the folder
     endurance.yml uploads, so a local smoke run leaves the checkout clean.
-- **Tests pin behaviour, and were mutation-checked**: 41 single mutations of the contract, agent
+- **Tests pin behaviour, and were mutation-checked**: 43 single mutations of the contract, agent
   and server (timeout to 9.999 or 11 s, cap plus or minus one byte, declared length unchecked,
   backoff cap, jitter, doubling, Retry-After ignored or uncapped, poll default, single flight,
   one public DNS answer enough, redirects unchecked, 4 or 6 redirects, connection unpinned,
@@ -83,7 +87,8 @@ changes a spec's digest.
   redaction, server accepting any token, 401 not denied, older or conflicting revision accepted,
   unknown config keys, http, receipt throttle, timeline steps, seam redaction, a log fault
   stopping the polling, deadline and stop confused, the byte-equal shortcut too broad, deep JSON
-  crashing, `credentialBound` untyped, the timeline starting before the first read); every one
+  crashing, `credentialBound` untyped or defaulting to bound, any variable name accepted as a
+  credential, the timeline starting before the first read); every one
   turned the suite red.
 - **Endurance smoke:** `endurance.yml` dispatched once on this branch at `113a634`
   (`endurance:replay-smoke`, 2 minutes, local-supabase off): run 40072697365, success, all 13
@@ -102,6 +107,13 @@ changes a spec's digest.
   `canonical` from src/model (the contract has no runtime imports), and the private copies of
   `retryAfterMs` and `underSignal` in api/_lib/feedFetch.ts (api/ is E4.2's; feedFetch can import
   `retryAfterMs` from the contract then).
+- **Assessment A** (a fresh read-only `/so` session on `458a6f3`): PASS WITH NOTES, nothing
+  blocking. Its note 1 was fixed here rather than left to E4.2: a config missing
+  `credentialBound` counted as bound, and `credentialRef` could name any variable (a config
+  naming a service key would have sent it to its endpoint); now a credential must be
+  `NOACG_SOURCE_...` and is bound only when the config says `true`. Its note 2 corrected the
+  wording on local mode (above). Its other open item, a dispatched smoke on the final code, is
+  the second run below.
 - **Traps.**
   - Every `spawn`/`execFileSync` needs `windowsHide: true` (`scripts/windows-hide.test.mjs`).
   - The agent imports the feed guard's TypeScript through `scripts/lib/tsResolve.mjs`, so those

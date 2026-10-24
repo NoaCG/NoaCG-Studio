@@ -49,14 +49,15 @@ try {
       mode: 'local',
       caFile: certFile,
       configRevision: 1,
-      credentialRef: 'REPLAY_SMOKE_TOKEN',
+      credentialRef: 'NOACG_SOURCE_REPLAY_SMOKE',
+      credentialBound: true,
       pollMs: 1000,
       revisionPath: 'revision',
       eventTimePath: 'observed_at',
     };
     const configFile = path.join(work, 'connector.json');
     writeFileSync(configFile, JSON.stringify(raw, null, 2));
-    const env = { ...process.env, REPLAY_SMOKE_TOKEN: token };
+    const env = { ...process.env, NOACG_SOURCE_REPLAY_SMOKE: token };
 
     // The agent, headless, for the minutes asked.
     const child = spawn(process.execPath, [AGENT, '--config', configFile, '--minutes', String(minutes)], { env, windowsHide: true });

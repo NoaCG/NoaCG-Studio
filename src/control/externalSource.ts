@@ -62,9 +62,9 @@ export interface ConnectorConfig {
   caFile: string | null;
   /** Bumped by whoever edits the configuration; the receiver refuses an old one (E4.2). */
   configRevision: number;
-  /** The environment variable holding the bearer credential, or null for none. */
+  /** The environment variable holding the bearer credential (NOACG_SOURCE_...), or null. */
   credentialRef: string | null;
-  /** False on an exported configuration until this machine binds its own credential. */
+  /** True only once this machine has bound its credential; an export is false. */
   credentialBound: boolean;
   pollMs: number;
   /** The provider's documented minimum interval, when it has one. */
@@ -91,7 +91,9 @@ const CONFIG_KEYS = new Set([
   'eventTimePath',
 ]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
-const ENV_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+/** A credential is an environment variable of its own family, so a configuration cannot name the
+ *  agent's other secrets (a database key, say) and send them to its endpoint. */
+const ENV_NAME = /^NOACG_SOURCE_[A-Z0-9_]{1,50}$/;
 const PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -130,7 +132,7 @@ export function parseConnectorConfig(raw: unknown): { ok: true; config: Connecto
   if (!optionalString(raw.credentialRef)) return no('credentialRef must be an environment variable name');
   if (raw.credentialBound !== undefined && typeof raw.credentialBound !== 'boolean') return no('credentialBound must be true or false');
   const credentialRef = raw.credentialRef || null;
-  if (credentialRef !== null && !ENV_NAME.test(credentialRef)) return no('credentialRef must be an environment variable name');
+  if (credentialRef !== null && !ENV_NAME.test(credentialRef)) return no('credentialRef must be an environment variable named NOACG_SOURCE_...');
   const providerMinPollMs = raw.providerMinPollMs ?? null;
   if (providerMinPollMs !== null && (typeof providerMinPollMs !== 'number' || !Number.isInteger(providerMinPollMs) || providerMinPollMs < 0)) {
     return no('providerMinPollMs must be a whole number of milliseconds');
@@ -153,7 +155,8 @@ export function parseConnectorConfig(raw: unknown): { ok: true; config: Connecto
       caFile,
       configRevision,
       credentialRef,
-      credentialBound: credentialRef === null ? true : raw.credentialBound !== false,
+      // Bound only when it says so: an export with its flag deleted is still unbound.
+      credentialBound: credentialRef === null ? true : raw.credentialBound === true,
       pollMs,
       providerMinPollMs,
       revisionPath: (raw.revisionPath as string | null | undefined) || null,
@@ -172,7 +175,7 @@ export function exportConnectorConfig(config: ConnectorConfig): ConnectorConfig 
 
 /** Bind this machine's credential to a configuration (a new name, or the same one confirmed). */
 export function bindConnectorCredential(config: ConnectorConfig, credentialRef: string): ConnectorConfig {
-  if (!ENV_NAME.test(credentialRef)) throw new Error('credentialRef must be an environment variable name');
+  if (!ENV_NAME.test(credentialRef)) throw new Error('credentialRef must be an environment variable named NOACG_SOURCE_...');
   return { ...config, credentialRef, credentialBound: true };
 }
 
