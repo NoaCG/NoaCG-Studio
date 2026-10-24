@@ -254,7 +254,7 @@ function CueConnectReview({
       if (adapter && adapter in LIST_CELLS) adapters[d.key] = adapter as SourceListAdapter;
     }
   }
-  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind === 'external' ? 'sheet' : kind) : offers ? offers.scalars : [];
+  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind === 'feed' ? 'feed' : 'sheet') : offers ? offers.scalars : [];
   const sample = new Map(offered.map((o) => [o.path, o.sample]));
   const mapping: MappingRow[] = offers
     ? proposeConnector(fields, offers, bound, adapters, refuses, holds)
@@ -321,12 +321,20 @@ function CueConnectReview({
   useEffect(() => () => previewRef.current(null), []);
 
   // Closing unmounts the review, which is its reset; a read still in flight then lands nowhere.
-  useEffect(() => () => void (readNo.current += 1), []);
+  const jsonRead = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      readNo.current += 1;
+      jsonRead.current?.abort();
+    },
+    [],
+  );
   const close = onClose;
   /** Read a tab, or a feed's headlines through NoaCG's feed route (control/feedSource.ts), for
    *  the review; an older read, or one arriving after the review closed, lands nowhere. */
   const readInto = async (go: () => Promise<SheetRead>, as: (rows: string[][]) => ConnectRead) => {
     const no = (readNo.current += 1);
+    jsonRead.current?.abort();
     setReading(true);
     setRead(null);
     setChoices({});
@@ -345,12 +353,15 @@ function CueConnectReview({
    *  published production, else the hosted fetcher for a public address. Never applied. */
   const readJson = async (endpoint: string, registered: string | null) => {
     const no = (readNo.current += 1);
+    // A read the review no longer wants stops asking (an agent's wait polls for up to 45 s).
+    jsonRead.current?.abort();
+    const stop = (jsonRead.current = new AbortController());
     setReading(true);
     setRead(null);
     setChoices({});
     setColumns({});
     const key = registered ? await productionDataKey(show.id).catch(() => null) : null;
-    const answer = await readConnectorSample({ fetcher: (u, init) => fetch(u, init), endpoint, key, sourceId: registered, wait: waitMs, now: Date.now });
+    const answer = await readConnectorSample({ fetcher: (u, init) => fetch(u, init), endpoint, key, sourceId: registered, wait: waitMs, now: Date.now, signal: stop.signal });
     if (no !== readNo.current) return;
     setReading(false);
     setRead(answer.ok ? { json: endpoint, sample: answer.sample, via: answer.via } : { error: answer.error, fix: answer.fix });
@@ -367,7 +378,6 @@ function CueConnectReview({
       return finish(result, null);
     }
     if (id === '') return;
-    if (reuse?.kind === 'external') return;
     const source: ShowSource =
       reuse ??
       ('feed' in read
@@ -427,6 +437,7 @@ function CueConnectReview({
             // A changed link is a new tab: the last read, its review and any read in flight go,
             // so Connect needs a fresh read of what the box now says.
             readNo.current += 1;
+            jsonRead.current?.abort();
             setLinkText(e.target.value);
             setReuse(null);
             setRead(null);
@@ -465,6 +476,7 @@ function CueConnectReview({
         type="button"
         onClick={() => {
           readNo.current += 1;
+          jsonRead.current?.abort();
           setReading(false);
           setReuse(null);
           setLinkText('');
@@ -488,6 +500,7 @@ function CueConnectReview({
             else if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
             else {
               readNo.current += 1;
+              jsonRead.current?.abort();
               setReading(false);
               setRead(null);
             }

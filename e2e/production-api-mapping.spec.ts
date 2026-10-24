@@ -276,8 +276,9 @@ test('save, reload and reconnect keep the recipe; a changed schema asks for repa
       return readme.slice(readme.indexOf('- **The connector'), readme.indexOf('\n- **', readme.indexOf('- **The connector') + 1));
     }, { sid: showId });
   const item = await exported();
-  expect(item).toContain(`The connector Guests** (${ENDPOINT}?moved=1)`);
-  expect(item).toContain('register it in the new production and start its agent for that production');
+  expect(item).toContain(`The connector Guests** (${ENDPOINT})`);
+  expect(item).not.toContain('moved=1');
+  expect(item).toContain('register it in the new\n  production and start its agent for that production');
   expect(item).toContain(JSON.stringify(repaired.sources[0].config.mapping));
   expect(item).not.toMatch(/bearer|authorization|token|secret/i);
 

@@ -275,9 +275,19 @@ describe('reading a sample', () => {
     assert.equal(asked.length, 1 + review.SAMPLE_WAIT_MS / review.SAMPLE_POLL_MS);
   });
 
-  test('offline, and a refusal of the source itself', async () => {
+  test('offline; any refusal of the source falls back to the hosted read; a closed review stops asking', async () => {
     assert.match((await review.readConnectorSample({ ...base, fetcher: doors([new Error('down')]).fetcher })).error, /could not be reached/);
-    const refused = await review.readConnectorSample({ ...base, fetcher: doors([{ status: 422, body: { ok: false, refused: 'unsupported', message: 'This source is a later version.' } }]).fetcher, key: 'K', sourceId: 'e1' });
-    assert.deepEqual(refused, { ok: false, error: 'This source is a later version', fix: 'Read again in a moment.' });
+    const gone = doors([{ status: 404, body: { ok: false, refused: 'gone' } }, { body: { ok: true, sample: SAMPLE } }]);
+    assert.deepEqual(await review.readConnectorSample({ ...base, fetcher: gone.fetcher, key: 'K', sourceId: 'e1' }), { ok: true, sample: SAMPLE, via: 'hosted' });
+    clock = 0;
+    const stop = new AbortController();
+    const waiting = doors([{ body: { ok: false, waiting: true, asked: 't1' } }, ...Array.from({ length: 50 }, () => ({ body: { ok: false, waiting: true } }))]);
+    const wait = async (ms) => {
+      clock += ms;
+      if (clock >= 3 * review.SAMPLE_POLL_MS) stop.abort();
+    };
+    const read = await review.readConnectorSample({ ...base, wait, fetcher: waiting.fetcher, key: 'K', sourceId: 'e1', signal: stop.signal });
+    assert.equal(read.ok, false);
+    assert.equal(waiting.asked.length, 3, 'the ask, then two polls before the review closed: no more');
   });
 });

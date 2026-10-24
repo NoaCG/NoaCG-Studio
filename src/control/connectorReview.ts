@@ -273,8 +273,8 @@ const OFFLINE = failed('NoaCG could not be reached', 'Check this computer is onl
  * One sample for the review, never applied. A registered source of a published production (`key`
  * and `sourceId`) is asked through `/api/data/source`: when an agent holds it, the agent reads the
  * provider with its own credential and the review waits for what it posts (the browser never holds
- * the provider's credential). Otherwise, and for a new endpoint, the hosted fetcher reads the
- * public address (`/api/data/feed?as=json`, the feed reader's guard). `wait` is the timer.
+ * the provider's credential). Otherwise (no agent, or any refusal of the source), and for a new
+ * endpoint, the hosted fetcher reads the public address (`/api/data/feed?as=json`, the feed reader's guard). `wait` is the timer.
  */
 export async function readConnectorSample(o: {
   fetcher: Fetcher;
@@ -307,6 +307,7 @@ export async function readConnectorSample(o: {
       const until = o.now() + SAMPLE_WAIT_MS;
       while (o.now() < until && !o.signal?.aborted) {
         await o.wait(SAMPLE_POLL_MS);
+        if (o.signal?.aborted) break;
         const next = await ask(first.body.asked);
         if (!next) return OFFLINE;
         if (next.body.ok === true) return { ok: true, sample: next.body.sample, via: 'agent' };
@@ -314,11 +315,10 @@ export async function readConnectorSample(o: {
       }
       return failed('its agent did not answer', 'Check the agent is running, then read again.');
     }
-    if (first.body.agent !== false) {
-      const message = typeof first.body.message === 'string' ? first.body.message.replace(/\.$/, '') : `NoaCG answered ${first.status}`;
-      return failed(message, 'Read again in a moment.');
-    }
+    // No agent holds it, or the production cannot use its record yet (not synced, say): the
+    // public address is read the hosted way, which needs nothing of the production.
   }
+  if (o.signal?.aborted) return OFFLINE;
   const hosted = await answer(`/api/data/feed?as=json&url=${encodeURIComponent(o.endpoint)}`);
   if (!hosted) return OFFLINE;
   if (hosted.status === 429) return failed('too many reads from this computer', 'Read again in a moment.');

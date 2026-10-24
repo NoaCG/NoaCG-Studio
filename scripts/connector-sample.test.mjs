@@ -77,7 +77,7 @@ const ENTRY = { id: 'e1', kind: 'external', label: 'Results', config: { v: 1, co
 const reset = ({ agent = true } = {}) => {
   db.tables.control_shows = [{ id: SHOW, data_key: KEY }];
   db.tables.production_source_snapshots = [];
-  db.tables.control_source_reads = agent ? [{ show_id: SHOW, source_id: 'e1', owner: 'agent', lease_until: new Date(Date.now() + 30_000).toISOString() }] : [];
+  db.tables.control_source_reads = agent ? [{ show_id: SHOW, source_id: 'e1', owner: 'agent', claim: 'agent:abc', lease_until: new Date(Date.now() + 30_000).toISOString() }] : [];
   db.calls = [];
   db.rpc = {
     control_source_context_by_key: () => ({ entry: ENTRY, payload: null, bindings: { Board: { f0: 'external.e1.share' } }, fields: { Board: [{ field: 'f0', ftype: 'textfield', title: 'Share' }] } }),
@@ -126,7 +126,8 @@ describe('op "sample"', () => {
     const posted = await post({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 1, claim: 'agent:abc', sample });
     assert.equal(posted.status, 200);
     assert.deepEqual(applied(), [], 'a sample is never evaluated, reported or applied');
-    assert.deepEqual(db.calls.filter((c) => c.rpc).map((c) => [c.rpc, c.args.p_claim, c.args.p_ttl_ms]), [['control_source_claim_by_key', 'agent:abc', 30_000]], 'the post renews and checks the claim');
+    assert.deepEqual(db.calls.filter((c) => c.rpc), [], 'the claim is read, never renewed: a lapsed one is not handed out again');
+    assert.deepEqual(db.calls.find((c) => c.get === 'control_source_reads').filters, { show_id: SHOW, source_id: 'e1' });
     const read = await (await post({ v: 1, op: 'sample', sourceId: 'e1', asked: asked.asked })).json();
     assert.deepEqual([read.ok, read.sample], [true, sample]);
     // Answered: the agent is no longer told a sample is wanted.
@@ -144,23 +145,47 @@ describe('op "sample"', () => {
     assert.deepEqual(db.tables.production_source_snapshots, []);
   });
 
-  test('the agent posts only under its live claim and only to an ask; a page\'s stale ask reads nothing', async () => {
+  test('the agent posts only under the claim holding the source now and only to an ask; a page\'s stale ask reads nothing', async () => {
     reset();
     const sample = { a: 1 };
     const unasked = await post({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 1, claim: 'agent:abc', sample });
     assert.deepEqual([unasked.status, (await unasked.json()).refused], [409, 'not_asked']);
     await post({ v: 1, op: 'sample', sourceId: 'e1' });
-    db.rpc.control_source_claim_by_key = () => ({ ok: false, held: true, owner: 'agent' });
     assert.equal((await post({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 1, claim: 'agent:old', sample })).status, 409, 'an agent that lost the claim');
-    db.rpc.control_source_claim_by_key = () => ({ ok: false, refused: 'config' });
-    assert.equal((await post({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 9, claim: 'agent:abc', sample })).status, 409, 'another configuration');
+    db.tables.control_source_reads[0].lease_until = new Date(Date.now() - 1000).toISOString();
+    assert.equal((await post({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 1, claim: 'agent:abc', sample })).status, 409, 'a lapsed claim');
+    assert.deepEqual(db.calls.filter((c) => c.rpc === 'control_source_claim_by_key'), [], 'never renewed, so never handed out anew');
     assert.equal(db.tables.production_source_snapshots.find((r) => r.source_id === 'e1.sample').payload, null);
     assert.deepEqual(await (await post({ v: 1, op: 'sample', sourceId: 'e1', asked: '2020-01-01T00:00:00.000Z' })).json(), { ok: false, waiting: false });
     // An ask older than a minute is given up: the agent is not told, and a post is refused.
+    db.tables.control_source_reads[0].lease_until = new Date(Date.now() + 30_000).toISOString();
     db.tables.production_source_snapshots[0].status = { asked: new Date(Date.now() - 60_000).toISOString() };
-    db.rpc.control_source_claim_by_key = ({ p_claim }) => ({ ok: true, claim: p_claim, ownerEpoch: 2, acceptedRevision: 0 });
     assert.equal((await (await post({ v: 1, op: 'claim', sourceId: 'e1', configRevision: 1, claim: 'agent:abc' })).json()).sample, undefined);
     assert.equal((await post({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 1, claim: 'agent:abc', sample })).status, 409);
+  });
+
+  test('two reviews asking at once share one ask and both read the one sample', async () => {
+    reset();
+    const first = await (await post({ v: 1, op: 'sample', sourceId: 'e1' })).json();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await (await post({ v: 1, op: 'sample', sourceId: 'e1' })).json();
+    assert.equal(second.asked, first.asked);
+    assert.equal((await post({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 1, claim: 'agent:abc', sample: { a: 2 } })).status, 200);
+    for (const page of [first, second]) assert.deepEqual((await (await post({ v: 1, op: 'sample', sourceId: 'e1', asked: page.asked })).json()).sample, { a: 2 });
+    // Answered, a new ask is a new one.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.notEqual((await (await post({ v: 1, op: 'sample', sourceId: 'e1' })).json()).asked, first.asked);
+  });
+
+  test('a failing lookup after a taken report answers the report, never a 500', async () => {
+    reset();
+    const receipt = { v: 1, sourceId: 'e1', configRevision: 1, ownerEpoch: 2, acceptedRevision: 1, checkedAt: '2026-10-24T12:00:00.000Z', status: 'unchanged' };
+    const tables = db.tables;
+    db.tables = { ...tables, production_source_snapshots: undefined };
+    const res = await post({ v: 1, op: 'report', sourceId: 'e1', claim: 'agent:abc', acquisition: receipt });
+    db.tables = tables;
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).sample, undefined);
   });
 
   test('a source a later version registered, an unknown source and an unknown key are refused', async () => {

@@ -318,7 +318,7 @@ async function jsonSample(text: string, outer: AbortSignal): Promise<Response> {
   outer.addEventListener('abort', stop, { once: true });
   let read: Awaited<ReturnType<typeof guardedFetch>>;
   try {
-    read = await guardedFetch(normal.url, { etag: null, lastModified: null }, feedNetwork.current, controller.signal);
+    read = await guardedFetch(normal.url, { etag: null, lastModified: null }, feedNetwork.current, controller.signal, Date.now, { accept: 'application/json', maxBytes: SOURCE_BODY_BYTES });
   } finally {
     clearTimeout(timer);
     outer.removeEventListener('abort', stop);
@@ -327,9 +327,9 @@ async function jsonSample(text: string, outer: AbortSignal): Promise<Response> {
   if (read.kind !== 'body') {
     if (read.kind === 'not-modified') return json({ ok: false, error: 'the address answered without a body', fix: RETRY_WORDS }, 502);
     if (/answered 40[13]\b/.test(read.error)) return json({ ok: false, error: 'the address needs a credential', fix: 'Its agent reads it: register it, start its agent, then read it again.' }, 502);
+    if (read.error.startsWith('the answer is over')) return json({ ok: false, error: read.error, fix: read.fix }, 413);
     return json({ ok: false, error: words(read.error), fix: words(read.fix) }, read.refused ? 422 : 502);
   }
-  if (Buffer.byteLength(read.text) > SOURCE_BODY_BYTES) return json({ ok: false, error: 'the answer is over 256 KiB', fix: 'Use an address that answers only what the graphics use.' }, 413);
   try {
     return json({ ok: true, sample: JSON.parse(read.text) as unknown });
   } catch {
@@ -486,6 +486,10 @@ async function showForKey(db: Db, key: string): Promise<string | null> {
   return (data as { id: string } | null)?.id ?? null;
 }
 
+/** A key's production, remembered by this instance for the agent's frequent question below only:
+ *  a rotated key's stale entry can at worst tell an agent about an ask, never show it a sample. */
+const keyShows = new Map<string, string>();
+
 async function sampleRow(db: Db, showId: string, sourceId: string): Promise<{ payload: unknown; status: SampleStatus } | null> {
   const { data, error } = await db.from('production_source_snapshots').select('payload, status').eq('show_id', showId).eq('source_id', sampleRowId(sourceId)).maybeSingle();
   if (error) throw new Error(error.message);
@@ -495,10 +499,21 @@ async function sampleRow(db: Db, showId: string, sourceId: string): Promise<{ pa
 const pending = (status: SampleStatus | undefined, now: number): boolean =>
   Boolean(status?.asked && !status.sampledAt && now - Date.parse(status.asked) < SAMPLE_WAIT_MS);
 
-/** Whether the page waits on a sample of this source: told to the agent with its claim or report. */
+/** Whether the page waits on a sample of this source: told to the agent with its claim or report.
+ *  Best effort, after the claim or report has been taken: a lookup that fails answers no. */
 async function sampleWanted(db: Db, key: string, sourceId: string): Promise<boolean> {
-  const showId = await showForKey(db, key);
-  return showId !== null && pending((await sampleRow(db, showId, sourceId))?.status, Date.now());
+  try {
+    let showId = keyShows.get(key) ?? null;
+    if (!showId) {
+      showId = await showForKey(db, key);
+      if (!showId) return false;
+      if (keyShows.size >= 256) keyShows.clear();
+      keyShows.set(key, showId);
+    }
+    return pending((await sampleRow(db, showId, sourceId))?.status, Date.now());
+  } catch {
+    return false;
+  }
 }
 
 async function sample(
@@ -524,16 +539,9 @@ async function sample(
   };
 
   if ('claim' in envelope) {
-    // The agent's post: only under the live claim (renewed by this request), and only to an ask.
-    const answer = await rpc<Record<string, unknown>>('control_source_claim_by_key', {
-      p_key: key,
-      p_source: envelope.sourceId,
-      p_config_revision: envelope.configRevision,
-      p_claim: envelope.claim,
-      p_ttl_ms: SOURCE_LEASE_MS,
-    });
-    if (typeof answer.refused === 'string') return refused(answer as { refused: string });
-    if (!answer.ok || answer.claim !== envelope.claim) return refused({ refused: 'moved' });
+    // The agent's post: only under the claim that holds the source now, read and not renewed (a
+    // renewal of a lapsed lease would hand out a new claim nobody holds), and only to an ask.
+    if (!(await liveClaim(db, showId, envelope.sourceId, now, envelope.claim))) return refused({ refused: 'moved' });
     const row = await sampleRow(db, showId, envelope.sourceId);
     if (!pending(row?.status, now)) return json({ ok: false, refused: 'not_asked', message: 'Nobody is waiting on a sample of this source.' }, 409);
     await write(envelope.sample, { asked: row!.status.asked, sampledAt: new Date(now).toISOString() });
@@ -554,13 +562,21 @@ async function sample(
   }
 
   // A new ask, kept only while an agent holds the source: without one the page reads the hosted way.
-  const { data: lease, error } = await db.from('control_source_reads').select('owner, lease_until').eq('show_id', showId).eq('source_id', envelope.sourceId).maybeSingle();
-  if (error) throw new Error(error.message);
-  const live = (lease as { owner: string | null; lease_until: string } | null)?.owner === 'agent' && Date.parse((lease as { lease_until: string }).lease_until) > now;
-  if (!live) return json({ ok: false, agent: false });
+  if (!(await liveClaim(db, showId, envelope.sourceId, now))) return json({ ok: false, agent: false });
+  // An ask still waiting is shared: a second review waits on the same sample, never cancels the first.
+  const open = await sampleRow(db, showId, envelope.sourceId);
+  if (open && pending(open.status, now)) return json({ ok: false, waiting: true, asked: open.status.asked });
   const asked = new Date(now).toISOString();
   await write(null, { asked });
   return json({ ok: false, waiting: true, asked });
+}
+
+/** Whether an agent holds the source's lease now (and, given one, under this claim). */
+async function liveClaim(db: Db, showId: string, sourceId: string, now: number, claim?: string): Promise<boolean> {
+  const { data, error } = await db.from('control_source_reads').select('owner, claim, lease_until').eq('show_id', showId).eq('source_id', sourceId).maybeSingle();
+  if (error) throw new Error(error.message);
+  const lease = data as { owner: string | null; claim: string | null; lease_until: string } | null;
+  return lease?.owner === 'agent' && Date.parse(lease.lease_until) > now && (claim === undefined || lease.claim === claim);
 }
 
 interface Handler {

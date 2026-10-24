@@ -242,6 +242,8 @@ export async function guardedFetch(
   net: FeedNet,
   signal: AbortSignal,
   now: () => number = Date.now,
+  /** Another reader's Accept header and body cap (the Connect review's JSON sample). */
+  as: { accept: string; maxBytes: number } = { accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5', maxBytes: FEED_MAX_BYTES },
 ): Promise<FeedFetch> {
   let url: URL;
   try {
@@ -251,7 +253,7 @@ export async function guardedFetch(
   }
   const headers: Record<string, string> = {
     'user-agent': USER_AGENT,
-    accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5',
+    accept: as.accept,
     'accept-encoding': 'gzip, deflate, br',
   };
   if (validators.etag) headers['if-none-match'] = validators.etag;
@@ -298,10 +300,13 @@ export async function guardedFetch(
         };
       }
       const declared = Number(response.headers['content-length']);
-      const tooLarge = refuse(`the feed is larger than ${FEED_MAX_BYTES / 1_000_000} MB`, 'Use a smaller feed, such as one for a single category.');
+      const tooLarge = refuse(
+        as.maxBytes === FEED_MAX_BYTES ? `the feed is larger than ${FEED_MAX_BYTES / 1_000_000} MB` : `the answer is over ${Math.round(as.maxBytes / 1024)} KiB`,
+        as.maxBytes === FEED_MAX_BYTES ? 'Use a smaller feed, such as one for a single category.' : 'Use an address that answers only what the graphics use.',
+      );
       // A declared length is the compressed size, which only ever understates; checked early, and
       // the decompressed count below decides.
-      if (Number.isFinite(declared) && declared > FEED_MAX_BYTES) {
+      if (Number.isFinite(declared) && declared > as.maxBytes) {
         response.cancel();
         return tooLarge;
       }
@@ -309,7 +314,7 @@ export async function guardedFetch(
       let size = 0;
       for await (const chunk of response.body) {
         size += chunk.byteLength;
-        if (size > FEED_MAX_BYTES) {
+        if (size > as.maxBytes) {
           response.cancel();
           return tooLarge;
         }
