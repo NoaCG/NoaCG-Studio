@@ -28,6 +28,7 @@ import type { PlayoutResult } from './playoutLink';
 import type { SlotReading, StatusCheck } from './playoutStatus';
 import { createAppliedOnce } from './commandRoads.ts';
 import { storePart, type StorePart } from './storePart.ts';
+import type { SelectionAir } from './selectionAir';
 
 /** The production's live tree as this page holds it (./productionDataSession.ts says the rules). */
 export interface DataPart {
@@ -141,6 +142,9 @@ export interface PlayoutSession {
   log: StorePart<LogPart>;
   /** The cue being typed, null when nothing is. */
   draft: StorePart<DraftPart | null>;
+  /** The live candidates this page aired, per layer: written only by ./selectionAir.ts's folds,
+   *  outside `apply` since no other fold reads them. */
+  selections: StorePart<SelectionAir>;
   /** The commands applied here, by the id their press minted, on whichever road came first. */
   readonly applied: AppliedOnce;
   /** Move the session's parts with one fold, in a fixed order. A no-op once disposed. */
@@ -172,6 +176,7 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
   const air = storePart<AirPart>(NO_AIR);
   const log = storePart<LogPart>(NO_LOG);
   const draft = storePart<DraftPart | null>(null);
+  const selections = storePart<SelectionAir>({});
   return {
     key: productionId,
     alive: () => alive,
@@ -182,6 +187,7 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
     air,
     log,
     draft,
+    selections,
     applied: createAppliedOnce(),
     apply: (fold) => {
       if (!alive) return;

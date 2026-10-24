@@ -5,6 +5,144 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 30, phase E7.1: election read gate, keyed selectors and resolver
+
+- **Previous verified `main` sha:** row 29 (E5.2) passed on `89abb9e`. This branch began on
+  `be0cea0`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated and nothing in this build
+  writes a selection, so a revert leaves no record behind it. What a reverted page would do with a
+  record a LATER build (E7.2a) wrote is the old behaviour: it ignores `ShowCue.selection` and airs
+  the cue's prepared values. That is why E7.2a must not land until this row has been deployed.
+  `spx-gfx-selection-air` (this browser's aired instances) is read by nothing once reverted.
+- **What landed.** The selection contract's formats in `src/model/productionData.ts`
+  (`CollectionRecipe`, `CueSelection`, `SELECTION_VERSION`, `selectionReadOnly`, `selectedFields`,
+  `collectionFields`, and the write-door predicate `selectionKeep` / `selectionFrozen`);
+  `Show.collections` and `ShowCue.selection` in `src/model/shows.ts`; `readCollectionRecipe`,
+  `selectionGate`, `entityOf` and `resolveSelection` in `src/control/sourceMapping.ts`; the aired
+  instance in the new `src/control/selectionAir.ts`; Take, Update and the refusals wired through
+  `graphicVerbs.ts`, `takeBlockers.ts` and the production page; the off-air hold line
+  (`SelectionHolds.tsx`); the editor's read-only candidate fields; tests.
+- **The contract, old and new.** Persisted, additive optional, each with its own `v: 1`, no
+  migration: `Show.collections[]` `{v, id, sourceId, schemaRevision, graphic, from, key: [paths],
+  fields: {<field id>: {from, format?, fallback?}}}` and `ShowCue.selection` `{v, recipe, key:
+  [parts]}`. A later `v` of either loads (its type allows it) and is read-only. The collection is
+  read from the production tree at `external.<sourceId>.<from>` as `{schemaRevision, revision,
+  items}`, or that object as JSON text (how a source route writes a value today). Browser storage,
+  new: `spx-gfx-selection-air`, per production, `{v: 1, graphics: {<graphic>: instance}}`. No wire,
+  route or output payload change: outputs receive resolved values only, so the output reader is
+  untouched (no es2017 or bundle change).
+- **Decisions.**
+  - *Where the recipe lives*: `Show.collections`, not `Show.sources[].config`, so nothing here
+    re-stamps a connector's configuration or bumps `configRevision` (#1691 is not reachable from
+    this row). A field map entry is E5.1's `RecipeValue`, so formats and fallbacks are the same
+    code; a field with no fallback is required.
+  - *Identity* is the ordered key paths' values compared as JSON (`7` and `"7"` are two keys), at
+    most four parts of at most 64 characters. Duplicates anywhere in the revision invalidate every
+    card of it, an item without a key part too; a missing key is `missing`, never another record.
+  - *One revision, one record*: `resolveSelection` reads one tree value, so a card cannot mix two
+    candidates or two revisions. 5000 items and 512 KiB of text at most, each pinned at its edge.
+  - *The read gate*: `selectionGate` says read-only for a later `v` of the selector or the recipe it
+    names; unusable otherwise (wrong graphic, unknown recipe, wrong key, or a mapped field that also
+    follows a shared binding, which would let a shared value overwrite the cue's own candidate).
+    Take, Update, Re-take, a folder's Take, a step, a direct trigger and a timed end all refuse it
+    with the reason; the editor is inert for a read-only cue and shows mapped fields read-only.
+  - *Both write doors* (the spec's words) are read as the two ways `patchShowChecked` writes (the
+    stored list, and the rebased re-run on the freshest copy), plus every undo
+    (`rundownHistory.replaceRundown`, personal and team), all asking `selectionFrozen`: recipes
+    byte for byte, every surviving cue's selection byte for byte, a later-version cue's every byte
+    and never removed, and no cue gaining a selection (a copy needs the writer, E7.2a). A refusal
+    re-reads the stored list, so the page never shows an edit that was not saved. The storage
+    seam's whole-record put (`upsertShows`, the sync pull) stores what it is given, which is how
+    the fixtures write records. A typed value on a mapped field is refused at
+    `updateShowCueChecked`, and a binding onto a mapped field at the one binding write.
+  - *Air*: Take captures the cue's selector, entity, revision and values at the press (given back
+    if the send fails); the layer then follows that selector only. A newer revision is sent as one
+    update of every mapped field; an older or equal one is rejected; anything that does not resolve
+    holds the picture and says why, which revision is showing and how old it is, until the
+    operator decides (Out, Take, or an Update that resolves). An explicit Update moves the aired
+    cue to the selection the cue now has only when that whole record resolves.
+  - *Recovery*: the instances are kept per production in this browser, so a reload, another
+    production and an app restart follow the aired selector. A page that did not take the layer
+    (another device) has no instance and sends nothing for it, so it can never retarget air. An
+    instance is forgotten when its layer airs another cue, or is off air once the page has read
+    what is live.
+  - *What would flatten a selector elsewhere is closed*: the published payload's cue list (the
+    hosted page and the exported controller) leaves candidate cues out, and a timed end never
+    takes one (`nextGraphicCue`), since the server fires those with prepared values.
+  - *Unsent*: a candidate's mapped fields are never "unsent" (like a bound field), and its rundown
+    row reads the candidate, not the prepared text.
+  - *Every other verb that sends a card's values*: Snap and a machine event send the aired
+    instance's values for a candidate's fields, or leave those fields out when this page holds no
+    instance; ± never moves a candidate's field; the hosted page's Snap goes without data when the
+    layer airs a cue it was not given (it used to fall back to the selected sibling's values).
+  - *The capture is pending until its send is answered*, so a marker that has not moved yet (the
+    slow road, a recovery) cannot make the page forget the card it just took; a failed send gives
+    back only its own layer, and only while nothing else wrote it since; a correction whose send
+    failed keeps the aired revision, held with "not sent", so the next read sends it again.
+  - *A candidate Take or Update waits for a published tree's first read*, and a production not
+    loaded yet (a team production before its fetch) forgets no kept instance.
+  - *Undo brings back a deleted candidate cue* with its selection: history slices are the
+    record's own bytes. Any other write still may not add a selection.
+- **Files beyond the phase's list, and why.** `src/control/selectionAir.ts` (the aired instance's
+  pure folds, testable in Node; the page rule wants behaviour in `src/control/`),
+  `src/control/playoutSession.ts` (its store part), `graphicVerbs.ts`, `takeBlockers.ts`,
+  `cueAuto.ts`, `cueDraft.ts` (the air seams that would otherwise take a candidate cue with its
+  prepared values), `src/control/hostedControl.ts` (the published cue list),
+  `src/control/productionDataSession.ts` (an older tree read answering late is passed over: without
+  it a slow read put an older tree back, and PREVIEW with it), `src/model/rundownHistory.ts` (undo
+  is a write door), `src/model/productionState.ts` (the instances' storage), `CueEditor.tsx`,
+  `CueRundown.tsx`, `SelectionHolds.tsx`, `ProductionPage.tsx` (the wiring), and
+  `scripts/graphic-verbs.test.mjs`, `scripts/production-data-session.test.mjs`,
+  `e2e/configured/expected-run.json`.
+- **Mutation checks**: 55 Node mutations, all red. The first 39: every contract rule (duplicate keys, a missing
+  required field, the optional fallback, a valid empty list, an unknown B borrowing a record, typed
+  keys, the field fit, the schema revision, a missing key part), the gate (a later selector, a later
+  recipe, a shared binding, another graphic), every bound at its edge, the follow (newer only, the
+  hold, its first time, an older revision's hold, the aired cue only), the reconcile, the kept
+  format, the door predicate (collections, whole bytes, removal, gaining), the undo, the Take
+  blocker, the timed end, the verbs (Take refusal, the overlay, the undo, Update's refusal) and the
+  read ordering. The 16 after Assessment A+: the pending capture (made, skipped by reconcile and
+  follow, landed only for its own instance, cleared on reload), the scoped undo, the unsent
+  correction, the undo that restores a deleted cue, the verbs (landed, Take and Update undo, ±,
+  Snap's overlay and omission) and the older arm. In the browser, the read-gate walk passes on
+  this machine with the door in `patchShowChecked` and goes red with it removed; the two published
+  walks need the configured stack and run in Actions.
+- **Check and Assessment A+.** A fresh read-only session mapped every air-path change and answered
+  AGREE WITH CORRECTIONS: Snap and events flattening an aired candidate into prepared values, ±
+  airing a figure no revision holds, a capture dropped before its marker moved, a cold open
+  forgetting kept instances, the undo and the follow's failure bookkeeping, the hosted Snap's
+  sibling fallback, an undo of a deleted candidate cue refused for good, an older arm taking a
+  candidate, a Take before the published tree's first read, and three faults in the configured
+  walk (an out-of-order read that was not one, a wait on the server rather than the page, a check
+  that hit the wrong refusal). All are fixed above and pinned.
+- **`/check`.** The review's ten candidates: seven fixed (± on a read-only cue's field, a kept
+  record reading `null`, a false hold judged from an unread published tree, the timed end's note
+  naming a candidate cue as gone, repeated parsing, the page rendering on every capture, the
+  capture and follow folds living in the page rather than `selectionAir.ts`), one doc comment
+  moved, two left (a source whose revision restarts lower is ignored rather than held: E4's
+  revisions continue and are never reused, so that is a provider fault the contract's "reject
+  older" covers; the overlapping helpers went to simplify). Simplify: one recipe lookup in
+  `productionData.ts`, one resolution per candidate cue per render read by the rundown, PREVIEW,
+  the editor and the Take refusals, the published-tree rule moved into `selectionAir.ts`
+  (`readable`), one arm lookup, the store helpers and `useNow` reused, identical writes skipped, a
+  small parse cache. Left as reports: a per-cue "fixed fields" set to replace the `boundOf` marker
+  in `unsentNow`, one shared read-only field row in the editor, a per-collection key index, and a
+  reference fast path in `selectionFrozen`.
+- **Traps for E7.2a and E7.2b.** *The page re-reads a published tree only when a row says it
+  moved* (`sessionWire` on a `src` row): a revision that changes no bound field writes no row, so
+  the page never hears it. The configured walk binds a count bug to `external.e1.status` for that
+  reason; E7.2b's source must make every revision move something bound, or give the page another
+  signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything
+  else), so E7.2b writes the collection as JSON text at a leaf, which the resolver reads, and needs
+  that leaf to be written although no field binds it. *A published production's corrections are
+  sent by the page that took the card*: with that page closed, a correction waits for it. *Two tabs
+  of one production in one browser* both follow the kept instances, so a correction is sent twice
+  (an absolute update, so harmless) and the last tab to write keeps its copy. *A one-part key*
+  (the candidate number alone) passes the reader: E7.2a's writer must require district plus
+  candidate. *A team
+  production* goes through the same door predicate, but its server save is outside this row.
+
 ## Row 29, phase E5.2: Connect, sample, repair and reuse
 
 - **Previous verified `main` sha:** row 28 (E5.1) passed on `8bdec06`. This branch began on

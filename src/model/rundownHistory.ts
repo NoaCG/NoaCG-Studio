@@ -1,6 +1,7 @@
 import type { Show, ShowCue, ShowFolder, PlayoutItem } from './shows';
 import type { SavedGraphic } from './packets';
 import { foldersContiguous, throughRefusal } from './showFolders.ts';
+import { selectionFrozen, selectionKeep } from './productionData.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -77,11 +78,15 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
   if (refused) return { show: null, refused };
   const collapse = new Map((show.folders ?? []).map(f => [f.id, f.collapsed]));
   const copy = structuredClone(replacement);
-  return { show: {
+  const next = {
     ...show, ...copy,
     folders: copy.folders.map(f => ({ ...f, ...(collapse.has(f.id) ? { collapsed: collapse.get(f.id) } : {}) })),
     updatedAt: new Date().toISOString(),
-  }, refused: null };
+  };
+  // An undo is a write like any other, except that a cue it brings back keeps the selection the
+  // record had: history copies are the record's own bytes.
+  const frozen = selectionFrozen(selectionKeep(show), next, new Set(copy.cues.map((c) => c.id)));
+  return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
 }
 
 export interface RundownHistoryEntry { before: RundownSlice; after: RundownSlice; label: string }

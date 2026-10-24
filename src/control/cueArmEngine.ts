@@ -151,7 +151,11 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
     // own view may trail; unpublished, this page's view is the only one.
     const out = playsOut(arm.then) && (p.published || p.liveCueOf()[graphic] === arm.cue);
     if (out) items.push(clearCueItems(graphic));
-    const next = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    // A live candidate cue is never taken by a timed end (./cueAuto.ts `nextGraphicCue`), whatever an
+    // older arm named: it would air with its prepared values (E7.1).
+    const named = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    const candidate = named?.selection !== undefined ? named : undefined;
+    const next = candidate ? undefined : named;
     const nextGraphic = next ? p.graphicOf(next) : null;
     if (next && nextGraphic) {
       // The draft already owns preparation. Its cloud acknowledgement must not delay the timer.
@@ -159,7 +163,8 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values) }));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
-    const gone = !!arm.next && !(next && nextGraphic);
+    if (candidate) p.note(`${candidate.label} shows a live candidate, so a timed end does not take it.`);
+    const gone = !!arm.next && !candidate && !(next && nextGraphic);
     // Published, the server's fire row says "Auto Out sent" on every page; this one only adds what
     // went wrong here.
     if (!items.length) {

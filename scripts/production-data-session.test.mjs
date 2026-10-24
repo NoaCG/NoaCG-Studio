@@ -435,3 +435,22 @@ test('a published lease write: the page holds only the server tree its own slug 
   assert.equal(t.session.data.get().liveData.other, undefined);
   assert.equal(t.session.data.get().liveData.late, undefined);
 });
+
+test('published: a read that started earlier and answers later never puts the older tree back (E7.1)', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  void t.data.refresh();
+  assert.equal(t.answers.fetches.length, 2, 'the key\'s own read, then the refresh');
+  t.answers.fetches[1].resolve({ data: { revision: 2 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 2 });
+  t.answers.fetches[0].resolve({ data: { revision: 1 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 2 }, 'the slow read is older than the tree held');
+  void t.data.refresh();
+  t.answers.fetches[2].resolve({ data: { revision: 3 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 3 }, 'a later read still lands');
+});

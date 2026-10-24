@@ -12,14 +12,25 @@
 //   - anything else (an object, null, a list with no adapter, an item that is not flat) is not a
 //     value: the path writes nothing and the field keeps its last good value.
 // Then every field bound to that path must accept one and the same form of the text (`pathValue`,
-// the rule the Sheet reader already applies). E5.1's recipes are below; E7.1 adds keyed selectors.
+// the rule the Sheet reader already applies). E5.1's recipes are below, then E7.1's keyed selectors.
 //
 // ES2020 library surface, no DOM; `api/` imports it as `../../src/control/sourceMapping.js`.
 // scripts/source-mapping.test.mjs drives it.
 
 import { fillList, valueFor } from './contentFormats.js';
-import { atPath, isObject, PATH, type JsonValue, type SourceListAdapter } from './externalSource.js';
-import { RECIPE_VERSION, sourcePaths, sourcePrefix, type RecipeFormat, type RecipeList, type RecipeValue, type SourceRecipe } from '../model/productionData.js';
+import { atPath, isObject, PATH, SEGMENT, type JsonValue, type SourceListAdapter } from './externalSource.js';
+import {
+  RECIPE_VERSION,
+  SELECTION_VERSION,
+  sourcePaths,
+  sourcePrefix,
+  type CollectionRecipe,
+  type CueSelection,
+  type RecipeFormat,
+  type RecipeList,
+  type RecipeValue,
+  type SourceRecipe,
+} from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /**
@@ -495,4 +506,198 @@ export function projectSource(o: {
     else writes[path] = result;
   }
   return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
+}
+
+// ── E7.1: keyed selectors ────────────────────────────────────────────────────────────────────
+//
+// A cue of a shared card shows ONE entity of a collection, named by its stable key (district plus
+// candidate), never by its row: a reordered ranking, or a candidate number another district also
+// uses, cannot move it (docs/work-specs/playout-election-package/spec.md, "Selection contract").
+// The shared part is the collection recipe (`Show.collections`), the cue's own part its selector
+// (`ShowCue.selection`); neither is a shared binding, and nothing here writes the tree.
+//
+// The collection sits in the production tree at `external.<source>.<from>` as one accepted source
+// revision, `{schemaRevision, revision, items}` (or that object as JSON text, which is how a
+// source writes a value today). Every field of one card is resolved from that one revision and
+// that one record, so a card can never mix two candidates or two revisions. The rules, each one
+// red in scripts/keyed-selection.test.mjs when removed:
+//   - two items sharing a key invalidate the whole selection: no item is picked between them;
+//   - an item without a key part, or a collection that is not one, holds every card;
+//   - a key the revision does not hold (an unknown B, a deleted person, a valid empty list) is
+//     missing: never another entity's values, never a last good copy of another;
+//   - a required field (no fallback) the record lacks invalidates the whole candidate; an optional
+//     one takes its declared fallback; every value must pass its field as any value does.
+// What a page does with a hold (a card not ready to Take, an aired card that keeps its picture
+// with an off-air warning) is control/selectionAir.ts.
+
+// The selector's bounds, each pinned at its edge by scripts/keyed-selection.test.mjs.
+const MAX_KEY_PARTS = 4;
+const MAX_ITEMS = 5000;
+/** A collection that arrives as JSON text is parsed only up to this many characters. */
+const MAX_COLLECTION_TEXT = 512 * 1024;
+const MAX_KEY_TEXT = 64;
+
+export type CollectionRead =
+  | { status: 'ok'; recipe: CollectionRecipe }
+  /** A later version: kept as it is, never evaluated. */
+  | { status: 'read-only'; version: number }
+  | { status: 'invalid'; error: string };
+
+/** Read one collection recipe, or say why it cannot be used. Never throws. */
+export function readCollectionRecipe(raw: unknown): CollectionRead {
+  const no = (error: string): CollectionRead => ({ status: 'invalid', error });
+  if (!isObject(raw)) return no('the collection is not a recipe');
+  if (typeof raw.v === 'number' && raw.v > SELECTION_VERSION) return { status: 'read-only', version: raw.v };
+  if (raw.v !== SELECTION_VERSION) return no('the collection has no version');
+  if (!onlyKeys(raw, ['v', 'id', 'sourceId', 'schemaRevision', 'graphic', 'from', 'key', 'fields'])) {
+    return no('the collection has v, id, sourceId, schemaRevision, graphic, from, key and fields only');
+  }
+  if (typeof raw.id !== 'string' || raw.id === '' || raw.id.length > MAX_KEY_TEXT) return no('the collection has no id');
+  if (typeof raw.sourceId !== 'string' || !SEGMENT.test(raw.sourceId)) return no('the collection names no source');
+  if (typeof raw.schemaRevision !== 'number' || !Number.isInteger(raw.schemaRevision) || raw.schemaRevision < 0) return no('the collection has no schema revision');
+  if (typeof raw.graphic !== 'string' || raw.graphic === '') return no('the collection names no graphic');
+  if (!recipePath(raw.from)) return no(`the collection reads a dotted path of at most ${MAX_SEGMENTS} keys`);
+  const key = raw.key;
+  if (!Array.isArray(key) || key.length < 1 || key.length > MAX_KEY_PARTS || !key.every(recipePath)) return no(`the collection's key is 1 to ${MAX_KEY_PARTS} dotted paths`);
+  if (new Set(key).size !== key.length) return no('the collection names a key path twice');
+  const fields = raw.fields;
+  if (!isObject(fields)) return no('the collection maps no fields');
+  const ids = Object.keys(fields);
+  if (ids.length < 1 || ids.length > MAX_OUTPUTS) return no(`the collection maps 1 to ${MAX_OUTPUTS} fields`);
+  for (const id of ids) {
+    const error = valueError(fields[id], `field ${id}`);
+    if (error) return no(error);
+  }
+  return { status: 'ok', recipe: raw as unknown as CollectionRecipe };
+}
+
+export type SelectionGate =
+  | { status: 'none' }
+  | { status: 'ok'; selection: CueSelection; recipe: CollectionRecipe; entity: string }
+  /** A selector or a recipe of a later version: the cue is read-only, its record kept byte for byte. */
+  | { status: 'read-only'; reason: string }
+  /** A selector this build reads but cannot use: not ready, its record kept all the same. */
+  | { status: 'invalid'; reason: string };
+
+/** One entity's key as one comparable text: 7 and "7" stay two keys. */
+export const entityOf = (key: readonly (string | number)[]): string => JSON.stringify(key);
+
+const keyPart = (value: unknown): value is string | number =>
+  (typeof value === 'string' && value !== '' && value.length <= MAX_KEY_TEXT) || (typeof value === 'number' && Number.isFinite(value));
+
+/**
+ * THE READ GATE (spec, "Read gate first"): what one cue's selection is to this build. `graphic` is
+ * the cue's pool graphic name and `bindings` the production's shared bindings: a mapped field that
+ * also follows a shared value would let that value overwrite the cue's candidate, so it is refused.
+ */
+export function selectionGate(
+  cue: { selection?: unknown },
+  collections: readonly unknown[] | undefined,
+  graphic: string | null,
+  bindings: Record<string, Record<string, string>> | undefined,
+): SelectionGate {
+  const raw = cue.selection;
+  if (raw === undefined) return { status: 'none' };
+  const later = 'This cue’s live candidate was set up by a later version of NoaCG, so it is read-only here.';
+  const no = (reason: string): SelectionGate => ({ status: 'invalid', reason: `This cue’s live candidate cannot be used: ${reason}.` });
+  if (!isObject(raw)) return no('its selection is not a record');
+  if (typeof raw.v === 'number' && raw.v > SELECTION_VERSION) return { status: 'read-only', reason: later };
+  if (raw.v !== SELECTION_VERSION || !onlyKeys(raw, ['v', 'recipe', 'key'])) return no('its selection is not one this version reads');
+  const found = (collections ?? []).find((r) => isObject(r) && r.id === raw.recipe);
+  if (found === undefined) return no('it names a collection this production does not have');
+  const read = readCollectionRecipe(found);
+  if (read.status === 'read-only') return { status: 'read-only', reason: later };
+  if (read.status === 'invalid') return no(read.error);
+  const recipe = read.recipe;
+  if (recipe.graphic !== graphic) return no('its collection was made for another graphic');
+  const key = raw.key;
+  if (!Array.isArray(key) || key.length !== recipe.key.length || !key.every(keyPart)) return no(`its key needs ${recipe.key.length} parts (${recipe.key.join(', ')})`);
+  const shared = bindings?.[graphic] ?? {};
+  const bound = Object.keys(recipe.fields).find((id) => hasOwn(shared, id));
+  if (bound) return no(`field ${bound} also follows a shared value`);
+  return { status: 'ok', selection: raw as unknown as CueSelection, recipe, entity: entityOf(key as (string | number)[]) };
+}
+
+/** The last few collections read from text, so every card resolved from one tree parses each once. */
+const parsedTexts = new Map<string, unknown>();
+function parsedText(text: string): unknown {
+  if (!parsedTexts.has(text)) {
+    let value: unknown;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      value = undefined;
+    }
+    if (parsedTexts.size >= 4) parsedTexts.delete(parsedTexts.keys().next().value as string);
+    parsedTexts.set(text, value);
+  }
+  return parsedTexts.get(text);
+}
+
+export type SelectionResolve =
+  | { status: 'ok'; revision: number; entity: string; values: Record<string, string> }
+  /**
+   * Nothing to show for this entity in what the tree holds now, and why:
+   * - `collection`: no usable revision (not arrived, malformed, another schema, duplicate keys);
+   * - `missing`: the revision is valid and does not hold this key (an unknown B, a deleted
+   *   person, a valid empty list);
+   * - `partial`: the record lacks a required value, or a value its field cannot hold.
+   * `revision` is the revision judged, null when there is none.
+   */
+  | { status: 'hold'; why: 'collection' | 'missing' | 'partial'; reason: string; revision: number | null };
+
+/**
+ * Resolve every mapped field of ONE entity from ONE accepted revision. `fields` are the graphic's
+ * fields as the reader sees them, null when it has none. Pure; linear in the collection's size.
+ */
+export function resolveSelection(o: { recipe: CollectionRecipe; tree: unknown; key: readonly (string | number)[]; fields: FieldDescriptor[] | null }): SelectionResolve {
+  const { recipe } = o;
+  const hold = (why: 'collection' | 'missing' | 'partial', reason: string, revision: number | null): SelectionResolve => ({ status: 'hold', why, reason, revision });
+  let value: unknown = isObject(o.tree) ? atPath(o.tree as JsonValue, `${sourcePrefix(recipe.sourceId, 'external')}.${recipe.from}`) : undefined;
+  if (value === undefined) return hold('collection', 'the collection has not arrived', null);
+  if (typeof value === 'string') {
+    if (value.length > MAX_COLLECTION_TEXT) return hold('collection', `the collection is longer than ${MAX_COLLECTION_TEXT} characters`, null);
+    value = parsedText(value);
+    if (value === undefined) return hold('collection', 'the collection is not JSON', null);
+  }
+  if (!isObject(value)) return hold('collection', 'the collection is not a record', null);
+  const revision = value.revision;
+  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return hold('collection', 'the collection has no revision', null);
+  if (value.schemaRevision !== recipe.schemaRevision) {
+    return hold('collection', `the collection is schema revision ${JSON.stringify(value.schemaRevision)}, and its fields were mapped for ${recipe.schemaRevision}`, revision);
+  }
+  const items = value.items;
+  if (!Array.isArray(items)) return hold('collection', 'the collection has no items', revision);
+  if (items.length > MAX_ITEMS) return hold('collection', `the collection has more than ${MAX_ITEMS} items`, revision);
+  const wanted = entityOf(o.key);
+  let picked: Record<string, JsonValue> | null = null;
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (!isObject(item)) return hold('collection', 'an item of the collection is not a record', revision);
+    const parts: (string | number)[] = [];
+    for (const path of recipe.key) {
+      const part = atPath(item as JsonValue, path);
+      if (!keyPart(part)) return hold('collection', `an item of the collection has no ${path}`, revision);
+      parts.push(part);
+    }
+    const entity = entityOf(parts);
+    if (seen.has(entity)) return hold('collection', `two items share the key ${recipe.key.map((p, i) => `${p} ${JSON.stringify(parts[i])}`).join(', ')}`, revision);
+    seen.add(entity);
+    if (entity === wanted) picked = item as Record<string, JsonValue>;
+  }
+  const named = recipe.key.map((p, i) => `${p} ${JSON.stringify(o.key[i])}`).join(', ');
+  if (!picked) return hold('missing', items.length === 0 ? `revision ${revision} holds no candidates` : `revision ${revision} has no ${named}`, revision);
+  if (!o.fields) return hold('partial', 'the graphic has no fields', revision);
+  const format = formatters();
+  const values: Record<string, string> = {};
+  for (const [id, spec] of Object.entries(recipe.fields)) {
+    const field = o.fields.find((f) => f.key === id);
+    if (!field) return hold('partial', `the graphic has no field ${id}`, revision);
+    const cell = cellOf(spec, atPath(picked, spec.from), format);
+    if ('problem' in cell) return hold('partial', `${named}: ${cell.problem}`, revision);
+    const text = valueFor(field, cell.text);
+    if (text === null) return hold('partial', `${named}: ${spec.from} does not fit field ${id}`, revision);
+    values[id] = text;
+  }
+  return { status: 'ok', revision, entity: wanted, values };
 }
