@@ -69,8 +69,9 @@ a production that pins nothing.
    selection chooses.
 4. **Prep and live are two regions on one page**, not tabs: LIVE under the monitors, PREP below.
 5. **The one-press pick rule is in scope**: an action whose payload is a field with a few fixed
-   options draws those options as buttons (Select answer becomes A B C D), on every answer board
-   and the podium spotlight alike. Ruled on 2026-10-02 (`docs/research/control-surfaces-review-2026-10-02/README.md`
+   options draws those options as buttons (Select answer becomes A B C D), on every answer board.
+   The question named the podium spotlight too; its payload turned out to be a number field, not
+   a set of options, so it is reached only if its declaration changes. Ruled on 2026-10-02 (`docs/research/control-surfaces-review-2026-10-02/README.md`
    slice 6), never built. Lock stays the optional beat a design draws.
 6. **The agent road proposes live controls**: one rule in the skill's contract, `noacg inspect`
    prints PREP and LIVE, `noacg validate` adds a non-blocking finding.
@@ -127,8 +128,9 @@ PREP · EDITING PREVIEW CUE · Q8
 - **A block's body** is today's ⚡ block and ± live numbers for that graphic, arranged by the
   production's ARRANGE (pinned, sections, More) exactly as now, plus the one-press pick groups.
 - **PREP** is the cue editor: the selected cue's setup fields, its ✎ Update, the data-row loader,
-  the settings. Its head keeps today's words. Fields a live control writes are not drawn as boxes
-  here (the rule below); their on-air value shows on the live block instead.
+  the settings. Its head keeps today's words. A pick group's field is not drawn as a box here
+  (the rule below); the active option shows on the live block instead. Every other field stays,
+  a score's figure included, so a typed correction is still possible.
 - **The second gesture** is the rundown row's ⋯ menu: "Pin live controls" pins the row's graphic
   and reads "Unpin live controls" while it is pinned. Both gestures write the same profile entry.
 - **The hosted control page** draws the same LIVE stack from the published profile, above its cue
@@ -163,8 +165,9 @@ default path whose payload names exactly one `select` field with at most eight o
 as its label and one button per option; a press sets that field to the option and fires the
 event in one send, the same shape a `set` press has today. The active option is drawn from what
 the layer was last sent (`airedData`), so the block answers "which answer did the competitor
-choose" without a field. More options than that, or a payload of several fields, stays a button
-reading the field, as today.
+choose" without a field. More options than that, a payload of several fields, or a number payload
+(the podium's spotlit podium) stays a button reading the field, as today; widening the rule is a
+change to that graphic's declaration, not to this one.
 
 Live controls act at once, with the on-air cue's values, and never wait for Update; typing in
 PREP stages, and stages only. That is today's doctrine (`docs/PLAYOUT_DASHBOARD.md` §7b, §7c)
@@ -244,9 +247,11 @@ last look and says "unresolved", which is what AC-6 and E6's stale refusals alre
 - **D7. A pinned graphic no longer in the pool draws nothing** and its entry stays until the
   profile is cleared or the validator refuses it on the next authoring write; a graphic re-added
   under the same name is pinned again. Revert: drop the entry on read.
-- **D8. Live-written fields leave the PREP region** on every surface; their value is read on the
-  live block. Update still sends the cue's full value set, those fields included, so what Update
-  airs does not change. Revert: draw them under ▸ Advanced as read-outs.
+- **D8. Only a pick group's field leaves the PREP region**, on every surface; the buttons show
+  its value. Every other live-written field (a score the +1 adjusts) stays a box, because a typed
+  correction is a prep gesture the operator still needs. Update still sends the cue's full value
+  set, the pick field included, so what Update airs does not change. Revert: draw the pick field
+  under ▸ Advanced as a read-out.
 
 ## Maintainability plan
 
@@ -262,7 +267,7 @@ Behaviour lands in `src/control/` and the page composes it (the compiled rule
 | `src/components/home/CueActions.tsx` | gains the pick group row; otherwise unchanged | `e2e/live-actions-first.spec.ts` |
 | `src/components/home/ProductionPage.tsx` | mounts `LiveControls` with the session's `air` and `aired` parts and the verbs; no new state beyond the profile write it already owns | the render-count spec `e2e/playout-air-contract.spec.ts` |
 | `src/components/home/CueRundown.tsx` | the row menu item | `e2e/production-controls.spec.ts` |
-| `src/components/home/CueEditor.tsx` | draws prep fields only (`setupFields`-style rule applied to descriptors) | `e2e/quiz-live-consistency.spec.ts` |
+| `src/components/home/CueEditor.tsx` | omits a pick group's field from the boxes (D8) | `e2e/quiz-live-consistency.spec.ts` |
 | `src/components/HostedControlPage.tsx` | mounts the same `LiveControls` over its own live map | `e2e/configured/hosted-control-profile.spec.ts` |
 | `src/control/productionControllerHtml.ts`, `src/export/showExport.ts` | the baked stack | the exported-controller case in `e2e/production-controls.spec.ts` |
 | `cli/skill/noacg-graphic/references/contract.md`, `SKILL.md`, `cli/src/commands/inspect.ts`, `src/validation/validateTemplate.ts` | the rule, the PREP/LIVE print, the `controls-missing-live` finding | `cli/test/unit.test.mjs`, `cli/scripts/build-skill.mjs --check` |
@@ -309,8 +314,9 @@ derivation over the catalog's quiz, score, podium and a controls-free template.
 ### AC-4: The pick is one press on every answer board
 On a classic answer board (qz01 to qz12) and an imported SVG quiz, one press of "B" under Select
 answer selects B on PROGRAM and the B button reads active; pressing C moves it; Lock it in and
-Reveal correct are unchanged, Lock optional where the recipe says so. The podium spotlight's Focus
-row works the same. On a quiz show board (qz13 to qz15) nothing changes. Scenario:
+Reveal correct are unchanged, Lock optional where the recipe says so. The podium's Spotlight,
+whose payload is a number, keeps its button and field. On a quiz show board (qz13 to qz15)
+nothing changes. Scenario:
 `e2e/quiz-live-consistency.spec.ts` extended; a Node test of `pickGroups` with the cap.
 
 ### AC-5: The pin travels with the production
