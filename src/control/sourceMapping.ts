@@ -120,7 +120,6 @@ const MAX_TEXT = 200;
 const LOCALE = /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?$/;
 const SHOWS = new Set(['date', 'time', 'datetime']);
 // A time that states its zone: a time without one would read in the machine's own zone.
-const MAX_TIME = 8.64e15;
 const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(?:Z|([+-])(\d{2}):(\d{2}))$/;
 
 export type RecipeRead =
@@ -139,8 +138,10 @@ const shortText = (value: unknown): value is string => typeof value === 'string'
 // What the runtime formats does not change while it runs: each answer is asked once.
 const verdicts = new Map<string, boolean>();
 const once = (key: string, ask: () => boolean): boolean => {
-  let known = verdicts.get(key);
-  if (known === undefined) verdicts.set(key, (known = ask()));
+  const cached = verdicts.get(key);
+  if (cached !== undefined) return cached;
+  const known = ask();
+  if (verdicts.size < 256) verdicts.set(key, known); // a hostile recipe cannot grow it without end
   return known;
 };
 
@@ -224,7 +225,8 @@ function listError(l: Record<string, unknown>, where: string): string | null {
  * Never throws. No recipe is `none` (the identity projection); a later `v` is `read-only`.
  */
 export function readSourceRecipe(raw: unknown, sourceId: string, configRevision: number | undefined): RecipeRead {
-  if (raw === undefined) return { status: 'none' };
+  // A cleared recipe (null) is no recipe, like an absent one.
+  if (raw === undefined || raw === null) return { status: 'none' };
   const no = (error: string): RecipeRead => ({ status: 'invalid', error });
   if (!isObject(raw)) return no('the mapping is not a recipe');
   if (typeof raw.v === 'number' && raw.v > RECIPE_VERSION) return { status: 'read-only', version: raw.v };
@@ -270,11 +272,10 @@ function formatters(): (format: RecipeFormat) => (value: number) => string {
   };
 }
 
-/** A time that states its zone, or epoch milliseconds, as epoch milliseconds; else NaN. A date
+/** A time that states its zone, as epoch milliseconds; else NaN. A number is not a time: seconds
+ *  or milliseconds would be a guess. A date
  *  that does not exist (30 February) is not a time: `Date.parse` would roll it into March. */
 function instant(value: JsonValue): number {
-  // Beyond ±8.64e15 ms there is no Date, and a format would throw rather than hold.
-  if (typeof value === 'number') return Number.isFinite(value) && Math.abs(value) <= MAX_TIME ? value : NaN;
   const m = typeof value === 'string' ? INSTANT.exec(value) : null;
   if (!m) return NaN;
   const [y, mo, d, h, mi] = m.slice(1, 6).map(Number);
@@ -331,7 +332,19 @@ export function recipeItems(list: RecipeList, collection: JsonValue): { items: R
   }
   let items = collection as Record<string, JsonValue>[];
   const where = list.where;
-  if (where) items = items.filter((item) => atPath(item, where.path) === where.equals);
+  if (where) {
+    const kinds = new Set<string>();
+    items = items.filter((item) => {
+      const at = atPath(item, where.path);
+      if (at !== undefined && at !== null) kinds.add(typeof at);
+      return at === where.equals;
+    });
+    // Nothing matches because the values are of another kind (7 against "7"): the provider changed
+    // its schema, which is a correction to make, not an empty list to air.
+    if (items.length === 0 && kinds.size > 0 && !kinds.has(typeof where.equals)) {
+      return { problem: `${where.path} is ${[...kinds].join(' or ')}, but the filter's value is a ${typeof where.equals}` };
+    }
+  }
   const sort = list.sort;
   if (sort) {
     const keyed: { item: Record<string, JsonValue>; key: Key; id: Key }[] = [];

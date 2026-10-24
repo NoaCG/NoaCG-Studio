@@ -33,16 +33,18 @@ changes a spec's digest.
     recipe does not name reads its own path, so a source with no recipe, or a leaf outside it,
     projects byte for byte as before (row 27's tests unchanged).
   - *All or nothing for the recipe*: an invalid recipe, one made for another source or another
-    config revision (an imported or copied show must be rebound), or a later version holds every
+    config revision, or a later version holds every
     bound leaf of the source, identity ones included, with the reason in `held`. No leaf is ever
     written from half a recipe. A recipe `v` above 1 also makes the source read-only for edits
     (`externalReadOnly`), so the page cannot overwrite it.
   - *Strict shape*: every object in a recipe allows only its own keys. That is what keeps it
     declarative (no operator, transform, expression or second predicate can ride along) and free
     of credentials (a `headers` or `token` key is refused, not ignored).
-  - *Typed until the cell*: the filter compares typed values (`0` is not `"0"`), a number format
-    takes a finite number only, a date format a time that states its zone (`Z` or `+hh:mm`) or
-    epoch ms. A time with no zone is refused because it would read in the machine's zone, and a
+  - *Typed until the cell*: the filter compares typed values (`0` is not `"0"`); a filter that
+    matches nothing because the values are of another kind holds (a provider's schema change is a
+    correction, not an empty list to air). A number format takes a finite number only, a date
+    format a time that states its zone (`Z` or `+hh:mm`), never a bare number (seconds or
+    milliseconds would be a guess). A time with no zone is refused because it would read in the machine's zone, and a
     date that does not exist is refused because `Date.parse` rolls 30 February into March.
   - *Deterministic formatting*: the locale must be one the runtime formats
     (`supportedLocalesOf`), never silently another; the zone is always explicit; dates use numeric
@@ -82,8 +84,12 @@ changes a spec's digest.
   revision stamp*: a recipe holds the whole source once its `configRevision` is not the
   registration's, so whatever bumps the revision must re-stamp or review the recipe in the same
   write. Today nothing writes either.
-- **Review fixes in this row**: an epoch beyond a Date's range held instead of throwing out of the
-  route; years 0 to 99 are those years; a value rounding to zero is `0.0`, never `-0.0`; a problem
+- **Import and rebind**: the recipe's `sourceId` stamp stops a recipe copied onto another source.
+  An imported or duplicated production keeps the same ids, so what makes it need an explicit
+  rebind is the source's agent registration and data key, held per production by the database
+  (row 27), not the recipe. `mapping: null` is no recipe, so clearing one never holds the source.
+- **Review fixes in this row**: a number given to a date format held instead of throwing out of
+  the route (and then refused outright, from Assessment A); years 0 to 99 are those years; a value rounding to zero is `0.0`, never `-0.0`; a problem
   quotes the row's text rather than a number the adapter's trimming can shift; `held` is answered
   on unchanged reports too. Simplify (no behaviour change): the recipe shares `PATH` with the
   connector grammar and `RECIPE_VERSION` with the read-only gate, formatters are keyed by the

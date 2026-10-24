@@ -251,7 +251,13 @@ describe('a recipe: each v1 operation', () => {
   test('filter by one typed equality: 0 is not "0", and false is a value', () => {
     assert.equal(written(board({ where: { path: 'region', equals: 'Uusimaa' } })), 'KOK\t225000\nSDP\t215000\nKESK\t0');
     assert.equal(written(board({ where: { path: 'votes', equals: 0 } })), 'KESK\t0');
-    assert.equal(written(board({ where: { path: 'votes', equals: '0' } })), '', 'no string coercion: nothing matches, and an empty list clears');
+    // No string coercion: "0" is not 0. Nothing matching because the kinds differ is a changed
+    // schema to correct, not an empty list to air; nothing matching among values of the same kind
+    // is an empty list, and clears.
+    const typed = board({ where: { path: 'votes', equals: '0' } });
+    assert.deepEqual([typed.writes, typed.unfit], [{}, ['board']]);
+    assert.match(typed.problems.board, /votes is number, but the filter's value is a string/);
+    assert.equal(written(board({ where: { path: 'region', equals: 'Lappi' } })), '');
     const flags = { parties: [{ party_id: 'A', out: false }, { party_id: 'B', out: true }] };
     assert.equal(written(board({ where: { path: 'out', equals: false }, columns: [{ from: 'party_id' }] }, flags)), 'A');
   });
@@ -306,13 +312,13 @@ describe('a recipe: each v1 operation', () => {
       if (zone === undefined) delete process.env.TZ;
       else process.env.TZ = zone;
     }
-    // An offset and epoch milliseconds are times too.
+    // An offset is a time too; a bare number is not (seconds or milliseconds would be a guess).
     const utc = { kind: 'date', locale: 'en-GB', timeZone: 'UTC', show: 'datetime' };
     const one = (updated) => mapped({ updated }, { B: { f0: 'external.e1.at' } }, recipe({ at: { from: 'updated', format: utc } }));
     assert.equal(one('2026-10-24T21:30:00.5+03:00').writes['external.e1.at'], '24/10/2026, 18:30');
-    assert.equal(one(Date.UTC(2026, 9, 24, 18, 30)).writes['external.e1.at'], '24/10/2026, 18:30');
+    assert.deepEqual(one(Date.UTC(2026, 9, 24, 18, 30)).unfit, ['at']);
     assert.equal(one('0050-01-01T00:00Z').writes['external.e1.at'], '01/01/50, 00:00', 'a year below 100 is that year');
-    assert.equal(one(8.64e15).writes['external.e1.at'], '13/09/275760, 00:00', 'the last time there is');
+    assert.equal(one('+275760-09-13T00:00Z').writes['external.e1.at'], undefined, 'no expanded years');
   });
 
   test('a fallback for a missing or null value; zero, false and "" are values', () => {
@@ -374,7 +380,7 @@ describe('a recipe holds last good and names the correction, never a valid empty
     const one = (value, format) => mapped({ value }, { B: { f0: 'external.e1.out' } }, recipe({ out: { from: 'value', format } }));
     const num = { kind: 'number', locale: 'en-GB', decimals: 0 };
     const date = { kind: 'date', locale: 'en-GB', timeZone: 'UTC', show: 'date' };
-    for (const [value, format] of [[8.64e15 + 1, date], [-1e20, date], ['60', num], [true, num], ['2026-10-24T18:30:00', date], ['2026-02-30T00:00Z', date], ['2026-10-24T24:00Z', date], ['24.10.2026', date], ['2026-10-24T18:30+15:00', date], [false, date]]) {
+    for (const [value, format] of [[1729800000, date], [-1e20, date], ['60', num], [true, num], ['2026-10-24T18:30:00', date], ['2026-02-30T00:00Z', date], ['2026-10-24T24:00Z', date], ['24.10.2026', date], ['2026-10-24T18:30+15:00', date], [false, date]]) {
       const out = one(value, format);
       assert.deepEqual([out.writes, out.unfit], [{}, ['out']], JSON.stringify(value));
     }
@@ -535,6 +541,12 @@ describe('a recipe beside the identity projection, and no other path', () => {
     const withRecipe = mapped(results(), b, recipe(list({ limit: 1 })), { lists: lines });
     assert.deepEqual(withRecipe.writes, { 'external.e1.board': 'KOK\t225000', 'external.e1.counted': '87.5', 'external.e1.final': 'false' });
     assert.deepEqual(withRecipe.provenance, { sourceId: 'e1', recipe: { v: 1, configRevision: 2 } }, 'the data names its source and mapping');
+  });
+
+  test('a cleared recipe (null) is no recipe: the source projects by identity', () => {
+    const b = { T: { f0: 'external.e1.parties' }, B: { f0: 'external.e1.counted' } };
+    const cleared = mapped({ counted: 87.5, parties: ['KOK'] }, b, null, { lists: { parties: 'lines' } });
+    assert.deepEqual([cleared.writes, cleared.held], [{ 'external.e1.counted': '87.5', 'external.e1.parties': 'KOK' }, undefined]);
   });
 
   test('a later recipe version is held read-only: nothing is evaluated, not even in part', () => {
