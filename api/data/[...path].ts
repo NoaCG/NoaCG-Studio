@@ -373,8 +373,10 @@ async function source(req: Request): Promise<Response> {
 
     const { acquisition } = envelope;
     let projection: ReturnType<typeof projectSource> | null = null;
-    if (acquisition.status === 'changed') {
-      const context = await rpc<{ entry: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
+    // A changed report is evaluated as sent; an unchanged one against the accepted payload again, so
+    // a field bound since that revision is filled (the database writes only paths never written).
+    if (acquisition.status === 'changed' || acquisition.status === 'unchanged') {
+      const context = await rpc<{ entry: unknown; payload: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
         'control_source_context_by_key',
         { p_key: key, p_source: envelope.sourceId },
       );
@@ -385,7 +387,7 @@ async function source(req: Request): Promise<Response> {
       const registration = readExternalRegistration(context.entry);
       projection = projectSource({
         sourceId: envelope.sourceId,
-        payload: acquisition.payload,
+        payload: acquisition.status === 'changed' ? acquisition.payload : context.payload,
         bindings: context.bindings,
         fieldsOf: (graphic) => (context.fields[graphic] ? descriptorsOf(context.fields[graphic]) : null),
         lists: registration.ok ? registration.registration.lists : undefined,
@@ -398,7 +400,7 @@ async function source(req: Request): Promise<Response> {
       p_writes: projection?.writes ?? {},
     });
     if (typeof answer.refused === 'string') return refused(answer as { refused: string });
-    return json({ ...answer, ...(projection ? { missing: projection.missing, unfit: projection.unfit } : {}) });
+    return json({ ...answer, ...(projection && acquisition.status === 'changed' ? { missing: projection.missing, unfit: projection.unfit } : {}) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('unknown data key')) return apiError('unauthorized', 'Unknown data key.', 401);

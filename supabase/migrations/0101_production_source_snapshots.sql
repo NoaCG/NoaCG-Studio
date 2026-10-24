@@ -33,8 +33,9 @@
 --   An unchanged report moves `checked_at`, never `changed_at`, at most every 15 s. A held or failed
 --   read records its status only.
 -- - `control_source_context_by_key` answers what the route needs to evaluate a payload
---   (src/control/sourceMapping.ts): the registration, the bindings and each graphic's published
---   fields. Never the payload's own values: those go back only through the fenced report.
+--   (src/control/sourceMapping.ts): the registration, the bindings, each graphic's published fields
+--   and the accepted payload, which a receipt is evaluated against again to fill a field bound
+--   since that revision (only paths the source never wrote; the same rules and limits).
 --
 -- `production_source_snapshots` holds, per source, the latest accepted revision and its typed
 -- payload, the owner epoch and claim, checked-at, changed-at, byte size and the last status. It is
@@ -111,6 +112,7 @@ begin
    limit 1;
   return jsonb_build_object(
     'entry', v_entry,
+    'payload', (select p.payload from public.production_source_snapshots p where p.show_id = v_row.id and p.source_id = p_source),
     'bindings', coalesce(v_row.bindings, '{}'::jsonb),
     'fields', (select coalesce(jsonb_object_agg(g.value->>'name', coalesce(g.value->'fields', '[]'::jsonb)), '{}'::jsonb)
                  from jsonb_array_elements(case jsonb_typeof(v_row.panel) when 'array' then v_row.panel else '[]'::jsonb end) g
@@ -223,6 +225,8 @@ declare
   v_ingest int;
   v_result jsonb;
   v_state jsonb;
+  v_in jsonb := p_writes;
+  v_fill boolean := false;
 begin
   if p_report is null or jsonb_typeof(p_report) <> 'object' or p_writes is null or jsonb_typeof(p_writes) <> 'object'
      or jsonb_typeof(p_report->'ownerEpoch') is distinct from 'number'
@@ -281,16 +285,26 @@ begin
   end if;
 
   if v_status = 'unchanged' then
+    -- A FILL: the route evaluates the accepted payload again at every receipt, so a field bound after
+    -- that revision gets its value without a new one. Only paths this source never wrote are filled,
+    -- so what it wrote before (and an operator's override of it) is left alone; not while paused.
+    -- A fill keeps the receipt gap: a path the rules below skip stays unwritten, so it is tried again
+    -- at most every 15 s, never at every read.
     if v_snap.checked_at is not null and v_snap.checked_at > now() - c_receipt_gap then
       return jsonb_build_object('ok', true, 'ignored', true, 'acceptedRevision', v_snap.accepted_revision);
     end if;
-    update public.production_source_snapshots p
-       set checked_at = now(), status = v_state, status_at = now()
-     where p.show_id = v_show and p.source_id = p_source;
-    return jsonb_build_object('ok', true, 'acceptedRevision', v_snap.accepted_revision);
+    select coalesce(jsonb_object_agg(w.key, w.value), '{}'::jsonb) into v_in
+      from jsonb_each(p_writes) w where not (coalesce(v_read.snapshot, '{}'::jsonb) ? w.key);
+    v_fill := v_in <> '{}'::jsonb and not coalesce((v_entry->>'paused')::boolean, false);
+    if not v_fill then
+      update public.production_source_snapshots p
+         set checked_at = now(), status = v_state, status_at = now()
+       where p.show_id = v_show and p.source_id = p_source;
+      return jsonb_build_object('ok', true, 'acceptedRevision', v_snap.accepted_revision);
+    end if;
   end if;
 
-  if v_status <> 'changed' then
+  if v_status not in ('changed', 'unchanged') then
     -- A hold or a failure: the status only, when it is news or every 15 s.
     if v_snap.status->>'state' is distinct from v_status or v_snap.status_at is null or v_snap.status_at <= now() - c_receipt_gap then
       update public.production_source_snapshots p set status = v_state, status_at = now()
@@ -299,22 +313,29 @@ begin
     return jsonb_build_object('ok', true, 'acceptedRevision', v_snap.accepted_revision);
   end if;
 
-  -- A changed payload: the fence, then the limits, all before anything moves.
-  if v_revision <= v_snap.accepted_revision
+  -- A changed payload: the fence, then the limits, all before anything moves. (A fill is the
+  -- accepted revision's own values and skips the revision fence; the value rules and limits below
+  -- apply to it all the same.)
+  if v_fill then
+    null;
+  elsif v_revision <= v_snap.accepted_revision
      or (v_sequence is not null and v_snap.provider_sequence is not null and v_sequence < v_snap.provider_sequence) then
     return jsonb_build_object('ok', false, 'refused', 'old_revision', 'acceptedRevision', v_snap.accepted_revision);
   end if;
-  if coalesce((v_entry->>'paused')::boolean, false) then
+  if v_fill then
+    null;
+  elsif coalesce((v_entry->>'paused')::boolean, false) then
     return jsonb_build_object('ok', false, 'refused', 'paused');
-  end if;
-  if v_snap.changed_at is not null and v_snap.changed_at > now() - c_revision_gap then
+  elsif v_snap.changed_at is not null and v_snap.changed_at > now() - c_revision_gap then
     return jsonb_build_object('ok', false, 'refused', 'too_soon',
                               'retryMs', ceil(extract(epoch from (v_snap.changed_at + c_revision_gap - now())) * 1000));
   end if;
-  if p_report->'payload' is null then raise exception 'not a source report'; end if;
-  v_bytes := octet_length((p_report->'payload')::text);
-  if v_bytes > c_payload_bytes then
-    return jsonb_build_object('ok', false, 'refused', 'too_large');
+  if not v_fill then
+    if p_report->'payload' is null then raise exception 'not a source report'; end if;
+    v_bytes := octet_length((p_report->'payload')::text);
+    if v_bytes > c_payload_bytes then
+      return jsonb_build_object('ok', false, 'refused', 'too_large');
+    end if;
   end if;
 
   select coalesce(array_agg(distinct f.value), '{}') into v_bound
@@ -322,7 +343,7 @@ begin
   cross join lateral jsonb_each_text(case when jsonb_typeof(g.value) = 'object' then g.value else '{}'::jsonb end) f;
 
   v_snapshot := coalesce(v_read.snapshot, '{}'::jsonb);
-  for v_path, v_value in select w.key, w.value from jsonb_each(p_writes) w loop
+  for v_path, v_value in select w.key, w.value from jsonb_each(v_in) w loop
     if jsonb_typeof(v_value) <> 'string' or not starts_with(v_path, 'external.' || p_source || '.') then
       raise exception 'not a source report';
     end if;
@@ -377,6 +398,14 @@ begin
   end if;
   update public.control_source_reads r set snapshot = v_snapshot, status = v_state, updated_at = now()
    where r.show_id = v_show and r.source_id = p_source;
+  if v_fill then
+    update public.production_source_snapshots p set checked_at = now(), status = v_state, status_at = now()
+     where p.show_id = v_show and p.source_id = p_source;
+    return jsonb_build_object('ok', true, 'acceptedRevision', v_snap.accepted_revision, 'filled', true,
+                              'writes', coalesce(jsonb_array_length(v_result->'writes'), 0),
+                              'paused', coalesce((v_result->>'paused')::boolean, false),
+                              'skipped', to_jsonb(v_skipped));
+  end if;
   update public.production_source_snapshots p
      set accepted_revision = v_revision, provider_sequence = coalesce(v_sequence, p.provider_sequence),
          config_revision = (p_report->>'configRevision')::integer,
@@ -406,6 +435,7 @@ declare
   v_n int;
   v_report jsonb;
   v_pad int;
+  v_was jsonb;
 begin
   -- (a) Shape: nothing here is reachable from a client.
   if exists (select 1 from information_schema.role_table_grants g
@@ -568,6 +598,48 @@ begin
     if (v_a->>'ok')::boolean is not true
        or (select s.data->'external'->'e1' from public.control_shows s where s.id = v_show) is distinct from '{"count":"61","status":"OPERATOR"}'::jsonb then
       raise exception '0101 self-check failed: the second revision or the held override (%)', v_a;
+    end if;
+    -- A field bound after the revision was accepted is filled by the next receipt, once, as the
+    -- API; what the source wrote before, and the override over it, are left alone.
+    delete from public.control_events e where e.show_id = v_show and e.graphic = 'Other';
+    -- (now() is fixed in this transaction: changed-at goes back first, so a fill moving it shows.)
+    update public.production_source_snapshots set changed_at = now() - interval '1 minute' where show_id = v_show;
+    select jsonb_build_object('rev', p.accepted_revision, 'at', p.changed_at) into v_was
+      from public.production_source_snapshots p where p.show_id = v_show;
+    update public.control_shows set bindings = jsonb_set(bindings, '{Board,f2}', '"external.e1.extra"') where id = v_show;
+    -- It keeps the receipt gap: inside 15 s nothing is filled, at 15 s it is.
+    update public.production_source_snapshots set checked_at = now() - interval '14.9 seconds' where show_id = v_show;
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"status":"unchanged"}', '{"external.e1.extra":"X"}'::jsonb);
+    if (v_a->>'ignored')::boolean is not true or (select s.data #> '{external,e1,extra}' from public.control_shows s where s.id = v_show) is not null then
+      raise exception '0101 self-check failed: a fill inside the receipt gap (%)', v_a;
+    end if;
+    update public.production_source_snapshots set checked_at = now() - interval '15 seconds' where show_id = v_show;
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"status":"unchanged"}',
+             '{"external.e1.count":"61","external.e1.status":"PRELIMINARY","external.e1.extra":"X"}'::jsonb);
+    if (v_a->>'filled')::boolean is not true
+       or (select s.data->'external'->'e1' from public.control_shows s where s.id = v_show)
+          is distinct from '{"count":"61","extra":"X","status":"OPERATOR"}'::jsonb
+       or (select count(*) from public.control_events e where e.show_id = v_show and e.msg->'data' = '{"f2":"X"}'::jsonb and e.msg->>'src' = 'api') <> 1 then
+      raise exception '0101 self-check failed: a field bound after the revision was not filled once (%)', v_a;
+    end if;
+    update public.production_source_snapshots set checked_at = now() - interval '1 minute' where show_id = v_show;
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"status":"unchanged"}',
+             '{"external.e1.count":"61","external.e1.status":"PRELIMINARY","external.e1.extra":"X"}'::jsonb);
+    if (v_a->>'filled')::boolean or (select count(*) from public.control_events e where e.show_id = v_show and e.msg->'data' = '{"f2":"X"}'::jsonb) <> 1 then
+      raise exception '0101 self-check failed: a filled field was written again (%)', v_a;
+    end if;
+    -- Nor while the source is paused, and a fill moves neither the revision nor changed-at.
+    update public.control_shows set sources = jsonb_set(sources, '{0,paused}', 'true'),
+           bindings = jsonb_set(bindings, '{Board,f3}', '"external.e1.more"') where id = v_show;
+    update public.production_source_snapshots set checked_at = now() - interval '1 minute' where show_id = v_show;
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"status":"unchanged"}', '{"external.e1.more":"Y"}'::jsonb);
+    if (v_a->>'filled')::boolean or (select s.data #> '{external,e1,more}' from public.control_shows s where s.id = v_show) is not null then
+      raise exception '0101 self-check failed: a paused source filled a field (%)', v_a;
+    end if;
+    update public.control_shows set sources = jsonb_set(sources, '{0,paused}', 'false') where id = v_show;
+    if (select jsonb_build_object('rev', p.accepted_revision, 'at', p.changed_at)
+          from public.production_source_snapshots p where p.show_id = v_show) is distinct from v_was then
+      raise exception '0101 self-check failed: a fill moved the revision or changed-at';
     end if;
     update public.production_source_snapshots set checked_at = now() - interval '14.9 seconds' where show_id = v_show;
     if (public.control_source_report_by_key(v_key, 'e1', v_report || '{"status":"unchanged"}', '{}'::jsonb)->>'ignored')::boolean is not true then

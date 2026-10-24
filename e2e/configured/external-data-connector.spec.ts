@@ -137,7 +137,10 @@ async function serviceProduction(owner: string): Promise<string> {
       id,
       owner_id: owner,
       title: `Connector ${Date.now()}`,
-      panel: [{ name: 'Hairline', fields: [{ field: 'f0', ftype: 'textfield', title: 'Name' }, { field: 'f1', ftype: 'textfield', title: 'Role' }] }],
+      panel: [
+        { name: 'Hairline', fields: [{ field: 'f0', ftype: 'textfield', title: 'Name' }, { field: 'f1', ftype: 'textfield', title: 'Role' }] },
+        { name: 'Board', fields: [{ field: 'f0', ftype: 'number', title: 'Revision' }] },
+      ],
       bindings: BINDINGS,
       sources: [{ id: 'e1', kind: 'external', label: 'Results', config: REGISTRATION }],
     });
@@ -333,6 +336,14 @@ test.describe('a trusted JSON source', () => {
       const first = agent(dir, replay, dataKey, address);
       started.push(first);
       await expect.poll(async () => (await rows(showId)).length, { timeout: 20_000 }).toBe(1);
+      // A field connected after that revision is filled from it at the next receipt, with no new
+      // revision: the route evaluates the accepted payload again.
+      const before = await snapshot(showId);
+      await admin().from('control_shows').update({ bindings: { ...BINDINGS, Board: { f0: 'external.e1.revision' } } }).eq('id', showId);
+      await expect.poll(async () => (await rows(showId)).find((r) => 'f0' in r.data && r.data.f0 === '1')?.src ?? null, { timeout: 25_000 }).toBe('api');
+      expect((await snapshot(showId))?.accepted_revision).toBe(before!.accepted_revision);
+      const filled = (await rows(showId)).length;
+      const lastF1 = async () => (await rows(showId)).filter((r) => 'f1' in r.data).at(-1)!.data.f1;
       const onAir = (await tree(showId)).data.external?.e1;
 
       // The provider goes away (the network): failed reads, nothing written, the values hold.
@@ -341,14 +352,14 @@ test.describe('a trusted JSON source', () => {
       // Back with a NEW credential: the running agent is denied, still writing nothing.
       replay = await provider(dir, port);
       await expect.poll(async () => (await snapshot(showId))?.status.state, { timeout: 30_000 }).toBe('denied');
-      expect((await rows(showId)).length).toBe(1);
+      expect((await rows(showId)).length).toBe(filled);
       expect((await tree(showId)).data.external?.e1).toEqual(onAir);
       // Restarted with the rotated credential (the documented step), it reads and writes again.
       await first.stop();
       const rebound = agent(dir, replay, dataKey, address);
       started.push(rebound);
       replay.at(1);
-      await expect.poll(async () => (await rows(showId)).length, { timeout: 20_000 }).toBe(2);
+      await expect.poll(lastF1, { timeout: 20_000 }).toContain(AINO(3700));
       expect(rebound.log()).not.toContain(replay.token);
 
       // Disabled: the source paused in the production. The agent keeps its revision; nothing airs.
@@ -357,14 +368,15 @@ test.describe('a trusted JSON source', () => {
         const { error } = await admin().from('control_shows').update({ sources: sources.map((s) => edit(s as unknown as Record<string, unknown>)) }).eq('id', showId);
         if (error) throw new Error(error.message);
       };
+      const held = (await rows(showId)).length;
       await setEntry((e) => ({ ...e, paused: true }));
       replay.at(3);
       await expect.poll(() => rebound.log(), { timeout: 15_000 }).toMatch(/not taken \(409 paused\)/);
-      expect((await rows(showId)).length).toBe(2);
+      expect((await rows(showId)).length).toBe(held);
       // Resumed: the kept revision lands once.
       await setEntry((e) => ({ ...e, paused: false }));
-      await expect.poll(async () => (await rows(showId)).length, { timeout: 15_000 }).toBe(3);
-      expect((await rows(showId)).at(-1)!.data.f1).toContain(AINO(3680));
+      await expect.poll(lastF1, { timeout: 15_000 }).toContain(AINO(3680));
+      expect((await rows(showId)).filter((r) => 'f1' in r.data && r.data.f1.includes(AINO(3680))).length).toBe(1);
 
       // Another configuration revision in the production refuses the agent's (and takes its fence);
       // the prior configuration restored, it claims again and carries on. The values stay meanwhile.
@@ -374,7 +386,7 @@ test.describe('a trusted JSON source', () => {
       await expect.poll(() => rebound.log(), { timeout: 15_000 }).toMatch(/not claimed \(409 config\)/);
       expect((await tree(showId)).data.external?.e1).toEqual(kept);
       await setEntry((e) => ({ ...e, config: REGISTRATION }));
-      await expect.poll(async () => (await rows(showId)).at(-1)!.data.f1, { timeout: 20_000 }).not.toContain('FI2027_02_104');
+      await expect.poll(lastF1, { timeout: 20_000 }).not.toContain('FI2027_02_104');
       expect((await snapshot(showId))?.owner_epoch).toBe(3);
       await rebound.stop();
     } finally {

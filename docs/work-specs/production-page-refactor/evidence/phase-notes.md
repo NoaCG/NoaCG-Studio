@@ -93,16 +93,17 @@ changes a spec's digest.
   answers reset the backoff; (f) a credential in an object key is redacted; (g) the receipt goes
   at 15 000 ms, not 14 999; (h) above; (i) row 26's counts corrected (38 tests, 48 mutations, the
   second smoke run 40074390687).
-- **Mutation checks** (on the final code). SQL: 31 single mutations of 0101's bodies, each applied in a rolled-back
+- **Mutation checks** (on the final code). SQL: 35 single mutations of 0101's bodies, each applied in a rolled-back
   transaction on the local stack with the self-check run after it: the revision gap to 4.9 s and
   5.1 s, the receipt gap to 14.8 s and 15.1 s, the payload cap and the row cap one byte either way,
   the budget to 24 and 26, a duplicate revision accepted, an older provider sequence accepted, the
   epoch, the claim and the lease expiry unchecked, the source's Pause ignored, a local destination
   or a v 2 registration accepted, a dotted source id accepted, the paused Resume row not measured, a superseded held field measured, a newer
-  sequence from an unchanged read not kept, an unknown list adapter accepted, a v 2 snapshot written, the
+  sequence from an unchanged read not kept, an unknown list adapter accepted, no fill for a field bound later, a fill while paused, a fill
+  moving changed-at, a fill skipping the receipt gap, a v 2 snapshot written, the
   config revision unchecked, a refusal keeping the fence, the claim not raising the epoch, the override overwritten, an unchanged
   report moving changed-at, the apply labelled as an operator, the claim answering revision 0. All
-  31 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
+  35 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
   25. JavaScript: 39 single mutations of the route, evaluator, contract, model and agent, each
   turning its test red (the body cap either way, a later envelope answered 400, null as "", a list
   with no adapter read as lines, a nested item flattened, prototype keys walked, conflicting field
@@ -164,7 +165,13 @@ changes a spec's digest.
   stall the reading. Its third pass (on `3bc9fbd`, one P2), fixed: the Resume row's measure laid
   the held `/update` values over the pending diff, but the apply drops every held field a later
   write names, so a short held value could mask an oversized one; those fields are now dropped
-  before measuring, as the apply does.
+  before measuring, as the apply does. Its fourth pass (on `413f233`, one P2), fixed: the route
+  projected a payload only when it changed, so a field bound after the last change stayed empty
+  until the provider changed again. Each unchanged receipt now evaluates the accepted payload
+  again, and the database writes only paths this source never wrote (so an operator's override of
+  an earlier write holds), not while the source is paused, without moving the revision or
+  changed-at, and no more than once per 15 s receipt gap. The third configured walk binds a new
+  field mid-walk and sees it filled once from the accepted revision.
 - **A self-check trap, found by a surviving mutation.** `answer->>'refused' <> 'x'` is NULL, not
   true, when the report is accepted, so a refusal assertion passed silently whenever the function
   accepted instead; other mutations had gone red only because a later state check caught them.
