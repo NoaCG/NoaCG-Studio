@@ -5,6 +5,121 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 26, phase E4.1: trusted JSON acquisition (contract, agent, replay server, smoke)
+
+- **Previous verified `main` sha:** row 25 (phase 14) passed on `dda88db`, which is also where
+  this branch began.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing calls the new files yet (E4.2 wires
+  the sender), so a revert changes no behaviour, storage, persisted format or route.
+- **What landed.** `src/control/externalSource.ts` (the `v: 1` config, export/rebind, acceptance
+  and schedule, pure), `scripts/external-data-connector.mjs` (the headless agent),
+  `scripts/election-replay-server.mjs`, `scripts/replay-smoke.mjs` with the npm script
+  `endurance:replay-smoke`, and `scripts/external-data-connector.test.mjs` (36 tests).
+- **Supported limits** (the recorded envelope; the config file cannot name any of them):
+
+  | Limit | Default | Moved only by | Envelope |
+  | --- | --- | --- | --- |
+  | Whole read, redirects and DNS included | 10 s | `NOACG_CONNECTOR_TIMEOUT_MS` | 1 to 30 s |
+  | Body read from the provider | 2 MiB | `NOACG_CONNECTOR_MAX_BYTES` | 64 KiB to 8 MiB |
+  | Poll interval | 5 s | config `pollMs` | at least 1 s and the provider's `providerMinPollMs` |
+  | Backoff after failures | interval doubled per failure, 50 to 100 % jitter | - | capped at 60 s |
+  | Retry-After (seconds or a date) | honoured as a floor | - | counted up to 1 hour |
+  | Redirects (hosted) | 5 | - | - |
+  | Reads in flight per source | 1 | - | no queue of missed reads |
+  | "Unchanged" receipts to the sender | at most every 15 s | - | - |
+
+- **Provider assumptions.** HTTPS GET with no body, a JSON answer, optional `Authorization:
+  Bearer`. A revision or sequence number at `revisionPath` orders reads: higher is accepted even
+  when counts fall (a correction), equal with equal content is unchanged, lower or equal with
+  other content is stale. Without `revisionPath` only content is compared, so an unordered
+  provider cannot claim recency from arrival time. Event time is read from `eventTimePath` when
+  the provider has one; otherwise provider age is unknown. 401 and 403 mean the credential is
+  refused. Official Finnish results access, schema and rate expectations remain unverified
+  (extensions.md, "Release, failure and completion"); the replay server stands in for them.
+- **Decisions.**
+  - *Reuse of the C4 guard.* The agent imports `publicAddress` (api/_lib/feedFetch.ts) and
+    `addressRefusal` (src/control/feedSource.ts), so the private-address, own-port and
+    credential-in-URL rules are one copy. The read loop is not `guardedFetch`: that one hard-codes
+    a feed's Accept header and 5 MB cap and cannot add an Authorization header or a certificate
+    authority, and changing api/ is E4.2's. The loop keeps its shape: every DNS answer public, the
+    connection pinned to the checked address, every redirect checked again.
+  - *https only*, in both modes, so a bearer credential never travels in clear text; C4 allows
+    http for public feeds, which carry no credential.
+  - *The credential goes only to the configured origin*: kept on a same-origin redirect, dropped
+    on any other, as `fetch` does.
+  - *`local` mode* is the spec's "explicitly configured local agent destination": only the
+    configured origin, checked against `caFile` (Node's `ca` option replaces the system
+    authorities), so a replay server on 127.0.0.1 is read with TLS validation on and nothing
+    outside the configured origin is reachable. It trusts whoever writes the config, as the spec's
+    "trusted agent" does. Hosted mode refuses the same loopback server before connecting.
+  - *Export and rebind*: the config never holds the secret; `credentialRef` names an environment
+    variable, which must be `NOACG_SOURCE_...` so a config cannot send the agent's other secrets
+    (a service key, `CRON_SECRET`) to its endpoint. A config is bound only when it says
+    `credentialBound: true`, so deleting the flag from an export does not skip the rebind. An
+    export copies only known fields and sets `credentialBound: false`; the agent refuses it
+    ("rebind") until `bindConnectorCredential` binds this machine's variable.
+  - *Accepted revision is the source's own counter*, rising by one per accepted change; the
+    provider's number travels as `providerSequence`. `ownerEpoch` is 0 until E4.2's claim.
+  - *Invalid and stale reads do not back off*: the provider answered; only denied, refused and
+    failed reads count as failures.
+  - *The sender seam* receives every report (changed with payload, unchanged at most every 15 s
+    without one, every hold and failure); from the command line it writes JSON lines to stdout.
+    The credential is redacted once at the seam, so a provider that echoes it cannot pass it on
+    and no sender has to remember. A read ended by `stop()` reports nothing.
+  - *The replay timeline starts at the first authorized read*, so an agent slow to boot still
+    sees step 0; `at(i)` moves it by hand and a fake clock makes it exact.
+  - *An unchanged read skips the canonical comparison* when its bytes equal the accepted answer's,
+    the common case for a quiet source at 2 MiB every 5 s.
+    E4.2 replaces it with `/api/data/source` and the claim, and projects to its 256 KiB body.
+  - *Fixtures*: the replay server derives its eight steps at start from the research fixtures
+    `results-01/02/03-correction.json` (revision 4 drops candidate `FI2027_02_104`, revision 5 has
+    an empty candidate list), so no copy of them was added.
+  - *The npm script is `endurance:replay-smoke`*, after the workflow's own example
+    `endurance:election`.
+  - *Extra file outside the fence:* `.gitignore` gains `endurance-output/`, the folder
+    endurance.yml uploads, so a local smoke run leaves the checkout clean.
+- **Tests pin behaviour, and were mutation-checked**: 43 single mutations of the contract, agent
+  and server (timeout to 9.999 or 11 s, cap plus or minus one byte, declared length unchecked,
+  backoff cap, jitter, doubling, Retry-After ignored or uncapped, poll default, single flight,
+  one public DNS answer enough, redirects unchecked, 4 or 6 redirects, connection unpinned,
+  credential sent cross-origin, local origin unchecked, export bound, unbound accepted, no
+  redaction, server accepting any token, 401 not denied, older or conflicting revision accepted,
+  unknown config keys, http, receipt throttle, timeline steps, seam redaction, a log fault
+  stopping the polling, deadline and stop confused, the byte-equal shortcut too broad, deep JSON
+  crashing, `credentialBound` untyped or defaulting to bound, any variable name accepted as a
+  credential, the timeline starting before the first read); every one
+  turned the suite red.
+- **Endurance smoke:** `endurance.yml` dispatched once on this branch at `113a634`
+  (`endurance:replay-smoke`, 2 minutes, local-supabase off): run 40072697365, success, all 13
+  checks, 19 reports. The review fixes after it changed the agent and smoke (stop, redaction at
+  the seam, timeline start, a 14th check through real DNS); the same smoke passed locally on the
+  final code (14 of 14), and the brief allows one dispatch, so it was not dispatched again.
+- **Check findings** (code-review, high; 9 found, 9 verified and fixed): an uncaught fault ending
+  the polling, `stop()` reported as a timeout, the smoke reading the agent's output on `exit`
+  instead of `close`, the timeline starting before a slow agent's first read, the stdout sender
+  unredacted, an export's CA path read before the rebind refusal, `credentialBound` untyped, the
+  smoke's hosted check refused only by the port, `--minutes` and `stepMs` unvalidated.
+- **Simplify** (four reviewers): applied redaction at the seam, abort reasons instead of a flag,
+  failures from the outcome's kind, one export key list, the byte-equal shortcut and older
+  revisions checked first, a log that cannot throw, one parse of the export. Skipped: a shared
+  argument parser (none exists in scripts/lib; three one-line readers), reusing `getPath` and
+  `canonical` from src/model (the contract has no runtime imports), and the private copies of
+  `retryAfterMs` and `underSignal` in api/_lib/feedFetch.ts (api/ is E4.2's; feedFetch can import
+  `retryAfterMs` from the contract then).
+- **Assessment A** (a fresh read-only `/so` session on `458a6f3`): PASS WITH NOTES, nothing
+  blocking. Its note 1 was fixed here rather than left to E4.2: a config missing
+  `credentialBound` counted as bound, and `credentialRef` could name any variable (a config
+  naming a service key would have sent it to its endpoint); now a credential must be
+  `NOACG_SOURCE_...` and is bound only when the config says `true`. Its note 2 corrected the
+  wording on local mode (above). Its other open item, a dispatched smoke on the final code, is
+  the second run below.
+- **Traps.**
+  - Every `spawn`/`execFileSync` needs `windowsHide: true` (`scripts/windows-hide.test.mjs`).
+  - The agent imports the feed guard's TypeScript through `scripts/lib/tsResolve.mjs`, so those
+    imports must be dynamic `import()` after it; a static import resolves before the hook exists.
+  - `makeTestCertificate` needs `openssl` (present on ubuntu-latest and the cloud image).
+
 ## Row 25, phase 14: baseline close-out in software
 
 - **Previous verified `main` sha:** phase 13b passed on main (#1648 at `a56e141`); main was
