@@ -19,6 +19,7 @@
 // somebody picks a family, never on load, and the picker says so before it happens.
 
 import { fontAssetPath, registerAndMeasureFont, type CustomFont } from './fonts';
+import { parseGoogleFontCss, pickGoogleFontFile } from './googleFontsCss';
 
 export type GoogleFontCategory = 'sans' | 'serif' | 'display' | 'handwriting' | 'mono';
 
@@ -124,9 +125,7 @@ export async function fetchGoogleFont(family: string, weight?: number): Promise<
     if (!r.ok) throw new Error(`Google Fonts answered ${r.status}.`);
     return r.text();
   });
-  // The first src url() in the sheet: the latin subset, which is the one every other block
-  // repeats for a different alphabet. A single-file embed cannot carry all of them.
-  const url = css.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/)?.[1];
+  const url = pickGoogleFontFile(parseGoogleFontCss(css))?.url;
   if (!url) throw new Error(`No downloadable file was offered for “${family}”.`);
   const blob = await fetch(url).then((r) => {
     if (!r.ok) throw new Error(`The font file answered ${r.status}.`);
