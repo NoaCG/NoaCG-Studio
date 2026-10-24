@@ -95,7 +95,7 @@ changes a spec's digest.
   `CueRundown.tsx`, `SelectionHolds.tsx`, `ProductionPage.tsx` (the wiring), and
   `scripts/graphic-verbs.test.mjs`, `scripts/production-data-session.test.mjs`,
   `e2e/configured/expected-run.json`.
-- **Mutation checks**: 55 Node mutations, all red. The first 39: every contract rule (duplicate keys, a missing
+- **Mutation checks**: 73 Node mutations, all red (18 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
   required field, the optional fallback, a valid empty list, an unknown B borrowing a record, typed
   keys, the field fit, the schema revision, a missing key part), the gate (a later selector, a later
   recipe, a shared binding, another graphic), every bound at its edge, the follow (newer only, the
@@ -129,6 +129,19 @@ changes a spec's digest.
   small parse cache. Left as reports: a per-cue "fixed fields" set to replace the `boundOf` marker
   in `unsentNow`, one shared read-only field row in the editor, a per-collection key index, and a
   reference fast path in `selectionFrozen`.
+- **The pull request's reviews.** Five rounds of the automated pull request review, every finding
+  fixed and pinned:
+  a press that lands (or fails) follows the newest tree at once, since a revision that arrived
+  while it was pending was passed over and nothing else may come; the follow pass reads what is
+  live from the session's own part, never the render's paced copy; a machine event may read a
+  candidate's field, never move one, including the aired candidate of a cue deleted while a sibling
+  stays; the hosted page greys an action that carries field values while the layer airs a cue it
+  was not given; an older revision cannot undo a hold a newer one set; and corrections settle
+  against what last landed (`confirmed`), so overlapping sends that fail never leave an unsent
+  revision recorded as aired, and a capture restored after an overlapping failed press comes back
+  settled. The configured walk's "no Take, advance or reset" check first counted markers and status
+  rows (the output's own rows during the outage, reload and restart); it now counts the commands
+  that move a card (`play`, `stop`, `next`, `snap`, `event`) and lists them on failure.
 - **Traps for E7.2a and E7.2b.** *The page re-reads a published tree only when a row says it
   moved* (`sessionWire` on a `src` row): a revision that changes no bound field writes no row, so
   the page never hears it. The configured walk binds a count bug to `external.e1.status` for that
