@@ -1,7 +1,8 @@
 # Playout adjustments: move, size, retype and recolour graphics from the playout page
 
-Status: **draft for the owner, 2026-10-24.** Research only: no product change, no run row, no
-ledger edit. Reconciled against main `ad3c7238b`. Where this document says "verified", the code
+Status: **draft for the owner, 2026-10-24; decision 1 (the first delivery's scope) taken the
+same day, decisions 2 and 3 open.** Research only: no product change, no run row, no ledger
+edit. Reconciled against main `ad3c7238b`. Where this document says "verified", the code
 or an isolated experiment was read or run on that revision; "inferred" is a reading not yet
 exercised; "untested" is a claim nobody has checked. Private competitor notes with URLs:
 `docs/private/competitors/PLAYOUT_ADJUSTMENTS_2026-10-24.md` (main checkout only).
@@ -625,11 +626,15 @@ set the quiz cue's font bold, each prepared on PREVIEW and taken or updated; the
 time between them are recorded. A task of a trial kit (kits never gate) and the dress rehearsal's
 case in S. Scenario: `evidence/trial-kit.md` and the S receipt.
 
+## Owner decisions (2026-10-24, one question each, with the recommendation taken)
+
+1. **The first delivery is place and size, per cue with a per-graphic default, on the
+   production page; the hosted page applies the records but does not edit them.** Type and
+   colour follow in their own row (phase 2), so the row that proves the record, the key and the
+   exports carries no font plumbing.
+
 ## Open decisions for the owner (one at a time, recommendation first)
 
-1. **First delivery is place and size, per cue with a per-graphic default, on the production
-   page, with the hosted page applying but not editing.** Recommended. The alternative, shipping
-   type and colour in the same row, adds the font plumbing to the row that proves the record.
 2. **Production-wide style is a reversible production setting applied at render and on Update,
    not a patch written into the production's template copies.** Recommended; it is what makes
    "reset" and "one graphic keeps its own" cheap and keeps Publish's library refresh honest.
