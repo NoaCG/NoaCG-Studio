@@ -228,7 +228,7 @@ Phase 1 is built - manual, local, no API.
   table under them (docs/PLAYOUT_DASHBOARD.md §2d, one surface over).
 - **ProductionPage is split, and its playout behaviour lives in `src/control/`** (the compiled rule
   `components/playout-behaviour-production-page-lands-verb`; the plan and its evidence are
-  `docs/work-specs/production-page-refactor/`, which closed [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)).
+  `docs/work-specs/production-page-refactor/`, which closes [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)).
   The page keeps the selection (`selectedCueId` and the range), the session hook, the wires, the
   derived view and the render. What decides what airs is a plain module that runs in Node, takes
   the browser (the Bridge, the wire, storage, timers, the clock) through an `io` argument, and has
@@ -236,7 +236,7 @@ Phase 1 is built - manual, local, no API.
   `control/playoutSession.ts` is one session per production, over `control/storePart.ts` parts
   (`data`, `bridge`, `arms`, `folders`, `air`, `log`, `draft`) changed together by one synchronous
   `apply(fold)`; after `dispose()` (a route to another production) a fold changes nothing and a
-  verb refuses to send. Over it: `graphicVerbs.ts` (the one sender and Take, Out, All out, Update,
+  verb refuses to send, except an All out pressed before the end, whose clear still goes. Over it: `graphicVerbs.ts` (the one sender and Take, Out, All out, Update,
   ±, Next, ⚡, Snap), `verbView.ts` and `verbDispatch.ts` (what the bar and the panel allow, and what
   a key or button does), `takeBlockers.ts` (why a Take would not go), `serverVerbs.ts` (one server
   verb and its fold), `bridgeWatch.ts` (the Bridge's polls as one lifecycle),
@@ -253,13 +253,15 @@ Phase 1 is built - manual, local, no API.
   `useStorePart.ts`.
   **`liveCue` has ONE owner, the session's `air` part.** It is a map keyed by graphic name and Take
   airs the selected cue's LAYER out of it, so a second copy that a verb acts on changes what goes
-  on air: the page only draws it (`usePacedPart`), and every verb and fold reads the part at the
-  call. `selectedCueId` stays React state in the page. `HostedControlPage.tsx` keeps its own
+  on air: every fold writes the part (`session.apply`), the page draws it (`usePacedPart`), and a
+  verb or module reads the render's copy of it (`liveCueRef`), so a press sees the render it was
+  made from. `selectedCueId` stays React state in the page. `HostedControlPage.tsx` keeps its own
   `liveCue`; a session constructs with no Bridge, tree or monitor, so that page could adopt it in a
   spec of its own.
-  **Typing never renders the page.** The draft is the `draft` part; `CueEditor`, the rundown rows
-  and `PlayoutMonitors` subscribe to it, and the page subscribes only to whether something is
-  unsent (`useDrawnDraft`, compared by value). A verb awaits `cueDraft.flush` and then reads the
+  **Typing a value never renders the page.** The draft is the `draft` part; `CueEditor`, the
+  rundown rows and `PlayoutMonitors` subscribe to it, and the page subscribes only to what it
+  draws from it (`useDrawnDraft`, compared by value): whether something is unsent, and the
+  countdown chip's cue label, so renaming a counting cue does render it. A verb awaits `cueDraft.flush` and then reads the
   part, so a Take pressed between a keystroke and a render airs the keystroke.
   `e2e/playout-air-contract.spec.ts` counts the renders.
   The server's verbs and what the page believes is up on the server are `control/serverPlayout.ts`,

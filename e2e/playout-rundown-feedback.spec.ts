@@ -5,7 +5,7 @@
 // covers: src/components/home/CueActions.tsx
 // covers: src/components/home/useRundownAuthoring.ts
 // covers: src/control/cueDraft.ts
-// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers}.ts
 // covers: src/control/{bridgeWatch,serverVerbs}.ts
 // focus
 

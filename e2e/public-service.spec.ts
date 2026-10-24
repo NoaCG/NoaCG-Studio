@@ -13,7 +13,7 @@
 // covers: src/templates/**
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/cueDraft.ts
-// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers}.ts
 
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
