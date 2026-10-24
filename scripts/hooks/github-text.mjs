@@ -37,10 +37,23 @@ function bodyFile(command, cwd) {
   }
 }
 
+/** The text a reader sees: each closed `<!-- ... -->` block cut out; an unclosed one is kept. */
+function visibleText(text) {
+  let out = '';
+  let at = 0;
+  for (;;) {
+    const open = text.indexOf('<!--', at);
+    const close = open < 0 ? -1 : text.indexOf('-->', open + 4);
+    if (close < 0) return out + text.slice(at);
+    out += text.slice(at, open);
+    at = close + 3;
+  }
+}
+
 /** The refusal for a `gh issue|pr` write whose text breaks the rule, or null. */
 export function githubTextRefusal(command, cwd = process.cwd()) {
   if (!WRITES.test(command) || /ALLOW_GITHUB_TEXT\s*=\s*1/.test(command)) return null;
-  const text = `${command}\n${bodyFile(command, cwd)}`.replace(/<!--[\s\S]*?-->/g, '');
+  const text = visibleText(`${command}\n${bodyFile(command, cwd)}`);
   const hits = PATTERNS.filter(([pattern]) => pattern.test(text)).map(([, why]) => why);
   if (hits.length === 0) return null;
   return (

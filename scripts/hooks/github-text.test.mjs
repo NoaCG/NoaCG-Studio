@@ -14,6 +14,7 @@ test('owner notes, prompts and session ids on GitHub are refused with the rule',
     `gh issue comment 5 --body "## Prompt\n\nDo X."`,
     `gh pr comment 12 --body "Repair owner: session_01G2tYJMYPHvnLs4cUDdVALb"`,
     `gh pr edit 12 --body "Copy this pasteable prompt into a new chat."`,
+    `gh pr comment 12 --body "<!-- hidden --> Prompt for the next session <!-- unclosed"`,
   ];
   for (const command of refused) {
     const refusal = githubTextRefusal(command);
