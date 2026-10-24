@@ -136,6 +136,8 @@ test('two graphics connect from one nested sample with no path syntax; repair, c
   await expect(page.getByTestId('cue-connected-mark').first()).toHaveAttribute('title', 'Connected to Connector: Guests · mapping v1');
   expect(await tree(page)).toBe(treeBefore);
   await expect(program.locator('#f0')).not.toHaveText(/Aino|Eero/);
+  // The review gone, PREVIEW shows the cue again: the sample's values leave with it.
+  await expect(preview.locator('#f0')).not.toHaveText('Aino Virtanen');
 
   // ── Underline: the same source, its consumers named; Cancel changes nothing. ──
   await cues.nth(1).locator('.pd-cue-label').click();
