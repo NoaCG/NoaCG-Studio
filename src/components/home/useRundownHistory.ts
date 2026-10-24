@@ -187,11 +187,11 @@ export function useRundownHistory(
       history.current.accepted(direction, entry); callbacks.current.note(`✓ ${direction === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`); changed(); return true;
     }, false);
   };
-  /** Whether a step that way can be taken now, read from the queue and the stacks as they stand. */
+  /** Whether there is a step that way to take, read from the stacks as they stand. */
   const can = (direction: 'undo' | 'redo') => {
     const current = shown.current;
     const available = !!current && canAuthorAccount() && (!!current.teamId || isDurableStoreActive());
-    return available && !pendingTeam.current && queue.current.count === 0 &&
+    return available && !pendingTeam.current &&
       (direction === 'undo' ? !!history.current.peek('undo') || !!group.current : !!history.current.peek('redo'));
   };
   /** Undo or Redo pressed. A press while a write is still landing waits for it and is then judged on
