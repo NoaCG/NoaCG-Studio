@@ -27,7 +27,7 @@ changes a spec's digest.
   report | release, sourceId, ...}` (a later `v` is 422). New persisted: a `Show.sources` entry
   `{id, kind: 'external', label, config: {v: 1, configRevision, endpoint, lists?}, paused?}` and the
   snapshot row (`v` 1). A later `v` in either is held read-only: the database answers
-  `unsupported`, `readExternalRegistration` answers `readOnly`, `sourceReadOnly` refuses edits,
+  `unsupported`, `readExternalRegistration` answers `readOnly`, `externalReadOnly` refuses edits,
   and the record still loads (`scripts/show-fixture-compat.test.mjs`). Callers: the agent only.
 - **Decisions.**
   - *The claim is C2's lease*: `control_source_claim_by_key` calls `control_source_lease` under

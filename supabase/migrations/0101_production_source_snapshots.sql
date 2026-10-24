@@ -72,7 +72,8 @@ revoke all on table public.production_source_snapshots from public, anon, authen
 grant select, insert, update, delete on table public.production_source_snapshots to service_role;
 
 -- ── 2. The registration, as the fence reads it ─────────────────────────────────────────────────
--- Null when the entry may be claimed with this config revision, else the refusal's code.
+-- Null when the entry may be claimed with this config revision, else the refusal's code. The same
+-- rules as src/control/externalSource.ts `readExternalRegistration`; this one refuses.
 create or replace function public.control_source_registration_refusal(p_entry jsonb, p_config_revision integer)
 returns text language sql immutable set search_path = '' as $$
   select case
@@ -80,6 +81,11 @@ returns text language sql immutable set search_path = '' as $$
     when jsonb_typeof(p_entry->'config') is distinct from 'object' then 'unsupported'
     when (p_entry->'config'->'v') is distinct from '1'::jsonb then 'unsupported'
     when (p_entry->'config') ? 'mode' or (p_entry->'config') ? 'caFile' then 'local_refused'
+    when jsonb_typeof(p_entry->'config'->'endpoint') is distinct from 'string'
+         or (p_entry->'config' ? 'lists' and (jsonb_typeof(p_entry->'config'->'lists') is distinct from 'object'
+             or exists (select 1 from jsonb_each(p_entry->'config'->'lists') l
+                         where l.key !~ '^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$'
+                            or l.value not in ('"lines"'::jsonb, '"schedule"'::jsonb, '"credits"'::jsonb)))) then 'registration'
     when jsonb_typeof(p_entry->'config'->'configRevision') is distinct from 'number'
          or (p_entry->'config'->'configRevision') is distinct from to_jsonb(p_config_revision) then 'config'
     else null
@@ -102,7 +108,6 @@ begin
    where e.value->>'id' = p_source and p_source is not null
    limit 1;
   return jsonb_build_object(
-    'id', v_row.id,
     'entry', v_entry,
     'bindings', coalesce(v_row.bindings, '{}'::jsonb),
     'fields', (select coalesce(jsonb_object_agg(g.value->>'name', coalesce(g.value->'fields', '[]'::jsonb)), '{}'::jsonb)
@@ -245,10 +250,8 @@ begin
   v_refusal := public.control_source_registration_refusal(v_entry, (p_report->>'configRevision')::integer);
   if v_refusal is not null then
     -- Disconnected or changed under the claim: the fence goes too, so a reconnect needs a new one.
-    if v_refusal in ('gone', 'config') then
-      update public.control_source_reads r set lease_until = now(), updated_at = now()
-       where r.show_id = v_show and r.source_id = p_source;
-    end if;
+    update public.control_source_reads r set lease_until = now(), updated_at = now()
+     where r.show_id = v_show and r.source_id = p_source;
     return jsonb_build_object('ok', false, 'refused', v_refusal);
   end if;
   select * into v_snap from public.production_source_snapshots p where p.show_id = v_show and p.source_id = p_source for update;
@@ -431,6 +434,11 @@ begin
       raise exception '0101 self-check failed: a v 2 registration was claimed';
     end if;
     update public.control_shows set sources = jsonb_set(sources, '{0,config,v}', '1') where id = v_show;
+    update public.control_shows set sources = jsonb_set(sources, '{0,config,lists}', '{"cands":"standings"}') where id = v_show;
+    if public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'refused' <> 'registration' then
+      raise exception '0101 self-check failed: a registration with an unknown list adapter was claimed';
+    end if;
+    update public.control_shows set sources = jsonb_set(sources, '{0,config,lists}', '{"cands":"lines"}') where id = v_show;
     if exists (select 1 from public.control_source_reads r where r.show_id = v_show) then
       raise exception '0101 self-check failed: a refused claim took the lease';
     end if;

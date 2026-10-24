@@ -287,7 +287,7 @@ export interface FeedShowSource {
  * `control_shows.sources` (src/control/externalSource.ts `readExternalRegistration`, which refuses
  * everything it cannot use). Its paths
  * are `external.<id>.<leaf>`. No browser reads it. A `config.v` above 1 is a later build's: held
- * read-only here (`sourceReadOnly`), never applied or edited.
+ * read-only here (productionData `externalReadOnly`), never applied or edited.
  */
 export interface ExternalShowSource {
   id: string;
@@ -304,8 +304,7 @@ export interface ExternalShowSource {
 
 export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | ExternalShowSource;
 
-/** A source this build cannot edit: a connector registered by a later version. */
-export const sourceReadOnly = (s: ShowSource): boolean => externalReadOnly(s);
+
 
 /** A source that fills fields (a Sheet tab or a feed); a YouTube source feeds Messages alone. */
 export type FieldShowSource = SheetShowSource | FeedShowSource;
@@ -1934,7 +1933,7 @@ export function connectApiFields(showId: string, entries: BindingEntry[]): { sho
 function patchShowSource(showId: string, sourceId: string, edit: (source: ShowSource) => ShowSource | null): Show[] {
   return patchShowChecked(showId, (show) => {
     const at = show.sources?.findIndex((s) => s.id === sourceId) ?? -1;
-    const next = at < 0 || sourceReadOnly(show.sources![at]) ? null : edit(show.sources![at]);
+    const next = at < 0 || externalReadOnly(show.sources![at]) ? null : edit(show.sources![at]);
     if (!next) return false;
     show.sources = show.sources!.map((s, i) => (i === at ? next : s));
     return true;

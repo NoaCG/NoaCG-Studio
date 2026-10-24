@@ -18,13 +18,9 @@
 // scripts/source-mapping.test.mjs drives it.
 
 import { fillList, valueFor } from './contentFormats.js';
-import type { SourceListAdapter } from './externalSource.js';
+import { atPath, isObject, type JsonValue, type SourceListAdapter } from './externalSource.js';
+import { sourcePaths, sourcePrefix } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
-
-export type { SourceListAdapter };
-
-/** Where a connector's values live in the tree: `external.<id>.<leaf>`. */
-export const externalPrefix = (sourceId: string): string => `external.${sourceId}`;
 
 /**
  * The one value a path writes for every field connected to it, or null. A path is one value in
@@ -34,9 +30,31 @@ export const externalPrefix = (sourceId: string): string => `external.${sourceId
  */
 export function pathValue(fields: FieldDescriptor[], text: string): string | null {
   const forms = new Set(fields.map((d) => valueFor(d, text)));
-  if (forms.has(null)) return null;
-  if (forms.size > 1) return null;
+  if (forms.has(null) || forms.size > 1) return null;
   return forms.size === 1 ? [...forms][0] : text;
+}
+
+/**
+ * Every field connected to one path, across the production's graphics. `fieldsOf` answers a pool
+ * graphic's fields as the editor draws them (its library version), or null when it has none. The
+ * readers, the Connect review and the route all ask this, so they agree on what a value becomes.
+ */
+export function connectedFields(
+  bindings: Record<string, Record<string, string>> | undefined,
+  path: string,
+  fieldsOf: (graphic: string) => FieldDescriptor[] | null,
+): FieldDescriptor[] {
+  const out: FieldDescriptor[] = [];
+  for (const [graphic, fields] of Object.entries(bindings ?? {})) {
+    const ids = Object.keys(fields).filter((fieldId) => fields[fieldId] === path);
+    if (ids.length === 0) continue;
+    const declared = fieldsOf(graphic) ?? [];
+    for (const id of ids) {
+      const d = declared.find((f) => f.key === id);
+      if (d) out.push(d);
+    }
+  }
+  return out;
 }
 
 const scalarText = (value: unknown): string | null => {
@@ -46,23 +64,11 @@ const scalarText = (value: unknown): string | null => {
   return null;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** The value at a dotted path of object keys, or undefined. Own keys only. */
-function atLeaf(payload: unknown, leaf: string): unknown {
-  let at: unknown = payload;
-  for (const key of leaf.split('.')) {
-    if (!isRecord(at) || !Object.prototype.hasOwnProperty.call(at, key)) return undefined;
-    at = at[key];
-  }
-  return at;
-}
-
 /** A list item as a row of cells, or null when it is not flat. */
 function rowOf(item: unknown): string[] | null {
   const one = scalarText(item);
   if (one !== null) return [one];
-  const cells = Array.isArray(item) ? item : isRecord(item) ? Object.values(item) : null;
+  const cells = Array.isArray(item) ? item : isObject(item) ? Object.values(item) : null;
   if (!cells) return null;
   const out: string[] = [];
   for (const cell of cells) {
@@ -73,9 +79,8 @@ function rowOf(item: unknown): string[] | null {
   return out;
 }
 
-/** One leaf's text before the fields judge it, or null when it is not a value. */
-export function leafText(payload: unknown, leaf: string, adapter: SourceListAdapter | undefined): string | null {
-  const value = atLeaf(payload, leaf);
+/** One leaf's value as text before the fields judge it, or null when it is not a value. */
+function leafText(value: unknown, adapter: SourceListAdapter | undefined): string | null {
   if (!Array.isArray(value)) return scalarText(value);
   if (!adapter) return null;
   const rows: string[][] = [];
@@ -107,35 +112,23 @@ export function projectSource(o: {
   fieldsOf: (graphic: string) => FieldDescriptor[] | null;
   lists?: Readonly<Record<string, SourceListAdapter>>;
 }): SourceProjection {
-  const prefix = `${externalPrefix(o.sourceId)}.`;
-  // path -> the fields bound to it, across the production's graphics.
-  const bound = new Map<string, FieldDescriptor[]>();
-  for (const [graphic, fields] of Object.entries(o.bindings ?? {})) {
-    if (!isRecord(fields)) continue;
-    let declared: FieldDescriptor[] | null | undefined;
-    for (const [fieldId, path] of Object.entries(fields)) {
-      if (typeof path !== 'string' || !path.startsWith(prefix) || path.length === prefix.length) continue;
-      declared ??= o.fieldsOf(graphic) ?? [];
-      const d = declared.find((f) => f.key === fieldId);
-      const list = bound.get(path) ?? [];
-      if (d) list.push(d);
-      bound.set(path, list);
-    }
-  }
+  const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
+  const paths = [...new Set(sourcePaths(o.bindings, o.sourceId).map((p) => p.path).filter((p) => p.startsWith(prefix) && p.length > prefix.length))].sort();
   const writes: Record<string, string> = {};
   const missing: string[] = [];
   const unfit: string[] = [];
-  for (const path of [...bound.keys()].sort()) {
+  for (const path of paths) {
     const leaf = path.slice(prefix.length);
-    if (atLeaf(o.payload, leaf) === undefined) {
+    const value = atPath(o.payload as JsonValue, leaf);
+    if (value === undefined) {
       missing.push(leaf);
       continue;
     }
     const adapter = o.lists && Object.prototype.hasOwnProperty.call(o.lists, leaf) ? o.lists[leaf] : undefined;
-    const text = leafText(o.payload, leaf, adapter);
-    const value = text === null ? null : pathValue(bound.get(path)!, text);
-    if (value === null) unfit.push(leaf);
-    else writes[path] = value;
+    const text = leafText(value, adapter);
+    const result = text === null ? null : pathValue(connectedFields(o.bindings, path, o.fieldsOf), text);
+    if (result === null) unfit.push(leaf);
+    else writes[path] = result;
   }
   return { writes, missing, unfit };
 }

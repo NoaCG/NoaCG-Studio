@@ -316,16 +316,22 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
 /** A refusal the sender keeps the revision for (offered again at the next read). */
 const RETRY = new Set(['paused', 'too_soon', 'budget']);
 /** A refusal that ends the claim: the next report claims again. */
-const RECLAIM = new Set(['moved', 'epoch', 'config', 'gone', 'unsupported', 'local_refused']);
+const RECLAIM = new Set(['moved', 'epoch', 'config', 'gone', 'unsupported', 'local_refused', 'registration']);
+/** A server that did not answer: the claim stays, and a kept revision is offered again. */
+const unanswered = (status) => status >= 500 || status === 429;
 
 /**
  * The sender for /api/data/source. `connector` is told every new claim (`adopt`). Answers a `send`
  * for the connector's seam, `claim()` and `release()`. A report made under an older epoch than the
  * current claim is dropped, never sent. A send throws when the revision should be offered again.
  */
-export function createSourceSender({ address, key, config, fetchImpl = fetch, log = () => {} }) {
+export function createSourceSender({ address, key, config, fetchImpl = fetch, log = () => {}, clock = realClock }) {
   let fence = null;
   let connector = null;
+  /** When the production last answered a report (which renewed the lease). */
+  let answeredAt = -Infinity;
+  /** Before this, a kept revision is not sent: the production asked to wait (Retry-After). */
+  let notBefore = -Infinity;
   const post = async (body) => {
     const response = await fetchImpl(address, {
       method: 'POST',
@@ -354,7 +360,7 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
       return true;
     }
     // A server that did not answer keeps the claim this agent holds; a refusal ends it.
-    if (status < 500 && status !== 429) fence = null;
+    if (!unanswered(status)) fence = null;
     log(`${config.sourceId} not claimed (${status}${answer.refused ? ` ${answer.refused}` : answer.held ? ' held by another agent' : ''})`);
     return false;
   }
@@ -363,15 +369,20 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     if (!fence && !(await claim())) return;
     // Made before this claim: the adopted state sends the next read whole instead.
     if (acquisition.ownerEpoch !== fence.ownerEpoch) return;
+    if (acquisition.status === 'changed' && clock.now() < notBefore) throw new Error('waiting as the production asked');
     const { status, answer } = await post({ ...base, op: 'report', claim: fence.claim, acquisition });
-    if (status === 200) return;
+    if (status === 200) {
+      answeredAt = clock.now();
+      return;
+    }
     const refused = answer.refused ?? (status === 401 || status === 403 ? 'denied' : null);
-    if (refused && RECLAIM.has(refused)) fence = null;
+    if (RECLAIM.has(refused)) fence = null;
+    if (Number.isFinite(answer.retryMs)) notBefore = clock.now() + answer.retryMs;
     log(`${config.sourceId} ${acquisition.status} revision ${acquisition.acceptedRevision} not taken (${status}${refused ? ` ${refused}` : ''})`);
     // Kept and offered again: a Pause, the 5 s gap, the shared budget, a fence to take again, or a
     // server that did not answer. Not kept: a revision the production already holds, one that
     // cannot fit (over 256 KiB, or a 64 KiB row), or an invalid report.
-    if (acquisition.status === 'changed' && (RETRY.has(refused) || (refused && RECLAIM.has(refused)) || status >= 500 || status === 429)) {
+    if (acquisition.status === 'changed' && (RETRY.has(refused) || RECLAIM.has(refused) || unanswered(status))) {
       throw new Error(`not taken (${refused ?? status})`);
     }
   }
@@ -384,15 +395,16 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
   }
 
   /**
-   * Renew the claim every `ms` (a third of the lease) whether or not a report goes, so a slow poll
-   * or a long backoff never lets the lease lapse under a live agent. Answers the stop.
+   * Renew the claim every `ms` (a third of the lease) when no report was answered meanwhile, so a
+   * slow poll or a long backoff never lets the lease lapse under a live agent. Answers the stop.
    */
-  function keepClaim(ms = SOURCE_LEASE_MS / 3, clock = realClock) {
+  function keepClaim(ms = SOURCE_LEASE_MS / 3) {
     let timer = null;
     let stopped = false;
     const tick = async () => {
       if (stopped) return;
-      if (fence) await claim().catch((error) => log(`${config.sourceId} renewal failed: ${error?.message ?? error}`));
+      // A report answered within `ms` renewed the lease already.
+      if (fence && clock.now() - answeredAt >= ms) await claim().catch((error) => log(`${config.sourceId} renewal failed: ${error?.message ?? error}`));
       if (!stopped) timer = clock.setTimeout(tick, ms);
     };
     timer = clock.setTimeout(tick, ms);
@@ -441,7 +453,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     // The data key travels in this request: https, or plain http to this machine only (a local stack).
     let to;
     try {
-      to = new URL(address ?? '');
+      to = new URL(address);
     } catch {
       throw new Error('--send takes the address of /api/data/source');
     }

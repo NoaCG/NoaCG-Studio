@@ -101,7 +101,7 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const ENV_NAME = /^NOACG_SOURCE_[A-Z0-9_]{1,50}$/;
 const PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+export const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const optionalString = (value: unknown): value is string | null | undefined => value === undefined || value === null || typeof value === 'string';
 
 /**
@@ -255,7 +255,8 @@ export function canonicalJson(value: JsonValue): string {
   return JSON.stringify(value);
 }
 
-function atPath(value: JsonValue, path: string | null): JsonValue | undefined {
+/** The value at a dotted path of own object keys, or undefined. */
+export function atPath(value: JsonValue, path: string | null): JsonValue | undefined {
   if (!path) return undefined;
   let at: JsonValue | undefined = value;
   for (const key of path.split('.')) {
@@ -303,14 +304,14 @@ export function acceptRead(
     ...(typeof eventTime === 'string' ? { providerEventTime: eventTime } : {}),
     ...(sequence !== null ? { providerSequence: sequence } : {}),
   };
-  // What would be sent decides whether anything changed: a ticking field outside `sendPaths` is
-  // not a new revision. The revision and the event time are read from the whole answer.
-  const sent = config.sendPaths ? projectPayload(payload, config.sendPaths) : payload;
   const older = sequence !== null && state.providerSequence !== null && sequence < state.providerSequence;
   if (older) return hold('stale', `revision ${sequence} is older than the accepted ${state.providerSequence}`);
   const unchanged = { acquisition: { ...base, ...provider, acceptedRevision: state.acceptedRevision, status: 'unchanged' as const }, state };
   // The same bytes as the accepted answer need no canonical form: most reads of a quiet source.
   if (read.text === state.acceptedRaw) return unchanged;
+  // What would be sent decides whether anything changed: a ticking field outside `sendPaths` is
+  // not a new revision. The revision and the event time were read from the whole answer.
+  const sent = projectPayload(payload, config.sendPaths ?? null);
   let text: string;
   try {
     text = canonicalJson(sent);
@@ -371,20 +372,17 @@ export function nextDelayMs(pollMs: number, failures: number, retryAfter: number
 
 // ── The production's side (phase E4.2) ────────────────────────────────────────
 
-/** `/api/data/source`'s own ingress limits (spec, "Ingress limits"; owner, 2026-10-20, G). The
- *  database enforces the revision gap, the row size, the receipt gap and the shared budget
- *  (supabase/migrations/0101); the body cap is the route's. */
+/** `/api/data/source`'s body cap (spec, "Ingress limits"; owner, 2026-10-20, G). The database
+ *  enforces the rest: one revision per 5 s, 64 KiB rows, the 15 s receipt gap and the shared budget
+ *  (supabase/migrations/0101). */
 export const SOURCE_BODY_BYTES = 256 * 1024;
-export const SOURCE_ROW_BYTES = 64 * 1024;
-export const SOURCE_REVISION_GAP_MS = 5_000;
 /** How long a claim holds the lease without a report (C2's lease takes at most 60 s). */
 export const SOURCE_LEASE_MS = 30_000;
 
 /** The list adapters a registered path may name: contentFormats' own minus standings, which write
- *  two fields from one read (E5). src/control/sourceMapping.ts imports this one list. */
+ *  two fields from one read (E5). Migration 0101 refuses any other. */
 export type SourceListAdapter = 'lines' | 'schedule' | 'credits';
-export const SOURCE_LIST_ADAPTERS: readonly SourceListAdapter[] = ['lines', 'schedule', 'credits'];
-const LIST_ADAPTERS = new Set<string>(SOURCE_LIST_ADAPTERS);
+const LIST_ADAPTERS = new Set<string>(['lines', 'schedule', 'credits']);
 
 /**
  * A connector source as the production registers it: the `Show.sources` entry
@@ -401,11 +399,12 @@ export interface ExternalRegistration {
 }
 
 export type RegistrationRead =
-  | { ok: true; registration: ExternalRegistration; paused: boolean }
+  | { ok: true; registration: ExternalRegistration }
   /** `readOnly`: a later version, kept as it is and never applied or edited. */
   | { ok: false; readOnly: boolean; error: string };
 
-/** Read a registered entry, or say why it cannot be used. Never throws. */
+/** Read a registered entry, or say why it cannot be used. Never throws. Migration 0101's
+ *  `control_source_registration_refusal` applies the same rules and is the one that refuses. */
 export function readExternalRegistration(entry: unknown): RegistrationRead {
   const no = (error: string, readOnly = false): RegistrationRead => ({ ok: false, readOnly, error });
   if (!isObject(entry) || entry.kind !== 'external' || typeof entry.id !== 'string') return no('not a connector source');
@@ -423,7 +422,6 @@ export function readExternalRegistration(entry: unknown): RegistrationRead {
   return {
     ok: true,
     registration: { v: 1, configRevision, endpoint, ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}) },
-    paused: entry.paused === true,
   };
 }
 

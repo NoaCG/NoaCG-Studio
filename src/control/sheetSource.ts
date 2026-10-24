@@ -39,7 +39,7 @@ import { isSourcePath, mergePatch, patchForPath, sourcePrefix, type JsonObject, 
 
 export { isSourcePath, sourceIdOf, sourcePaths, sourcePrefix } from '../model/productionData.js';
 // The one value a path writes for all its fields: the shared evaluator's rule (./sourceMapping.ts).
-export { pathValue } from './sourceMapping.js';
+export { connectedFields, pathValue } from './sourceMapping.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
@@ -295,28 +295,6 @@ export function sheetWrites(
  *  `valueFor`, which the data template's importer uses). Empty always clears. */
 export const fieldValue: (d: FieldDescriptor, text: string) => string | null = valueFor;
 
-/**
- * Every field connected to one path, across the production's graphics. `fieldsOf` answers a pool
- * graphic's fields as the editor draws them (its library version), or null when it has none. The
- * reader and the Connect review both ask this, so they agree on what a cell becomes.
- */
-export function connectedFields(
-  bindings: Record<string, Record<string, string>> | undefined,
-  path: string,
-  fieldsOf: (graphic: string) => FieldDescriptor[] | null,
-): FieldDescriptor[] {
-  const out: FieldDescriptor[] = [];
-  for (const [graphic, fields] of Object.entries(bindings ?? {})) {
-    const ids = Object.keys(fields).filter((fieldId) => fields[fieldId] === path);
-    if (ids.length === 0) continue;
-    const declared = fieldsOf(graphic) ?? [];
-    for (const id of ids) {
-      const d = declared.find((f) => f.key === id);
-      if (d) out.push(d);
-    }
-  }
-  return out;
-}
 
 // ── The reader ────────────────────────────────────────────────────────────────
 

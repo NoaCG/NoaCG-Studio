@@ -303,6 +303,7 @@ async function feed(req: Request): Promise<Response> {
 const SOURCE_REFUSALS: Record<string, { status: number; message: string }> = {
   gone: { status: 404, message: 'This production has no connector source with that id. Connect it first.' },
   unsupported: { status: 422, message: 'This source is a later version than this server reads, so it is held read-only.' },
+  registration: { status: 422, message: 'The production\'s record of this source cannot be used (its lists or endpoint). Nothing is applied.' },
   local_refused: { status: 422, message: 'A local destination is set in the agent\'s own configuration, never in the production.' },
   config: { status: 409, message: 'The production holds another configuration revision for this source. Update the agent\'s configuration.' },
   moved: { status: 409, message: 'This agent no longer holds the source. Claim it again.' },
@@ -352,7 +353,7 @@ async function source(req: Request): Promise<Response> {
   };
   const refused = (answer: { refused: string } & Record<string, unknown>): Response => {
     const known = SOURCE_REFUSALS[answer.refused] ?? { status: 409, message: 'Refused.' };
-    const headers = answer.refused === 'too_soon' || answer.refused === 'budget' ? retryAfter(Math.max(1, Math.ceil(Number(answer.retryMs ?? 5000) / 1000))) : {};
+    const headers = known.status === 429 ? retryAfter(Math.max(1, Math.ceil(Number(answer.retryMs ?? 5000) / 1000))) : {};
     return json({ ok: false, ...answer, message: known.message }, known.status, headers);
   };
 
@@ -371,40 +372,33 @@ async function source(req: Request): Promise<Response> {
     }
 
     const { acquisition } = envelope;
-    let writes: Record<string, string> = {};
-    let missing: string[] = [];
-    let unfit: string[] = [];
+    let projection: ReturnType<typeof projectSource> | null = null;
     if (acquisition.status === 'changed') {
       const context = await rpc<{ entry: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
         'control_source_context_by_key',
         { p_key: key, p_source: envelope.sourceId },
       );
       if (!context) return apiError('unauthorized', 'Unknown data key.', 401);
-      // A registration this build cannot read is refused here, before a revision could be accepted
-      // with nothing applied. A missing one is the database's to answer (`gone` also takes the fence).
-      // No in-process budget here: the database counts this source's ROWS against the shared budget,
-      // and a refused report (paused, too soon, an old claim) must not spend /patch's requests.
+      // The database judges the registration (an unusable one refuses the report with nothing
+      // written); the evaluator only needs its lists. No in-process budget here: the database counts
+      // this source's ROWS against the shared budget, and a refused report must not spend /patch's.
       const registration = readExternalRegistration(context.entry);
-      if (context.entry && !registration.ok) {
-        return json({ ok: false, refused: registration.readOnly ? 'unsupported' : 'registration', message: registration.error }, 422);
-      }
-      const lists = registration.ok ? registration.registration.lists : undefined;
-      ({ writes, missing, unfit } = projectSource({
+      projection = projectSource({
         sourceId: envelope.sourceId,
         payload: acquisition.payload,
         bindings: context.bindings,
         fieldsOf: (graphic) => (context.fields[graphic] ? descriptorsOf(context.fields[graphic]) : null),
-        lists,
-      }));
+        lists: registration.ok ? registration.registration.lists : undefined,
+      });
     }
     const answer = await rpc<Record<string, unknown>>('control_source_report_by_key', {
       p_key: key,
       p_source: envelope.sourceId,
       p_report: { ...acquisition, claim: envelope.claim },
-      p_writes: writes,
+      p_writes: projection?.writes ?? {},
     });
     if (typeof answer.refused === 'string') return refused(answer as { refused: string });
-    return json({ ...answer, ...(acquisition.status === 'changed' ? { missing, unfit } : {}) });
+    return json({ ...answer, ...(projection ? { missing: projection.missing, unfit: projection.unfit } : {}) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('unknown data key')) return apiError('unauthorized', 'Unknown data key.', 401);

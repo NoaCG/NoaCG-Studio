@@ -64,7 +64,7 @@ async function provider(dir: string, port = 0): Promise<Replay & { token: string
 }
 
 /** One agent process, as installed: its configuration file, its two credentials, its log. */
-function agent(dir: string, replay: { url: string }, env: { dataKey: string; token: string }, address: string) {
+function agent(dir: string, replay: { url: string; token: string }, dataKey: string, address: string) {
   const config = path.join(dir, 'agent.json');
   writeFileSync(
     config,
@@ -88,7 +88,7 @@ function agent(dir: string, replay: { url: string }, env: { dataKey: string; tok
   );
   let log = '';
   const child: ChildProcess = spawn(process.execPath, [AGENT, '--config', config, '--send', address], {
-    env: { ...process.env, NOACG_DATA_KEY: env.dataKey, NOACG_SOURCE_REPLAY: env.token },
+    env: { ...process.env, NOACG_DATA_KEY: dataKey, NOACG_SOURCE_REPLAY: replay.token },
     stdio: ['ignore', 'ignore', 'pipe'],
     windowsHide: true,
   });
@@ -182,7 +182,7 @@ test.describe('a trusted JSON source', () => {
       await expect.poll(async () => (await tree(showId)).sources?.map((s) => s.id), { timeout: 15_000 }).toEqual(['e1']);
       const { data_key: dataKey, slug } = await tree(showId);
 
-      running = agent(dir, replay, { dataKey, token: replay.token }, `${baseURL}/api/data/source`);
+      running = agent(dir, replay, dataKey, `${baseURL}/api/data/source`);
       // count-01: the scalar and the collection, one row, as the API.
       await expect.poll(async () => (await rows(showId)).filter((r) => r.src === 'api').length, { timeout: 20_000 }).toBe(1);
       const [first] = await rows(showId);
@@ -192,7 +192,9 @@ test.describe('a trusted JSON source', () => {
       // Pause Another system: the agent keeps reading and the production keeps accepting its
       // revisions, but nothing airs.
       const pausedAt = first.id;
-      await page.evaluate(async (s) => (await import('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, true), slug);
+      const pauseAnother = (paused: boolean) =>
+        page.evaluate(async ({ s, paused }) => (await import('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, paused), { s: slug, paused });
+      await pauseAnother(true);
       replay.at(1); // count-increase
       await expect.poll(async () => (await snapshot(showId))?.accepted_revision, { timeout: 15_000 }).toBe(2);
       replay.at(3); // correction-down
@@ -202,7 +204,7 @@ test.describe('a trusted JSON source', () => {
       expect((await tree(showId)).data.external?.e1?.candidates).toContain(AINO(3500));
 
       // Resume: the final values, once.
-      await page.evaluate(async (s) => (await import('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, false), slug);
+      await pauseAnother(false);
       const resumed = (await rows(showId)).filter((r) => r.id > pausedAt);
       expect(resumed).toHaveLength(1);
       expect(resumed[0].data).toEqual({ f1: expect.stringContaining(AINO(3680)) });
@@ -249,13 +251,13 @@ test.describe('a trusted JSON source', () => {
     try {
       const showId = await serviceProduction(owner);
       let { data_key: dataKey } = await tree(showId);
-      const first = agent(dir, replay, { dataKey, token: replay.token }, address);
+      const first = agent(dir, replay, dataKey, address);
       started.push(first);
       await expect.poll(async () => (await rows(showId)).length, { timeout: 20_000 }).toBe(1);
       const { data: lease } = await admin().from('control_source_reads').select('claim').eq('show_id', showId).single();
 
       // A second agent with the same configuration is told the source is held, and writes nothing.
-      const second = agent(dir, replay, { dataKey, token: replay.token }, address);
+      const second = agent(dir, replay, dataKey, address);
       started.push(second);
       await expect.poll(() => second.log(), { timeout: 10_000 }).toContain('held by another agent');
       await second.stop();
@@ -264,7 +266,7 @@ test.describe('a trusted JSON source', () => {
       // claims a newer epoch and continues after revision 1.
       await first.stop('SIGKILL');
       await lapse(showId);
-      const restarted = agent(dir, replay, { dataKey, token: replay.token }, address);
+      const restarted = agent(dir, replay, dataKey, address);
       started.push(restarted);
       await expect.poll(() => restarted.log(), { timeout: 10_000 }).toContain('claimed: epoch 2, continuing after revision 1');
       replay.at(1);
@@ -293,7 +295,7 @@ test.describe('a trusted JSON source', () => {
       await restarted.stop();
       await lapse(showId);
       dataKey = rotated;
-      const again = agent(dir, replay, { dataKey, token: replay.token }, address);
+      const again = agent(dir, replay, dataKey, address);
       started.push(again);
       await expect.poll(() => again.log(), { timeout: 10_000 }).toContain('claimed: epoch 3, continuing after revision 2');
       await expect.poll(async () => (await rows(showId)).at(-1)?.data.f1 ?? '', { timeout: 15_000 }).toContain(AINO(3680));
@@ -324,7 +326,7 @@ test.describe('a trusted JSON source', () => {
     try {
       const showId = await serviceProduction(owner);
       const { data_key: dataKey } = await tree(showId);
-      const first = agent(dir, replay, { dataKey, token: replay.token }, address);
+      const first = agent(dir, replay, dataKey, address);
       started.push(first);
       await expect.poll(async () => (await rows(showId)).length, { timeout: 20_000 }).toBe(1);
       const onAir = (await tree(showId)).data.external?.e1;
@@ -339,7 +341,7 @@ test.describe('a trusted JSON source', () => {
       expect((await tree(showId)).data.external?.e1).toEqual(onAir);
       // Restarted with the rotated credential (the documented step), it reads and writes again.
       await first.stop();
-      const rebound = agent(dir, replay, { dataKey, token: replay.token }, address);
+      const rebound = agent(dir, replay, dataKey, address);
       started.push(rebound);
       replay.at(1);
       await expect.poll(async () => (await rows(showId)).length, { timeout: 20_000 }).toBe(2);

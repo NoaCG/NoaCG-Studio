@@ -533,11 +533,13 @@ const SOURCE_KINDS = ['sheet', 'feed', 'external'] as const;
 export const isSourcePath = (sourceId: string, path: string): boolean => SOURCE_KINDS.some((kind) => path.startsWith(`${sourcePrefix(sourceId, kind)}.`));
 
 /** The source a connected path follows, or null for a path no source writes. */
-export const sourceIdOf = (path: string | undefined): string | null =>
-  path !== undefined && SOURCE_KINDS.some((kind) => path.startsWith(`${kind}.`)) ? path.split('.')[1] || null : null;
+export const sourceIdOf = (path: string | undefined): string | null => {
+  const [kind, id] = path?.split('.') ?? [];
+  return (SOURCE_KINDS as readonly string[]).includes(kind) ? id || null : null;
+};
 
 /** A connector source registered by a later build (`config.v` above 1): kept as it is, held
- *  read-only, never applied or edited (src/model/shows.ts `sourceReadOnly`; the route refuses it
+ *  read-only, never applied or edited (src/model/shows.ts `patchShowSource`; the route refuses it
  *  as unsupported). */
 export const externalReadOnly = (source: { kind: string; config?: unknown }): boolean => {
   const v = (source.config as { v?: unknown } | undefined)?.v;

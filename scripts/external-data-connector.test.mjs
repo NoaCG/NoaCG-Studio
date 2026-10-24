@@ -840,7 +840,7 @@ describe('the sender', () => {
     const fetchImpl = async (address, init) => {
       const body = JSON.parse(init.body);
       calls.push({ address, auth: init.headers.authorization, body });
-      const [status, reply] = answer(body, calls.length);
+      const [status, reply] = answer(body);
       return new Response(JSON.stringify(reply), { status });
     };
     return { calls, fetchImpl };
@@ -971,10 +971,10 @@ describe('the sender', () => {
 
   test('the claim is renewed every 10 s with no read at all, so a slow poll never loses it', async () => {
     const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
-    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
     const clock = fakeClock();
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl, clock });
     await sender.claim();
-    const stop = sender.keepClaim(10_000, clock);
+    const stop = sender.keepClaim(10_000);
     await clock.advance(9999);
     assert.equal(route.calls.length, 1);
     await clock.advance(1);
@@ -983,6 +983,44 @@ describe('the sender', () => {
     stop();
     await clock.advance(60_000);
     assert.equal(route.calls.length, 4);
+  });
+
+  test('a report answered within the renewal interval renewed the lease, so no claim is sent', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
+    const clock = fakeClock();
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl, clock });
+    const { c } = connector({ clock, net: fakeNet(JSON_OK()), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    const stop = sender.keepClaim(10_000);
+    await clock.advance(5000);
+    await c.readOnce();
+    await clock.advance(5000);
+    assert.deepEqual(route.calls.map((call) => call.body.op), ['claim', 'report']);
+    await clock.advance(10_000);
+    assert.deepEqual(route.calls.map((call) => call.body.op), ['claim', 'report', 'claim']);
+    stop();
+  });
+
+  test('a revision refused as too soon waits the time the production named before it is sent again', async () => {
+    const clock = fakeClock();
+    // The production refuses every report before 4 s, naming the time left each time.
+    const route = fakeRoute((b) => {
+      if (b.op === 'claim') return claimed(1);
+      const left = T0 + 4000 - clock.now();
+      return left > 0 ? [429, { ok: false, refused: 'too_soon', retryMs: left }] : [200, { ok: true }];
+    });
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config({ pollMs: 1000 }), fetchImpl: route.fetchImpl, clock });
+    const { c } = connector({ clock, config: { pollMs: 1000 }, net: fakeNet(JSON_OK()), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    for (let i = 0; i < 6; i += 1) {
+      await c.readOnce();
+      await clock.advance(1000);
+    }
+    const reports = route.calls.filter((call) => call.body.op === 'report').map((call) => call.body.acquisition.status);
+    // Refused at 0 s, held through 3 s, taken at 4 s.
+    assert.deepEqual(reports, ['changed', 'changed']);
   });
 
   test('a renewal the server did not answer keeps the claim; a refusal ends it', async () => {

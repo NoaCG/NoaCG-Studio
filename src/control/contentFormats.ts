@@ -154,14 +154,14 @@ export interface ListFill {
 }
 
 /** A cell as one line of text: a line break inside a cell would split one row into two. */
-const cellText = (cell: string): string => {
-  // A scan, not `replace(/\s*\n\s*/g, ' ')`: that regex retries every start of a long whitespace
-  // run, so 200 KB of spaces took 47 s (hostile input reaches here from a source, E4.2).
-  if (!cell.includes('\n')) return cell.trim();
-  const parts = cell.split('\n');
-  const kept = parts.map((part, i) => (i === 0 ? part.trimEnd() : i === parts.length - 1 ? part.trimStart() : part.trim()));
-  return kept.filter((part, i) => part !== '' || i === 0 || i === kept.length - 1).join(' ').trim();
-};
+// Split and trimmed, not `replace(/\s*\n\s*/g, ' ')`: that regex retries every start of a long
+// whitespace run, so 200 KB of spaces took 47 s (hostile input reaches here from a source, E4.2).
+const cellText = (cell: string): string =>
+  cell
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ');
 
 /** Without its trailing empty cells, which a wide spreadsheet selection always brings. */
 function trimRow(cells: string[]): string[] {

@@ -51,6 +51,7 @@ describe('the identity projection', () => {
   test('paths of other sources and other prefixes are not this source\'s', () => {
     const out = project({ units: 1 }, { Board: { f0: 'external.e2.units', f1: 'sheet.e1.lines', f2: 'external.e1', f3: 'external.e1.units' } });
     assert.deepEqual(Object.keys(out.writes), ['external.e1.units']);
+    assert.deepEqual([out.missing, out.unfit], [[], []], 'nothing but external.e1.<leaf> is read');
   });
 
   test('a collection goes through the list adapter its leaf registered; a valid empty one clears', () => {
@@ -131,7 +132,7 @@ describe('the registration', () => {
   const good = { v: 1, configRevision: 2, endpoint: 'https://results.example/r', lists: { parties: 'lines' } };
 
   test('a v 1 entry is read with its lists and Pause', () => {
-    assert.deepEqual(ext.readExternalRegistration(entry(good, { paused: true })), { ok: true, registration: good, paused: true });
+    assert.deepEqual(ext.readExternalRegistration(entry(good, { paused: true })), { ok: true, registration: good });
   });
 
   test('a later version is held read-only; a missing one is refused', () => {
