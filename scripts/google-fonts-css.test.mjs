@@ -71,6 +71,16 @@ test('labelled blocks with no latin fall back to the first file rather than noth
   assert.equal(pickGoogleFontFile(parseGoogleFontCss(css))?.subset, 'devanagari');
 });
 
+test('a quoted src url() is read like an unquoted one', () => {
+  const css = `/* latin */
+@font-face {
+  font-family: 'Stub';
+  src: url("https://fonts.gstatic.com/s/stub/v1/lat.woff2") format('woff2');
+  unicode-range: U+0000-00FF;
+}`;
+  assert.equal(parseGoogleFontCss(css)[0]?.url, 'https://fonts.gstatic.com/s/stub/v1/lat.woff2');
+});
+
 test('a sheet offering no gstatic file picks nothing', () => {
   assert.equal(parseGoogleFontCss('/* nothing */ body { color: red; }').length, 0);
   assert.equal(pickGoogleFontFile([]), undefined);

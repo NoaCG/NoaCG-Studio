@@ -26,7 +26,7 @@ export function parseGoogleFontCss(css: string): GoogleFontFace[] {
   const block = /(?:\/\*\s*([^*]*?)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
   for (const match of css.matchAll(block)) {
     const body = match[2];
-    const url = body.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)\s]+)\)/)?.[1];
+    const url = body.match(/url\(['"]?(https:\/\/fonts\.gstatic\.com\/[^)'"\s]+)['"]?\)/)?.[1];
     if (!url) continue;
     faces.push({
       subset: match[1] ?? '',
@@ -51,14 +51,10 @@ export function parseGoogleFontCss(css: string): GoogleFontFace[] {
  * Why not a second face for latin-ext (Polish, Czech, Turkish letters): it would need
  * `CustomFont` to carry more than one asset and the @font-face emit, the AI scaffold's asset
  * list and the spec validator to learn about ranges, for letters the bundled seventeen faces do
- * not promise either. A family served as one unlabelled block (no `unicode-range`) is taken as
- * is; a sheet with labelled blocks and no latin one falls back to its first file, so a
- * non-Latin family still arrives rather than failing.
+ * not promise either. A sheet with no latin block - one unlabelled face that covers everything,
+ * or labelled blocks for other scripts only - falls back to its first file, so the family still
+ * arrives rather than failing.
  */
 export function pickGoogleFontFile(faces: GoogleFontFace[]): GoogleFontFace | undefined {
-  return (
-    faces.find((f) => f.subset === 'latin') ??
-    faces.find((f) => f.subset === '' && f.unicodeRange === '') ??
-    faces[0]
-  );
+  return faces.find((f) => f.subset === 'latin') ?? faces[0];
 }
