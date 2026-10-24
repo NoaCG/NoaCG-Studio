@@ -264,7 +264,7 @@ describe('the aired instance', () => {
     let state = captured();
     const up = follow(state, collection(6, [person('D1', 7, 'Aino Aalto', 1500, { party: 'Green' }), ...BASE.slice(1)]));
     assert.deepEqual(up.sends.map(({ graphic, values }) => ({ graphic, values })), [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1500', f2: 'Green' } }]);
-    assert.deepEqual([up.sends[0].before, up.sends[0].advanced], [state.Card, up.air.Card]);
+    assert.equal(up.sends[0].advanced, up.air.Card);
     state = up.air;
     const down = follow(state, collection(7, [person('D1', 7, 'Aino Aalto', 1400, { party: 'Green' }), ...BASE.slice(1)]), 3000);
     assert.deepEqual(down.sends.map((s) => s.values.f1), ['1400']);
@@ -384,8 +384,9 @@ describe('the aired instance', () => {
     const state = captured();
     const sent = follow(state, collection(6, people6()));
     const [send] = sent.sends;
-    const unsent = air.unsentSelection(sent.air, 'Card', send.advanced, send.before, 3000);
-    assert.deepEqual([unsent.Card.revision, unsent.Card.values, unsent.Card.held], [5, state.Card.values, { reason: 'the correction to revision 6 was not sent', since: 3000, revision: null }]);
+    const unsent = air.settleSelection(sent.air, 'Card', send.advanced, false, 3000);
+    assert.deepEqual([unsent.Card.revision, unsent.Card.values, unsent.Card.held], [5, state.Card.values, { reason: 'the correction to revision 6 was not sent', since: 3000, revision: null, unsent: true }]);
+    assert.equal(follow(unsent, collection(5, BASE), 3500).air, unsent, 'the aired revision read again does not end a "not sent" hold');
     const retry = follow(unsent, collection(6, people6()), 4000);
     assert.deepEqual(retry.sends.map((s) => s.values.f1), ['1500']);
     assert.equal(retry.air.Card.held, undefined);
@@ -397,12 +398,27 @@ describe('the aired instance', () => {
     const [send] = sent.sends;
     const heldMeanwhile = follow(sent.air, '{broken', 2500).air;
     assert.notEqual(heldMeanwhile.Card, send.advanced, 'the hold replaced the object');
-    const rolled = air.unsentSelection(heldMeanwhile, 'Card', send.advanced, send.before, 3000);
+    const rolled = air.settleSelection(heldMeanwhile, 'Card', send.advanced, false, 3000);
     assert.deepEqual([rolled.Card.revision, rolled.Card.values, rolled.Card.held.revision], [5, state.Card.values, null]);
     const again = follow(rolled, collection(6, people6()), 4000);
     assert.deepEqual(again.sends.map((s) => s.values.f1), ['1500'], 'revision 6 goes out again once it reads well');
     const pressed = air.captureSelection(sent.air, 'Card', 'cue-b', take(selectionOf('D2', 7), collection(6, BASE)), 2600);
-    assert.equal(air.unsentSelection(pressed, 'Card', send.advanced, send.before, 3000), pressed, 'a later press stands');
+    assert.equal(air.settleSelection(pressed, 'Card', send.advanced, false, 3000), pressed, 'a later press stands');
+  });
+
+  test('two overlapping corrections: both failing go back to what landed; a later one landing after an earlier failure stands', () => {
+    const state = captured();
+    const six = follow(state, collection(6, people6()), 2000);
+    const seven = follow(six.air, collection(7, [person('D1', 7, 'Aino Aalto', 1700)]), 2100);
+    let a = air.settleSelection(seven.air, 'Card', six.sends[0].advanced, false, 2200);
+    a = air.settleSelection(a, 'Card', seven.sends[0].advanced, false, 2300);
+    assert.deepEqual([a.Card.revision, a.Card.values], [5, state.Card.values], 'revision 5 is what air shows');
+    let b = air.settleSelection(seven.air, 'Card', six.sends[0].advanced, false, 2200);
+    assert.equal(b.Card.revision, 5);
+    b = air.settleSelection(b, 'Card', seven.sends[0].advanced, true, 2300);
+    assert.deepEqual([b.Card.revision, b.Card.values.f1, b.Card.confirmed.revision, b.Card.held], [7, '1700', 7, undefined]);
+    const c = air.settleSelection(air.settleSelection(seven.air, 'Card', seven.sends[0].advanced, true, 2300), 'Card', six.sends[0].advanced, false, 2400);
+    assert.deepEqual([c.Card.revision, c.Card.held], [7, undefined], 'an older failure after a newer landing changes nothing');
   });
 
   test('what is kept reads back; anything else is no instance', () => {
@@ -532,6 +548,10 @@ describe('the page\'s two doors onto the instances', () => {
     second.undo();
     assert.deepEqual([p.part.get().Card.selection, p.part.get().Card.pending], [selectionOf('D1', 7), undefined]);
     assert.equal(air.followSelection(p.part.get(), { Card: 'cue-a' }, facts(collection(6, people6())), 2000).sends.length, 1, 'it follows the next revision');
+    let followed = 0;
+    p.followNow = () => (followed += 1);
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 8))).undo();
+    assert.equal(followed, 1, 'a failed press follows the newest tree too');
     const q = io();
     const a = air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
     air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 8))).undo();

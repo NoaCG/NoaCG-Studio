@@ -39,8 +39,12 @@ export interface AiredSelection {
   values: Record<string, string>;
   /** When those values were sent, ms. */
   at: number;
-  /** Set while the entity cannot be resolved: why, since when, and the revision that said so. */
-  held?: { reason: string; since: number; revision: number | null };
+  /** What a landed send last put on air: a correction whose send failed goes back to it, never to
+   *  an earlier correction that may have failed too. */
+  confirmed: { revision: number; values: Record<string, string>; at: number };
+  /** Set while the entity cannot be resolved: why, since when, and the revision that said so
+   *  (`unsent`: a correction whose send failed, which a later landed send ends). */
+  held?: { reason: string; since: number; revision: number | null; unsent?: true };
   /** Captured at the press, its send not answered yet: the marker may not have moved, so the
    *  instance is not forgotten for a marker that still names the cue it replaces. */
   pending?: true;
@@ -49,12 +53,11 @@ export interface AiredSelection {
 /** Every aired instance, by graphic name (the wire key, which is the layer). */
 export type SelectionAir = Readonly<Record<string, AiredSelection>>;
 
-/** One correction to send: the values, and the instance before and after it (`unsentSelection`). */
+/** One correction to send: the values, and the instance it made (`settleSelection`). */
 export interface SelectionSend {
   graphic: string;
   values: Record<string, string>;
   advanced: AiredSelection;
-  before: AiredSelection;
 }
 
 /** What a Take or an Update of one cue may send for its selection. */
@@ -100,7 +103,8 @@ export function selectionTake(cue: { selection?: unknown }, graphic: string | nu
 
 /** The layer now airs this cue's resolved selection, pending until its send is answered. */
 export function captureSelection(air: SelectionAir, graphic: string, cueId: string, take: Extract<SelectionTake, { status: 'ok' }>, now: number): SelectionAir {
-  return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, values: take.values, at: now, pending: true } };
+  const confirmed = { revision: take.revision, values: take.values, at: now };
+  return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, values: take.values, at: now, confirmed, pending: true } };
 }
 
 /** The send that captured `inst` was answered: it is followed and judged like any other now. */
@@ -118,16 +122,27 @@ export function undoSelection(air: SelectionAir, graphic: string, inst: AiredSel
   return { ...air, [graphic]: before };
 }
 
-/** A correction's send failed: the instance goes back to the revision that IS on air, held with the
- *  reason, so the next read sends the newer one again. Judged by the correction it made (cue,
- *  entity, revision, time), not the object, so a hold set while the send was out does not lose it;
- *  a later press or correction that replaced it stands. */
-export function unsentSelection(air: SelectionAir, graphic: string, advanced: AiredSelection, before: AiredSelection, now: number): SelectionAir {
+/**
+ * A correction's send was answered. Landed, it is what air shows now (`confirmed`), and an earlier
+ * failure that rolled the instance back past it is undone. Failed, the instance goes back to what
+ * last landed, held "not sent" (revision null, so the next read sends the newer one again), unless
+ * it already stands behind it. Judged by the cue and entity, not the object, so a hold set while
+ * the send was out does not lose it; a later press on another cue or entity stands.
+ */
+export function settleSelection(air: SelectionAir, graphic: string, advanced: AiredSelection, landed: boolean, now: number): SelectionAir {
   const inst = air[graphic];
-  if (!inst || inst.cueId !== advanced.cueId || inst.entity !== advanced.entity || inst.revision !== advanced.revision || inst.at !== advanced.at) return air;
-  // No revision said anything was wrong (revision null), so the next read sends it again.
-  const held = { reason: `the correction to revision ${advanced.revision} was not sent`, since: inst.held?.since ?? before.held?.since ?? now, revision: null };
-  return { ...air, [graphic]: { ...inst, revision: before.revision, values: before.values, at: before.at, held } };
+  if (!inst || inst.cueId !== advanced.cueId || inst.entity !== advanced.entity) return air;
+  if (landed) {
+    if (advanced.revision <= inst.confirmed.revision) return air;
+    const confirmed = { revision: advanced.revision, values: advanced.values, at: advanced.at };
+    if (inst.revision >= advanced.revision) return { ...air, [graphic]: { ...inst, confirmed } };
+    return { ...air, [graphic]: { ...inst, confirmed, revision: confirmed.revision, values: confirmed.values, at: confirmed.at, held: inst.held?.unsent ? undefined : inst.held } };
+  }
+  // Behind it already, or a newer send has landed over it: nothing of this failure is on show.
+  if (inst.revision < advanced.revision || inst.confirmed.revision >= advanced.revision) return air;
+  const { confirmed } = inst;
+  const held = { reason: `the correction to revision ${advanced.revision} was not sent`, since: inst.held?.since ?? now, revision: null, unsent: true as const };
+  return { ...air, [graphic]: { ...inst, revision: confirmed.revision, values: confirmed.values, at: confirmed.at, held } };
 }
 
 /** The layer no longer airs a captured selection (an Out, or a cue without one taken onto it). */
@@ -169,8 +184,8 @@ export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: S
       if (take.revision > floor) {
         const advanced: AiredSelection = { ...inst, revision: take.revision, values: take.values, at: now, held: undefined };
         next = { ...next, [graphic]: advanced };
-        sends.push({ graphic, values: take.values, advanced, before: inst });
-      } else if (take.revision === inst.revision && inst.held && inst.held.revision === null) {
+        sends.push({ graphic, values: take.values, advanced });
+      } else if (take.revision === inst.revision && inst.held && inst.held.revision === null && !inst.held.unsent) {
         // The aired revision reads well again (a malformed answer passed): nothing new to send.
         next = { ...next, [graphic]: { ...inst, held: undefined } };
       }
@@ -224,7 +239,8 @@ export function readSelectionAir(raw: string | null): SelectionAir {
     // A press still unanswered when the page went away is judged as landed: the marker decides.
     if (sane) {
       const { pending: _pending, ...kept } = inst as AiredSelection;
-      out[graphic] = kept;
+      const confirmed = kept.confirmed && Number.isInteger(kept.confirmed.revision) ? kept.confirmed : { revision: kept.revision, values: kept.values, at: kept.at };
+      out[graphic] = { ...kept, confirmed };
     }
   }
   return out;
@@ -264,6 +280,8 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
     undo: () => {
       const back = before?.pending && answered.has(before) ? (({ pending: _pending, ...rest }) => rest)(before) : before;
       io.keep(undoSelection(io.part.get(), graphic, inst, back));
+      // A revision passed over while this press was pending is followed now, as after a landing.
+      io.followNow?.();
     },
   };
 }
@@ -282,9 +300,7 @@ export function followAired(
   const { air, sends } = o.facts.readable !== false ? followSelection(reconciled, o.liveCue, o.facts, io.now()) : { air: reconciled, sends: [] };
   if (air !== before) io.keep(air);
   for (const one of sends) {
-    void o.send(one.graphic, one.values).then((sent) => {
-      if (!sent) io.keep(unsentSelection(io.part.get(), one.graphic, one.advanced, one.before, io.now()));
-    });
+    void o.send(one.graphic, one.values).then((sent) => io.keep(settleSelection(io.part.get(), one.graphic, one.advanced, !!sent, io.now())));
   }
 }
 
