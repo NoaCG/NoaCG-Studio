@@ -26,6 +26,7 @@ export function useRundownHistory(
   const queue = useRef({ identity, count: 0, tail: Promise.resolve() as Promise<unknown> });
   if (queue.current.identity !== identity) queue.current = { identity, count: 0, tail: Promise.resolve() };
   const callbacks = useRef({ update, note, safety, cancelDraft }); callbacks.current = { update, note, safety, cancelDraft };
+  const shown = useRef(show); shown.current = show;
   const [, redraw] = useState(0);
   const changed = () => redraw(n => n + 1);
   const fresh = () => loadShows().find(s => s.id === show?.id && s.teamId === show?.teamId);
@@ -186,12 +187,28 @@ export function useRundownHistory(
       history.current.accepted(direction, entry); callbacks.current.note(`✓ ${direction === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`); changed(); return true;
     }, false);
   };
-  const available = !!show && canAuthorAccount() && (!!show.teamId || isDurableStoreActive());
+  /** Whether there is a step that way to take, read from the stacks as they stand. */
+  const can = (direction: 'undo' | 'redo') => {
+    const current = shown.current;
+    const available = !!current && canAuthorAccount() && (!!current.teamId || isDurableStoreActive());
+    return available && !pendingTeam.current &&
+      (direction === 'undo' ? !!history.current.peek('undo') || !!group.current : !!history.current.peek('redo'));
+  };
+  /** Undo or Redo pressed. A press while a write is still landing waits for it and is then judged on
+   *  the history as it stands: a write's queue ends a moment after its durable save settles, and the
+   *  last render's flags lag that end, so judging the press there dropped it in silence (#1649).
+   *  `before` runs first (the draft's save); false stops the step. Answers whether the key was taken. */
+  const press = (direction: 'undo' | 'redo', before: () => Promise<boolean>): boolean => {
+    if (queue.current.count === 0 && !can(direction)) return false;
+    void (async () => {
+      if (!(await before())) return;
+      await queue.current.tail;
+      if (can(direction)) await restore(direction);
+    })();
+    return true;
+  };
   return {
-    write, writeDraft, beginGroup, closeGroup, restore,
+    write, writeDraft, beginGroup, closeGroup, restore, press,
     settle: async () => { await queue.current.tail; },
-    busy: queue.current.count > 0,
-    canUndo: available && !pendingTeam.current && queue.current.count === 0 && (!!history.current.peek('undo') || !!group.current),
-    canRedo: available && !pendingTeam.current && queue.current.count === 0 && !!history.current.peek('redo'),
   };
 }

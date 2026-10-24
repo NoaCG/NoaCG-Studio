@@ -3017,15 +3017,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           if (!ids.length) return false;
           void removeCues(ids); return true;
         }
-        if (history.busy) return false;
-        if (!(key === 'undo' ? history.canUndo : history.canRedo)) return false;
-        void (async () => {
+        return history.press(key, () => {
           window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
-          if (!(await flushDraft())) return;
-          await history.settle();
-          await history.restore(key);
-        })();
-        return true;
+          return flushDraft();
+        });
       }}
       renders={renders.current}
       sub={sub ?? null}
