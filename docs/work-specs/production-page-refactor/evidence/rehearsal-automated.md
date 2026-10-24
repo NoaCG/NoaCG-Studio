@@ -134,11 +134,13 @@ The render targets (the part of AC-9 that gates) are Actions' and are in the tab
 **Laptop walks (non-gating; inform repairs, never gate).**
 
 - The scratch CasparCG/NoaCG Bridge and OBS/browser-source walk of the four data boards, again on
-  this phase's merge SHA: the C7 walk (`local/c7-casparcg-obs-walk.md`) ran on `44bfa89`, before
-  phases 3 to 13b changed the page. Its open defect, #1618 (a results board taken a second time on
-  a published output shows no rows), predates the run and is still open.
-- What C7's walk did not cover: Continue/Next, a Sheet or feed source on a real output, fonts and
-  assets on a separate target, a Bridge or CasparCG restart and reconnect, vMix.
+  this phase's merge SHA: done on `dda88db51` (`local/row-25-casparcg-obs-walk.md`), with the same
+  result as C7's walk on `44bfa89`. Its open defect, #1618 (a results board taken a second time on
+  a published output shows no rows), still reproduces. That walk also restarted the Bridge (the
+  slot came back by itself) and CasparCG (the slot stayed Empty until Load).
+- Still not covered by either walk: Continue/Next on a real output (none of the four boards has a
+  second step), a Sheet or feed source on a real output, fonts and assets on a separate target,
+  vMix, and whether a Take pressed while the Bridge is down airs on CasparCG.
 - Hardware-panel receipts (row 2, H0.1) are recorded in `local/h0-1-companion.md`; its AC-8 p50
   stayed over its threshold and is not attributed.
 
