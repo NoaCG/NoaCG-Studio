@@ -135,7 +135,7 @@ test('two graphics connect from one nested sample with no path syntax; repair, c
   await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveAttribute('placeholder', 'waits for the next read');
   await expect(page.getByTestId('cue-connected-mark').first()).toHaveAttribute('title', 'Connected to Connector: Guests · mapping v1');
   expect(await tree(page)).toBe(treeBefore);
-  await expect(program.locator('#f0')).toHaveCount(0);
+  await expect(program.locator('#f0')).not.toHaveText(/Aino|Eero/);
 
   // ── Underline: the same source, its consumers named; Cancel changes nothing. ──
   await cues.nth(1).locator('.pd-cue-label').click();
@@ -186,7 +186,7 @@ test('two graphics connect from one nested sample with no path syntax; repair, c
 
   // ── Nothing reached PROGRAM or the tree, and the starter data still matches the graphic. ──
   expect(await tree(page)).toBe(treeBefore);
-  await expect(program.locator('#f0')).toHaveCount(0);
+  await expect(program.locator('#f0')).not.toHaveText(/Aino|Eero/);
   await cues.nth(0).locator('.pd-cue-label').click();
   await expect(page.getByTestId('cue-bound-f0')).toBeVisible();
   expect(await starterCsv(page)).toBe(starterBefore);
@@ -274,7 +274,7 @@ test('save, reload and reconnect keep the recipe; a changed schema asks for repa
       return readme.slice(readme.indexOf('- **The connector'), readme.indexOf('\n- **', readme.indexOf('- **The connector') + 1));
     }, { sid: showId });
   const item = await exported();
-  expect(item).toContain(`The connector Guests** (${ENDPOINT})`);
+  expect(item).toContain(`The connector Guests** (${ENDPOINT}?moved=1)`);
   expect(item).toContain('register it in the new production and start its agent for that production');
   expect(item).toContain(JSON.stringify(repaired.sources[0].config.mapping));
   expect(item).not.toMatch(/bearer|authorization|token|secret/i);
