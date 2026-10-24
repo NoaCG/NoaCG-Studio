@@ -268,6 +268,9 @@ describe('a recipe: each v1 operation', () => {
     // Numeric ids order as numbers, not as text.
     const numeric = { parties: [{ party_id: 10, v: 1 }, { party_id: 9, v: 1 }, { party_id: 100, v: 1 }] };
     assert.equal(written(board({ sort: { by: 'v', order: 'desc' }, columns: [{ from: 'party_id' }] }, numeric)), '9\n10\n100');
+    // Ids of both kinds still have one order: numbers before text.
+    const kinds = { parties: [{ party_id: 'A', v: 1 }, { party_id: 2, v: 1 }] };
+    assert.equal(written(board({ sort: { by: 'v', order: 'asc' }, columns: [{ from: 'party_id' }] }, kinds)), '2\nA');
   });
 
   test('limit rows, after the filter and the sort', () => {
@@ -418,6 +421,7 @@ describe('a recipe holds last good and names the correction, never a valid empty
       ['a sort order', recipe(list({ sort: { by: 'votes', order: 'random' } }))],
       ['a general path', recipe(list({ from: '$.parties[*]' }))],
       ['a column that is not a value', recipe(list({ columns: ['party_id'] }))],
+      ['a column with a transform', recipe(list({ columns: [{ from: 'party_id', transform: 'upper' }] }))],
       ['a currency format', recipe(list({ columns: [{ from: 'votes', format: { kind: 'currency', locale: 'fi-FI' } }] }))],
       ['a format with no locale', recipe(list({ columns: [{ from: 'votes', format: { kind: 'number', decimals: 0 } }] }))],
       ['a locale this build cannot format', recipe(list({ columns: [{ from: 'votes', format: { kind: 'number', locale: 'xx-XX', decimals: 0 } }] }))],
@@ -431,6 +435,9 @@ describe('a recipe holds last good and names the correction, never a valid empty
       assert.deepEqual([out.writes, out.unfit.sort(), out.held?.readOnly], [{}, ['board', 'counted'], false], name);
       assert.ok(out.held.error.length > 0, name);
     }
+    // A bound leaf named like a prototype key is not a recipe output: it reads its own path.
+    const proto = mapped({ ...results(), constructor: 'own' }, { B: { f0: 'external.e1.constructor', f1: 'external.e1.counted' } }, recipe(list({})), { lists: lines });
+    assert.deepEqual(proto.writes, { 'external.e1.constructor': 'own', 'external.e1.counted': '87.5' });
     // A prototype key is a valid name that never reaches the prototype: the value is missing.
     assert.deepEqual(mapped(results(), ticker, recipe(list({ from: 'constructor.prototype' })), { lists: lines }).missing, ['board']);
     // The correction names what to fix.

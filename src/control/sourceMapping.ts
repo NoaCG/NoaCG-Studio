@@ -268,8 +268,8 @@ function instant(value: JsonValue): number {
   const m = typeof value === 'string' ? INSTANT.exec(value) : null;
   if (!m) return NaN;
   const [y, mo, d, h, mi, s = 0] = [m[1], m[2], m[3], m[4], m[5], m[6]].map((part) => (part === undefined ? undefined : Number(part))) as number[];
-  const ms = m[7] === undefined ? 0 : Number(m[7].padEnd(3, '0'));
-  const at = new Date(Date.UTC(y, mo - 1, d, h, mi, s, ms));
+  // Fractions of a second are read but not kept: no format shows them.
+  const at = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
   const exists =
     at.getUTCFullYear() === y && at.getUTCMonth() === mo - 1 && at.getUTCDate() === d && at.getUTCHours() === h && at.getUTCMinutes() === mi && at.getUTCSeconds() === s;
   const [oh, om] = m[8] === undefined ? [0, 0] : [Number(m[9]), Number(m[10])];
