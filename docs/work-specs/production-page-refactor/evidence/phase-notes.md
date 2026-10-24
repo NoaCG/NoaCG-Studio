@@ -15,7 +15,7 @@ changes a spec's digest.
 - **What landed.** `src/control/externalSource.ts` (the `v: 1` config, export/rebind, acceptance
   and schedule, pure), `scripts/external-data-connector.mjs` (the headless agent),
   `scripts/election-replay-server.mjs`, `scripts/replay-smoke.mjs` with the npm script
-  `endurance:replay-smoke`, and `scripts/external-data-connector.test.mjs` (30 tests).
+  `endurance:replay-smoke`, and `scripts/external-data-connector.test.mjs` (35 tests).
 - **Supported limits** (the recorded envelope; the config file cannot name any of them):
 
   | Limit | Default | Moved only by | Envelope |
@@ -61,6 +61,12 @@ changes a spec's digest.
     failed reads count as failures.
   - *The sender seam* receives every report (changed with payload, unchanged at most every 15 s
     without one, every hold and failure); from the command line it writes JSON lines to stdout.
+    The credential is redacted once at the seam, so a provider that echoes it cannot pass it on
+    and no sender has to remember. A read ended by `stop()` reports nothing.
+  - *The replay timeline starts at the first authorized read*, so an agent slow to boot still
+    sees step 0; `at(i)` moves it by hand and a fake clock makes it exact.
+  - *An unchanged read skips the canonical comparison* when its bytes equal the accepted answer's,
+    the common case for a quiet source at 2 MiB every 5 s.
     E4.2 replaces it with `/api/data/source` and the claim, and projects to its 256 KiB body.
   - *Fixtures*: the replay server derives its eight steps at start from the research fixtures
     `results-01/02/03-correction.json` (revision 4 drops candidate `FI2027_02_104`, revision 5 has
@@ -69,13 +75,33 @@ changes a spec's digest.
     `endurance:election`.
   - *Extra file outside the fence:* `.gitignore` gains `endurance-output/`, the folder
     endurance.yml uploads, so a local smoke run leaves the checkout clean.
-- **Tests pin behaviour, and were mutation-checked**: 33 single mutations of the contract, agent
+- **Tests pin behaviour, and were mutation-checked**: 41 single mutations of the contract, agent
   and server (timeout to 9.999 or 11 s, cap plus or minus one byte, declared length unchecked,
   backoff cap, jitter, doubling, Retry-After ignored or uncapped, poll default, single flight,
   one public DNS answer enough, redirects unchecked, 4 or 6 redirects, connection unpinned,
   credential sent cross-origin, local origin unchecked, export bound, unbound accepted, no
   redaction, server accepting any token, 401 not denied, older or conflicting revision accepted,
-  unknown config keys, http, receipt throttle, timeline steps); every one turned the suite red.
+  unknown config keys, http, receipt throttle, timeline steps, seam redaction, a log fault
+  stopping the polling, deadline and stop confused, the byte-equal shortcut too broad, deep JSON
+  crashing, `credentialBound` untyped, the timeline starting before the first read); every one
+  turned the suite red.
+- **Endurance smoke:** `endurance.yml` dispatched once on this branch at `113a634`
+  (`endurance:replay-smoke`, 2 minutes, local-supabase off): run 40072697365, success, all 13
+  checks, 19 reports. The review fixes after it changed the agent and smoke (stop, redaction at
+  the seam, timeline start, a 14th check through real DNS); the same smoke passed locally on the
+  final code (14 of 14), and the brief allows one dispatch, so it was not dispatched again.
+- **Check findings** (code-review, high; 9 found, 9 verified and fixed): an uncaught fault ending
+  the polling, `stop()` reported as a timeout, the smoke reading the agent's output on `exit`
+  instead of `close`, the timeline starting before a slow agent's first read, the stdout sender
+  unredacted, an export's CA path read before the rebind refusal, `credentialBound` untyped, the
+  smoke's hosted check refused only by the port, `--minutes` and `stepMs` unvalidated.
+- **Simplify** (four reviewers): applied redaction at the seam, abort reasons instead of a flag,
+  failures from the outcome's kind, one export key list, the byte-equal shortcut and older
+  revisions checked first, a log that cannot throw, one parse of the export. Skipped: a shared
+  argument parser (none exists in scripts/lib; three one-line readers), reusing `getPath` and
+  `canonical` from src/model (the contract has no runtime imports), and the private copies of
+  `retryAfterMs` and `underSignal` in api/_lib/feedFetch.ts (api/ is E4.2's; feedFetch can import
+  `retryAfterMs` from the contract then).
 - **Traps.**
   - Every `spawn`/`execFileSync` needs `windowsHide: true` (`scripts/windows-hide.test.mjs`).
   - The agent imports the feed guard's TypeScript through `scripts/lib/tsResolve.mjs`, so those
