@@ -82,8 +82,12 @@ async function rows(showId: string, graphic = 'Hairline') {
   return (data ?? []).map((r) => ({ id: r.id as number, t: r.msg?.t as string, data: r.msg?.data as Record<string, string> | undefined }));
 }
 const updates = async (showId: string) => (await rows(showId)).filter((r) => r.t === 'update').map((r) => r.data);
-/** The rows that would Take, advance, reset or clear the card: none of AC-3's events may add one. */
-const transport = async (showId: string) => (await rows(showId)).filter((r) => r.t !== 'update').length;
+/** The commands that Take, advance, reset or clear the card: a Take is always a `play`, an advance
+ *  a `next`, a reset a `snap` or a `stop`, a press an `event`. None of AC-3's events may add one.
+ *  Updates are data, and markers and status rows (`cue`, `hello`, `live`, `ping`, `staged`) never
+ *  reach a renderer (src/output/stage.ts); a reload may well re-assert the marker. */
+const MOVES = new Set(['play', 'stop', 'next', 'snap', 'event']);
+const transport = async (showId: string) => (await rows(showId)).filter((r) => MOVES.has(r.t)).map((r) => r.t);
 
 /** One accepted revision, written with the production's data key, as an integrator would. */
 async function revision(api: APIRequestContext, w: Walk, rev: number, candidates: unknown, status = `Counted ${rev}`) {
@@ -323,7 +327,7 @@ test.describe('live candidates', () => {
     await expect(onAirLine(w)).toHaveText('1400', WIRE);
     await expect(onAir(w)).toHaveText(AINO);
     expect((await updates(w.showId)).filter((d) => d?.f0 === BERTTA), 'the current selection never reached air').toEqual([]);
-    expect(await transport(w.showId), 'nothing took, advanced or reset the card').toBe(transported);
+    expect(await transport(w.showId), 'nothing took, advanced or reset the card').toEqual(transported);
     await clearPublishedShows(restarted).catch(() => {});
   });
 
