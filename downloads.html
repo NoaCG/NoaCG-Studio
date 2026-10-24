@@ -13,12 +13,18 @@
   coding agent; a browser source, or NoaCG Playout to CasparCG with NoaCG Bridge. A reader who
   arrives from the landing meets the same names here.
 
-  ONE VERSION, TWO CHANNELS. Both tools are built from one package (cli/package.json), and each
-  ships through its own channel: the Bridge as NoaCG-Bridge-X.Y.Z.exe on a GitHub Release tagged
-  bridge-vX.Y.Z, the CLI to npm, tagged cli-vX.Y.Z. A version may ship on one channel and skip the
-  other, so each card resolves ITS OWN artifact: src/downloads/downloads.ts asks GitHub for the
+  TWO PRODUCTS, TWO VERSION LINES (owner, 2026-10-24). The Bridge is for the operator connecting
+  NoaCG to a playout system, the CLI for a creator making graphics with an agent. They are built
+  from one package (cli/) but each has its own version and channel: the Bridge as
+  NoaCG-Bridge-X.Y.Z.exe on a GitHub Release tagged bridge-vX.Y.Z, the CLI to npm, tagged
+  cli-vX.Y.Z. Each card resolves ITS OWN artifact: src/downloads/downloads.ts asks GitHub for the
   newest bridge-v* release and npm for @noacg/cli's `latest`, and shows the version of exactly
   the file or package it links to.
+
+  ONE BRIDGE ON THE PAGE. The Bridge card offers the download only. It used to add
+  `npx -y @noacg/cli bridge`, which runs the Bridge code inside the newest CLI: that can be newer
+  than the newest Bridge release, so the card offered two different Bridges under one version.
+  The command still works for a developer and is documented in docs/BRIDGE.md.
 
   The page is complete with no JavaScript: the Bridge button then points at GitHub's
   releases/latest page (release-bridge.yml marks every Bridge release as the latest; the file name
@@ -174,10 +180,6 @@
           If you run NoaCG on a computer in your own studio network instead of using
           noacg.studio, the browser does not ask at all.
         </p>
-        <p class="dl-note">
-          If you have Node.js, you can run the same program from a terminal instead:
-        </p>
-        <pre><code>npx -y @noacg/cli bridge</code></pre>
         <p class="dl-more"><a href="/docs#casparcg-connect">The CasparCG guide in the docs</a></p>
       </section>
 

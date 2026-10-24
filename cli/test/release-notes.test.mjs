@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { bridgeReleasePage, problemsWith, sectionOf } from '../scripts/release-notes.mjs';
+import { bridgeReleasePage, newestVersionIn, problemsWith, sectionOf } from '../scripts/release-notes.mjs';
 
 const CHANGELOG = `# Changelog
 
@@ -49,6 +49,20 @@ test('the version this package is at has notes fit to publish', () => {
   const version = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version;
   const changelog = readFileSync(fileURLToPath(new URL('../CHANGELOG.md', import.meta.url)), 'utf8');
   assert.deepEqual(problemsWith(sectionOf(changelog, version), version), []);
+});
+
+test('the newest version is the first numbered heading, and an Unreleased section is not one', () => {
+  assert.equal(newestVersionIn(CHANGELOG), '0.2.0');
+  assert.equal(newestVersionIn(CHANGELOG.replace('## 0.2.0', '## Unreleased\n\nSoon.\n\n## 0.2.0')), '0.2.0');
+  assert.equal(newestVersionIn('# Changelog\n\nNothing yet.\n'), null);
+});
+
+test("the Bridge has its own version, with notes fit to publish, and it is the Bridge changelog's newest", () => {
+  const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
+  const changelog = readFileSync(fileURLToPath(new URL('../BRIDGE_CHANGELOG.md', import.meta.url)), 'utf8');
+  assert.match(pkg.bridgeVersion, /^\d+\.\d+\.\d+$/);
+  assert.deepEqual(problemsWith(sectionOf(changelog, pkg.bridgeVersion), pkg.bridgeVersion, 'cli/BRIDGE_CHANGELOG.md'), []);
+  assert.equal(newestVersionIn(changelog), pkg.bridgeVersion);
 });
 
 test('a missing Bridge section names the Bridge changelog, so a refusal says where to write', () => {
