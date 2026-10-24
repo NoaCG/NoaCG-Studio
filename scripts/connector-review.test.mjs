@@ -267,6 +267,11 @@ describe('repair', () => {
     const offers = review.jsonOffers('e1', changed);
     const current = { f0: 'external.e1.match.home.score', f1: 'sheet.s1.x' };
     assert.deepEqual([...review.needsRepair(current, 'e1', offers)], ['f0']);
+    // A recipe output named apart from its input is judged by the input it reads.
+    const alias = { share: { from: 'match.home.goals', format: { kind: 'number', locale: 'fi-FI', decimals: 1 } } };
+    assert.deepEqual([...review.needsRepair({ f0: 'external.e1.share' }, 'e1', offers, alias)], [], 'its input is in the sample');
+    assert.deepEqual([...review.needsRepair({ f0: 'external.e1.share' }, 'e1', offers, { share: { from: 'match.home.score' } })], ['f0'], 'its input is gone');
+    assert.deepEqual([...review.needsRepair({ f0: 'external.e1.share' }, 'e1', offers)], ['f0'], 'no recipe: the leaf is its own input');
     const rows = review.proposeConnector([{ key: 'f0', label: 'goals' }], offers, current, {}, () => false, () => true);
     assert.equal(rows[0].path, 'external.e1.match.home.goals', 'the proposal');
     const p = review.connectorPlan({ graphic: GRAPHIC, bindings: { [GRAPHIC]: current }, source: { id: 'e1', label: 'R', config: { v: 1, configRevision: 1, endpoint: 'https://x.example' } }, rows, choices: {}, collections: [], adapters: {}, columns: {} });

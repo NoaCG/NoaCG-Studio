@@ -261,7 +261,9 @@ function CueConnectReview({
     : content || api
       ? proposeMapping(fields, offered, bound, refuses, holds)
       : [];
-  const repairs = offers ? needsRepair(bound, id, offers) : new Set<string>();
+  // A bound leaf needs repair when the input the saved recipe reads for it is gone from the sample.
+  const savedOutputs = reuse?.kind === 'external' ? (reuse.config.mapping?.outputs ?? {}) : {};
+  const repairs = offers ? needsRepair(bound, id, offers, savedOutputs) : new Set<string>();
   /** What a row may pick: a list field the sample's lists, any other its values. */
   const optionsFor = (fieldId: string) => (offers && adapters[fieldId] ? offers.collections.map((c) => ({ path: c.path, label: c.label })) : offered);
   const chosen = (row: MappingRow): string | null => chosenPath(row, choices);
@@ -308,7 +310,7 @@ function CueConnectReview({
   const leafOf = (path: string) => path.slice(`external.${id}.`.length);
   /** A field already showing this source's value whose output the review changes: the database
    *  writes it again only when the provider's answer changes (docs/DATA_API.md), so it says so. */
-  const storedOutputs = reusedConnector?.config.mapping?.outputs ?? {};
+  const storedOutputs = savedOutputs;
   const plannedOutputs = plan && !('error' in plan) ? (plan.source.config.mapping?.outputs ?? {}) : {};
   const waitsForChange = (fieldId: string, path: string | null): boolean =>
     reusedConnector !== null &&

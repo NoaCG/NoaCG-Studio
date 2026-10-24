@@ -278,14 +278,24 @@ export function connectorPlan(o: {
   };
 }
 
-/** Bound paths of this source a new sample no longer carries: the mapping needs repair. They keep
- *  their binding (and their field its last value) until the operator picks another. */
-export function needsRepair(current: Record<string, string>, sourceId: string, offers: JsonOffers): Set<string> {
+/** Bound paths of this source whose input a new sample no longer carries: the mapping needs
+ *  repair. The input is what the saved recipe reads for the leaf (`from`, which may differ from the
+ *  leaf's own name), else the leaf itself. They keep their binding (and their field its last
+ *  value) until the operator picks another. */
+export function needsRepair(
+  current: Record<string, string>,
+  sourceId: string,
+  offers: JsonOffers,
+  outputs: Record<string, RecipeValue | RecipeList> = {},
+): Set<string> {
   const prefix = `${sourcePrefix(sourceId, 'external')}.`;
   const offered = new Set([...offers.scalars.map((s) => s.path), ...offers.collections.map((c) => c.path)]);
-  return new Set(Object.entries(current).filter(([, path]) => path.startsWith(prefix) && !offered.has(path)).map(([fieldId]) => fieldId));
+  const input = (path: string) => {
+    const leaf = path.slice(prefix.length);
+    return Object.prototype.hasOwnProperty.call(outputs, leaf) ? `${prefix}${outputs[leaf].from}` : path;
+  };
+  return new Set(Object.entries(current).filter(([, path]) => path.startsWith(prefix) && !offered.has(input(path))).map(([fieldId]) => fieldId));
 }
-
 
 // ── Reading a sample ───────────────────────────────────────────────────────────────────────────
 
