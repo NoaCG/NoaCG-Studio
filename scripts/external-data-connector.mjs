@@ -36,7 +36,10 @@
 // (`createSourceSender`, phase E4.2): the agent first CLAIMS the registered source through C2's
 // lease and continues from the owner epoch, accepted revision and provider sequence the production
 // answers (`adopt`), so a restarted agent never reuses an epoch or a revision. The database fences
-// every report; the sender alone prevents nothing.
+// every report; the sender alone prevents nothing. When the production answers a claim or a report
+// with `sample: true` (the page's Connect review asked, E5.2), the agent reads the provider once
+// more and posts what it would send as `op: "sample"`, under its claim: kept for the review, never
+// a revision and never applied.
 
 import { readFileSync } from 'node:fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
