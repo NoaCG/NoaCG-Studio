@@ -379,7 +379,8 @@ function outputText(
   if (!adapter) return { problem: 'no list adapter is registered for this leaf' };
   const read = recipeItems(output, value);
   if ('problem' in read) return read;
-  const [separator, named] = adapter === 'lines' ? ['\t', 'a tab'] : ['|', '|'];
+  // The separators each list's own grammar splits a line on (contentFormats.ts; credits reads both).
+  const separators: [string, string][] = adapter === 'lines' ? [['\t', 'a tab']] : adapter === 'schedule' ? [['|', '|']] : [['\t', 'a tab'], ['|', '|']];
   const rows: string[][] = [];
   for (const item of read.items) {
     const row: string[] = [];
@@ -387,7 +388,8 @@ function outputText(
       const cell = cellOf(column, atPath(item, column.from), format);
       if ('problem' in cell) return cell;
       // A cell holding the list's own separator would split into another cell.
-      if (cell.text.includes(separator)) return { problem: `${column.from} holds ${named}, which the list reads as a new cell` };
+      const split = separators.find(([separator]) => cell.text.includes(separator));
+      if (split) return { problem: `${column.from} holds ${split[1]}, which the list reads as a new cell` };
       row.push(cell.text);
     }
     rows.push(row);

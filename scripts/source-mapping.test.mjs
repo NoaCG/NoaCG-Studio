@@ -415,6 +415,11 @@ describe('a recipe holds last good and names the correction, never a valid empty
     assert.equal(written(board({}, { parties: [{ party_id: 'KOK', votes: 'a | b' }] })), 'KOK\ta | b');
     const piped = { slots: [{ id: 1, time: '20:00', title: 'News | fake' }] };
     for (const adapter of ['schedule', 'credits']) assert.match(held(mapped(piped, ticker, schedule, { lists: { board: adapter } })), /title holds \|/, adapter);
+    // Credits split a line on a tab as well; a schedule and a ticker line do not split on the other's.
+    const tabbed = { slots: [{ id: 1, time: 'Camera\tUnexpected', title: 'Alice' }] };
+    assert.match(held(mapped(tabbed, ticker, schedule, { lists: { board: 'credits' } })), /time holds a tab/);
+    const crew = { slots: [{ id: 1, time: 'Camera', title: 'Alice\tBob' }] };
+    assert.deepEqual(mapped(crew, ticker, schedule, { lists: { board: 'schedule' } }).unfit, []);
   });
 
   test('a genuinely empty list clears the native list through its adapter', () => {
