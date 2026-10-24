@@ -73,6 +73,22 @@
 # Each landing gets its OWN concurrency group (see below), so the runs do not queue behind each
 # other and each verdict is about exactly one commit. That is the property the whole design is
 # for, and a shared group would have thrown it away on any busy day.
+#
+# ── FOUR SHARDS, ONE VERDICT (2026-10-24, issue #1668) ─────────────────────────────────────────
+#
+# On one worker the suite reached 130 tests and 33.5 minutes of Playwright after two minutes of
+# setup, and run 40093685213 was cancelled by the 40-minute cap with no verdict. Several specs
+# watch live behaviour for 60 to 90 seconds on purpose, so every added test grows the total. The
+# cap stays; the suite is split instead, the pattern hosted-latency.yml has used since 2026-10-09.
+#   - `plan` packs the spec files onto four runners by the minutes earlier runs of this workflow
+#     measured (scripts/configured-shards.mjs: the packer ci.yml and the nightly use), so the long
+#     live-behaviour specs spread out rather than following the alphabet.
+#   - Each `shard` brings up its OWN local Supabase stack and mints its OWN accounts, and runs its
+#     files on one worker in file order, as before. A shard stops itself at `--global-timeout`, ten
+#     minutes under the cap, so a shard that runs long still uploads its report and traces.
+#   - `configured` merges the shards' reports and judges the whole run ONCE, with the same
+#     verdict, floor, skip rules and quarantine as before. It keeps the job name the alarms and
+#     failure sets know. A shard that sent no report, or did not finish, fails it.
 
 name: configured-suite
 
@@ -102,25 +118,67 @@ permissions:
   issues: write # the rolling-issue steps
 
 jobs:
-  configured:
-    name: Configured E2E (authenticated, local Supabase)
+  # WHICH SPEC FILES EACH RUNNER GETS. The weights are the last few runs' own merged reports,
+  # fetched best effort: a file no report measured weighs the median, and with no report at all
+  # the split is by file count. The plan assigns every file exactly once or fails.
+  plan:
+    name: Configured shard plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read # earlier runs' report artifacts
+    outputs:
+      shardSpecs: ${{ steps.plan.outputs.shardspecs }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Pack the suite into shards
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          REPORTS=""
+          for id in $(gh run list --workflow configured-suite.yml --status completed --limit 6 \
+            --json databaseId --jq ".[] | select(.databaseId != ${RUN_ID}) | .databaseId" | head -5); do
+            if gh run download "$id" --name configured-report --dir "previous/$id" >/dev/null 2>&1 \
+              && [ -f "previous/$id/configured-report.json" ]; then
+              REPORTS="$REPORTS previous/$id/configured-report.json"
+            else
+              echo "Run $id has no usable report - its files fall back to an older run or the median."
+            fi
+          done
+          # Newest first, as `gh run list` gives them. Unquoted on purpose: one argument per file.
+          node scripts/configured-shards.mjs --github-output $REPORTS
+
+  shard:
+    name: Configured E2E shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    # For the `quarantine` job: the specs to enter, and each quarantined spec's outcome.
-    outputs:
-      enter: ${{ steps.assert.outputs.enter || '[]' }}
-      outcomes: ${{ steps.assert.outputs.outcomes || '{}' }}
+    strategy:
+      # Every shard finishes, so one red shard cannot hide another's evidence.
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       # The local stack's identity. Not secrets: the account lives only inside this runner and is
       # destroyed with it, so the values are literals rather than repository secrets. Six chars is
-      # GoTrue's default minimum and account.spec.ts round-trips a password change.
-      E2E_EMAIL: e2e@noacg.local
+      # GoTrue's default minimum and account.spec.ts round-trips a password change. Each shard has
+      # its own stack, and names its accounts after itself so a log says which one it was.
+      E2E_EMAIL: e2e-s${{ matrix.shardIndex }}@noacg.local
       E2E_PASSWORD: noacg-e2e-local-pw
       # The SECOND account of the two-person team walk in e2e/configured/teams.spec.ts: a teammate
       # who joins a team the first account made. Same reasoning as the pair above - minted in the
       # step below, destroyed with the stack - and the walk skips without it, which the no-skips
-      # guard at the end of this job would then report.
-      E2E_TEAMMATE_EMAIL: e2e-teammate@noacg.local
+      # guard in the verdict would then report.
+      E2E_TEAMMATE_EMAIL: e2e-teammate-s${{ matrix.shardIndex }}@noacg.local
       E2E_TEAMMATE_PASSWORD: noacg-e2e-local-pw
       # JOB level, not step level, deliberately: `supabase status` and `supabase stop` load
       # config.toml too, and config.toml's [auth.external.google] reads these through env().
@@ -353,12 +411,127 @@ jobs:
 
       # playwright.live.config.ts starts its own Vite dev server; the env exported above is what
       # puts the app in configured mode, signs the specs in, and gives api/ its server-side half.
-      # `|| true` so a red suite still reaches the assertion below — the real exit code is
-      # recovered from the report.
+      # A red suite still ends this step green and reaches the verdict - the real outcome is read
+      # from the merged report there.
+      #
+      # This shard's files from the plan, as the anchored filters ci.yml's shards use
+      # (`specFilterArg`); `$SPECS` is unquoted for the same reason. An empty list is refused:
+      # Playwright reads no filter as EVERY test. 1800000 ms stops the run ten minutes inside the
+      # job cap, so an overrun ends as a report naming what it did not reach, not a cancelled job.
+      #
+      # TMPDIR ON THE RUNNER'S DISK, as hosted-latency.yml has it (issue 1574). The runner's /tmp
+      # is a 7.9 GB tmpfs and Playwright starts Chromium with --disable-dev-shm-usage, so its shared
+      # memory lives in TMPDIR. agent-access.spec.ts's published-CLI walk also puts a clean home, an
+      # npm cache and the CLI's own Chromium there; in run 40094380185 that Chromium died on
+      # "Disk quota exceeded" and the test went to the quarantine.
       - name: Configured E2E suite
+        id: suite
+        env:
+          SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          SPECS="$(node -e '
+            const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");
+            const mine = bins[Number(process.env.SHARD_INDEX) - 1];
+            if (!Array.isArray(mine) || mine.length === 0) {
+              console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);
+              process.exit(1);
+            }
+            import("./scripts/e2e-affected.mjs").then((m) => console.log(mine.map(m.specFilterArg).join(" ")));
+          ')" || exit 1
+          echo "::notice title=Configured E2E ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"
+          code=0
+          npm run test:e2e:live -- --global-timeout=1800000 --reporter=list,blob $SPECS || code=$?
+          echo "exit=${code}" >> "$GITHUB_OUTPUT"
+          # One blob name per shard: without --shard every shard writes the same file name, and the
+          # verdict's download would keep only one of them.
+          for blob in blob-report/*.zip; do
+            [ -f "$blob" ] && mv "$blob" "blob-report/report-${SHARD_INDEX}.zip"
+          done
+          true
+
+      # Container logs are the difference between "the playout specs are red" and "realtime never
+      # came up". Only on failure, and only the stack's own logs.
+      - name: Supabase container logs (on failure)
+        if: ${{ failure() || steps.suite.outputs.exit != '0' }}
+        run: |
+          for c in $(docker ps -a --filter 'name=supabase_' --format '{{.Names}}'); do
+            echo "===== $c ====="
+            docker logs --tail 60 "$c" 2>&1 || true
+          done
+
+      - name: Upload shard report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: configured-blob-${{ matrix.shardIndex }}
+          path: blob-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: configured-results-${{ matrix.shardIndex }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  configured:
+    name: Configured E2E (authenticated, local Supabase)
+    needs: [plan, shard]
+    # Also after a shard failed or was cut off: its tests are then missing from the merged report,
+    # the floor says so, and the last step names the shard job's result.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # For the `quarantine` job: the specs to enter, and each quarantined spec's outcome.
+    outputs:
+      enter: ${{ steps.assert.outputs.enter || '[]' }}
+      outcomes: ${{ steps.assert.outputs.outcomes || '{}' }}
+    steps:
+      # History enough to diff a landing from its `before` (the verdict's edited-spec refusal).
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 50
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # Playwright's merge-reports, and the verdict script's imports.
+      - uses: ./.github/actions/node-modules
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: configured-blob-*
+          merge-multiple: true
+
+      # EVERY SHARD OR NO CLEAN VERDICT. A shard that sent no report is named here, and its tests
+      # are missing from the merged report the floor reads; the last step fails the run on it too.
+      - name: Merge the shard reports
+        id: merge
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: configured-report.json
-        run: npm run test:e2e:live -- --reporter=list,json || true
+          MATRIX: ${{ needs.plan.outputs.matrix }}
+        run: |
+          missing=""
+          for i in $(jq -r '.shardIndex[]?' <<<"${MATRIX:-null}"); do
+            [ -f "all-blob-reports/report-${i}.zip" ] || missing="${missing} ${i}"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=A shard sent no report::Shard(s)${missing} uploaded no blob report, so their tests are not in this verdict."
+            echo "missing=${missing# }" >> "$GITHUB_OUTPUT"
+          fi
+          if ls all-blob-reports/*.zip > /dev/null 2>&1; then
+            npx --no-install playwright merge-reports --reporter=json all-blob-reports
+          else
+            echo "::error title=No shard reported::No shard uploaded a blob report."
+          fi
 
       # A green exit code from this suite means nothing on its own; only the counts do.
       # ONE implementation of the verdict, shared with hosted-latency.yml, because both run the
@@ -389,24 +562,14 @@ jobs:
           --quarantine "$QUARANTINE"
           --changed "$CHANGED"
 
-      # Container logs are the difference between "the playout specs are red" and "realtime never
-      # came up". Only on failure, and only the stack's own logs.
-      - name: Supabase container logs (on failure)
-        if: ${{ failure() || steps.assert.outputs.green != 'true' }}
-        run: |
-          for c in $(docker ps -a --filter 'name=supabase_' --format '{{.Names}}'); do
-            echo "===== $c ====="
-            docker logs --tail 60 "$c" 2>&1 || true
-          done
-
+      # The merged report only: the next run's plan downloads it for its weights, and the shards'
+      # traces are in their own `configured-results-<n>` artifacts.
       - name: Upload report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: configured-report
-          path: |
-            configured-report.json
-            test-results/
+          path: configured-report.json
           retention-days: 14
           if-no-files-found: ignore
 
@@ -437,7 +600,7 @@ jobs:
       # inbox-facing half is scoped to the branch the alarm is actually about. Same shape as
       # ci.yml's red-main steps.
       - name: File / update the rolling issue
-        if: ${{ always() && steps.assert.outputs.green != 'true' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        if: ${{ always() && (steps.assert.outputs.green != 'true' || needs.shard.result != 'success' || steps.merge.outputs.missing != '') && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -445,10 +608,15 @@ jobs:
           FAILHASH: ${{ steps.assert.outputs.failhash }}
           HARDFAIL: ${{ steps.assert.outputs.hardfail }}
           EVENT: ${{ github.event_name }}
+          SHARDS: ${{ needs.shard.result }}
+          MISSING: ${{ steps.merge.outputs.missing }}
         run: |
           TITLE="Configured (authenticated) E2E suite is red"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MARKER="configured-failure-set: ${FAILHASH:-unknown}"
+          if [ "$SHARDS" != "success" ] || [ -n "$MISSING" ]; then
+            SUMMARY="$(printf 'The shard jobs ended %s%s, so the report is missing their tests. %s' "$SHARDS" "${MISSING:+ (no report from shard ${MISSING})}" "${SUMMARY:-}")"
+          fi
           BODY="$(printf 'The configured suite failed at %s.\n\n%s\n\nThis tier brings up a LOCAL Supabase stack on the runner, so it no longer depends on any hosted project or credential. What it can still go red for without a code fault: a Docker image pull, `supabase start` health checks, or a Supabase CLI change. The container logs are in the run; check those before bisecting.\n\nRun: %s\n\n<!-- %s -->' \
             "${{ github.sha }}" "${SUMMARY:-the stack or the account never came up - see the run log}" "$RUN_URL" "$MARKER")"
           EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
@@ -481,7 +649,7 @@ jobs:
           gh issue comment "$EXISTING" --body "Still red. $BODY"
 
       - name: Close the rolling issue
-        if: ${{ steps.assert.outputs.green == 'true' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        if: ${{ steps.assert.outputs.green == 'true' && needs.shard.result == 'success' && steps.merge.outputs.missing == '' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -493,8 +661,14 @@ jobs:
           fi
 
       - name: Fail the run when the suite was not a clean verdict
-        if: ${{ steps.assert.outputs.green != 'true' }}
-        run: exit 1
+        if: ${{ steps.assert.outputs.green != 'true' || needs.shard.result != 'success' || steps.merge.outputs.missing != '' }}
+        env:
+          SHARDS: ${{ needs.shard.result }}
+        run: |
+          if [ "$SHARDS" != "success" ]; then
+            echo "::error title=A shard did not finish::The shard jobs ended '${SHARDS}' (a timeout reads as cancelled), so the merged report is missing their tests."
+          fi
+          exit 1
 
   # THE QUARANTINE'S WRITES, in their own job so the suite's job keeps read-only scopes: the same
   # two that quarantine.yml and ci.yml's after-gate make for the main suite. Main only, because the
