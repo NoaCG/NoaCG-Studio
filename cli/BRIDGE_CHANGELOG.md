@@ -23,9 +23,8 @@ channel holds. The studio page will offer vMix as a playout system in a later up
 nothing changes for you, and CasparCG works exactly as before. If your studio moved vMix's TCP
 API away from its usual port 8099, start the Bridge with `--vmix-port` and that port.
 
-**Its own version number.** NoaCG Bridge now has a version of its own, separate from the NoaCG
-CLI, so the number moves only when the Bridge changes. The Bridge window, the Releases page and
-the file name all show it, and the Downloads page offers one Bridge: the download.
+**Its own version number.** NoaCG Bridge's number no longer follows the NoaCG CLI's, so it moves
+only when the Bridge changes, and the Downloads page offers one Bridge: this download.
 
 ## 0.9.0 - 2026-10-06
 

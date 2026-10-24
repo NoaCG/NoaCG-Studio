@@ -49,6 +49,15 @@ export function newestVersionIn(changelog) {
   return m ? m[1] : null;
 }
 
+/** Pure: the Bridge's version and its newest notes are one decision. A section written without
+ *  moving `bridgeVersion`, or the other way round, would release or report the wrong Bridge. */
+export function bridgeVersionProblems(changelog, bridgeVersion) {
+  const newest = newestVersionIn(changelog);
+  return newest === bridgeVersion
+    ? []
+    : [`cli/package.json's bridgeVersion is ${bridgeVersion}, but the newest section of cli/BRIDGE_CHANGELOG.md is ${newest} - move them together`];
+}
+
 /**
  * Pure: why these notes are not fit to publish - an empty list when they are.
  *
@@ -89,12 +98,7 @@ function main() {
   const changelog = readFileSync(bridge ? BRIDGE_CHANGELOG : CLI_CHANGELOG, 'utf8');
   const notes = sectionOf(changelog, version);
   const problems = problemsWith(notes, version, file);
-  // The Bridge's version and its newest notes are one decision: a section written without moving
-  // `bridgeVersion` (or the other way round) would release, or report, the wrong Bridge.
-  const newest = newestVersionIn(changelog);
-  if (bridge && !named && notes !== null && newest !== version) {
-    problems.push(`cli/package.json's bridgeVersion is ${version}, but the newest section of ${file} is ${newest} - move them together`);
-  }
+  if (bridge && !named && notes !== null) problems.push(...bridgeVersionProblems(changelog, version));
   const name = bridge ? 'NoaCG Bridge' : '@noacg/cli';
   if (problems.length > 0) {
     console.error(`release-notes: ${name} ${version} cannot be released with these notes:`);
