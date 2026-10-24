@@ -102,11 +102,11 @@ changes a spec's digest.
   config revision unchecked, a refusal keeping the fence, the claim not raising the epoch, the override overwritten, an unchanged
   report moving changed-at, the apply labelled as an operator, the claim answering revision 0. All
   28 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
-  25. JavaScript: 36 single mutations of the route, evaluator, contract, model and agent, each
+  25. JavaScript: 37 single mutations of the route, evaluator, contract, model and agent, each
   turning its test red (the body cap either way, a later envelope answered 400, null as "", a list
   with no adapter read as lines, a nested item flattened, prototype keys walked, conflicting field
   forms decided, another prefix of the source evaluated, the old cell regex back, a dotted source id
-  accepted in the registration or the envelope, a local destination accepted, v 2 not read-only,
+  accepted in the registration or the envelope, a restart reporting the current revision stale, a local destination accepted, v 2 not read-only,
   standings allowed, a prototype send path, the read-only check inverted, `external` not a source
   path, gaps (a) to (g), adopt keeping the accepted text or ignoring the production's revision, an
   old-epoch report sent, a lost fence kept, a Pause dropping the revision, an old revision offered
@@ -149,6 +149,11 @@ changes a spec's digest.
   route reads bindings before the lock, and the database re-checks binding and value rules but not
   that every field on a path takes the same form; the 50-commands cap is the apply's own raise (a
   429, nothing kept); and pruning drops an unbound connector source, as it does a Sheet.
+- **The automated PR review** (on `2c3dc4e`, P2): after a claim the agent knew the production's
+  provider sequence but not its accepted text, so a provider still answering that revision read as
+  "came again with other content" and was reported stale at every poll. Fixed: with no accepted
+  text, the same revision is sent whole once (the production writes only what differs), then reads
+  unchanged; pinned by a test and a mutation.
 - **Not done here, and whose.** No UI: the operator does not yet see a connector source in the
   sources line or Connect data, and the Data overview lists no `external.` values; that is E5's
   mapping UI. An old build's page that prunes sources does not know `external.` paths and would

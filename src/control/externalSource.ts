@@ -322,7 +322,12 @@ export function acceptRead(
     // Nesting deep enough to exhaust the stack: JSON.parse took it, nothing downstream would.
     return hold('invalid', 'the provider answered JSON nested too deeply');
   }
-  if (sequence !== null && sequence === state.providerSequence && text !== state.acceptedText) return hold('stale', `revision ${sequence} came again with other content`);
+  // Without the accepted text (a fresh claim knows the production's sequence, not its content) the
+  // same revision cannot be told from a conflicting one: it is sent whole once, and the production
+  // writes only what differs.
+  if (sequence !== null && sequence === state.providerSequence && state.acceptedText !== null && text !== state.acceptedText) {
+    return hold('stale', `revision ${sequence} came again with other content`);
+  }
   if (text === state.acceptedText) {
     const providerSequence = sequence !== null && (state.providerSequence === null || sequence > state.providerSequence) ? sequence : state.providerSequence;
     return { ...unchanged, state: { ...state, acceptedRaw: read.text, providerSequence } };

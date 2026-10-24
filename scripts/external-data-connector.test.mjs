@@ -861,6 +861,19 @@ describe('the sender', () => {
     assert.equal(route.calls.every((call) => call.auth === 'Bearer data-key'), true);
   });
 
+  test('after a restart the provider\'s current revision is sent whole once, then is unchanged', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(2, 5, 9) : [200, { ok: true }]));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    const clock = fakeClock();
+    const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 9, n: 1 })), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    const first = await c.readOnce();
+    assert.deepEqual([first.status, first.acceptedRevision, first.providerSequence], ['changed', 6, 9]);
+    await clock.advance(5000);
+    assert.equal((await c.readOnce()).status, 'unchanged');
+  });
+
   test('an older provider revision than the production holds is stale after a restart', async () => {
     const route = fakeRoute((b) => (b.op === 'claim' ? claimed(2, 5, 9) : [200, { ok: true }]));
     const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
