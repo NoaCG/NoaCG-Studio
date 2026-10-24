@@ -325,26 +325,43 @@ const unanswered = (status) => status >= 500 || status === 429;
  * for the connector's seam, `claim()` and `release()`. A report made under an older epoch than the
  * current claim is dropped, never sent. A send throws when the revision should be offered again.
  */
-export function createSourceSender({ address, key, config, fetchImpl = fetch, log = () => {}, clock = realClock }) {
+/** How long one request to the production may take, its answer's body included. */
+export const POST_TIMEOUT_MS = 10_000;
+
+export function createSourceSender({ address, key, config, fetchImpl = fetch, log = () => {}, clock = realClock, timeoutMs = POST_TIMEOUT_MS }) {
   let fence = null;
   let connector = null;
   /** When the production last answered a report (which renewed the lease). */
   let answeredAt = -Infinity;
   /** Before this, a kept revision is not sent: the production asked to wait (Retry-After). */
   let notBefore = -Infinity;
+  /** Requests in flight, so shutdown can end them. */
+  const inFlight = new Set();
+  // A production that stalls must not stall the reading: the request and its answer end within
+  // `timeoutMs` (an error, so a kept revision is offered again), and `abort()` ends them at shutdown.
   const post = async (body) => {
-    const response = await fetchImpl(address, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    let answer = {};
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(new Error(`the production did not answer in ${timeoutMs / 1000} seconds`)), timeoutMs);
+    inFlight.add(controller);
     try {
-      answer = await response.json();
-    } catch {
-      /* the status says enough */
+      const response = await fetchImpl(address, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      let answer = {};
+      try {
+        answer = await response.json();
+      } catch (error) {
+        if (controller.signal.aborted) throw controller.signal.reason ?? error;
+        /* not JSON: the status says enough */
+      }
+      return { status: response.status, answer };
+    } finally {
+      clearTimeout(deadline);
+      inFlight.delete(controller);
     }
-    return { status: response.status, answer };
   };
   const base = { v: EXTERNAL_SOURCE_VERSION, sourceId: config.sourceId, configRevision: config.configRevision };
 
@@ -419,6 +436,8 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     claim,
     release,
     keepClaim,
+    /** End every request in flight (shutdown). */
+    abort: () => inFlight.forEach((c) => c.abort(new Error('stopped'))),
     bind: (c) => void (connector = c),
     get fence() {
       return fence;
@@ -484,6 +503,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   await done;
   connector.stop();
   stopRenewing?.();
+  sender?.abort();
   await sender?.release();
 }
 

@@ -1047,6 +1047,46 @@ describe('the sender', () => {
     assert.equal(sender.fence, null);
   });
 
+  test('a production that stalls ends the request at the deadline, and the revision is offered again', async () => {
+    let stall = true;
+    const calls = [];
+    const fetchImpl = (address, init) => {
+      const body = JSON.parse(init.body);
+      calls.push(body.op);
+      if (body.op === 'claim') return Promise.resolve(new Response(JSON.stringify(claimed(1)[1]), { status: 200 }));
+      if (!stall) return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+      // Never answers; only the signal ends it.
+      return new Promise((_resolve, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+    };
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl, timeoutMs: 50 });
+    const clock = fakeClock();
+    const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    const started = Date.now();
+    await c.readOnce();
+    assert.ok(Date.now() - started < 2000, 'the stalled report ended at its deadline');
+    stall = false;
+    await clock.advance(5000);
+    await c.readOnce();
+    assert.deepEqual(calls, ['claim', 'report', 'report']);
+  });
+
+  test('shutdown ends a request in flight', async () => {
+    let started;
+    const ended = new Promise((resolve) => (started = resolve));
+    const fetchImpl = (_address, init) =>
+      new Promise((_resolve, reject) => {
+        started();
+        init.signal.addEventListener('abort', () => reject(init.signal.reason));
+      });
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl, timeoutMs: 60_000 });
+    const claiming = sender.claim();
+    await ended;
+    sender.abort();
+    await assert.rejects(claiming, /stopped/);
+  });
+
   test('sendPaths project the payload before it is sent; release lets the claim go', async () => {
     const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
     const cfg = config({ sendPaths: ['revision', 'totals.counted'] });

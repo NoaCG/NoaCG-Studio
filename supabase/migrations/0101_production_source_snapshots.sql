@@ -199,6 +199,8 @@ declare
   v_bindings jsonb;
   v_data jsonb;
   v_paused boolean;
+  v_pending_tree jsonb;
+  v_held jsonb;
   v_refusal text;
   v_status text := p_report->>'status';
   v_revision bigint;
@@ -244,10 +246,10 @@ begin
   if v_read.claim is null or v_read.claim is distinct from p_report->>'claim' or v_read.lease_until <= now() then
     return jsonb_build_object('ok', false, 'refused', 'moved');
   end if;
-  select s.bindings, coalesce(s.data, '{}'::jsonb), s.data_paused,
+  select s.bindings, coalesce(s.data, '{}'::jsonb), s.data_paused, s.data_pending, coalesce(s.data_held, '{}'::jsonb),
          (select e.value from jsonb_array_elements(case jsonb_typeof(s.sources) when 'array' then s.sources else '[]'::jsonb end) e
            where e.value->>'id' = p_source limit 1)
-    into v_bindings, v_data, v_paused, v_entry
+    into v_bindings, v_data, v_paused, v_pending_tree, v_held, v_entry
     from public.control_shows s where s.id = v_show for no key update;
   v_refusal := public.control_source_registration_refusal(v_entry, (p_report->>'configRevision')::integer);
   if v_refusal is not null then
@@ -269,6 +271,14 @@ begin
 
   v_state := jsonb_strip_nulls(jsonb_build_object('state', v_status, 'checkedAt', p_report->'checkedAt',
                                                   'providerEventTime', p_report->'providerEventTime', 'error', p_report->'error'));
+
+  -- An unchanged read with a newer provider sequence keeps it (a change outside the sent paths still
+  -- moves the provider's revision), so a later claim never continues from an older one.
+  if v_status = 'unchanged' and v_sequence is not null
+     and (v_snap.provider_sequence is null or v_sequence > v_snap.provider_sequence) then
+    update public.production_source_snapshots p set provider_sequence = v_sequence
+     where p.show_id = v_show and p.source_id = p_source;
+  end if;
 
   if v_status = 'unchanged' then
     if v_snap.checked_at is not null and v_snap.checked_at > now() - c_receipt_gap then
@@ -335,8 +345,17 @@ begin
     v_snapshot := jsonb_set(v_snapshot, array[v_path], v_value);
   end loop;
 
-  -- The rows it would append (none while Another system is paused: Resume sends them once).
-  v_changes := public.production_data_changes(public.jsonb_merge_patch(v_data, v_patch), v_data, v_bindings);
+  -- The rows it would append. While Another system is paused, none now: Resume sends one row per
+  -- graphic with everything held since the Pause, so that row, this revision included, is what
+  -- must fit (0100's Resume: the pending tree's diff against air, the held /update values over it).
+  if v_paused then
+    v_changes := public.production_data_changes(public.jsonb_merge_patch(coalesce(v_pending_tree, v_data), v_patch), v_data, v_bindings);
+    select coalesce(jsonb_object_agg(k.graphic, coalesce(v_changes->k.graphic, '{}'::jsonb) || coalesce(v_held->k.graphic, '{}'::jsonb)), '{}'::jsonb)
+      into v_changes
+      from (select jsonb_object_keys(v_changes) as graphic) k;
+  else
+    v_changes := public.production_data_changes(public.jsonb_merge_patch(v_data, v_patch), v_data, v_bindings);
+  end if;
   select count(*) into v_rows from jsonb_object_keys(v_changes);
   for v_graphic, v_changed in select key, value from jsonb_each(v_changes) loop
     if octet_length(jsonb_build_object('t', 'update', 'data', v_changed, 'src', 'api')::text) > c_row_bytes then
@@ -424,25 +443,25 @@ begin
       returning slug, data_key into v_slug, v_key;
 
     -- A wrong config revision, a local destination and a later version are refused before the lease.
-    if public.control_source_claim_by_key(v_key, 'e1', 2, null, 30000)->>'refused' <> 'config' then
+    if public.control_source_claim_by_key(v_key, 'e1', 2, null, 30000)->>'refused' is distinct from 'config' then
       raise exception '0101 self-check failed: an old config revision was claimed';
     end if;
     update public.control_shows set sources = jsonb_set(sources, '{0,config,mode}', '"local"') where id = v_show;
-    if public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'refused' <> 'local_refused' then
+    if public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'refused' is distinct from 'local_refused' then
       raise exception '0101 self-check failed: a local destination in the production record was claimed';
     end if;
     update public.control_shows set sources = jsonb_set(sources #- '{0,config,mode}', '{0,config,v}', '2') where id = v_show;
-    if public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'refused' <> 'unsupported' then
+    if public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'refused' is distinct from 'unsupported' then
       raise exception '0101 self-check failed: a v 2 registration was claimed';
     end if;
     update public.control_shows set sources = jsonb_set(sources, '{0,config,v}', '1') where id = v_show;
     update public.control_shows set sources = jsonb_set(sources, '{0,config,lists}', '{"cands":"standings"}') where id = v_show;
-    if public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'refused' <> 'registration' then
+    if public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'refused' is distinct from 'registration' then
       raise exception '0101 self-check failed: a registration with an unknown list adapter was claimed';
     end if;
     update public.control_shows set sources = jsonb_set(sources, '{0,config,lists}', '{"cands":"lines"}') where id = v_show;
     update public.control_shows set sources = jsonb_set(sources, '{0,id}', '"e1.x"') where id = v_show;
-    if public.control_source_claim_by_key(v_key, 'e1.x', 3, null, 30000)->>'refused' <> 'registration' then
+    if public.control_source_claim_by_key(v_key, 'e1.x', 3, null, 30000)->>'refused' is distinct from 'registration' then
       raise exception '0101 self-check failed: a dotted source id was claimed';
     end if;
     update public.control_shows set sources = jsonb_set(sources, '{0,id}', '"e1"') where id = v_show;
@@ -452,17 +471,17 @@ begin
 
     -- The claim takes C2's lease and the first epoch; a second agent is told it is held.
     v_c := public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000);
-    if (v_c->>'ok')::boolean is not true or (v_c->>'ownerEpoch')::int <> 1 or (v_c->>'acceptedRevision')::int <> 0 then
+    if (v_c->>'ok')::boolean is not true or (v_c->>'ownerEpoch')::int is distinct from 1 or (v_c->>'acceptedRevision')::int is distinct from 0 then
       raise exception '0101 self-check failed: the first claim (%)', v_c;
     end if;
-    if (select r.owner from public.control_source_reads r where r.show_id = v_show) <> 'agent' then
+    if (select r.owner from public.control_source_reads r where r.show_id = v_show) is distinct from 'agent' then
       raise exception '0101 self-check failed: the claim is not C2''s lease';
     end if;
     if (public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000)->>'held')::boolean is not true then
       raise exception '0101 self-check failed: a second agent took a live claim';
     end if;
     -- Renewing with the claim keeps the epoch.
-    if (public.control_source_claim_by_key(v_key, 'e1', 3, v_c->>'claim', 30000)->>'ownerEpoch')::int <> 1 then
+    if (public.control_source_claim_by_key(v_key, 'e1', 3, v_c->>'claim', 30000)->>'ownerEpoch')::int is distinct from 1 then
       raise exception '0101 self-check failed: a renewal raised the epoch';
     end if;
 
@@ -472,7 +491,7 @@ begin
                                    'payload', '{"count":"60","status":"PRELIMINARY"}'::jsonb);
     v_a := public.control_source_report_by_key(v_key, 'e1', v_report,
                                                '{"external.e1.count":"60","external.e1.status":"PRELIMINARY"}'::jsonb);
-    if (v_a->>'ok')::boolean is not true or (v_a->>'writes')::int <> 1 then
+    if (v_a->>'ok')::boolean is not true or (v_a->>'writes')::int is distinct from 1 then
       raise exception '0101 self-check failed: an accepted revision did not apply (%)', v_a;
     end if;
     select count(*) into v_n from public.control_events e
@@ -482,22 +501,22 @@ begin
     -- Duplicate and older revisions, an older provider sequence, an old epoch and a moved claim are
     -- refused with nothing written.
     update public.production_source_snapshots set changed_at = now() - interval '6 seconds' where show_id = v_show;
-    if public.control_source_report_by_key(v_key, 'e1', v_report, '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'old_revision'
-       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"providerSequence":9}', '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'old_revision'
-       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"ownerEpoch":0}', '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'epoch'
-       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"claim":"agent:other"}', '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'moved'
-       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"configRevision":2}', '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'config' then
+    if public.control_source_report_by_key(v_key, 'e1', v_report, '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'old_revision'
+       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"providerSequence":9}', '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'old_revision'
+       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"ownerEpoch":0}', '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'epoch'
+       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"claim":"agent:other"}', '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'moved'
+       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2,"configRevision":2}', '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'config' then
       raise exception '0101 self-check failed: a fenced report was not refused';
     end if;
     -- The config refusal took the fence: the agent must claim again, and gets a newer epoch.
-    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2}', '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'moved' then
+    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2}', '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'moved' then
       raise exception '0101 self-check failed: a changed registration kept the fence';
     end if;
     v_c2 := public.control_source_claim_by_key(v_key, 'e1', 3, null, 30000);
-    if (v_c2->>'ownerEpoch')::int <> 2 or (v_c2->>'acceptedRevision')::int <> 1 or (v_c2->>'providerSequence')::numeric <> 10 then
+    if (v_c2->>'ownerEpoch')::int is distinct from 2 or (v_c2->>'acceptedRevision')::int is distinct from 1 or (v_c2->>'providerSequence')::numeric is distinct from 10 then
       raise exception '0101 self-check failed: a new claim did not continue from the accepted revision (%)', v_c2;
     end if;
-    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2}', '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'moved' then
+    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2}', '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'moved' then
       raise exception '0101 self-check failed: the old owner wrote after a new claim';
     end if;
     select count(*) into v_n from public.control_events e where e.show_id = v_show;
@@ -508,7 +527,7 @@ begin
 
     -- One accepted revision per 5 s.
     update public.production_source_snapshots set changed_at = now() - interval '4.9 seconds' where show_id = v_show;
-    if public.control_source_report_by_key(v_key, 'e1', v_report, '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'too_soon' then
+    if public.control_source_report_by_key(v_key, 'e1', v_report, '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'too_soon' then
       raise exception '0101 self-check failed: a second revision inside 5 s was accepted';
     end if;
     update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
@@ -520,14 +539,14 @@ begin
       select v_show, 'Other', '{"t":"update","data":{},"src":"api"}'::jsonb from generate_series(1, 24);
     v_pad := 262144 - octet_length('{"x": ""}'::jsonb::text);
     if public.control_source_report_by_key(v_key, 'e1', v_report || jsonb_build_object('payload', jsonb_build_object('x', repeat('y', v_pad))),
-         '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'budget'
+         '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'budget'
        or public.control_source_report_by_key(v_key, 'e1', v_report || jsonb_build_object('payload', jsonb_build_object('x', repeat('y', v_pad + 1))),
-         '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'too_large' then
+         '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'too_large' then
       raise exception '0101 self-check failed: the 256 KiB payload edge';
     end if;
     v_pad := 65536 - octet_length(jsonb_build_object('t', 'update', 'data', jsonb_build_object('f0', ''), 'src', 'api')::text);
-    if public.control_source_report_by_key(v_key, 'e1', v_report, jsonb_build_object('external.e1.count', repeat('x', v_pad)))->>'refused' <> 'budget'
-       or public.control_source_report_by_key(v_key, 'e1', v_report, jsonb_build_object('external.e1.count', repeat('x', v_pad + 1)))->>'refused' <> 'row_too_large' then
+    if public.control_source_report_by_key(v_key, 'e1', v_report, jsonb_build_object('external.e1.count', repeat('x', v_pad)))->>'refused' is distinct from 'budget'
+       or public.control_source_report_by_key(v_key, 'e1', v_report, jsonb_build_object('external.e1.count', repeat('x', v_pad + 1)))->>'refused' is distinct from 'row_too_large' then
       raise exception '0101 self-check failed: the 64 KiB row edge';
     end if;
     -- One row back: 24 in the window, so the revision below (one row) is the 25th and is accepted.
@@ -538,14 +557,14 @@ begin
     -- The source's own Pause refuses application; an unchanged report moves checked-at only, at most
     -- every 15 s; an override holds until the source's value changes.
     update public.control_shows set sources = jsonb_set(sources, '{0,paused}', 'true') where id = v_show;
-    if public.control_source_report_by_key(v_key, 'e1', v_report, '{"external.e1.count":"61"}'::jsonb)->>'refused' <> 'paused' then
+    if public.control_source_report_by_key(v_key, 'e1', v_report, '{"external.e1.count":"61"}'::jsonb)->>'refused' is distinct from 'paused' then
       raise exception '0101 self-check failed: a paused source applied';
     end if;
     update public.control_shows set sources = jsonb_set(sources, '{0,paused}', 'false') where id = v_show;
     perform public.control_data_apply(v_show, '{"external":{"e1":{"status":"OPERATOR"}}}'::jsonb, 'operator');
     v_a := public.control_source_report_by_key(v_key, 'e1', v_report, '{"external.e1.count":"61","external.e1.status":"PRELIMINARY"}'::jsonb);
     if (v_a->>'ok')::boolean is not true
-       or (select s.data->'external'->'e1' from public.control_shows s where s.id = v_show) <> '{"count":"61","status":"OPERATOR"}'::jsonb then
+       or (select s.data->'external'->'e1' from public.control_shows s where s.id = v_show) is distinct from '{"count":"61","status":"OPERATOR"}'::jsonb then
       raise exception '0101 self-check failed: the second revision or the held override (%)', v_a;
     end if;
     update public.production_source_snapshots set checked_at = now() - interval '14.9 seconds' where show_id = v_show;
@@ -554,14 +573,38 @@ begin
     end if;
     update public.production_source_snapshots set checked_at = now() - interval '15 seconds', changed_at = now() - interval '1 minute' where show_id = v_show;
     v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"status":"unchanged"}', '{}'::jsonb);
-    if (v_a->>'ignored')::boolean or (select p.changed_at > now() - interval '30 seconds' or p.checked_at <> now()
+    if (v_a->>'ignored')::boolean or (select p.changed_at > now() - interval '30 seconds' or p.checked_at is distinct from now()
                                         from public.production_source_snapshots p where p.show_id = v_show) then
       raise exception '0101 self-check failed: an unchanged receipt (%)', v_a;
     end if;
 
+    -- An unchanged read with a newer provider sequence raises the fence, inside the 15 s too: a
+    -- changed one between the two sequences is then old.
+    update public.production_source_snapshots set checked_at = now() where show_id = v_show;
+    perform public.control_source_report_by_key(v_key, 'e1', v_report || '{"status":"unchanged","providerSequence":50}', '{}'::jsonb);
+    update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
+    if (select p.provider_sequence from public.production_source_snapshots p where p.show_id = v_show) is distinct from 50
+       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3,"providerSequence":40}', '{"external.e1.count":"62"}'::jsonb)->>'refused' is distinct from 'old_revision' then
+      raise exception '0101 self-check failed: an unchanged read did not keep its newer provider sequence';
+    end if;
+
+    -- Paused, every revision joins one Resume row per graphic: that row must fit. Two 40 KB values
+    -- for two fields of one graphic fit one by one and not together.
+    perform public.control_data_pause_by_slug(v_slug, true);
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3,"providerSequence":51}',
+                                               jsonb_build_object('external.e1.count', repeat('a', 40000)));
+    if (v_a->>'ok')::boolean is not true or (v_a->>'paused')::boolean is not true then
+      raise exception '0101 self-check failed: a paused revision was not held (%)', v_a;
+    end if;
+    update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
+    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":4,"providerSequence":52}',
+         jsonb_build_object('external.e1.status', repeat('b', 40000)))->>'refused' is distinct from 'row_too_large' then
+      raise exception '0101 self-check failed: a paused revision grew the Resume row past 64 KiB';
+    end if;
+
     -- A later snapshot version holds the source read-only.
     update public.production_source_snapshots set v = 2 where show_id = v_show;
-    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3}', '{"external.e1.count":"62"}'::jsonb)->>'refused' <> 'unsupported' then
+    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3}', '{"external.e1.count":"62"}'::jsonb)->>'refused' is distinct from 'unsupported' then
       raise exception '0101 self-check failed: a v 2 snapshot was written';
     end if;
 

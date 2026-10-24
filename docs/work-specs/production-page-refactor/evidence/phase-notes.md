@@ -93,20 +93,22 @@ changes a spec's digest.
   answers reset the backoff; (f) a credential in an object key is redacted; (g) the receipt goes
   at 15 000 ms, not 14 999; (h) above; (i) row 26's counts corrected (38 tests, 48 mutations, the
   second smoke run 40074390687).
-- **Mutation checks** (on the final code). SQL: 28 single mutations of 0101's bodies, each applied in a rolled-back
+- **Mutation checks** (on the final code). SQL: 30 single mutations of 0101's bodies, each applied in a rolled-back
   transaction on the local stack with the self-check run after it: the revision gap to 4.9 s and
   5.1 s, the receipt gap to 14.8 s and 15.1 s, the payload cap and the row cap one byte either way,
   the budget to 24 and 26, a duplicate revision accepted, an older provider sequence accepted, the
   epoch, the claim and the lease expiry unchecked, the source's Pause ignored, a local destination
-  or a v 2 registration accepted, a dotted source id accepted, an unknown list adapter accepted, a v 2 snapshot written, the
+  or a v 2 registration accepted, a dotted source id accepted, the paused Resume row not measured, a newer
+  sequence from an unchanged read not kept, an unknown list adapter accepted, a v 2 snapshot written, the
   config revision unchecked, a refusal keeping the fence, the claim not raising the epoch, the override overwritten, an unchanged
   report moving changed-at, the apply labelled as an operator, the claim answering revision 0. All
-  28 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
-  25. JavaScript: 37 single mutations of the route, evaluator, contract, model and agent, each
+  30 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
+  25. JavaScript: 39 single mutations of the route, evaluator, contract, model and agent, each
   turning its test red (the body cap either way, a later envelope answered 400, null as "", a list
   with no adapter read as lines, a nested item flattened, prototype keys walked, conflicting field
   forms decided, another prefix of the source evaluated, the old cell regex back, a dotted source id
-  accepted in the registration or the envelope, a restart reporting the current revision stale, a local destination accepted, v 2 not read-only,
+  accepted in the registration or the envelope, a restart reporting the current revision stale, no deadline on a request to
+  the production, shutdown leaving requests running, a local destination accepted, v 2 not read-only,
   standings allowed, a prototype send path, the read-only check inverted, `external` not a source
   path, gaps (a) to (g), adopt keeping the accepted text or ignoring the production's revision, an
   old-epoch report sent, a lost fence kept, a Pause dropping the revision, an old revision offered
@@ -153,7 +155,17 @@ changes a spec's digest.
   provider sequence but not its accepted text, so a provider still answering that revision read as
   "came again with other content" and was reported stale at every poll. Fixed: with no accepted
   text, the same revision is sent whole once (the production writes only what differs), then reads
-  unchanged; pinned by a test and a mutation.
+  unchanged; pinned by a test and a mutation. Its second pass (on `9404254`, three P2s), all fixed:
+  while Another system is paused, the 64 KiB check now measures the Resume row (the pending tree's
+  diff against air with the held `/update` values over it), not this revision alone, so revisions
+  held one by one cannot add up past it; an unchanged read's newer provider sequence is kept, so a
+  later claim never continues from an older one; and every request to the production has a 10 s
+  deadline, its answer included, and shutdown ends those in flight, so a stalled production cannot
+  stall the reading.
+- **A self-check trap, found by a surviving mutation.** `answer->>'refused' <> 'x'` is NULL, not
+  true, when the report is accepted, so a refusal assertion passed silently whenever the function
+  accepted instead; other mutations had gone red only because a later state check caught them.
+  Every comparison in 0101's self-check is now `is distinct from`.
 - **Not done here, and whose.** No UI: the operator does not yet see a connector source in the
   sources line or Connect data, and the Data overview lists no `external.` values; that is E5's
   mapping UI. An old build's page that prunes sources does not know `external.` paths and would
