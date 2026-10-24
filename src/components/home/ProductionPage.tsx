@@ -2466,6 +2466,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     selectionAired,
     candidateFields,
+    airedCandidateFields: (graphic) => {
+      const inst = session.selections.get()[graphic];
+      return inst && session.air.get().liveCue[graphic] === inst.cueId ? selectedFields({ selection: inst.selection }, show.collections) : [];
+    },
     airedCandidate: (graphic, cueId) => {
       const inst = session.selections.get()[graphic];
       return inst && inst.cueId === cueId ? inst.values : null;

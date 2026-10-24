@@ -118,12 +118,16 @@ export function undoSelection(air: SelectionAir, graphic: string, inst: AiredSel
   return { ...air, [graphic]: before };
 }
 
-/** A correction's send failed: the instance keeps the revision that IS on air, held with the
- *  reason, so the next read sends the newer one again. */
+/** A correction's send failed: the instance goes back to the revision that IS on air, held with the
+ *  reason, so the next read sends the newer one again. Judged by the correction it made (cue,
+ *  entity, revision, time), not the object, so a hold set while the send was out does not lose it;
+ *  a later press or correction that replaced it stands. */
 export function unsentSelection(air: SelectionAir, graphic: string, advanced: AiredSelection, before: AiredSelection, now: number): SelectionAir {
-  if (air[graphic] !== advanced) return air;
+  const inst = air[graphic];
+  if (!inst || inst.cueId !== advanced.cueId || inst.entity !== advanced.entity || inst.revision !== advanced.revision || inst.at !== advanced.at) return air;
   // No revision said anything was wrong (revision null), so the next read sends it again.
-  return { ...air, [graphic]: { ...before, held: { reason: `the correction to revision ${advanced.revision} was not sent`, since: before.held?.since ?? now, revision: null } } };
+  const held = { reason: `the correction to revision ${advanced.revision} was not sent`, since: inst.held?.since ?? before.held?.since ?? now, revision: null };
+  return { ...air, [graphic]: { ...inst, revision: before.revision, values: before.values, at: before.at, held } };
 }
 
 /** The layer no longer airs a captured selection (an Out, or a cue without one taken onto it). */

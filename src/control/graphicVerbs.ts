@@ -131,6 +131,9 @@ export interface GraphicPage {
   candidateFields: (cue: ShowCue) => readonly string[];
   /** What the layer's aired candidate shows, when the instance this page holds airs this cue. */
   airedCandidate: (graphic: string, cueId: string) => Record<string, string> | null;
+  /** The fields of the candidate this page holds on air on a graphic, whether or not its cue is
+   *  still in the rundown (a deleted cue leaves its picture up while a sibling stays). */
+  airedCandidateFields: (graphic: string) => readonly string[];
   /** One graphic's bound values from the newest tree (the one a press's write moves at once). */
   boundNow: (graphic: string) => Record<string, string>;
   /** Refuse a bound press while the published tree is unread, saying why; true when it may go. */
@@ -511,7 +514,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[]) => {
     // An event may READ a live candidate's fields, never move one: that figure would be in no
     // revision (E7.1).
-    const fixed = sel.airCue ? p.candidateFields(sel.airCue) : [];
+    const fixed = [...(sel.airCue ? p.candidateFields(sel.airCue) : []), ...p.airedCandidateFields(graphic)];
     const moving = movedList.filter((key) => fixed.includes(key));
     if (moving.length > 0) {
       s.note(`${moving.map((key) => key.toUpperCase()).join(', ')} shows a live candidate, so it comes from its source.`);

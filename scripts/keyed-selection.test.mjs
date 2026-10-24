@@ -391,6 +391,20 @@ describe('the aired instance', () => {
     assert.equal(retry.air.Card.held, undefined);
   });
 
+  test('a correction whose send failed is rolled back even when a hold changed the instance meanwhile, and is sent again', () => {
+    const state = captured();
+    const sent = follow(state, collection(6, people6()));
+    const [send] = sent.sends;
+    const heldMeanwhile = follow(sent.air, '{broken', 2500).air;
+    assert.notEqual(heldMeanwhile.Card, send.advanced, 'the hold replaced the object');
+    const rolled = air.unsentSelection(heldMeanwhile, 'Card', send.advanced, send.before, 3000);
+    assert.deepEqual([rolled.Card.revision, rolled.Card.values, rolled.Card.held.revision], [5, state.Card.values, null]);
+    const again = follow(rolled, collection(6, people6()), 4000);
+    assert.deepEqual(again.sends.map((s) => s.values.f1), ['1500'], 'revision 6 goes out again once it reads well');
+    const pressed = air.captureSelection(sent.air, 'Card', 'cue-b', take(selectionOf('D2', 7), collection(6, BASE)), 2600);
+    assert.equal(air.unsentSelection(pressed, 'Card', send.advanced, send.before, 3000), pressed, 'a later press stands');
+  });
+
   test('what is kept reads back; anything else is no instance', () => {
     const state = captured();
     assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state)), state);

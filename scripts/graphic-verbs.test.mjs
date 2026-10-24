@@ -42,7 +42,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {} } = {}) {
+function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -108,6 +108,7 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
     },
     candidateFields: (cue) => candidates[cue.id] ?? [],
     airedCandidate: (graphic, cueId) => airedCandidates[`${graphic}:${cueId}`] ?? null,
+    airedCandidateFields: (graphic) => airedFields[graphic] ?? [],
     boundNow: (graphic) => ({ ...(tree[graphic] ?? {}) }),
     boundReady: () => true,
     patchBound: async (writes) => {
@@ -1106,4 +1107,11 @@ test('an event that moves a live candidate\'s field sends nothing; one that only
   assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'event', event: 'show', payload: { f1: '1200' } });
   r.sends[0].answer.resolve({ ...noneLeft });
   await reading;
+});
+
+test('an event cannot move the aired candidate\'s field even when its cue is gone and a sibling is selected (E7.1)', async () => {
+  const r = rig({ liveCue: { Strap: 'gone' }, airedFields: { Strap: ['f1'] } });
+  await r.verbs.event(sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue: null }), { event: 'bump', adjust: { f1: 1 } });
+  assert.equal(r.sends.length, 0);
+  assert.deepEqual(r.notes, ['F1 shows a live candidate, so it comes from its source.']);
 });
