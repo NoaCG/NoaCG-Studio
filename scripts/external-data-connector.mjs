@@ -29,7 +29,8 @@
 // origin, checked against the run's own certificate authority, so TLS validation stays on.
 //
 // THE SENDER SEAM. `send(acquisition)` receives every report: a changed payload (only its
-// `sendPaths`), a payload-free "unchanged" receipt at most every 15 s, and every hold or failure.
+// `sendPaths`), a payload-free "unchanged" receipt at most every 15 s after the last one the sender
+// took, and every hold or failure.
 // From the command line it writes one JSON line per report to stdout, or, with `--send <address>`
 // and the production's data key in NOACG_DATA_KEY, posts it to /api/data/source
 // (`createSourceSender`, phase E4.2): the agent first CLAIMS the registered source through C2's
@@ -247,17 +248,27 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     nextDelay = nextDelayMs(config.pollMs, failures, outcome.retryMs ?? null, random());
     say(`${acquisition.checkedAt} ${config.sourceId} ${acquisition.status} accepted=${acquisition.acceptedRevision}${acquisition.error ? ` ${acquisition.error}` : ''} next=${nextDelay}ms`);
     const report = acquisition.status !== 'unchanged' || now - lastReceiptAt >= UNCHANGED_RECEIPT_MS;
-    if (report && (acquisition.status === 'unchanged' || acquisition.status === 'changed')) lastReceiptAt = now;
+    // The 15 s run from when the last receipt was TAKEN, not from the read before it: the
+    // production counts its own 15 s from its write, so a gap measured from the read lands a few
+    // ms early there and is ignored (every other receipt lost).
+    const taken = () => void (lastReceiptAt = clock.now());
     if (acquisition.status === 'changed') {
       undelivered = null;
       if (config.sendPaths) acquisition = { ...acquisition, payload: projectPayload(acquisition.payload, config.sendPaths) };
     }
     if (undelivered) {
-      if (await offer({ ...undelivered, checkedAt: acquisition.checkedAt })) undelivered = null;
+      if (await offer({ ...undelivered, checkedAt: acquisition.checkedAt })) {
+        undelivered = null;
+        taken();
+      }
       // The payload offered again is this unchanged read's report.
       if (acquisition.status === 'unchanged') return acquisition;
     }
-    if (report && !(await offer(acquisition)) && acquisition.status === 'changed') undelivered = acquisition;
+    if (report) {
+      const delivered = await offer(acquisition);
+      if (delivered && (acquisition.status === 'unchanged' || acquisition.status === 'changed')) taken();
+      if (!delivered && acquisition.status === 'changed') undelivered = acquisition;
+    }
     return acquisition;
   }
 

@@ -450,9 +450,15 @@ describe('stopping and faults', () => {
       ['changed', 1, 1, at(0)],
       ['changed', 1, 1, at(5)],
       ['changed', 1, 1, at(10)],
-      // Taken at last; the next is the ordinary receipt, 15 s after the change.
-      ['unchanged', 1, null, at(15)],
     ]);
+    // Taken at last at 10 s, so the read at 15 s sends nothing: the ordinary receipt comes 15 s
+    // after the revision was taken (E4.2).
+    await clock.advance(9999);
+    await c.readOnce();
+    assert.equal(offered.length, 3);
+    await clock.advance(1);
+    await c.readOnce();
+    assert.deepEqual(offered.at(-1), ['unchanged', 1, null, at(25)]);
   });
 
   test('redaction keeps the payload valid, numbers untouched', async () => {
@@ -916,20 +922,43 @@ describe('the sender', () => {
   });
 
   test('a revision the production already holds, or one too large to fit, is not offered again', async () => {
-    const replies = [[409, { ok: false, refused: 'old_revision' }], [413, { ok: false, refused: 'too_large' }]];
-    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : replies.shift() ?? [200, { ok: true }]));
+    for (const refusal of [[409, 'old_revision'], [413, 'too_large'], [413, 'row_too_large']]) {
+      let first = true;
+      const route = fakeRoute((b) => {
+        if (b.op === 'claim') return claimed(1);
+        if (!first) return [200, { ok: true }];
+        first = false;
+        return [refusal[0], { ok: false, refused: refusal[1] }];
+      });
+      const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+      // The same answer every read: an offer made again would show as a second report.
+      const clock = fakeClock();
+      const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })), send: sender.send });
+      sender.bind(c);
+      await sender.claim();
+      for (let i = 0; i < 3; i += 1) {
+        await c.readOnce();
+        await clock.advance(5000);
+      }
+      const reports = route.calls.filter((call) => call.body.op === 'report').map((call) => call.body.acquisition.status);
+      assert.deepEqual(reports, ['changed'], refusal[1]);
+    }
+  });
+
+  test('a new claim sends the next read whole, even when the provider has not changed', async () => {
+    let claims = 0;
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed((claims += 1), claims === 1 ? 0 : 7) : [200, { ok: true }]));
     const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
-    let n = 0;
     const clock = fakeClock();
-    const { c } = connector({ clock, net: fakeNet(() => JSON_OK({ revision: (n += 1), n })()), send: sender.send });
+    const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })), send: sender.send });
     sender.bind(c);
     await sender.claim();
-    for (let i = 0; i < 3; i += 1) {
-      await c.readOnce();
-      await clock.advance(5000);
-    }
-    const reports = route.calls.filter((call) => call.body.op === 'report').map((call) => call.body.acquisition.acceptedRevision);
-    assert.deepEqual(reports, [1, 2, 3]);
+    assert.equal((await c.readOnce()).status, 'changed');
+    // Another claim (a handover, a lapse): the production holds revision 7 under epoch 2.
+    await sender.claim();
+    await clock.advance(5000);
+    const again = await c.readOnce();
+    assert.deepEqual([again.status, again.ownerEpoch, again.acceptedRevision], ['changed', 2, 8]);
   });
 
   test('sendPaths project the payload before it is sent; release lets the claim go', async () => {
