@@ -216,7 +216,8 @@ production's record is non-secret: never a credential, and never a local destina
 
 **Install and run** (the steps the configured walk and the phase receipt follow):
 
-1. On the machine: Node 22 or later, `git clone` this repository, `npm ci`.
+1. On the machine: Node 22 or later and a clone of this repository (`git clone`). The agent uses
+   only Node's own modules, so it needs no `npm ci`.
 2. Write the agent's configuration, for example `agent.json`:
 
    ```json

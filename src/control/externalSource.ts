@@ -13,8 +13,9 @@
 //     jitter capped at 60 s after a failure, and never sooner than the provider's Retry-After.
 //
 // The acquisition and the config carry `v: 1`; a reader meeting a higher `v` must hold the source
-// read-only (spec, "Storage, version gate and rollback"). Sending it to /api/data/source, the
-// claim through C2's lease and the server's ingress limits are phase E4.2's.
+// read-only (spec, "Storage, version gate and rollback"). Phase E4.2 adds the production's side at
+// the bottom: the registration a production holds, the envelope the agent sends /api/data/source
+// (claim, report, release) and that route's ingress limits.
 //
 // ES2020 library surface, no DOM and no runtime imports, so the browser, `api/` and Node scripts
 // can all load it. scripts/external-data-connector.test.mjs drives it.
