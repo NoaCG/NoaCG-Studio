@@ -763,6 +763,18 @@ function CueConnectData({ ownReader, ...props }: Omit<Parameters<typeof CueConne
 }
 
 /** A graphic's own Sheet reader, as Connect data… sees it (sheet-data-flow AC-10, C6). */
+/** What the edited cue's live candidate shows (E7.1): read-only when this build cannot read its
+ *  selection, else its mapped fields, their resolved values and why it is not ready. */
+export interface CueCandidate {
+  /** Why the whole cue is read-only here, or null. */
+  readOnly: string | null;
+  /** The entity it shows, in words. */
+  label: string;
+  fields: ReadonlySet<string>;
+  values: Record<string, string>;
+  notReady: string | null;
+}
+
 export interface OwnReader {
   gate: OwnReaderGate;
   /** The address its code reads, when the code still says one. */
@@ -898,6 +910,7 @@ export default function CueEditor({
   fieldsOf,
   onConnectPreview,
   ownReader,
+  candidate,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
@@ -964,6 +977,8 @@ export default function CueEditor({
   onConnectPreview: (values: Record<string, string> | null) => void;
   /** The graphic's own Sheet reader, which Connect data… migrates before it connects anything. */
   ownReader: OwnReader;
+  /** The edited cue's live candidate (E7.1), null when it has none. */
+  candidate: CueCandidate | null;
 }) {
   /** How many times the editor has rendered - published on its root as `data-renders`, beside the
    *  page's: e2e/playout-air-contract.spec.ts proves typing moves this one and not that one. */
@@ -971,12 +986,15 @@ export default function CueEditor({
   renders.current += 1;
   const editingView = useCueView(draft, editingCue);
   const bound = boundFields(selectedGraphic);
+  /** A field nothing typed here may fill: bound to the tree, or showing a live candidate. */
+  const fixed = (key: string) => !!bound[key] || !!candidate?.fields.has(key);
   /** What a band HEADING reads, resolved the way the field boxes under it resolve: the live tree
    *  for a bound field, then the cue's own value, then the authored default. */
   const headingValues: Record<string, FieldValue> = Object.fromEntries(
     descriptors.map((d) => [
       d.key,
-      (bound[d.key] ? resolved[selectedGraphic ?? '']?.[d.key] : undefined) ??
+      (candidate?.fields.has(d.key) ? candidate.values[d.key] ?? '' : undefined) ??
+        (bound[d.key] ? resolved[selectedGraphic ?? '']?.[d.key] : undefined) ??
         editingView.values[d.key] ??
         d.defaultValue ??
         '',
@@ -1003,7 +1021,7 @@ export default function CueEditor({
   // The sources this graphic follows, and connected fields it no longer has.
   const fed = (show.sources ?? []).filter((source) => Object.values(bound).some((path) => isSourcePath(source.id, path)));
   return (
-    <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" data-renders={renders.current} inert={!authoringAllowed}
+    <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" data-renders={renders.current} inert={!authoringAllowed || !!candidate?.readOnly}
       onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
       <div className="pd-editor-head">
         {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
@@ -1036,6 +1054,11 @@ export default function CueEditor({
             : null}
         </span>
         <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
+        {candidate && (
+          <span className={candidate.readOnly || candidate.notReady ? 'pd-unsent-note' : 'muted'} data-testid="cue-candidate">
+            {candidate.readOnly ?? (candidate.notReady ? `${candidate.label}. ${candidate.notReady}` : candidate.label)}
+          </span>
+        )}
         <CueConnectData
           key={poolGraphic.id}
           show={show}
@@ -1047,7 +1070,7 @@ export default function CueEditor({
           store={sourceStatus}
           fieldsOf={fieldsOf}
           onPreview={onConnectPreview}
-          onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !bound[k])) })}
+          onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !fixed(k))) })}
           ownReader={ownReader}
         />
         {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
@@ -1193,6 +1216,28 @@ export default function CueEditor({
                   const path = boundFields(selectedGraphic)[d.key];
                   const source = sourceOf(show, path);
                   const format = listFormatFor(poolGraphic, d.key);
+                  // A LIVE CANDIDATE's field reads out like a bound one: its source corrects
+                  // it, and Take and Update resolve it (E7.1).
+                  if (candidate?.fields.has(d.key)) {
+                    const shown = candidate.values[d.key] ?? '';
+                    return (
+                      <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-candidate-${d.key}`}>
+                        <div className="field-meta">
+                          <label style={{ margin: 0 }}>
+                            {d.key.toUpperCase()} · {d.label}
+                          </label>
+                          <span className="pd-bound-mark" title={candidate.label}>
+                            🔗 Live candidate
+                          </span>
+                        </div>
+                        {format ? (
+                          <textarea value={shown} placeholder="not ready" rows={3} readOnly tabIndex={-1} />
+                        ) : (
+                          <input value={shown} placeholder="not ready" readOnly tabIndex={-1} />
+                        )}
+                      </div>
+                    );
+                  }
                   if (path) {
                     const unset = source?.kind === 'external' ? 'waits for the next read' : 'not set yet';
                     // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
@@ -1278,7 +1323,7 @@ export default function CueEditor({
                           format={format}
                           values={currentValues}
                           graphicName={poolGraphic.name}
-                          onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !bound[k])) })}
+                          onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !fixed(k))) })}
                         />
                       </div>
                     );

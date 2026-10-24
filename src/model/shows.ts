@@ -8,7 +8,21 @@
 import type { SpxTemplate, ProductionSounds } from './types';
 import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
-import { externalReadOnly, sourcePaths, withBindings, type BindingEntry, type JsonObject, type ProductionBindings, type SourceRecipe } from './productionData';
+import {
+  collectionFields,
+  externalReadOnly,
+  selectedFields,
+  selectionFrozen,
+  selectionKeep,
+  sourcePaths,
+  withBindings,
+  type BindingEntry,
+  type CollectionRecipe,
+  type CueSelection,
+  type JsonObject,
+  type ProductionBindings,
+  type SourceRecipe,
+} from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
@@ -86,6 +100,12 @@ export interface ShowCue {
    *  values stay the cue's own; this is the receipt, and the reason no binding may be added to
    *  those fields later (`preparedMessageField`). */
   stagedFrom?: MessageReceipt;
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-election-package/spec.md, E7.1). The
+   *  live candidate this cue shows: a collection recipe of `Show.collections` and the entity's key,
+   *  resolved by control/sourceMapping.ts `selectionGate` and `resolveSelection`. Absent on every
+   *  cue before it, which behaves exactly as it did. Nothing in this build writes it, and the write
+   *  doors keep it byte for byte (`selectionFrozen`); a later version makes the whole cue read-only. */
+  selection?: CueSelection;
 }
 
 /** Where a prepared message came from, kept on its cue. */
@@ -471,6 +491,10 @@ export interface Show {
   updatedAt: string;
   /** Soft-delete tombstone (hidden from the UI, kept so the delete syncs). See Packet.deleted. */
   deleted?: boolean;
+  /** ADDITIVE OPTIONAL, each with its own `v` (E7.1): the shared collection recipes cues select
+   *  live candidates from (productionData `CollectionRecipe`). Kept byte for byte by every write
+   *  of this build (`selectionFrozen`), which has no writer for them. */
+  collections?: CollectionRecipe[];
   /**
    * The TEAM that holds this production (docs/TEAMS_PLAN.md §4), present only on a record read
    * from the server's `team_productions` - the column there is the authority, and this is a copy
@@ -891,9 +915,13 @@ function patchShowChecked(
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: visible(), error: null };
   const at = nowIso();
+  const kept = selectionKeep(show);
   const result = mutate(show, at);
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
+  // The mutation ran on this read only: refused, the stored productions are read again.
+  const frozen = selectionFrozen(kept, show);
+  if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
   const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
@@ -903,8 +931,11 @@ function patchShowChecked(
     const list = readShape(raw);
     const fresh = list.find((s) => s.id === showId && !s.deleted);
     if (!fresh) return { refused: 'This production was removed in another tab.' };
+    const keptFresh = selectionKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
+    const frozenFresh = again ? selectionFrozen(keptFresh, fresh) : null;
+    if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
     return { value: JSON.stringify(list) };
   });
@@ -1234,6 +1265,10 @@ export function updateShowCueChecked(
     const source = show.graphics.find((g) => g.id === cue.sourceId);
     const refused = source && boundMessageField(show, source, patch.stagedFrom);
     if (refused) return refused;
+    // A live candidate's fields come from its source, never from typing (E7.1): a correction
+    // comes from the source, and Fill makes a detached copy.
+    const live = patch.values ? selectedFields(cue, show.collections).filter((f) => patch.values![f] !== undefined && patch.values![f] !== cue.values[f]) : [];
+    if (live.length) return 'This cue shows a live candidate, so its connected fields cannot be typed into.';
     if (patch.label !== undefined) cue.label = patch.label;
     if (patch.values) cue.values = { ...cue.values, ...patch.values };
     if (patch.stagedFrom) cue.stagedFrom = { ...patch.stagedFrom, fields: [...patch.stagedFrom.fields] };
@@ -1814,8 +1849,9 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
   return `“${graphic.name}” follows live data on its message or name, so a prepared message could change on air. Add a separate card for messages.`;
 }
 
-/** The one binding write (`withBindings`), with this record's refusal: a path on a field prepared
- *  messages use. Shared by every setter below, so the Advanced rows, Bind all by title and
+/** The one binding write (`withBindings`), with this record's refusals: a path on a field prepared
+ *  messages use, or on a field a collection recipe maps (a shared value would overwrite a cue's
+ *  own live candidate, E7.1). Shared by every setter below, so the Advanced rows, Bind all by title and
  *  Connect data cannot differ. A source no field follows any more, and that feeds no inbox, goes
  *  with its last field whichever door unbound it, so no reader keeps reading for nothing. */
 function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
@@ -1823,7 +1859,7 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
   let ownReaders: Set<string> | null = null;
   const readsOwn = (graphic: string) =>
     (ownReaders ??= new Set([...ownSheetGraphics(show, loadGraphics()), ...ownReaderHolds(show.id)])).has(graphic);
-  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || readsOwn(graphic));
+  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || collectionFields(show.collections, graphic).has(fieldId) || readsOwn(graphic));
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
   else delete show.bindings;

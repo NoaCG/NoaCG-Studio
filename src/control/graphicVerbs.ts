@@ -38,6 +38,7 @@ import type { ControlSendItem } from './hostedControl';
 import type { ArmSpec } from './cueAuto';
 import type { LiveCueMap, VerbSent } from './liveCue';
 import type { ServerVerb } from './serverPlayout';
+import type { SelectionTake } from './selectionAir';
 import type { PlayoutSession } from './playoutSession';
 import type { createSendDebts } from './failedSends';
 import { ALL_OUT_CONFIRM_MS, allOutTargets } from './allOut.ts';
@@ -120,6 +121,12 @@ export interface GraphicPage {
   flush: () => Promise<void>;
   /** A graphic's bound fields, field key to tree path. */
   boundFields: (graphic: string) => Record<string, string>;
+  /** What a Take or an Update of this cue may send for its live candidate, from the newest tree
+   *  (control/selectionAir.ts `selectionTake`). */
+  selectionFor: (cue: ShowCue, graphic: string) => SelectionTake;
+  /** The layer now airs this cue with this selection (none drops what it followed); answers the
+   *  undo for a send that did not land. */
+  selectionAired: (graphic: string, cueId: string, take: SelectionTake) => () => void;
   /** One graphic's bound values from the newest tree (the one a press's write moves at once). */
   boundNow: (graphic: string) => Record<string, string>;
   /** Refuse a bound press while the published tree is unread, saying why; true when it may go. */
@@ -308,11 +315,20 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const graphic = p.graphicOf(cue);
     if (!graphic) return null;
     await p.flush();
+    // A live candidate resolves whole from one revision, or the cue is not taken: an unknown B
+    // never airs B's prepared values, or A's (E7.1).
+    const selection = p.selectionFor(cue, graphic);
+    if (selection.status === 'refused') return { ok: false, note: `${cue.label}: ${selection.reason}` };
     // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
     // (plan §2.7): otherwise taking an old cue would re-air a stale score.
-    const values = { ...p.cueView(cue).values, ...p.resolvedOf(graphic) };
+    const values = { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
+    const undo = p.selectionAired(graphic, cue.id, selection);
     const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
-    if (!sent.ok) return { ok: false, note: sent.note };
+    if (!sent.ok) {
+      undo();
+      return { ok: false, note: sent.note };
+    }
     // Superseded: this page's later press on the graphic stands, and its own handler set the chip.
     if (!leftAlone(sent).includes(graphic)) mark([graphic], cue.id);
     p.clearMisses([cue.id]);
@@ -347,9 +363,17 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
     if (!editingCue || !graphic || !sel.editingIsLive) return;
     await p.flush();
+    // An explicit Update may move the aired cue to the selection it now has, only once that whole
+    // replacement resolves; refused, the layer keeps what it airs and follows (E7.1).
+    const selection = p.selectionFor(editingCue, graphic);
+    if (selection.status === 'refused') {
+      s.note(`${editingCue.label}: ${selection.reason}`);
+      return;
+    }
     // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
-    const data = { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic) };
-    await runWith(s, [[{ graphic, msg: { t: 'update', data } }]], 'Update');
+    const data = { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    const undo = p.selectionAired(graphic, editingCue.id, selection);
+    if (!(await runWith(s, [[{ graphic, msg: { t: 'update', data } }]], 'Update'))) undo();
   };
 
   /**

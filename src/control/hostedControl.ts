@@ -408,8 +408,10 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
     }),
     DEFAULT_GRAPHICS_RESOLUTION,
   );
+  // A cue showing a live candidate is left out: the hosted page and an exported controller would
+  // take it with its prepared values, and the output receives resolved values only (E7.1).
   const cues: OutputCue[] = (show.cues ?? [])
-    .filter((c) => byId.has(c.sourceId))
+    .filter((c) => byId.has(c.sourceId) && c.selection === undefined)
     .map((c) => {
       const auto = readAuto(c);
       const next = auto && takesNext(auto.then) ? nextGraphicCue(show.cues ?? [], c.id) : null;

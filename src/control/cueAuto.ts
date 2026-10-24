@@ -59,12 +59,14 @@ export function playsOut(then: CueEnd): boolean {
  * THE CUE `Next cue` WILL TAKE (§2.0): the first GRAPHIC cue after this one in the rundown's order,
  * looking past server cues the way a clip's Play next looks past graphics. Null when there is none,
  * which is also the last cue's case. Resolved when the cue is armed, so reordering after the Take
- * does not change it.
+ * does not change it. A next cue showing a live candidate is null too: a timed end takes it with
+ * no candidate check, here or on the server, so it is never taken that way (E7.1).
  */
-export function nextGraphicCue(cues: readonly Pick<ShowCue, 'id' | 'source'>[], cueId: string): string | null {
+export function nextGraphicCue(cues: readonly Pick<ShowCue, 'id' | 'source' | 'selection'>[], cueId: string): string | null {
   const at = cues.findIndex((c) => c.id === cueId);
   if (at < 0) return null;
-  return cues.slice(at + 1).find((c) => c.source !== 'playout')?.id ?? null;
+  const next = cues.slice(at + 1).find((c) => c.source !== 'playout');
+  return next && next.selection === undefined ? next.id : null;
 }
 
 /** One lane's countdown. */

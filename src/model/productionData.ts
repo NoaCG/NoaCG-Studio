@@ -722,3 +722,123 @@ export function mappingEntries(graphic: string, rows: MappingRow[], choices: Rec
   }
   return out;
 }
+
+// A LIVE CANDIDATE SELECTION (docs/work-specs/playout-election-package/spec.md, E7.1): one cue of a
+// shared card shows one entity of a source's collection, picked by its stable key, never by its
+// row. Two additive optional records, each with its own `v`, so adding them never bumps
+// `Show.version`:
+//   - `Show.collections[]`, the SHARED collection recipe: the source, its schema revision, the
+//     collection leaf, the key paths that together name one entity (district plus candidate), and
+//     which record value each field of the graphic shows;
+//   - `ShowCue.selection`, the CUE-OWNED selector: the recipe and the entity's key.
+// Read and judged by control/sourceMapping.ts (`selectionGate`, `resolveSelection`). E7.1 lands the
+// reader and the refusal only: nothing in this build writes either record, and the two write
+// doors of model/shows.ts keep both byte for byte (`selectionFrozen`).
+
+/** The collection recipe and the cue selector format this build reads. */
+export const SELECTION_VERSION = 1;
+
+export interface CollectionRecipe {
+  v: typeof SELECTION_VERSION;
+  id: string;
+  /** The connector source whose tree namespace holds the collection. */
+  sourceId: string;
+  /** The schema revision the field map was made for: a collection of another one holds. */
+  schemaRevision: number;
+  /** The pool graphic (its name, the wire key) whose cues select from it. */
+  graphic: string;
+  /** The leaf under `external.<sourceId>.` holding `{schemaRevision, revision, items}`. */
+  from: string;
+  /** The dotted paths that together name one entity, in order: ["district", "candidate"]. */
+  key: string[];
+  /** Field id -> the record value it shows. A field with no fallback is required. */
+  fields: Record<string, RecipeValue>;
+}
+
+export interface CueSelection {
+  v: typeof SELECTION_VERSION;
+  /** The collection recipe's id. */
+  recipe: string;
+  /** The entity's key, one part per recipe key path. */
+  key: (string | number)[];
+}
+
+const laterThan = (v: unknown, current: number) => typeof v === 'number' && v > current;
+
+/**
+ * Whether a cue's selection is one this build cannot read: the selector or the recipe it names is
+ * of a later version. Such a cue is read-only: no Take, Update or edit, and every byte kept. Only
+ * a later version: a malformed one is refused by the reader instead, its bytes kept all the same.
+ */
+export function selectionReadOnly(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): boolean {
+  const selection = cue.selection as { v?: unknown; recipe?: unknown } | undefined;
+  if (selection === undefined) return false;
+  if (laterThan(selection?.v, SELECTION_VERSION)) return true;
+  const recipe = (collections ?? []).find((r) => (r as { id?: unknown } | null)?.id === selection?.recipe) as { v?: unknown } | undefined;
+  return laterThan(recipe?.v, SELECTION_VERSION);
+}
+
+/** The fields a cue's selection shows (its recipe's field map), whatever their state. */
+export function selectedFields(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): string[] {
+  const selection = cue.selection as { recipe?: unknown } | undefined;
+  if (selection === undefined) return [];
+  const recipe = (collections ?? []).find((r) => (r as { id?: unknown } | null)?.id === selection?.recipe) as { fields?: unknown } | undefined;
+  return recipe && typeof recipe.fields === 'object' && recipe.fields !== null ? Object.keys(recipe.fields) : [];
+}
+
+/** Every field some collection recipe maps, per graphic: none of them may also follow a shared
+ *  binding, or a shared value would overwrite the cue's own candidate. */
+export function collectionFields(collections: readonly unknown[] | undefined, graphic: string): Set<string> {
+  const out = new Set<string>();
+  for (const r of collections ?? []) {
+    const recipe = r as { graphic?: unknown; fields?: unknown } | null;
+    if (recipe?.graphic === graphic && typeof recipe.fields === 'object' && recipe.fields !== null) for (const k of Object.keys(recipe.fields)) out.add(k);
+  }
+  return out;
+}
+
+/** The parts of a production record the selection gate reads. */
+export interface SelectionRecord {
+  cues?: { id: string; selection?: unknown }[];
+  collections?: readonly unknown[];
+}
+
+/**
+ * THE SELECTION READ GATE AT THE WRITE DOORS (E7.1, precedent model/shows.ts `setShowProfile`):
+ * model/shows.ts `patchShowChecked` (both of its writes) and ./rundownHistory.ts `replaceRundown`
+ * (a personal or a team undo) ask it. This build reads
+ * live candidate selections and writes none, so a write that would change one is refused whole:
+ * the collection recipes stay byte for byte, every surviving cue keeps its selection as it was, a
+ * cue of a later version (`selectionReadOnly`) keeps every byte and is not removed, and no cue
+ * gains a selection (a copy of one would need the writer, E7.2a). `before` is `selectionKeep`'s
+ * answer for the record before the write. Left to a surface, the first older page to save the
+ * production would flatten a selection into the cue's prepared values.
+ */
+export function selectionKeep(show: SelectionRecord): { collections: string; cues: Map<string, { bytes: string; whole: boolean }> } | null {
+  const cues = new Map<string, { bytes: string; whole: boolean }>();
+  for (const cue of show.cues ?? []) {
+    if (cue.selection === undefined) continue;
+    const whole = selectionReadOnly(cue, show.collections);
+    cues.set(cue.id, { bytes: JSON.stringify(whole ? cue : cue.selection), whole });
+  }
+  if (cues.size === 0 && show.collections === undefined) return null;
+  return { collections: JSON.stringify(show.collections ?? null), cues };
+}
+
+const SELECTION_KEPT = 'This production has live candidate cues this version cannot change, so the edit was not saved.';
+
+export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after: SelectionRecord): string | null {
+  if (!before) return (after.collections !== undefined || (after.cues ?? []).some((c) => c.selection !== undefined)) ? SELECTION_KEPT : null;
+  if (JSON.stringify(after.collections ?? null) !== before.collections) return SELECTION_KEPT;
+  const now = new Map((after.cues ?? []).map((c) => [c.id, c] as const));
+  for (const [id, kept] of before.cues) {
+    const cue = now.get(id);
+    if (!cue) {
+      if (kept.whole) return SELECTION_KEPT;
+      continue;
+    }
+    if (JSON.stringify(kept.whole ? cue : cue.selection) !== kept.bytes) return SELECTION_KEPT;
+  }
+  for (const cue of after.cues ?? []) if (cue.selection !== undefined && !before.cues.has(cue.id)) return SELECTION_KEPT;
+  return null;
+}
