@@ -288,7 +288,7 @@ test.describe('a trusted JSON source', () => {
       const rotated = makeToken().slice(0, 24);
       await admin().from('control_shows').update({ data_key: rotated }).eq('id', showId);
       replay.at(3);
-      await expect.poll(() => restarted.log(), { timeout: 15_000 }).toMatch(/not taken \(401/);
+      await expect.poll(() => restarted.log(), { timeout: 15_000 }).toMatch(/not (taken|claimed) \(401/);
       expect((await rows(showId)).length).toBe(2);
       await restarted.stop();
       await lapse(showId);

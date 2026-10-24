@@ -539,8 +539,11 @@ export const sourceIdOf = (path: string | undefined): string | null =>
 /** A connector source registered by a later build (`config.v` above 1): kept as it is, held
  *  read-only, never applied or edited (src/model/shows.ts `sourceReadOnly`; the route refuses it
  *  as unsupported). */
-export const externalReadOnly = (source: { kind: string; config?: unknown }): boolean =>
-  source.kind === 'external' && (source.config as { v?: unknown } | undefined)?.v !== 1;
+export const externalReadOnly = (source: { kind: string; config?: unknown }): boolean => {
+  const v = (source.config as { v?: unknown } | undefined)?.v;
+  // Only a later version: a malformed record stays editable (the route refuses it either way).
+  return source.kind === 'external' && typeof v === 'number' && v > 1;
+};
 
 /** Every connected path that follows this source, across the production's graphics. */
 export function sourcePaths(bindings: ProductionBindings | undefined, sourceId: string): { graphic: string; fieldId: string; path: string }[] {

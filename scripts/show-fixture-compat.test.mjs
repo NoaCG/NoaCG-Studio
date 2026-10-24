@@ -229,6 +229,8 @@ test('a connector source of a later version (v 2) loads, keeps its last values o
   const record = withConnector({ v: 2, configRevision: 4, endpoint: 'https://results.example/r', recipe: { keyed: 'candidate_id' } });
   assert.deepEqual(showTypeErrors(record), [], 'a later version must still load');
   assert.equal(externalReadOnly(record.sources[0]), true);
+  // A malformed record (no version) is not a later version: it stays editable, and the route refuses it.
+  assert.equal(externalReadOnly({ kind: 'external', config: { configRevision: 1 } }), false);
   const read = readExternalRegistration(record.sources[0]);
   assert.deepEqual([read.ok, read.readOnly], [false, true]);
   const live = { ...liveData, external: { e1: { parties: 'KOK\t225000' } } };

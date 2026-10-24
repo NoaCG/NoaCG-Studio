@@ -318,7 +318,6 @@ export function connectedFields(
   return out;
 }
 
-
 // ── The reader ────────────────────────────────────────────────────────────────
 
 /** What a source's line says. `reader` is whether THIS page reads it, another tab does, or the

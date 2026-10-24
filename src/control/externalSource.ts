@@ -275,7 +275,7 @@ export type ReadOutcome =
  * state to keep. Pure: the clock's reading and the fence come in.
  */
 export function acceptRead(
-  config: Pick<ConnectorConfig, 'sourceId' | 'configRevision' | 'revisionPath' | 'eventTimePath'>,
+  config: Pick<ConnectorConfig, 'sourceId' | 'configRevision' | 'revisionPath' | 'eventTimePath'> & Partial<Pick<ConnectorConfig, 'sendPaths'>>,
   state: SourceState,
   read: ReadOutcome,
   at: { checkedAt: string; ownerEpoch: number },
@@ -303,6 +303,9 @@ export function acceptRead(
     ...(typeof eventTime === 'string' ? { providerEventTime: eventTime } : {}),
     ...(sequence !== null ? { providerSequence: sequence } : {}),
   };
+  // What would be sent decides whether anything changed: a ticking field outside `sendPaths` is
+  // not a new revision. The revision and the event time are read from the whole answer.
+  const sent = config.sendPaths ? projectPayload(payload, config.sendPaths) : payload;
   const older = sequence !== null && state.providerSequence !== null && sequence < state.providerSequence;
   if (older) return hold('stale', `revision ${sequence} is older than the accepted ${state.providerSequence}`);
   const unchanged = { acquisition: { ...base, ...provider, acceptedRevision: state.acceptedRevision, status: 'unchanged' as const }, state };
@@ -310,15 +313,18 @@ export function acceptRead(
   if (read.text === state.acceptedRaw) return unchanged;
   let text: string;
   try {
-    text = canonicalJson(payload);
+    text = canonicalJson(sent);
   } catch {
     // Nesting deep enough to exhaust the stack: JSON.parse took it, nothing downstream would.
     return hold('invalid', 'the provider answered JSON nested too deeply');
   }
   if (sequence !== null && sequence === state.providerSequence && text !== state.acceptedText) return hold('stale', `revision ${sequence} came again with other content`);
-  if (text === state.acceptedText) return { ...unchanged, state: { ...state, acceptedRaw: read.text } };
+  if (text === state.acceptedText) {
+    const providerSequence = sequence !== null && (state.providerSequence === null || sequence > state.providerSequence) ? sequence : state.providerSequence;
+    return { ...unchanged, state: { ...state, acceptedRaw: read.text, providerSequence } };
+  }
   const next: SourceState = { acceptedRevision: state.acceptedRevision + 1, providerSequence: sequence, acceptedText: text, acceptedRaw: read.text };
-  return { acquisition: { ...base, ...provider, acceptedRevision: next.acceptedRevision, status: 'changed', payload }, state: next };
+  return { acquisition: { ...base, ...provider, acceptedRevision: next.acceptedRevision, status: 'changed', payload: sent }, state: next };
 }
 
 /** The parts of an answer the agent sends (`sendPaths`), at the same paths; null keeps it whole.
@@ -374,8 +380,11 @@ export const SOURCE_REVISION_GAP_MS = 5_000;
 /** How long a claim holds the lease without a report (C2's lease takes at most 60 s). */
 export const SOURCE_LEASE_MS = 30_000;
 
-/** The list adapters a registered path may name (src/control/sourceMapping.ts). */
-const LIST_ADAPTERS = new Set(['lines', 'schedule', 'credits']);
+/** The list adapters a registered path may name: contentFormats' own minus standings, which write
+ *  two fields from one read (E5). src/control/sourceMapping.ts imports this one list. */
+export type SourceListAdapter = 'lines' | 'schedule' | 'credits';
+export const SOURCE_LIST_ADAPTERS: readonly SourceListAdapter[] = ['lines', 'schedule', 'credits'];
+const LIST_ADAPTERS = new Set<string>(SOURCE_LIST_ADAPTERS);
 
 /**
  * A connector source as the production registers it: the `Show.sources` entry
@@ -388,7 +397,7 @@ export interface ExternalRegistration {
   v: 1;
   configRevision: number;
   endpoint: string;
-  lists?: Record<string, 'lines' | 'schedule' | 'credits'>;
+  lists?: Record<string, SourceListAdapter>;
 }
 
 export type RegistrationRead =

@@ -278,7 +278,8 @@ holds another configuration revision), `old_revision` (it already has this one o
 `paused`. A source paused in the production applies nothing and the agent offers its latest
 revision again; Another system's Pause holds it like any `/patch`, and Resume sends the final
 values once. A source registered by a later version (`v: 2`) is held read-only: nothing is
-applied and this build does not edit it.
+applied and this build does not edit it (422, `unsupported`); a registration it cannot read
+otherwise (a bad `lists`, a local destination) is 422 too, and applies nothing.
 
 ## The graphic-addressed door: `POST /api/data/update`
 

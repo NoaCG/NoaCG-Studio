@@ -961,6 +961,41 @@ describe('the sender', () => {
     assert.deepEqual([again.status, again.ownerEpoch, again.acceptedRevision], ['changed', 2, 8]);
   });
 
+  test('a change only outside sendPaths is not a new revision', async () => {
+    let tick = 0;
+    const { c } = connector({ config: { sendPaths: ['revision', 'score'] }, net: fakeNet(() => JSON_OK({ revision: 1, score: 3, generatedAt: (tick += 1) })()) });
+    const seen = [];
+    for (let i = 0; i < 3; i += 1) seen.push((await c.readOnce()).status);
+    assert.deepEqual(seen, ['changed', 'unchanged', 'unchanged']);
+  });
+
+  test('the claim is renewed every 10 s with no read at all, so a slow poll never loses it', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    const clock = fakeClock();
+    await sender.claim();
+    const stop = sender.keepClaim(10_000, clock);
+    await clock.advance(9999);
+    assert.equal(route.calls.length, 1);
+    await clock.advance(1);
+    await clock.advance(20_000);
+    assert.deepEqual(route.calls.map((call) => [call.body.op, call.body.claim]), [['claim', null], ['claim', 'agent:c1'], ['claim', 'agent:c1'], ['claim', 'agent:c1']]);
+    stop();
+    await clock.advance(60_000);
+    assert.equal(route.calls.length, 4);
+  });
+
+  test('a renewal the server did not answer keeps the claim; a refusal ends it', async () => {
+    const replies = [claimed(1), [503, {}], [409, { ok: false, refused: 'gone' }]];
+    const route = fakeRoute(() => replies.shift());
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    await sender.claim();
+    assert.equal(await sender.claim(), false);
+    assert.equal(sender.fence?.claim, 'agent:c1');
+    assert.equal(await sender.claim(), false);
+    assert.equal(sender.fence, null);
+  });
+
   test('sendPaths project the payload before it is sent; release lets the claim go', async () => {
     const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
     const cfg = config({ sendPaths: ['revision', 'totals.counted'] });

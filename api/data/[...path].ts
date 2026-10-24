@@ -375,16 +375,20 @@ async function source(req: Request): Promise<Response> {
     let missing: string[] = [];
     let unfit: string[] = [];
     if (acquisition.status === 'changed') {
-      const context = await rpc<{ id: string; entry: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
+      const context = await rpc<{ entry: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
         'control_source_context_by_key',
         { p_key: key, p_source: envelope.sourceId },
       );
       if (!context) return apiError('unauthorized', 'Unknown data key.', 401);
+      // A registration this build cannot read is refused here, before a revision could be accepted
+      // with nothing applied. A missing one is the database's to answer (`gone` also takes the fence).
+      // No in-process budget here: the database counts this source's ROWS against the shared budget,
+      // and a refused report (paused, too soon, an old claim) must not spend /patch's requests.
       const registration = readExternalRegistration(context.entry);
-      // The database refuses an unusable registration with its own code; this one only needs lists.
+      if (context.entry && !registration.ok) {
+        return json({ ok: false, refused: registration.readOnly ? 'unsupported' : 'registration', message: registration.error }, 422);
+      }
       const lists = registration.ok ? registration.registration.lists : undefined;
-      const budget = checkDataIngestBudget(context.id);
-      if (budget) return refused({ refused: 'budget', retryMs: budget.retryAfterSec * 1000 });
       ({ writes, missing, unfit } = projectSource({
         sourceId: envelope.sourceId,
         payload: acquisition.payload,

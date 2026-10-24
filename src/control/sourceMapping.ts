@@ -17,12 +17,11 @@
 // ES2020 library surface, no DOM; `api/` imports it as `../../src/control/sourceMapping.js`.
 // scripts/source-mapping.test.mjs drives it.
 
-import { fillList, valueFor, type ListAdapter } from './contentFormats.js';
+import { fillList, valueFor } from './contentFormats.js';
+import type { SourceListAdapter } from './externalSource.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
-/** The list adapters a source path may name (standings write two fields from one read: E5). */
-export type SourceListAdapter = Exclude<ListAdapter, 'standings'>;
-export const SOURCE_LIST_ADAPTERS: readonly SourceListAdapter[] = ['lines', 'schedule', 'credits'];
+export type { SourceListAdapter };
 
 /** Where a connector's values live in the tree: `external.<id>.<leaf>`. */
 export const externalPrefix = (sourceId: string): string => `external.${sourceId}`;

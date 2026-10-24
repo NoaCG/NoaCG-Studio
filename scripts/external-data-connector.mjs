@@ -48,7 +48,7 @@ import './lib/tsResolve.mjs';
 
 const { publicAddress } = await import('../api/_lib/feedFetch.ts');
 const { addressRefusal } = await import('../src/control/feedSource.ts');
-const { EXTERNAL_SOURCE_VERSION, UNCHANGED_RECEIPT_MS, acceptRead, exportConnectorConfig, initialSourceState, nextDelayMs, parseConnectorConfig, projectPayload, readLimits, retryAfterMs } = await import(
+const { EXTERNAL_SOURCE_VERSION, SOURCE_LEASE_MS, UNCHANGED_RECEIPT_MS, acceptRead, exportConnectorConfig, initialSourceState, nextDelayMs, parseConnectorConfig, readLimits, retryAfterMs } = await import(
   '../src/control/externalSource.ts'
 );
 
@@ -242,7 +242,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     const now = clock.now();
     const accepted = acceptRead(config, state, outcome, { checkedAt: new Date(now).toISOString(), ownerEpoch: epoch });
     state = accepted.state;
-    let { acquisition } = accepted;
+    const { acquisition } = accepted;
     // Only the transport's problems back off; a stale or invalid answer is still an answer.
     failures = outcome.kind === 'problem' ? failures + 1 : 0;
     nextDelay = nextDelayMs(config.pollMs, failures, outcome.retryMs ?? null, random());
@@ -252,10 +252,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     // production counts its own 15 s from its write, so a gap measured from the read lands a few
     // ms early there and is ignored (every other receipt lost).
     const taken = () => void (lastReceiptAt = clock.now());
-    if (acquisition.status === 'changed') {
-      undelivered = null;
-      if (config.sendPaths) acquisition = { ...acquisition, payload: projectPayload(acquisition.payload, config.sendPaths) };
-    }
+    if (acquisition.status === 'changed') undelivered = null;
     if (undelivered) {
       if (await offer({ ...undelivered, checkedAt: acquisition.checkedAt })) {
         undelivered = null;
@@ -304,6 +301,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
       epoch = next;
       state = { acceptedRevision, providerSequence: providerSequence ?? null, acceptedText: null, acceptedRaw: null };
       undelivered = null;
+      lastReceiptAt = -Infinity;
     },
     get state() {
       return { ...state, failures, nextDelayMs: nextDelay, ownerEpoch: epoch };
@@ -355,7 +353,8 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
       }
       return true;
     }
-    fence = null;
+    // A server that did not answer keeps the claim this agent holds; a refusal ends it.
+    if (status < 500 && status !== 429) fence = null;
     log(`${config.sourceId} not claimed (${status}${answer.refused ? ` ${answer.refused}` : answer.held ? ' held by another agent' : ''})`);
     return false;
   }
@@ -384,10 +383,30 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     await post({ ...base, op: 'release', claim: held.claim }).catch(() => {});
   }
 
+  /**
+   * Renew the claim every `ms` (a third of the lease) whether or not a report goes, so a slow poll
+   * or a long backoff never lets the lease lapse under a live agent. Answers the stop.
+   */
+  function keepClaim(ms = SOURCE_LEASE_MS / 3, clock = realClock) {
+    let timer = null;
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      if (fence) await claim().catch((error) => log(`${config.sourceId} renewal failed: ${error?.message ?? error}`));
+      if (!stopped) timer = clock.setTimeout(tick, ms);
+    };
+    timer = clock.setTimeout(tick, ms);
+    return () => {
+      stopped = true;
+      if (timer !== null) clock.clearTimeout(timer);
+    };
+  }
+
   return {
     send,
     claim,
     release,
+    keepClaim,
     bind: (c) => void (connector = c),
     get fence() {
       return fence;
@@ -448,9 +467,11 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, resolve);
     if (minutes > 0) setTimeout(resolve, minutes * 60_000);
   });
+  const stopRenewing = sender?.keepClaim();
   connector.start();
   await done;
   connector.stop();
+  stopRenewing?.();
   await sender?.release();
 }
 
