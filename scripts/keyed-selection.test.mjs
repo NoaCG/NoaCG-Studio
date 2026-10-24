@@ -29,6 +29,7 @@ const data = await import('../src/model/productionData.ts');
 const { replaceRundown } = await import('../src/model/rundownHistory.ts');
 const { takeBlockerFor } = await import('../src/control/takeBlockers.ts');
 const { nextGraphicCue } = await import('../src/control/cueAuto.ts');
+const { storePart } = await import('../src/control/storePart.ts');
 
 const text = (key) => ({ key, label: key, kind: 'text', defaultValue: '' });
 const number = (key) => ({ key, label: key, kind: 'number', defaultValue: '' });
@@ -380,7 +381,7 @@ describe('the aired instance', () => {
   test('what is kept reads back; anything else is no instance', () => {
     const state = captured();
     assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state)), state);
-    for (const raw of [null, '', '{', JSON.stringify({ v: 2, graphics: state }), JSON.stringify({ v: 1, graphics: { Card: { ...state.Card, revision: 'x' } } })]) {
+    for (const raw of [null, '', '{', 'null', '7', JSON.stringify({ v: 2, graphics: state }), JSON.stringify({ v: 1, graphics: { Card: { ...state.Card, revision: 'x' } } })]) {
       assert.deepEqual(air.readSelectionAir(raw), {}, String(raw));
     }
   });
@@ -457,5 +458,62 @@ describe('bounds, each at its edge, and linear work', () => {
     const started = performance.now();
     for (let i = 0; i < 5; i += 1) assert.equal(resolve([items[4999].district, 4999], collection(1, items)).status, 'ok');
     assert.ok(performance.now() - started < 1000);
+  });
+});
+
+describe('the page\'s two doors onto the instances', () => {
+  const io = (initial = {}) => {
+    const part = storePart(initial);
+    const kept = [];
+    let clock = 1000;
+    return { part, kept, keep: (a) => { part.set(a); kept.push(a); }, now: () => clock, tick: (ms) => (clock += ms) };
+  };
+  const ok = (sel, rev = 5) => take(sel, collection(rev, BASE));
+
+  test('a press captures pending and keeps it; landed ends pending; undo gives back only its own layer', () => {
+    const p = io({ Bug: { cueId: 'bug', selection: selectionOf('D1', 8), entity: 'x', revision: 1, values: {}, at: 1 } });
+    const a = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
+    assert.equal(p.part.get().Card.pending, true);
+    assert.equal(p.kept.length, 1, 'kept in this browser at the press');
+    a.landed();
+    assert.equal(p.part.get().Card.pending, undefined);
+    const b = air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
+    p.keep({ ...p.part.get(), Bug: { ...p.part.get().Bug, revision: 2 } });
+    b.undo();
+    assert.equal(p.part.get().Card.cueId, 'cue-a', 'the layer gets back what it had');
+    assert.equal(p.part.get().Bug.revision, 2, 'another layer written meanwhile stands');
+    const c = air.pressSelection(p, 'Card', 'cue-c', ok(selectionOf('D1', 8)));
+    air.pressSelection(p, 'Card', 'cue-d', ok(selectionOf('D2', 7)));
+    c.undo();
+    assert.equal(p.part.get().Card.cueId, 'cue-d', 'a later press on the layer stands over an earlier failure');
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const none = air.pressSelection(p, 'Card', 'plain', { status: 'none' });
+    assert.equal(p.part.get().Card, undefined, 'a cue without a selection drops what the layer followed');
+    none.landed();
+    none.undo();
+    assert.equal(p.part.get().Card.cueId, 'cue-a');
+  });
+
+  test('following sends each newer revision through the page, holds one whose send failed, and judges nothing before the tree is readable', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const send = (graphic, values) => {
+      sends.push([graphic, values.f1]);
+      return Promise.resolve(sends.length > 1 ? null : { skipped: [] });
+    };
+    const live = { Card: 'cue-a' };
+    air.followAired(p, { liveCue: live, seeded: true, readable: false, facts: facts(collection(6, people6())), send });
+    assert.deepEqual([sends, p.part.get().Card.held], [[], undefined], 'an unread published tree is not judged');
+    air.followAired(p, { liveCue: live, seeded: true, readable: false, facts: facts(undefined), send });
+    assert.equal(p.part.get().Card.held, undefined, 'no false hold before the first read');
+    air.followAired(p, { liveCue: live, seeded: true, readable: true, facts: facts(collection(6, people6())), send });
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual([sends, p.part.get().Card.revision, p.part.get().Card.held], [[['Card', '1500']], 6, undefined]);
+    air.followAired(p, { liveCue: live, seeded: true, readable: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), send });
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.held?.reason], [6, 'the correction to revision 7 was not sent']);
+    air.followAired(p, { liveCue: {}, seeded: true, readable: true, facts: facts(collection(7, BASE)), send });
+    assert.deepEqual(p.part.get(), {}, 'off air once the page knows: forgotten');
   });
 });

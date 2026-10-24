@@ -470,6 +470,6 @@ test('a next cue that shows a live candidate is never taken by a timed end, what
   r.engine.onProgramState('A');
   await r.advance(2000);
   assert.equal(r.sent.length, 0);
-  assert.deepEqual(r.notes, ['The cue armed to be taken next is gone, so nothing was taken.']);
+  assert.deepEqual(r.notes, ['b shows a live candidate, so a timed end does not take it.']);
   r.engine.stop();
 });

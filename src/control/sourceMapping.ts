@@ -618,6 +618,21 @@ export function selectionGate(
   return { status: 'ok', selection: raw as unknown as CueSelection, recipe, entity: entityOf(key as (string | number)[]) };
 }
 
+/** The last collection read from text, so every card resolved from one tree parses it once. */
+let lastText: { text: string; value: unknown } | null = null;
+function parsedText(text: string): unknown {
+  if (lastText?.text !== text) {
+    let value: unknown;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      value = undefined;
+    }
+    lastText = { text, value };
+  }
+  return lastText.value;
+}
+
 export type SelectionResolve =
   | { status: 'ok'; revision: number; entity: string; values: Record<string, string> }
   /**
@@ -641,11 +656,8 @@ export function resolveSelection(o: { recipe: CollectionRecipe; tree: unknown; k
   if (value === undefined) return hold('collection', 'the collection has not arrived', null);
   if (typeof value === 'string') {
     if (value.length > MAX_COLLECTION_TEXT) return hold('collection', `the collection is longer than ${MAX_COLLECTION_TEXT} characters`, null);
-    try {
-      value = JSON.parse(value);
-    } catch {
-      return hold('collection', 'the collection is not JSON', null);
-    }
+    value = parsedText(value);
+    if (value === undefined) return hold('collection', 'the collection is not JSON', null);
   }
   if (!isObject(value)) return hold('collection', 'the collection is not a record', null);
   const revision = value.revision;

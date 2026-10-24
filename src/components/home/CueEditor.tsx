@@ -762,7 +762,6 @@ function CueConnectData({ ownReader, ...props }: Omit<Parameters<typeof CueConne
   );
 }
 
-/** A graphic's own Sheet reader, as Connect data… sees it (sheet-data-flow AC-10, C6). */
 /** What the edited cue's live candidate shows (E7.1): read-only when this build cannot read its
  *  selection, else its mapped fields, their resolved values and why it is not ready. */
 export interface CueCandidate {
@@ -775,6 +774,7 @@ export interface CueCandidate {
   notReady: string | null;
 }
 
+/** A graphic's own Sheet reader, as Connect data… sees it (sheet-data-flow AC-10, C6). */
 export interface OwnReader {
   gate: OwnReaderGate;
   /** The address its code reads, when the code still says one. */

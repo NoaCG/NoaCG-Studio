@@ -161,7 +161,9 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values) }));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
-    const gone = !!arm.next && !(next && nextGraphic);
+    const candidate = arm.next ? p.cues.find((c) => c.id === arm.next && c.selection !== undefined) : undefined;
+    if (candidate) p.note(`${candidate.label} shows a live candidate, so a timed end does not take it.`);
+    const gone = !!arm.next && !candidate && !(next && nextGraphic);
     // Published, the server's fire row says "Auto Out sent" on every page; this one only adds what
     // went wrong here.
     if (!items.length) {

@@ -23,6 +23,7 @@ import { resolveSelection, selectionGate, type SelectionResolve } from './source
 import type { CueSelection } from '../model/productionData';
 import type { FieldDescriptor } from '../model/fieldModel';
 import type { LiveCueMap } from './liveCue';
+import type { StorePart } from './storePart';
 
 /** One graphic layer's aired live candidate. */
 export interface AiredSelection {
@@ -192,8 +193,9 @@ export function readSelectionAir(raw: string | null): SelectionAir {
   } catch {
     return {};
   }
-  const graphics = (parsed as { v?: unknown; graphics?: unknown } | null)?.graphics;
-  if ((parsed as { v?: unknown }).v !== SELECTION_AIR_V || !graphics || typeof graphics !== 'object') return {};
+  const kept = parsed as { v?: unknown; graphics?: unknown } | null;
+  const graphics = kept?.graphics;
+  if (kept?.v !== SELECTION_AIR_V || !graphics || typeof graphics !== 'object') return {};
   const out: Record<string, AiredSelection> = {};
   for (const [graphic, value] of Object.entries(graphics as Record<string, unknown>)) {
     const inst = value as Partial<AiredSelection> | null;
@@ -215,4 +217,50 @@ export function readSelectionAir(raw: string | null): SelectionAir {
     }
   }
   return out;
+}
+
+// ── The page's two doors onto the instances, over the session's `selections` part ──────────────
+
+/** The part the instances live in, how a change is kept (set and stored), and the clock. */
+export interface SelectionAirIo {
+  part: StorePart<SelectionAir>;
+  keep: (air: SelectionAir) => void;
+  now: () => number;
+}
+
+/** A Take or an Update put this cue's selection on the layer (none drops what it followed). Only
+ *  this layer's entry is written back by `undo`, and only while it is still the one this press
+ *  wrote; `landed` ends its pending state. */
+export function pressSelection(io: SelectionAirIo, graphic: string, cueId: string, take: SelectionTake): { landed: () => void; undo: () => void } {
+  const before = io.part.get()[graphic];
+  const written = take.status === 'ok' ? captureSelection(io.part.get(), graphic, cueId, take, io.now()) : dropSelection(io.part.get(), graphic);
+  io.keep(written);
+  const inst = written[graphic];
+  return {
+    landed: () => {
+      if (inst) io.keep(landedSelection(io.part.get(), graphic, inst));
+    },
+    undo: () => io.keep(undoSelection(io.part.get(), graphic, inst, before)),
+  };
+}
+
+/**
+ * One pass of following, run whenever the tree, the rundown or what is live moves: forget what is
+ * no longer aired, then, once the tree is one this page may judge (`readable`: a published tree
+ * read at least once), send each newer revision through `send` and hold a correction whose send
+ * failed (`send` answers null). Before that, nothing is judged, so no false hold is shown.
+ */
+export function followAired(
+  io: SelectionAirIo,
+  o: { liveCue: LiveCueMap; seeded: boolean; readable: boolean; facts: SelectionFacts; send: (graphic: string, values: Record<string, string>) => Promise<unknown> },
+): void {
+  const before = io.part.get();
+  const reconciled = reconcileSelection(before, o.liveCue, o.seeded);
+  const { air, sends } = o.readable ? followSelection(reconciled, o.liveCue, o.facts, io.now()) : { air: reconciled, sends: [] };
+  if (air !== before) io.keep(air);
+  for (const one of sends) {
+    void o.send(one.graphic, one.values).then((sent) => {
+      if (!sent) io.keep(unsentSelection(io.part.get(), one.graphic, one.advanced, one.before, io.now()));
+    });
+  }
 }

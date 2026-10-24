@@ -83,9 +83,9 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
-import { resolveBindings, selectedFields, sourcePaths, type ResolvedValues } from '../../model/productionData';
+import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { captureSelection, dropSelection, followSelection, landedSelection, undoSelection, unsentSelection, readSelectionAir, reconcileSelection, selectionTake, writeSelectionAir, type SelectionAir, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { followAired, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -1370,6 +1370,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (): SelectionFacts => ({ collections: collectionsRef.current, bindings: bindingsRef.current, tree: session.data.get().liveData, fieldsOf }),
     [session, fieldsOf],
   );
+  /** The fields of a cue nothing typed or pressed here may move (E7.1): its candidate's, and every
+   *  field of a cue this build reads only (a later version's selection). */
+  const candidateFields = (cue: ShowCue): string[] =>
+    selectionReadOnly(cue, collectionsRef.current) ? (fieldsOf(cueGraphicName(cue) ?? '') ?? []).map((d) => d.key) : selectedFields(cue, collectionsRef.current);
   /** What a Take or an Update may send for a cue's live candidate: refused while a published
    *  tree is still unread, since the tree this page holds then may be older than the server's. */
   const candidateTake = (cue: ShowCue, graphic: string | null): SelectionTake =>
@@ -1384,26 +1388,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     [session, id],
   );
-  const airedSelections = useStorePart(session.selections);
-  /** A Take or an Update put this cue's selection on the layer (none drops what it followed). Only
-   *  this layer's entry is written back, and only while it is still the one this press wrote. */
-  const selectionAired = useCallback(
-    (graphic: string, cueId: string, take: SelectionTake) => {
-      const before = session.selections.get()[graphic];
-      const written = take.status === 'ok' ? captureSelection(session.selections.get(), graphic, cueId, take, Date.now()) : dropSelection(session.selections.get(), graphic);
-      keepSelections(written);
-      const inst = written[graphic];
-      return {
-        landed: () => inst && keepSelections(landedSelection(session.selections.get(), graphic, inst)),
-        undo: () => keepSelections(undoSelection(session.selections.get(), graphic, inst, before)),
-      };
-    },
-    [session, keepSelections],
-  );
-  /** Aired candidates that hold, for the off-air warning. */
-  const heldCandidates = Object.entries(airedSelections).flatMap(([graphic, inst]) =>
-    inst.held ? [{ graphic, label: show?.cues?.find((c) => c.id === inst.cueId)?.label ?? graphic, reason: inst.held.reason, revision: inst.revision, at: inst.at }] : [],
-  );
+  const selectionIo = useMemo<SelectionAirIo>(() => ({ part: session.selections, keep: keepSelections, now: () => Date.now() }), [session, keepSelections]);
+  /** A Take or an Update put this cue's selection on the layer (control/selectionAir.ts). */
+  const selectionAired = useCallback((graphic: string, cueId: string, take: SelectionTake) => pressSelection(selectionIo, graphic, cueId, take), [selectionIo]);
   /** The edited cue's live candidate as the editor shows it (E7.1). */
   const candidateOf = (cue: ShowCue | null): CueCandidate | null => {
     if (!cue || cue.selection === undefined) return null;
@@ -1993,16 +1980,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  instance is forgotten when its layer airs another cue, or is off air once the page knows. */
   // A production not loaded yet (a team production before its first fetch) knows nothing of air.
   const selectionSeeded = !!show && (!hostedSlug || bootLive !== null);
+  const selectionReadable = !hostedSlug || treeRead;
   useEffect(() => {
-    const before = session.selections.get();
-    const { air, sends } = followSelection(reconcileSelection(before, liveCue, selectionSeeded), liveCue, selectionFacts(), Date.now());
-    if (air !== before) keepSelections(air);
-    for (const send of sends) {
-      void runVerb([[{ graphic: send.graphic, msg: { t: 'update', data: send.values } }]], 'Live candidate').then((sent) => {
-        if (!sent) keepSelections(unsentSelection(session.selections.get(), send.graphic, send.advanced, send.before, Date.now()));
-      });
-    }
-  }, [session, liveData, liveCue, selectionSeeded, show?.collections, bindings, selectionFacts, keepSelections, runVerb]);
+    followAired(selectionIo, {
+      liveCue,
+      seeded: selectionSeeded,
+      readable: selectionReadable,
+      facts: selectionFacts(),
+      send: (graphic, values) => runVerb([[{ graphic, msg: { t: 'update', data: values } }]], 'Live candidate'),
+    });
+  }, [selectionIo, liveData, liveCue, selectionSeeded, selectionReadable, show?.collections, bindings, selectionFacts, runVerb]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
@@ -2461,7 +2448,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     boundFields,
     selectionFor: (cue, graphic) => candidateTake(cue, graphic),
     selectionAired,
-    candidateFields: (cue) => selectedFields(cue, show.collections),
+    candidateFields,
     airedCandidate: (graphic, cueId) => {
       const inst = session.selections.get()[graphic];
       return inst && inst.cueId === cueId ? inst.values : null;
@@ -2607,7 +2594,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // number field gets the block, and no category is ever consulted.
   const eventPayloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
   /** A live candidate's fields come from its source, so they get no ± (E7.1). */
-  const candidateKeys = new Set(editingCue ? selectedFields(editingCue, show.collections) : []);
+  const candidateKeys = new Set(editingCue ? candidateFields(editingCue) : []);
   const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key) && !candidateKeys.has(d.key));
 
   /** Rows the edited cue can load (D3's binding) — the SHARED matcher, `control/cueData.ts`,
@@ -3150,7 +3137,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             any more than the pictures may. And above 1366px the bar moves
             into the empty column beside PROGRAM, which spends that width and gives the monitors
             back the height the bar was using. Below it, the bar returns underneath. */}
-        <SelectionHolds held={heldCandidates} />
+        <SelectionHolds part={session.selections} labelOf={(cueId) => cues.find((c) => c.id === cueId)?.label ?? null} />
         <div className="pd-stagehead">
         <PlayoutMonitors
           // Server media goes through NoaCG Bridge whether or not the production is started, so
