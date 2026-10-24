@@ -295,6 +295,9 @@ describe('a recipe: each v1 operation', () => {
     assert.equal(written(board({ columns: [{ from: 'votes', format: { kind: 'number', locale: 'en-GB', decimals: 2 } }], limit: 1 })), '225,000.00');
     const signed = (v) => mapped({ v }, { B: { f0: 'external.e1.v' } }, recipe({ v: { from: 'v', format: { kind: 'number', locale: 'en-GB', decimals: 1 } } })).writes['external.e1.v'];
     assert.deepEqual([signed(-0.01), signed(-0.05), signed(-0)], ['0.0', '-0.1', '0.0']);
+    // The formatter's own rounding decides: half a millionth at six decimals is not zero.
+    const six = (v) => mapped({ v }, { B: { f0: 'external.e1.v' } }, recipe({ v: { from: 'v', format: { kind: 'number', locale: 'en-GB', decimals: 6 } } })).writes['external.e1.v'];
+    assert.deepEqual([six(-0.0000005), six(0.0000005), six(-0.0000004)], ['-0.000001', '0.000001', '0.000000']);
   });
 
   test('format dates in an explicit locale and zone, whatever the machine\'s own zone', () => {
@@ -405,6 +408,11 @@ describe('a recipe holds last good and names the correction, never a valid empty
     const slots = { slots: [{ id: 1, time: '20:00', title: 'News' }, { id: 2, time: '21:00', title: '' }] };
     const schedule = recipe({ board: { from: 'slots', id: 'id', columns: [{ from: 'time' }, { from: 'title' }] } });
     assert.match(held(mapped(slots, ticker, schedule, { lists: { board: 'schedule' } })), /"21:00 \|": Needs a time and a programme/);
+    // A record that reads as the list's header, or a blank one at an end, would be dropped: it holds.
+    const headed = { slots: [{ id: 1, time: 'Time', title: 'Programme' }, { id: 2, time: '20:00', title: 'News' }] };
+    assert.match(held(mapped(headed, ticker, schedule, { lists: { board: 'schedule' } })), /reads as the list's header/);
+    const blankEnd = { parties: [{ party_id: 'A', note: 'x' }, { party_id: 'B', note: '' }] };
+    assert.match(held(mapped(blankEnd, ticker, recipe(list({ columns: [{ from: 'note' }] })), { lists: lines })), /blank row at its end/);
     slots.slots.pop();
     assert.equal(written(mapped(slots, ticker, schedule, { lists: { board: 'schedule' } })), '20:00 | News');
     assert.match(held(mapped(results(), ticker, recipe(list({})))), /no list adapter/);

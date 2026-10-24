@@ -258,8 +258,13 @@ function formatters(): (format: RecipeFormat) => (value: number) => string {
     if (!fn) {
       if (format.kind === 'number') {
         const nf = new Intl.NumberFormat(format.locale, { minimumFractionDigits: format.decimals, maximumFractionDigits: format.decimals });
-        // A value that rounds to zero is zero: never "-0.0".
-        fn = (n) => nf.format(Number(n.toFixed(format.decimals)) === 0 ? 0 : n);
+        // A value the formatter rounds to zero is zero: never "-0.0". Compared with the formatter's
+        // own text, so its rounding decides, not another one's.
+        const negativeZero = nf.format(-0);
+        fn = (n) => {
+          const text = nf.format(n);
+          return text === negativeZero ? nf.format(0) : text;
+        };
       } else {
         const date = format.show !== 'time' ? { year: 'numeric', month: '2-digit', day: '2-digit' } as const : {};
         const time = format.show !== 'date' ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const : {};
@@ -398,6 +403,9 @@ function outputText(
   }
   // The destination's own rules: a row the native list would mark is not written.
   const fill = fillList({ adapter, main: 'text' }, rows);
+  // The native list drops a first row that reads as its pasted header ("Time | Programme") and
+  // blank rows at either end. A recipe's rows are records: one dropped is a record lost, so hold.
+  if (fill.rows.length !== rows.length) return { problem: 'a record reads as the list\'s header or as a blank row at its end, which the list would drop' };
   const bad = fill.rows.find((r) => r.problem);
   if (bad) return { problem: `${JSON.stringify(bad.text)}: ${bad.problem}` };
   return { text: fill.values.text ?? '' };
