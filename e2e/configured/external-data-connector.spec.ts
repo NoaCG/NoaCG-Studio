@@ -269,8 +269,12 @@ test.describe('a trusted JSON source', () => {
       const restarted = agent(dir, replay, dataKey, address);
       started.push(restarted);
       await expect.poll(() => restarted.log(), { timeout: 10_000 }).toContain('claimed: epoch 2, continuing after revision 1');
-      replay.at(1);
+      // It knows the production's revision, not its content: the provider's unchanged answer is
+      // sent once as revision 2 and writes no row; the next change is revision 3, never a reused 2.
       await expect.poll(async () => (await snapshot(showId))?.accepted_revision, { timeout: 15_000 }).toBe(2);
+      expect((await rows(showId)).length).toBe(1);
+      replay.at(1);
+      await expect.poll(async () => (await snapshot(showId))?.accepted_revision, { timeout: 15_000 }).toBe(3);
       expect((await rows(showId)).length).toBe(2);
 
       // The old owner's late report, under its old claim and epoch, is refused and writes nothing.
@@ -297,7 +301,7 @@ test.describe('a trusted JSON source', () => {
       dataKey = rotated;
       const again = agent(dir, replay, dataKey, address);
       started.push(again);
-      await expect.poll(() => again.log(), { timeout: 10_000 }).toContain('claimed: epoch 3, continuing after revision 2');
+      await expect.poll(() => again.log(), { timeout: 10_000 }).toContain('claimed: epoch 3, continuing after revision 3');
       await expect.poll(async () => (await rows(showId)).at(-1)?.data.f1 ?? '', { timeout: 15_000 }).toContain(AINO(3680));
 
       // The legacy callers keep their contract on the same production.
