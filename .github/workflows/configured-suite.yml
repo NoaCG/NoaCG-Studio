@@ -84,8 +84,8 @@
 #     measured (scripts/configured-shards.mjs: the packer ci.yml and the nightly use), so the long
 #     live-behaviour specs spread out rather than following the alphabet.
 #   - Each `shard` brings up its OWN local Supabase stack and mints its OWN accounts, and runs its
-#     files on one worker in file order, as before. A shard stops itself at `--global-timeout`, ten
-#     minutes under the cap, so a shard that runs long still uploads its report and traces.
+#     files on one worker in file order, as before. A shard stops itself at `--global-timeout`,
+#     fifteen minutes under the cap, so a shard that runs long still uploads its report and traces.
 #   - `configured` merges the shards' reports and judges the whole run ONCE, with the same
 #     verdict, floor, skip rules and quarantine as before. It keeps the job name the alarms and
 #     failure sets know. A shard that sent no report, or did not finish, fails it.
