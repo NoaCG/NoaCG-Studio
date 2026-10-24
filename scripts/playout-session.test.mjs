@@ -153,10 +153,26 @@ test('AC-13: a session constructs from the production id alone, with no optional
   assert.equal(session.folders.get(), NO_FOLDERS);
   assert.equal(session.air.get(), NO_AIR);
   assert.equal(session.log.get(), NO_LOG);
+  assert.equal(session.draft.get(), null);
   session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, { lt: 'c1' }) }));
   assert.deepEqual(session.air.get().liveCue, { lt: 'c1' });
   let stopped = 0;
   session.onDispose(() => (stopped += 1));
   session.dispose();
   assert.equal(stopped, 1);
+});
+
+test('the draft part starts empty and is set last, after the log, in one fold', () => {
+  const session = createPlayoutSession('prod-1');
+  assert.equal(session.draft.get(), null);
+  const heard = [];
+  session.log.subscribe(() => heard.push(`log draft=${session.draft.get()?.cueId}`));
+  session.draft.subscribe(() => heard.push(`draft log=${session.log.get().entries.length}`));
+  session.apply((parts) => ({ ...parts, draft: { cueId: 'c1', label: 'L', note: '', values: { f0: 'x' } }, log: { entries: [{ id: -1 }], localId: -1 } }));
+  assert.deepEqual(heard, ['log draft=undefined', 'draft log=1'], 'the log, then the draft');
+  session.apply((parts) => ({ ...parts, air: { ...parts.air, moves: 1 } }));
+  assert.equal(heard.length, 2, 'a fold that leaves the draft alone is not heard by its subscribers');
+  session.dispose();
+  session.apply((parts) => ({ ...parts, draft: null }));
+  assert.equal(session.draft.get().cueId, 'c1', 'a fold after the end changes nothing');
 });

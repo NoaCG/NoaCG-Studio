@@ -10,6 +10,7 @@
 // covers: src/control/{hostedControl,hostedReceiver,outputRecovery,logFollow}.ts, src/output/**
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';

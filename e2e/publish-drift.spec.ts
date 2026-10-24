@@ -2,6 +2,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // WHAT A PUBLISH WOULD CHANGE IN WHAT THE OUTPUTS RENDER (docs/work-specs/studio-day-playout AC-5).
 // A publish reads each graphic's design from the publisher's own library, so the production page

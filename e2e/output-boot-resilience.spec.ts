@@ -8,6 +8,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 

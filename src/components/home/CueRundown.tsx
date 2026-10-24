@@ -19,6 +19,8 @@ import { CueAccentControl } from './RundownColors';
 import { folderMode, placeRefusal, type Movable, type Place } from '../../model/showFolders';
 import { bandAt, folderName, headerBandAt, planDrop, rowCueIds, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
 import { fieldDescriptors } from '../../control/controlModel';
+import { viewOf, type CueDraft } from '../../control/cueDraft';
+import { useStorePart } from './useStorePart';
 import {
   channelLabel,
   channelOf,
@@ -151,7 +153,7 @@ export default function CueRundown({
   feedbackTarget,
   clashes,
   offstage,
-  cueView,
+  draft,
   cueGraphicName,
   playoutItemFor,
   folderSlotOf,
@@ -234,7 +236,9 @@ export default function CueRundown({
   clashes: ReadonlyMap<number, SavedGraphic[]>;
   /** A workspace is in front: the rail stays mounted, out of sight. */
   offstage: boolean;
-  cueView: (cue: ShowCue) => { label: string; note: string; values: Record<string, string> };
+  /** The cue being typed: a row reads its label, note and words from it, so the row redraws as the
+   *  operator types without the page (control/cueDraft.ts; production-page refactor D12). */
+  draft: Pick<CueDraft, 'part'>;
   cueGraphicName: (cue: ShowCue) => string | null;
   playoutItemFor: (cue: ShowCue) => PlayoutItem | null;
   /** Where a Play-through folder plays, `2-10`. */
@@ -266,6 +270,7 @@ export default function CueRundown({
   refreshRundown: () => Promise<void>;
   refreshing: boolean;
 }) {
+  const typed = useStorePart(draft.part);
   const [addPick, setAddPick] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const libraryPick = useRef<HTMLSelectElement>(null);
@@ -631,7 +636,7 @@ export default function CueRundown({
             );
           }
           const { cue } = row;
-          const view = cueView(cue);
+          const view = viewOf(typed, cue);
           const cueGraphic = cueGraphicName(cue);
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);

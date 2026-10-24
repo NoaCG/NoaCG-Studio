@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter, type ProductionSub } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -61,7 +61,8 @@ import {
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
-import { createPlayoutSession, type AirPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
+import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
+import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
 import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, type ClockSpecs } from '../../control/airState';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
@@ -211,7 +212,7 @@ import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
 import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
-import CueEditor, { type CueEditorView, type OwnReader } from './CueEditor';
+import CueEditor, { useCueView, type OwnReader } from './CueEditor';
 import CueActions from './CueActions';
 import ProductionShell from './ProductionShell';
 import ServerCueEditor from './ServerCueEditor';
@@ -235,14 +236,27 @@ import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
 
-/** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
- *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
- *  full template snapshots, so that is a visible input-lag class of cost). */
-interface CueDraft extends CueEditorView {
-  productionId: string;
-  cueId: string;
-}
-
+/** The draft's browser moments (control/cueDraft.ts): the page hidden or closing, or the account
+ *  pausing, saves at once; the account asking for a save flushes. */
+const DRAFT_ADAPTERS: CueDraftAdapters = {
+  onPageHide: (run) => {
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') run();
+    };
+    window.addEventListener('noacg-account-authoring-pausing', run);
+    window.addEventListener('pagehide', run);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('noacg-account-authoring-pausing', run);
+      window.removeEventListener('pagehide', run);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  },
+  onFlushAsked: (run) => {
+    window.addEventListener('noacg-account-authoring-flush', run);
+    return () => window.removeEventListener('noacg-account-authoring-flush', run);
+  },
+};
 /** Where an item and a Play-through folder play, for the Take refusals and the server verbs. */
 const PLAYOUT_SLOTS: SlotRules = { itemSlot, folderSlot };
 /** The Bridge watch's browser half (control/bridgeWatch.ts): the link, storage, timers and the tab. */
@@ -357,7 +371,43 @@ function usePacedPart<T, S>(part: StorePart<T>, select: (value: T) => S): S {
   }, [part, select]);
   return value;
 }
+/**
+ * WHAT THE PAGE DRAWS OF THE DRAFT, AND NOTHING MORE (production-page refactor D12). The answer
+ * is `draw`, called in the render from the render's own inputs, and remembered; a draft write
+ * renders the page only when `draw`, with the newest inputs, answers something else, compared by
+ * value. Typing into a field that already differs from air redraws the editor, the rundown and
+ * PREVIEW, which subscribe to the draft themselves, and not the page.
+ */
+interface DrawnDraft {
+  /** The edited cue's unsent fields, and the on-air cues with any (control/cueDraft.ts). */
+  unsent: { fields: string[]; cues: string[] };
+  /** The countdown chip's cue label, as typed. */
+  chipLabel: string | null;
+}
+function useDrawnDraft(part: StorePart<DraftPart | null>): (draw: () => DrawnDraft) => DrawnDraft {
+  const latest = useRef<(() => string) | null>(null);
+  const drawn = useRef('');
+  const [, redraw] = useState(0);
+  useEffect(() => {
+    const check = () => {
+      if (latest.current && latest.current() !== drawn.current) redraw((n) => n + 1);
+    };
+    check();
+    return part.subscribe(check);
+  }, [part]);
+  return (draw) => {
+    const answer = draw();
+    latest.current = () => JSON.stringify(draw());
+    drawn.current = JSON.stringify(answer);
+    return answer;
+  };
+}
 const wholePart = <T,>(value: T) => value;
+/** The cue's text as it is typed, for an editor that takes it as a prop (home/ServerCueEditor): this
+ *  child redraws with the draft, the page does not (production-page refactor D12). */
+function DraftView({ draft, cue, children }: { draft: Pick<CueDraft, 'part'>; cue: ShowCue; children: (view: CueText) => ReactNode }) {
+  return <>{children(useCueView(draft, cue))}</>;
+}
 const liveCueOf = (air: AirPart) => air.liveCue;
 const airedOf = (air: AirPart) => air.aired;
 const bootLiveOf = (air: AirPart) => air.bootLive;
@@ -1186,62 +1236,42 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     });
   });
 
-  // ── The cue draft: edits echo locally, persist on idle / switch / take / unmount. ──
-  const [draft, setDraft] = useState<CueDraft | null>(null);
-  const draftRef = useRef<CueDraft | null>(null);
-  const draftPending = useRef(false);
-  draftRef.current = draft;
-  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ── THE CUE DRAFT (control/cueDraft.ts): the selected cue's UNSAVED edits, in the session's
+  // `draft` part. Local echo for instant typing, flushed to the record on a 300 ms idle (a keystroke
+  // must not parse + rewrite the whole shows store — the store embeds full template snapshots, so
+  // that is a visible input-lag class of cost), on a switch, before a verb reads it and when the page
+  // may go. The editor, the rundown and the PREVIEW monitor subscribe to the part themselves; the page
+  // only to whether anything is unsent (D12), so typing does not re-render it. ──
+  /** The production this render is of: what the rundown's long-lived writes check before they land. */
   const draftOwner = useRef(id); draftOwner.current = id;
   const historyRef = useRef<ReturnType<typeof useRundownHistory> | null>(null);
   const historySafety = useRef<(expected: RundownSlice, replacement: RundownSlice) => string | null>(() => 'Wait for the production to finish loading.');
-  const cancelDraft = useCallback(() => {
-    if (flushTimer.current) clearTimeout(flushTimer.current);
-    flushTimer.current = null; draftPending.current = false; draftRef.current = null; setDraft(null);
-  }, []);
+  /** The rundown's cues as the last render held them: the record a draft falls back to. */
+  const cuesRef = useRef<readonly ShowCue[]>([]);
+  const cueDraft = useMemo(
+    () =>
+      createCueDraft(session, {
+        canWrite: canAuthorAccount,
+        editing: (group) => {
+          window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
+          historyRef.current?.beginGroup(group);
+        },
+        // The history is the page's, which moves on with the page: a draft of a production the
+        // page has left is not written through it, and is saved at its session's end instead.
+        writeCue: (cueId, fields) =>
+          draftOwner.current === session.key ? historyRef.current!.writeDraft(() => updateShowCueChecked(session.key, cueId, fields)) : Promise.resolve(false),
+        retainCue: (cueId, fields) => !updateShowCueChecked(session.key, cueId, fields).error,
+        record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
+        setTimeout: (run, ms) => setTimeout(run, ms),
+        clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+      }),
+    [session],
+  );
+  const { flush: flushDraft, cancel: cancelDraft } = cueDraft;
+  const drawnDraft = useDrawnDraft(cueDraft.part);
   const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
   historyRef.current = history;
-  const flushDraft = useCallback(() => {
-    if (flushTimer.current) {
-      clearTimeout(flushTimer.current);
-      flushTimer.current = null;
-    }
-    const d = draftRef.current;
-    if (!d || !draftPending.current || !canAuthorAccount() || d.productionId !== id || draftOwner.current !== id) return Promise.resolve(true);
-    draftPending.current = false;
-    return historyRef.current!.writeDraft(() => updateShowCueChecked(id, d.cueId, { label: d.label, note: d.note || null, values: d.values })).then(saved => {
-      if (draftRef.current === d && draftOwner.current === id) {
-        if (saved) { draftRef.current = null; setDraft(null); }
-        else draftPending.current = true;
-      }
-      return saved;
-    });
-  }, [id]);
-  useEffect(() => {
-    // Pausing and teardown cannot await a microtask: retain the captured production's last
-    // character synchronously before the account closes. No history survives this boundary.
-    const retainClosingDraft = () => {
-      const d = draftRef.current;
-      if (d?.productionId === id && draftPending.current && canAuthorAccount()) {
-        const result = updateShowCueChecked(id, d.cueId, { label: d.label, note: d.note || null, values: d.values });
-        if (!result.error) draftPending.current = false;
-      }
-    };
-    const flush = () => { void flushDraft(); };
-    window.addEventListener('noacg-account-authoring-pausing', retainClosingDraft);
-    window.addEventListener('noacg-account-authoring-flush', flush);
-    window.addEventListener('pagehide', retainClosingDraft);
-    const hidden = () => { if (document.visibilityState === 'hidden') retainClosingDraft(); };
-    document.addEventListener('visibilitychange', hidden);
-    return () => {
-      window.removeEventListener('noacg-account-authoring-pausing', retainClosingDraft);
-      window.removeEventListener('noacg-account-authoring-flush', flush);
-      window.removeEventListener('pagehide', retainClosingDraft);
-      document.removeEventListener('visibilitychange', hidden);
-      retainClosingDraft();
-    };
-  }, [flushDraft, id]);
-  useEffect(() => { cancelDraft(); }, [id, cancelDraft]);
+  useEffect(() => cueDraft.listen(DRAFT_ADAPTERS), [cueDraft]);
   useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
@@ -1506,28 +1536,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [bindings],
   );
 
-  const cuesRef = useRef(cues);
   cuesRef.current = cues;
-  /** The cue as the operator currently sees it — draft over the latest mounted record.
-   * A save acknowledgement can clear the draft while a verb awaits it. */
-  const cueView = useCallback(
-    (cue: ShowCue): Pick<CueDraft, 'label' | 'note' | 'values'> => {
-      const d = draftRef.current;
-      const current = cuesRef.current.find(c => c.id === cue.id) ?? cue;
-      return d && d.productionId === draftOwner.current && d.cueId === cue.id ? d : { label: current.label, note: current.note ?? '', values: current.values };
-    },
-    [],
-  );
+  /** The cue as the operator currently sees it — draft over the latest mounted record, read from the
+   *  part at the call: what a verb reads after its wait (control/cueDraft.ts). */
+  const cueView = cueDraft.view;
 
-  // The log names cues by the LABEL the operator wrote, and it is read from long-lived
-  // callbacks, so the lookup goes through a ref rather than a dependency.
-  const cueLabel = useCallback((cueId: string) => {
-    // The DRAFT wins: a verb runs in the same tick as the `flushDraft()` before it, so reading
-    // the record alone logged the name the cue had BEFORE the rename just made.
-    const d = draftRef.current;
-    if (d && d.productionId === draftOwner.current && d.cueId === cueId) return d.label;
-    return cuesRef.current.find((c) => c.id === cueId)?.label ?? null;
-  }, []);
+  // The log names cues by the LABEL the operator wrote, the draft's while one is typed. It is read
+  // from long-lived callbacks, so it reads the part and the record at the call.
+  const cueLabel = cueDraft.label;
   // A ⚡ press is logged by its BUTTON's name, not the machine's event id (control/eventLog.ts).
   // Read through a ref for the same reason as the cue names: the log callbacks are long-lived.
   // Filled from `poolMachines` below, which parses every graphic in the production once.
@@ -1697,13 +1713,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // machine-less graphic's `enter` still has to read "Enter" (controlModel.ts says why).
   const stateNames = useMemo(() => (editorTemplate ? machineStateNames(editorTemplate.js) : {}), [editorTemplate]);
   // The PREVIEW settles with bound fields overlaid too, for the same reason Take does: the
-  // monitor has to show what a Take would actually put on air, not the cue's prepared value.
-  const settleData = previewCue
-    ? JSON.stringify({
-        ...withBoundValues(cueGraphicName(previewCue) ?? '', cueView(previewCue).values),
-        ...(connectPreview && connectPreview.graphic === cueGraphicName(previewCue) ? connectPreview.values : {}),
-      })
-    : '';
+  // monitor has to show what a Take would actually put on air, not the cue's prepared value. The
+  // monitor reads the cue's values from the draft itself (D12) and settles them through this.
+  const settleOf = (cue: ShowCue, values: Record<string, string>) =>
+    JSON.stringify({
+      ...withBoundValues(cueGraphicName(cue) ?? '', values),
+      ...(connectPreview && connectPreview.graphic === cueGraphicName(cue) ? connectPreview.values : {}),
+    });
   /** Which of the values being typed PREVIEW says do not fit - measured by the monitor
    *  (PlayoutMonitors), read here by the editor's field marks. */
   const [previewOverflow, setPreviewOverflow] = useState<string[]>([]);
@@ -2133,48 +2149,45 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * It compares the edited values against what was last SENT, never against the stored cue: the
    * whole point of staged-vs-take is that those legitimately differ, and data still does NOT
    * air by itself - this only says so out loud. A cue that has never been taken is not
-   * "unsent"; it is simply not on air, which the rundown already says.
+   * "unsent"; it is simply not on air, which the rundown already says. A BOUND field is never
+   * unsent (control/cueDraft.ts `unsentFields`; the review's S4).
+   *
+   * The ON-AIR cues with unsent values are said on their rundown row, where the operator looks,
+   * and not only in the editor that has to be showing the cue (the review's S1: edit the on-air
+   * cue, click another row, and the only sign was gone). A graphic this page has sent nothing for
+   * (a reload, another operator's take) is not judged: there is no record of what air shows to
+   * compare with.
+   *
+   * With the countdown chip's cue label, this is ALL the page draws of the draft (D12), so a
+   * keystroke renders the page only when one of them reads differently.
    */
-  const unsentOf = (graphic: string, cue: ShowCue): string[] => {
-    // A BOUND field is not a cue value (plan §2.7): Take and ✎ Update air the tree's figure for
-    // it, so its stored value differing from air is not an edit anyone made and never "unsent"
-    // (the review's S4: a bound scoreboard wore an amber that Update could not clear).
-    const bound = boundFields(graphic);
-    return Object.entries(cueView(cue).values)
-      .filter(([field, value]) => !bound[field] && (airedData[graphic]?.[field] ?? '') !== value)
-      .map(([field]) => field);
-  };
-  const unsentFields = editingIsLive && selectedGraphic && editingCue ? unsentOf(selectedGraphic, editingCue) : [];
-  const hasUnsent = unsentFields.length > 0;
-  /** The ON-AIR cues whose values differ from what air shows, by cue id - said on their rundown
-   *  row, where the operator looks, and not only in the editor that has to be showing the cue
-   *  (the review's S1: edit the on-air cue, click another row, and the only sign was gone). A
-   *  graphic this page has sent nothing for (a reload, another operator's take) is not judged:
-   *  there is no record of what air shows to compare with. */
-  const unsentOnAir = new Set(
-    Object.entries(liveCue)
-      .filter(([graphic, cueId]) => {
+  const chipGraphic = chipLane(cueArms);
+  const { unsent, chipLabel } = drawnDraft(() => ({
+    unsent: unsentNow(
+      cueDraft,
+      editingIsLive && selectedGraphic && editingCue ? { cue: editingCue, graphic: selectedGraphic } : null,
+      Object.entries(liveCue).flatMap(([graphic, cueId]) => {
         const cue = airedData[graphic] && cues.find((c) => c.id === cueId);
-        return !!cue && unsentOf(graphic, cue).length > 0;
-      })
-      .map(([, cueId]) => cueId),
-  );
+        return cue ? [{ cue, graphic }] : [];
+      }),
+      airedData,
+      boundFields,
+    ),
+    chipLabel: chipGraphic ? (cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic) : null,
+  }));
+  const unsentFields = unsent.fields;
+  const hasUnsent = unsentFields.length > 0;
+  const unsentOnAir = new Set(unsent.cues);
 
-  const editDraft = (patch: Partial<Pick<CueDraft, 'label' | 'note'>> & { values?: Record<string, string> }) => {
-    if (!editingCue || !canAuthorAccount()) return;
-    window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
-    const d = draftRef.current;
-    history.beginGroup(`${editingCue.id}:${patch.label !== undefined ? 'label' : patch.note !== undefined ? 'note' : Object.keys(patch.values ?? {}).sort().join(',')}`);
-    const base: CueDraft = d && d.productionId === id && d.cueId === editingCue.id
-      ? d
-      : { productionId: id, cueId: editingCue.id, label: editingCue.label, note: editingCue.note ?? '', values: { ...editingCue.values } };
-    const next = { ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } };
-    // A confirmation/expiry flush in this same tick must see the edit before React renders.
-    draftRef.current = next;
-    draftPending.current = true;
-    setDraft(next);
-    if (flushTimer.current) clearTimeout(flushTimer.current);
-    flushTimer.current = setTimeout(flushDraft, 300);
+  /** A removal drops the draft as the page state it replaced went: after this task, so the save
+   *  the removal waits for first (`writeRundown` flushes in the same tick) still writes it. */
+  const dropDraft = () => {
+    setTimeout(cancelDraft);
+  };
+
+  /** Type into the edited cue (control/cueDraft.ts `edit`). */
+  const editDraft = (patch: CueEdit) => {
+    if (editingCue) cueDraft.edit(editingCue, patch);
   };
 
   /**
@@ -2273,7 +2286,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     noteMachineState(graphic, state, overflow);
     armEngine.current?.onProgramState(graphic);
   };
-  const chipGraphic = chipLane(cueArms);
 
   /**
    * A GRAPHIC'S OWN SHEET READER, as Connect data… meets it (sheet-data-flow AC-10, data-sources
@@ -2385,7 +2397,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const sharingLayer = poolGraphic ? clashes.get(editedLayer) : undefined;
   const layerClash = !!sharingLayer;
   const advancedOpen = layerClash || (!!poolGraphic && advancedFor === poolGraphic.id);
-  const editingView = editingCue ? cueView(editingCue) : null;
   // The graphic's own picture assets, so an IMAGE field is actually pickable here. Without
   // them the control renders a select whose only option is "None" — which is how a match
   // board's two crest slots came to be unreachable from the cockpit while the hosted page
@@ -2486,7 +2497,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     refreshRundown, uploadPictures, removeCue, removeGraphic, writeRundown, editIds, removeCues, cutIds,
     newFolder, duplicateCues, takeOutOfFolders, removeFolderOf, moveRundown, toggleFolder, editVerb,
   } = rundownActions(authoring, {
-    id, show, setShows, setNote, setDraft, library, cues, graphicByPoolId, playoutItems, serverOnAir, playoutItemFor, rundown, range,
+    id, show, setShows, setNote, setDraft: dropDraft, library, cues, graphicByPoolId, playoutItems, serverOnAir, playoutItemFor, rundown, range,
     cursorRow, selectedCue, selectedFolder, heldMembers, inRundownOrder, selectCue, history, flush: flushDraft, draftOwner,
     backendConfigured, user, openSignIn, offAir: takeOffAir,
     serverOut: (cue) => playoutVerb(cue, 'out', 'Out'),
@@ -2522,17 +2533,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     known: descriptorByKey,
   });
   const overflowSet = new Set(overflowKeys);
-  /** What a band HEADING reads, resolved the way the field boxes under it resolve: the live tree
-   *  for a bound field, then the cue's own value, then the authored default. */
-  const headingValues = Object.fromEntries(
-    descriptors.map((d) => [
-      d.key,
-      (boundFields(selectedGraphic)[d.key] ? resolved[selectedGraphic ?? '']?.[d.key] : undefined) ??
-        editingView?.values[d.key] ??
-        d.defaultValue ??
-        '',
-    ]),
-  );
   const loadableRows = rowsForSide(dataRows, loadSide);
   /** Load one row into the edited cue's DRAFT (never air), remembering it per cue so Load next row
    *  walks the bank in order. */
@@ -2805,16 +2805,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  keeps the order it always had, because its fields are the whole panel. */
   const liveFirst = events.length > 0 && !!selectedGraphic;
   const fieldsFolded = liveFirst && !!poolGraphic && foldedFields.has(poolGraphic.id) && !layerClash;
-  /** What a folded setup bar reads back: the words and figures the cue is set to, resolved the way
-   *  the boxes resolve them (a bound field from the tree). Colours and pictures say nothing as
-   *  text, so they stay out of it. */
-  const setupSummary = fieldsFolded
-    ? descriptors
-        .filter((d) => d.kind !== 'color' && d.kind !== 'image')
-        .map((d) => String(headingValues[d.key] ?? '').trim())
-        .filter(Boolean)
-        .join(' · ')
-    : '';
   const readOnlyProfile = profileRead.status === 'read-only';
   const arranging = !!selectedGraphic && arrangingFor === selectedGraphic;
   const liveBlock = selectedGraphic && (
@@ -3070,18 +3060,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           stage={stage}
           previewDoc={previewDoc}
           previewTemplate={previewTemplate}
-          previewLabel={
-            previewCue
+          previewCue={previewCue}
+          draft={cueDraft}
+          previewLabel={(label) =>
+            label !== null
               ? selectedFolder && spaceMode === 'take'
-                ? `${cueView(previewCue).label} · ${heldStep ? 'next' : 'first'} in ${folderName(selectedFolder)}`
-                : cueView(previewCue).label
+                ? `${label} · ${heldStep ? 'next' : 'first'} in ${folderName(selectedFolder)}`
+                : label
               : spaceMode === 'preview-then-take'
                 ? PREVIEW_EMPTY_LABEL
                 : selectedFolder
                   ? folderName(selectedFolder)
                   : 'nothing selected'
           }
-          settleData={settleData}
+          settleOf={settleOf}
           hasCues={cues.length > 0}
           emptyHint={
             selectedFolder && spaceMode === 'take' && !previewCue && heldStep
@@ -3110,7 +3102,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             chipGraphic ? (
               <ProgramAutoChip
                 arm={cueArms[chipGraphic]}
-                label={cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic}
+                label={chipLabel ?? chipGraphic}
                 onToggle={() => toggleHold(chipGraphic)}
                 onManual={() => manualLane(chipGraphic)}
               />
@@ -3314,13 +3306,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
             the cue already on air on that layer, where ✎ Update pushes edits live. */}
-        {editingCue && editingView && poolGraphic && (
+        {editingCue && poolGraphic && (
           <CueEditor
             show={show}
             setShows={setShows}
             poolGraphic={poolGraphic}
             editingCue={editingCue}
-            editingView={editingView}
+            draft={cueDraft}
             editingCueNo={editingCueNo}
             editingIsLive={editingIsLive}
             rehearsing={rehearsing}
@@ -3343,14 +3335,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             descriptors={descriptors}
             descriptorByKey={descriptorByKey}
             fieldGroups={fieldGroups}
-            headingValues={headingValues}
             boundFields={boundFields}
             resolved={resolved}
             cueImages={cueImages}
             liveFirst={liveFirst}
             fieldsFolded={fieldsFolded}
             setFoldedFields={setFoldedFields}
-            setupSummary={setupSummary}
             dataRows={dataRows}
             loadableRows={loadableRows}
             hasSides={hasSides}
@@ -3401,7 +3391,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 />
               );
             }}
-            sounds={
+            sounds={(editingView) => (
               <ProductionSounds
                 key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
                 template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
@@ -3418,14 +3408,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   if (failure) throw new Error(failure);
                 }}
               />
-            }
+            )}
           />
         )}
 
         {/* A cue over the PLAYOUT SERVER'S OWN LIBRARY: its editor (home/ServerCueEditor). */}
-        {editingCue && editingView && selectedPlayoutItem && (
+        {editingCue && selectedPlayoutItem && (
+          <DraftView key={editingCue.id} draft={cueDraft} cue={editingCue}>{(editingView) => (
           <ServerCueEditor
-            key={editingCue.id}
             showId={show.id}
             item={selectedPlayoutItem}
             cue={editingCue}
@@ -3445,6 +3435,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onTransport={onVerb}
             setShows={setShows}
           />
+          )}</DraftView>
         )}
 
         {editingCue && <CueAccentControl key={`${show.id}:${editingCue.id}`} show={show} cue={editingCue} setShows={setShows} onPreview={color => setAccentPreview(color ? { productionId: show.id, cueId: editingCue.id, color } : null)} fallback={routeColor(show.rundownColors, selectedPlayoutItem ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : itemSlot(playoutSettings, selectedPlayoutItem).channel : undefined)} />}
@@ -3486,7 +3477,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         feedbackTarget={rundownFeedback}
         clashes={clashes}
         offstage={!!sub}
-        cueView={cueView}
+        draft={cueDraft}
         cueGraphicName={cueGraphicName}
         playoutItemFor={playoutItemFor}
         folderSlotOf={folderSlotOf}

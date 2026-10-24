@@ -34,12 +34,21 @@ import {
 } from '../../control/sheetSource';
 import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
+import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
 
-/** The edited cue's text, as the page's draft shows it. */
-export interface CueEditorView {
-  label: string;
-  note: string;
-  values: Record<string, string>;
+/** The edited cue's text, as the draft shows it. */
+export type CueEditorView = CueText;
+
+/** A cue's text as it is being typed: the draft over `cue` (control/cueDraft.ts). The component
+ *  redraws when this cue's draft moves, and not for another cue's. */
+export function useCueView(draft: Pick<CueDraft, 'part'>, cue: ShowCue): CueText;
+export function useCueView(draft: Pick<CueDraft, 'part'>, cue: ShowCue | null): CueText | null;
+export function useCueView(draft: Pick<CueDraft, 'part'>, cue: ShowCue | null): CueText | null {
+  const own = useSyncExternalStore(draft.part.subscribe, () => {
+    const d = draft.part.get();
+    return d && d.cueId === cue?.id ? d : null;
+  });
+  return cue ? viewOf(own, cue) : null;
 }
 
 /** A file name a spreadsheet will not argue with, from the graphic's own name. */
@@ -644,17 +653,19 @@ function CueOwnReader({ reader, graphic, onKeep }: { reader: OwnReader; graphic:
  * list field's "Fill from… Paste rows", C1a), the operator note, how the cue ends, the playout
  * layer, the graphic's data template and the sound.
  *
- * Props only: the page derives every value and owns every piece of state, the draft included;
- * edits go back through `editDraft`, `setShows` and the setters handed in. The ends row and the
- * sound arrive built, because both read and write the record in ways the page decides
- * (docs/work-specs/production-page-refactor/spec.md, phase 13a).
+ * The page owns every piece of state and derives every value but one: the cue's text as it is being
+ * typed, which this component reads from the session's `draft` part itself (control/cueDraft.ts), so
+ * a keystroke redraws the editor and not the page (docs/work-specs/production-page-refactor/spec.md
+ * D12, phase 13b). Edits go back through `editDraft`, `setShows` and the setters handed in. The ends
+ * row and the sound arrive as render functions, because both read and write the record in ways the
+ * page decides (phase 13a); the sound is keyed on the picture being typed, so it takes the text.
  */
 export default function CueEditor({
   show,
   setShows,
   poolGraphic,
   editingCue,
-  editingView,
+  draft,
   editingCueNo,
   editingIsLive,
   rehearsing,
@@ -677,14 +688,12 @@ export default function CueEditor({
   descriptors,
   descriptorByKey,
   fieldGroups,
-  headingValues,
   boundFields,
   resolved,
   cueImages,
   liveFirst,
   fieldsFolded,
   setFoldedFields,
-  setupSummary,
   dataRows,
   loadableRows,
   hasSides,
@@ -709,7 +718,8 @@ export default function CueEditor({
   setShows: (shows: Show[]) => void;
   poolGraphic: SavedGraphic;
   editingCue: ShowCue;
-  editingView: CueEditorView;
+  /** The cue being typed, which the editor shows over the record. */
+  draft: Pick<CueDraft, 'part'>;
   /** Its place in the rundown, 1-based; 0 when there is none. */
   editingCueNo: number;
   editingIsLive: boolean;
@@ -736,15 +746,12 @@ export default function CueEditor({
   descriptors: FieldDescriptor[];
   descriptorByKey: ReadonlyMap<string, FieldDescriptor>;
   fieldGroups: CueFieldGroup[];
-  headingValues: Record<string, FieldValue>;
   boundFields: (graphic: string | null) => Record<string, string>;
   resolved: ResolvedValues;
   cueImages: FieldImage[];
   liveFirst: boolean;
   fieldsFolded: boolean;
   setFoldedFields: Dispatch<SetStateAction<ReadonlySet<string>>>;
-  /** What the folded setup fields hold, read back on the fold's bar. */
-  setupSummary: string;
   dataRows: CueDataRow[];
   loadableRows: CueDataRow[];
   hasSides: boolean;
@@ -762,8 +769,8 @@ export default function CueEditor({
   /** How the cue ends (home/CueTiming's CueEndsRow), built by the page when the setup fields
    *  are open. */
   endsRow: () => ReactNode;
-  /** The cue's sound (home/ProductionSounds), built by the page. */
-  sounds: ReactNode;
+  /** The cue's sound (home/ProductionSounds), built by the page for the cue's text as typed. */
+  sounds: (view: CueEditorView) => ReactNode;
   /** What each source's reader last found (control/sheetSource.ts), read by the lines that show it. */
   sourceStatus: SourceStatusStore;
   /** A pool graphic's fields as drawn: the same lookup the Sheet reader converts cells with. */
@@ -773,10 +780,36 @@ export default function CueEditor({
   /** The graphic's own Sheet reader, which Connect data… migrates before it connects anything. */
   ownReader: OwnReader;
 }) {
+  /** How many times the editor has rendered - published on its root as `data-renders`, beside the
+   *  page's: e2e/playout-air-contract.spec.ts proves typing moves this one and not that one. */
+  const renders = useRef(0);
+  renders.current += 1;
+  const editingView = useCueView(draft, editingCue);
+  const bound = boundFields(selectedGraphic);
+  /** What a band HEADING reads, resolved the way the field boxes under it resolve: the live tree
+   *  for a bound field, then the cue's own value, then the authored default. */
+  const headingValues: Record<string, FieldValue> = Object.fromEntries(
+    descriptors.map((d) => [
+      d.key,
+      (bound[d.key] ? resolved[selectedGraphic ?? '']?.[d.key] : undefined) ??
+        editingView.values[d.key] ??
+        d.defaultValue ??
+        '',
+    ]),
+  );
+  /** What a folded setup bar reads back: the words and figures the cue is set to, resolved the way
+   *  the boxes resolve them (a bound field from the tree). Colours and pictures say nothing as
+   *  text, so they stay out of it. */
+  const setupSummary = fieldsFolded
+    ? descriptors
+        .filter((d) => d.kind !== 'color' && d.kind !== 'image')
+        .map((d) => String(headingValues[d.key] ?? '').trim())
+        .filter(Boolean)
+        .join(' · ')
+    : '';
   // What the cue shows now, field by field, as the band headings read it: starter rows and the
   // data template both start from it. A bound field is not a cue value, so a fill skips it.
   const currentValues = Object.fromEntries(Object.entries(headingValues).map(([k, v]) => [k, String(v)]));
-  const bound = boundFields(selectedGraphic);
   /** Return connected fields to the cue, each holding the value it last showed. */
   const disconnect = (fieldIds: string[]) => {
     const last = Object.fromEntries(fieldIds.map((f) => [f, resolved[poolGraphic.name]?.[f] ?? editingView.values[f] ?? '']));
@@ -785,7 +818,7 @@ export default function CueEditor({
   // The sources this graphic follows, and connected fields it no longer has.
   const fed = (show.sources ?? []).filter((source) => Object.values(bound).some((path) => isSourcePath(source.id, path)));
   return (
-    <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
+    <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" data-renders={renders.current} inert={!authoringAllowed}
       onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
       <div className="pd-editor-head">
         {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
@@ -1165,7 +1198,7 @@ export default function CueEditor({
       </div>
       </div>
       )}
-      {sounds}
+      {sounds(editingView)}
     </div>
   );
 }

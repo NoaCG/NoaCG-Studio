@@ -13,6 +13,7 @@
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
+// covers: src/control/cueDraft.ts
 //
 // THE MONITORS AND THE RUNDOWN NEVER MOVE. The dashboard's scroll model lives almost entirely in
 // src/styles/playout-dashboard.css, and src/styles is CORE, which resolves to the focus set - so

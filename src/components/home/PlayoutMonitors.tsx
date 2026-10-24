@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { GraphicDoc } from '../../model/library';
-import type { PlayoutItem, Show } from '../../model/shows';
+import type { PlayoutItem, Show, ShowCue } from '../../model/shows';
 import type { Resolution, SpxTemplate } from '../../model/types';
 import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
+import type { CueDraft } from '../../control/cueDraft';
 import { staleWords, type AirState, type LostHop } from '../../control/playoutStatus';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
 import { useServerThumbnail } from './serverThumbnail';
+import { useCueView } from './CueEditor';
 
 /**
  * A SERVER CLIP'S PICTURE on a monitor (docs/CLIP_PLAYBACK_PLAN.md §6.3): its thumbnail, marked
@@ -35,6 +37,9 @@ function ServerStill({ thumb, testId }: { thumb: string | null; testId: string }
  * https://github.com/NoaCG/NoaCG-Studio/issues/766: moved out of ProductionPage with its behaviour
  * unchanged.
  *
+ * PREVIEW reads its cue's text from the draft itself (control/cueDraft.ts; production-page
+ * refactor D12): a keystroke redraws this monitor and settles the typed value, not the page.
+ *
  * It owns the PREVIEW frame's measurement and its messages. PROGRAM is driven by the PAGE:
  * `applyProgram` ends in `programRef.current?.apply(…)`, called by the log follower, so the ref is
  * the page's own, forwarded here, and never one this component mints. A monitor that minted it
@@ -44,8 +49,10 @@ export default function PlayoutMonitors({
   stage,
   previewDoc,
   previewTemplate,
+  previewCue,
+  draft,
   previewLabel,
-  settleData,
+  settleOf,
   hasCues,
   emptyHint,
   liveLayers,
@@ -70,10 +77,15 @@ export default function PlayoutMonitors({
   /** The previewed cue's graphic, composed once per template; '' when nothing is on PREVIEW. */
   previewDoc: string;
   previewTemplate: SpxTemplate | null;
-  /** What PREVIEW's header names: the cue's label, or what the empty monitor means. */
-  previewLabel: string;
-  /** The values a Take would air, as the settle command carries them. */
-  settleData: string;
+  /** The cue on PREVIEW, as the page's render holds its record; null when none is. */
+  previewCue: ShowCue | null;
+  /** The cue being typed, which PREVIEW shows over the record. */
+  draft: Pick<CueDraft, 'part'>;
+  /** What PREVIEW's header names, given the previewed cue's label as typed (null with no cue on
+   *  PREVIEW): the label, or what the empty monitor means. */
+  previewLabel: (cueLabel: string | null) => string;
+  /** The values a Take of the cue would air, as the settle command carries them. */
+  settleOf: (cue: ShowCue, values: Record<string, string>) => string;
   hasCues: boolean;
   /** What the empty PREVIEW says, when the page knows better than the default: a folder row is
    *  held, and a folder is more than one cue. */
@@ -111,6 +123,8 @@ export default function PlayoutMonitors({
   serverLost?: LostHop | null;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
+  const previewView = useCueView(draft, previewCue);
+  const settleData = previewCue && previewView ? settleOf(previewCue, previewView.values) : '';
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
   const programThumb = useServerThumbnail(programClip?.name ?? null);
   const settlePreview = useCallback((data: string) => {
@@ -192,7 +206,7 @@ export default function PlayoutMonitors({
           <span className="pd-dot" aria-hidden="true" />
           <span className="pd-monitor-name">PREVIEW</span>
           <span className="pd-what" data-testid="preview-what">
-            {previewLabel}
+            {previewLabel(previewView?.label ?? null)}
           </span>
         </h2>
         <div className="pd-screen">
