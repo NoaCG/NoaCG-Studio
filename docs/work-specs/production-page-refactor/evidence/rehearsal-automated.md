@@ -71,15 +71,15 @@ candidate in the run named under "Runs"; a route nothing proves is "unverified",
 | Pasted rows | `e2e/production-data.spec.ts` "Paste rows fills a ticker, a schedule, standings and credits…" | pass (full offline run) |
 | A Sheet ticker | `production-data` "Connect data previews the whole graphic…", "twelve Sheet rows reach a ticker on air…" | pass (full offline run) |
 | Schedule, standings and credits from a Sheet | `production-data` "Sheet tabs fill a schedule, standings and credits on air…" | pass (full offline run) |
-| A feed | `production-data` "a pasted news feed fills a ticker…"; `scripts/feed-source.test.mjs`; `e2e/configured/feed-route.spec.ts` | pass offline and in Node; configured: CONF |
-| A pushed score | `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…" (quarantined on main, #1608; runs in a branch dispatch); `scripts/data-pause.test.mjs` | CONF; `data-pause` Node: pass |
+| A feed | `production-data` "a pasted news feed fills a ticker…"; `scripts/feed-source.test.mjs`; `e2e/configured/feed-route.spec.ts` | pass offline and in Node; configured: pass |
+| A pushed score | `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…" (quarantined on main, #1608; runs in a branch dispatch); `scripts/data-pause.test.mjs` | pass in the configured run; `data-pause` Node: pass |
 | A guest row | `production-data` "a guest row loads into a lower third and airs on Take…" | pass (full offline run) |
-| Pasted messages | `e2e/production-audience.spec.ts` "a pasted message airs exactly as prepared…"; `e2e/configured/audience-live.spec.ts` | pass offline; configured: CONF |
-| Sheet messages | `production-audience` "a message Sheet: rows arrive as candidates…"; `audience-live`; `scripts/sheet-messages.test.mjs` | pass offline and in Node; configured: CONF |
+| Pasted messages | `e2e/production-audience.spec.ts` "a pasted message airs exactly as prepared…"; `e2e/configured/audience-live.spec.ts` | pass offline; configured: pass |
+| Sheet messages | `production-audience` "a message Sheet: rows arrive as candidates…"; `audience-live`; `scripts/sheet-messages.test.mjs` | pass offline and in Node; configured: pass |
 | YouTube comments | `scripts/youtube-comments.test.mjs`; `e2e/production-chat-intake.spec.ts` (quarantined, #1595: local run only) | pass: Node, and the journey spec 9 of 9 on `5e83e44` in this worker (local; CI skips it while quarantined) |
 | YouTube live chat | `scripts/youtube-chat.test.mjs`; C7's live smoke (reused, above); `production-chat-intake` (quarantined, local run only) | pass: Node, the reused smoke, and the journey spec in the same local run |
 | Twitch chat (regression) | `scripts/twitch-chat.test.mjs` on recorded frames | pass (Node) |
-| A staged vote | `production-audience` "the vote reaches air the same way a question does…"; `audience-live` "the published walk…" | pass offline; configured: CONF |
+| A staged vote | `production-audience` "the vote reaches air the same way a question does…"; `audience-live` "the published walk…" | pass offline; configured: pass |
 
 ### PROGRAM after each disturbance, overrides, readers, independence and confirmation
 
@@ -91,7 +91,12 @@ selection versus staged versus pending versus confirmed, disconnect dimming PROG
 versus target) cite journeys in `production-data`, `production-audience`, `production-controls`,
 `playout-folders`, `playout-feedback-health`, `playout-clock` and the configured
 `production-data-key`, `production-data-key-tick`, `production-data-key-dispatch`,
-`playout-status`, plus the reader Node tests. RESULT_TABLES
+`playout-status`, plus the reader Node tests. Every one of them passed on this candidate: the offline ones in the
+full offline run, the configured ones in the configured run, the Node ones above. One journey failed
+in this worker's local run and passed in CI: "Connect closes only once the save landed" (#1603,
+open, the same 120 s signature as on main); the other Connect journeys prove that route. C7's local
+failure of `production-chat-intake.spec.ts:311` (#1595) did not recur: all 9 of that spec passed
+here.
 
 ## Required criteria and their results
 
@@ -102,8 +107,8 @@ versus target) cite journeys in `production-data`, `production-audience`, `produ
 | Covers and guards mappings | `node scripts/gates.mjs audit` (every Node test declares guards that match files) and the build's `auditSpecHeaders` (via `e2e-affected --list`) both clean; every new module is named by its specs and its Node test; 11 specs that press verbs on the page and 3 that drive the fake Bridge gained the moved modules (phase notes) | pass |
 | AC-9 render targets | phase 13b's `e2e/playout-air-contract.spec.ts` render counts, in the full offline run | pass (in the full offline run) |
 | The full offline suite on CI | `ci.yml` dispatched on the candidate with no base | pass: 15 of 15 full shards, no retry |
-| The whole configured suite | `configured-suite.yml` dispatched on the candidate | RESULT |
-| Data-sources AC-16, software half | the route tables above | RESULT |
+| The whole configured suite | `configured-suite.yml` dispatched on the candidate | pass: 124 passed, 0 failed, 0 flaky, 3 allowed skips |
+| Data-sources AC-16, software half | the route tables above | pass, every route; no route rests on a spec that did not run |
 | Node, refactor modules | the 17 Node files of phases 1 to 13b | 290 of 290 |
 | Node, readers | the 8 reader Node files C7 cited | 115 of 115 |
 | `npm run depcruise` | | no violations (1367 modules) |
@@ -112,7 +117,7 @@ versus target) cite journeys in `production-data`, `production-audience`, `produ
 ## What stays unverified (requested, not done)
 
 Required evidence that is unavailable blocks completion; nothing in the software half is in that
-state (RESULT_BLOCK). The items below are the laptop helper's and the owner's, named so the final
+state: every required route and criterion above ran and passed on this candidate. The items below are the laptop helper's and the owner's, named so the final
 report cannot read as complete without them.
 
 **Performance (AC-9 timing; non-gating, laptop helper on the exact merge SHA, spec.md §7).**
@@ -161,4 +166,15 @@ decision 1).
 
 ## Runs
 
-RUNS
+All on branch `claude/plan-production-page-p25-build`, candidate `5e83e44`.
+
+| What | Revision | Run | Result |
+| --- | --- | --- | --- |
+| The full offline suite (`ci.yml`, dispatched with no base, so every shard) | `5e83e44` | [40065027495](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40065027495) | 15 of 15 full E2E shards green, no retry; Build, Factory gates and CI gate green |
+| The whole configured suite, local Supabase stack (`configured-suite.yml`, dispatched) | `5e83e44` | [40065025649](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40065025649) | 124 passed, 0 failed, 0 flaky, 3 skipped (the allowed skips in `expected-run.json`); quarantined specs run in a branch dispatch |
+| `e2e/production-chat-intake.spec.ts` (quarantined, so CI skips it), this worker | `5e83e44` | job queue, small selection | 9 of 9 |
+| The C7 page journeys, this worker | `dac20da` (differs from `5e83e44` only by comment, doc and covers lines) | job queue, one broader selection: `production-data`, `production-audience`, `production-controls`, `playout-feedback-health`, `playout-clock`, `production-chat-intake` | 110 passed, 1 failed: #1603 (above), green in the CI run |
+| Node, refactor modules (17 files) and readers (8 files), this worker | `5e83e44` | `node --test` | 290 of 290; 115 of 115 |
+| `npm run depcruise`, `node scripts/gates.mjs run --changed origin/main`, `gates.mjs audit`, `compile-contracts --check` | `5e83e44` | this worker | all clean |
+| Assessment A, a fresh read-only `/so` session | `5e83e44` | - | PASS WITH NOTES: the candidate named was a stale sha (fixed, `5e83e44` above) and this record was a draft (filled here); the quarantined routes rest on specs that did run (the configured branch dispatch, the local chat-intake run); the comment-line files outside the fence are named in the PR; the laptop requests live in this record and in `extensions.md` row 25 (the merge SHA they need exists only after landing); two `AGENTS.md` lines run past the wrap width (left: any `src/` edit would invalidate these runs) |
+| An earlier pair of dispatches on `dac20da` | `dac20da` | 40064337935, 40064339802 | cancelled: the check's review fixes made them stale |

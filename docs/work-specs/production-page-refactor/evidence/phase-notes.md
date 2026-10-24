@@ -56,6 +56,19 @@ changes a spec's digest.
     nothing under `src/audience/`, `src/model/`, `src/output/`, `api/`, `supabase/` or the
     source readers changed since C7's merge `44bfa89`, so the reader Node results and C7's
     YouTube live smoke stand; every page journey ran again.
+- **Check findings** (code-review, high; all verified). Fixed: the rule said all playout state is
+  the session's (server ownership and timing are `serverPlayoutStore`'s); the home guidance said
+  every verb refuses after the end (All out's clear still goes), that verbs read the `air` part
+  (they read the render's copy; folds write the part), and that typing never renders the page
+  (renaming a counting cue does); the covers lines repeated modules their headers named; the
+  "closed" #766 is "closes". Kept: the evidence-only commits after the material tip (spec §6
+  allows them).
+- **Simplify:** inline; nothing to change (docs, header lines and comments only).
+- **Runs on `5e83e44`:** the full offline suite 15 of 15 (run 40065027495), the whole configured
+  suite 124 passed, 0 failed, 3 allowed skips (run 40065025649), chat-intake 9 of 9 locally.
+- **Assessment A** (a fresh read-only `/so` session on `5e83e44`): PASS WITH NOTES. Its two
+  blocking items were the draft record (filled) and the stale candidate sha (fixed); the rest are
+  answered in `rehearsal-automated.md` "Runs".
 - **Traps.**
   - `rundown-history.spec.ts` is quarantined (#1649, fixed by #1650, awaiting release), and a PR
     that edits it runs it anyway (the quarantine applies only to unchanged specs). This PR adds a
