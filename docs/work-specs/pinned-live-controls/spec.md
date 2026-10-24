@@ -1,9 +1,9 @@
 # Pinned live controls: several graphics from one screen
 
-Status: **draft for the owner's agreement**, 2026-10-24. The owner answered the open decisions
-one by one the same day (recorded under "Owner decisions"); the whole is agreed only when he says
-so, and this document authorizes nothing: no implementation, no run row, no edit to the
-production-page programme's ledger. Reconciled against main `5d518ae86`.
+Status: **agreed by the owner on 2026-10-24**, after the open decisions were answered one by one
+the same day (recorded under "Owner decisions"). Agreement covers the design and its proposed
+placement; it authorizes no implementation, no run row and no edit to the production-page
+programme's ledger until the coordinator admits the row. Reconciled against main `5d518ae86`.
 
 Parent, once admitted: [production-page](../production-page-refactor/spec.md) and its
 [extension contract](../production-page-refactor/extensions.md), whose file ownership,
@@ -385,11 +385,10 @@ edited by this document.
 
 ## Open decisions for the owner
 
-The eleven questions of 2026-10-24 are answered above; D1 to D8 are implementation choices the
-owner may overturn later without reopening the design. One decision remains: **agree the whole**,
-so the row can be proposed to the coordinator, or name the changes first.
+None open. The eleven questions of 2026-10-24 are answered above and the owner agreed the whole
+the same day; D1 to D8 are implementation choices he may overturn later without reopening the
+design. What waits is the coordinator's admission of the proposed row.
 
 ## Evidence
 
-None yet. On agreement the ledger beside this file flips to agreed, and the row's receipts land
-under `evidence/` as the programme's procedure requires.
+None yet. The row's receipts land under `evidence/` as the programme's procedure requires.

@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "575a1f4bc3aec9d5dd187016b24bef8808a7ccf1e89e6e3fce0ef4657cce41fe",
+  "specSha256": "416ddc7576311813d6f13c8817d68315bb1976acd14b64c059f7adbbb0bb1fa4",
   "authority": {
-    "status": "draft",
-    "source": "Owner, 2026-10-24: research and a draft spec for running several graphics from one screen, to agree before it joins the production-page run's queue. The eleven design questions were answered the same day (spec, 'Owner decisions'); the whole spec, its row and its placement wait for his agreement. No implementation, run row or ledger edit is authorized by this record."
+    "status": "agreed",
+    "source": "Owner, 2026-10-24: the brief (research and a draft spec for running several graphics from one screen, to agree before it joins the production-page run), the eleven design answers of the same day recorded in the spec under Owner decisions, and the agreement of the whole the same day (\"Yes, land it\"). Agreement authorizes the design and its proposed placement; implementation waits for the coordinator to admit the row, and nothing here edits the run ledger."
   },
   "review": null
 }
