@@ -119,6 +119,9 @@ test('each card resolves its own channel: the newest bridge-v* exe, and npm late
   // What each tool is FOR, before anything about installing it.
   await expect(bridge).toContainText('CasparCG');
   await expect(bridge.getByTestId('bridge-not-needed')).toContainText('OBS, vMix');
+  // One Bridge: the download. A command line here would run the Bridge inside the newest CLI,
+  // which can be newer than the release the button offers.
+  await expect(bridge.locator('pre')).toHaveCount(0);
   await expect(cli).toContainText('Claude Code');
   // The install lines are the distribution table's (docs/AGENT_CLI.md), each its own block.
   // Claude Code's is the one-command form a session accepts since 2.1.275 (Codex has none).
