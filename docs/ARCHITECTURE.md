@@ -49,7 +49,7 @@ has no wrapper, because Claude Code loads the same rules from `.claude/rules/` b
 | 2 services | `ai/` * + `ai/video/` | generation harnesses, providers, settings/preferences | `getAiProvider()`, `getVideoAiProvider()`, `settings`, `preferences` |
 | 2 services | `export/` * | 6 targets + packet/show packaging | `registry`, `common` |
 | 2 services | `render/` * | RenderManifest, schedule, tiers, job client | `manifest`, `schedule`, `limits` (the PURE trio), `client` |
-| 2 services | `control/` | ControlMessage protocol, 3 receivers, panel generators | `controlModel`, `receiverScript`, `controlPanelHtml`, `realtimeControl`, `hostedReceiver`, `hostedControl` |
+| 2 services | `control/` | ControlMessage protocol, 3 receivers, panel generators, the production page's playout session and the Node-tested modules that decide what airs (verbs, refusals, air folds, Bridge watch, data session, timed cues, folders, draft) | `controlModel`, `receiverScript`, `controlPanelHtml`, `realtimeControl`, `hostedReceiver`, `hostedControl`, `playoutSession` (with `storePart`) |
 | 2 services | `video/` | video compile/validate/bridge pipeline | `compile`, `validate`, `playerBridge`, `videoFonts` |
 | 2 services | `community/`, `showchat/` | community packs, audience send-in | `packs`, `packChecks`, `chatData` |
 | 2 services | `packs/` | the downloadable GRAPHICS PACK format (`.noacgpack.json`): parse/normalize, validate through the export gate, install as a production with layers + cues | `graphicsPack` |

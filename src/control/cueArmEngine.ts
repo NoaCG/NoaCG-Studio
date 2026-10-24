@@ -67,8 +67,8 @@ export interface CueArmEngineIo {
   onVisible: (run: () => void) => () => void;
 }
 
-/** What the engine needs from the page while the page still owns it (the phase's temporary
- *  interface), as its latest render has it. */
+/** What the engine reads from the page (the cues, the sender, the draft through `cueDraft.view`,
+ *  the session's live map as the page draws it), as its latest render has it. */
 export interface CueArmPage {
   /** The production is published: the wire runs the countdowns. */
   published: boolean;

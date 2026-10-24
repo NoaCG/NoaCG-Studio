@@ -5,6 +5,85 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 25, phase 14: baseline close-out in software
+
+- **Previous verified `main` sha:** phase 13b passed on main (#1648 at `a56e141`); main was
+  `7bb3e64` (configured agent-access quarantined, #1651) when this branch began.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`; reopen #766 by hand if the split guidance is
+  reverted. No behaviour, storage key, persisted format, request or marker changes: covers lines,
+  comment lines, a compiled rule, docs and evidence.
+- **What landed.** The AC-11 rule (`components/playout-behaviour-production-page-lands-verb`,
+  through `npm run learn`, scoped to `ProductionPage.tsx`, no line count); the rewritten split
+  section and tree bullet of `src/components/home/AGENTS.md`; `playoutSession` (with `storePart`)
+  in the control row of `docs/ARCHITECTURE.md` §2; the superseded-for-`liveCue` notes in
+  `docs/CLIP_PLAYBACK_PLAN.md` §10 and §17.2; the covers headers; `evidence/rehearsal-automated.md`.
+- **Decisions.**
+  - *Covers in each spec's header, not a central "page implies its modules" rule*, as the root
+    rule on durable checks requires (a flow is "mapped in the spec's own covers header, never in a
+    shared list"); the check's review suggested the central rule and was answered with this.
+  - *The rule names where code goes, by kind* (a verb, a take refusal, a fold over air, a poll, a
+    timer, a lifetime) and what the page keeps (selection, the session hook, the wires, the
+    derived view, the render), because no check can tell playout behaviour from view code in a
+    React file and D8 withdrew the number.
+  - *`src/components/home/AGENTS.md` is hand-written, not compiled* (no "Compiled from" header, no
+    rule source), so it was edited directly; the AC-11 rule compiles into
+    `src/components/AGENTS.md` and `.claude/rules/src-components-home-productionpage.md`.
+  - *`ProductionPage.tsx` (imports): no change needed.* eslint and `tsc --noUnusedLocals` find no
+    unused import; every import is used by the page's remaining duties.
+  - *The covers gap, measured.* For each moved module, `e2e-affected --list --files <module>` was
+    compared with the specs that press its verbs (`verb-take`, `-update`, `-out`, `-next`,
+    `-out-all`) or drive `_fakeBridge`. 11 offline specs that pressed verbs and covered
+    `ProductionPage.tsx` (by name or by `src/components/{home,save}/**`) did not select
+    `graphicVerbs.ts`: playout-baseline, playout-feedback-health, playout-rail-width,
+    playout-rundown-feedback, playout-sequence, production-audience, production-chat-intake,
+    production-data, production-persistence, public-service, quiz-pilot. Each gains
+    `// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts`,
+    less any module its header already named.
+    playout-baseline, playout-rundown-feedback and rundown-history drive the fake Bridge without
+    naming it and gain `// covers: src/control/{bridgeWatch,serverVerbs}.ts`. Six specs still press
+    Take without selecting the verbs (community-pack-lock, community-packs, import-svg-credits,
+    ograf-contract, score-tracker-moments, svg-examples): none covered the page before the split,
+    their Take is incidental to what they test, so they are left. Timed cues (`cue-armed`,
+    `cue-auto`, `program-auto`) and folders were already mapped.
+  - *Comment lines in five `src/control/` modules* (graphicVerbs, serverVerbs, folderPlayout,
+    cueArmEngine, productionDataSession) still called `cueView`, `flush`, `resolvedOf` and the
+    sender "temporary, until phase 13"; phase 13b kept those names and fills them from
+    `cueDraft.ts` and the session, and its notes left the wording to phase 14 (AC-12). Extra files
+    outside the fence, comment lines only: the docs must follow the code, and these are the
+    module docs a reader meets first. No code line changes (`git diff` shows comment lines only).
+  - *Evidence reuse* is recorded in `rehearsal-automated.md` with its material-input comparison:
+    nothing under `src/audience/`, `src/model/`, `src/output/`, `api/`, `supabase/` or the
+    source readers changed since C7's merge `44bfa89`, so the reader Node results and C7's
+    YouTube live smoke stand; every page journey ran again.
+- **Check findings** (code-review, high; all verified). Fixed: the rule said all playout state is
+  the session's (server ownership and timing are `serverPlayoutStore`'s); the home guidance said
+  every verb refuses after the end (All out's clear still goes), that verbs read the `air` part
+  (they read the render's copy; folds write the part), and that typing never renders the page
+  (renaming a counting cue does); the covers lines repeated modules their headers named; the
+  "closed" #766 is "closes". Kept: the evidence-only commits after the material tip (spec §6
+  allows them).
+- **Simplify:** inline; nothing to change (docs, header lines and comments only).
+- **Runs on `5e83e44`:** the full offline suite 15 of 15 (run 40065027495), the whole configured
+  suite 124 passed, 0 failed, 3 allowed skips (run 40065025649), chat-intake 9 of 9 locally.
+- **Assessment A** (a fresh read-only `/so` session on `5e83e44`): PASS WITH NOTES. Its two
+  blocking items were the draft record (filled) and the stale candidate sha (fixed); the rest are
+  answered in `rehearsal-automated.md` "Runs".
+- **Traps.**
+  - `rundown-history.spec.ts` is quarantined (#1649, fixed by #1650, awaiting release), and a PR
+    that edits it runs it anyway (the quarantine applies only to unchanged specs). This PR adds a
+    covers line to it, so its merge group runs it: the fix is on main, so it should pass, but a
+    red there is #1649's signature, not this PR's.
+  - `npm run learn` refuses a rule with a date or number in it; the date goes in `--evidence`.
+  - The guard hook refuses `Co-Authored-By` trailers in commit messages here.
+  - Playwright wants `chromium_headless_shell-1228`; the image has `-1243`. Same symlink as phases
+    10 to 13b (#1647); no repo change.
+  - A worktree has no `node_modules`; tools resolve the primary checkout's.
+- **Left for the laptop helper** (non-gating; `rehearsal-automated.md` "What stays unverified"):
+  the perf repeat on `a56e141` (13b) and the final repeat on this phase's merge SHA; the scratch
+  CasparCG/Bridge and OBS walk again on this phase's merge SHA. **For the owner:** phase S's
+  real-studio receipts, the content trial kit, a live Twitch check.
+
 ## Row 24, phase 13b: cueDraft.ts, the `draft` part, final editor subscriptions
 
 - **Previous verified `main` sha:** phase 12 passed on main (#1644 at `69cefde`); this branch

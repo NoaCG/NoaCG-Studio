@@ -22,10 +22,12 @@
 //   snapTo                       `snap(sel, group, state)`
 //   afterBoundPress, boundPresses this module's per-graphic queue of bound presses
 //
-// The page still owns the draft (until phase 13), the tree, the monitor, the arm engine, the folder
-// runs and the note line, so they come in through `page`: the phase's temporary interface, read once
-// at each press so a press sees the render it was made from, as the page's closures did. `cueView`,
-// `resolvedOf` and `flush` are the temporary interfaces phase 13 removes. Browser-only modules
+// The tree, the monitor, the arm engine, the folder runs and the note line are the page's, and the
+// typed draft is control/cueDraft.ts's, so they come in through `page`, read once at each press so a
+// press sees the render it was made from, as the page's closures did. `cueView` and `flush` are the
+// draft module's (`cueDraft.view`; `cueDraft.flush`, then the history's group close). `resolvedOf`
+// is the render's resolution, the one PREVIEW, the timed cues and the folders read too, so a bound
+// field airs the same value whichever of them sends it. Browser-only modules
 // (control/hostedControl.ts, control/controlModel.ts) arrive through `io`. Runtime imports carry `.ts`
 // so Node resolves them (scripts/graphic-verbs.test.mjs); everything else is a type.
 
@@ -110,11 +112,11 @@ export interface GraphicPage {
   liveLayers: readonly { graphic: string }[];
   livePlayoutLayers: readonly { cue: ShowCue }[];
   graphicOf: (cue: ShowCue) => string | null;
-  /** The cue as typed, draft included (temporary, until phase 13). */
+  /** The cue as typed, draft included (`cueDraft.view`), read after the wait. */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
-  /** One graphic's bound values from the newest resolution (temporary, until phase 13). */
+  /** One graphic's bound values from the render's resolution, the one PREVIEW reads. */
   resolvedOf: (graphic: string) => Record<string, string>;
-  /** Save the typed draft and close the history group (temporary, until phase 13). */
+  /** Save the typed draft (`cueDraft.flush`) and close the history group. */
   flush: () => Promise<void>;
   /** A graphic's bound fields, field key to tree path. */
   boundFields: (graphic: string) => Record<string, string>;

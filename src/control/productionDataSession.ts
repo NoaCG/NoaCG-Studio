@@ -40,7 +40,7 @@ export interface ProductionDataIo {
   note: (text: string) => void;
 }
 
-/** The page's sender, for now (a temporary interface: the page's `runVerb`). */
+/** The sender the page hands in: the graphic verbs' `run` (control/graphicVerbs.ts). */
 export type DataSend = (batches: ControlSendItem[][], label: string) => unknown;
 
 export interface ProductionDataSession {

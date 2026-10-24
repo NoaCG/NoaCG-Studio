@@ -20,10 +20,10 @@
 //   takeFolder, outFolder,        `take(folder)`, `out(folder)`, `step(folder)`, `off(cues)`
 //   stepFolder, stepOff
 //
-// The page still owns the verbs a folder sends with (`serverVerb`, `takeGraphic`, `takeCue`,
-// `send`) and the live map (`liveCueOf`, `setLiveCue`), so they come in through `page`: the
-// phase's temporary interface, read once at each press so a press sees the render it was made
-// from, as the page's closures did. The clock comes in through `io`. Runtime imports carry `.ts` so
+// The verbs a folder sends with (`serverVerb`, `takeGraphic`, `takeCue`, `send`) and the live map
+// (`liveCueOf`, `setLiveCue`, the session's `air` part as the page draws it) come in through
+// `page`, read once at each press so a press sees the render it was made from, as the page's
+// closures did. The clock comes in through `io`. Runtime imports carry `.ts` so
 // Node resolves them (scripts/folder-playout.test.mjs); everything else is a type.
 
 import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';

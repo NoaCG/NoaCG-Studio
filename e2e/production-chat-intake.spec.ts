@@ -7,6 +7,7 @@
 // built before the backend.
 // covers: src/audience/**
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts
 
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
