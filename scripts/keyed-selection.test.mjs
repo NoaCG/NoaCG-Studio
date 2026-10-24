@@ -588,7 +588,7 @@ describe('the page\'s two doors onto the instances', () => {
     const sends = [];
     const send = (graphic, values) => {
       sends.push([graphic, values.f1]);
-      return Promise.resolve(sends.length > 1 ? null : { skipped: [] });
+      return Promise.resolve(sends.length > 1 ? null : { skipped: [], superseded: [], pressedAgain: [] });
     };
     const live = { Card: 'cue-a' };
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6()), { readable: false }), send });
@@ -601,6 +601,11 @@ describe('the page\'s two doors onto the instances', () => {
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), send });
     await new Promise((r) => setImmediate(r));
     assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.held?.reason], [6, 'the correction to revision 7 was not sent']);
+    const overtaken = io();
+    air.pressSelection(overtaken, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.followAired(overtaken, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve({ skipped: ['Card'], superseded: [], pressedAgain: [] }) });
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual([overtaken.part.get().Card.revision, overtaken.part.get().Card.confirmed.revision, overtaken.part.get().Card.held?.unsent], [5, 5, true], 'a correction a later press overtook did not land');
     air.followAired(p, { liveCue: {}, seeded: true, facts: facts(collection(7, BASE)), send });
     assert.deepEqual(p.part.get(), {}, 'off air once the page knows: forgotten');
   });
@@ -612,4 +617,9 @@ test('an action carries field values when it reads or moves any: the hosted page
   for (const button of [{ payload: ['f1'] }, { adjust: { f1: 1 } }, { set: { f0: 'x' } }, { add: { f2: 'y' } }, { remove: { f2: 'y' } }]) {
     assert.equal(air.actionCarriesValues(button), true, JSON.stringify(button));
   }
+});
+
+test('a published page re-reads a live candidate collection every 5 s (E7.1)', () => {
+  // A feed may change only the collection; nothing else tells the page, so the read is polled.
+  assert.equal(air.CANDIDATE_READ_MS, 5000);
 });

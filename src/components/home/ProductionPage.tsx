@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { followAired, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, followAired, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -1292,6 +1292,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         fetchProductionData,
         patchProductionData,
         patchProductionDataBySlug,
+        every: (ms, run) => {
+          const timer = window.setInterval(run, ms);
+          return () => window.clearInterval(timer);
+        },
         onStorage: (listener) => {
           const onStorage = (e: StorageEvent) => {
             if (e.key === null || e.key === PRODUCTION_DATA_KEY) listener();
@@ -1995,6 +1999,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  instance is forgotten when its layer airs another cue, or is off air once the page knows. */
   // A production not loaded yet (a team production before its first fetch) knows nothing of air.
   const selectionSeeded = !!show && (!hostedSlug || bootLive !== null);
+  // A collection nothing binds moves the tree without a row, so a published production with live
+  // candidates reads its tree on the connector's own cadence too.
+  const hasCandidates = cues.some((c) => c.selection !== undefined);
+  useEffect(() => (hostedSlug && hasCandidates ? dataSession.poll(CANDIDATE_READ_MS) : undefined), [dataSession, hostedSlug, hasCandidates]);
   // What is live is read from the session's part, never the render's paced copy, which can trail a
   // marker a Take has just moved and would forget the card it took.
   followRef.current = () =>

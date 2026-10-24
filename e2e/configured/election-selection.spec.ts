@@ -12,7 +12,8 @@
 // for one lower third ("Hairline") and cues selecting by district plus candidate. The results are
 // written with the production's data key through `/patch`, as `external.e1.candidates`, one
 // accepted revision `{schemaRevision, revision, items}` each time, with fictional people. A count
-// bug follows `external.e1.status`, so every revision writes a row and the page re-reads the tree.
+// bug follows `external.e1.status`, so most revisions write a row and the page re-reads the tree;
+// the last writes the collection alone, which the page reads on its own cadence.
 //
 // What is checked is what the renderer receives (the production's update rows, the payload every
 // output applies) and what the output shows, never only what the resolver returns:
@@ -24,7 +25,8 @@
 //   older and a duplicate revision do not; a deleted person, malformed input and a valid empty list
 //   hold the picture with its reason and age shown off air; Pause holds and Resume sends the final
 //   values; a lost network recovers; a reload, another production and an app restart follow the
-//   AIRED selector, not the cue's current one; none of it takes, advances or resets the graphic.
+//   AIRED selector, not the cue's current one; a collection-only write still airs; none of it
+//   takes, advances or resets the graphic.
 // - the third: a page meeting a selection of a later version shows the cue read-only, refuses
 //   Take and edit with the reason, and every write door keeps the record byte for byte.
 
@@ -90,10 +92,10 @@ const MOVES = new Set(['play', 'stop', 'next', 'snap', 'event']);
 const transport = async (showId: string) => (await rows(showId)).filter((r) => MOVES.has(r.t)).map((r) => r.t);
 
 /** One accepted revision, written with the production's data key, as an integrator would. */
-async function revision(api: APIRequestContext, w: Walk, rev: number, candidates: unknown, status = `Counted ${rev}`) {
+async function revision(api: APIRequestContext, w: Walk, rev: number, candidates: unknown, status: string | null = `Counted ${rev}`) {
   const answer = await api.patch('/api/data/patch', {
     headers: { authorization: `Bearer ${w.dataKey}` },
-    data: { external: { e1: { status, candidates } } },
+    data: { external: { e1: status === null ? { candidates } : { status, candidates } } },
   });
   expect(answer.ok(), await answer.text()).toBe(true);
 }
@@ -326,6 +328,10 @@ test.describe('live candidates', () => {
     await revision(request, w, 13, collection(13, people(1400, 907)));
     await expect(onAirLine(w)).toHaveText('1400', WIRE);
     await expect(onAir(w)).toHaveText(AINO);
+    // A feed that moves the collection alone writes no row this page hears: the page's own read of
+    // the tree (every 5 s while a cue has a selection) still brings the correction to air.
+    await revision(request, w, 14, collection(14, people(1410, 908)), null);
+    await expect(onAirLine(w)).toHaveText('1410', WIRE);
     expect((await updates(w.showId)).filter((d) => d?.f0 === BERTTA), 'the current selection never reached air').toEqual([]);
     expect(await transport(w.showId), 'nothing took, advanced or reset the card').toEqual(transported);
     await clearPublishedShows(restarted).catch(() => {});

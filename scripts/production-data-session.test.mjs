@@ -454,3 +454,28 @@ test('published: a read that started earlier and answers later never puts the ol
   await flush();
   assert.deepEqual(t.session.data.get().liveData, { revision: 3 }, 'a later read still lands');
 });
+
+test('published, a poll reads the tree on its cadence until stopped; unpublished it reads nothing (E7.1)', async () => {
+  const t = setup();
+  const timers = [];
+  t.io.every = (ms, run) => {
+    const timer = { ms, run, live: true };
+    timers.push(timer);
+    return () => (timer.live = false);
+  };
+  const stopLocal = t.data.poll(5000);
+  t.data.published(null);
+  timers[0].run();
+  assert.equal(t.calls.fetched.length, 0, 'an unpublished production has no tree to read');
+  stopLocal();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  const before = t.calls.fetched.length;
+  const stop = t.data.poll(5000);
+  assert.equal(timers[1].ms, 5000);
+  timers[1].run();
+  assert.equal(t.calls.fetched.length, before + 1);
+  stop();
+  assert.equal(timers[1].live, false);
+});

@@ -211,6 +211,11 @@ export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: S
   return { air: next, sends };
 }
 
+/** How often a published production with live candidates reads its tree: a collection nothing
+ *  binds moves it without a row to say so. The connector's own default read cadence, 5 s
+ *  (docs/work-specs/playout-external-connectors/spec.md), so a revision waits at most one read. */
+export const CANDIDATE_READ_MS = 5000;
+
 /** The format the instances are kept in, per production, in this browser. */
 const SELECTION_AIR_V = 1;
 
@@ -305,19 +310,26 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
 
 /**
  * One pass of following, run whenever the tree, the rundown or what is live moves: forget what is
- * no longer aired, then, once the tree is one this page may judge (`facts.readable`), send each newer revision through `send` and hold a correction whose send
- * failed (`send` answers null). Before that, nothing is judged, so no false hold is shown.
+ * no longer aired, then, once the tree is one this page may judge (`facts.readable`), send each
+ * newer revision through `send` and settle it by its answer: null (failed), or this graphic
+ * skipped or superseded by a later press, is not landed. Before that, nothing is judged, so no
+ * false hold is shown.
  */
 export function followAired(
   io: SelectionAirIo,
-  o: { liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; send: (graphic: string, values: Record<string, string>) => Promise<unknown> },
+  o: { liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; send: (graphic: string, values: Record<string, string>) => Promise<{ skipped: readonly string[]; superseded: readonly string[] } | null> },
 ): void {
   const before = io.part.get();
   const reconciled = reconcileSelection(before, o.liveCue, o.seeded);
   const { air, sends } = o.facts.readable !== false ? followSelection(reconciled, o.liveCue, o.facts, io.now()) : { air: reconciled, sends: [] };
   if (air !== before) io.keep(air);
   for (const one of sends) {
-    void o.send(one.graphic, one.values).then((sent) => io.keep(settleSelection(io.part.get(), one.graphic, one.advanced, !!sent, io.now())));
+    void o.send(one.graphic, one.values).then((sent) => {
+      // Landed only when this graphic's update was applied: one a later press overtook (skipped or
+      // superseded) never reached the output.
+      const landed = !!sent && !sent.skipped.includes(one.graphic) && !sent.superseded.includes(one.graphic);
+      io.keep(settleSelection(io.part.get(), one.graphic, one.advanced, landed, io.now()));
+    });
   }
 }
 

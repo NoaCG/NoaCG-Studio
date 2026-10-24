@@ -38,6 +38,8 @@ export interface ProductionDataIo {
   onStorage: (listener: () => void) => () => void;
   /** Tell the operator something went wrong (the page's note line). */
   note: (text: string) => void;
+  /** Run `run` every `ms` until the answer is called: the timer a poll uses. */
+  every?: (ms: number, run: () => void) => () => void;
 }
 
 /** The sender the page hands in: the graphic verbs' `run` (control/graphicVerbs.ts). */
@@ -63,6 +65,10 @@ export interface ProductionDataSession {
   holdServerTree: (slug: string, tree: JsonObject) => void;
   /** Pull the server's tree in: at the key's arrival, and whenever a feed row says it moved. */
   refresh: () => Promise<void>;
+  /** Read the published tree every `ms` while this lasts (answers the stop). A row says when a
+   *  bound value moved, but a value nothing binds moves silently: a live candidate's collection
+   *  (control/selectionAir.ts, E7.1) is read this way. Nothing while unpublished. */
+  poll: (ms: number) => () => void;
   /** Put the bound fields' CHANGES on the wire, unpublished only. `resolved` is what `tree` resolves
    *  to; a tree the part no longer holds is passed over, since the render for the newer one follows. */
   dispatch: (resolved: ResolvedValues, tree: JsonObject, send: DataSend) => void;
@@ -293,6 +299,8 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     },
 
     refresh,
+
+    poll: (ms) => (io.every ? io.every(ms, () => void refresh()) : () => {}),
 
     /**
      * The dispatch: put the CHANGES on the wire, and nothing else.
