@@ -107,13 +107,13 @@ test('two graphics connect from one nested sample with no path syntax; repair, c
   await expect(review.getByTestId('cue-connect-summary')).toContainText('1 connected · 1 needs attention · Used by 1 cue');
   // The pick lists the sample's values by their words, never a path.
   const options = await review.getByTestId('cue-connect-pick-f1').locator('option').allTextContents();
-  expect(options).toEqual(['Not connected', 'updated', 'guest name', 'position', 'id', 'city']);
+  expect(options).toEqual(['Not connected', 'updated', 'name', 'position', 'id', 'city']);
   // The rendered output: the sample on the real graphic, on PREVIEW only.
   await expect(preview.locator('#f0')).toHaveText('Aino Virtanen');
   // Repair the mismatch by a pick, by its words.
   await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'position' });
   await expect(review.getByTestId('cue-connect-row-f1')).toContainText('Mayor of Espoo');
-  await expect(review.getByTestId('cue-connect-summary')).toContainText('2 connected');
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('2 connected · 0 need attention');
   await expect(preview.locator('#f1')).toHaveText('Mayor of Espoo');
   await review.getByTestId('cue-connect-label').fill('Guests');
   await review.getByTestId('cue-connect-confirm').click();

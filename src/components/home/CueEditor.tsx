@@ -267,7 +267,10 @@ function CueConnectReview({
   const chosen = (row: MappingRow): string | null => chosenPath(row, choices);
   const entries = mappingEntries(poolGraphic.name, mapping, choices);
   const matched = mapping.filter((r) => r.status !== 'refused' && chosen(r) !== null).length;
-  const attention = mapping.filter((r) => r.status === 'ambiguous' || r.status === 'unmatched' || repairs.has(r.fieldId) || (r.current !== null && r.current !== r.path && r.path !== null)).length;
+  // A field nothing matched needs attention until it follows something (a pick, or its own binding).
+  const attention = mapping.filter(
+    (r) => ((r.status === 'ambiguous' || r.status === 'unmatched') && chosen(r) === null) || (repairs.has(r.fieldId) && chosen(r) === r.current) || (r.current !== null && r.current !== r.path && r.path !== null),
+  ).length;
   const users = [...new Set(sourcePaths(show.bindings, id).map((p) => p.graphic))].filter((g) => g !== poolGraphic.name);
   const usedBy = (show.cues ?? []).filter((c) => {
     const g = show.graphics.find((x) => x.id === c.sourceId);
