@@ -36,7 +36,10 @@
 // (`createSourceSender`, phase E4.2): the agent first CLAIMS the registered source through C2's
 // lease and continues from the owner epoch, accepted revision and provider sequence the production
 // answers (`adopt`), so a restarted agent never reuses an epoch or a revision. The database fences
-// every report; the sender alone prevents nothing.
+// every report; the sender alone prevents nothing. When the production answers a claim or a report
+// with `sample: true` (the page's Connect review asked, E5.2), the agent reads the provider once
+// more and posts what it would send as `op: "sample"`, under its claim: kept for the review, never
+// a revision and never applied.
 
 import { readFileSync } from 'node:fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
@@ -48,7 +51,7 @@ import './lib/tsResolve.mjs';
 
 const { publicAddress } = await import('../api/_lib/feedFetch.ts');
 const { addressRefusal } = await import('../src/control/feedSource.ts');
-const { EXTERNAL_SOURCE_VERSION, SOURCE_LEASE_MS, UNCHANGED_RECEIPT_MS, acceptRead, exportConnectorConfig, initialSourceState, nextDelayMs, parseConnectorConfig, readLimits, retryAfterMs } = await import(
+const { EXTERNAL_SOURCE_VERSION, SOURCE_LEASE_MS, UNCHANGED_RECEIPT_MS, acceptRead, exportConnectorConfig, initialSourceState, nextDelayMs, parseConnectorConfig, projectPayload, readLimits, retryAfterMs } = await import(
   '../src/control/externalSource.ts'
 );
 
@@ -269,6 +272,32 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     return acquisition;
   }
 
+  /**
+   * One read for the production's Connect review (E5.2, op `sample`): what this agent would send of
+   * the provider's answer now (its `sendPaths`, redacted), or null when the read failed. Its own
+   * read beside the loop's, with the same credential and limits; it changes no state and is never
+   * a revision.
+   */
+  async function sample() {
+    const own = new AbortController();
+    const deadline = clock.setTimeout(() => own.abort(TIMEOUT), limits.timeoutMs);
+    try {
+      const outcome = await readSource({ config, credential, net, maxBytes: limits.maxBytes, signal: own.signal, now: clock.now, ca });
+      if (outcome.kind !== 'body') {
+        say(`${config.sourceId} sample not read: ${outcome.error}`);
+        return null;
+      }
+      const sent = projectPayload(JSON.parse(outcome.text), config.sendPaths ?? null);
+      return credential && JSON.stringify(sent).includes(credential) ? redactValue(sent) : sent;
+    } catch (error) {
+      say(`${config.sourceId} sample not read: ${own.signal.aborted ? 'the provider did not answer in time' : error?.message ?? error}`);
+      return null;
+    } finally {
+      clock.clearTimeout(deadline);
+      own.abort(DONE);
+    }
+  }
+
   /** One read now; a second call while one is in flight shares it. Answers null once stopped. */
   function readOnce() {
     if (!inFlight) inFlight = read().finally(() => (inFlight = null));
@@ -284,6 +313,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
 
   return {
     readOnce,
+    sample,
     /** Read now and then on the schedule, until `stop`. */
     start: () => loop(),
     stop: () => {
@@ -364,6 +394,20 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     }
   };
   const base = { v: EXTERNAL_SOURCE_VERSION, sourceId: config.sourceId, configRevision: config.configRevision };
+  /** A sample the production asked for (E5.2), one at a time: read by the connector, posted under
+   *  the claim. Its answer changes nothing else. */
+  let sampling = null;
+  const asked = (answer) => {
+    if (!answer?.sample || sampling || !connector?.sample) return;
+    sampling = (async () => {
+      const payload = await connector.sample();
+      if (payload === null || !fence) return;
+      const { status, answer: posted } = await post({ ...base, op: 'sample', claim: fence.claim, sample: payload });
+      log(`${config.sourceId} sample ${status === 200 ? 'posted' : `not taken (${status}${posted.refused ? ` ${posted.refused}` : ''})`}`);
+    })()
+      .catch((error) => log(`${config.sourceId} sample failed: ${error?.message ?? error}`))
+      .finally(() => (sampling = null));
+  };
 
   async function claim() {
     const { status, answer } = await post({ ...base, op: 'claim', claim: fence?.claim ?? null });
@@ -374,6 +418,7 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
         log(`${config.sourceId} claimed: epoch ${answer.ownerEpoch}, continuing after revision ${answer.acceptedRevision}`);
         connector?.adopt({ ownerEpoch: answer.ownerEpoch, acceptedRevision: answer.acceptedRevision, providerSequence: answer.providerSequence });
       }
+      asked(answer);
       return true;
     }
     // A server that did not answer keeps the claim this agent holds; a refusal ends it.
@@ -390,6 +435,7 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     const { status, answer } = await post({ ...base, op: 'report', claim: fence.claim, acquisition });
     if (status === 200) {
       answeredAt = clock.now();
+      asked(answer);
       return;
     }
     const refused = answer.refused ?? (status === 401 || status === 403 ? 'denied' : null);
@@ -436,6 +482,10 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     claim,
     release,
     keepClaim,
+    /** The sample being read and posted, if any (a test waits on it). */
+    get sampling() {
+      return sampling;
+    },
     /** End every request in flight (shutdown). */
     abort: () => inFlight.forEach((c) => c.abort(new Error('stopped'))),
     bind: (c) => void (connector = c),

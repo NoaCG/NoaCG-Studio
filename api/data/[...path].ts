@@ -23,7 +23,7 @@
 
 import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
 import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit } from '../_lib/rateLimit.js';
-import { feedNetwork, readFeed, supabaseFeedStore, type FeedIo } from '../_lib/feedFetch.js';
+import { FEED_TIMEOUT_MS, feedNetwork, guardedFetch, normalizeFeedAddress, readFeed, supabaseFeedStore, type FeedIo, type GuardedRead } from '../_lib/feedFetch.js';
 import {
   dataApiConfigured,
   mapLabelsToFields,
@@ -38,7 +38,7 @@ import {
 import { adminConfigured, adminDb } from '../_lib/adminAuth.js';
 import { dataTickOn } from '../_lib/systemSettings.js';
 import { cappedFetch, cronAuthorized, descriptorsOf, runDataTick, TICK_OWNER, type DueSource, type PanelField } from '../_lib/dataTick.js';
-import { parseSourceEnvelope, readExternalRegistration, SOURCE_BODY_BYTES, SOURCE_LEASE_MS } from '../../src/control/externalSource.js';
+import { parseSourceEnvelope, readExternalRegistration, SOURCE_BODY_BYTES, SOURCE_LEASE_MS, type SourceEnvelope } from '../../src/control/externalSource.js';
 import { projectSource } from '../../src/control/sourceMapping.js';
 
 /** Field values, not uploads: a whole scoreboard of labels fits in a few hundred bytes. */
@@ -285,7 +285,9 @@ async function feed(req: Request): Promise<Response> {
   if (guard) return guard;
   const gate = checkFeedIpRateLimit(req);
   if (gate) return apiError('rate_limited', 'Too many feed reads - slow down.', 429, {}, retryAfter(gate.retryAfterSec));
-  const address = new URL(req.url).searchParams.get('url');
+  const params = new URL(req.url).searchParams;
+  const address = params.get('url');
+  if (params.get('as') === 'json') return jsonSample(address ?? '', req.signal);
   if (!address) return json({ ok: false, error: 'no feed address', fix: 'Paste the feed’s address.', failingSince: null }, 400);
   if (!adminConfigured()) return apiError('unavailable', 'The feed reader is not configured on this deployment.', 503);
   try {
@@ -298,6 +300,49 @@ async function feed(req: Request): Promise<Response> {
     return json({ ok: false, error: 'the feed reader could not read its cache', fix: 'Reading carries on by itself.', failingSince: null }, 500);
   }
 }
+
+/**
+ * A PUBLIC JSON ENDPOINT'S SAMPLE for the Connect review (docs/work-specs/playout-api-mapping/
+ * spec.md, E5.2): GET `/api/data/feed?as=json&url=<address>`, one read under the feed reader's own
+ * guard (C4: public addresses only, every redirect checked, 10 seconds, the per-client limit) and
+ * the source route's 256 KiB, answered as parsed JSON. Never cached, stored or applied, and no
+ * credential is ever sent: an endpoint that needs one is read by its agent (op `sample` above).
+ */
+async function jsonSample(text: string, outer: AbortSignal): Promise<Response> {
+  const normal = normalizeFeedAddress(text);
+  if ('error' in normal) return json({ ok: false, error: 'that is not a web address', fix: 'Paste the address that answers JSON.' }, 400);
+  // The read ends at 10 seconds, or when the page that asked goes away.
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  const timer = setTimeout(stop, FEED_TIMEOUT_MS);
+  outer.addEventListener('abort', stop, { once: true });
+  let read: Awaited<ReturnType<typeof guardedFetch>>;
+  try {
+    read = await guardedFetch(normal.url, { etag: null, lastModified: null }, feedNetwork.current, controller.signal, Date.now, JSON_SAMPLE_READ);
+  } finally {
+    clearTimeout(timer);
+    outer.removeEventListener('abort', stop);
+  }
+  const words = (t: string) => t.replace(/\bthe feed\b/g, 'the address').replace(/feed’s/g, 'endpoint’s');
+  if (read.kind !== 'body') {
+    if (read.kind === 'not-modified') return json({ ok: false, error: 'the address answered without a body', fix: 'Try again in a moment.' }, 502);
+    if (read.status === 401 || read.status === 403) return json({ ok: false, error: 'the address needs a credential', fix: 'Its agent reads it: register it, start its agent, then read it again.' }, 502);
+    if (read.tooLarge) return json({ ok: false, error: read.error, fix: read.fix }, 413);
+    return json({ ok: false, error: words(read.error), fix: words(read.fix) }, read.refused ? 422 : 502);
+  }
+  try {
+    return json({ ok: true, sample: JSON.parse(read.text) as unknown });
+  } catch {
+    return json({ ok: false, error: 'the address does not answer JSON', fix: 'Check the address.' }, 422);
+  }
+}
+
+/** The JSON sample's read: JSON asked for, and the source route's own 256 KiB. */
+const JSON_SAMPLE_READ: GuardedRead = {
+  accept: 'application/json',
+  maxBytes: SOURCE_BODY_BYTES,
+  tooLarge: { error: 'the answer is over 256 KiB', fix: 'Use an address that answers only what the graphics use.' },
+};
 
 /** A source refusal's HTTP status (migration 0101's codes). Everything is refused before writing. */
 const SOURCE_REFUSALS: Record<string, { status: number; message: string }> = {
@@ -358,17 +403,23 @@ async function source(req: Request): Promise<Response> {
   };
 
   try {
+    if (envelope.op === 'sample') return await sample(envelope, key, db, rpc, refused);
     if (envelope.op !== 'report') {
-      const answer = await rpc<Record<string, unknown>>('control_source_claim_by_key', {
-        p_key: key,
-        p_source: envelope.sourceId,
-        p_config_revision: envelope.configRevision,
-        p_claim: envelope.claim,
-        p_ttl_ms: envelope.op === 'release' ? 0 : SOURCE_LEASE_MS,
-      });
+      // Whether the page waits on a sample is asked beside the claim, not after it.
+      const [answer, wanted] = await Promise.all([
+        rpc<Record<string, unknown>>('control_source_claim_by_key', {
+          p_key: key,
+          p_source: envelope.sourceId,
+          p_config_revision: envelope.configRevision,
+          p_claim: envelope.claim,
+          p_ttl_ms: envelope.op === 'release' ? 0 : SOURCE_LEASE_MS,
+        }),
+        envelope.op === 'claim' ? sampleWanted(db, key, envelope.sourceId) : false,
+      ]);
       if (typeof answer.refused === 'string') return refused(answer as { refused: string });
       if (answer.held) return json({ ok: false, held: true, owner: answer.owner, message: 'Another agent holds this source. Try again once its claim has lapsed.' }, 409);
-      return json(answer);
+      // The page asked for a sample: the agent reads one and posts it (op `sample`).
+      return json(wanted ? { ...answer, sample: true } : answer);
     }
 
     const { acquisition } = envelope;
@@ -396,13 +447,17 @@ async function source(req: Request): Promise<Response> {
         configRevision: registration?.configRevision,
       });
     }
-    const answer = await rpc<Record<string, unknown>>('control_source_report_by_key', {
-      p_key: key,
-      p_source: envelope.sourceId,
-      p_report: { ...acquisition, claim: envelope.claim },
-      p_writes: projection?.writes ?? {},
-    });
+    const [answer, wanted] = await Promise.all([
+      rpc<Record<string, unknown>>('control_source_report_by_key', {
+        p_key: key,
+        p_source: envelope.sourceId,
+        p_report: { ...acquisition, claim: envelope.claim },
+        p_writes: projection?.writes ?? {},
+      }),
+      sampleWanted(db, key, envelope.sourceId),
+    ]);
     if (typeof answer.refused === 'string') return refused(answer as { refused: string });
+    if (wanted) answer.sample = true;
     if (!projection) return json(answer);
     // What the agent reports back to whoever runs it: a recipe that holds the whole source on every
     // report, and for a changed one what held, what to correct, and from where.
@@ -419,6 +474,115 @@ async function source(req: Request): Promise<Response> {
     console.error('Data source failed:', message);
     return apiError('internal', 'The source could not be written.', 500);
   }
+}
+
+// ── A SAMPLE FOR THE CONNECT REVIEW (docs/work-specs/playout-api-mapping/spec.md, E5.2) ────────
+//
+// The page asks; the agent holding the source's claim reads the provider once with its own
+// credential and posts what it would send; the page reads it. The sample is kept beside the
+// source's own snapshot, in a row of `production_source_snapshots` under `<id>.sample`: an id no
+// source can have (a source id has no dot), so the fence, the context and the claim, which all
+// read the source's own row, never see it, and nothing evaluates or applies it. No migration: the
+// table is service role only and its rows go with their production.
+
+/** An ask older than this is not waited on any more: the page reads through the hosted fetcher. */
+const SAMPLE_WAIT_MS = 60_000;
+const sampleRowId = (sourceId: string) => `${sourceId}.sample`;
+
+type Db = Awaited<ReturnType<typeof adminDb>>;
+type SampleStatus = { asked?: string; sampledAt?: string };
+
+async function showForKey(db: Db, key: string): Promise<string | null> {
+  const { data, error } = await db.from('control_shows').select('id').eq('data_key', key).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+
+async function sampleRow(db: Db, showId: string, sourceId: string): Promise<{ payload: unknown; status: SampleStatus } | null> {
+  const { data, error } = await db.from('production_source_snapshots').select('payload, status').eq('show_id', showId).eq('source_id', sampleRowId(sourceId)).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as { payload: unknown; status: SampleStatus } | null) ?? null;
+}
+
+const pending = (status: SampleStatus | undefined, now: number): boolean =>
+  Boolean(status?.asked && !status.sampledAt && now - Date.parse(status.asked) < SAMPLE_WAIT_MS);
+
+/** Whether the page waits on a sample of this source: told to the agent with its claim or report.
+ *  Best effort: a lookup that fails answers no, and never fails the claim or report beside it. */
+async function sampleWanted(db: Db, key: string, sourceId: string): Promise<boolean> {
+  try {
+    const showId = await showForKey(db, key);
+    return showId !== null && pending((await sampleRow(db, showId, sourceId))?.status, Date.now());
+  } catch {
+    return false;
+  }
+}
+
+async function sample(
+  envelope: Extract<SourceEnvelope, { op: 'sample' }>,
+  key: string,
+  db: Db,
+  rpc: <T>(name: string, args: Record<string, unknown>) => Promise<T>,
+  refused: (answer: { refused: string } & Record<string, unknown>) => Response,
+): Promise<Response> {
+  // The page's ask and read also need the registration: looked up beside the production.
+  const [showId, context] = await Promise.all([
+    showForKey(db, key),
+    'claim' in envelope ? null : rpc<{ entry: unknown } | null>('control_source_context_by_key', { p_key: key, p_source: envelope.sourceId }),
+  ]);
+  if (!showId) return apiError('unauthorized', 'Unknown data key.', 401);
+  const now = Date.now();
+  const write = async (payload: unknown, status: SampleStatus) => {
+    const { error } = await db.from('production_source_snapshots').upsert({
+      show_id: showId,
+      source_id: sampleRowId(envelope.sourceId),
+      payload,
+      byte_size: payload === null ? 0 : JSON.stringify(payload).length,
+      status,
+      status_at: new Date(now).toISOString(),
+    });
+    if (error) throw new Error(error.message);
+  };
+
+  if ('claim' in envelope) {
+    // The agent's post: only under the claim that holds the source now, read and not renewed (a
+    // renewal of a lapsed lease would hand out a new claim nobody holds), and only to an ask.
+    const [holds, row] = await Promise.all([liveClaim(db, showId, envelope.sourceId, now, envelope.claim), sampleRow(db, showId, envelope.sourceId)]);
+    if (!holds) return refused({ refused: 'moved' });
+    if (!pending(row?.status, now)) return json({ ok: false, refused: 'not_asked', message: 'Nobody is waiting on a sample of this source.' }, 409);
+    await write(envelope.sample, { asked: row!.status.asked, sampledAt: new Date(now).toISOString() });
+    return json({ ok: true });
+  }
+
+  if (!context) return apiError('unauthorized', 'Unknown data key.', 401);
+  const read = readExternalRegistration(context.entry);
+  if (!read.ok) return refused({ refused: read.readOnly ? 'unsupported' : context.entry ? 'registration' : 'gone' });
+
+  if (envelope.asked !== null) {
+    // The page reads what its ask brought: the sample, or still waiting, or given up.
+    const row = await sampleRow(db, showId, envelope.sourceId);
+    if (row?.status.asked !== envelope.asked) return json({ ok: false, waiting: false });
+    if (row.status.sampledAt) return json({ ok: true, sample: row.payload, sampledAt: row.status.sampledAt });
+    return json({ ok: false, waiting: pending(row.status, now) });
+  }
+
+  // A new ask, kept only while an agent holds the source: without one the page reads the hosted way.
+  const [held, open] = await Promise.all([liveClaim(db, showId, envelope.sourceId, now), sampleRow(db, showId, envelope.sourceId)]);
+  if (!held) return json({ ok: false, agent: false });
+  // An ask still waiting is shared: a second review waits on the same sample, never cancels the first.
+  if (open && pending(open.status, now)) return json({ ok: false, waiting: true, asked: open.status.asked });
+  const asked = new Date(now).toISOString();
+  await write(null, { asked });
+  return json({ ok: false, waiting: true, asked });
+}
+
+/** Whether an agent holds the source's lease now (and, given one, under this claim). */
+async function liveClaim(db: Db, showId: string, sourceId: string, now: number, claim?: string): Promise<boolean> {
+  const { data, error } = await db.from('control_source_reads').select('owner, claim, lease_until').eq('show_id', showId).eq('source_id', sourceId).maybeSingle();
+  if (error) throw new Error(error.message);
+  const lease = data as { owner: string | null; claim: string | null; lease_until: string } | null;
+  return lease?.owner === 'agent' && Date.parse(lease.lease_until) > now && (claim === undefined || lease.claim === claim);
 }
 
 interface Handler {

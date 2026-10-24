@@ -1,6 +1,7 @@
 // covers: api/data/?...path?.ts, src/control/sourceMapping.ts, src/control/externalSource.ts
 // covers: scripts/external-data-connector.mjs, scripts/election-replay-server.mjs
 // covers: supabase/migrations/0101_production_source_snapshots.sql, src/model/productionData.ts
+// covers: src/control/connectorReview.ts
 //
 // A TRUSTED JSON SOURCE THROUGH THE PRODUCTION API (docs/work-specs/playout-external-connectors/
 // spec.md, phase E4.2; AC-1 installed-agent part, AC-2, AC-3, AC-4), against the configured
@@ -23,6 +24,11 @@
 //   legacy /patch and /update callers on the same production.
 // - The third rotates the provider's credential, interrupts the provider, pauses the source and
 //   restores its prior configuration: last values stay on air throughout.
+// - The fourth is the Connect review's sample through the agent (docs/work-specs/playout-api-mapping
+//   /spec.md, E5.2): the page asks, the agent reads one sample with its own credential and posts it
+//   to the route, the review maps it, and nothing is applied until Connect; the new connection
+//   then fills at the agent's next read. No credential reaches the page, the stored sample, the
+//   production's record or the export.
 // The second and third make their production with the service role (an unconfigured private,
 // OAuth or webhook provider is refused by the configuration itself, scripts/
 // external-data-connector.test.mjs); the limits at their edges are migration 0101's self-check.
@@ -111,7 +117,7 @@ async function rows(showId: string) {
 }
 
 async function snapshot(showId: string) {
-  const { data, error } = await admin().from('production_source_snapshots').select('*').eq('show_id', showId).maybeSingle();
+  const { data, error } = await admin().from('production_source_snapshots').select('*').eq('show_id', showId).eq('source_id', 'e1').maybeSingle();
   if (error) throw new Error(error.message);
   return data as null | { owner_epoch: number; accepted_revision: number; checked_at: string | null; changed_at: string | null; status: { state?: string } };
 }
@@ -393,6 +399,78 @@ test.describe('a trusted JSON source', () => {
       for (const a of started) await a.stop('SIGKILL');
       await replay.close().catch(() => {});
       await deleteAccountByEmail(admin(), email).catch(() => {});
+    }
+  });
+
+  test('a sample through the agent: the page asks, the agent reads with its own credential, nothing applies until Connect, and no credential reaches the page or the export', async ({ page, baseURL }) => {
+    test.setTimeout(120_000);
+    const replay = await provider(dir);
+    let running: ReturnType<typeof agent> | null = null;
+    try {
+      await signIn(page);
+      await page.keyboard.press('Escape');
+      await clearPublishedShows(page);
+      await wipeMyGraphics(page);
+      await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+      const showId = await openProductionWithCurrent(page, `Sample ${Date.now()}`);
+      await publishProduction(page);
+      await page.keyboard.press('Escape');
+      const registered = await page.evaluate(async ({ id, registration }) => {
+        const { connectShowSource } = await import('/src/model/shows.ts');
+        const source = { id: 'e1', kind: 'external' as const, label: 'Results', config: registration };
+        return connectShowSource(id, source, [{ graphic: 'Hairline', fieldId: 'f0', path: 'external.e1.status' }]).error;
+      }, { id: showId, registration: REGISTRATION });
+      expect(registered).toBeNull();
+      await expect.poll(async () => (await tree(showId)).sources?.map((s) => s.id), { timeout: 15_000 }).toEqual(['e1']);
+      const { data_key: dataKey } = await tree(showId);
+      running = agent(dir, replay, dataKey, `${baseURL}/api/data/source`);
+      await expect.poll(async () => (await rows(showId)).length, { timeout: 20_000 }).toBe(1);
+      const before = await rows(showId);
+      const treeBefore = (await tree(showId)).data;
+
+      // The review asks; the agent hears it with its next claim renewal or report and posts one.
+      await page.getByTestId('cue-connect').click();
+      const review = page.getByTestId('cue-connect-menu');
+      await review.getByTestId('cue-connect-reuse').selectOption({ label: 'Connector: Results' });
+      await expect(review.getByTestId('cue-connect-map')).toBeVisible({ timeout: 45_000 });
+      await expect(review.getByTestId('cue-connect-pick-f0')).toHaveValue('external.e1.status');
+      await expect(review.getByTestId('cue-connect-row-f0')).toContainText('PRELIMINARY · DEMO');
+      await expect.poll(() => running!.log(), { timeout: 5_000 }).toContain('e1 sample posted');
+      const { data: kept } = await admin().from('production_source_snapshots').select('payload, status').eq('show_id', showId).eq('source_id', 'e1.sample').single();
+      expect(Object.keys(kept!.payload as object).sort()).toEqual(['candidates', 'revision', 'status']);
+      // Stored for preview only: no row, no tree write, and the source's own snapshot untouched.
+      expect(await rows(showId)).toEqual(before);
+      expect((await tree(showId)).data).toEqual(treeBefore);
+
+      await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'revision' });
+      await review.getByTestId('cue-connect-confirm').click();
+      await expect(review).toBeHidden();
+      // The recipe reaches the production's record, stamped with its config revision...
+      await expect
+        .poll(async () => (await tree(showId)).sources?.[0]?.config, { timeout: 15_000 })
+        .toEqual({ ...REGISTRATION, lists: undefined, mapping: { v: 1, sourceId: 'e1', configRevision: 1, outputs: { status: { from: 'status' }, revision: { from: 'revision' } } } } as never);
+      // ...and the new connection fills at the agent's next read (a receipt, at most 15 s): its
+      // path was never written, so the unchanged payload is evaluated for it.
+      await expect.poll(async () => (await tree(showId)).data.external?.e1?.revision, { timeout: 30_000 }).toBe(String((kept!.payload as { revision: number }).revision));
+      expect((await rows(showId)).at(-1)!.data).toEqual({ f1: String((kept!.payload as { revision: number }).revision) });
+
+      // No credential anywhere the page or a package can show.
+      const exported = await page.evaluate(async (sid) => {
+        const { loadShows } = await import('/src/model/shows.ts');
+        const { buildShowZip } = await import('/src/export/showExport.ts');
+        const zip = await buildShowZip(loadShows().find((s) => s.id === sid)!);
+        return (await Promise.all(Object.values(zip.files).filter((f) => !f.dir).map((f) => f.async('string')))).join('\n');
+      }, showId);
+      expect(exported).toContain('The connector Results');
+      for (const text of [await page.content(), exported, JSON.stringify(kept), JSON.stringify((await tree(showId)).sources), running.log()]) {
+        expect(text).not.toContain(replay.token);
+      }
+      expect(JSON.stringify(kept)).not.toContain(dataKey);
+    } finally {
+      await running?.stop();
+      await replay.close();
+      await clearPublishedShows(page).catch(() => {});
+      await wipeMyGraphics(page).catch(() => {});
     }
   });
 });

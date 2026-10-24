@@ -5,6 +5,128 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 29, phase E5.2: Connect, sample, repair and reuse
+
+- **Previous verified `main` sha:** row 28 (E5.1) passed on `8bdec06`. This branch began on
+  `fb219ac`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated. A reverted page stops
+  offering connectors in Connect data and writes no recipe; recipes already saved stay in
+  `Show.sources[].config.mapping`, and E5.1's evaluator (which stays) keeps reading them. Sample
+  rows (`<id>.sample` in `production_source_snapshots`) are read by nothing once reverted and go
+  with their production. An agent of this build keeps working against a reverted route: it is told
+  no `sample` and never posts one.
+- **What landed.** `src/control/connectorReview.ts` (what a sample offers, the proposal, the one
+  write with its recipe, repair, the sample read); the connector branch of the Connect review in
+  `CueEditor.tsx` (a JSON address, a registered connector in "Use existing content…", the list
+  columns, the repair mark, Fill this cue, the provenance in the connected mark, "waits for the next
+  read"); `connectConnectorSource` in `src/model/shows.ts`; `op: "sample"` on `/api/data/source`
+  and `GET /api/data/feed?as=json` in `api/data/[...path].ts`; the envelope in
+  `src/control/externalSource.ts`; the agent's sample in `scripts/external-data-connector.mjs`; the
+  connector in the SPX package's notes (`src/export/spxLeftBehind.ts`); tests.
+- **The contract, old and new.** Persisted: unchanged shape (E5.1's recipe, now written). Wire, new
+  and additive: `op: "sample"` (the page's `{sourceId, asked?}`, the agent's `{configRevision,
+  claim, sample}`), `sample: true` on a claim or report answer, and the hosted JSON read. Callers:
+  the Connect review and the agent. An agent of the previous build ignores `sample: true`.
+- **Decisions.**
+  - *Where a sample is kept, without a migration*: a second row of `production_source_snapshots`
+    under `<id>.sample`. A source id has no dot, so the fence, the claim and the context (which all
+    read the source's own row by its exact id) never see it, and nothing evaluates or applies it.
+    The table is service role only and cascades with its production. Any reader that lists a
+    production's snapshot rows must filter by source id (the configured spec's helper now does).
+  - *The ask*: kept only while an agent holds a live claim (`control_source_reads`, owner
+    `agent`, lease not lapsed); the agent hears it beside its next claim renewal or report (within
+    about 15 s), posts under its live claim (the post renews it) and only to an ask (409
+    `not_asked`), and an ask is given up after a minute. The page waits 45 s, polling every 1.5 s.
+    The agent posts what it would send (`sendPaths`), redacted like every report.
+  - *The public sample* goes through the feed reader's guard, not the source route: it needs no
+    data key, so an unpublished production can map before it publishes, and C4's defences (public
+    addresses, every redirect, 10 s, the per-client limit) come with the door. 256 KiB, the source
+    route's own cap; never cached, stored or sent a credential. An endpoint answering 401/403 is
+    named as needing its agent. A registered source with no agent holding it is read this way too.
+  - *No path syntax*: every value is offered under the fewest trailing keys no other value shares
+    ("home score"), so the C1/C5 matcher (`proposeMapping`) finds a field titled with those words;
+    a key that is a field id (`f2`) is that field's stable key. A list field is offered the
+    sample's lists (the one list is its candidate), its record key chosen automatically (`id` or
+    `key` when unique, else the first unique key) and its columns picked from the records' keys on a
+    line under the field (default: the keys after the record key, as many as a row carries). No
+    format or fallback UI: those stay in the recipe for the API; Advanced tree browsing was not
+    needed.
+  - *The write*: one recipe per source, every bound leaf of the source in it; this graphic's leaves
+    read what the review chose, another graphic's keep their stored output, a leaf nobody reads any
+    more leaves it. The configuration is rebuilt from known keys only (`v`, `configRevision`,
+    `endpoint`, `lists`, `mapping`), so a token or a local destination left in a record is dropped,
+    and the recipe is written only when `readSourceRecipe` reads it (finding 1).
+  - *Revision fence* (finding 3): the write is fenced on the reused source's configuration as the
+    review read it (its JSON), so a replace on a stale review is refused whole, and a later version
+    refuses it too. Nothing in this row bumps `configRevision`: a new endpoint is a new source, so
+    the recipe is stamped with the source's own revision and never needs re-stamping here.
+  - *When a saved recipe first reaches air* (finding 2): never from the sample. A newly connected
+    field fills at the agent's next read (its path was never written, so the next receipt, at most
+    15 s, evaluates the accepted payload for it; the configured walk pins this); until then the
+    field says "waits for the next read". A changed mapping of a path already written reaches air
+    with the provider's next changed revision: the database writes an unchanged report only to paths
+    never written, and changing that is a migration (out of this row). This departs from row 28's
+    note that E5.2 "must make that re-apply happen": the review says "on air at the provider's next
+    change" beside such a field, `docs/DATA_API.md` says both cases, and #1679 holds the migration.
+  - *Repair*: a bound path the new sample lacks is marked "not in the sample: pick another" and
+    keeps its binding (the field keeps its last value; the evaluator holds it) until a pick; a
+    proposal never retargets a bound field by itself. "Needs attention" now counts an unmatched or
+    ambiguous field only while it follows nothing, so a fully connected review reads 0.
+  - *A reconnect keeps what the source already reads*: a leaf the recipe already has keeps its
+    output whole (a format, fallback, filter, sort or limit made through the API has no control
+    here and is not lost), and a list's columns change only with a pick that fits the list; a pick
+    made for another list (the field switched lists) never applies. Only the fields the review shows
+    can change a leaf at all: a field the graphic lost, or another graphic's reading of a shared
+    leaf, keeps its output and its list. Repair is judged by the input a saved output reads, not
+    by the leaf's own name. The columns case was found by the spec, the rest by the pull request's
+    review.
+  - *The endpoint is non-secret*, stored, synced and sent to the feed reader for a sample; a key in
+    its query string is not supported (`docs/DATA_API.md`), and the SPX package writes the address
+    without its query anyway.
+  - *Fill this cue* is offered for any read (Sheet, feed, connector): it copies what the preview
+    shows into the cue's draft, unbound fields only, and connects nothing.
+  - *Export*: the SPX package's "What SPX does not carry" names each connector, its endpoint and a
+    recipe this build reads (a later one is left out, never printed), and says to register it in
+    the new production and start its agent there: the rebind is explicit.
+- **Files beyond the phase's list, and why.** `src/control/connectorReview.ts` is new: the writer
+  adapter could not live in `productionDataSession.ts` (the live tree, never the show record) or in
+  `sourceMapping.ts` (the api imports it, and `shows.ts` would come with it), and `model/` cannot
+  import `readSourceRecipe`. `src/control/externalSource.ts` (the envelope), `src/model/shows.ts`
+  (the fenced write), `src/export/spxLeftBehind.ts` (AC-4's export), `docs/DATA_API.md` (the wire),
+  `e2e/configured/expected-run.json` (one more configured walk).
+- **Row 28's test gaps** (finding 4), each pinned in `scripts/source-mapping.test.mjs`: an extra key
+  in a filter, a sort, a column, a format or a value refused; `1e400` read as not a number,
+  formatted or not; a `+01:75` offset held; `en-US-u-nu-arab` refused; and the route's source-text
+  check replaced by a behavioural test (`scripts/connector-sample.test.mjs` drives the real route
+  against a stand-in database and reads the writes it hands over). #1671 (finding 5) is untouched:
+  this row's UI does not reach the identity path.
+- **Mutation checks**: 30 Node mutations (every bound of the review and the route, the recipe check,
+  the key rebuild, the fence, the repair, the stamp, the record key, the ask's pending, owner and
+  lease checks, the claim check, the size cap, the 401 words, the recipe passed by the route, the
+  agent's redaction, `sendPaths` and one-at-a-time, and the five E5.1 gaps), all red; and the
+  browser fence (`connectConnectorSource` without its fence turns `e2e/production-api-mapping
+  .spec.ts` red).
+- **Check and Assessment A.** The review's ten findings: nine fixed (the sample post reads the claim
+  and never renews it, so a lapsed lease is never handed out anew; best-effort lookups beside a
+  taken claim or report; any refusal of the source falls back to the hosted read; a closed review
+  stops asking; fewer lookups; the export's endpoint without its query; a JSON Accept header and the
+  256 KiB cap while downloading; concurrent asks share one; dead code), one kept by design (the
+  `.sample` row). Simplify: shared `scalarText`, `SEGMENT`, `MAX_SEGMENTS` and
+  `readExternalRegistration` instead of copies, structured feed failures (`status`, `tooLarge`)
+  instead of matching words, one read and cancel helper and one write in the review. Left as they
+  are: a per-kind review adapter and folding `connectConnectorSource` into `connectShowSource`
+  (both wider than this row), `LIST_CELLS` beside contentFormats' grammars. Assessment A (a fresh
+  read-only session) answered AGREE WITH CORRECTIONS: the re-apply departure (above, #1679), the
+  endpoint's query (above) and an unchecked `configRevision` on the agent's sample post (dropped
+  from the envelope and the docs) were all corrected.
+- **Traps.** *A storage-full Connect* is #1603 and fails on main too. *The production-data spec
+  under load*: two of its PROGRAM timing tests failed while mutation runs loaded the machine and
+  passed alone; run browser work alone. *Playwright's browser*: this image had `-1243` where the
+  repo wants `-1228`, symlinked under `/opt/pw-browsers` (#1647). *A connector registered with no
+  field connected is pruned* by any Connect write (`pruneSources`, unchanged from E4.2): register
+  one with a field bound, as the docs and the configured walk do.
+
 ## Row 28, phase E5.1: the versioned recipe and the target-adapter boundary
 
 - **Previous verified `main` sha:** row 27 (E4.2) passed on `029a114`. This branch began on
