@@ -160,6 +160,10 @@ describe('the one write', () => {
     const p = plan({ rows: rowsFor({}, fields, { f0: 'lines' }), adapters: { f0: 'lines' }, columns: { f0: ['team'] } });
     assert.deepEqual(p.source.config.lists, { scorers: 'lines' });
     assert.deepEqual(p.source.config.mapping.outputs, { scorers: { from: 'scorers', id: 'id', columns: [{ from: 'team' }] } });
+    // A reconnect with no pick keeps the columns the source already reads for the leaf.
+    const stored = { v: 1, configRevision: 1, endpoint: 'https://results.example/live', lists: { scorers: 'lines' }, mapping: p.source.config.mapping };
+    const again = plan({ bindings: { [GRAPHIC]: { f0: 'external.e1.scorers' } }, source: { id: 'e1', label: 'Results', config: stored }, rows: rowsFor({ [GRAPHIC]: { f0: 'external.e1.scorers' } }, fields, { f0: 'lines' }), adapters: { f0: 'lines' } });
+    assert.deepEqual(again.source.config.mapping.outputs.scorers.columns, [{ from: 'team' }]);
     const auto = plan({ rows: rowsFor({}, fields, { f0: 'schedule' }), adapters: { f0: 'schedule' } });
     assert.deepEqual(auto.source.config.mapping.outputs.scorers.columns, [{ from: 'name' }, { from: 'team' }], 'a schedule row has two cells, after the record key');
   });

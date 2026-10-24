@@ -120,6 +120,21 @@ export function defaultColumns(collection: JsonCollection, adapter: SourceListAd
 }
 
 /**
+ * The columns a list field reads: the operator's pick, else what the source already reads for
+ * this leaf from this list (a reconnect keeps them), else the defaults.
+ */
+export function columnsFor(
+  collection: JsonCollection,
+  adapter: SourceListAdapter,
+  picked: string[] | undefined,
+  stored: SourceRecipe['outputs'][string] | undefined,
+): string[] {
+  if (picked) return picked;
+  if (stored && 'columns' in stored && stored.from === collection.from && stored.columns.length === LIST_CELLS[adapter]) return stored.columns.map((c) => c.from);
+  return defaultColumns(collection, adapter);
+}
+
+/**
  * The review's proposal, field by field: a list field (`adapters` names its list) is matched
  * against the sample's lists, every other field against its values. `holds` says whether a field
  * can take a value's text (a number field does not take "abc"); `refuses` names a field prepared
@@ -212,7 +227,7 @@ export function connectorPlan(o: {
     const adapter = o.adapters[fieldId];
     const collection = byPath.get(path);
     if (adapter && collection) {
-      const columns = o.columns[fieldId] ?? defaultColumns(collection, adapter);
+      const columns = columnsFor(collection, adapter, o.columns[fieldId], before?.status === 'ok' ? before.recipe.outputs[leaf] : undefined);
       outputs[leaf] = { from: collection.from, ...(collection.id ? { id: collection.id } : {}), columns: columns.map((from) => ({ from })) };
       lists[leaf] = adapter;
     } else if (!adapter) {

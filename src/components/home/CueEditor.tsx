@@ -34,7 +34,7 @@ import {
 } from '../../control/sheetSource';
 import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
-import { connectorPlan, defaultColumns, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
+import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
 import { projectSource } from '../../control/sourceMapping';
 import type { SourceListAdapter } from '../../control/externalSource';
 import { productionDataKey } from '../../control/productionDataApi';
@@ -628,7 +628,7 @@ function CueConnectReview({
                       <ConnectorColumns
                         fieldId={row.fieldId}
                         collection={list}
-                        picked={columns[row.fieldId] ?? defaultColumns(list, adapters[row.fieldId])}
+                        picked={columnsFor(list, adapters[row.fieldId], columns[row.fieldId], path === null ? undefined : storedOutputs[leafOf(path)])}
                         onPick={(next) => setColumns((c) => ({ ...c, [row.fieldId]: next }))}
                       />
                     </td>
