@@ -6,8 +6,8 @@
 //
 // Moved out of ProductionPage with its behaviour and its order unchanged (production-page
 // refactor, phase 5). The Bridge's `act`, the settings, the clock and the state poll come in
-// through `io`, with the draft's flush and `cueView` while the page still owns the draft (until
-// phase 13). Runtime imports carry `.ts` so Node resolves them; everything else is a type.
+// through `io`, with the draft's flush and `cueView` from control/cueDraft.ts. Runtime imports carry
+// `.ts` so Node resolves them; everything else is a type.
 
 import type { PlayoutItem, ShowCue } from '../model/shows';
 import type { PlayoutResult, PlayoutSettings } from './playoutLink';
@@ -30,9 +30,9 @@ export interface ServerVerbIo {
   now: () => number;
   /** Read the server at once. */
   wake: () => void;
-  /** Save the typed draft and close the history group (temporary, until phase 13). */
+  /** Save the typed draft (`cueDraft.flush`) and close the history group. */
   flush: () => Promise<unknown>;
-  /** The cue as typed, draft included (temporary, until phase 13). */
+  /** The cue as typed, draft included (`cueDraft.view`). */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
 }
 
