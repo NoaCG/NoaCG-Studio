@@ -521,3 +521,11 @@ describe('the page\'s two doors onto the instances', () => {
     assert.deepEqual(p.part.get(), {}, 'off air once the page knows: forgotten');
   });
 });
+
+test('an action carries field values when it reads or moves any: the hosted page holds those back while it cannot see the cue on air', () => {
+  assert.equal(air.actionCarriesValues({}), false);
+  assert.equal(air.actionCarriesValues({ payload: [] }), false);
+  for (const button of [{ payload: ['f1'] }, { adjust: { f1: 1 } }, { set: { f0: 'x' } }, { add: { f2: 'y' } }, { remove: { f2: 'y' } }]) {
+    assert.equal(air.actionCarriesValues(button), true, JSON.stringify(button));
+  }
+});

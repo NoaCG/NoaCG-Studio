@@ -111,6 +111,7 @@ import { ReadyLine, useExpectedOutputs, useLivePresence } from './control/Output
 import { ArmedTag, ProgramAutoChip, RowAutoChip } from './home/CueTiming';
 import { armedNext, chipLane, markerAuto, playsOut, readAuto, type CueArms, type LaneArm, type MarkerAuto } from '../control/cueAuto';
 import { createCueArmWire, type CueArmWire } from '../control/cueArmWire';
+import { actionCarriesValues } from '../control/selectionAir';
 import { CUE_ARM_RPC } from '../control/cueArmRpc';
 import { PanelButton, PanelDialog, usePanelAnswer } from './control/PanelControl';
 import type { PanelVerb } from '../control/panelFeedback';
@@ -1754,10 +1755,13 @@ function HostedCueEditor({
    *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
    *  sends and whether it greys; the arrangement decides only the word and where it sits, and
    *  `section` is the heading over it where the block draws one. */
+  /** The layer airs a cue this page was not given (a live candidate, E7.1): an action that reads or
+   *  moves field values would take them from the cue selected here, so only one carrying none goes. */
+  const blindAir = (e: ControlButton) => !live && layerLive && !onAir && actionCarriesValues(e);
   const actionButton = ({ button: e, label, named }: ArrangedControl, section?: string) => (
     <button
       key={e.event}
-      disabled={!isEventLegal(legality, e.event, liveState)}
+      disabled={!isEventLegal(legality, e.event, liveState) || blindAir(e)}
       // A label naming a player holds a FIXED slot (the in-app page's rule): a name sent mid-show
       // never moves the buttons under the operator's finger.
       className={[e.destructive ? 'ctl-event-destructive' : '', named ? 'named' : ''].filter(Boolean).join(' ') || undefined}
@@ -1788,7 +1792,7 @@ function HostedCueEditor({
           // order stops a refused press moving every other bound graphic.
         ]).then((sent) => { if (sent) void onPatchBound(tree); });
       }}
-      title={eventHint(e, label, section)}
+      title={blindAir(e) ? 'The cue on air is not one this page can see, so this action, which carries its values, is pressed on the production page.' : eventHint(e, label, section)}
     >
       ⚡ {label}
     </button>

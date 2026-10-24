@@ -272,3 +272,10 @@ export function followAired(
     });
   }
 }
+
+/** Whether an action carries field values (it reads some into its payload, or moves some): such
+ *  an action cannot go from a page that does not know the cue on air, since the values would be
+ *  another cue's (the hosted page, when a live candidate airs: control/hostedControl.ts leaves
+ *  candidate cues out of what it publishes). */
+export const actionCarriesValues = (button: { payload?: readonly string[]; adjust?: object; set?: object; add?: object; remove?: object }): boolean =>
+  (button.payload?.length ?? 0) > 0 || [button.adjust, button.set, button.add, button.remove].some((moves) => !!moves && Object.keys(moves).length > 0);
