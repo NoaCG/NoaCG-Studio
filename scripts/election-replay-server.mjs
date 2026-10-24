@@ -13,8 +13,9 @@
 //   6 person-deleted     revision 4, candidate FI2027_02_104 gone from the list
 //   7 empty-collection   revision 5, the candidate list valid and empty
 //
-// The step is (clock() - start) / stepMs, held at the last, so the timeline is exact under a fake
-// clock and `at(i)` moves it by hand. It runs beside the agent with a certificate made for that
+// The timeline starts at the first authorized read, so an agent that is slow to boot still sees
+// step 0; then the step is (clock() - start) / stepMs, held at the last, so it is exact under a
+// fake clock, and `at(i)` moves it by hand. It runs beside the agent with a certificate made for that
 // run only (`makeTestCertificate`, by openssl), so the agent keeps TLS validation on by trusting
 // just that one. Never a Vercel function (the function budget, docs/DEPLOYMENT.md).
 //
@@ -64,10 +65,11 @@ const digest = (text) => createHash('sha256').update(String(text)).digest();
  */
 export async function startReplayServer({ token, cert, key, clock = Date.now, stepMs = DEFAULT_STEP_MS, host = '127.0.0.1', port = 0 }) {
   if (!token) throw new Error('the replay server needs a bearer token');
+  if (!(Number.isFinite(stepMs) && stepMs > 0)) throw new Error('stepMs must be a positive number of milliseconds');
   const steps = replayTimeline();
   const expected = digest(`Bearer ${token}`);
-  let start = clock();
-  const step = () => Math.min(steps.length - 1, Math.max(0, Math.floor((clock() - start) / stepMs)));
+  let start = null;
+  const step = () => (start === null ? 0 : Math.min(steps.length - 1, Math.max(0, Math.floor((clock() - start) / stepMs))));
   const answer = (res, status, body, headers = {}) => {
     res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers });
     res.end(body);
@@ -78,6 +80,7 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
     if (req.method !== 'GET') return answer(res, 405, '{"error":"GET only"}', { allow: 'GET' });
     // Compared as digests, so the comparison takes the same time whatever was sent.
     if (!timingSafeEqual(digest(req.headers.authorization ?? ''), expected)) return answer(res, 401, '{"error":"unauthorized"}', { 'www-authenticate': 'Bearer' });
+    if (start === null) start = clock();
     const { name, text } = steps[step()];
     answer(res, 200, text, { 'x-replay-step': name });
   });

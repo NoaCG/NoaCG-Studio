@@ -182,6 +182,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     const { signal } = controller;
     const abort = controller.abort.bind(controller);
     const deadline = clock.setTimeout(abort, limits.timeoutMs);
+    // Aborted by the deadline or by stop(); a stopped read reports nothing (below).
     const timedOut = new Promise((resolve) => signal.addEventListener('abort', () => resolve(problem('failed', `the provider did not answer in ${limits.timeoutMs / 1000} seconds`)), { once: true }));
     let outcome;
     try {
@@ -192,6 +193,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
       clock.clearTimeout(deadline);
       if (!signal.aborted) abort();
     }
+    if (stopped) return null;
     const now = clock.now();
     const accepted = acceptRead(config, state, outcome, { checkedAt: new Date(now).toISOString(), ownerEpoch });
     state = accepted.state;
@@ -213,7 +215,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     return acquisition;
   }
 
-  /** One read now; a second call while one is in flight shares it. */
+  /** One read now; a second call while one is in flight shares it. Answers null once stopped. */
   function readOnce() {
     if (!inFlight) inFlight = read().finally(() => (inFlight = null));
     return inFlight;
@@ -222,7 +224,14 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
   async function loop() {
     timer = null;
     if (stopped) return;
-    await readOnce();
+    try {
+      await readOnce();
+    } catch (error) {
+      // A fault of the agent's own (the log's stream gone, say) must not end the polling.
+      failures += 1;
+      nextDelay = nextDelayMs(config.pollMs, failures, null, random());
+      say(`${config.sourceId} the read failed inside the agent: ${error?.message ?? error}`);
+    }
     if (!stopped) timer = clock.setTimeout(loop, nextDelay);
   }
 
@@ -261,15 +270,21 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     process.stdout.write(`${JSON.stringify(exportConnectorConfig(config), null, 2)}\n`);
     return;
   }
+  const minutes = Number(argument(argv, '--minutes') ?? 0);
+  // setTimeout's own limit is about 24 days; a run longer than a week is not a run of this.
+  if (!Number.isFinite(minutes) || minutes < 0 || minutes > 7 * 24 * 60) throw new Error('--minutes must be a number of minutes, at most a week');
+  const credential = config.credentialRef ? (env[config.credentialRef] ?? null) : null;
+  const redact = (text) => (credential ? text.split(credential).join(REDACTED) : text);
   const connector = createConnector({
     config,
-    credential: config.credentialRef ? (env[config.credentialRef] ?? null) : null,
-    ca: config.caFile ? readFileSync(path.resolve(path.dirname(file), config.caFile)) : null,
+    credential,
+    // An unbound export is refused by createConnector before its certificate is looked for.
+    ca: config.caFile && config.credentialBound ? readFileSync(path.resolve(path.dirname(file), config.caFile)) : null,
     limits: readLimits({ timeoutMs: env.NOACG_CONNECTOR_TIMEOUT_MS, maxBytes: env.NOACG_CONNECTOR_MAX_BYTES }),
-    send: async (acquisition) => void process.stdout.write(`${JSON.stringify(acquisition)}\n`),
+    // A provider that echoes the credential in its body cannot put it on stdout either.
+    send: async (acquisition) => void process.stdout.write(`${redact(JSON.stringify(acquisition))}\n`),
     log: (line) => process.stderr.write(`${line}\n`),
   });
-  const minutes = Number(argument(argv, '--minutes') ?? 0);
   const done = new Promise((resolve) => {
     for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, resolve);
     if (minutes > 0) setTimeout(resolve, minutes * 60_000);

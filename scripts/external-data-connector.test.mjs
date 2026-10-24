@@ -137,6 +137,7 @@ describe('configuration', () => {
     assert.match(ext.parseConnectorConfig({ ...base, endpoint: 'https://127.0.0.1:9/x', mode: 'local' }).error, /caFile/);
     assert.match(ext.parseConnectorConfig({ ...base, endpoint: 'https://a.example/x', caFile: 'ca.pem' }).error, /local destination only/);
     assert.match(ext.parseConnectorConfig({ ...base, v: 2, endpoint: 'https://a.example/x' }).error, /version 2/);
+    assert.match(ext.parseConnectorConfig({ ...base, endpoint: 'https://a.example/x', credentialRef: 'T', credentialBound: 'false' }).error, /credentialBound/);
   });
 
   test('polls every 5 s by default, never under 1 s or the provider minimum', () => {
@@ -232,6 +233,13 @@ describe('acceptance', () => {
       ],
     );
     assert.deepEqual(out[4].payload, { revision: 2, list: [] });
+  });
+
+  test('JSON nested too deeply to compare is invalid, not a crash', () => {
+    const deep = `${'['.repeat(200_000)}${']'.repeat(200_000)}`;
+    const [ok, out] = run([body({ revision: 1 }), { kind: 'body', text: deep }], { ...cfg, revisionPath: null });
+    assert.equal(ok.status, 'changed');
+    assert.deepEqual([out.status, out.acceptedRevision], ['invalid', 1]);
   });
 
   test('a provider without a revision is judged by content alone', () => {
@@ -375,6 +383,33 @@ describe('limits', () => {
     await clock.advance(10_999);
     assert.equal(net.requests.length, 1);
     await clock.advance(1);
+    assert.equal(net.requests.length, 2);
+    c.stop();
+  });
+});
+
+describe('stopping and faults', () => {
+  test('a read cut short by stop() reports nothing and is not a timeout', async () => {
+    const stalled = (req) => new Promise((_resolve, reject) => req.signal.addEventListener('abort', () => reject(new Error('aborted'))));
+    const { c, sent, logs, clock } = connector({ net: fakeNet(stalled) });
+    const pending = c.readOnce();
+    await clock.advance(3_000);
+    c.stop();
+    assert.equal(await pending, null);
+    assert.deepEqual([sent.length, logs.length, c.state.failures], [0, 0, 0]);
+  });
+
+  test('a fault inside the agent backs off and polling carries on', async () => {
+    const net = fakeNet(JSON_OK());
+    let throws = 1;
+    const { c, clock } = connector({
+      net,
+      log: () => {
+        if (throws-- > 0) throw new Error('EPIPE');
+      },
+    });
+    c.start();
+    await clock.advance(10_000);
     assert.equal(net.requests.length, 2);
     c.stop();
   });
@@ -527,6 +562,23 @@ describe('replay server', () => {
     }
   });
 
+  test('the timeline waits for the first authorized read', async () => {
+    const clock = fakeClock();
+    const server = await startReplayServer({ token, cert, key, clock: clock.now, stepMs: 5000 });
+    try {
+      await clock.advance(60_000);
+      assert.equal(server.step(), 'count-01');
+      const c = createConnector({ config: localConfig(server.url), credential: token, ca: cert, clock });
+      assert.equal((await c.readOnce()).providerSequence, 1);
+      await clock.advance(4_999);
+      assert.equal(server.step(), 'count-01');
+      await clock.advance(1);
+      assert.equal(server.step(), 'count-increase');
+    } finally {
+      await server.close();
+    }
+  });
+
   test('an invalid or missing credential is denied by the server and backs off', async () => {
     const server = await startReplayServer({ token, cert, key });
     try {
@@ -603,7 +655,7 @@ describe('replay server', () => {
       let err = '';
       child.stdout.on('data', (d) => (out += d));
       child.stderr.on('data', (d) => (err += d));
-      const code = await new Promise((resolve) => child.on('exit', resolve));
+      const code = await new Promise((resolve) => child.on('close', resolve));
       assert.equal(code, 0, err);
       const reports = out.trim().split('\n').map((line) => JSON.parse(line));
       assert.equal(reports[0].status, 'changed');

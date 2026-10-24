@@ -128,6 +128,7 @@ export function parseConnectorConfig(raw: unknown): { ok: true; config: Connecto
   const configRevision = raw.configRevision;
   if (typeof configRevision !== 'number' || !Number.isInteger(configRevision) || configRevision < 1) return no('configRevision must be a whole number from 1');
   if (!optionalString(raw.credentialRef)) return no('credentialRef must be an environment variable name');
+  if (raw.credentialBound !== undefined && typeof raw.credentialBound !== 'boolean') return no('credentialBound must be true or false');
   const credentialRef = raw.credentialRef || null;
   if (credentialRef !== null && !ENV_NAME.test(credentialRef)) return no('credentialRef must be an environment variable name');
   const providerMinPollMs = raw.providerMinPollMs ?? null;
@@ -287,7 +288,13 @@ export function acceptRead(
   } catch {
     return hold('invalid', 'the provider answered something that is not JSON');
   }
-  const text = canonicalJson(payload);
+  let text: string;
+  try {
+    text = canonicalJson(payload);
+  } catch {
+    // Nesting deep enough to exhaust the stack: JSON.parse took it, nothing downstream would.
+    return hold('invalid', 'the provider answered JSON nested too deeply');
+  }
   const sequenceValue = atPath(payload, config.revisionPath);
   let sequence: number | null = null;
   if (config.revisionPath) {

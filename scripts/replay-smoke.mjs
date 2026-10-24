@@ -64,7 +64,8 @@ try {
     let stderr = '';
     child.stdout.on('data', (d) => (stdout += d));
     child.stderr.on('data', (d) => (stderr += d));
-    const code = await new Promise((resolve) => child.on('exit', resolve));
+    // 'close', not 'exit': the last report may still be in the pipe when the process exits.
+    const code = await new Promise((resolve) => child.on('close', resolve));
     check('the agent ran for the minutes asked and exited cleanly', code === 0, `exit ${code}`);
     const reports = stdout
       .split('\n')
@@ -84,6 +85,10 @@ try {
     const hosted = parseConnectorConfig({ ...raw, mode: 'hosted', caFile: null }).config;
     const refused = await createConnector({ config: hosted, credential: token }).readOnce();
     check('hosted acquisition of the loopback server is refused', refused.status === 'refused', refused.error);
+    // On its ordinary port the address guard itself decides, through real DNS: localhost is loopback.
+    const named = parseConnectorConfig({ ...raw, mode: 'hosted', caFile: null, endpoint: 'https://localhost/results' }).config;
+    const loopback = await createConnector({ config: named, credential: token }).readOnce();
+    check('hosted acquisition of a name resolving to loopback is refused', loopback.status === 'refused' && /public internet/.test(loopback.error ?? ''), loopback.error);
 
     // The export is unbound and the agent refuses it.
     const exported = spawnSync(process.execPath, [AGENT, '--config', configFile, '--export'], { env, encoding: 'utf8', windowsHide: true });
