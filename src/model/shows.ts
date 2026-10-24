@@ -1924,6 +1924,38 @@ export function connectShowSource(
 }
 
 /**
+ * CONNECT DATA's one confirmation for a CONNECTOR (docs/work-specs/playout-api-mapping/spec.md,
+ * E5.2): the registration, new or reused with its new configuration (the recipe), and the reviewed
+ * mapping, in one write. Called by control/connectorReview.ts `connectConnector` only, which builds
+ * the configuration and lets through only a recipe `readSourceRecipe` reads (no other key can sit
+ * in a show or an export). REVISION-FENCED: `fence` is the reused source's configuration as the
+ * review read it (JSON), and a source whose configuration moved since, or one held read-only (a
+ * later version), refuses the whole write. A refused field is reported, never bound.
+ */
+export function connectConnectorSource(
+  showId: string,
+  source: Extract<ShowSource, { kind: 'external' }>,
+  entries: BindingEntry[],
+  fence: string | null,
+): { shows: Show[]; error: string | null; refused: BindingEntry[] } {
+  let refused: BindingEntry[] = [];
+  const result = patchShowChecked(showId, (show) => {
+    const at = show.sources?.findIndex((s) => s.id === source.id) ?? -1;
+    const existing = at < 0 ? null : show.sources![at];
+    if (existing && (existing.kind !== 'external' || externalReadOnly(existing))) return 'This connector was set up by a later version, so it is read-only here.';
+    if ((existing ? JSON.stringify(existing.config) : null) !== fence) return 'This connector changed while the review was open. Read it again.';
+    const before = JSON.stringify([show.bindings, show.sources]);
+    // A reused source keeps its label, Pause and id; only its configuration is the review's.
+    const next = existing ? { ...existing, config: source.config } : source;
+    show.sources = existing ? show.sources!.map((s, i) => (i === at ? next : s)) : [...(show.sources ?? []), next];
+    refused = applyBindings(show, entries).refused;
+    pruneSources(show);
+    return JSON.stringify([show.bindings, show.sources]) !== before;
+  }, true);
+  return { ...result, refused };
+}
+
+/**
  * CONNECT DATA's one confirmation for Another system (data-sources C5): the reviewed mapping of
  * `api.` paths, with no source record (the data key is the production's one API source). A
  * refused field is reported, never bound.

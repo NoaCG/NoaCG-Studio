@@ -444,11 +444,16 @@ export function readExternalRegistration(entry: unknown): RegistrationRead {
   };
 }
 
-/** What the agent sends `/api/data/source`: a claim, a report of one read, or a release. */
+/** What the agent sends `/api/data/source`: a claim, a report of one read, or a release; and a
+ *  sample (E5.2): the page asks for one (`asked` absent) and then reads it (`asked` the time its
+ *  ask was taken), and the agent holding the claim posts it. A sample is kept for the Connect
+ *  review only and never applied. */
 export type SourceEnvelope =
   | { v: 1; op: 'claim'; sourceId: string; configRevision: number; claim: string | null }
   | { v: 1; op: 'release'; sourceId: string; configRevision: number; claim: string }
-  | { v: 1; op: 'report'; sourceId: string; claim: string; acquisition: ExternalAcquisition };
+  | { v: 1; op: 'report'; sourceId: string; claim: string; acquisition: ExternalAcquisition }
+  | { v: 1; op: 'sample'; sourceId: string; asked: string | null }
+  | { v: 1; op: 'sample'; sourceId: string; configRevision: number; claim: string; sample: JsonValue };
 
 const STATUSES = new Set<AcquisitionStatus>(['changed', 'unchanged', 'stale', 'invalid', 'denied', 'refused', 'failed']);
 const CLAIM = /^agent:[A-Za-z0-9_-]{1,32}$/;
@@ -468,7 +473,18 @@ export function parseSourceEnvelope(body: unknown): { ok: true; envelope: Source
     if (body.op === 'release' && claim === null) return no('a release needs its claim');
     return { ok: true, envelope: { v: 1, op: body.op, sourceId: body.sourceId, configRevision: body.configRevision as number, claim } as SourceEnvelope };
   }
-  if (body.op !== 'report') return no('op must be claim, report or release');
+  if (body.op === 'sample') {
+    if (claim === null) {
+      const asked = body.asked ?? null;
+      if (asked !== null && (typeof asked !== 'string' || asked.length > 40 || Number.isNaN(Date.parse(asked)))) return no('asked must be the time the ask was taken');
+      if ('sample' in body) return no('a sample is posted under its claim');
+      return { ok: true, envelope: { v: 1, op: 'sample', sourceId: body.sourceId, asked } };
+    }
+    if (!revision(body.configRevision) || (body.configRevision as number) < 1) return no('configRevision must be a whole number from 1');
+    if (!('sample' in body) || body.sample === undefined) return no('a sample carries its payload');
+    return { ok: true, envelope: { v: 1, op: 'sample', sourceId: body.sourceId, configRevision: body.configRevision as number, claim, sample: body.sample as JsonValue } };
+  }
+  if (body.op !== 'report') return no('op must be claim, report, release or sample');
   if (claim === null) return no('a report needs its claim');
   const a = body.acquisition;
   if (!isObject(a) || a.v !== EXTERNAL_SOURCE_VERSION) return no('the report carries no version 1 acquisition');

@@ -1101,4 +1101,40 @@ describe('the sender', () => {
     assert.deepEqual(route.calls.at(-1).body, { v: 1, sourceId: 'results', configRevision: 1, op: 'release', claim: 'agent:c1' });
     assert.equal(sender.fence, null);
   });
+
+  test('a sample the production asks for: one read with the credential, projected and redacted, posted under the claim; never a revision', async () => {
+    const token = 'provider-secret-123';
+    let asks = 0;
+    const route = fakeRoute((b) => (b.op === 'claim' ? [200, { ...claimed(3)[1], sample: (asks += 1) === 1 }] : [200, { ok: true }]));
+    const cfg = config({ sendPaths: ['revision', 'board'], credentialRef: 'NOACG_SOURCE_X' });
+    const net = fakeNet(JSON_OK({ revision: 4, board: [{ id: 1, note: `echo ${token}` }], hidden: 'not sent' }));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: cfg, fetchImpl: route.fetchImpl });
+    const c = createConnector({ config: cfg, credential: token, clock: fakeClock(), net, send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    await sender.sampling;
+    const posted = route.calls.filter((call) => call.body.op === 'sample');
+    assert.deepEqual(posted.map((call) => call.body), [{ v: 1, sourceId: 'results', configRevision: 1, op: 'sample', claim: 'agent:c3', sample: { revision: 4, board: [{ id: 1, note: `echo ${REDACTED}` }] } }]);
+    assert.equal(net.requests[0].headers.authorization, `Bearer ${token}`, 'the agent reads with its own credential');
+    assert.equal(JSON.stringify(route.calls).includes(token), false, 'the credential never reaches the production');
+    assert.deepEqual(c.state.acceptedRevision, 0, 'a sample is not a revision');
+    // Asked once: a renewal that does not ask reads nothing more.
+    await sender.claim();
+    await sender.sampling;
+    assert.equal(net.requests.length, 1);
+  });
+
+  test('a sample read that fails posts nothing, and one ask at a time is read', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? [200, { ...claimed(1)[1], sample: true }] : [200, { ok: true }]));
+    const net = fakeNet(() => response(500));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    const logs = [];
+    const c = createConnector({ config: config(), clock: fakeClock(), net, send: sender.send, log: (line) => logs.push(line) });
+    sender.bind(c);
+    await Promise.all([sender.claim(), sender.claim()]);
+    await sender.sampling;
+    assert.equal(net.requests.length, 1, 'the second ask waited on the first');
+    assert.equal(route.calls.some((call) => call.body.op === 'sample'), false);
+    assert.match(logs.join('\n'), /sample not read: the provider answered 500/);
+  });
 });

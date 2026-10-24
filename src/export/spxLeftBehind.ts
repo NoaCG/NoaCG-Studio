@@ -16,6 +16,7 @@
 //   back. That trap is there with or without a profile, so hiding it behind one would be wrong.
 
 import { continueEvents, eventButtons, fieldDescriptors } from '../control/controlModel';
+import { readSourceRecipe } from '../control/sourceMapping';
 import type { Show } from '../model/shows';
 import type { SpxTemplate } from '../model/types';
 
@@ -51,6 +52,21 @@ export function spxLeftBehindMd(show: Show, graphics: PackagedGraphic[]): string
       `- **The bindings.** In NoaCG one value feeds every field bound to it. In SPX each is a plain\n` +
         `  field: type the same value into each one and press **Update** on every item it appears on.\n` +
         rows.join('\n'),
+    );
+  }
+
+  // A connector's registration is non-secret (no credential is ever in it), so the package names
+  // it and its recipe: an imported production registers it again and points its own agent at it.
+  for (const source of show.sources ?? []) {
+    if (source.kind !== 'external') continue;
+    const config = source.config as { endpoint?: unknown; configRevision?: number; mapping?: unknown };
+    // Only a recipe this build reads is written out: a later version's could hold anything.
+    const recipe = readSourceRecipe(config.mapping, source.id, config.configRevision);
+    items.push(
+      `- **The connector ${source.label}** (${typeof config.endpoint === 'string' ? config.endpoint : 'no endpoint'}) is read by\n` +
+        `  NoaCG's agent with the production's data key, so it does not follow here. To use it again,\n` +
+        `  register it in the new production and start its agent for that production. Its mapping:\n` +
+        `  ${recipe.status === 'ok' ? `\`${JSON.stringify(recipe.recipe)}\`` : recipe.status === 'none' ? 'none (each field reads its own path)' : 'one this build does not read, left out'}`,
     );
   }
 

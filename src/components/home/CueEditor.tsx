@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type Ref, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectShowSource, ownSheetGraphics, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectConnectorSource, connectShowSource, ownSheetGraphics, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
-import { chosenPath, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
+import { chosenPath, externalReadOnly, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
 import { nextRow, type CueDataRow } from '../../control/cueData';
 import { groupHeading, type CueFieldGroup } from '../../control/cueFieldGroups';
 import { FieldRow, type FieldImage } from '../fields/FieldControl';
@@ -34,6 +34,10 @@ import {
 } from '../../control/sheetSource';
 import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
+import { connectorPlan, defaultColumns, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
+import { projectSource } from '../../control/sourceMapping';
+import type { SourceListAdapter } from '../../control/externalSource';
+import { productionDataKey } from '../../control/productionDataApi';
 import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
 
 /** The edited cue's text, as the draft shows it. */
@@ -150,16 +154,28 @@ function CueSourceMissing({ source, missing, onDisconnect }: { source: ShowSourc
  *  the mark beside a field label is clipped to its column. */
 function CueConnectedMark({ source, store }: { source: ShowSource; store: SourceStatusStore }) {
   const status = useSyncExternalStore(store.subscribe, () => store.get(source.id));
+  // A connector's provenance names its mapping too: the recipe its values are read through.
+  const recipe = source.kind === 'external' ? (source.config as { mapping?: { v?: unknown } | null }).mapping : null;
+  const how = source.kind !== 'external' ? '' : externalReadOnly(source) ? ' · a later version, read-only' : recipe ? ` · mapping v${String(recipe.v)}` : '';
   return (
-    <span className="pd-bound-mark" title={`Connected to ${sourceKindWord(source)}: ${source.label}`} data-testid="cue-connected-mark" data-stale={status?.stale ? 'true' : undefined}>
+    <span className="pd-bound-mark" title={`Connected to ${sourceKindWord(source)}: ${source.label}${how}`} data-testid="cue-connected-mark" data-stale={status?.stale ? 'true' : undefined}>
       {status?.stale ? '⚠ stale · ' : '🔗 '}{sourceKindWord(source)}: {source.label}
     </span>
   );
 }
 
 /** A tab or a feed read for the review: its link or address, rows, or the failure with its fix;
- *  or Another system, which has nothing to read: its paths are offered from the fields (C5). */
-type ConnectRead = { link: SheetLink; rows: string[][] } | { feed: string; rows: string[][] } | { api: true } | { error: string; fix: string };
+ *  or Another system, which has nothing to read: its paths are offered from the fields (C5); or a
+ *  connector's JSON sample (E5.2), read for the review and never applied. */
+type ConnectRead =
+  | { link: SheetLink; rows: string[][] }
+  | { feed: string; rows: string[][] }
+  | { api: true }
+  | { json: string; sample: unknown; via: 'agent' | 'hosted' }
+  | { error: string; fix: string };
+
+/** A connector sample is waited on in steps of this (control/connectorReview `readConnectorSample`). */
+const waitMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** The Connect review's content: the read, the proposal, repair and the one confirmation. */
 function CueConnectReview({
@@ -172,6 +188,7 @@ function CueConnectReview({
   store,
   fieldsOf,
   onPreview,
+  onFill,
   onClose,
   onRefused,
 }: {
@@ -186,15 +203,22 @@ function CueConnectReview({
   /** A pool graphic's fields as drawn (the page's lookup, shared with the reader). */
   fieldsOf: (graphic: string) => FieldDescriptor[] | null;
   onPreview: (values: Record<string, string> | null) => void;
+  /** Copy what the read gives into this cue, connecting nothing (the cue keeps it). */
+  onFill: (values: Record<string, string>) => void;
   onClose: () => void;
   onRefused: (text: string | null) => void;
 }) {
   const [linkText, setLinkText] = useState('');
-  const [reuse, setReuse] = useState<FieldShowSource | null>(null);
+  const [reuse, setReuse] = useState<FieldShowSource | ConnectorSource | null>(null);
   /** A ticker (the lines adapter) also follows a news feed (data-sources C4). */
   const takesFeed = sheetShapeFor(poolGraphic) === 'lines';
-  /** A Sheet tab, and for a ticker a feed, can fill fields; a YouTube source feeds Messages alone. */
-  const fieldSources = (show.sources ?? []).filter((s): s is FieldShowSource => s.kind === 'sheet' || (takesFeed && s.kind === 'feed'));
+  /** A Sheet tab, a connector, and for a ticker a feed, can fill fields; a YouTube source feeds
+   *  Messages alone. */
+  const fieldSources = (show.sources ?? []).filter(
+    (s): s is FieldShowSource | ConnectorSource => s.kind === 'sheet' || s.kind === 'external' || (takesFeed && s.kind === 'feed'),
+  );
+  /** A list field's columns, by field, as the operator picked them (a connector's list). */
+  const [columns, setColumns] = useState<Record<string, string[]>>({});
   const [read, setRead] = useState<ConnectRead | null>(null);
   const [reading, setReading] = useState(false);
   const [firstTab, setFirstTab] = useState(false);
@@ -209,30 +233,41 @@ function CueConnectReview({
   const previewRef = useRef(onPreview);
   previewRef.current = onPreview;
 
-  const kind = reuse?.kind ?? (read && 'feed' in read ? 'feed' : 'sheet');
+  const kind = reuse?.kind ?? (read && 'feed' in read ? 'feed' : read && 'json' in read ? 'external' : 'sheet');
   // A feed is read only on a ticker, whose shape is `lines`.
   const shape = reuse?.kind === 'sheet' ? reuse.config.shape : sheetShapeFor(poolGraphic);
   const id = reuse?.id ?? sourceId;
   const rows = read && 'rows' in read ? read.rows : null;
   const content = rows ? sheetContent(shape, rows) : null;
   const api = Boolean(read && 'api' in read);
+  const json = read && 'json' in read ? read : null;
   const fields = descriptors.filter((d) => d.kind !== 'image');
   const byKey = new Map(fields.map((d) => [d.key, d]));
-  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind) : [];
+  const refuses = (fieldId: string) => preparedMessageField(show, poolGraphic.name, fieldId);
+  const holds = (fieldId: string, text: string) => fieldValue(byKey.get(fieldId)!, text) !== null;
+  // A connector's sample: its values and its lists, a list field matched against the lists.
+  const offers = json ? jsonOffers(id, json.sample) : null;
+  const adapters: Record<string, SourceListAdapter> = {};
+  if (json) {
+    for (const d of fields) {
+      const adapter = listFormatFor(poolGraphic, d.key)?.adapter;
+      if (adapter && adapter in LIST_CELLS) adapters[d.key] = adapter as SourceListAdapter;
+    }
+  }
+  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind === 'external' ? 'sheet' : kind) : offers ? offers.scalars : [];
   const sample = new Map(offered.map((o) => [o.path, o.sample]));
-  const mapping: MappingRow[] = content || api
-    ? proposeMapping(
-        fields,
-        offered,
-        bound,
-        (fieldId) => preparedMessageField(show, poolGraphic.name, fieldId),
-        (fieldId, text) => fieldValue(byKey.get(fieldId)!, text) !== null,
-      )
-    : [];
+  const mapping: MappingRow[] = offers
+    ? proposeConnector(fields, offers, bound, adapters, refuses, holds)
+    : content || api
+      ? proposeMapping(fields, offered, bound, refuses, holds)
+      : [];
+  const repairs = offers ? needsRepair(bound, id, offers) : new Set<string>();
+  /** What a row may pick: a list field the sample's lists, any other its values. */
+  const optionsFor = (fieldId: string) => (offers && adapters[fieldId] ? offers.collections.map((c) => ({ path: c.path, label: `${c.label} (${c.count})` })) : offered);
   const chosen = (row: MappingRow): string | null => chosenPath(row, choices);
   const entries = mappingEntries(poolGraphic.name, mapping, choices);
   const matched = mapping.filter((r) => r.status !== 'refused' && chosen(r) !== null).length;
-  const attention = mapping.filter((r) => r.status === 'ambiguous' || r.status === 'unmatched' || (r.current !== null && r.current !== r.path && r.path !== null)).length;
+  const attention = mapping.filter((r) => r.status === 'ambiguous' || r.status === 'unmatched' || repairs.has(r.fieldId) || (r.current !== null && r.current !== r.path && r.path !== null)).length;
   const users = [...new Set(sourcePaths(show.bindings, id).map((p) => p.graphic))].filter((g) => g !== poolGraphic.name);
   const usedBy = (show.cues ?? []).filter((c) => {
     const g = show.graphics.find((x) => x.id === c.sourceId);
@@ -247,15 +282,36 @@ function CueConnectReview({
   // What each chosen path will write, by the reader's own rule: the bindings as this review would
   // leave them, every field on the path, one form for all of them (sheetSource `pathValue`).
   const proposed = { ...(show.bindings ?? {}), [poolGraphic.name]: { ...bound, ...Object.fromEntries(entries.map((e) => [e.fieldId, e.path ?? ''])) } };
+  const drawn = (g: string) => (g === poolGraphic.name ? descriptors : fieldsOf(g));
+  // A connector's sample is evaluated by the one shared evaluator, recipe and all, exactly as the
+  // route will evaluate the provider's answers once the mapping is saved; nothing is applied.
+  const reusedConnector = reuse?.kind === 'external' ? reuse : null;
+  const plan = json
+    ? connectorPlan({
+        graphic: poolGraphic.name,
+        bindings: show.bindings,
+        source: reusedConnector ?? { id, label: label.trim() || poolGraphic.name, endpoint: json.json },
+        rows: mapping,
+        choices,
+        collections: offers!.collections,
+        adapters,
+        columns,
+      })
+    : null;
+  const projection =
+    plan && !('error' in plan)
+      ? projectSource({ sourceId: id, payload: json!.sample, bindings: plan.bindings, fieldsOf: drawn, lists: plan.source.config.lists, mapping: plan.source.config.mapping, configRevision: plan.source.config.configRevision })
+      : null;
+  const leafOf = (path: string) => path.slice(`external.${id}.`.length);
   const writes = (path: string): string | null =>
-    pathValue(connectedFields(proposed, path, (g) => (g === poolGraphic.name ? descriptors : fieldsOf(g))), sample.get(path) ?? '');
+    projection ? (projection.writes[path] ?? null) : pathValue(connectedFields(proposed, path, drawn), sample.get(path) ?? '');
   const previewValues: Record<string, string> = {};
   for (const row of mapping) {
     const path = chosen(row);
-    const value = path !== null && row.status !== 'refused' && sample.has(path) ? writes(path) : null;
+    const value = path !== null && row.status !== 'refused' && (projection || sample.has(path)) ? writes(path) : null;
     if (value !== null) previewValues[row.fieldId] = value;
   }
-  const previewKey = content || api ? JSON.stringify(previewValues) : null;
+  const previewKey = content || api || json ? JSON.stringify(previewValues) : null;
   useEffect(() => {
     previewRef.current(previewKey === null ? null : (JSON.parse(previewKey) as Record<string, string>));
   }, [previewKey]);
@@ -271,6 +327,7 @@ function CueConnectReview({
     setReading(true);
     setRead(null);
     setChoices({});
+    setColumns({});
     setFirstTab(false);
     const answer = await go();
     if (no !== readNo.current) return;
@@ -281,12 +338,33 @@ function CueConnectReview({
     readInto(() => readSheet((url, init) => fetch(url, init), link, AbortSignal.timeout(SHEET_TIMEOUT_MS)), (rows) => ({ link, rows }));
   const readFeed = (url: string) =>
     readInto(() => readFeedRoute((u, init) => fetch(u, init), url, AbortSignal.timeout(FEED_ROUTE_TIMEOUT_MS)), (rows) => ({ feed: url, rows }));
+  /** A connector's sample: through its agent when one holds the registered source of this
+   *  published production, else the hosted fetcher for a public address. Never applied. */
+  const readJson = async (endpoint: string, registered: string | null) => {
+    const no = (readNo.current += 1);
+    setReading(true);
+    setRead(null);
+    setChoices({});
+    setColumns({});
+    const key = registered ? await productionDataKey(show.id).catch(() => null) : null;
+    const answer = await readConnectorSample({ fetcher: (u, init) => fetch(u, init), endpoint, key, sourceId: registered, wait: waitMs, now: Date.now });
+    if (no !== readNo.current) return;
+    setReading(false);
+    setRead(answer.ok ? { json: endpoint, sample: answer.sample, via: answer.via } : { error: answer.error, fix: answer.fix });
+  };
   /** Connect: one write, and the review closes only once storage has agreed to it, so a
    *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
   const confirm = async () => {
     if (!read || 'error' in read || saving) return;
     if ('api' in read) return finish(connectApiFields(show.id, entries), null);
+    if ('json' in read) {
+      if (!plan || 'error' in plan) return setSaveError(plan?.error ?? 'Nothing to connect.');
+      let result = connectConnectorSource(show.id, plan.source, plan.entries, plan.fence);
+      if (!result.error && reusedConnector && label.trim() && label.trim() !== reusedConnector.label) result = { ...result, shows: renameShowSource(show.id, reusedConnector.id, label) };
+      return finish(result, null);
+    }
     if (id === '') return;
+    if (reuse?.kind === 'external') return;
     const source: ShowSource =
       reuse ??
       ('feed' in read
@@ -334,14 +412,14 @@ function CueConnectReview({
       <p className="hint">
         {takesFeed
           ? 'Paste a Google Sheet tab’s link (Share, then “Anyone with the link”) or a news feed’s address.'
-          : 'Google Sheet: paste the tab’s link (Share, then “Anyone with the link”).'}
+          : 'Paste a Google Sheet tab’s link (Share, then “Anyone with the link”) or an address that answers JSON.'}
       </p>
       <div className="row">
         <input
           className="grow"
           value={linkText}
-          placeholder={takesFeed ? 'https://docs.google.com/spreadsheets/d/… or https://…/feed.xml' : 'https://docs.google.com/spreadsheets/d/…'}
-          aria-label={takesFeed ? 'Sheet link or feed address' : 'Sheet link'}
+          placeholder={takesFeed ? 'https://docs.google.com/spreadsheets/d/… or https://…/feed.xml' : 'https://docs.google.com/spreadsheets/d/… or https://…'}
+          aria-label={takesFeed ? 'Sheet link or feed address' : 'Sheet link or JSON address'}
           onChange={(e) => {
             // A changed link is a new tab: the last read, its review and any read in flight go,
             // so Connect needs a fresh read of what the box now says.
@@ -366,11 +444,12 @@ function CueConnectReview({
             };
             const sheet = parseSheetLink(linkText);
             if (!('error' in sheet)) return start(() => readTab(sheet.link));
-            // Not a Sheet: on a ticker, any other web address is read as a news feed.
-            if (!takesFeed || /docs\.google\.com/.test(linkText)) return setRead({ error: sheet.error, fix: 'Copy the link from the Sheet’s Share button.' });
-            const feed = normalizeFeedAddress(linkText);
-            if ('error' in feed) return setRead({ error: feed.error.replace(/\.$/, ''), fix: 'Copy the feed’s address from its site.' });
-            start(() => readFeed(feed.url));
+            if (/docs\.google\.com/.test(linkText)) return setRead({ error: sheet.error, fix: 'Copy the link from the Sheet’s Share button.' });
+            // Not a Sheet: on a ticker, any other web address is read as a news feed; on any other
+            // graphic, as a JSON endpoint (a new connector), its sample read by the hosted fetcher.
+            const address = normalizeFeedAddress(linkText);
+            if ('error' in address) return setRead({ error: address.error.replace(/\.$/, '').replace('feed', 'web'), fix: takesFeed ? 'Copy the feed’s address from its site.' : 'Copy the address from the provider.' });
+            start(() => (takesFeed ? readFeed(address.url) : readJson(address.url, null)));
           }}
           data-testid="cue-connect-read"
         >
@@ -401,7 +480,8 @@ function CueConnectReview({
             setReuse(source);
             setLabel(source?.label ?? '');
             setLinkText('');
-            if (source?.kind === 'feed') void readFeed(source.config.url);
+            if (source?.kind === 'external') void readJson(source.config.endpoint, source.id);
+            else if (source?.kind === 'feed') void readFeed(source.config.url);
             else if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
             else {
               readNo.current += 1;
@@ -414,7 +494,8 @@ function CueConnectReview({
         >
           <option value="">Use existing content…</option>
           {fieldSources.map((s) => (
-            <option key={s.id} value={s.id}>
+            // A connector a later version set up is read-only here: kept as it is, never edited.
+            <option key={s.id} value={s.id} disabled={externalReadOnly(s)}>
               {sourceKindWord(s)}: {s.label}
             </option>
           ))}
@@ -431,7 +512,7 @@ function CueConnectReview({
           address, the key and an example.
         </p>
       )}
-      {(content || api) && (
+      {(content || api || json) && (
         <>
           {content && noTab && (
             <label className="hint" data-testid="cue-connect-first-tab">
@@ -439,7 +520,7 @@ function CueConnectReview({
               so this is its first tab. Use it?
             </label>
           )}
-          {content && (
+          {(content || json) && (
           <label className="pd-field">
             <span>Name</span>
             <input value={label} onChange={(e) => setLabel(e.target.value)} data-testid="cue-connect-label" />
@@ -479,10 +560,10 @@ function CueConnectReview({
                         data-testid={`cue-connect-pick-${row.fieldId}`}
                       >
                         <option value="">Not connected</option>
-                        {row.current !== null && !offered.some((o) => o.path === row.current) && (
+                        {row.current !== null && !optionsFor(row.fieldId).some((o) => o.path === row.current) && (
                           <option value={row.current}>Keep: {row.current}</option>
                         )}
-                        {offered.map((o) => (
+                        {optionsFor(row.fieldId).map((o) => (
                           <option key={o.path} value={o.path}>
                             {o.label}
                           </option>
@@ -491,13 +572,25 @@ function CueConnectReview({
                     )}
                   </td>
                   <td className="muted">
-                    {row.status === 'ambiguous'
+                    {offers && adapters[row.fieldId] && offers.collections.some((c) => c.path === chosen(row)) && (
+                      <ConnectorColumns
+                        fieldId={row.fieldId}
+                        collection={offers.collections.find((c) => c.path === chosen(row))!}
+                        picked={columns[row.fieldId] ?? defaultColumns(offers.collections.find((c) => c.path === chosen(row))!, adapters[row.fieldId])}
+                        onPick={(next) => setColumns((c) => ({ ...c, [row.fieldId]: next }))}
+                      />
+                    )}
+                    {repairs.has(row.fieldId) && chosen(row) === row.current ? (
+                      <span className="status-warn" data-testid={`cue-connect-repair-${row.fieldId}`}>not in the sample: pick another</span>
+                    ) : projection && chosen(row) !== null && projection.problems[leafOf(chosen(row)!)] ? (
+                      <span className="status-warn">{projection.problems[leafOf(chosen(row)!)]}</span>
+                    ) : row.status === 'ambiguous'
                       ? 'several match: pick one'
                       : row.current !== null && row.path !== null && row.current !== row.path && chosen(row) === row.current
                         ? 'connected elsewhere: pick to replace'
-                        : chosen(row) !== null && sample.has(chosen(row)!) && writes(chosen(row)!) === null
-                          ? 'its other fields need it in another form: it would hold'
-                          : chosen(row) !== null && sample.has(chosen(row)!)
+                        : chosen(row) !== null && (projection || sample.has(chosen(row)!)) && writes(chosen(row)!) === null
+                          ? projection ? 'no value in the sample' : 'its other fields need it in another form: it would hold'
+                          : chosen(row) !== null && (projection || sample.has(chosen(row)!))
                           ? writes(chosen(row)!)!.split('\n')[0]
                           : row.status === 'unmatched'
                             ? 'no match'
@@ -520,13 +613,28 @@ function CueConnectReview({
             <button type="button" disabled={(noTab && !firstTab) || saving} onClick={() => void confirm()} data-testid="cue-connect-confirm">
               Connect
             </button>
+            {/* Fill copies what the read gives into this cue and connects nothing: the cue keeps
+                it whatever the source does next. */}
+            {!api && (
+              <button
+                type="button"
+                disabled={Object.keys(previewValues).length === 0}
+                onClick={() => {
+                  onFill(previewValues);
+                  close();
+                }}
+                data-testid="cue-connect-fill"
+              >
+                Fill this cue
+              </button>
+            )}
             <button type="button" onClick={close} data-testid="cue-connect-cancel">
               Cancel
             </button>
           </div>
         </>
       )}
-      {!content && !api && (
+      {!content && !api && !json && (
         <button
           type="button"
           onClick={() => {
@@ -540,6 +648,39 @@ function CueConnectReview({
         </button>
       )}
     </>
+  );
+}
+
+/** A connector list's columns: one pick per cell a row of the list carries, from the records' keys. */
+function ConnectorColumns({
+  fieldId,
+  collection,
+  picked,
+  onPick,
+}: {
+  fieldId: string;
+  collection: { keys: string[] };
+  picked: string[];
+  onPick: (columns: string[]) => void;
+}) {
+  return (
+    <span className="pd-connect-columns" data-testid={`cue-connect-columns-${fieldId}`}>
+      {picked.map((key, i) => (
+        <select
+          key={i}
+          value={key}
+          aria-label={`Column ${i + 1}`}
+          onChange={(e) => onPick(picked.map((k, j) => (j === i ? e.target.value : k)))}
+          data-testid={`cue-connect-column-${fieldId}-${i}`}
+        >
+          {collection.keys.map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      ))}{' '}
+    </span>
   );
 }
 
@@ -862,6 +1003,7 @@ export default function CueEditor({
           store={sourceStatus}
           fieldsOf={fieldsOf}
           onPreview={onConnectPreview}
+          onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !bound[k])) })}
           ownReader={ownReader}
         />
         {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
@@ -1031,11 +1173,13 @@ export default function CueEditor({
                             </span>
                           )}
                         </div>
-                        {/* A list keeps its lines: an <input> would join them into one. */}
+                        {/* A list keeps its lines: an <input> would join them into one. A
+                            connector's field fills at its source's next read, never from the
+                            review's sample: until then it says so. */}
                         {format ? (
-                          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" rows={3} readOnly tabIndex={-1} />
+                          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={source?.kind === 'external' ? 'waits for the next read' : 'not set yet'} rows={3} readOnly tabIndex={-1} />
                         ) : (
-                          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" readOnly tabIndex={-1} />
+                          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={source?.kind === 'external' ? 'waits for the next read' : 'not set yet'} readOnly tabIndex={-1} />
                         )}
                         {/* The operator wins for values (±, a typed value on Data); a connected
                             list is read-only here and says where to edit it (sheet spec). */}
@@ -1050,8 +1194,8 @@ export default function CueEditor({
                         {source && (
                           <span className="hint" data-testid="cue-connected-note">
                             {format
-                              ? source.kind === 'feed'
-                                ? `Connected to News feed: ${source.label}. `
+                              ? source.kind === 'feed' || source.kind === 'external'
+                                ? `Connected to ${sourceKindWord(source)}: ${source.label}. `
                                 : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
                               : ''}
                             <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">

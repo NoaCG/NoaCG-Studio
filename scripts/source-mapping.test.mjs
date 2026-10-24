@@ -177,6 +177,24 @@ describe('the envelope', () => {
     assert.equal(ext.parseSourceEnvelope({ ...report(), acquisition: unchanged }).ok, true);
   });
 
+  test('a sample: the page\'s ask and read, and the agent\'s post under its claim', () => {
+    assert.deepEqual(ext.parseSourceEnvelope({ v: 1, op: 'sample', sourceId: 'e1' }).envelope, { v: 1, op: 'sample', sourceId: 'e1', asked: null });
+    assert.equal(ext.parseSourceEnvelope({ v: 1, op: 'sample', sourceId: 'e1', asked: '2026-10-24T12:00:00.000Z' }).envelope.asked, '2026-10-24T12:00:00.000Z');
+    const posted = ext.parseSourceEnvelope({ v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'agent:abc', sample: { a: [1] } });
+    assert.deepEqual(posted.envelope, { v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'agent:abc', sample: { a: [1] } });
+    for (const body of [
+      { v: 1, op: 'sample', sourceId: 'e1', asked: 'yesterday' },
+      { v: 1, op: 'sample', sourceId: 'e1', asked: 7 },
+      { v: 1, op: 'sample', sourceId: 'e1', sample: { a: 1 } },
+      { v: 1, op: 'sample', sourceId: 'e1', claim: 'agent:abc', sample: { a: 1 } },
+      { v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'agent:abc' },
+      { v: 1, op: 'sample', sourceId: 'e1', configRevision: 2, claim: 'tick:abc', sample: {} },
+      { v: 1, op: 'sample', sourceId: 'e1.sample' },
+    ]) {
+      assert.equal(ext.parseSourceEnvelope(body).ok, false, JSON.stringify(body));
+    }
+  });
+
   test('a later version is refused as unsupported, never guessed at', () => {
     const later = ext.parseSourceEnvelope({ ...report(), v: 2 });
     assert.deepEqual([later.ok, later.unsupported], [false, true]);
@@ -601,8 +619,41 @@ describe('a recipe beside the identity projection, and no other path', () => {
     const { registration } = read;
     const out = mapping.projectSource({ sourceId: 'e1', payload: results(), bindings: ticker, fieldsOf: () => null, lists: registration.lists, mapping: registration.mapping, configRevision: registration.configRevision });
     assert.equal(written(out), 'KOK\t225000\nSDP\t215000\nPS\t215000\nKESK\t0');
-    const route = readFileSync(new URL('../api/data/[...path].ts', import.meta.url), 'utf8');
-    assert.match(route, /mapping: registration\?\.mapping/);
+    // That the route itself hands it over is behavioural: scripts/connector-sample.test.mjs drives
+    // the real route against a stand-in database and reads what it would write.
+  });
+});
+
+// Row 28's check found these correct and untested; each is pinned here.
+describe('a recipe\'s refusals below the list level, and payloads at the edge of a value', () => {
+  test('an extra key inside a filter, a sort, a column or a value is refused', () => {
+    for (const over of [{ where: { path: 'region', equals: 'Uusimaa', or: { path: 'x', equals: 1 } } }, { sort: { by: 'votes', order: 'asc', then: { by: 'seats' } } }, { columns: [{ from: 'votes', expr: 'votes*2' }] }]) {
+      assert.equal(mapping.readSourceRecipe(recipe(list(over)), 'e1', 2).status, 'invalid', JSON.stringify(over));
+    }
+    assert.equal(mapping.readSourceRecipe(recipe({ v: { from: 'v', format: { kind: 'number', locale: 'en-GB', decimals: 0, style: 'percent' } } }), 'e1', 2).status, 'invalid');
+    assert.equal(mapping.readSourceRecipe(recipe({ v: { from: 'v', expr: 'v+1' } }), 'e1', 2).status, 'invalid');
+  });
+
+  test('a payload number past the double range is not a number, formatted or not', () => {
+    const payload = JSON.parse('{"v": 1e400}');
+    assert.equal(payload.v, Infinity);
+    const one = (format) => mapped(payload, { B: { f0: 'external.e1.out' } }, recipe({ out: { from: 'v', ...(format ? { format } : {}) } }));
+    assert.match(one({ kind: 'number', locale: 'en-GB', decimals: 0 }).problems.out, /not a number/);
+    assert.match(one(null).problems.out, /not text, a number or true\/false/);
+    assert.deepEqual(one(null).writes, {});
+  });
+
+  test('a zone offset whose minutes do not exist is held', () => {
+    const date = { kind: 'date', locale: 'en-GB', timeZone: 'UTC', show: 'time' };
+    const at = (value) => mapped({ value }, { B: { f0: 'external.e1.out' } }, recipe({ out: { from: 'value', format: date } }));
+    assert.match(at('2026-10-24T18:30+01:75').problems.out, /not a time with its zone/);
+    assert.deepEqual(at('2026-10-24T18:30+01:59').writes, { 'external.e1.out': '16:31' });
+  });
+
+  test('a locale with a Unicode extension is refused, never formatted in another numbering', () => {
+    const fmt = (locale) => recipe({ v: { from: 'v', format: { kind: 'number', locale, decimals: 0 } } });
+    assert.equal(mapping.readSourceRecipe(fmt('en-US-u-nu-arab'), 'e1', 2).status, 'invalid');
+    assert.equal(mapping.readSourceRecipe(fmt('en-US'), 'e1', 2).status, 'ok');
   });
 });
 
