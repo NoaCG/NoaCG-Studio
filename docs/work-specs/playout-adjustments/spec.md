@@ -1,7 +1,8 @@
 # Playout adjustments: move, size, retype and recolour graphics from the playout page
 
-Status: **draft for the owner, 2026-10-24; decisions 1 (the first delivery's scope) and 2 (a
-reversible production look) taken the same day, decision 3 open.** Research only: no product change, no run row, no ledger
+Status: **draft for the owner, 2026-10-24; the three open decisions (the first delivery's
+scope, a reversible production look, the Google-font fix as its own change) were taken the same
+day; agreement on the design as a whole is not yet given.** Research only: no product change, no run row, no ledger
 edit. Reconciled against main `ad3c7238b`. Where this document says "verified", the code
 or an isolated experiment was read or run on that revision; "inferred" is a reading not yet
 exercised; "untested" is a claim nobody has checked. Private competitor notes with URLs:
@@ -637,11 +638,14 @@ case in S. Scenario: `evidence/trial-kit.md` and the S receipt.
    graphic that keeps its own look is an exception record; Publish's refresh of the copies from
    the library stays honest. Exports bake the effective result into the files they write, which
    is a copy leaving the product, not the production's copy.
+3. **The Google-font subset defect is fixed now, as its own small change, outside this spec.**
+   It is verified, contained and the likely cause of the reported mismatches; it lands through
+   the ordinary merge flow and phase 0 keeps only the remaining prevention items.
 
-## Open decisions for the owner (one at a time, recommendation first)
+## Open decisions for the owner
 
-3. **The Google-font subset defect is fixed now, as its own small change,** outside this spec.
-   Recommended; it is verified, contained and likely the cause of the reported mismatches.
+None open. The three questions of 2026-10-24 are answered above. What waits is agreement on the
+design as a whole and the coordinator's admission of the proposed rows.
 
 ## Evidence
 
