@@ -22,8 +22,8 @@
 //     decisions the master took on the owner's behalf, one `DECIDED:` line each
 //     (`.agent-workflows/orchestrator/report.md` item 10; older plans wrote "taken on the owner's
 //     behalf", counted as legacy).
-//   - the GitHub issues opened in the window (`gh issue list`), and how many carry `owner ask` or
-//     `needs owner` - what the backlog took in, and what waits on the owner.
+//   - the GitHub issues opened in the window (`gh issue list`), and how many carry `requested` or
+//     `needs decision` - what the backlog took in, and what waits on the owner.
 //   - `landed.jsonl` beside the job store: branches the queue landed in the window.
 //   - `git log` over the paths that ARE the orchestration system, and the common-path line count
 //     now against the same count at the window's start (the gate's own arithmetic).
@@ -250,7 +250,7 @@ export function summarise(facts) {
     lines.push('- Issues opened: unknown - `gh issue list` did not answer.');
   } else {
     const labelled = (name) => issues.filter((issue) => issue.labels.includes(name)).length;
-    lines.push(`- Issues opened: ${issues.length}; owner ask ${labelled('owner ask')}, needs owner ${labelled('needs owner')}.`);
+    lines.push(`- Issues opened: ${issues.length}; requested ${labelled('requested')}, needs decision ${labelled('needs decision')}.`);
   }
   lines.push('- The decision count is a proxy: a marker. The questionnaire in each morning report is where the decisions themselves are read.', '');
 

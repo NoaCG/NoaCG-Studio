@@ -1,8 +1,8 @@
 # Backlog
 
 The backlog is [GitHub Issues](https://github.com/NoaCG/NoaCG-Studio/issues). Each issue has a
-priority label (`P1`, `P2`, `P3`) and an area label. `owner ask` marks something the owner asked
-for, `needs owner` a step only he can take, and `later` an idea nobody plans yet. Work is picked by
+priority label (`P1`, `P2`, `P3`) and an area label. `requested` marks a requested feature or
+change, `needs decision` a product decision or an account step still open, and `later` an idea nobody plans yet. Work is picked by
 priority, then by `docs/GOALS.md` rank.
 
 Genuine unfinished work or a worthwhile follow-up becomes an issue with a priority, an area and
