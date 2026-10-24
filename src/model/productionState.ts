@@ -24,22 +24,22 @@ export const PRODUCTION_DATA_KEY = KEY;
 
 type Store = Record<string, JsonObject>;
 
-function readStore(): Store {
+function readStore<T = Store>(key = KEY): T {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return {};
+    const raw = localStorage.getItem(key);
+    if (!raw) return {} as T;
     const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Store) : {};
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}) as T;
   } catch {
     // A corrupted or unreadable key is an empty tree, never a crash on the way into a
     // production page: the seed can always restore it (`Reset`).
-    return {};
+    return {} as T;
   }
 }
 
-function writeStore(store: Store): void {
+function writeStore(store: object, key = KEY): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(store));
+    localStorage.setItem(key, JSON.stringify(store));
   } catch {
     // Quota or a private-mode refusal. The in-memory tree keeps working for this session; the
     // alternative - throwing into the operator's edit - would be worse on air.
@@ -72,27 +72,15 @@ export function clearLiveData(showId: string): void {
 // selector rather than the cue's current one. Never synced; its own key and its own `v` inside.
 const SELECTION_AIR_KEY = 'spx-gfx-selection-air';
 
-function readSelectionStore(): Record<string, string> {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(SELECTION_AIR_KEY) ?? '{}');
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
 /** This production's aired live candidates as kept (selectionAir `writeSelectionAir`), or null. */
 export function loadSelectionAir(showId: string): string | null {
-  const value = readSelectionStore()[showId];
+  const value = readStore<Record<string, string>>(SELECTION_AIR_KEY)[showId];
   return typeof value === 'string' ? value : null;
 }
 
 export function saveSelectionAir(showId: string, kept: string): void {
-  const store = readSelectionStore();
+  const store = readStore<Record<string, string>>(SELECTION_AIR_KEY);
   store[showId] = kept;
-  try {
-    localStorage.setItem(SELECTION_AIR_KEY, JSON.stringify(store));
-  } catch {
-    // Quota: the page keeps following in memory; only a reload loses it.
-  }
+  // Quota: the page keeps following in memory; only a reload loses it.
+  writeStore(store, SELECTION_AIR_KEY);
 }

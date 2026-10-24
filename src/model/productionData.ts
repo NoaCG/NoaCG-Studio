@@ -765,36 +765,36 @@ export interface CueSelection {
 
 const laterThan = (v: unknown, current: number) => typeof v === 'number' && v > current;
 
+/** The recipe a cue's selection names, as stored (unread), or undefined. */
+function recipeOf(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): { v?: unknown; graphic?: unknown; fields?: unknown } | undefined {
+  const name = (cue.selection as { recipe?: unknown } | null | undefined)?.recipe;
+  return (collections ?? []).find((r) => (r as { id?: unknown } | null)?.id === name) as { v?: unknown } | undefined;
+}
+
+/** A stored recipe's mapped field ids, whatever its state. */
+const fieldKeys = (recipe: { fields?: unknown } | null | undefined): string[] =>
+  recipe && typeof recipe.fields === 'object' && recipe.fields !== null ? Object.keys(recipe.fields) : [];
+
 /**
  * Whether a cue's selection is one this build cannot read: the selector or the recipe it names is
  * of a later version. Such a cue is read-only: no Take, Update or edit, and every byte kept. Only
  * a later version: a malformed one is refused by the reader instead, its bytes kept all the same.
  */
 export function selectionReadOnly(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): boolean {
-  const selection = cue.selection as { v?: unknown; recipe?: unknown } | undefined;
-  if (selection === undefined) return false;
-  if (laterThan(selection?.v, SELECTION_VERSION)) return true;
-  const recipe = (collections ?? []).find((r) => (r as { id?: unknown } | null)?.id === selection?.recipe) as { v?: unknown } | undefined;
-  return laterThan(recipe?.v, SELECTION_VERSION);
+  if (cue.selection === undefined) return false;
+  return laterThan((cue.selection as { v?: unknown } | null)?.v, SELECTION_VERSION) || laterThan(recipeOf(cue, collections)?.v, SELECTION_VERSION);
 }
 
 /** The fields a cue's selection shows (its recipe's field map), whatever their state. */
 export function selectedFields(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): string[] {
-  const selection = cue.selection as { recipe?: unknown } | undefined;
-  if (selection === undefined) return [];
-  const recipe = (collections ?? []).find((r) => (r as { id?: unknown } | null)?.id === selection?.recipe) as { fields?: unknown } | undefined;
-  return recipe && typeof recipe.fields === 'object' && recipe.fields !== null ? Object.keys(recipe.fields) : [];
+  return cue.selection === undefined ? [] : fieldKeys(recipeOf(cue, collections));
 }
 
 /** Every field some collection recipe maps, per graphic: none of them may also follow a shared
  *  binding, or a shared value would overwrite the cue's own candidate. */
 export function collectionFields(collections: readonly unknown[] | undefined, graphic: string): Set<string> {
-  const out = new Set<string>();
-  for (const r of collections ?? []) {
-    const recipe = r as { graphic?: unknown; fields?: unknown } | null;
-    if (recipe?.graphic === graphic && typeof recipe.fields === 'object' && recipe.fields !== null) for (const k of Object.keys(recipe.fields)) out.add(k);
-  }
-  return out;
+  const mine = (collections ?? []).filter((r) => (r as { graphic?: unknown } | null)?.graphic === graphic);
+  return new Set(mine.flatMap((r) => fieldKeys(r as { fields?: unknown })));
 }
 
 /** The parts of a production record the selection gate reads. */

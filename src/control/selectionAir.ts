@@ -70,6 +70,9 @@ export interface SelectionFacts {
   bindings: Record<string, Record<string, string>> | undefined;
   tree: unknown;
   fieldsOf: (graphic: string) => FieldDescriptor[] | null;
+  /** False while a published tree is still unread: the tree held then may be older than the
+   *  server's, so nothing is taken, updated or judged from it. Absent: readable. */
+  readable?: boolean;
 }
 
 /** Resolve one selector on one graphic, with its gate. */
@@ -90,8 +93,9 @@ function resolveOn(selection: unknown, graphic: string, facts: SelectionFacts): 
 export function selectionTake(cue: { selection?: unknown }, graphic: string | null, facts: SelectionFacts): SelectionTake {
   if (cue.selection === undefined) return { status: 'none' };
   if (!graphic) return { status: 'refused', reason: 'This cue’s graphic is gone.' };
-  const take = resolveOn(cue.selection, graphic, facts);
-  return take.status === 'ok' ? take : take.status === 'refused' ? { status: 'refused', reason: take.reason } : { status: 'none' };
+  if (facts.readable === false) return { status: 'refused', reason: 'This production’s shared values are still loading.' };
+  const { hold: _hold, ...take } = resolveOn(cue.selection, graphic, facts);
+  return take;
 }
 
 /** The layer now airs this cue's resolved selection, pending until its send is answered. */
@@ -246,17 +250,16 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
 
 /**
  * One pass of following, run whenever the tree, the rundown or what is live moves: forget what is
- * no longer aired, then, once the tree is one this page may judge (`readable`: a published tree
- * read at least once), send each newer revision through `send` and hold a correction whose send
+ * no longer aired, then, once the tree is one this page may judge (`facts.readable`), send each newer revision through `send` and hold a correction whose send
  * failed (`send` answers null). Before that, nothing is judged, so no false hold is shown.
  */
 export function followAired(
   io: SelectionAirIo,
-  o: { liveCue: LiveCueMap; seeded: boolean; readable: boolean; facts: SelectionFacts; send: (graphic: string, values: Record<string, string>) => Promise<unknown> },
+  o: { liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; send: (graphic: string, values: Record<string, string>) => Promise<unknown> },
 ): void {
   const before = io.part.get();
   const reconciled = reconcileSelection(before, o.liveCue, o.seeded);
-  const { air, sends } = o.readable ? followSelection(reconciled, o.liveCue, o.facts, io.now()) : { air: reconciled, sends: [] };
+  const { air, sends } = o.facts.readable !== false ? followSelection(reconciled, o.liveCue, o.facts, io.now()) : { air: reconciled, sends: [] };
   if (air !== before) io.keep(air);
   for (const one of sends) {
     void o.send(one.graphic, one.values).then((sent) => {

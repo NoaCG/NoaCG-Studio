@@ -618,19 +618,20 @@ export function selectionGate(
   return { status: 'ok', selection: raw as unknown as CueSelection, recipe, entity: entityOf(key as (string | number)[]) };
 }
 
-/** The last collection read from text, so every card resolved from one tree parses it once. */
-let lastText: { text: string; value: unknown } | null = null;
+/** The last few collections read from text, so every card resolved from one tree parses each once. */
+const parsedTexts = new Map<string, unknown>();
 function parsedText(text: string): unknown {
-  if (lastText?.text !== text) {
+  if (!parsedTexts.has(text)) {
     let value: unknown;
     try {
       value = JSON.parse(text);
     } catch {
       value = undefined;
     }
-    lastText = { text, value };
+    if (parsedTexts.size >= 4) parsedTexts.delete(parsedTexts.keys().next().value as string);
+    parsedTexts.set(text, value);
   }
-  return lastText.value;
+  return parsedTexts.get(text);
 }
 
 export type SelectionResolve =
