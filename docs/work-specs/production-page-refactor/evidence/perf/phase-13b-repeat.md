@@ -10,7 +10,7 @@ As the baselines: the owner's Windows 10 laptop, the app at `a56e14119` built wi
 served by `npm run dev:worktree -- --preview`, the local Supabase stack at this revision's
 migrations (to 0100) with a throwaway user, the bench's own "Lag Bench" fixture (3 graphics,
 6 cues) seeded unpublished and published, `--measure --rounds 12 --headless` once each. Free
-memory was 3.6 to 3.9 GB. Files: `phase-13b-a56e141-{local,published}-repeat.json`, and
+memory was 3.6 to 4.1 GB. Files: `phase-13b-a56e141-{local,published}-repeat.json`, and
 `phase-13b-a56e141-published-repeat-24.json` for the rerun below.
 
 A first local run was discarded: the seed's dev server had outlived its launcher, so the
@@ -27,7 +27,7 @@ On the 12-round runs every gesture is within the rule except one: the published 
 round trip, median 61.2 ms against 52.8 ms (limit +15%, 60.7 ms). As §7 says, it was repeated with
 `--rounds 24` before judging. The rerun gives 53.8 ms (+1.9%), and every other gesture of the rerun
 is within the rule too, so there is no regression to attribute. The RPC is answered by the local
-database, which this phase did not change; the 12-round reading was noise. `wsRow` stays empty on
+database (no migration changed since phase 11), and the longer run did not confirm the 12-round reading. `wsRow` stays empty on
 the local stack, as in the baselines.
 
 Times are milliseconds from the verb's click; `rpc` is `rpcSent` to `rpcDone`; "first" is

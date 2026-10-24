@@ -10,7 +10,7 @@ As [the phase 13b repeat](phase-13b-repeat.md): the app at `dda88db51` built wit
 served by `npm run dev:worktree -- --preview`, the same local Supabase stack (no migration, `api` or
 `src/output` change between the two merges), a fresh throwaway-user seed of the "Lag Bench"
 fixture unpublished and published, `--measure --rounds 12 --headless` once each. Free memory was
-3.6 GB. Files: `phase-14-dda88db-{local,published}-repeat.json`.
+3.5 to 3.8 GB. Files: `phase-14-dda88db-{local,published}-repeat.json`.
 
 ## Result
 
