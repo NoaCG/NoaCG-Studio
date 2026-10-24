@@ -152,6 +152,9 @@ export function undoSelection(air: SelectionAir, graphic: string, inst: AiredSel
 export function settleSelection(air: SelectionAir, graphic: string, advanced: AiredSelection, landed: boolean, now: number): SelectionAir {
   const inst = air[graphic];
   if (!inst || inst.cueId !== advanced.cueId || inst.entity !== advanced.entity) return air;
+  // A press is out over it: that press's own answer settles the layer (its landing, or its undo
+  // back to what last landed, which the follow then sends again), so it is left as it is.
+  if (inst.pending) return air;
   if (landed) {
     if (advanced.revision <= inst.confirmed.revision) return air;
     const confirmed = { revision: advanced.revision, values: advanced.values, at: advanced.at };

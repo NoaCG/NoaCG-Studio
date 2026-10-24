@@ -690,6 +690,33 @@ describe('the page\'s two doors onto the instances', () => {
     assert.deepEqual([moved.entity, moved.values.f0], [other.part.get().Card.entity, other.part.get().Card.values.f0], 'another person: no earlier values of someone else come back');
   });
 
+  test('a correction answering while an Update of the same candidate is out leaves the press to settle the layer', async () => {
+    for (const outcome of ['landed', 'undo']) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      let answer;
+      const sends = [];
+      const send = (graphic, values) => {
+        sends.push(values.f1);
+        return sends.length === 1 ? new Promise((r) => (answer = r)) : new Promise(() => {});
+      };
+      air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(6, people6())), send });
+      const update = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(7, [person('D1', 7, 'Aino Aalto', 1600)])));
+      answer({ skipped: [], superseded: [], pressedAgain: [] });
+      await new Promise((r) => setImmediate(r));
+      assert.equal(p.part.get().Card.pending, true, `${outcome}: the Update is still out`);
+      update[outcome]();
+      const card = p.part.get().Card;
+      assert.equal(card.pending, undefined, `${outcome}: its answer ends pending`);
+      if (outcome === 'landed') assert.deepEqual([card.revision, card.confirmed.revision], [7, 7]);
+      else {
+        assert.equal(card.revision, card.confirmed.revision, 'undone: back to what last landed');
+        air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), send });
+        assert.equal(sends.at(-1), '1600', 'and the newest revision is followed again');
+      }
+    }
+  });
+
   test('a disposed page writes no selection: a late answer cannot overwrite what a reopened page captured', async () => {
     let alive = true;
     const p = { ...io(), alive: () => alive };
