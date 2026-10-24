@@ -549,7 +549,10 @@ function CueConnectReview({
           ))}
           <table className="hint" data-testid="cue-connect-map">
             <tbody>
-              {mapping.map((row) => (
+              {mapping.map((row) => {
+                // A list field reading one of the sample's lists picks its columns on a line of its own.
+                const list = offers && adapters[row.fieldId] ? offers.collections.find((c) => c.path === chosen(row)) : undefined;
+                return [
                 <tr key={row.fieldId} data-testid={`cue-connect-row-${row.fieldId}`} data-status={row.status}>
                   <td>{row.fieldId.toUpperCase()} · {row.label}</td>
                   <td>
@@ -575,14 +578,6 @@ function CueConnectReview({
                     )}
                   </td>
                   <td className="muted">
-                    {offers && adapters[row.fieldId] && offers.collections.some((c) => c.path === chosen(row)) && (
-                      <ConnectorColumns
-                        fieldId={row.fieldId}
-                        collection={offers.collections.find((c) => c.path === chosen(row))!}
-                        picked={columns[row.fieldId] ?? defaultColumns(offers.collections.find((c) => c.path === chosen(row))!, adapters[row.fieldId])}
-                        onPick={(next) => setColumns((c) => ({ ...c, [row.fieldId]: next }))}
-                      />
-                    )}
                     {repairs.has(row.fieldId) && chosen(row) === row.current ? (
                       <span className="status-warn" data-testid={`cue-connect-repair-${row.fieldId}`}>not in the sample: pick another</span>
                     ) : projection && chosen(row) !== null && projection.problems[leafOf(chosen(row)!)] ? (
@@ -599,8 +594,22 @@ function CueConnectReview({
                             ? 'no match'
                             : ''}
                   </td>
-                </tr>
-              ))}
+                </tr>,
+                list && (
+                  <tr key={`${row.fieldId}-columns`}>
+                    <td />
+                    <td colSpan={2}>
+                      <ConnectorColumns
+                        fieldId={row.fieldId}
+                        collection={list}
+                        picked={columns[row.fieldId] ?? defaultColumns(list, adapters[row.fieldId])}
+                        onPick={(next) => setColumns((c) => ({ ...c, [row.fieldId]: next }))}
+                      />
+                    </td>
+                  </tr>
+                ),
+                ];
+              })}
             </tbody>
           </table>
           <p className="hint" data-testid="cue-connect-summary">
@@ -682,7 +691,7 @@ function ConnectorColumns({
             </option>
           ))}
         </select>
-      ))}{' '}
+      ))}
     </span>
   );
 }

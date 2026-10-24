@@ -303,3 +303,31 @@ test('save, reload and reconnect keep the recipe; a changed schema asks for repa
 });
 
 const preview = (page: Page) => page.frameLocator('iframe[title="Cue preview"]');
+
+test('a ticker reads the sample\'s list: the record key kept, a column picked by its key, the list registered', async ({ page }) => {
+  test.setTimeout(90_000);
+  await stubSample(page, GUESTS('Aino Virtanen', 'Mayor of Espoo'));
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Panel Night');
+  // The connector exists (Hairline reads it); the ticker reuses it.
+  let review = await readAddress(page);
+  await review.getByTestId('cue-connect-label').fill('Guests');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  await addCatalogGraphic(page, showId, 'Index Strip');
+  await page.getByTestId('cue-list').locator('.pd-cue').nth(1).locator('.pd-cue-label').click();
+  review = await reuseConnector(page);
+  const id = (await stored(page, showId)).sources[0].id;
+  // The one list in the sample is the list field's candidate, read by its first key after the id.
+  await expect(review.getByTestId('cue-connect-pick-f0')).toHaveValue(`external.${id}.panel`);
+  await expect(review.getByTestId('cue-connect-column-f0-0')).toHaveValue('name');
+  await expect(preview(page).locator('#f0')).toHaveText('Aino\nEero');
+  await review.getByTestId('cue-connect-column-f0-0').selectOption('seat');
+  await expect(preview(page).locator('#f0')).toHaveText('1\n2');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const { sources, bindings } = await stored(page, showId);
+  expect(bindings['Index Strip']).toEqual({ f0: `external.${id}.panel` });
+  expect(sources[0].config.lists).toEqual({ panel: 'lines' });
+  expect((sources[0].config.mapping as { outputs: Record<string, unknown> }).outputs.panel).toEqual({ from: 'panel', id: 'id', columns: [{ from: 'seat' }] });
+});
