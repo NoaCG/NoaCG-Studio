@@ -642,6 +642,36 @@ describe('the page\'s two doors onto the instances', () => {
     assert.deepEqual([sends, p.part.get().Card.revision], [['1500', '1500'], 6], 'and revision 6 goes again');
   });
 
+  test('restoring a displaced correction keeps a newer revision observed since: an older one read out of order is still rejected', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const live = { Card: 'cue-a' };
+    const sends = [];
+    const send = (graphic, values) => {
+      sends.push(values.f1);
+      return new Promise(() => {});
+    };
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(9, BASE.slice(1))), send });
+    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.seen, p.part.get().Card.held?.revision], [6, 9, 9]);
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7), 9)).undo();
+    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.seen], [5, 9], 'back to what landed, the bound revision 9 set kept');
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(8, people6())), send });
+    assert.deepEqual(sends, ['1500'], 'revision 8 is older than what said Aino is gone');
+    assert.equal(p.part.get().Card.held?.revision, 9);
+  });
+
+  test('a correction still out when the page went away is followed again after a reload', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(6, people6())), send: () => new Promise(() => {}) });
+    assert.equal(p.part.get().Card.revision, 6, 'out, not answered');
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()));
+    assert.deepEqual([restored.Card.revision, restored.Card.confirmed.revision, restored.Card.values.f1], [5, 5, '1200']);
+    const again = air.followSelection(restored, { Card: 'cue-a' }, facts(collection(6, people6())), 9000);
+    assert.deepEqual(again.sends.map((x) => x.values.f1), ['1500'], 'revision 6 goes again');
+  });
+
   test('a disposed page writes no selection: a late answer cannot overwrite what a reopened page captured', async () => {
     let alive = true;
     const p = { ...io(), alive: () => alive };

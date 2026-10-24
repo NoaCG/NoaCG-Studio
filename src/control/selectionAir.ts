@@ -110,6 +110,19 @@ export function captureSelection(air: SelectionAir, graphic: string, cueId: stri
   return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, seen: take.revision, values: take.values, at: now, confirmed, pending: true } };
 }
 
+/**
+ * An instance whose correction was never settled (its revision ahead of what last landed: the
+ * answer found another cue on the layer, or the page went away first) brought back as what last
+ * landed, so the follow sends that correction again. A newer revision observed since (a hold it
+ * set) keeps its bound, so an older revision read out of order is still rejected.
+ */
+export function unsettledBack(inst: AiredSelection): AiredSelection {
+  const { confirmed } = inst;
+  if (inst.revision === confirmed.revision) return inst;
+  const seen = inst.seen > inst.revision ? inst.seen : confirmed.revision;
+  return { ...inst, revision: confirmed.revision, values: confirmed.values, at: confirmed.at, seen };
+}
+
 /** The send that captured `inst` was answered: it is followed and judged like any other now. */
 export function landedSelection(air: SelectionAir, graphic: string, inst: AiredSelection): SelectionAir {
   if (air[graphic] !== inst) return air;
@@ -260,7 +273,8 @@ export function readSelectionAir(raw: string | null): SelectionAir {
       const { pending: _pending, ...kept } = inst as AiredSelection;
       const confirmed = kept.confirmed && Number.isInteger(kept.confirmed.revision) ? kept.confirmed : { revision: kept.revision, values: kept.values, at: kept.at };
       const seen = Number.isInteger(kept.seen) ? kept.seen : kept.revision;
-      out[graphic] = { ...kept, confirmed, seen };
+      // A correction still out when the page went away may never have landed: follow it again.
+      out[graphic] = unsettledBack({ ...kept, confirmed, seen });
     }
   }
   return out;
@@ -315,11 +329,8 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
       while (back && failed.has(back)) back = replaced.get(back);
       if (back?.pending && answered.has(back)) back = (({ pending: _pending, ...rest }) => rest)(back);
       // A correction still out when this press displaced it was never settled (its answer found
-      // another cue on the layer): back goes to what last landed, so the follow sends it again.
-      if (back && back.revision !== back.confirmed.revision) {
-        const { confirmed } = back;
-        back = { ...back, revision: confirmed.revision, values: confirmed.values, at: confirmed.at, seen: confirmed.revision };
-      }
+      // another cue on the layer).
+      if (back) back = unsettledBack(back);
       put(io, undoSelection(io.part.get(), graphic, inst, back));
       // A revision passed over while this press was pending is followed now, as after a landing.
       io.followNow?.();
