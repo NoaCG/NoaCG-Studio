@@ -349,6 +349,8 @@ begin
   -- graphic with everything held since the Pause, so that row, this revision included, is what
   -- must fit (0100's Resume: the pending tree's diff against air, the held /update values over it).
   if v_paused then
+    -- The apply drops every held /update field this patch names (0100), so those are not in the row.
+    v_held := public.production_data_held_without(v_held, public.production_data_addressed(v_patch, v_bindings));
     v_changes := public.production_data_changes(public.jsonb_merge_patch(coalesce(v_pending_tree, v_data), v_patch), v_data, v_bindings);
     select coalesce(jsonb_object_agg(k.graphic, coalesce(v_changes->k.graphic, '{}'::jsonb) || coalesce(v_held->k.graphic, '{}'::jsonb)), '{}'::jsonb)
       into v_changes
@@ -591,6 +593,12 @@ begin
     -- Paused, every revision joins one Resume row per graphic: that row must fit. Two 40 KB values
     -- for two fields of one graphic fit one by one and not together.
     perform public.control_data_pause_by_slug(v_slug, true);
+    -- A short held /update for the same field must not mask an oversized value: the apply drops it.
+    if public.control_data_send(v_key, 'Board', '{"f0":"x"}'::jsonb) is not null
+       or public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3,"providerSequence":51}',
+            jsonb_build_object('external.e1.count', repeat('c', 70000)))->>'refused' is distinct from 'row_too_large' then
+      raise exception '0101 self-check failed: a held /update masked an oversized paused value';
+    end if;
     v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3,"providerSequence":51}',
                                                jsonb_build_object('external.e1.count', repeat('a', 40000)));
     if (v_a->>'ok')::boolean is not true or (v_a->>'paused')::boolean is not true then
