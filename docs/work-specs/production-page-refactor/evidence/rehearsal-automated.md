@@ -126,8 +126,8 @@ report cannot read as complete without them.
 | --- | --- | --- |
 | Baselines 1 and 2 | phase 1, `0ca774269` | measured; they agree within §7 (`perf/phase-1-baselines.md`) |
 | Repeat after phase 11 | `08389cfc1` | measured; every gesture within §7 (`perf/phase-11-repeat.md`) |
-| Repeat after phase 13b | `a56e141` | **not measured** |
-| Final repeat | this phase's merge SHA | **not measured** |
+| Repeat after phase 13b | `a56e141` | measured; every gesture within §7 after the 24-round rerun §7 prescribes for the published Take RPC (`perf/phase-13b-repeat.md`) |
+| Final repeat | this phase's merge, `dda88db51` | measured; every gesture within §7 (`perf/phase-14-final-repeat.md`) |
 
 The render targets (the part of AC-9 that gates) are Actions' and are in the table above.
 
