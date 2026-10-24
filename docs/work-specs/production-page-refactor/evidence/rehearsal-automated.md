@@ -8,11 +8,11 @@ by the phase 14 builder on 2026-10-24 from a Claude cloud session, on branch
 
 ## The completed candidate
 
-- **Source state:** `dac20da` (on main `7bb3e64`, after phase 13b landed as #1648 at `a56e141`).
+- **Source state:** `5e83e44` (on main `7bb3e64`, after phase 13b landed as #1648 at `a56e141`).
   Every refactor phase of spec.md "Phases" is on main: 1, 2+7, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13a,
   13b. This branch adds only the close-out (covers headers, comment lines in five `src/control/`
   modules, the compiled rule, the docs); no behaviour changes.
-- **Runs on it:** the table under "Runs" at the end. A commit after `dac20da` that touches only
+- **Runs on it:** the table under "Runs" at the end. A commit after `5e83e44` that touches only
   this evidence folder leaves these results valid (spec.md §6, "Evidence-only commit"); the
   merge commit that lands this file carries the tested tree unchanged apart from it.
 
@@ -43,12 +43,12 @@ only comment lines and the two `AGENTS.md` files):
 
 Nothing under `src/audience/`, `src/model/`, `src/output/`, `api/` or `supabase/` changed, nor
 `src/control/sheetSource.ts`, `feedSource.ts`, `anotherSystem.ts`, `contentFormats.ts`,
-`liveData.ts` or `messageStaging.ts` (`git diff --name-only 44bfa89 dac20da` over those paths is
+`liveData.ts` or `messageStaging.ts` (`git diff --name-only 44bfa89 5e83e44` over those paths is
 empty). So:
 
 - **Every page journey is affected** (the page and everything it sends through moved), and every
   journey C7 cited was run again on this candidate (below). The C7 journey specs themselves
-  changed only by `// covers:` lines since C7 (`git diff 44bfa89 dac20da` over
+  changed only by `// covers:` lines since C7 (`git diff 44bfa89 5e83e44` over
   `production-data`, `production-audience`, `production-controls`, `playout-folders` and
   `configured/audience-live` shows no other line), so the same assertions ran.
 - **Reader-level evidence is reusable**, because its material inputs are unchanged: the Node
