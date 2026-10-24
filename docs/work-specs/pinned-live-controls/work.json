@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "2c9d7cf519179e68db756336adc3e657ab844b785becde7b16a4b670467d1ce1",
+  "specSha256": "575a1f4bc3aec9d5dd187016b24bef8808a7ccf1e89e6e3fce0ef4657cce41fe",
   "authority": {
     "status": "draft",
-    "source": "Owner, 2026-10-24: research and a draft spec for running several graphics from one screen, to agree before it joins the production-page run's queue. The nine design questions were answered the same day (spec, 'Owner decisions'); the whole spec, its row and its placement wait for his agreement. No implementation, run row or ledger edit is authorized by this record."
+    "source": "Owner, 2026-10-24: research and a draft spec for running several graphics from one screen, to agree before it joins the production-page run's queue. The eleven design questions were answered the same day (spec, 'Owner decisions'); the whole spec, its row and its placement wait for his agreement. No implementation, run row or ledger edit is authorized by this record."
   },
   "review": null
 }

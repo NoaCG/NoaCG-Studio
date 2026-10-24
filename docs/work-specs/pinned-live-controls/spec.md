@@ -78,6 +78,11 @@ a production that pins nothing.
    and E6.2's presets offer the pinned graphics' live controls.
 8. **Placement**: one new row after E7.2b and before E1.1 (proposal below).
 9. **Shortcuts for live controls are a non-goal** of this spec.
+10. **The word is "Pin live controls"** / "Unpin live controls" in the row menu, a pin glyph on
+    the block head: ARRANGE already says "pinned" for a control lifted to the top of its block, so
+    one word covers both.
+11. **Pinning is authored on the production page only**, as ARRANGE is; the hosted page and the
+    export read the published profile.
 
 Standing owner requirements this spec inherits: controls are two kinds, prep and live, and live
 controls act at once with no Update press; for quiz graphics the competitor's pick is a live
@@ -231,11 +236,7 @@ last look and says "unresolved", which is what AC-6 and E6's stale refusals alre
 - **D2. Pinned blocks come first**, in pin order, then the selected graphic's block. Stable
   positions for the stable controls; the block that changes with the selection changes last.
   Revert: selected first.
-- **D3. The pin's words are "Pin live controls" / "Unpin live controls"** in the row menu and a
-  pin glyph on the block head. Revert: "Keep on screen".
-- **D4. Authoring stays on the production page**, as ARRANGE's does; the hosted page and the
-  export read the published profile. Revert: a pin toggle on the hosted page writing through the
-  publish path.
+- **D3 and D4** were the word and the authoring surface; both are owner decisions 10 and 11 now.
 - **D5. The pick group's cap is eight options**; above it the control stays a button reading the
   field. Revert: the number.
 - **D6. The phone draws the full stack** in its one scrolling column; no collapse. Revert: pinned
@@ -384,15 +385,9 @@ edited by this document.
 
 ## Open decisions for the owner
 
-The nine questions of 2026-10-24 are answered above. What remains is taste, each with a
-recommendation; D1 to D8 are implementation choices the owner may overturn later without
-reopening the design.
-
-1. **The word.** "Pin live controls" (recommended: it is ARRANGE's own word, and the glyph on the
-   block head says the same without text) or "Keep on screen".
-2. **Where pinning is authored.** The production page only, like ARRANGE (recommended), or also on
-   the hosted page.
-3. **Agree the whole**, so the row can be proposed to the coordinator: yes, or changes first.
+The eleven questions of 2026-10-24 are answered above; D1 to D8 are implementation choices the
+owner may overturn later without reopening the design. One decision remains: **agree the whole**,
+so the row can be proposed to the coordinator, or name the changes first.
 
 ## Evidence
 
