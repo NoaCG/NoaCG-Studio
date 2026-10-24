@@ -116,6 +116,19 @@ changes a spec's digest.
   candidate, a Take before the published tree's first read, and three faults in the configured
   walk (an out-of-order read that was not one, a wait on the server rather than the page, a check
   that hit the wrong refusal). All are fixed above and pinned.
+- **`/check`.** The review's ten candidates: seven fixed (± on a read-only cue's field, a kept
+  record reading `null`, a false hold judged from an unread published tree, the timed end's note
+  naming a candidate cue as gone, repeated parsing, the page rendering on every capture, the
+  capture and follow folds living in the page rather than `selectionAir.ts`), one doc comment
+  moved, two left (a source whose revision restarts lower is ignored rather than held: E4's
+  revisions continue and are never reused, so that is a provider fault the contract's "reject
+  older" covers; the overlapping helpers went to simplify). Simplify: one recipe lookup in
+  `productionData.ts`, one resolution per candidate cue per render read by the rundown, PREVIEW,
+  the editor and the Take refusals, the published-tree rule moved into `selectionAir.ts`
+  (`readable`), one arm lookup, the store helpers and `useNow` reused, identical writes skipped, a
+  small parse cache. Left as reports: a per-cue "fixed fields" set to replace the `boundOf` marker
+  in `unsentNow`, one shared read-only field row in the editor, a per-collection key index, and a
+  reference fast path in `selectionFrozen`.
 - **Traps for E7.2a and E7.2b.** *The page re-reads a published tree only when a row says it
   moved* (`sessionWire` on a `src` row): a revision that changes no bound field writes no row, so
   the page never hears it. The configured walk binds a count bug to `external.e1.status` for that
