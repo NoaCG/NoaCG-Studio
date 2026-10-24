@@ -384,15 +384,16 @@ async function source(req: Request): Promise<Response> {
       // The database judges the registration (an unusable one refuses the report with nothing
       // written); the evaluator only needs its lists. No in-process budget here: the database counts
       // this source's ROWS against the shared budget, and a refused report must not spend /patch's.
-      const registration = readExternalRegistration(context.entry);
+      const read = readExternalRegistration(context.entry);
+      const registration = read.ok ? read.registration : undefined;
       projection = projectSource({
         sourceId: envelope.sourceId,
         payload: acquisition.status === 'changed' ? acquisition.payload : context.payload,
         bindings: context.bindings,
         fieldsOf: (graphic) => (context.fields[graphic] ? descriptorsOf(context.fields[graphic]) : null),
-        lists: registration.ok ? registration.registration.lists : undefined,
-        mapping: registration.ok ? registration.registration.mapping : undefined,
-        configRevision: registration.ok ? registration.registration.configRevision : undefined,
+        lists: registration?.lists,
+        mapping: registration?.mapping,
+        configRevision: registration?.configRevision,
       });
     }
     const answer = await rpc<Record<string, unknown>>('control_source_report_by_key', {

@@ -18,8 +18,8 @@
 // scripts/source-mapping.test.mjs drives it.
 
 import { fillList, valueFor } from './contentFormats.js';
-import { atPath, isObject, type JsonValue, type SourceListAdapter } from './externalSource.js';
-import { sourcePaths, sourcePrefix, type RecipeFormat, type RecipeList, type RecipeValue, type SourceRecipe } from '../model/productionData.js';
+import { atPath, isObject, PATH, type JsonValue, type SourceListAdapter } from './externalSource.js';
+import { RECIPE_VERSION, sourcePaths, sourcePrefix, type RecipeFormat, type RecipeList, type RecipeValue, type SourceRecipe } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /**
@@ -110,7 +110,6 @@ function leafText(value: unknown, adapter: SourceListAdapter | undefined): strin
 // a recipe that is invalid, made for another source or config revision, or of a later version
 // evaluates nothing at all, so no leaf of the source is written from half a recipe.
 
-const RECIPE_VERSION = 1;
 // The recipe's bounds. Each is pinned at its edge by scripts/source-mapping.test.mjs.
 const MAX_OUTPUTS = 32;
 const MAX_COLUMNS = 8;
@@ -118,7 +117,6 @@ const MAX_LIMIT = 500;
 const MAX_SEGMENTS = 8;
 const MAX_DECIMALS = 6;
 const MAX_TEXT = 200;
-const RECIPE_PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
 const LOCALE = /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?$/;
 const SHOWS = new Set(['date', 'time', 'datetime']);
 // A time that states its zone: a time without one would read in the machine's own zone.
@@ -135,43 +133,52 @@ export type RecipeRead =
 const hasOwn = (o: object, key: string): boolean => Object.prototype.hasOwnProperty.call(o, key);
 const onlyKeys = (o: Record<string, unknown>, keys: string[]): boolean => Object.keys(o).every((k) => keys.includes(k));
 const recipePath = (value: unknown): value is string =>
-  typeof value === 'string' && RECIPE_PATH.test(value) && value.split('.').length <= MAX_SEGMENTS;
+  typeof value === 'string' && PATH.test(value) && value.split('.').length <= MAX_SEGMENTS;
 const shortText = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_TEXT;
+
+// What the runtime formats does not change while it runs: each answer is asked once.
+const verdicts = new Map<string, boolean>();
+const once = (key: string, ask: () => boolean): boolean => {
+  let known = verdicts.get(key);
+  if (known === undefined) verdicts.set(key, (known = ask()));
+  return known;
+};
 
 function supportedLocale(locale: unknown, kind: 'number' | 'date'): boolean {
   if (typeof locale !== 'string' || !LOCALE.test(locale)) return false;
   // A locale this runtime cannot format would quietly format in another: refuse it instead.
-  const supported = kind === 'number' ? Intl.NumberFormat.supportedLocalesOf([locale]) : Intl.DateTimeFormat.supportedLocalesOf([locale]);
-  return supported.length === 1;
+  return once(`${kind}:${locale}`, () =>
+    (kind === 'number' ? Intl.NumberFormat.supportedLocalesOf([locale]) : Intl.DateTimeFormat.supportedLocalesOf([locale])).length === 1,
+  );
 }
 
 function knownZone(zone: unknown): boolean {
   if (typeof zone !== 'string' || zone.length > 64) return false;
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: zone });
-    return true;
-  } catch {
-    return false;
-  }
+  return once(`zone:${zone}`, () => {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: zone });
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 function formatError(f: unknown): string | null {
   if (!isObject(f)) return 'a format is an object';
+  if (f.kind !== 'number' && f.kind !== 'date') return 'a format kind is number or date';
+  if (!onlyKeys(f, f.kind === 'number' ? ['kind', 'locale', 'decimals'] : ['kind', 'locale', 'timeZone', 'show'])) {
+    return f.kind === 'number' ? 'a number format has kind, locale and decimals only' : 'a date format has kind, locale, timeZone and show only';
+  }
+  if (!supportedLocale(f.locale, f.kind)) return `a ${f.kind} format needs a locale this build formats, like fi-FI (not ${JSON.stringify(f.locale)})`;
   if (f.kind === 'number') {
-    if (!onlyKeys(f, ['kind', 'locale', 'decimals'])) return 'a number format has kind, locale and decimals only';
-    if (!supportedLocale(f.locale, 'number')) return `a number format needs a locale this build formats, like fi-FI (not ${JSON.stringify(f.locale)})`;
     const d = f.decimals;
     if (typeof d !== 'number' || !Number.isInteger(d) || d < 0 || d > MAX_DECIMALS) return `decimals is a whole number from 0 to ${MAX_DECIMALS}`;
     return null;
   }
-  if (f.kind === 'date') {
-    if (!onlyKeys(f, ['kind', 'locale', 'timeZone', 'show'])) return 'a date format has kind, locale, timeZone and show only';
-    if (!supportedLocale(f.locale, 'date')) return `a date format needs a locale this build formats, like fi-FI (not ${JSON.stringify(f.locale)})`;
-    if (!knownZone(f.timeZone)) return `a date format needs a known time zone, like Europe/Helsinki (not ${JSON.stringify(f.timeZone)})`;
-    if (typeof f.show !== 'string' || !SHOWS.has(f.show)) return 'show is date, time or datetime';
-    return null;
-  }
-  return 'a format kind is number or date';
+  if (!knownZone(f.timeZone)) return `a date format needs a known time zone, like Europe/Helsinki (not ${JSON.stringify(f.timeZone)})`;
+  if (typeof f.show !== 'string' || !SHOWS.has(f.show)) return 'show is date, time or datetime';
+  return null;
 }
 
 function valueError(v: unknown, where: string): string | null {
@@ -242,10 +249,10 @@ type Cell = { text: string } | { problem: string };
 
 /** One evaluation's formatters, made once per format rather than once per cell. */
 function formatters(): (format: RecipeFormat) => (value: number) => string {
-  const made = new Map<string, (value: number) => string>();
+  // Keyed by the recipe's own format object, which stays the same for the whole evaluation.
+  const made = new WeakMap<RecipeFormat, (value: number) => string>();
   return (format) => {
-    const key = JSON.stringify(format);
-    let fn = made.get(key);
+    let fn = made.get(format);
     if (!fn) {
       if (format.kind === 'number') {
         const nf = new Intl.NumberFormat(format.locale, { minimumFractionDigits: format.decimals, maximumFractionDigits: format.decimals });
@@ -257,7 +264,7 @@ function formatters(): (format: RecipeFormat) => (value: number) => string {
         const df = new Intl.DateTimeFormat(format.locale, { timeZone: format.timeZone, ...date, ...time });
         fn = (ms) => df.format(ms);
       }
-      made.set(key, fn);
+      made.set(format, fn);
     }
     return fn;
   };
@@ -270,7 +277,8 @@ function instant(value: JsonValue): number {
   if (typeof value === 'number') return Number.isFinite(value) && Math.abs(value) <= MAX_TIME ? value : NaN;
   const m = typeof value === 'string' ? INSTANT.exec(value) : null;
   if (!m) return NaN;
-  const [y, mo, d, h, mi, s = 0] = [m[1], m[2], m[3], m[4], m[5], m[6]].map((part) => (part === undefined ? undefined : Number(part))) as number[];
+  const [y, mo, d, h, mi] = m.slice(1, 6).map(Number);
+  const s = m[6] === undefined ? 0 : Number(m[6]);
   // Fractions of a second are read but not kept: no format shows them.
   const at = new Date(Date.UTC(2000, mo - 1, d, h, mi, s));
   at.setUTCFullYear(y, mo - 1, d); // Date.UTC alone reads years 0 to 99 as 1900 to 1999
@@ -310,17 +318,16 @@ const compareKeys = (a: Key, b: Key): number => {
  */
 export function recipeItems(list: RecipeList, collection: JsonValue): { items: Record<string, JsonValue>[] } | { problem: string } {
   if (!Array.isArray(collection)) return { problem: `${list.from} is not a list` };
-  const ids = new Map<Record<string, JsonValue>, Key>();
-  const seen = new Set<string>();
+  const ids = new Map<Record<string, JsonValue>, Key>(); // for the sort's tie-break
+  const seen = new Set<Key>(); // 1 and "1" stay two ids
   for (const item of collection) {
     if (!isObject(item)) return { problem: `an item of ${list.from} is not a record` };
     if (list.id === undefined) continue;
     const id = atPath(item, list.id);
     if (typeof id !== 'string' && (typeof id !== 'number' || !Number.isFinite(id))) return { problem: `an item of ${list.from} has no ${list.id}` };
-    const seenKey = `${typeof id}:${id}`;
-    if (seen.has(seenKey)) return { problem: `two items of ${list.from} share the ${list.id} ${JSON.stringify(id)}` };
-    seen.add(seenKey);
-    ids.set(item as Record<string, JsonValue>, id);
+    if (seen.has(id)) return { problem: `two items of ${list.from} share the ${list.id} ${JSON.stringify(id)}` };
+    seen.add(id);
+    if (list.sort) ids.set(item as Record<string, JsonValue>, id);
   }
   let items = collection as Record<string, JsonValue>[];
   const where = list.where;
@@ -355,6 +362,7 @@ function outputText(
   if (!adapter) return { problem: 'no list adapter is registered for this leaf' };
   const read = recipeItems(output, value);
   if ('problem' in read) return read;
+  const [separator, named] = adapter === 'lines' ? ['\t', 'a tab'] : ['|', '|'];
   const rows: string[][] = [];
   for (const item of read.items) {
     const row: string[] = [];
@@ -362,7 +370,7 @@ function outputText(
       const cell = cellOf(column, atPath(item, column.from), format);
       if ('problem' in cell) return cell;
       // A cell holding the list's own separator would split into another cell.
-      if (cell.text.includes(adapter === 'lines' ? '\t' : '|')) return { problem: `${column.from} holds ${adapter === 'lines' ? 'a tab' : '|'}, which the list reads as a new cell` };
+      if (cell.text.includes(separator)) return { problem: `${column.from} holds ${named}, which the list reads as a new cell` };
       row.push(cell.text);
     }
     rows.push(row);
@@ -411,6 +419,10 @@ export function projectSource(o: {
   const missing: string[] = [];
   const unfit: string[] = [];
   const problems: Record<string, string> = {};
+  const hold = (leaf: string, problem: string) => {
+    problems[leaf] = problem;
+    unfit.push(leaf);
+  };
   const read = readSourceRecipe(o.mapping, o.sourceId, o.configRevision);
   if (read.status === 'read-only' || read.status === 'invalid') {
     const error = read.status === 'invalid' ? read.error : `the mapping is version ${read.version}; this build reads version ${RECIPE_VERSION}, so it is held read-only`;
@@ -425,8 +437,7 @@ export function projectSource(o: {
     let text: string | null;
     if (output) {
       if (!isObject(o.payload)) {
-        problems[leaf] = 'the payload is not a JSON object';
-        unfit.push(leaf);
+        hold(leaf, 'the payload is not a JSON object');
         continue;
       }
       const value = atPath(o.payload as JsonValue, output.from);
@@ -436,8 +447,7 @@ export function projectSource(o: {
       }
       const cell = outputText(output, value as JsonValue, adapter, format);
       if ('problem' in cell) {
-        problems[leaf] = cell.problem;
-        unfit.push(leaf);
+        hold(leaf, cell.problem);
         continue;
       }
       text = cell.text;
@@ -450,10 +460,9 @@ export function projectSource(o: {
       text = leafText(value, adapter);
     }
     const result = text === null ? null : pathValue(connectedFields(o.bindings, path, o.fieldsOf), text);
-    if (result === null) {
-      if (output) problems[leaf] = 'the connected fields cannot all hold this value';
-      unfit.push(leaf);
-    } else writes[path] = result;
+    if (result === null && output) hold(leaf, 'the connected fields cannot all hold this value');
+    else if (result === null) unfit.push(leaf);
+    else writes[path] = result;
   }
-  return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: 1, configRevision: recipe.configRevision } : null } };
+  return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
 }

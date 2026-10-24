@@ -543,10 +543,10 @@ export const sourceIdOf = (path: string | undefined): string | null => {
  *  edited (src/model/shows.ts `patchShowSource`; the route refuses the first as unsupported and
  *  the evaluator writes nothing from the second). */
 export const externalReadOnly = (source: { kind: string; config?: unknown }): boolean => {
-  const config = source.config as { v?: unknown; mapping?: { v?: unknown } } | undefined;
-  const later = (v: unknown) => typeof v === 'number' && v > 1;
+  const config = source.config as { v?: unknown; mapping?: { v?: unknown } | null } | undefined;
+  const later = (v: unknown, current: number) => typeof v === 'number' && v > current;
   // Only a later version: a malformed record stays editable (the route refuses it either way).
-  return source.kind === 'external' && (later(config?.v) || (typeof config?.mapping === 'object' && config.mapping !== null && later(config.mapping.v)));
+  return source.kind === 'external' && (later(config?.v, 1) || later(config?.mapping?.v, RECIPE_VERSION));
 };
 
 // A connector's MAPPING RECIPE (docs/work-specs/playout-api-mapping/spec.md, E5.1): the declarative
@@ -579,8 +579,11 @@ export interface RecipeList {
   columns: RecipeValue[];
 }
 
+/** The recipe format this build reads; a later one is kept and never evaluated. */
+export const RECIPE_VERSION = 1;
+
 export interface SourceRecipe {
-  v: 1;
+  v: typeof RECIPE_VERSION;
   /** The source and config revision it was made for: a recipe copied onto another source, or one
    *  older than its source's configuration, evaluates nothing until it is rebound. */
   sourceId: string;

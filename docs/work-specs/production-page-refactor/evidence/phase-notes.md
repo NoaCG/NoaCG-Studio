@@ -85,13 +85,17 @@ changes a spec's digest.
 - **Review fixes in this row**: an epoch beyond a Date's range held instead of throwing out of the
   route; years 0 to 99 are those years; a value rounding to zero is `0.0`, never `-0.0`; a problem
   quotes the row's text rather than a number the adapter's trimming can shift; `held` is answered
-  on unchanged reports too.
-- **Mutation checks** (on the final code): 66 single mutations of the evaluator, the registration,
+  on unchanged reports too. Simplify (no behaviour change): the recipe shares `PATH` with the
+  connector grammar and `RECIPE_VERSION` with the read-only gate, formatters are keyed by the
+  format object, and the locale and zone verdicts are asked once per runtime. Left as it is: the
+  separator check could move beside the row builders in `contentFormats.ts`, outside this row's
+  files, and `signDisplay: 'negative'` is not in the api's ES2020 library types.
+- **Mutation checks** (on the final code): 67 single mutations of the evaluator, the registration,
   the read-only gate and the route, each run against `scripts/source-mapping.test.mjs` (and
-  `scripts/show-fixture-compat.test.mjs` for the last three). 65 turned it red: every bound one
+  `scripts/show-fixture-compat.test.mjs` for the last three). 66 turned it red: every bound one
   either way, a filter by `==`, no tie-break, the tie-break applied in the sort's direction, no
-  descending, kinds of id compared as values, mixed sort kinds allowed, duplicates allowed, `1`
-  and `"1"` one id, a non-record item allowed, no limit, null not taking the fallback, falsy values
+  descending, kinds of id compared as values, mixed sort kinds allowed, duplicates allowed
+  (string or number), `1` and `"1"` one id, no ids kept for the sort, a non-record item allowed, no limit, null not taking the fallback, falsy values
   taking it, a number format taking text, a non-existent date accepted, the zone's sign flipped or
   bound dropped, a zone-less time parsed, the format's zone or decimals or hour cycle dropped, any
   locale accepted, any zone accepted, a marked row written, a missing adapter read as lines, the
@@ -102,7 +106,7 @@ changes a spec's digest.
   bound either way, the year fix, the separator check or its per-adapter separator, the zero sign
   fix. One survived
   and is equivalent: a list output with a fallback, which the parser refuses before it is
-  evaluated. A first run found five survivors; three gained tests and one (a fraction of a second
+  evaluated. A first run found five survivors, a later one a sixth (a duplicate number id); three gained tests and one (a fraction of a second
   no format shows) was removed from the code.
 
 ## Row 27, phase E4.2: the shared evaluator, /api/data/source, fencing, migration 0101, the installed agent

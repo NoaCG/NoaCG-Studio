@@ -222,9 +222,8 @@ describe('the envelope', () => {
 
 const NBSP = ' ';
 const recipe = (outputs, over = {}) => ({ v: 1, sourceId: 'e1', configRevision: 2, outputs, ...over });
-const mapped = (payload, bindings, mapping, { fields = {}, lists, configRevision = 2 } = {}) =>
-  mapping_.projectSource({ sourceId: 'e1', payload, bindings, fieldsOf: (g) => fields[g] ?? null, lists, mapping, configRevision });
-const mapping_ = mapping;
+const mapped = (payload, bindings, stored, { fields = {}, lists, configRevision = 2 } = {}) =>
+  mapping.projectSource({ sourceId: 'e1', payload, bindings, fieldsOf: (g) => fields[g] ?? null, lists, mapping: stored, configRevision });
 const results = () => ({
   updated: '2026-10-24T18:30:00Z',
   counted: 87.5,
@@ -353,6 +352,7 @@ describe('a recipe holds last good and names the correction, never a valid empty
     const dup = results();
     dup.parties.push({ party_id: 'SDP', votes: 1 });
     assert.match(held(board({}, dup)), /two items of parties share the party_id "SDP"/);
+    assert.match(held(board({ id: 'n' }, { parties: [{ party_id: 'A', votes: 1, n: 7 }, { party_id: 'B', votes: 2, n: 7 }] })), /share the n 7/);
     const noId = results();
     delete noId.parties[2].party_id;
     assert.match(held(board({}, noId)), /has no party_id/);
@@ -363,7 +363,7 @@ describe('a recipe holds last good and names the correction, never a valid empty
 
   test('a missing or null cell with no fallback, an object cell, a sort key of mixed kinds', () => {
     assert.match(held(board({ columns: [{ from: 'leader' }] })), /leader has no value/);
-    assert.match(held(board({ columns: [{ from: 'party_id' }] }, { parties: [{ party_id: { x: 1 } }] }), 'board'), /has no party_id/);
+    assert.match(held(board({ columns: [{ from: 'party_id' }] }, { parties: [{ party_id: { x: 1 } }] })), /has no party_id/);
     assert.match(held(board({ columns: [{ from: 'leader' }] }, { parties: [{ party_id: 'A', leader: ['x'] }] })), /not text, a number or true\/false/);
     const mixed = { parties: [{ party_id: 'A', v: 1 }, { party_id: 'B', v: '2' }] };
     assert.match(held(board({ sort: { by: 'v', order: 'asc' } }, mixed)), /mixes kinds/);
@@ -442,7 +442,7 @@ describe('a recipe holds last good and names the correction, never a valid empty
       ['a fallback that is not text', recipe({ at: { from: 'updated', fallback: 0 } })],
     ];
     for (const [name, r] of invalid) {
-      const out = mapped({ ...results(), counted: 87.5 }, both, r, { lists: lines });
+      const out = mapped(results(), both, r, { lists: lines });
       assert.deepEqual([out.writes, out.unfit.sort(), out.held?.readOnly], [{}, ['board', 'counted'], false], name);
       assert.ok(out.held.error.length > 0, name);
     }
@@ -530,7 +530,7 @@ describe('a recipe\'s bounds, each at its edge', () => {
 describe('a recipe beside the identity projection, and no other path', () => {
   test('a source with no recipe projects as before; a recipe leaves the leaves it does not name alone', () => {
     const b = { ...ticker, Board: { f0: 'external.e1.counted', f1: 'external.e1.final' } };
-    const plain = mapped(results(), b, undefined, { lists: { board: 'lines' } });
+    const plain = mapped(results(), b, undefined, { lists: lines });
     assert.deepEqual([plain.provenance, plain.held, plain.problems], [{ sourceId: 'e1', recipe: null }, undefined, {}]);
     const withRecipe = mapped(results(), b, recipe(list({ limit: 1 })), { lists: lines });
     assert.deepEqual(withRecipe.writes, { 'external.e1.board': 'KOK\t225000', 'external.e1.counted': '87.5', 'external.e1.final': 'false' });
@@ -568,7 +568,7 @@ describe('a recipe beside the identity projection, and no other path', () => {
     const out = mapping.projectSource({ sourceId: 'e1', payload: results(), bindings: ticker, fieldsOf: () => null, lists: registration.lists, mapping: registration.mapping, configRevision: registration.configRevision });
     assert.equal(written(out), 'KOK\t225000\nSDP\t215000\nPS\t215000\nKESK\t0');
     const route = readFileSync(new URL('../api/data/[...path].ts', import.meta.url), 'utf8');
-    assert.match(route, /mapping: registration\.ok \? registration\.registration\.mapping/);
+    assert.match(route, /mapping: registration\?\.mapping/);
   });
 });
 
