@@ -15,7 +15,7 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
-## Unreleased
+## 0.10.0 - 2026-10-24
 
 **Ready for vMix.** NoaCG Bridge can now drive vMix on the same computer as well as a CasparCG
 server: it puts the NoaCG output on a vMix overlay channel and reads back what each overlay
