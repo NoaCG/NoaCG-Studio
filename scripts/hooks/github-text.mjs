@@ -19,7 +19,7 @@ const WRITES = /\bgh\s+(?:issue|pr)\s+(?:create|comment|edit|review|close)\b/;
 
 const PATTERNS = [
   [/\bthe owner\b|\bowner's\b/i, 'talks about the owner'],
-  [/\b(?:next|fresh|new) session\b/i, 'addresses a future session'],
+  [/\b(?:next|fresh) session\b/i, 'addresses a future session'],
   [/\bpaste(?:able)?\b[^\n]{0,40}\bprompt\b|\bprompt\b[^\n]{0,40}\bpaste/i, 'carries a pasteable prompt'],
   [/(?:^|["'])\s*#+\s*(?:next[- ]session\s+)?prompt\b/im, 'carries a prompt section'],
   [/\bsession_0[0-9A-Za-z]{6,}|\blocal_[0-9a-f]{8}/, 'names a session id'],

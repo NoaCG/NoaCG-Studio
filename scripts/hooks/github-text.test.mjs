@@ -29,6 +29,7 @@ test('ordinary product text, hidden records, the escape and other commands pass'
     `gh pr comment 12 --body "<!-- noacg:repair-owner session_01G2tYJMYPHvnLs4cUDdVALb, attempts 0 -->"`,
     `ALLOW_GITHUB_TEXT=1 gh issue create --title "Teams" --body "Only the owner of a team can invite members."`,
     `gh issue list --label "needs decision"`,
+    `gh issue create --title "Sign-in" --body "A new session starts after sign-in but Home shows no account."`,
     `git commit -m "Reword the owner's page"`,
   ];
   for (const command of allowed) assert.equal(githubTextRefusal(command), null, command);
