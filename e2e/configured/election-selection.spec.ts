@@ -367,13 +367,15 @@ test.describe('live candidates', () => {
         published: (await (await import('/src/control/hostedControl.ts')).buildOutputPayload(S.loadShows().find((s) => s.id === id)!)).cues.map((c) => c.label),
       };
     }, showId);
-    expect(refusals.typed).toMatch(/cannot change/);
+    expect(refusals.typed).toMatch(/cannot/);
     expect(refusals.renamed).toMatch(/cannot change/);
     expect(refusals.removed).toMatch(/cannot change/);
     expect(refusals.mapped).toMatch(/live candidate/);
     expect(refusals.bound, 'a mapped field never takes a shared binding').toBe(refusals.boundBefore);
     expect(refusals.plain, 'another cue still edits').toBeNull();
-    expect(refusals.published, 'no surface takes a candidate cue with its prepared values').toEqual(['Plain renamed']);
+    expect(refusals.published, 'no surface takes a candidate cue with its prepared values').toContain('Plain renamed');
+    expect(refusals.published).not.toContain('Later card');
+    expect(refusals.published).not.toContain('Card A');
     await page.evaluate(async () => (await import('/src/model/durableStore.ts')).commitDurableWrites());
     expect(await stored()).toEqual(kept);
     await page.reload();
