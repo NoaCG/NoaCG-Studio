@@ -93,19 +93,20 @@ changes a spec's digest.
   answers reset the backoff; (f) a credential in an object key is redacted; (g) the receipt goes
   at 15 000 ms, not 14 999; (h) above; (i) row 26's counts corrected (38 tests, 48 mutations, the
   second smoke run 40074390687).
-- **Mutation checks** (on the final code, `4c8f9da`). SQL: 27 single mutations of 0101's bodies, each applied in a rolled-back
+- **Mutation checks** (on the final code). SQL: 28 single mutations of 0101's bodies, each applied in a rolled-back
   transaction on the local stack with the self-check run after it: the revision gap to 4.9 s and
   5.1 s, the receipt gap to 14.8 s and 15.1 s, the payload cap and the row cap one byte either way,
   the budget to 24 and 26, a duplicate revision accepted, an older provider sequence accepted, the
   epoch, the claim and the lease expiry unchecked, the source's Pause ignored, a local destination
-  or a v 2 registration accepted, an unknown list adapter accepted, a v 2 snapshot written, the
+  or a v 2 registration accepted, a dotted source id accepted, an unknown list adapter accepted, a v 2 snapshot written, the
   config revision unchecked, a refusal keeping the fence, the claim not raising the epoch, the override overwritten, an unchanged
   report moving changed-at, the apply labelled as an operator, the claim answering revision 0. All
-  27 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
-  25. JavaScript: 34 single mutations of the route, evaluator, contract, model and agent, each
+  28 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
+  25. JavaScript: 36 single mutations of the route, evaluator, contract, model and agent, each
   turning its test red (the body cap either way, a later envelope answered 400, null as "", a list
   with no adapter read as lines, a nested item flattened, prototype keys walked, conflicting field
-  forms decided, another prefix of the source evaluated, the old cell regex back, a local destination accepted, v 2 not read-only,
+  forms decided, another prefix of the source evaluated, the old cell regex back, a dotted source id
+  accepted in the registration or the envelope, a local destination accepted, v 2 not read-only,
   standings allowed, a prototype send path, the read-only check inverted, `external` not a source
   path, gaps (a) to (g), adopt keeping the accepted text or ignoring the production's revision, an
   old-epoch report sent, a lost fence kept, a Pause dropping the revision, an old revision offered
@@ -140,6 +141,14 @@ changes a spec's digest.
   behaviour change), one helper for the source-entry lookup in SQL, the remaining quadratic
   `jsonb_merge_patch` in the write loop (bounded by the bound paths, a handful), and a per-cell
   length cap (the 64 KiB row check bounds what airs).
+- **Assessment A** (a fresh read-only `/so` session on `7eb4a45`): PASS WITH NOTES, nothing
+  blocking. Its note 1 was fixed here: a source id could hold a dot, so source `e1`'s paths
+  (`external.e1.`) began every path of a source `e1.x`; a connector source id is now one path
+  segment (refused by 0101 at the claim as `registration`, and by the contract). Its other notes
+  stand as recorded: concurrency rests on the row locks (0097's order) with no two-writer test; the
+  route reads bindings before the lock, and the database re-checks binding and value rules but not
+  that every field on a path takes the same form; the 50-commands cap is the apply's own raise (a
+  429, nothing kept); and pruning drops an unbound connector source, as it does a Sheet.
 - **Not done here, and whose.** No UI: the operator does not yet see a connector source in the
   sources line or Connect data, and the Data overview lists no `external.` values; that is E5's
   mapping UI. An old build's page that prunes sources does not know `external.` paths and would

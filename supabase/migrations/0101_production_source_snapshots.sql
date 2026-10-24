@@ -80,6 +80,8 @@ returns text language sql immutable set search_path = '' as $$
     when p_entry is null or p_entry->>'kind' is distinct from 'external' then 'gone'
     when jsonb_typeof(p_entry->'config') is distinct from 'object' then 'unsupported'
     when (p_entry->'config'->'v') is distinct from '1'::jsonb then 'unsupported'
+    -- One path segment: `external.e1.` must never also be the start of another source's paths.
+    when coalesce(p_entry->>'id', '') !~ '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$' then 'registration'
     when (p_entry->'config') ? 'mode' or (p_entry->'config') ? 'caFile' then 'local_refused'
     when jsonb_typeof(p_entry->'config'->'endpoint') is distinct from 'string'
          or (p_entry->'config' ? 'lists' and (jsonb_typeof(p_entry->'config'->'lists') is distinct from 'object'
@@ -439,6 +441,11 @@ begin
       raise exception '0101 self-check failed: a registration with an unknown list adapter was claimed';
     end if;
     update public.control_shows set sources = jsonb_set(sources, '{0,config,lists}', '{"cands":"lines"}') where id = v_show;
+    update public.control_shows set sources = jsonb_set(sources, '{0,id}', '"e1.x"') where id = v_show;
+    if public.control_source_claim_by_key(v_key, 'e1.x', 3, null, 30000)->>'refused' <> 'registration' then
+      raise exception '0101 self-check failed: a dotted source id was claimed';
+    end if;
+    update public.control_shows set sources = jsonb_set(sources, '{0,id}', '"e1"') where id = v_show;
     if exists (select 1 from public.control_source_reads r where r.show_id = v_show) then
       raise exception '0101 self-check failed: a refused claim took the lease';
     end if;

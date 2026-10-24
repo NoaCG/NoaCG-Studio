@@ -155,6 +155,8 @@ describe('the registration', () => {
     }
     assert.equal(ext.readExternalRegistration(entry({ ...good, configRevision: 0 })).ok, false);
     assert.equal(ext.readExternalRegistration({ ...entry(good), kind: 'sheet' }).ok, false);
+    // One path segment: `e1` must not be able to write the paths of `e1.x`.
+    assert.equal(ext.readExternalRegistration({ ...entry(good), id: 'e1.x' }).ok, false);
   });
 });
 
@@ -184,6 +186,7 @@ describe('the envelope', () => {
       [],
       { ...report(), op: 'patch' },
       { ...report(), sourceId: '../x' },
+      report({ sourceId: 'e1.x' }, { sourceId: 'e1.x' }),
       { ...report(), claim: 'tick:abc' },
       { ...report(), claim: undefined },
       { v: 1, op: 'release', sourceId: 'e1', configRevision: 2 },

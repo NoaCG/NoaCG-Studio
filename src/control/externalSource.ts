@@ -96,6 +96,9 @@ const CONFIG_KEYS = new Set([
   'sendPaths',
 ]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+/** A source id is one path segment (`external.<id>.<leaf>`): a dot would let one source's paths
+ *  read as another's. */
+const SOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 /** A credential is an environment variable of its own family, so a configuration cannot name the
  *  agent's other secrets (a database key, say) and send them to its endpoint. */
 const ENV_NAME = /^NOACG_SOURCE_[A-Z0-9_]{1,50}$/;
@@ -115,7 +118,7 @@ export function parseConnectorConfig(raw: unknown): { ok: true; config: Connecto
   if (raw.v !== EXTERNAL_SOURCE_VERSION) return no('the configuration has no version');
   const unknown = Object.keys(raw).filter((key) => !CONFIG_KEYS.has(key));
   if (unknown.length > 0) return no(`unknown configuration keys: ${unknown.join(', ')}`);
-  if (typeof raw.sourceId !== 'string' || !ID.test(raw.sourceId)) return no('sourceId must be a short identifier');
+  if (typeof raw.sourceId !== 'string' || !SOURCE_ID.test(raw.sourceId)) return no('sourceId must be a short identifier with no dots');
   if (typeof raw.productionId !== 'string' || !ID.test(raw.productionId)) return no('productionId must be a short identifier');
   const mode = raw.mode ?? 'hosted';
   if (mode !== 'hosted' && mode !== 'local') return no('mode must be hosted or local');
@@ -408,6 +411,7 @@ export type RegistrationRead =
 export function readExternalRegistration(entry: unknown): RegistrationRead {
   const no = (error: string, readOnly = false): RegistrationRead => ({ ok: false, readOnly, error });
   if (!isObject(entry) || entry.kind !== 'external' || typeof entry.id !== 'string') return no('not a connector source');
+  if (!SOURCE_ID.test(entry.id)) return no('a connector source id is one path segment: letters, digits, _ and -');
   const config = entry.config;
   if (!isObject(config)) return no('the source has no configuration');
   if (typeof config.v === 'number' && config.v > EXTERNAL_SOURCE_VERSION) return no(`the source is version ${config.v}; this build reads version ${EXTERNAL_SOURCE_VERSION}, so it is held read-only`, true);
@@ -440,7 +444,7 @@ export function parseSourceEnvelope(body: unknown): { ok: true; envelope: Source
   if (!isObject(body)) return no('the body must be a JSON object');
   if (typeof body.v === 'number' && body.v > EXTERNAL_SOURCE_VERSION) return { ok: false, error: `envelope version ${body.v} is not supported; this server reads version ${EXTERNAL_SOURCE_VERSION}`, unsupported: true };
   if (body.v !== EXTERNAL_SOURCE_VERSION) return no('the envelope has no version');
-  if (typeof body.sourceId !== 'string' || !ID.test(body.sourceId)) return no('sourceId must be a short identifier');
+  if (typeof body.sourceId !== 'string' || !SOURCE_ID.test(body.sourceId)) return no('sourceId must be a short identifier with no dots');
   const claim = body.claim ?? null;
   if (claim !== null && (typeof claim !== 'string' || !CLAIM.test(claim))) return no('claim is not one this server handed out');
   const revision = (value: unknown) => typeof value === 'number' && Number.isInteger(value) && value >= 0;
