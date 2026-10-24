@@ -33,7 +33,7 @@ screen whatever cue is selected, act at once on that graphic's on-air cue, and a
 buttons on the production page, the hosted control page, the exported controller and, through
 E6, the Stream Deck. Prep controls and live controls are two regions of one page, so the next
 question is typed while the score stays one press away. The single-graphic page is unchanged for
-a production that pins nothing.
+a production that pins nothing, except where a graphic's own declaration gains the one-press pick.
 
 ## Non-goals
 
@@ -279,8 +279,11 @@ by behaviour.
 
 ## Preserved behaviour
 
-A production with no pins renders the generated page byte for byte, including the ⚡ block's
-height pinned by `live-actions-first`. TAKE on SPACE, the verb keys, per-cue trigger keys, the
+A production with no pins whose graphics declare no pick group (no event off the default path
+carrying one few-option `select` field) renders the generated page byte for byte, including the
+⚡ block's height pinned by `live-actions-first` for the duel score and the hockey scorebug. A
+graphic that does declare one (the classic answer boards, the imported quiz) changes exactly as
+AC-3 and AC-4 say, profile or not, and nowhere else. TAKE on SPACE, the verb keys, per-cue trigger keys, the
 two SPACE modes, the PVW/PGM pair, "nothing airs because it was typed", ARRANGE (pin, hide,
 rename, More), Snap recovery, the ± live numbers' partial update and bound-field road, the
 hosted staging buffer, the exported controller's offline relay, the panel lease and H0's verbs.
@@ -334,11 +337,14 @@ profile written by a newer build renders the generated page and refuses pin edit
 existing read-only wording. Scenario: Node `scripts/control-profile.test.mjs` and
 `scripts/live-controls.test.mjs`; one journey case for the removal.
 
-### AC-7: A production with no pins is unchanged
-The ⚡ block's measured height at 1600×900, the generated panel for a profile-less production, the
-exported controller for a profile-less production (byte comparison before and after) and the
-render counts of `e2e/playout-air-contract.spec.ts` are unchanged; typing in PREP renders no live
-block. Scenario: those specs green on the integrated tree; the byte comparison recorded in evidence.
+### AC-7: A production with no pins and no pick group is unchanged
+For a profile-less production whose graphics declare no pick group (the score tracker, a lower
+third, the duel score, the hockey scorebug): the ⚡ block's measured height at 1600×900, the
+generated panel and the exported controller (byte comparison before and after) are unchanged. For
+every production the render counts of `e2e/playout-air-contract.spec.ts` hold and typing in PREP
+renders no live block. A profile-less quiz production changes only by the pick group, as AC-3 and
+AC-4 state, and its exported controller differs only in that group. Scenario: those specs green on
+the integrated tree; both byte comparisons recorded in evidence, the quiz's with its diff named.
 
 ### AC-8: The deck reaches a pinned graphic's live controls (through E6)
 Delivered by E6.1 and E6.2, requalified in H0.2: a native action targets its pool graphic and runs
