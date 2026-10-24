@@ -105,7 +105,7 @@ export interface ShowCue {
    *  resolved by control/sourceMapping.ts `selectionGate` and `resolveSelection`. Absent on every
    *  cue before it, which behaves exactly as it did. Nothing in this build writes it, and the write
    *  doors keep it byte for byte (`selectionFrozen`); a later version makes the whole cue read-only. */
-  selection?: CueSelection;
+  selection?: CueSelection | { v: number; [later: string]: unknown };
 }
 
 /** Where a prepared message came from, kept on its cue. */
@@ -494,7 +494,7 @@ export interface Show {
   /** ADDITIVE OPTIONAL, each with its own `v` (E7.1): the shared collection recipes cues select
    *  live candidates from (productionData `CollectionRecipe`). Kept byte for byte by every write
    *  of this build (`selectionFrozen`), which has no writer for them. */
-  collections?: CollectionRecipe[];
+  collections?: (CollectionRecipe | { v: number; [later: string]: unknown })[];
   /**
    * The TEAM that holds this production (docs/TEAMS_PLAN.md §4), present only on a record read
    * from the server's `team_productions` - the column there is the authority, and this is a copy

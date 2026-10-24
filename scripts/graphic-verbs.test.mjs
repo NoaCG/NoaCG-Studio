@@ -1,4 +1,4 @@
-// guards: src/control/graphicVerbs.ts, src/control/cueItems.ts, src/control/liveCue.ts, src/control/allOut.ts, src/control/playoutSession.ts
+// guards: src/control/graphicVerbs.ts, src/control/selectionAir.ts, src/control/cueItems.ts, src/control/liveCue.ts, src/control/allOut.ts, src/control/playoutSession.ts
 //
 // THE PRODUCTION PAGE'S WEB-GRAPHIC VERBS, run in Node with a scripted page and a scripted wire
 // (production-page refactor spec §4.2, phase 12). Every answer here is held until the test releases
@@ -42,7 +42,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {} } = {}) {
+function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -100,6 +100,12 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
       return h.promise;
     },
     boundFields: (graphic) => bound[graphic] ?? {},
+    // A cue's live candidate as control/selectionAir.ts would answer it (E7.1): none by default.
+    selectionFor: (cue) => selections[cue.id] ?? { status: 'none' },
+    selectionAired: (graphic, cueId, take) => {
+      log.push(['aired', graphic, cueId, take.status]);
+      return () => log.push(['unaired', graphic, cueId]);
+    },
     boundNow: (graphic) => ({ ...(tree[graphic] ?? {}) }),
     boundReady: () => true,
     patchBound: async (writes) => {
@@ -997,4 +1003,52 @@ test('the gaps the assessment found: what each press keeps, counts and says', as
     r.sends[0].answer.resolve({ ...noneLeft });
     await pressing;
   });
+});
+
+// ── Live candidates (E7.1, docs/work-specs/playout-election-package/spec.md) ───────────────────
+
+const candidate = (values, revision = 4) => ({ status: 'ok', selection: { v: 1, recipe: 'r1', key: ['D1', 7] }, entity: '["D1",7]', revision, values });
+
+test('a Take of a live candidate airs its resolved values over the cue and the tree, and captures it at the press', async () => {
+  const r = rig({ selections: { a: candidate({ f0: 'Aino Aalto', f1: '1200' }) } });
+  r.resolved.Strap = { f1: 'bound', f2: 'tree' };
+  const taking = r.verbs.take(graphicCue('a', 'Strap', { f0: 'prepared', f1: 'prepared', f3: 'own' }));
+  await settle();
+  assert.deepEqual(r.log.find(([k]) => k === 'aired'), ['aired', 'Strap', 'a', 'ok'], 'captured before the answer');
+  assert.deepEqual(r.sends[0].batches[0][0].msg.data, { f0: 'Aino Aalto', f1: '1200', f2: 'tree', f3: 'own' });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  assert.equal(r.log.some(([k]) => k === 'unaired'), false);
+});
+
+test('a Take of a candidate that is not ready sends nothing and says why; a failed send gives the capture back', async () => {
+  const r = rig({ selections: { b: { status: 'refused', reason: 'Not ready: revision 4 has no district "D2", candidate 7.' } } });
+  await r.verbs.take(graphicCue('b', 'Strap', { f0: 'prepared' }));
+  assert.equal(r.sends.length, 0);
+  assert.equal(r.log.some(([k]) => k === 'aired'), false);
+  assert.deepEqual(r.notes, ['B: Not ready: revision 4 has no district "D2", candidate 7.']);
+
+  const f = rig({ selections: { a: candidate({ f0: 'Aino Aalto' }) } });
+  const taking = f.verbs.take(graphicCue('a', 'Strap', {}));
+  await settle();
+  f.sends[0].answer.reject(new Error('boom'));
+  await taking;
+  assert.deepEqual(f.log.find(([k]) => k === 'unaired'), ['unaired', 'Strap', 'a']);
+});
+
+test('Update moves an aired cue to its new selection only once the whole replacement resolves', async () => {
+  const live = { liveCue: { Strap: 'a' } };
+  const r = rig({ ...live, selections: { a: candidate({ f0: 'Bertta Berg' }, 5) } });
+  const updating = r.verbs.update(sel({ editingCue: graphicCue('a', 'Strap', { f0: 'prepared' }), selectedGraphic: 'Strap', editingIsLive: true }));
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'update', data: { f0: 'Bertta Berg' } });
+  assert.deepEqual(r.log.find(([k]) => k === 'aired'), ['aired', 'Strap', 'a', 'ok']);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await updating;
+
+  const refused = rig({ ...live, selections: { a: { status: 'refused', reason: 'Not ready: the collection is not JSON.' } } });
+  await refused.verbs.update(sel({ editingCue: graphicCue('a', 'Strap', { f0: 'prepared' }), selectedGraphic: 'Strap', editingIsLive: true }));
+  assert.equal(refused.sends.length, 0, 'the aired cue keeps what it airs');
+  assert.equal(refused.log.some(([k]) => k === 'aired'), false);
+  assert.deepEqual(refused.notes, ['A: Not ready: the collection is not JSON.']);
 });

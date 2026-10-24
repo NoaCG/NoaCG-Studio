@@ -1,0 +1,411 @@
+// guards: src/control/sourceMapping.ts, src/control/selectionAir.ts, src/model/productionData.ts, src/model/rundownHistory.ts, src/control/takeBlockers.ts, src/control/cueAuto.ts
+//
+// KEYED SELECTORS, THE COHERENT RESOLVER AND THE AIRED INSTANCE (docs/work-specs/
+// playout-election-package/spec.md, phase E7.1; AC-2, AC-3 as far as the gate and the resolver
+// reach), in Node against the real modules:
+//   - identity is district plus candidate: two cues of one card pick their own entity, the same
+//     candidate number in two districts stays two people, a reordered ranking moves nobody;
+//   - every rule of the selection contract, each red when it is removed or inverted: duplicate keys
+//     invalidate the selection, a missing required field the whole candidate, an optional field
+//     takes its fallback, a valid empty list creates no candidate, an unknown B is never ready and
+//     never borrows A;
+//   - the aired instance: captured at Take, following ITS selector through a count increase and a
+//     newer downward correction, rejecting older and duplicate revisions read out of order, holding
+//     with its reason, age and revision when A is deleted or the collection breaks, kept across a
+//     reload, and forgotten when the layer airs another cue;
+//   - the read gate: a selector or recipe of a later version is read-only, and the write-door
+//     predicate keeps every selection byte for byte (model/shows.ts `patchShowChecked` and
+//     ./rundownHistory.ts `replaceRundown` ask it; the browser half is
+//     e2e/configured/election-selection.spec.ts);
+//   - every bound at its edge, and linear work on a hostile collection.
+
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
+import './lib/tsResolve.mjs';
+
+const mapping = await import('../src/control/sourceMapping.ts');
+const air = await import('../src/control/selectionAir.ts');
+const data = await import('../src/model/productionData.ts');
+const { replaceRundown } = await import('../src/model/rundownHistory.ts');
+const { takeBlockerFor } = await import('../src/control/takeBlockers.ts');
+const { nextGraphicCue } = await import('../src/control/cueAuto.ts');
+
+const text = (key) => ({ key, label: key, kind: 'text', defaultValue: '' });
+const number = (key) => ({ key, label: key, kind: 'number', defaultValue: '' });
+const FIELDS = [text('f0'), number('f1'), text('f2'), text('f3')];
+
+const RECIPE = {
+  v: 1,
+  id: 'cands',
+  sourceId: 'e1',
+  schemaRevision: 3,
+  graphic: 'Card',
+  from: 'candidates',
+  key: ['district', 'number'],
+  fields: { f0: { from: 'name' }, f1: { from: 'votes' }, f2: { from: 'party', fallback: '-' } },
+};
+const person = (district, num, name, votes, extra = {}) => ({ district, number: num, name, votes, ...extra });
+const collection = (revision, items, extra = {}) => ({ schemaRevision: 3, revision, items, ...extra });
+const tree = (c) => ({ external: { e1: { candidates: c } } });
+const selectionOf = (district, num) => ({ v: 1, recipe: 'cands', key: [district, num] });
+const facts = (c, more = {}) => ({ collections: [RECIPE], bindings: {}, tree: tree(c), fieldsOf: (g) => (g === 'Card' ? FIELDS : null), ...more });
+const take = (sel, c, more) => air.selectionTake({ selection: sel }, 'Card', facts(c, more));
+const resolve = (key, c, recipe = RECIPE, fields = FIELDS) => mapping.resolveSelection({ recipe, tree: tree(c), key, fields });
+
+const BASE = [person('D1', 7, 'Aino Aalto', 1200, { party: 'Green' }), person('D2', 7, 'Bertta Berg', 900, { party: 'Blue' }), person('D1', 8, 'Cecilia Cole', 800)];
+
+describe('identity is district plus candidate', () => {
+  test('two cues of one card select different people, including one number in two districts', () => {
+    const a = take(selectionOf('D1', 7), collection(1, BASE));
+    const b = take(selectionOf('D2', 7), collection(1, BASE));
+    assert.deepEqual(a, { status: 'ok', selection: selectionOf('D1', 7), entity: '["D1",7]', revision: 1, values: { f0: 'Aino Aalto', f1: '1200', f2: 'Green' } });
+    assert.deepEqual(b.values, { f0: 'Bertta Berg', f1: '900', f2: 'Blue' });
+  });
+
+  test('a reordered ranking changes nobody: identity is never the row', () => {
+    const before = take(selectionOf('D1', 7), collection(1, BASE));
+    const after = take(selectionOf('D1', 7), collection(2, [...BASE].reverse()));
+    assert.deepEqual(after.values, before.values);
+  });
+
+  test('a key is typed: 7 and "7" are two candidates', () => {
+    const r = take(selectionOf('D1', '7'), collection(1, BASE));
+    assert.equal(r.status, 'refused');
+    assert.match(r.reason, /has no district "D1", number "7"/);
+  });
+
+  test('every value of one card comes from one record of one revision', () => {
+    const r = resolve(['D2', 7], collection(9, BASE));
+    assert.deepEqual([r.revision, r.entity, r.values.f0, r.values.f1], [9, '["D2",7]', 'Bertta Berg', '900']);
+  });
+});
+
+describe('the selection contract', () => {
+  test('duplicate keys invalidate the whole selection, for every cue', () => {
+    const dup = collection(2, [...BASE, person('D2', 7, 'Impostor', 1)]);
+    for (const key of [['D1', 7], ['D2', 7]]) {
+      const r = resolve(key, dup);
+      assert.deepEqual([r.status, r.why], ['hold', 'collection']);
+      assert.match(r.reason, /two items share the key district "D2", number 7/);
+    }
+  });
+
+  test('an item missing a key part holds the collection, not just its own card', () => {
+    const r = resolve(['D1', 7], collection(2, [...BASE, { district: 'D3', name: 'No number' }]));
+    assert.deepEqual([r.status, r.why, r.reason], ['hold', 'collection', 'an item of the collection has no number']);
+  });
+
+  test('a missing required field invalidates the whole candidate; null is missing; zero is a value', () => {
+    const partial = resolve(['D1', 7], collection(2, [person('D1', 7, 'Aino Aalto', undefined, { party: 'Green' })]));
+    assert.deepEqual([partial.status, partial.why], ['hold', 'partial']);
+    assert.match(partial.reason, /votes has no value/);
+    assert.equal(resolve(['D1', 7], collection(2, [person('D1', 7, null, 1)])).why, 'partial');
+    assert.equal(resolve(['D1', 7], collection(2, [person('D1', 7, 'Aino', 0)])).values.f1, '0');
+  });
+
+  test('an optional field takes its declared fallback, and only it does', () => {
+    assert.equal(resolve(['D1', 8], collection(2, BASE)).values.f2, '-');
+    const noFallback = { ...RECIPE, fields: { ...RECIPE.fields, f2: { from: 'party' } } };
+    assert.equal(resolve(['D1', 8], collection(2, BASE), noFallback).why, 'partial');
+  });
+
+  test('a value its field cannot hold invalidates the candidate', () => {
+    const r = resolve(['D1', 7], collection(2, [person('D1', 7, 'Aino', 'many')]));
+    assert.deepEqual([r.status, r.why, r.reason], ['hold', 'partial', 'district "D1", number 7: votes does not fit field f1']);
+  });
+
+  test('a valid empty collection clears nothing into a candidate: it is missing', () => {
+    const r = resolve(['D1', 7], collection(3, []));
+    assert.deepEqual(r, { status: 'hold', why: 'missing', reason: 'revision 3 holds no candidates', revision: 3 });
+  });
+
+  test('an unknown B is never ready and never borrows A, whatever was valid before', () => {
+    const ok = take(selectionOf('D1', 7), collection(1, BASE));
+    assert.equal(ok.status, 'ok');
+    const b = take(selectionOf('D9', 1), collection(2, BASE));
+    assert.deepEqual(b, { status: 'refused', reason: 'Not ready: revision 2 has no district "D9", number 1.' });
+  });
+
+  test('a collection that is not one holds: not arrived, not JSON, no revision, another schema, no items', () => {
+    const holds = [undefined, '{nope', 'null', { items: BASE }, collection(1.5, BASE), collection(1, BASE, { schemaRevision: 4 }), { schemaRevision: 3, revision: 1 }, collection(1, [7])];
+    for (const c of holds) {
+      const r = resolve(['D1', 7], c);
+      assert.equal(r.status, 'hold', JSON.stringify(c));
+      assert.equal(r.why, 'collection', JSON.stringify(c));
+    }
+    assert.match(resolve(['D1', 7], collection(1, BASE, { schemaRevision: 4 })).reason, /schema revision 4, and its fields were mapped for 3/);
+  });
+
+  test('a collection written as JSON text reads as the same collection', () => {
+    assert.deepEqual(resolve(['D1', 7], JSON.stringify(collection(5, BASE))), resolve(['D1', 7], collection(5, BASE)));
+  });
+
+  test('a graphic without the field, or with no fields, holds the candidate', () => {
+    assert.equal(resolve(['D1', 7], collection(1, BASE), RECIPE, [text('f0')]).why, 'partial');
+    assert.equal(resolve(['D1', 7], collection(1, BASE), RECIPE, null).why, 'partial');
+  });
+});
+
+describe('the read gate', () => {
+  const gate = (selection, collections = [RECIPE], graphic = 'Card', bindings = {}) => mapping.selectionGate({ selection }, collections, graphic, bindings);
+
+  test('no selection is the old behaviour; a v 1 selection on its graphic is read', () => {
+    assert.deepEqual(gate(undefined), { status: 'none' });
+    const ok = gate(selectionOf('D1', 7));
+    assert.deepEqual([ok.status, ok.entity], ['ok', '["D1",7]']);
+  });
+
+  test('a selector or a recipe of a later version is read-only, and the predicate the doors ask agrees', () => {
+    const laterSel = { v: 2, recipe: 'cands', pick: { by: 'rank' } };
+    const laterRecipe = { v: 2, id: 'cands', anything: true };
+    assert.equal(gate(laterSel).status, 'read-only');
+    assert.equal(gate(selectionOf('D1', 7), [laterRecipe]).status, 'read-only');
+    assert.equal(data.selectionReadOnly({ selection: laterSel }, [RECIPE]), true);
+    assert.equal(data.selectionReadOnly({ selection: selectionOf('D1', 7) }, [laterRecipe]), true);
+    assert.equal(data.selectionReadOnly({ selection: selectionOf('D1', 7) }, [RECIPE]), false);
+    assert.equal(data.selectionReadOnly({}, [laterRecipe]), false);
+    const refused = take(laterSel, collection(1, BASE));
+    assert.deepEqual(refused, { status: 'refused', reason: 'This cue’s live candidate was set up by a later version of NoaCG, so it is read-only here.' });
+  });
+
+  test('a selector this build cannot use is not ready: wrong graphic, unknown recipe, wrong key, a shared binding on a mapped field', () => {
+    assert.match(gate(selectionOf('D1', 7), [RECIPE], 'Other').reason, /made for another graphic/);
+    assert.match(gate({ v: 1, recipe: 'nope', key: ['D1', 7] }).reason, /does not have/);
+    assert.match(gate({ v: 1, recipe: 'cands', key: ['D1'] }).reason, /needs 2 parts/);
+    assert.match(gate({ v: 1, recipe: 'cands', key: ['D1', 7], extra: 1 }).reason, /not one this version reads/);
+    assert.match(gate(selectionOf('D1', 7), [RECIPE], 'Card', { Card: { f1: 'external.e1.total' } }).reason, /field f1 also follows a shared value/);
+    assert.equal(gate(selectionOf('D1', 7), [RECIPE], 'Card', { Card: { f3: 'external.e1.total' } }).status, 'ok');
+  });
+
+  test('a recipe is strict: extra keys, no version, a bad key list, a field map out of bounds', () => {
+    const read = (r) => mapping.readCollectionRecipe(r).status;
+    assert.equal(read(RECIPE), 'ok');
+    assert.equal(read({ ...RECIPE, headers: { token: 'x' } }), 'invalid');
+    assert.equal(read({ ...RECIPE, v: undefined }), 'invalid');
+    assert.equal(read({ ...RECIPE, key: [] }), 'invalid');
+    assert.equal(read({ ...RECIPE, key: ['district', 'district'] }), 'invalid');
+    assert.equal(read({ ...RECIPE, sourceId: 'e.1' }), 'invalid');
+    assert.equal(read({ ...RECIPE, fields: { f0: { from: 'name', format: { kind: 'number', locale: 'fi-FI', decimals: 7 } } } }), 'invalid');
+  });
+
+  describe('the write doors keep every selection byte for byte', () => {
+    const cue = (id, extra = {}) => ({ id, sourceId: 'g1', label: id, values: { f0: 'x' }, ...extra });
+    const show = (cues, collections = [RECIPE]) => ({ cues, collections });
+    const frozen = (before, after) => data.selectionFrozen(data.selectionKeep(before), after);
+    const later = cue('later', { selection: { v: 2, recipe: 'cands', pick: 'rank' } });
+    const a = cue('a', { selection: selectionOf('D1', 7) });
+
+    test('a production with no selection has nothing kept and refuses nothing', () => {
+      assert.equal(data.selectionKeep({ cues: [cue('p')] }), null);
+      assert.equal(frozen({ cues: [cue('p')] }, { cues: [cue('p', { values: { f0: 'y' } })] }), null);
+    });
+
+    test('an edit that leaves the selections alone passes; a reorder passes', () => {
+      assert.equal(frozen(show([a, cue('p')]), show([cue('p'), { ...a, values: { f0: 'z' }, label: 'renamed' }])), null);
+    });
+
+    test('a changed, dropped or flattened selection is refused', () => {
+      assert.ok(frozen(show([a]), show([{ ...a, selection: selectionOf('D2', 7) }])));
+      const flattened = { ...a, values: { f0: 'Aino Aalto' } };
+      delete flattened.selection;
+      assert.ok(frozen(show([a]), show([flattened])));
+    });
+
+    test('a cue of a later version keeps every byte and is never removed; a v 1 cue may be removed', () => {
+      assert.ok(frozen(show([later]), show([{ ...later, label: 'renamed' }])));
+      assert.ok(frozen(show([later]), show([])));
+      assert.equal(frozen(show([a]), show([])), null);
+    });
+
+    test('no cue gains a selection and the recipes do not change', () => {
+      assert.ok(frozen(show([a]), show([a, { ...a, id: 'copy' }])));
+      assert.ok(frozen({ cues: [] }, { cues: [cue('p', { selection: selectionOf('D1', 7) })] }));
+      assert.ok(frozen(show([a]), show([a], [{ ...RECIPE, schemaRevision: 4 }])));
+      assert.ok(frozen(show([a]), { cues: [a] }));
+    });
+
+    test('an undo is refused when it would change a selection, and goes through when it would not', () => {
+      const slice = (cues) => ({ cues, folders: [], graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [] });
+      const record = { id: 's', version: 2, name: 'S', graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [], folders: [], cues: [later], collections: [RECIPE], updatedAt: 'x' };
+      const undo = replaceRundown(record, slice([later]), slice([]));
+      assert.deepEqual(undo, { show: null, refused: 'This production has live candidate cues this version cannot change, so the edit was not saved.' });
+      const plain = { ...record, cues: [later, cue('p')] };
+      const ok = replaceRundown(plain, slice([later, cue('p')]), slice([later]));
+      assert.equal(ok.refused, null);
+      assert.deepEqual(ok.show.cues, [later]);
+    });
+  });
+});
+
+describe('the aired instance', () => {
+  const live = { Card: 'cue-a' };
+  const captured = (c = collection(5, BASE), sel = selectionOf('D1', 7)) => {
+    const t = take(sel, c);
+    assert.equal(t.status, 'ok');
+    return air.captureSelection({}, 'Card', 'cue-a', t, 1000);
+  };
+  const follow = (state, c, now = 2000, liveCue = live) => air.followSelection(state, liveCue, facts(c), now);
+
+  test('a count increase and a newer downward correction each go out once, whole', () => {
+    let state = captured();
+    const up = follow(state, collection(6, [person('D1', 7, 'Aino Aalto', 1500, { party: 'Green' }), ...BASE.slice(1)]));
+    assert.deepEqual(up.sends, [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1500', f2: 'Green' } }]);
+    state = up.air;
+    const down = follow(state, collection(7, [person('D1', 7, 'Aino Aalto', 1400, { party: 'Green' }), ...BASE.slice(1)]), 3000);
+    assert.deepEqual(down.sends.map((s) => s.values.f1), ['1400']);
+    assert.deepEqual([down.air.Card.revision, down.air.Card.at], [7, 3000]);
+  });
+
+  test('older and duplicate revisions, read out of order, are rejected', () => {
+    let state = follow(captured(), collection(7, [person('D1', 7, 'Aino Aalto', 1400)])).air;
+    for (const old of [collection(6, [person('D1', 7, 'Aino Aalto', 1500)]), collection(7, [person('D1', 7, 'Aino Aalto', 9999)]), collection(5, BASE)]) {
+      const r = follow(state, old);
+      assert.deepEqual(r.sends, []);
+      assert.equal(r.air, state);
+      state = r.air;
+    }
+    assert.equal(state.Card.values.f1, '1400');
+  });
+
+  test('it follows the selector captured at Take, never the cue as it is now (preview B, reload)', () => {
+    const state = captured();
+    // The instance carries its own selector, so a preview of B, a draft or a changed record cannot
+    // reach it: follow is handed no cue at all.
+    const r = follow(air.readSelectionAir(air.writeSelectionAir(state)), collection(6, BASE.map((p) => ({ ...p, votes: p.votes + 1 }))));
+    assert.deepEqual(r.sends, [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1201', f2: 'Green' } }]);
+    const b = take(selectionOf('D2', 7), collection(6, BASE));
+    assert.equal(b.status, 'ok', 'B is ready on its own');
+    assert.deepEqual(r.air.Card.selection, selectionOf('D1', 7));
+  });
+
+  test('a deleted person, a valid empty list, a malformed or duplicate collection hold A with reason, revision and age', () => {
+    const state = captured();
+    const cases = [
+      [collection(6, BASE.slice(1)), 'revision 6 has no district "D1", number 7', 6],
+      [collection(6, []), 'revision 6 holds no candidates', 6],
+      ['{broken', 'the collection is not JSON', null],
+      [collection(6, [...BASE, person('D1', 7, 'Twin', 1)]), 'two items share the key district "D1", number 7', 6],
+    ];
+    for (const [c, reason, revision] of cases) {
+      const r = follow(state, c, 4000);
+      assert.deepEqual(r.sends, [], 'nothing is sent: the picture stays');
+      assert.deepEqual(r.air.Card.held, { reason, since: 4000, revision });
+      assert.deepEqual([r.air.Card.values, r.air.Card.revision, r.air.Card.at], [state.Card.values, 5, 1000]);
+      const again = follow(r.air, c, 9000);
+      assert.equal(again.air, r.air, 'a hold keeps its first time');
+    }
+  });
+
+  test('a hold ends with a newer revision that holds A again, or the aired one read well', () => {
+    const held = follow(captured(), collection(6, []), 4000).air;
+    const back = follow(held, collection(8, BASE), 5000);
+    assert.equal(back.sends.length, 1);
+    assert.equal(back.air.Card.held, undefined);
+    const malformed = follow(captured(), '{broken', 4000).air;
+    const same = follow(malformed, collection(5, BASE), 5000);
+    assert.deepEqual([same.sends, same.air.Card.held], [[], undefined]);
+  });
+
+  test('an older revision that would not resolve says nothing about the newer one on air', () => {
+    const state = follow(captured(), collection(7, BASE)).air;
+    assert.equal(follow(state, collection(6, [])).air, state);
+  });
+
+  test('a Paused source writes no tree, so nothing moves; a layer airing another cue follows nothing', () => {
+    const state = captured();
+    assert.equal(follow(state, collection(5, BASE)).air, state);
+    const other = follow(state, collection(6, BASE), 2000, { Card: 'cue-b' });
+    assert.deepEqual(other.sends, []);
+  });
+
+  test('the instance goes when the layer airs another cue, or is off air once the page knows', () => {
+    const state = captured();
+    assert.deepEqual(air.reconcileSelection(state, { Card: 'cue-b' }, false), {});
+    assert.equal(air.reconcileSelection(state, {}, false), state, 'not yet seeded: a restored instance waits');
+    assert.deepEqual(air.reconcileSelection(state, {}, true), {});
+    assert.equal(air.reconcileSelection(state, live, true), state);
+    assert.deepEqual(air.dropSelection(state, 'Card'), {});
+  });
+
+  test('what is kept reads back; anything else is no instance', () => {
+    const state = captured();
+    assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state)), state);
+    for (const raw of [null, '', '{', '{"v":2,"graphics":{}}', JSON.stringify({ v: 1, graphics: { Card: { ...state.Card, revision: 'x' } } })]) {
+      assert.deepEqual(air.readSelectionAir(raw), {}, String(raw));
+    }
+  });
+});
+
+describe('what may Take a candidate', () => {
+  test('a Take of a cue, or of a folder holding it, is refused with the candidate\'s reason', () => {
+    const cue = { id: 'b', sourceId: 'g', label: 'B card', values: {} };
+    const ctx = {
+      cues: [cue],
+      items: [],
+      folders: [],
+      members: new Map([['f', [cue]]]),
+      places: new Map(),
+      ownership: { onAir: [], sequences: [] },
+      settings: {},
+      ability: null,
+      casparOn: true,
+      bridgeDown: false,
+      itemOf: () => null,
+      graphicOf: () => ({ name: 'Card', layer: 20 }),
+      slots: { itemSlot: () => ({ channel: 1, layer: 1 }), folderSlot: () => ({ channel: 1, layer: 1 }) },
+      selectionBlocker: (c) => (c.id === 'b' ? 'Not ready: revision 2 has no district "D9", number 1.' : null),
+    };
+    assert.equal(takeBlockerFor(cue, ctx), 'Not ready: revision 2 has no district "D9", number 1.');
+    assert.equal(takeBlockerFor({ id: 'f', name: 'F', mode: 'together' }, ctx), 'B card: Not ready: revision 2 has no district "D9", number 1.');
+    assert.equal(takeBlockerFor(cue, { ...ctx, selectionBlocker: () => null }), null);
+  });
+
+  test('a timed end never takes a candidate cue', () => {
+    const cues = [{ id: 'a' }, { id: 'b', selection: selectionOf('D1', 7) }, { id: 'c' }];
+    assert.equal(nextGraphicCue(cues, 'a'), null);
+    assert.equal(nextGraphicCue(cues, 'b'), 'c');
+  });
+});
+
+describe('bounds, each at its edge, and linear work', () => {
+  test('a key of 1 to 4 parts', () => {
+    const key = (n) => Array.from({ length: n }, (_, i) => `k${i}`);
+    assert.equal(mapping.readCollectionRecipe({ ...RECIPE, key: key(4) }).status, 'ok');
+    assert.equal(mapping.readCollectionRecipe({ ...RECIPE, key: key(5) }).status, 'invalid');
+  });
+
+  test('1 to 32 mapped fields', () => {
+    const fields = (n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`f${i}`, { from: 'name' }]));
+    assert.equal(mapping.readCollectionRecipe({ ...RECIPE, fields: fields(32) }).status, 'ok');
+    assert.equal(mapping.readCollectionRecipe({ ...RECIPE, fields: fields(33) }).status, 'invalid');
+    assert.equal(mapping.readCollectionRecipe({ ...RECIPE, fields: {} }).status, 'invalid');
+  });
+
+  test('a key part of at most 64 characters', () => {
+    const at = (s) => resolve([s, 7], collection(1, [person(s, 7, 'Aino', 1)])).status;
+    assert.equal(at('d'.repeat(64)), 'ok');
+    assert.equal(at('d'.repeat(65)), 'hold');
+    assert.equal(mapping.selectionGate({ selection: { v: 1, recipe: 'cands', key: ['d'.repeat(65), 7] } }, [RECIPE], 'Card', {}).status, 'invalid');
+  });
+
+  test('at most 5000 items', () => {
+    const many = (n) => Array.from({ length: n }, (_, i) => person('D1', i, `P${i}`, i));
+    assert.equal(resolve(['D1', 4999], collection(1, many(5000))).status, 'ok');
+    assert.match(resolve(['D1', 1], collection(1, many(5001))).reason, /more than 5000 items/);
+  });
+
+  test('a collection as text of at most 512 KiB characters', () => {
+    const body = JSON.stringify(collection(1, [person('D1', 7, 'Aino', 1)]));
+    const pad = (n) => body.slice(0, -1) + ',"pad":"' + 'x'.repeat(n - body.length - 9) + '"}';
+    assert.equal(pad(512 * 1024).length, 512 * 1024);
+    assert.equal(resolve(['D1', 7], pad(512 * 1024)).status, 'ok');
+    assert.match(resolve(['D1', 7], pad(512 * 1024 + 1)).reason, /longer than 524288 characters/);
+  });
+
+  test('a hostile collection is linear: 5000 items with long keys resolve well under a second', () => {
+    const items = Array.from({ length: 5000 }, (_, i) => person(`D${i}`.padEnd(64, 'x'), i, 'n'.repeat(200), i));
+    const started = performance.now();
+    for (let i = 0; i < 5; i += 1) assert.equal(resolve([items[4999].district, 4999], collection(1, items)).status, 'ok');
+    assert.ok(performance.now() - started < 1000);
+  });
+});

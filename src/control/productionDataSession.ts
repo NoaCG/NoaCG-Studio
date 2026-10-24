@@ -94,12 +94,20 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     });
   };
 
+  /** Reads of the published tree, numbered as they start: an answer that started before one
+   *  already held is older than it, and is passed over (a slow read must not put an older tree
+   *  back, E7.1). */
+  let reads = 0;
+  let readHeld = 0;
   const refresh = async (): Promise<void> => {
     const from = mode;
     const key = part.get().dataKey;
     if (!key) return;
+    const n = ++reads;
     const current = await io.fetchProductionData(key);
-    if (current) write(from, { liveData: current.data as JsonObject, treeRead: true });
+    if (!current || n < readHeld) return;
+    readHeld = n;
+    write(from, { liveData: current.data as JsonObject, treeRead: true });
   };
 
   /** The operator's road for a tree change: optimistic on both, so the figure on screen moves at

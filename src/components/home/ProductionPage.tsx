@@ -2240,7 +2240,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return cue ? [{ cue, graphic }] : [];
       }),
       airedData,
-      boundFields,
+      // A live candidate's fields come from its source, like a bound field: never "unsent".
+      (graphic, cue) => {
+        const candidate = selectedFields(cue, show?.collections);
+        return candidate.length ? { ...boundFields(graphic), ...Object.fromEntries(candidate.map((f) => [f, 'candidate'])) } : boundFields(graphic);
+      },
     ),
     chipLabel: chipGraphic ? (cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic) : null,
   }));
@@ -3519,6 +3523,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       </section>
 
       <CueRundown
+        candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}
         accentPreview={accentPreview?.productionId === show.id ? accentPreview : null}
         onAccentPreview={(cueId, color) => setAccentPreview(color ? { productionId: show.id, cueId, color } : null)}
         show={show}
