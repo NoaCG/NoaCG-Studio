@@ -258,6 +258,11 @@ describe('a recipe: each v1 operation', () => {
     assert.deepEqual([typed.writes, typed.unfit], [{}, ['board']]);
     assert.match(typed.problems.board, /votes is number, but the filter's value is a string/);
     assert.equal(written(board({ where: { path: 'region', equals: 'Lappi' } })), '');
+    // A filter path no item carries any more is a changed schema too; an empty collection still clears.
+    const renamed = board({ where: { path: 'area', equals: 'Uusimaa' } });
+    assert.deepEqual([renamed.writes, renamed.unfit], [{}, ['board']]);
+    assert.match(renamed.problems.board, /no item of parties has area/);
+    assert.equal(written(board({ where: { path: 'area', equals: 'Uusimaa' } }, { parties: [] })), '');
     const flags = { parties: [{ party_id: 'A', out: false }, { party_id: 'B', out: true }] };
     assert.equal(written(board({ where: { path: 'out', equals: false }, columns: [{ from: 'party_id' }] }, flags)), 'A');
   });

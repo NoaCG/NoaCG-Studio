@@ -334,13 +334,17 @@ export function recipeItems(list: RecipeList, collection: JsonValue): { items: R
   const where = list.where;
   if (where) {
     const kinds = new Set<string>();
+    let present = false;
     items = items.filter((item) => {
       const at = atPath(item, where.path);
+      if (at !== undefined) present = true;
       if (at !== undefined && at !== null) kinds.add(typeof at);
       return at === where.equals;
     });
-    // Nothing matches because the values are of another kind (7 against "7"): the provider changed
-    // its schema, which is a correction to make, not an empty list to air.
+    // Nothing matches because no item carries the path any more, or its values are of another kind
+    // (7 against "7"): the provider changed its schema, which is a correction to make, not an
+    // empty list to air.
+    if (items.length === 0 && collection.length > 0 && !present) return { problem: `no item of ${list.from} has ${where.path} to filter on` };
     if (items.length === 0 && kinds.size > 0 && !kinds.has(typeof where.equals)) {
       return { problem: `${where.path} is ${[...kinds].join(' or ')}, but the filter's value is a ${typeof where.equals}` };
     }

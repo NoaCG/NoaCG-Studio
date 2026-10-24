@@ -42,7 +42,8 @@ changes a spec's digest.
     of credentials (a `headers` or `token` key is refused, not ignored).
   - *Typed until the cell*: the filter compares typed values (`0` is not `"0"`); a filter that
     matches nothing because the values are of another kind holds (a provider's schema change is a
-    correction, not an empty list to air). A number format takes a finite number only, a date
+    correction, not an empty list to air), and so does one whose path no item carries any more
+    (a pull request review finding). A number format takes a finite number only, a date
     format a time that states its zone (`Z` or `+hh:mm`), never a bare number (seconds or
     milliseconds would be a guess). A time with no zone is refused because it would read in the machine's zone, and a
     date that does not exist is refused because `Date.parse` rolls 30 February into March.
@@ -96,9 +97,9 @@ changes a spec's digest.
   format object, and the locale and zone verdicts are asked once per runtime. Left as it is: the
   separator check could move beside the row builders in `contentFormats.ts`, outside this row's
   files, and `signDisplay: 'negative'` is not in the api's ES2020 library types.
-- **Mutation checks** (on the final code): 68 single mutations of the evaluator, the registration,
+- **Mutation checks** (on the final code): 70 single mutations of the evaluator, the registration,
   the read-only gate and the route, each run against `scripts/source-mapping.test.mjs` (and
-  `scripts/show-fixture-compat.test.mjs` for the last three). 67 turned it red: every bound one
+  `scripts/show-fixture-compat.test.mjs` for the last three). 69 turned it red: every bound one
   either way, a filter by `==`, no tie-break, the tie-break applied in the sort's direction, no
   descending, kinds of id compared as values, mixed sort kinds allowed, duplicates allowed
   (string or number), `1` and `"1"` one id, no ids kept for the sort, a non-record item allowed, no limit, null not taking the fallback, falsy values
@@ -108,7 +109,8 @@ changes a spec's digest.
   source id, config revision or key checks dropped, a later version evaluated, an invalid recipe
   evaluating its valid parts, a held recipe reporting nothing unfit, a non-object payload read, a
   missing collection evaluated, a prototype key read as an output, any filter literal, no
-  provenance, the read-only gate, the registration or the route dropping the recipe, the kind check on an empty filter, a cleared
+  provenance, the read-only gate, the registration or the route dropping the recipe, the kind check and the missing-path check on an
+  empty filter, a cleared
   recipe read as invalid, a bare number read as a time, the year fix, the separator check or its per-adapter separator, the zero sign
   fix. One survived
   and is equivalent: a list output with a fallback, which the parser refuses before it is
