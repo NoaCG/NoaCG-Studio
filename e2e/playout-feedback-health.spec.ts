@@ -6,6 +6,7 @@
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/useProductionPublish.ts
 // covers: src/control/bridgeWatch.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts
 // focus
 
 import { test, expect } from '@playwright/test';

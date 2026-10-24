@@ -9,6 +9,7 @@
 // covers: src/control/contentFormats.ts
 // covers: src/control/sheetSource.ts
 // covers: src/control/feedSource.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
