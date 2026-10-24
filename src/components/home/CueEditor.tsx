@@ -263,7 +263,7 @@ function CueConnectReview({
       : [];
   const repairs = offers ? needsRepair(bound, id, offers) : new Set<string>();
   /** What a row may pick: a list field the sample's lists, any other its values. */
-  const optionsFor = (fieldId: string) => (offers && adapters[fieldId] ? offers.collections.map((c) => ({ path: c.path, label: `${c.label} (${c.count})` })) : offered);
+  const optionsFor = (fieldId: string) => (offers && adapters[fieldId] ? offers.collections.map((c) => ({ path: c.path, label: c.label })) : offered);
   const chosen = (row: MappingRow): string | null => chosenPath(row, choices);
   const entries = mappingEntries(poolGraphic.name, mapping, choices);
   const matched = mapping.filter((r) => r.status !== 'refused' && chosen(r) !== null).length;
