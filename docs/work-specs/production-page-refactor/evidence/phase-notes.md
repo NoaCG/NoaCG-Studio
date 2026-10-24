@@ -5,6 +5,125 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 28, phase E5.1: the versioned recipe and the target-adapter boundary
+
+- **Previous verified `main` sha:** row 27 (E4.2) passed on `029a114`. This branch began on
+  `2cf5268`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated: a reverted build ignores
+  `config.mapping` and projects every bound leaf by identity again, and the recipe stays in
+  `Show.sources` untouched (the database never read it). That is the spec's rollback: the recipe
+  version is disabled, last values and Fill, manual entry and C1/C5 connections keep working.
+- **What landed.** `readSourceRecipe`, `recipeItems` and the recipe branch of `projectSource` in
+  `src/control/sourceMapping.ts`; the recipe types (`SourceRecipe`, `RecipeList`, `RecipeValue`,
+  `RecipeFormat`) in `src/model/productionData.ts` and `config.mapping` on `ExternalShowSource`;
+  the registration carrying the recipe as stored; the route passing it and answering `problems`,
+  `held` and `provenance`; tests.
+- **The contract, old and new.** Old: a connector's `config` `{v: 1, configRevision, endpoint,
+  lists?}`, every bound leaf read by identity. New persisted, additive optional: `config.mapping`
+  `{v: 1, sourceId, configRevision, outputs: {<bound leaf>: value | list}}`, a value `{from,
+  format?, fallback?}`, a list `{from, id?, where?: {path, equals}, sort?: {by, order}, limit?,
+  columns: value[]}`, a format `{kind: 'number', locale, decimals}` or `{kind: 'date', locale,
+  timeZone, show: date | time | datetime}`. New wire: a changed report's answer adds `problems`
+  (leaf -> what to correct), `held` when nothing was evaluated, and `provenance` (source and
+  recipe). Callers: the route (and so the agent); E5.2 writes recipes.
+- **Decisions.**
+  - *A recipe names bound leaves*, so the binding stays `external.<id>.<leaf>` and the stable field
+    ids stay in `Show.bindings`, written once (stored twice they could disagree). A bound leaf the
+    recipe does not name reads its own path, so a source with no recipe, or a leaf outside it,
+    projects byte for byte as before (row 27's tests unchanged).
+  - *All or nothing for the recipe*: an invalid recipe, one made for another source or another
+    config revision, or a later version holds every
+    bound leaf of the source, identity ones included, with the reason in `held`. No leaf is ever
+    written from half a recipe. A recipe `v` above 1 also makes the source read-only for edits
+    (`externalReadOnly`), so the page cannot overwrite it.
+  - *Strict shape*: every object in a recipe allows only its own keys. That is what keeps it
+    declarative (no operator, transform, expression or second predicate can ride along) and free
+    of credentials (a `headers` or `token` key is refused, not ignored).
+  - *Typed until the cell*: the filter compares typed values (`0` is not `"0"`); a filter that
+    matches nothing because the values are of another kind holds (a provider's schema change is a
+    correction, not an empty list to air), and so does one whose path no item carries any more
+    (a pull request review finding). A number format takes a finite number only, a date
+    format a time that states its zone (`Z` or `+hh:mm`), never a bare number (seconds or
+    milliseconds would be a guess). A time with no zone is refused because it would read in the machine's zone, and a
+    date that does not exist is refused because `Date.parse` rolls 30 February into March.
+  - *Deterministic formatting*: the locale must be one the runtime formats
+    (`supportedLocalesOf`), never silently another; the zone is always explicit; dates use numeric
+    parts and `hourCycle: 'h23'`. The test runs the cases under three machine zones.
+  - *The sort* is one key, ascending or descending, with the id always ascending as tie-break (a
+    sort needs an id). Keys of mixed kinds have no order and hold. Ids must be unique across the
+    whole collection, before the filter; `1` and `"1"` are two ids.
+  - *Fallback*: only for a value that is missing or null; zero, false and `""` are values. It is
+    literal text that must pass the destination like any value, so a "-" never reaches a number
+    field. A list has no fallback, and every item must be a record, so no row is manufactured.
+    The evaluator runs only for a changed or unchanged report, so it cannot hide a transport or
+    authentication failure.
+  - *The target-adapter boundary*: a list output goes through its leaf's registered native adapter
+    (`lists`), and any row that adapter marks (`Only the first two cells are used`, `Needs a time
+    and a programme`) holds the leaf; then every connected field must take the text
+    (`pathValue`). A cell holding the list's own separator holds too (a tab in a ticker line, `|` in
+    a schedule row, either in a credits row, whose grammar splits on both), since it would become another cell. A leaf registered as a list takes only a list output: a
+    single value there would skip the list's grammar (a schedule line with no `|` airs nothing).
+    A record the native list would drop (a first row reading as its pasted header, "Time |
+    Programme", or a blank row at either end) holds the leaf: keeping it would change the shared
+    adapter Sheets use. A value the formatter itself rounds to zero is written without its sign.
+    The identity projection keeps
+    ignoring row marks and separators, as it did (a tab in a connector cell splits a ticker line
+    there: an issue, not changed here, because that output must stay byte for byte).
+  - *Bounds*, each pinned at its edge by a behavioural test: 32 outputs, 8 columns, a limit from 1
+    to 500 (no limit: every row), 8 keys per path, 6 decimals, 200 characters of fallback or
+    filter text. A 30 000-item collection filtered, sorted, limited and formatted, and one of 30 000
+    ties, each well under a second; formatters are made once per format, not per cell.
+  - *E7.1's seam*: `recipeItems` returns a list's items in recipe order with identity checked; a
+    keyed selector is a separate argument that reads them by id, without rewriting shared bindings.
+- **Files beyond the phase's list, and why.** `src/model/productionData.ts` holds the recipe types
+  and the read-only gate: `sourceMapping.ts` already imports it at runtime, so the api typecheck
+  sees nothing new, while a type import of `shows.ts` would pull the whole page model into it and
+  a type in `control/` cannot be imported by `model/`. `src/control/externalSource.ts` carries the
+  recipe through the registration. `api/data/[...path].ts` passes it and answers what held.
+- **Not in this row**: any UI, `op: "sample"`, keyed selectors, SPX conversion, a migration.
+  `productionDataSession` did not need to call the evaluator: no browser reads a connector.
+- **Traps for E5.2** (from this row's review). *A new or corrected recipe and an unchanged
+  payload*: an unchanged report re-evaluates the accepted payload, but the database writes only
+  paths never written, so a recipe saved while the provider is quiet reaches air at the next
+  changed read. E5.2's explicit, revision-fenced replace must make that re-apply happen. *The
+  revision stamp*: a recipe holds the whole source once its `configRevision` is not the
+  registration's, so whatever bumps the revision must re-stamp or review the recipe in the same
+  write. Today nothing writes either.
+- **Import and rebind**: the recipe's `sourceId` stamp stops a recipe copied onto another source.
+  An imported or duplicated production keeps the same ids, so what makes it need an explicit
+  rebind is the source's agent registration and data key, held per production by the database
+  (row 27), not the recipe. `mapping: null` is no recipe, so clearing one never holds the source.
+- **Review fixes in this row**: a number given to a date format held instead of throwing out of
+  the route (and then refused outright, from Assessment A); years 0 to 99 are those years; a value rounding to zero is `0.0`, never `-0.0`; a problem
+  quotes the row's text rather than a number the adapter's trimming can shift; `held` is answered
+  on unchanged reports too. Simplify (no behaviour change): the recipe shares `PATH` with the
+  connector grammar and `RECIPE_VERSION` with the read-only gate, formatters are keyed by the
+  format object, and the locale and zone verdicts are asked once per runtime. Left as it is: the
+  separator check could move beside the row builders in `contentFormats.ts`, outside this row's
+  files, and `signDisplay: 'negative'` is not in the api's ES2020 library types.
+- **Mutation checks** (on the final code): 74 single mutations of the evaluator, the registration,
+  the read-only gate and the route, each run against `scripts/source-mapping.test.mjs` (and
+  `scripts/show-fixture-compat.test.mjs` for the last three). 73 turned it red: every bound one
+  either way, a filter by `==`, no tie-break, the tie-break applied in the sort's direction, no
+  descending, kinds of id compared as values, mixed sort kinds allowed, duplicates allowed
+  (string or number), `1` and `"1"` one id, no ids kept for the sort, a non-record item allowed, no limit, null not taking the fallback, falsy values
+  taking it, a number format taking text, a non-existent date accepted, the zone's sign flipped or
+  bound dropped, a zone-less time parsed, the format's zone or decimals or hour cycle dropped, any
+  locale accepted, any zone accepted, a marked row written, a missing adapter read as lines, the
+  source id, config revision or key checks dropped, a later version evaluated, an invalid recipe
+  evaluating its valid parts, a held recipe reporting nothing unfit, a non-object payload read, a
+  missing collection evaluated, a prototype key read as an output, any filter literal, no
+  provenance, the read-only gate, the registration or the route dropping the recipe, the kind check and the missing-path check on an
+  empty filter, a cleared
+  recipe read as invalid, a bare number read as a time, the year fix, the separator check or any of its per-adapter
+  separators, a single value written to a list leaf, a record
+  the list would drop as its header or a blank end, the zero sign
+  fix. One survived
+  and is equivalent: a list output with a fallback, which the parser refuses before it is
+  evaluated. A first run found five survivors, a later one a sixth (a duplicate number id); three gained tests and one (a fraction of a second
+  no format shows) was removed from the code.
+
 ## Row 27, phase E4.2: the shared evaluator, /api/data/source, fencing, migration 0101, the installed agent
 
 - **Previous verified `main` sha:** row 26 (E4.1) passed on `b085a14`. This branch began on

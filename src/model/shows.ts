@@ -8,7 +8,7 @@
 import type { SpxTemplate, ProductionSounds } from './types';
 import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
-import { externalReadOnly, sourcePaths, withBindings, type BindingEntry, type JsonObject, type ProductionBindings } from './productionData';
+import { externalReadOnly, sourcePaths, withBindings, type BindingEntry, type JsonObject, type ProductionBindings, type SourceRecipe } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
@@ -296,7 +296,16 @@ export interface ExternalShowSource {
   /** src/control/externalSource.ts `ExternalRegistration`: the endpoint it was approved for, the
    *  config revision its agent must present, and the list adapter each collection leaf goes through.
    *  A later version's config is kept whatever it holds, and never read. */
-  config: { v: 1; configRevision: number; endpoint: string; lists?: Record<string, 'lines' | 'schedule' | 'credits'> } | { v: number; [later: string]: unknown };
+  config:
+    | {
+        v: 1;
+        configRevision: number;
+        endpoint: string;
+        lists?: Record<string, 'lines' | 'schedule' | 'credits'>;
+        /** E5.1's recipe (productionData `SourceRecipe`); a later recipe `v` is kept, never evaluated. */
+        mapping?: SourceRecipe | { v: number; [later: string]: unknown };
+      }
+    | { v: number; [later: string]: unknown };
   /** Paused: the route applies nothing; the agent keeps its latest revision for Resume. */
   paused?: boolean;
   inbox?: undefined;

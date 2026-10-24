@@ -538,14 +538,59 @@ export const sourceIdOf = (path: string | undefined): string | null => {
   return (SOURCE_KINDS as readonly string[]).includes(kind) ? id || null : null;
 };
 
-/** A connector source registered by a later build (`config.v` above 1): kept as it is, held
- *  read-only, never applied or edited (src/model/shows.ts `patchShowSource`; the route refuses it
- *  as unsupported). */
+/** A connector source registered by a later build (`config.v` above 1), or carrying a recipe of a
+ *  later version (`config.mapping.v` above 1): kept as it is, held read-only, never applied or
+ *  edited (src/model/shows.ts `patchShowSource`; the route refuses the first as unsupported and
+ *  the evaluator writes nothing from the second). */
 export const externalReadOnly = (source: { kind: string; config?: unknown }): boolean => {
-  const v = (source.config as { v?: unknown } | undefined)?.v;
+  const config = source.config as { v?: unknown; mapping?: { v?: unknown } | null } | undefined;
+  const later = (v: unknown, current: number) => typeof v === 'number' && v > current;
   // Only a later version: a malformed record stays editable (the route refuses it either way).
-  return source.kind === 'external' && typeof v === 'number' && v > 1;
+  return source.kind === 'external' && (later(config?.v, 1) || later(config?.mapping?.v, RECIPE_VERSION));
 };
+
+// A connector's MAPPING RECIPE (docs/work-specs/playout-api-mapping/spec.md, E5.1): the declarative
+// shape persisted in `Show.sources[].config.mapping`, additive optional (no migration). It names
+// which payload value each bound leaf `external.<id>.<leaf>` reads and the few bounded steps it
+// goes through. It holds paths, literals and locales only: no credential, no expression. Read and
+// judged by control/sourceMapping.ts `readSourceRecipe`; a later `v` is kept and never evaluated.
+
+/** A finite number with a fixed count of decimals, or a time, in an explicit locale and zone. */
+export type RecipeFormat =
+  | { kind: 'number'; locale: string; decimals: number }
+  | { kind: 'date'; locale: string; timeZone: string; show: 'date' | 'time' | 'datetime' };
+
+/** One value: the dotted path it reads, an optional format, and the text a missing or null value
+ *  writes instead (zero, false and "" are values). */
+export interface RecipeValue {
+  from: string;
+  format?: RecipeFormat;
+  fallback?: string;
+}
+
+/** A collection: its items' identity, one equality filter, one sort (ties broken by `id`), a row
+ *  limit, then each row's cells in order, written through the leaf's registered list adapter. */
+export interface RecipeList {
+  from: string;
+  id?: string;
+  where?: { path: string; equals: string | number | boolean };
+  sort?: { by: string; order: 'asc' | 'desc' };
+  limit?: number;
+  columns: RecipeValue[];
+}
+
+/** The recipe format this build reads; a later one is kept and never evaluated. */
+export const RECIPE_VERSION = 1;
+
+export interface SourceRecipe {
+  v: typeof RECIPE_VERSION;
+  /** The source and config revision it was made for: a recipe copied onto another source, or one
+   *  older than its source's configuration, evaluates nothing until it is rebound. */
+  sourceId: string;
+  configRevision: number;
+  /** Bound leaf -> what it reads. A bound leaf with no output reads its own path (identity). */
+  outputs: Record<string, RecipeValue | RecipeList>;
+}
 
 /** Every connected path that follows this source, across the production's graphics. */
 export function sourcePaths(bindings: ProductionBindings | undefined, sourceId: string): { graphic: string; fieldId: string; path: string }[] {

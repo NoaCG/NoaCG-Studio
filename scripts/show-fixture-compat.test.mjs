@@ -237,3 +237,36 @@ test('a connector source of a later version (v 2) loads, keeps its last values o
   assert.equal(resolveBindings(live, record.bindings)['News Strip'].f0, 'KOK\t225000', 'the last value stays on air');
   assert.deepEqual(resolveBindings(live, record.bindings).Hairline, resolveBindings(liveData, show.bindings).Hairline);
 });
+
+// E5.1 adds a recipe to a connector's registration (`config.mapping`, additive optional, no
+// migration). A production saved before it (a v 1 connector with no mapping) projects exactly as
+// it did; a v 1 recipe is read; a recipe of a LATER version (v 2) still loads, keeps the last
+// values on air, makes the source read-only and evaluates nothing.
+test('a production saved before recipes projects as before; a v 1 recipe is read (E5.1)', () => {
+  const config = { v: 1, configRevision: 1, endpoint: 'https://results.example/r', lists: { parties: 'lines' } };
+  const preE5 = withConnector(config);
+  assert.deepEqual(showTypeErrors(preE5), []);
+  const payload = { parties: [{ id: 'KOK', votes: 225000 }, { id: 'SDP', votes: 215000 }] };
+  const project = (record) => {
+    const { registration } = readExternalRegistration(record.sources[0]);
+    return projectSource({ sourceId: 'e1', payload, bindings: record.bindings, fieldsOf: () => null, lists: registration.lists, mapping: registration.mapping, configRevision: registration.configRevision });
+  };
+  assert.deepEqual(project(preE5).writes, { 'external.e1.parties': 'KOK\t225000\nSDP\t215000' });
+  const mapped = withConnector({ ...config, mapping: { v: 1, sourceId: 'e1', configRevision: 1, outputs: { parties: { from: 'parties', id: 'id', sort: { by: 'votes', order: 'asc' }, columns: [{ from: 'id' }] } } } });
+  assert.deepEqual(showTypeErrors(mapped), []);
+  assert.equal(externalReadOnly(mapped.sources[0]), false);
+  assert.deepEqual(project(mapped).writes, { 'external.e1.parties': 'SDP\nKOK' });
+});
+
+test('a recipe of a later version (v 2) loads, keeps its last values on air, and evaluates nothing (E5.1)', () => {
+  const later = { v: 2, sourceId: 'e1', configRevision: 1, outputs: { parties: { from: 'parties', keyed: 'candidate_id' } } };
+  const record = withConnector({ v: 1, configRevision: 1, endpoint: 'https://results.example/r', lists: { parties: 'lines' }, mapping: later });
+  assert.deepEqual(showTypeErrors(record), [], 'a later recipe must still load');
+  assert.equal(externalReadOnly(record.sources[0]), true, 'its source is not edited, so the recipe is kept as it is');
+  const { registration } = readExternalRegistration(record.sources[0]);
+  assert.deepEqual(registration.mapping, later, 'kept byte for byte');
+  const projected = projectSource({ sourceId: 'e1', payload: { parties: ['x'] }, bindings: record.bindings, fieldsOf: () => null, lists: registration.lists, mapping: registration.mapping, configRevision: 1 });
+  assert.deepEqual([projected.writes, projected.held.readOnly], [{}, true]);
+  const live = { ...liveData, external: { e1: { parties: 'KOK\t225000' } } };
+  assert.equal(resolveBindings(live, record.bindings)['News Strip'].f0, 'KOK\t225000', 'the last value stays on air');
+});

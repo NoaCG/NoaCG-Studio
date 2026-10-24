@@ -102,7 +102,8 @@ const SOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 /** A credential is an environment variable of its own family, so a configuration cannot name the
  *  agent's other secrets (a database key, say) and send them to its endpoint. */
 const ENV_NAME = /^NOACG_SOURCE_[A-Z0-9_]{1,50}$/;
-const PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
+/** A dotted path of object keys: the one path grammar of a connector and its recipe. */
+export const PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
 
 export const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const optionalString = (value: unknown): value is string | null | undefined => value === undefined || value === null || typeof value === 'string';
@@ -404,6 +405,9 @@ export interface ExternalRegistration {
   configRevision: number;
   endpoint: string;
   lists?: Record<string, SourceListAdapter>;
+  /** E5.1's recipe as stored, judged by ./sourceMapping.ts `readSourceRecipe` (the database never
+   *  reads it: it changes what is written, not whether the agent may report). */
+  mapping?: unknown;
 }
 
 export type RegistrationRead =
@@ -430,7 +434,13 @@ export function readExternalRegistration(entry: unknown): RegistrationRead {
   }
   return {
     ok: true,
-    registration: { v: 1, configRevision, endpoint, ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}) },
+    registration: {
+      v: 1,
+      configRevision,
+      endpoint,
+      ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}),
+      ...(config.mapping !== undefined ? { mapping: config.mapping } : {}),
+    },
   };
 }
 

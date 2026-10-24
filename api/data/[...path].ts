@@ -384,13 +384,16 @@ async function source(req: Request): Promise<Response> {
       // The database judges the registration (an unusable one refuses the report with nothing
       // written); the evaluator only needs its lists. No in-process budget here: the database counts
       // this source's ROWS against the shared budget, and a refused report must not spend /patch's.
-      const registration = readExternalRegistration(context.entry);
+      const read = readExternalRegistration(context.entry);
+      const registration = read.ok ? read.registration : undefined;
       projection = projectSource({
         sourceId: envelope.sourceId,
         payload: acquisition.status === 'changed' ? acquisition.payload : context.payload,
         bindings: context.bindings,
         fieldsOf: (graphic) => (context.fields[graphic] ? descriptorsOf(context.fields[graphic]) : null),
-        lists: registration.ok ? registration.registration.lists : undefined,
+        lists: registration?.lists,
+        mapping: registration?.mapping,
+        configRevision: registration?.configRevision,
       });
     }
     const answer = await rpc<Record<string, unknown>>('control_source_report_by_key', {
@@ -400,7 +403,12 @@ async function source(req: Request): Promise<Response> {
       p_writes: projection?.writes ?? {},
     });
     if (typeof answer.refused === 'string') return refused(answer as { refused: string });
-    return json({ ...answer, ...(projection && acquisition.status === 'changed' ? { missing: projection.missing, unfit: projection.unfit } : {}) });
+    if (!projection) return json(answer);
+    // What the agent reports back to whoever runs it: a recipe that holds the whole source on every
+    // report, and for a changed one what held, what to correct, and from where.
+    const { missing, unfit, problems, held, provenance } = projection;
+    const why = held ? { held } : {};
+    return json(acquisition.status === 'changed' ? { ...answer, missing, unfit, problems, ...why, provenance } : { ...answer, ...why });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('unknown data key')) return apiError('unauthorized', 'Unknown data key.', 401);
