@@ -66,11 +66,19 @@ changes a spec's digest.
     15 s, evaluates the accepted payload for it; the configured walk pins this); until then the
     field says "waits for the next read". A changed mapping of a path already written reaches air
     with the provider's next changed revision: the database writes an unchanged report only to paths
-    never written, and changing that is a migration (out of this row). `docs/DATA_API.md` says both.
+    never written, and changing that is a migration (out of this row). This departs from row 28's
+    note that E5.2 "must make that re-apply happen": the review says "on air at the provider's next
+    change" beside such a field, `docs/DATA_API.md` says both cases, and #1679 holds the migration.
   - *Repair*: a bound path the new sample lacks is marked "not in the sample: pick another" and
     keeps its binding (the field keeps its last value; the evaluator holds it) until a pick; a
     proposal never retargets a bound field by itself. "Needs attention" now counts an unmatched or
     ambiguous field only while it follows nothing, so a fully connected review reads 0.
+  - *A reconnect keeps a list's columns*: with no pick, the review shows and an untouched Connect
+    writes again the columns the source already reads for that leaf (`columnsFor`); found by the
+    spec, which caught the defaults overwriting them.
+  - *The endpoint is non-secret*, stored, synced and sent to the feed reader for a sample; a key in
+    its query string is not supported (`docs/DATA_API.md`), and the SPX package writes the address
+    without its query anyway.
   - *Fill this cue* is offered for any read (Sheet, feed, connector): it copies what the preview
     shows into the cue's draft, unbound fields only, and connects nothing.
   - *Export*: the SPX package's "What SPX does not carry" names each connector, its endpoint and a
@@ -94,6 +102,19 @@ changes a spec's digest.
   agent's redaction, `sendPaths` and one-at-a-time, and the five E5.1 gaps), all red; and the
   browser fence (`connectConnectorSource` without its fence turns `e2e/production-api-mapping
   .spec.ts` red).
+- **Check and Assessment A.** The review's ten findings: nine fixed (the sample post reads the claim
+  and never renews it, so a lapsed lease is never handed out anew; best-effort lookups beside a
+  taken claim or report; any refusal of the source falls back to the hosted read; a closed review
+  stops asking; fewer lookups; the export's endpoint without its query; a JSON Accept header and the
+  256 KiB cap while downloading; concurrent asks share one; dead code), one kept by design (the
+  `.sample` row). Simplify: shared `scalarText`, `SEGMENT`, `MAX_SEGMENTS` and
+  `readExternalRegistration` instead of copies, structured feed failures (`status`, `tooLarge`)
+  instead of matching words, one read and cancel helper and one write in the review. Left as they
+  are: a per-kind review adapter and folding `connectConnectorSource` into `connectShowSource`
+  (both wider than this row), `LIST_CELLS` beside contentFormats' grammars. Assessment A (a fresh
+  read-only session) answered AGREE WITH CORRECTIONS: the re-apply departure (above, #1679), the
+  endpoint's query (above) and an unchecked `configRevision` on the agent's sample post (dropped
+  from the envelope and the docs) were all corrected.
 - **Traps.** *A storage-full Connect* is #1603 and fails on main too. *The production-data spec
   under load*: two of its PROGRAM timing tests failed while mutation runs loaded the machine and
   passed alone; run browser work alone. *Playwright's browser*: this image had `-1243` where the
