@@ -243,9 +243,12 @@ export function connectorPlan(o: {
   for (const [leaf, adapter] of Object.entries(stored?.lists ?? {})) if (bound.has(leaf)) lists[leaf] = adapter;
 
   const byPath = new Map(o.collections.map((c) => [c.path, c]));
-  // This graphic's leaves: a leaf the source already reads keeps its output (a format or fallback
-  // made through the API is not lost by a reconnect); a list's columns follow a fitting pick.
-  const mine = sourcePaths(after, id).filter((p) => p.graphic === o.graphic);
+  // Only the fields this review shows can change how a leaf is read, and only so far as it says:
+  // a leaf the source already reads keeps its output (a format, fallback, filter or sort made
+  // through the API, a field the graphic no longer has, another graphic's reading of a shared
+  // leaf), a list's columns follow a pick that fits it, and a leaf it does not read yet is added.
+  const reviewed = new Set(o.rows.map((r) => r.fieldId));
+  const mine = sourcePaths(after, id).filter((p) => p.graphic === o.graphic && reviewed.has(p.fieldId));
   for (const { fieldId, path } of mine) {
     const leaf = path.slice(prefix.length);
     const adapter = o.adapters[fieldId];
@@ -254,8 +257,8 @@ export function connectorPlan(o: {
     if (adapter && collection) {
       outputs[leaf] = listOutput(collection, adapter, o.columns[fieldId], stored);
       lists[leaf] = adapter;
-    } else if (!adapter) {
-      outputs[leaf] = stored && !('columns' in stored) ? stored : { from: leaf };
+    } else if (!adapter && !stored) {
+      outputs[leaf] = { from: leaf };
       delete lists[leaf];
     }
   }

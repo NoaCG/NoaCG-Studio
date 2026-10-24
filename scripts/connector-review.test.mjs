@@ -249,6 +249,33 @@ describe('a reconnect keeps what the source already reads', () => {
     assert.deepEqual(review.columnsFor(collection, 'lines', ['team'], undefined), ['team']);
   });
 
+  test('a field the review does not show (the graphic lost it) keeps its leaf as stored, for every graphic sharing it', () => {
+    const shared = { ...bindings, Ticker: { f0: 'external.e1.scorers' } };
+    const shown = [{ key: 'f1', label: 'Home score' }];
+    const rows = review.proposeConnector(shown, review.jsonOffers('e1', SAMPLE), shared[GRAPHIC], {}, () => false, () => true);
+    const p = review.connectorPlan({ graphic: GRAPHIC, bindings: shared, source: { id: 'e1', label: 'Results', config: stored }, rows, choices: {}, collections: review.jsonOffers('e1', SAMPLE).collections, adapters: {}, columns: {} });
+    assert.deepEqual(p.source.config.mapping.outputs, stored.mapping.outputs);
+    assert.deepEqual(p.source.config.lists, { scorers: 'lines' });
+  });
+
+  test('a list leaf read by identity (registered, no recipe output) is left as registered when its field is not shown', () => {
+    const registered = { v: 1, configRevision: 3, endpoint: 'https://results.example/live', lists: { scorers: 'lines' } };
+    const shown = [{ key: 'f1', label: 'Home score' }];
+    const rows = review.proposeConnector(shown, review.jsonOffers('e1', SAMPLE), bindings[GRAPHIC], {}, () => false, () => true);
+    const p = review.connectorPlan({ graphic: GRAPHIC, bindings, source: { id: 'e1', label: 'Results', config: registered }, rows, choices: {}, collections: [], adapters: {}, columns: {} });
+    assert.deepEqual(p.source.config.lists, { scorers: 'lines' });
+    assert.equal(p.source.config.mapping.outputs.scorers, undefined, 'still read through its registered list');
+  });
+
+  test('a scalar field on a leaf another graphic reads as a list leaves that reading alone', () => {
+    const shared = { [GRAPHIC]: { f1: 'external.e1.scorers' }, Ticker: { f0: 'external.e1.scorers' } };
+    const shown = [{ key: 'f1', label: 'Home score' }];
+    const rows = review.proposeConnector(shown, review.jsonOffers('e1', SAMPLE), shared[GRAPHIC], {}, () => false, () => true);
+    const p = review.connectorPlan({ graphic: GRAPHIC, bindings: shared, source: { id: 'e1', label: 'Results', config: stored }, rows, choices: {}, collections: [], adapters: {}, columns: {} });
+    assert.deepEqual(p.source.config.mapping.outputs.scorers, scorers);
+    assert.deepEqual(p.source.config.lists, { scorers: 'lines' });
+  });
+
   test('a stored list of more cells than the default keeps all of them', () => {
     const two = { ...scorers, columns: [{ from: 'name' }, { from: 'minute', format: { kind: 'number', locale: 'en-GB', decimals: 0 } }] };
     const collection = review.jsonOffers('e1', SAMPLE).collections[0];
