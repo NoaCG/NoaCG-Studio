@@ -62,7 +62,9 @@ changes a spec's digest.
     (`lists`), and any row that adapter marks (`Only the first two cells are used`, `Needs a time
     and a programme`) holds the leaf; then every connected field must take the text
     (`pathValue`). A cell holding the list's own separator holds too (a tab in a ticker line, `|` in
-    a schedule row, either in a credits row, whose grammar splits on both), since it would become another cell. The identity projection keeps
+    a schedule row, either in a credits row, whose grammar splits on both), since it would become another cell. A leaf registered as a list takes only a list output: a
+    single value there would skip the list's grammar (a schedule line with no `|` airs nothing).
+    The identity projection keeps
     ignoring row marks and separators, as it did (a tab in a connector cell splits a ticker line
     there: an issue, not changed here, because that output must stay byte for byte).
   - *Bounds*, each pinned at its edge by a behavioural test: 32 outputs, 8 columns, a limit from 1
@@ -97,9 +99,9 @@ changes a spec's digest.
   format object, and the locale and zone verdicts are asked once per runtime. Left as it is: the
   separator check could move beside the row builders in `contentFormats.ts`, outside this row's
   files, and `signDisplay: 'negative'` is not in the api's ES2020 library types.
-- **Mutation checks** (on the final code): 72 single mutations of the evaluator, the registration,
+- **Mutation checks** (on the final code): 73 single mutations of the evaluator, the registration,
   the read-only gate and the route, each run against `scripts/source-mapping.test.mjs` (and
-  `scripts/show-fixture-compat.test.mjs` for the last three). 71 turned it red: every bound one
+  `scripts/show-fixture-compat.test.mjs` for the last three). 72 turned it red: every bound one
   either way, a filter by `==`, no tie-break, the tie-break applied in the sort's direction, no
   descending, kinds of id compared as values, mixed sort kinds allowed, duplicates allowed
   (string or number), `1` and `"1"` one id, no ids kept for the sort, a non-record item allowed, no limit, null not taking the fallback, falsy values
@@ -112,7 +114,7 @@ changes a spec's digest.
   provenance, the read-only gate, the registration or the route dropping the recipe, the kind check and the missing-path check on an
   empty filter, a cleared
   recipe read as invalid, a bare number read as a time, the year fix, the separator check or any of its per-adapter
-  separators, the zero sign
+  separators, a single value written to a list leaf, the zero sign
   fix. One survived
   and is equivalent: a list output with a fallback, which the parser refuses before it is
   evaluated. A first run found five survivors, a later one a sixth (a duplicate number id); three gained tests and one (a fraction of a second
