@@ -214,6 +214,53 @@ describe('the one write', () => {
   });
 });
 
+describe('a reconnect keeps what the source already reads', () => {
+  const fields = [{ key: 'f0', label: 'Lines' }];
+  const bindings = { [GRAPHIC]: { f0: 'external.e1.scorers', f1: 'external.e1.match.home.score' } };
+  const shares = { from: 'match.home.score', format: { kind: 'number', locale: 'fi-FI', decimals: 1 }, fallback: '-' };
+  const scorers = { from: 'scorers', id: 'id', where: { path: 'team', equals: 'HIFK' }, sort: { by: 'minute', order: 'desc' }, limit: 5, columns: [{ from: 'name', fallback: '?' }] };
+  const stored = { v: 1, configRevision: 3, endpoint: 'https://results.example/live', lists: { scorers: 'lines' }, mapping: { v: 1, sourceId: 'e1', configRevision: 3, outputs: { scorers, 'match.home.score': shares } } };
+  const reconnect = (columns = {}) => {
+    const all = [...fields, { key: 'f1', label: 'Home score' }];
+    const rows = review.proposeConnector(all, review.jsonOffers('e1', SAMPLE), bindings[GRAPHIC], { f0: 'lines' }, () => false, () => true);
+    return review.connectorPlan({ graphic: GRAPHIC, bindings, source: { id: 'e1', label: 'Results', config: stored }, rows, choices: {}, collections: review.jsonOffers('e1', SAMPLE).collections, adapters: { f0: 'lines' }, columns });
+  };
+
+  test('an untouched reconnect writes every output back as it was: formats, fallback, filter, sort and limit', () => {
+    const p = reconnect();
+    assert.deepEqual(p.entries, []);
+    assert.deepEqual(p.source.config.mapping.outputs, stored.mapping.outputs);
+    const out = mapping.projectSource({ sourceId: 'e1', payload: SAMPLE, bindings, fieldsOf: () => null, lists: p.source.config.lists, mapping: p.source.config.mapping, configRevision: 3 });
+    assert.equal(out.writes['external.e1.match.home.score'], '2,0', 'still formatted');
+  });
+
+  test('a column pick replaces the columns only, keeping each picked column\'s own format', () => {
+    const p = reconnect({ f0: ['name'] });
+    assert.deepEqual(p.source.config.mapping.outputs.scorers, scorers);
+    const q = reconnect({ f0: ['team'] });
+    assert.deepEqual(q.source.config.mapping.outputs.scorers, { ...scorers, columns: [{ from: 'team' }] });
+  });
+
+  test('a pick made for another list does not apply: the field switched lists', () => {
+    const p = reconnect({ f0: ['title'] });
+    assert.deepEqual(p.source.config.mapping.outputs.scorers, scorers, 'kept, never a column the list lacks');
+    const collection = review.jsonOffers('e1', SAMPLE).collections[0];
+    assert.deepEqual(review.columnsFor(collection, 'lines', ['title'], undefined), ['name']);
+    assert.deepEqual(review.columnsFor(collection, 'lines', ['team'], undefined), ['team']);
+  });
+
+  test('a stored list of more cells than the default keeps all of them', () => {
+    const two = { ...scorers, columns: [{ from: 'name' }, { from: 'minute', format: { kind: 'number', locale: 'en-GB', decimals: 0 } }] };
+    const collection = review.jsonOffers('e1', SAMPLE).collections[0];
+    assert.deepEqual(review.columnsFor(collection, 'lines', undefined, two), ['name', 'minute']);
+    const s2 = { ...stored, mapping: { ...stored.mapping, outputs: { ...stored.mapping.outputs, scorers: two } } };
+    const all = [...fields, { key: 'f1', label: 'Home score' }];
+    const rows = review.proposeConnector(all, review.jsonOffers('e1', SAMPLE), bindings[GRAPHIC], { f0: 'lines' }, () => false, () => true);
+    const p = review.connectorPlan({ graphic: GRAPHIC, bindings, source: { id: 'e1', label: 'Results', config: s2 }, rows, choices: {}, collections: [collection], adapters: { f0: 'lines' }, columns: {} });
+    assert.deepEqual(p.source.config.mapping.outputs.scorers, two);
+  });
+});
+
 describe('repair', () => {
   test('a bound path the new sample lacks needs repair, keeps its binding, and is not retargeted', () => {
     const changed = { match: { home: { team: 'HIFK', goals: 2 } } };

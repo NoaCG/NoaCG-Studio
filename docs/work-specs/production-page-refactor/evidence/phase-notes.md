@@ -73,9 +73,11 @@ changes a spec's digest.
     keeps its binding (the field keeps its last value; the evaluator holds it) until a pick; a
     proposal never retargets a bound field by itself. "Needs attention" now counts an unmatched or
     ambiguous field only while it follows nothing, so a fully connected review reads 0.
-  - *A reconnect keeps a list's columns*: with no pick, the review shows and an untouched Connect
-    writes again the columns the source already reads for that leaf (`columnsFor`); found by the
-    spec, which caught the defaults overwriting them.
+  - *A reconnect keeps what the source already reads*: a leaf the recipe already has keeps its
+    output whole (a format, fallback, filter, sort or limit made through the API has no control
+    here and is not lost), and a list's columns change only with a pick that fits the list; a pick
+    made for another list (the field switched lists) never applies. The columns case was found by
+    the spec, the rest by the pull request's review.
   - *The endpoint is non-secret*, stored, synced and sent to the feed reader for a sample; a key in
     its query string is not supported (`docs/DATA_API.md`), and the SPX package writes the address
     without its query anyway.

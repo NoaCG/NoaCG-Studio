@@ -584,7 +584,11 @@ function CueConnectReview({
                     ) : (
                       <select
                         value={path ?? ''}
-                        onChange={(e) => setChoices((c) => ({ ...c, [row.fieldId]: e.target.value || null }))}
+                        onChange={(e) => {
+                          setChoices((c) => ({ ...c, [row.fieldId]: e.target.value || null }));
+                          // Columns picked for one list mean nothing for another.
+                          setColumns(({ [row.fieldId]: _dropped, ...rest }) => rest);
+                        }}
                         aria-label={`${row.label} follows`}
                         data-testid={`cue-connect-pick-${row.fieldId}`}
                       >

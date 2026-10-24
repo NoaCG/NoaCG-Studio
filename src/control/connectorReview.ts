@@ -119,19 +119,41 @@ export function defaultColumns(collection: JsonCollection, adapter: SourceListAd
   return keys.slice(0, LIST_CELLS[adapter]);
 }
 
+/** A pick of columns that fits this list: keys its records carry. A pick made for another list
+ *  (the field switched lists) does not. */
+const fits = (collection: JsonCollection, picked: string[] | undefined): picked is string[] =>
+  picked !== undefined && picked.length > 0 && picked.every((k) => collection.keys.includes(k));
+
+/** What the source already reads for a leaf from this list, when it does. */
+const storedList = (collection: JsonCollection, stored: RecipeValue | RecipeList | undefined): RecipeList | undefined =>
+  stored && 'columns' in stored && stored.from === collection.from ? stored : undefined;
+
 /**
- * The columns a list field reads: the operator's pick, else what the source already reads for
- * this leaf from this list (a reconnect keeps them), else the defaults.
+ * The columns a list field reads: the operator's pick when it fits this list, else what the source
+ * already reads for this leaf from this list (a reconnect keeps them), else the defaults.
  */
 export function columnsFor(
   collection: JsonCollection,
   adapter: SourceListAdapter,
   picked: string[] | undefined,
-  stored: SourceRecipe['outputs'][string] | undefined,
+  stored: RecipeValue | RecipeList | undefined,
 ): string[] {
-  if (picked) return picked;
-  if (stored && 'columns' in stored && stored.from === collection.from && stored.columns.length === LIST_CELLS[adapter]) return stored.columns.map((c) => c.from);
+  if (fits(collection, picked)) return picked;
+  const kept = storedList(collection, stored);
+  if (kept) return kept.columns.map((c) => c.from);
   return defaultColumns(collection, adapter);
+}
+
+/**
+ * A list leaf's output: what the source already reads is kept whole (its filter, sort, limit and
+ * formats, which this review has no controls for), its columns replaced only by a pick that fits;
+ * a list it does not read yet starts from its record key and the columns.
+ */
+function listOutput(collection: JsonCollection, adapter: SourceListAdapter, picked: string[] | undefined, stored: RecipeValue | RecipeList | undefined): RecipeList {
+  const kept = storedList(collection, stored);
+  const columns = columnsFor(collection, adapter, picked, stored);
+  if (kept) return { ...kept, columns: columns.map((from) => kept.columns.find((c) => c.from === from) ?? { from }) };
+  return { from: collection.from, ...(collection.id ? { id: collection.id } : {}), columns: columns.map((from) => ({ from })) };
 }
 
 /**
@@ -221,17 +243,19 @@ export function connectorPlan(o: {
   for (const [leaf, adapter] of Object.entries(stored?.lists ?? {})) if (bound.has(leaf)) lists[leaf] = adapter;
 
   const byPath = new Map(o.collections.map((c) => [c.path, c]));
+  // This graphic's leaves: a leaf the source already reads keeps its output (a format or fallback
+  // made through the API is not lost by a reconnect); a list's columns follow a fitting pick.
   const mine = sourcePaths(after, id).filter((p) => p.graphic === o.graphic);
   for (const { fieldId, path } of mine) {
     const leaf = path.slice(prefix.length);
     const adapter = o.adapters[fieldId];
     const collection = byPath.get(path);
+    const stored = before?.status === 'ok' ? before.recipe.outputs[leaf] : undefined;
     if (adapter && collection) {
-      const columns = columnsFor(collection, adapter, o.columns[fieldId], before?.status === 'ok' ? before.recipe.outputs[leaf] : undefined);
-      outputs[leaf] = { from: collection.from, ...(collection.id ? { id: collection.id } : {}), columns: columns.map((from) => ({ from })) };
+      outputs[leaf] = listOutput(collection, adapter, o.columns[fieldId], stored);
       lists[leaf] = adapter;
     } else if (!adapter) {
-      outputs[leaf] = { from: leaf };
+      outputs[leaf] = stored && !('columns' in stored) ? stored : { from: leaf };
       delete lists[leaf];
     }
   }
