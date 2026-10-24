@@ -704,22 +704,25 @@ alone - the headless browser and the MCP server never enter the file) into one C
 Node turns it into a single-executable blob, the running `node.exe` is copied and `postject`
 injects the blob. The version is baked in, because the exe has no `package.json` beside it. The
 script refuses to report success until the result has started on a free port and answered
-`/health` as NoaCG Bridge with the package's version. Measured on this machine: 86 MB, starts,
+`/health` as NoaCG Bridge with its own version, `bridgeVersion` in `cli/package.json`. Measured on this machine: 86 MB, starts,
 answers.
 
-**Two products, two homes.** To the people who use them, the NoaCG CLI (making graphics) and
-NoaCG Bridge (connecting NoaCG Playout to CasparCG) are two tools with nothing in common, and the
-release path keeps them apart: the CLI is published to npm by `release-cli.yml` on a `cli-v*`
+**Two products, two homes.** The NoaCG CLI is for a creator making graphics with an agent; NoaCG
+Bridge is for the operator connecting NoaCG Playout to CasparCG or vMix. To the people who use
+them they are two tools with nothing in common, and the release path keeps them apart: the CLI is published to npm by `release-cli.yml` on a `cli-v*`
 tag, and the Bridge is published to the repository's GitHub Releases page by
 `release-bridge.yml` on a `bridge-v*` tag. Both are described, side by side, on the public
 Downloads page (`/downloads`, `downloads.html`), which the landing page, the docs and the
 studio's Playout settings all link.
 
-**One version, two channels (owner, 2026-09-23).** The Bridge IS `noacg bridge` from the CLI
-package, so the two share one version number, `cli/package.json`'s, and never grow a second one.
-What is separate is the CHANNEL: a version reaches npm on a `cli-v*` tag and the Releases page on
-a `bridge-v*` tag, and either may skip a version the other ships. So "latest" is resolved per
-channel, never shared:
+**Two version lines (owner, 2026-10-24).** The Bridge's code is `noacg bridge` in the CLI
+package, but the two have separate version numbers: the CLI's is `cli/package.json` `version`,
+the Bridge's is `bridgeVersion` in the same file, and it moves only when the Bridge changes. This
+replaces the shared number of 2026-09-23, under which the Downloads page offered Bridge 0.9.0
+beside a CLI at 0.12.3 and nobody could tell whether the gap mattered. The Bridge window, `/health`,
+the exe's file name and its Release all carry `bridgeVersion`; the studio never compares it (it
+reads the protocol version and the feature list, below). "Latest" is resolved per product,
+never shared:
 
 - the Bridge: every Bridge release is created with `--latest`, so
   `https://github.com/NoaCG/NoaCG-Studio/releases/latest` is always the newest Bridge, even with
@@ -729,19 +732,24 @@ channel, never shared:
   0.4.0 to 0.6.0 were published as plain `NoaCG-Bridge.exe` and the page still accepts that;
 - the CLI: npm's `latest` for `@noacg/cli`, which the Downloads page reads from the registry.
 
-Each card on the Downloads page shows the version of the file it links to, so a CLI release with
-no new exe simply shows two different numbers. `noacg bridge` still runs the Bridge for a
-developer who has the CLI; that is the one place the shared package shows. A Bridge
-release happens when a version with its own section in `cli/BRIDGE_CHANGELOG.md` lands on `main`
-(owner, 2026-10-08): the workflow builds the exe from that commit and creates the Release and its
+Each card on the Downloads page shows the version of the file it links to. The Bridge card
+offers the download and nothing else (2026-10-24): it used to add `npx -y @noacg/cli bridge`, but
+that runs the Bridge code inside the newest CLI, which can be newer than the newest Bridge
+release, so one card offered two Bridges. `noacg bridge` still works for a developer who has the
+CLI; it reports the `bridgeVersion` of that package, which names the last Bridge release or the
+one being prepared, so between releases its code may be ahead of that number.
+
+A Bridge release is moving `bridgeVersion` and writing its section at the top of
+`cli/BRIDGE_CHANGELOG.md`, in one change; `npm run build` refuses one without the other, and
+changes not ready to release wait under an `## Unreleased` heading. When that lands on `main`
+(owner, 2026-10-08) the workflow builds the exe from that commit and creates the Release and its
 `bridge-vX.Y.Z` tag. Pushing that tag by hand re-drives a release; the workflow refuses a commit
-that is not on main, a tag that disagrees with the package version, a
-version already released, and a version with no section in `cli/BRIDGE_CHANGELOG.md`, written
-for the operator deciding whether to download again. The Release page is that section placed
-into `cli/BRIDGE_RELEASE.md` (what it is, what changed, how to install, where the guide is), and
-`node cli/scripts/release-notes.mjs --bridge` prints it. A Bridge release may skip versions
-that only changed the CLI. The Actions tab's "Run workflow" is a rehearsal by default and keeps
-the exe as a workflow artifact.
+that is not on main, a tag that disagrees with `bridgeVersion`, a version already released, and a
+version with no section in `cli/BRIDGE_CHANGELOG.md`, written for the operator deciding whether
+to download again. The Release page is that section placed into `cli/BRIDGE_RELEASE.md` (what it
+is, what changed, how to install, where the guide is), and
+`node cli/scripts/release-notes.mjs --bridge` prints it. The Actions tab's "Run workflow" is a
+rehearsal by default and keeps the exe as a workflow artifact.
 
 **Unsigned, for now.** The injection invalidates node.exe's own signature and there is no NoaCG
 code-signing identity yet, so SmartScreen shows "Windows protected your PC" (More info -> Run

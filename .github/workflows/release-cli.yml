@@ -37,9 +37,10 @@
 # the "Run workflow" button still re-drive a release by hand.
 #
 # NO GITHUB RELEASE IS CREATED HERE. The CLI's home is npm. The repository's Releases page
-# belongs to NoaCG Bridge, the other tool built from this package (release-bridge.yml): to the
-# people who use them they are two products with two homes, and the studio's download link
-# resolves `releases/latest` to the newest Bridge only because nothing else is released there.
+# belongs to NoaCG Bridge, the other product built from this package (release-bridge.yml): two
+# products for two audiences, each with its own home and its own version line (the Bridge's is
+# `bridgeVersion`, which this workflow never reads), and the studio's download link resolves
+# `releases/latest` to the newest Bridge only because nothing else is released there.
 name: Release CLI to npm
 
 on:

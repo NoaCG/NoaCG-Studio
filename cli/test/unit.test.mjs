@@ -34,7 +34,7 @@ import { readDoc, skillDir } from '../dist/commands/docs.js';
 import { flagBool, flagList, flagNumber, flagString, parseArgs, table, UsageError } from '../dist/output.js';
 import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
-import { cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
+import { bridgeVersion, cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
 import { parseFieldList } from '../dist/commands/scaffold.js';
 import { openUrl, openUrlCommand } from '../dist/openUrl.js';
 
@@ -372,6 +372,21 @@ test('cliVersion is the package version the release tags', async () => {
   const pkg = JSON.parse(await fs.readFile(path.join(here, '..', 'package.json'), 'utf8'));
   assert.equal(cliVersion(), pkg.version);
   assert.match(cliVersion(), /^\d+\.\d+\.\d+/);
+});
+
+test("bridgeVersion is the Bridge's own line, and the exe's baked version wins", async () => {
+  const pkg = JSON.parse(await fs.readFile(path.join(here, '..', 'package.json'), 'utf8'));
+  const before = process.env.NOACG_BRIDGE_VERSION;
+  try {
+    delete process.env.NOACG_BRIDGE_VERSION;
+    assert.equal(bridgeVersion(), pkg.bridgeVersion);
+    process.env.NOACG_BRIDGE_VERSION = '7.8.9';
+    assert.equal(bridgeVersion(), '7.8.9');
+    assert.equal(cliVersion(), pkg.version, "the Bridge's version never becomes the CLI's");
+  } finally {
+    if (before === undefined) delete process.env.NOACG_BRIDGE_VERSION;
+    else process.env.NOACG_BRIDGE_VERSION = before;
+  }
 });
 
 test('an agent key is recognised by prefix and length, and only ever shown as a prefix', () => {
