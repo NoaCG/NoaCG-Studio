@@ -59,8 +59,18 @@ changes a spec's digest.
     `pathValue` moved here from `sheetSource.ts` (re-exported), so the browser reader, the tick and
     the route resolve a value with one function (pinned by identity in the test).
   - *A local destination is the agent's file's alone* (E4.1 check finding h): `mode` or `caFile` in
-    the production's record is refused by the route and the database.
-  - *`sendPaths`* is the agent's projection (the 2 MiB it may read against the route's 256 KiB).
+    the production's record is refused by the database (`local_refused`), as is a bad `lists` or
+    endpoint (`registration`); the database owns registration validity and every such refusal
+    takes the fence. `readExternalRegistration` states the same rules for readers.
+  - *The claim is renewed every 10 s* (a third of the lease) unless a report renewed it meanwhile,
+    so a slow poll or a 60 s backoff never lets the 30 s lease lapse into a claim-and-drop loop (the
+    check's finding); a renewal the server did not answer (5xx, 429) keeps the claim.
+  - *Waiting as asked*: after a `too_soon` or `budget` refusal the agent holds the revision until the
+    `retryMs` the production named, instead of sending it at every read.
+  - *No in-process budget on this route*: the database counts the source's rows against the shared
+    25, and a refused report must not spend `/patch`'s requests.
+  - *`sendPaths`* is the agent's projection (the 2 MiB it may read against the route's 256 KiB),
+    applied before the change is judged, so a ticking field outside it is not a revision.
   - *The receipt gap counts from the last receipt taken*, not from the read: the database counts
     its 15 s from its own write, so the agent's gap measured from the read landed a few ms early and
     every other receipt was ignored (found by the configured walk; the E4.1 test that pinned the
@@ -83,35 +93,53 @@ changes a spec's digest.
   answers reset the backoff; (f) a credential in an object key is redacted; (g) the receipt goes
   at 15 000 ms, not 14 999; (h) above; (i) row 26's counts corrected (38 tests, 48 mutations, the
   second smoke run 40074390687).
-- **Mutation checks.** SQL: 26 single mutations of 0101's bodies, each applied in a rolled-back
+- **Mutation checks** (on the final code, `4c8f9da`). SQL: 27 single mutations of 0101's bodies, each applied in a rolled-back
   transaction on the local stack with the self-check run after it: the revision gap to 4.9 s and
   5.1 s, the receipt gap to 14.8 s and 15.1 s, the payload cap and the row cap one byte either way,
   the budget to 24 and 26, a duplicate revision accepted, an older provider sequence accepted, the
   epoch, the claim and the lease expiry unchecked, the source's Pause ignored, a local destination
-  or a v 2 registration accepted, a v 2 snapshot written, the config revision unchecked, the config
-  refusal keeping the fence, the claim not raising the epoch, the override overwritten, an unchanged
+  or a v 2 registration accepted, an unknown list adapter accepted, a v 2 snapshot written, the
+  config revision unchecked, a refusal keeping the fence, the claim not raising the epoch, the override overwritten, an unchanged
   report moving changed-at, the apply labelled as an operator, the claim answering revision 0. All
-  26 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
-  25. JavaScript: 30 single mutations of the route, evaluator, contract, model and agent, each
+  27 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
+  25. JavaScript: 34 single mutations of the route, evaluator, contract, model and agent, each
   turning its test red (the body cap either way, a later envelope answered 400, null as "", a list
   with no adapter read as lines, a nested item flattened, prototype keys walked, conflicting field
-  forms decided, other sources' paths evaluated, a local destination accepted, v 2 not read-only,
+  forms decided, another prefix of the source evaluated, the old cell regex back, a local destination accepted, v 2 not read-only,
   standings allowed, a prototype send path, the read-only check inverted, `external` not a source
   path, gaps (a) to (g), adopt keeping the accepted text or ignoring the production's revision, an
   old-epoch report sent, a lost fence kept, a Pause dropping the revision, an old revision offered
-  again, `sendPaths` ignored, no release). Two survived the first pass (adopt's text, the old
-  revision) because their tests changed the answer on every read; both tests now repeat it.
-- **Installed-agent receipt** (cloud worker, 2026-10-24 09:08 to 09:11 UTC; a bare `git clone` of
-  this branch at `4d512a9` with no `npm ci`, the local stack with every migration through 0101, the
+  again, `sendPaths` ignored for change detection, the renewal ignoring a recent report, Retry-After
+  not waited, a 503 renewal dropping the claim, no release). Four survived a first pass because
+  their tests were too weak (an answer that changed on every read hid a re-offer twice; a refusal
+  that lifted after one try hid the wait; a prefix test that checked only the writes); each test
+  was tightened until it went red.
+- **Installed-agent receipt** (cloud worker, 2026-10-24 09:49 to 09:52 UTC, repeating a 09:08 run
+  on `4d512a9`; a bare `git clone` of this branch at `4c8f9da` with no `npm ci`, the local stack with every migration through 0101, the
   real route served in Node, the replay server from the command line): run 1 claimed epoch 1 and
   wrote 4 rows (two graphics, two revisions); SIGTERM and restart claimed epoch 2 "continuing after
   revision 2"; SIGKILL and an immediate restart was told "held by another agent" five times, then
   claimed epoch 3 after the lapse, continuing after revision 3; the provider restarted with a new
   token (and certificate) left the old agent failing with nothing written; restarted with the new
   token it claimed epoch 4 and read again (the restarted timeline's revision 1 refused as stale, as
-  it should be); the data key rotated on the production drew four 401 answers and no write; the
+  it should be); the data key rotated on the production drew five 401 answers and no write; the
   agent restarted with the new key waited out the old claim and claimed epoch 5; SIGTERM released
   the lease. Neither credential is in any log. The configured walk repeats this on the dev server.
+- **Check findings** (code-review, high; 10): fixed the lease lapsing between slow reads, refused
+  reports spending the in-process budget, `sendPaths` applied after the change was judged, a
+  dropped report counting as a receipt, a malformed record held read-only, the doubled list of
+  adapters, the route projecting an unusable registration, and stray blank lines. Not changed: the
+  route fetching the context before the fence (bounded by the poll and the 5 s gap; the fence must
+  stay in the locked transaction), and the limits living in SQL beside the route's body cap (the
+  database is the authority; `/patch`'s environment override never reached its 25 either).
+- **Simplify** (four reviewers): one own-key path walker, `sourcePrefix` and `sourcePaths` from the
+  model, `connectedFields` moved beside `pathValue`, the database owning registration validity,
+  the wait after `too_soon`, no renewal after a recent report, the split-trim cell fold, unused
+  exports and fields dropped, the walk's helpers. Skipped: sharing 0097's fit rules and 0100's
+  budget count through new SQL helpers (that means redefining applied live-path functions for no
+  behaviour change), one helper for the source-entry lookup in SQL, the remaining quadratic
+  `jsonb_merge_patch` in the write loop (bounded by the bound paths, a handful), and a per-cell
+  length cap (the 64 KiB row check bounds what airs).
 - **Not done here, and whose.** No UI: the operator does not yet see a connector source in the
   sources line or Connect data, and the Data overview lists no `external.` values; that is E5's
   mapping UI. An old build's page that prunes sources does not know `external.` paths and would
