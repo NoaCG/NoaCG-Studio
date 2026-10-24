@@ -5,6 +5,192 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 27, phase E4.2: the shared evaluator, /api/data/source, fencing, migration 0101, the installed agent
+
+- **Previous verified `main` sha:** row 26 (E4.1) passed on `b085a14`. This branch began on
+  `2180903` (row 25's laptop walk, evidence only, landed after it).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0101 is additive and stays applied:
+  a reverted build never calls its three functions, so `production_source_snapshots` is read by
+  nothing and no connector can write. Stop every agent first (SIGTERM lets its claim go); a
+  reverted page drops `external` sources from `Show.sources` the next time it prunes them, and
+  their last values stay in the tree. No persisted value needs moving back.
+- **What landed.** `src/control/sourceMapping.ts` (the one evaluator, identity projection only);
+  the `source` operation in `api/data/[...path].ts` (no new function); migration 0101
+  (`production_source_snapshots`, `control_source_claim_by_key`, `control_source_report_by_key`,
+  `control_source_context_by_key`, `control_source_registration_refusal`); the agent's sender
+  (`createSourceSender`, `--send`, `adopt`, `sendPaths`) in `scripts/external-data-connector.mjs`;
+  `ExternalShowSource` in `src/model/shows.ts`; the install, restart and rotation steps in
+  `docs/DATA_API.md` ("A trusted JSON agent"); tests (below).
+- **The contract, old and new.** Old: `/patch`, `/update`, `/state` unchanged, and no source of
+  kind `external`. New wire: `POST /api/data/source` with the data key and `{v: 1, op: claim |
+  report | release, sourceId, ...}` (a later `v` is 422). New persisted: a `Show.sources` entry
+  `{id, kind: 'external', label, config: {v: 1, configRevision, endpoint, lists?}, paused?}` and the
+  snapshot row (`v` 1). A later `v` in either is held read-only: the database answers
+  `unsupported`, `readExternalRegistration` answers `readOnly`, `externalReadOnly` refuses edits,
+  and the record still loads (`scripts/show-fixture-compat.test.mjs`). Callers: the agent only.
+- **Decisions.**
+  - *The claim is C2's lease*: `control_source_claim_by_key` calls `control_source_lease` under
+    the reader name `agent` (30 s, renewed by every report the owner sends). The epoch is the
+    snapshot row's counter, raised whenever the lease hands out a new claim, so the agent cannot
+    mint one. The claim answers the accepted revision and provider sequence; the agent `adopt`s
+    them, so a restart continues the numbering and an older provider revision stays stale.
+  - *The fence is in the database, in one transaction* (the spec's stop rule did not apply): the
+    live claim, the current epoch, a v 1 registration with the same config revision and no local
+    destination, a revision above the accepted one and a provider sequence not below it. Lock
+    order is 0097's (read state, production, snapshot). A registration gone or changed under the
+    claim also takes the fence, so a reconnect needs a new claim.
+  - *One apply path*: an accepted revision goes through `control_data_apply` as `'api'`, so the
+    ingest budget is shared with `/patch` and `/update` and Another system's Pause (0100) holds it
+    in `data_pending`, Resume sending the final values once (the configured walk). The source's
+    own Pause (`paused` on its entry) refuses application; the agent keeps the revision and offers
+    it again, so its Resume applies the latest one once. Both block at the trusted boundary.
+  - *The limits* are the report function's constants, each checked before anything is written and
+    each refusal named: 256 KiB body (the route) and payload, one accepted revision per source per
+    5 s, every row at most 64 KiB, no more rows than the budget has left, an unchanged receipt at
+    most every 15 s (ignored, not refused, inside it; a status only when it is news or every 15 s).
+  - *Override holds*: a path is written only when its text differs from what this source last
+    wrote (the read state's snapshot, as for a Sheet), and a path the production does not bind or
+    that 0088's value rules refuse is left out and keeps its snapshot.
+  - *Identity projection*: a string, finite number or boolean is its text; null, an object, a
+    missing leaf hold the field; a list goes through the adapter its leaf names in the
+    registration's `lists` (lines, schedule, credits; standings write two fields from one read, so
+    they wait for E5), a record being one row of its values in order; an empty list is "".
+    `pathValue` moved here from `sheetSource.ts` (re-exported), so the browser reader, the tick and
+    the route resolve a value with one function (pinned by identity in the test).
+  - *A local destination is the agent's file's alone* (E4.1 check finding h): `mode` or `caFile` in
+    the production's record is refused by the database (`local_refused`), as is a bad `lists` or
+    endpoint (`registration`); the database owns registration validity and every such refusal
+    takes the fence. `readExternalRegistration` states the same rules for readers.
+  - *The claim is renewed every 10 s* (a third of the lease) unless a report renewed it meanwhile,
+    so a slow poll or a 60 s backoff never lets the 30 s lease lapse into a claim-and-drop loop (the
+    check's finding); a renewal the server did not answer (5xx, 429) keeps the claim.
+  - *Waiting as asked*: after a `too_soon` or `budget` refusal the agent holds the revision until the
+    `retryMs` the production named, instead of sending it at every read.
+  - *No in-process budget on this route*: the database counts the source's rows against the shared
+    25, and a refused report must not spend `/patch`'s requests.
+  - *`sendPaths`* is the agent's projection (the 2 MiB it may read against the route's 256 KiB),
+    applied before the change is judged, so a ticking field outside it is not a revision.
+  - *The receipt gap counts from the last receipt taken*, not from the read: the database counts
+    its 15 s from its own write, so the agent's gap measured from the read landed a few ms early and
+    every other receipt was ignored (found by the configured walk; the E4.1 test that pinned the
+    old timing now pins this one).
+  - *`--send` is https*, or plain http to this machine only (a local stack). The agent needs no npm
+    packages: a clone and Node 22 are the whole install.
+- **Files beyond the phase's list, and why.** `src/control/externalSource.ts` (the contract: the
+  registration, the envelope, `projectPayload`, the limits), `src/control/contentFormats.ts` (the
+  cell fold was quadratic: 200 KB of spaces took 47 s; now a scan, equal to the old regex on 200 000
+  random strings, and pinned by a 256 KiB hostile case), `src/control/sheetSource.ts` (`pathValue`
+  re-exported from the evaluator), `src/model/productionData.ts` (the `external.` prefix in
+  `sourcePrefix`/`isSourcePath`/`sourceIdOf`, so pruning keeps a connector source, and
+  `externalReadOnly`), `scripts/source-mapping.test.mjs` (new), `scripts/supabase-advisors.mjs`,
+  `supabase/advisor-baseline.json` (187) and `docs/STACK_FRESHNESS.md` (lesson 1: the new table is
+  deny-all; its functions are the service role's alone).
+- **E4.1 check gaps, pinned here** (`scripts/external-data-connector.test.mjs`, "pinned edges"):
+  (a) a real socket to a certificate for `pinned.noacg.invalid`, a name no resolver knows, reached
+  only through the pinned address; (b) a declared Content-Length of exactly 2 MiB is read; (c) a
+  revision one below the accepted is stale; (d) 403 is denied like 401; (e) stale and invalid
+  answers reset the backoff; (f) a credential in an object key is redacted; (g) the receipt goes
+  at 15 000 ms, not 14 999; (h) above; (i) row 26's counts corrected (38 tests, 48 mutations, the
+  second smoke run 40074390687).
+- **Mutation checks** (on the final code). SQL: 35 single mutations of 0101's bodies, each applied in a rolled-back
+  transaction on the local stack with the self-check run after it: the revision gap to 4.9 s and
+  5.1 s, the receipt gap to 14.8 s and 15.1 s, the payload cap and the row cap one byte either way,
+  the budget to 24 and 26, a duplicate revision accepted, an older provider sequence accepted, the
+  epoch, the claim and the lease expiry unchecked, the source's Pause ignored, a local destination
+  or a v 2 registration accepted, a dotted source id accepted, the paused Resume row not measured, a superseded held field measured, a newer
+  sequence from an unchanged read not kept, an unknown list adapter accepted, no fill for a field bound later, a fill while paused, a fill
+  moving changed-at, a fill skipping the receipt gap, a v 2 snapshot written, the
+  config revision unchecked, a refusal keeping the fence, the claim not raising the epoch, the override overwritten, an unchanged
+  report moving changed-at, the apply labelled as an operator, the claim answering revision 0. All
+  35 turned it red; the budget at 26 by the apply's own 25-row cap, so the effective budget is still
+  25. JavaScript: 39 single mutations of the route, evaluator, contract, model and agent, each
+  turning its test red (the body cap either way, a later envelope answered 400, null as "", a list
+  with no adapter read as lines, a nested item flattened, prototype keys walked, conflicting field
+  forms decided, another prefix of the source evaluated, the old cell regex back, a dotted source id
+  accepted in the registration or the envelope, a restart reporting the current revision stale, no deadline on a request to
+  the production, shutdown leaving requests running, a local destination accepted, v 2 not read-only,
+  standings allowed, a prototype send path, the read-only check inverted, `external` not a source
+  path, gaps (a) to (g), adopt keeping the accepted text or ignoring the production's revision, an
+  old-epoch report sent, a lost fence kept, a Pause dropping the revision, an old revision offered
+  again, `sendPaths` ignored for change detection, the renewal ignoring a recent report, Retry-After
+  not waited, a 503 renewal dropping the claim, no release). Four survived a first pass because
+  their tests were too weak (an answer that changed on every read hid a re-offer twice; a refusal
+  that lifted after one try hid the wait; a prefix test that checked only the writes); each test
+  was tightened until it went red.
+- **Installed-agent receipt** (cloud worker, 2026-10-24 09:49 to 09:52 UTC, repeating a 09:08 run
+  on `4d512a9`; a bare `git clone` of this branch at `4c8f9da` with no `npm ci`, the local stack with every migration through 0101, the
+  real route served in Node, the replay server from the command line): run 1 claimed epoch 1 and
+  wrote 4 rows (two graphics, two revisions); SIGTERM and restart claimed epoch 2 "continuing after
+  revision 2"; SIGKILL and an immediate restart was told "held by another agent" five times, then
+  claimed epoch 3 after the lapse, continuing after revision 3; the provider restarted with a new
+  token (and certificate) left the old agent failing with nothing written; restarted with the new
+  token it claimed epoch 4 and read again (the restarted timeline's revision 1 refused as stale, as
+  it should be); the data key rotated on the production drew five 401 answers and no write; the
+  agent restarted with the new key waited out the old claim and claimed epoch 5; SIGTERM released
+  the lease. Neither credential is in any log. The configured walk repeats this on the dev server.
+- **Check findings** (code-review, high; 10): fixed the lease lapsing between slow reads, refused
+  reports spending the in-process budget, `sendPaths` applied after the change was judged, a
+  dropped report counting as a receipt, a malformed record held read-only, the doubled list of
+  adapters, the route projecting an unusable registration, and stray blank lines. Not changed: the
+  route fetching the context before the fence (bounded by the poll and the 5 s gap; the fence must
+  stay in the locked transaction), and the limits living in SQL beside the route's body cap (the
+  database is the authority; `/patch`'s environment override never reached its 25 either).
+- **Simplify** (four reviewers): one own-key path walker, `sourcePrefix` and `sourcePaths` from the
+  model, `connectedFields` moved beside `pathValue`, the database owning registration validity,
+  the wait after `too_soon`, no renewal after a recent report, the split-trim cell fold, unused
+  exports and fields dropped, the walk's helpers. Skipped: sharing 0097's fit rules and 0100's
+  budget count through new SQL helpers (that means redefining applied live-path functions for no
+  behaviour change), one helper for the source-entry lookup in SQL, the remaining quadratic
+  `jsonb_merge_patch` in the write loop (bounded by the bound paths, a handful), and a per-cell
+  length cap (the 64 KiB row check bounds what airs).
+- **Assessment A** (a fresh read-only `/so` session on `7eb4a45`): PASS WITH NOTES, nothing
+  blocking. Its note 1 was fixed here: a source id could hold a dot, so source `e1`'s paths
+  (`external.e1.`) began every path of a source `e1.x`; a connector source id is now one path
+  segment (refused by 0101 at the claim as `registration`, and by the contract). Its other notes
+  stand as recorded: concurrency rests on the row locks (0097's order) with no two-writer test; the
+  route reads bindings before the lock, and the database re-checks binding and value rules but not
+  that every field on a path takes the same form; the 50-commands cap is the apply's own raise (a
+  429, nothing kept); and pruning drops an unbound connector source, as it does a Sheet.
+- **The automated PR review** (on `2c3dc4e`, P2): after a claim the agent knew the production's
+  provider sequence but not its accepted text, so a provider still answering that revision read as
+  "came again with other content" and was reported stale at every poll. Fixed: with no accepted
+  text, the same revision is sent whole once (the production writes only what differs), then reads
+  unchanged; pinned by a test and a mutation. Its second pass (on `9404254`, three P2s), all fixed:
+  while Another system is paused, the 64 KiB check now measures the Resume row (the pending tree's
+  diff against air with the held `/update` values over it), not this revision alone, so revisions
+  held one by one cannot add up past it; an unchanged read's newer provider sequence is kept, so a
+  later claim never continues from an older one; and every request to the production has a 10 s
+  deadline, its answer included, and shutdown ends those in flight, so a stalled production cannot
+  stall the reading. Its third pass (on `3bc9fbd`, one P2), fixed: the Resume row's measure laid
+  the held `/update` values over the pending diff, but the apply drops every held field a later
+  write names, so a short held value could mask an oversized one; those fields are now dropped
+  before measuring, as the apply does. Its fourth pass (on `413f233`, one P2), fixed: the route
+  projected a payload only when it changed, so a field bound after the last change stayed empty
+  until the provider changed again. Each unchanged receipt now evaluates the accepted payload
+  again, and the database writes only paths this source never wrote (so an operator's override of
+  an earlier write holds), not while the source is paused, without moving the revision or
+  changed-at, and no more than once per 15 s receipt gap. The third configured walk binds a new
+  field mid-walk and sees it filled once from the accepted revision.
+- **A self-check trap, found by a surviving mutation.** `answer->>'refused' <> 'x'` is NULL, not
+  true, when the report is accepted, so a refusal assertion passed silently whenever the function
+  accepted instead; other mutations had gone red only because a later state check caught them.
+  Every comparison in 0101's self-check is now `is distinct from`.
+- **Not done here, and whose.** No UI: the operator does not yet see a connector source in the
+  sources line or Connect data, and the Data overview lists no `external.` values; that is E5's
+  mapping UI. An old build's page that prunes sources does not know `external.` paths and would
+  drop the registration: the route then answers `gone` and writes nothing, the values hold, and the
+  next page of this build that writes the source puts it back (a safe failure, recorded rather than
+  fixed: old pages reload within the deploy).
+- **Traps.**
+  - `pkill -f <name>` in a shell whose own command line contains `<name>` kills that shell.
+  - The queue's Playwright wants `chromium_headless_shell-1228` and the image has 1243: a symlink
+    under `/opt/pw-browsers` (#1647), no repo change.
+  - The job queue keeps the caller's environment, so the stack's keys reach a queued configured run.
+  - A replay server restarted from the command line makes a new certificate; an agent trusting
+    the old one fails TLS rather than reaching the new token's 401 (the walk reuses one).
+  - This repository's commit hook refuses Co-Authored-By trailers.
+
 ## Row 26, phase E4.1: trusted JSON acquisition (contract, agent, replay server, smoke)
 
 - **Previous verified `main` sha:** row 25 (phase 14) passed on `dda88db`, which is also where
@@ -15,7 +201,7 @@ changes a spec's digest.
 - **What landed.** `src/control/externalSource.ts` (the `v: 1` config, export/rebind, acceptance
   and schedule, pure), `scripts/external-data-connector.mjs` (the headless agent),
   `scripts/election-replay-server.mjs`, `scripts/replay-smoke.mjs` with the npm script
-  `endurance:replay-smoke`, and `scripts/external-data-connector.test.mjs` (36 tests).
+  `endurance:replay-smoke`, and `scripts/external-data-connector.test.mjs` (38 tests; corrected in row 27 from 36).
 - **Supported limits** (the recorded envelope; the config file cannot name any of them):
 
   | Limit | Default | Moved only by | Envelope |
@@ -79,7 +265,7 @@ changes a spec's digest.
     `endurance:election`.
   - *Extra file outside the fence:* `.gitignore` gains `endurance-output/`, the folder
     endurance.yml uploads, so a local smoke run leaves the checkout clean.
-- **Tests pin behaviour, and were mutation-checked**: 43 single mutations of the contract, agent
+- **Tests pin behaviour, and were mutation-checked**: 48 single mutations (corrected in row 27 from 43) of the contract, agent
   and server (timeout to 9.999 or 11 s, cap plus or minus one byte, declared length unchecked,
   backoff cap, jitter, doubling, Retry-After ignored or uncapped, poll default, single flight,
   one public DNS answer enough, redirects unchecked, 4 or 6 redirects, connection unpinned,
@@ -94,7 +280,8 @@ changes a spec's digest.
   (`endurance:replay-smoke`, 2 minutes, local-supabase off): run 40072697365, success, all 13
   checks, 19 reports. The review fixes after it changed the agent and smoke (stop, redaction at
   the seam, timeline start, a 14th check through real DNS); the same smoke passed locally on the
-  final code (14 of 14), and the brief allows one dispatch, so it was not dispatched again.
+  final code (14 of 14). Corrected in row 27: it WAS dispatched a second time, on the final code:
+  run 40074390687.
 - **Check findings** (code-review, high; 9 found, 9 verified and fixed): an uncaught fault ending
   the polling, `stop()` reported as a timeout, the smoke reading the agent's output on `exit`
   instead of `close`, the timeline starting before a slow agent's first read, the stdout sender

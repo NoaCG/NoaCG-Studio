@@ -28,7 +28,7 @@ import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const ext = await import('../src/control/externalSource.ts');
-const { createConnector, nodeNet, readSource, REDACTED } = await import('./external-data-connector.mjs');
+const { createConnector, createSourceSender, nodeNet, readSource, REDACTED } = await import('./external-data-connector.mjs');
 const { DELETED_PERSON, makeTestCertificate, makeToken, startReplayServer } = await import('./election-replay-server.mjs');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -450,9 +450,15 @@ describe('stopping and faults', () => {
       ['changed', 1, 1, at(0)],
       ['changed', 1, 1, at(5)],
       ['changed', 1, 1, at(10)],
-      // Taken at last; the next is the ordinary receipt, 15 s after the change.
-      ['unchanged', 1, null, at(15)],
     ]);
+    // Taken at last at 10 s, so the read at 15 s sends nothing: the ordinary receipt comes 15 s
+    // after the revision was taken (E4.2).
+    await clock.advance(9999);
+    await c.readOnce();
+    assert.equal(offered.length, 3);
+    await clock.advance(1);
+    await c.readOnce();
+    assert.deepEqual(offered.at(-1), ['unchanged', 1, null, at(25)]);
   });
 
   test('redaction keeps the payload valid, numbers untouched', async () => {
@@ -727,5 +733,372 @@ describe('replay server', () => {
     } finally {
       await server.close();
     }
+  });
+});
+
+// ── Gaps the E4.1 check left open, pinned in E4.2 ─────────────────────────────
+
+describe('pinned edges (E4.1 check)', () => {
+  const sizedJson = (bytes) => {
+    const head = '{"revision":1,"pad":"';
+    return `${head}${'x'.repeat(bytes - head.length - 2)}"}`;
+  };
+
+  test('(a) the real socket connects to the checked address, not to a fresh lookup of the name', async () => {
+    // A certificate for a name no resolver knows: only the pinned address can reach the server.
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'pin-'));
+    try {
+      spawnSync('openssl', ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-days', '1', '-subj', '/CN=pinned.noacg.invalid',
+        '-addext', 'subjectAltName=DNS:pinned.noacg.invalid', '-keyout', path.join(dir, 'k.pem'), '-out', path.join(dir, 'c.pem')], { stdio: 'ignore', windowsHide: true });
+      const cert = readFileSync(path.join(dir, 'c.pem'));
+      const { createServer } = await import('node:https');
+      const server = createServer({ cert, key: readFileSync(path.join(dir, 'k.pem')) }, (req, res) => res.end(`{"host":"${req.headers.host}"}`));
+      await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+      try {
+        const url = new URL(`https://pinned.noacg.invalid:${server.address().port}/r`);
+        const res = await nodeNet.request({ url, address: '127.0.0.1', family: 4, headers: {}, signal: new AbortController().signal, ca: cert });
+        let text = '';
+        for await (const chunk of res.body) text += chunk;
+        assert.equal(res.status, 200);
+        assert.equal(JSON.parse(text).host, url.host);
+      } finally {
+        server.closeAllConnections?.();
+        await new Promise((resolve) => server.close(resolve));
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('(b) a declared Content-Length of exactly 2 MiB is read', async () => {
+    const text = sizedJson(2 * MiB);
+    const ok = await connector({ net: fakeNet(() => response(200, text, { 'content-length': String(2 * MiB) })) }).c.readOnce();
+    assert.equal(ok.status, 'changed');
+  });
+
+  test('(c) a revision exactly one below the accepted one is stale', () => {
+    let state = ext.initialSourceState();
+    const read = (value) => {
+      const out = ext.acceptRead({ sourceId: 's', configRevision: 1, revisionPath: 'revision', eventTimePath: null }, state, { kind: 'body', text: JSON.stringify(value) }, { checkedAt: 'x', ownerEpoch: 1 });
+      state = out.state;
+      return out.acquisition.status;
+    };
+    assert.deepEqual([read({ revision: 3, n: 1 }), read({ revision: 2, n: 2 }), read({ revision: 4, n: 3 })], ['changed', 'stale', 'changed']);
+  });
+
+  test('(d) 403 is reported as denied, like 401', async () => {
+    for (const status of [401, 403]) {
+      const a = await connector({ net: fakeNet(() => response(status)) }).c.readOnce();
+      assert.deepEqual([a.status, a.error], ['denied', `the provider refused the credential (${status})`]);
+    }
+  });
+
+  test('(e) stale and invalid answers do not count as failures for the backoff', async () => {
+    const answers = [response(503), response(200, '{"revision":5,"n":1}'), response(503), response(200, '{"revision":4,"n":2}'), response(200, 'not json')];
+    const { c } = connector({ net: fakeNet(() => answers.shift()) });
+    const seen = [];
+    for (let i = 0; i < 5; i += 1) {
+      const a = await c.readOnce();
+      seen.push([a.status, c.state.failures, c.state.nextDelayMs]);
+    }
+    assert.deepEqual(seen, [
+      ['failed', 1, 10_000],
+      ['changed', 0, 5000],
+      ['failed', 1, 10_000],
+      ['stale', 0, 5000],
+      ['invalid', 0, 5000],
+    ]);
+  });
+
+  test('(f) a credential inside a JSON object key is redacted at the seam', async () => {
+    const net = fakeNet(() => response(200, JSON.stringify({ revision: 1, 'sekret-value': { 'x sekret-value': 1 } })));
+    const { c, sent } = connector({ config: { credentialRef: 'NOACG_SOURCE_A' }, credential: 'sekret-value', net });
+    await c.readOnce();
+    assert.deepEqual(sent[0].payload, { revision: 1, [REDACTED]: { [`x ${REDACTED}`]: 1 } });
+    assert.equal(JSON.stringify(sent).includes('sekret-value'), false);
+  });
+
+  test('(g) an unchanged receipt goes at 15 s after the last one, not at 14 999 ms', async () => {
+    const clock = fakeClock();
+    const { c, sent } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })) });
+    await c.readOnce();
+    await clock.advance(14_999);
+    await c.readOnce();
+    assert.deepEqual(sent.map((a) => a.status), ['changed']);
+    await clock.advance(1);
+    await c.readOnce();
+    assert.deepEqual(sent.map((a) => a.status), ['changed', 'unchanged']);
+  });
+});
+
+// ── The sender to /api/data/source (E4.2) ─────────────────────────────────────
+
+describe('the sender', () => {
+  /** A production that answers the route's shapes; `answer(body)` decides each reply. */
+  function fakeRoute(answer) {
+    const calls = [];
+    const fetchImpl = async (address, init) => {
+      const body = JSON.parse(init.body);
+      calls.push({ address, auth: init.headers.authorization, body });
+      const [status, reply] = answer(body);
+      return new Response(JSON.stringify(reply), { status });
+    };
+    return { calls, fetchImpl };
+  }
+  const claimed = (epoch, accepted = 0, sequence = null) => [200, { ok: true, claim: `agent:c${epoch}`, ownerEpoch: epoch, acceptedRevision: accepted, providerSequence: sequence, paused: false }];
+
+  test('claims first, continues from the production revision and sends under its epoch', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(4, 9, 7) : [200, { ok: true }]));
+    const net = fakeNet(JSON_OK({ revision: 8, n: 1 }));
+    const sender = createSourceSender({ address: 'https://x.example/api/data/source', key: 'data-key', config: config(), fetchImpl: route.fetchImpl });
+    const { c } = connector({ net, send: sender.send });
+    sender.bind(c);
+    assert.equal(await sender.claim(), true);
+    const a = await c.readOnce();
+    assert.deepEqual([a.status, a.ownerEpoch, a.acceptedRevision, a.providerSequence], ['changed', 4, 10, 8]);
+    const report = route.calls[1].body;
+    assert.deepEqual([report.op, report.claim, report.acquisition.ownerEpoch, report.acquisition.acceptedRevision], ['report', 'agent:c4', 4, 10]);
+    assert.equal(route.calls.every((call) => call.auth === 'Bearer data-key'), true);
+  });
+
+  test('after a restart the provider\'s current revision is sent whole once, then is unchanged', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(2, 5, 9) : [200, { ok: true }]));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    const clock = fakeClock();
+    const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 9, n: 1 })), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    const first = await c.readOnce();
+    assert.deepEqual([first.status, first.acceptedRevision, first.providerSequence], ['changed', 6, 9]);
+    await clock.advance(5000);
+    assert.equal((await c.readOnce()).status, 'unchanged');
+  });
+
+  test('an older provider revision than the production holds is stale after a restart', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(2, 5, 9) : [200, { ok: true }]));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    const { c } = connector({ net: fakeNet(JSON_OK({ revision: 8, n: 1 })), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    assert.equal((await c.readOnce()).status, 'stale');
+  });
+
+  test('a lost fence: the next report claims again, and nothing made under the old epoch is sent', async () => {
+    let epoch = 1;
+    const route = fakeRoute((b) => {
+      if (b.op === 'claim') return claimed(epoch);
+      return b.acquisition.ownerEpoch === epoch ? [200, { ok: true }] : [409, { ok: false, refused: 'epoch' }];
+    });
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    let n = 0;
+    const clock = fakeClock();
+    const { c } = connector({ clock, net: fakeNet(() => JSON_OK({ revision: (n += 1), n })()), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    await c.readOnce();
+    epoch = 2; // another claim took over and lost it again: this agent must claim afresh
+    await clock.advance(5000);
+    await c.readOnce();
+    await clock.advance(5000);
+    await c.readOnce();
+    await clock.advance(5000);
+    await c.readOnce();
+    const reports = route.calls.filter((call) => call.body.op === 'report').map((call) => [call.body.acquisition.ownerEpoch, call.body.acquisition.acceptedRevision]);
+    // Revision 2 under epoch 1 is refused once; the re-offer after the new claim is dropped, and
+    // the next read goes whole under epoch 2.
+    assert.deepEqual(reports, [[1, 1], [1, 2], [2, 1]]);
+    assert.equal(route.calls.filter((call) => call.body.op === 'claim').length, 2);
+  });
+
+  test('a Pause, the 5 s gap and the budget keep the revision for the next read; a held claim sends nothing', async () => {
+    const refusals = ['paused', 'too_soon', 'budget'];
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : refusals.length ? [b.acquisition.status === 'changed' ? 409 : 200, { ok: false, refused: refusals.shift() }] : [200, { ok: true }]));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    const clock = fakeClock();
+    const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    for (let i = 0; i < 4; i += 1) {
+      await c.readOnce();
+      await clock.advance(5000);
+    }
+    const reports = route.calls.filter((call) => call.body.op === 'report').map((call) => call.body.acquisition.status);
+    assert.deepEqual(reports, ['changed', 'changed', 'changed', 'changed']);
+
+    const held = fakeRoute(() => [409, { ok: false, held: true, owner: 'agent' }]);
+    const second = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: held.fetchImpl });
+    const other = connector({ net: fakeNet(JSON_OK()), send: second.send });
+    second.bind(other.c);
+    assert.equal(await second.claim(), false);
+    await other.c.readOnce();
+    assert.deepEqual(held.calls.map((call) => call.body.op), ['claim', 'claim']);
+  });
+
+  test('a revision the production already holds, or one too large to fit, is not offered again', async () => {
+    for (const refusal of [[409, 'old_revision'], [413, 'too_large'], [413, 'row_too_large']]) {
+      let first = true;
+      const route = fakeRoute((b) => {
+        if (b.op === 'claim') return claimed(1);
+        if (!first) return [200, { ok: true }];
+        first = false;
+        return [refusal[0], { ok: false, refused: refusal[1] }];
+      });
+      const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+      // The same answer every read: an offer made again would show as a second report.
+      const clock = fakeClock();
+      const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })), send: sender.send });
+      sender.bind(c);
+      await sender.claim();
+      for (let i = 0; i < 3; i += 1) {
+        await c.readOnce();
+        await clock.advance(5000);
+      }
+      const reports = route.calls.filter((call) => call.body.op === 'report').map((call) => call.body.acquisition.status);
+      assert.deepEqual(reports, ['changed'], refusal[1]);
+    }
+  });
+
+  test('a new claim sends the next read whole, even when the provider has not changed', async () => {
+    let claims = 0;
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed((claims += 1), claims === 1 ? 0 : 7) : [200, { ok: true }]));
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    const clock = fakeClock();
+    const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    assert.equal((await c.readOnce()).status, 'changed');
+    // Another claim (a handover, a lapse): the production holds revision 7 under epoch 2.
+    await sender.claim();
+    await clock.advance(5000);
+    const again = await c.readOnce();
+    assert.deepEqual([again.status, again.ownerEpoch, again.acceptedRevision], ['changed', 2, 8]);
+  });
+
+  test('a change only outside sendPaths is not a new revision', async () => {
+    let tick = 0;
+    const { c } = connector({ config: { sendPaths: ['revision', 'score'] }, net: fakeNet(() => JSON_OK({ revision: 1, score: 3, generatedAt: (tick += 1) })()) });
+    const seen = [];
+    for (let i = 0; i < 3; i += 1) seen.push((await c.readOnce()).status);
+    assert.deepEqual(seen, ['changed', 'unchanged', 'unchanged']);
+  });
+
+  test('the claim is renewed every 10 s with no read at all, so a slow poll never loses it', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
+    const clock = fakeClock();
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl, clock });
+    await sender.claim();
+    const stop = sender.keepClaim(10_000);
+    await clock.advance(9999);
+    assert.equal(route.calls.length, 1);
+    await clock.advance(1);
+    await clock.advance(20_000);
+    assert.deepEqual(route.calls.map((call) => [call.body.op, call.body.claim]), [['claim', null], ['claim', 'agent:c1'], ['claim', 'agent:c1'], ['claim', 'agent:c1']]);
+    stop();
+    await clock.advance(60_000);
+    assert.equal(route.calls.length, 4);
+  });
+
+  test('a report answered within the renewal interval renewed the lease, so no claim is sent', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
+    const clock = fakeClock();
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl, clock });
+    const { c } = connector({ clock, net: fakeNet(JSON_OK()), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    const stop = sender.keepClaim(10_000);
+    await clock.advance(5000);
+    await c.readOnce();
+    await clock.advance(5000);
+    assert.deepEqual(route.calls.map((call) => call.body.op), ['claim', 'report']);
+    await clock.advance(10_000);
+    assert.deepEqual(route.calls.map((call) => call.body.op), ['claim', 'report', 'claim']);
+    stop();
+  });
+
+  test('a revision refused as too soon waits the time the production named before it is sent again', async () => {
+    const clock = fakeClock();
+    // The production refuses every report before 4 s, naming the time left each time.
+    const route = fakeRoute((b) => {
+      if (b.op === 'claim') return claimed(1);
+      const left = T0 + 4000 - clock.now();
+      return left > 0 ? [429, { ok: false, refused: 'too_soon', retryMs: left }] : [200, { ok: true }];
+    });
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config({ pollMs: 1000 }), fetchImpl: route.fetchImpl, clock });
+    const { c } = connector({ clock, config: { pollMs: 1000 }, net: fakeNet(JSON_OK()), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    for (let i = 0; i < 6; i += 1) {
+      await c.readOnce();
+      await clock.advance(1000);
+    }
+    const reports = route.calls.filter((call) => call.body.op === 'report').map((call) => call.body.acquisition.status);
+    // Refused at 0 s, held through 3 s, taken at 4 s.
+    assert.deepEqual(reports, ['changed', 'changed']);
+  });
+
+  test('a renewal the server did not answer keeps the claim; a refusal ends it', async () => {
+    const replies = [claimed(1), [503, {}], [409, { ok: false, refused: 'gone' }]];
+    const route = fakeRoute(() => replies.shift());
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl: route.fetchImpl });
+    await sender.claim();
+    assert.equal(await sender.claim(), false);
+    assert.equal(sender.fence?.claim, 'agent:c1');
+    assert.equal(await sender.claim(), false);
+    assert.equal(sender.fence, null);
+  });
+
+  test('a production that stalls ends the request at the deadline, and the revision is offered again', async () => {
+    let stall = true;
+    const calls = [];
+    const fetchImpl = (address, init) => {
+      const body = JSON.parse(init.body);
+      calls.push(body.op);
+      if (body.op === 'claim') return Promise.resolve(new Response(JSON.stringify(claimed(1)[1]), { status: 200 }));
+      if (!stall) return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+      // Never answers; only the signal ends it.
+      return new Promise((_resolve, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+    };
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl, timeoutMs: 50 });
+    const clock = fakeClock();
+    const { c } = connector({ clock, net: fakeNet(JSON_OK({ revision: 1, n: 1 })), send: sender.send });
+    sender.bind(c);
+    await sender.claim();
+    const started = Date.now();
+    await c.readOnce();
+    assert.ok(Date.now() - started < 2000, 'the stalled report ended at its deadline');
+    stall = false;
+    await clock.advance(5000);
+    await c.readOnce();
+    assert.deepEqual(calls, ['claim', 'report', 'report']);
+  });
+
+  test('shutdown ends a request in flight', async () => {
+    let started;
+    const ended = new Promise((resolve) => (started = resolve));
+    const fetchImpl = (_address, init) =>
+      new Promise((_resolve, reject) => {
+        started();
+        init.signal.addEventListener('abort', () => reject(init.signal.reason));
+      });
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: config(), fetchImpl, timeoutMs: 60_000 });
+    const claiming = sender.claim();
+    await ended;
+    sender.abort();
+    await assert.rejects(claiming, /stopped/);
+  });
+
+  test('sendPaths project the payload before it is sent; release lets the claim go', async () => {
+    const route = fakeRoute((b) => (b.op === 'claim' ? claimed(1) : [200, { ok: true }]));
+    const cfg = config({ sendPaths: ['revision', 'totals.counted'] });
+    const sender = createSourceSender({ address: 'https://x.example/s', key: 'k', config: cfg, fetchImpl: route.fetchImpl });
+    const sent = [];
+    const c = createConnector({ config: cfg, clock: fakeClock(), net: fakeNet(JSON_OK({ revision: 1, big: 'x'.repeat(1000), totals: { counted: 60, other: 1 } })), send: async (a) => (sent.push(a), sender.send(a)) });
+    sender.bind(c);
+    await sender.claim();
+    await c.readOnce();
+    assert.deepEqual(sent[0].payload, { revision: 1, totals: { counted: 60 } });
+    await sender.release();
+    assert.deepEqual(route.calls.at(-1).body, { v: 1, sourceId: 'results', configRevision: 1, op: 'release', claim: 'agent:c1' });
+    assert.equal(sender.fence, null);
   });
 });

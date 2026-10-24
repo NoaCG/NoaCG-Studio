@@ -4,7 +4,7 @@
 // not, to a sender. It runs on a qualified cloud worker, inside an Actions job or on a laptop,
 // never as a Vercel function.
 //
-//   node scripts/external-data-connector.mjs --config <file.json> [--minutes <n>]
+//   node scripts/external-data-connector.mjs --config <file.json> [--minutes <n>] [--send <https://.../api/data/source>]
 //   node scripts/external-data-connector.mjs --config <file.json> --export   # the shareable config
 //
 // The configuration is non-secret (src/control/externalSource.ts `parseConnectorConfig`). The
@@ -28,10 +28,15 @@
 // `local` is an explicitly configured destination (a replay server beside the agent): only its
 // origin, checked against the run's own certificate authority, so TLS validation stays on.
 //
-// THE SENDER SEAM. `send(acquisition)` receives every report: a changed payload, a payload-free
-// "unchanged" receipt at most every 15 s, and every hold or failure. From the command line it
-// writes one JSON line per report to stdout. Phase E4.2 replaces it with /api/data/source and the
-// claim that supplies the owner epoch.
+// THE SENDER SEAM. `send(acquisition)` receives every report: a changed payload (only its
+// `sendPaths`), a payload-free "unchanged" receipt at most every 15 s after the last one the sender
+// took, and every hold or failure.
+// From the command line it writes one JSON line per report to stdout, or, with `--send <address>`
+// and the production's data key in NOACG_DATA_KEY, posts it to /api/data/source
+// (`createSourceSender`, phase E4.2): the agent first CLAIMS the registered source through C2's
+// lease and continues from the owner epoch, accepted revision and provider sequence the production
+// answers (`adopt`), so a restarted agent never reuses an epoch or a revision. The database fences
+// every report; the sender alone prevents nothing.
 
 import { readFileSync } from 'node:fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
@@ -43,7 +48,7 @@ import './lib/tsResolve.mjs';
 
 const { publicAddress } = await import('../api/_lib/feedFetch.ts');
 const { addressRefusal } = await import('../src/control/feedSource.ts');
-const { UNCHANGED_RECEIPT_MS, acceptRead, exportConnectorConfig, initialSourceState, nextDelayMs, parseConnectorConfig, readLimits, retryAfterMs } = await import(
+const { EXTERNAL_SOURCE_VERSION, SOURCE_LEASE_MS, UNCHANGED_RECEIPT_MS, acceptRead, exportConnectorConfig, initialSourceState, nextDelayMs, parseConnectorConfig, readLimits, retryAfterMs } = await import(
   '../src/control/externalSource.ts'
 );
 
@@ -213,6 +218,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
   let nextDelay = config.pollMs;
   /** An accepted revision the sender has not taken yet: offered again until it is. */
   let undelivered = null;
+  let epoch = ownerEpoch;
 
   async function read() {
     const own = new AbortController();
@@ -234,7 +240,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     }
     if (outcome === null) return null;
     const now = clock.now();
-    const accepted = acceptRead(config, state, outcome, { checkedAt: new Date(now).toISOString(), ownerEpoch });
+    const accepted = acceptRead(config, state, outcome, { checkedAt: new Date(now).toISOString(), ownerEpoch: epoch });
     state = accepted.state;
     const { acquisition } = accepted;
     // Only the transport's problems back off; a stale or invalid answer is still an answer.
@@ -242,14 +248,24 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     nextDelay = nextDelayMs(config.pollMs, failures, outcome.retryMs ?? null, random());
     say(`${acquisition.checkedAt} ${config.sourceId} ${acquisition.status} accepted=${acquisition.acceptedRevision}${acquisition.error ? ` ${acquisition.error}` : ''} next=${nextDelay}ms`);
     const report = acquisition.status !== 'unchanged' || now - lastReceiptAt >= UNCHANGED_RECEIPT_MS;
-    if (report && (acquisition.status === 'unchanged' || acquisition.status === 'changed')) lastReceiptAt = now;
+    // The 15 s run from when the last receipt was TAKEN, not from the read before it: the
+    // production counts its own 15 s from its write, so a gap measured from the read lands a few
+    // ms early there and is ignored (every other receipt lost).
+    const taken = () => void (lastReceiptAt = clock.now());
     if (acquisition.status === 'changed') undelivered = null;
     if (undelivered) {
-      if (await offer({ ...undelivered, checkedAt: acquisition.checkedAt })) undelivered = null;
+      if (await offer({ ...undelivered, checkedAt: acquisition.checkedAt })) {
+        undelivered = null;
+        taken();
+      }
       // The payload offered again is this unchanged read's report.
       if (acquisition.status === 'unchanged') return acquisition;
     }
-    if (report && !(await offer(acquisition)) && acquisition.status === 'changed') undelivered = acquisition;
+    if (report) {
+      const delivered = await offer(acquisition);
+      if (delivered && (acquisition.status === 'unchanged' || acquisition.status === 'changed')) taken();
+      if (!delivered && acquisition.status === 'changed') undelivered = acquisition;
+    }
     return acquisition;
   }
 
@@ -276,11 +292,156 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
       timer = null;
       controller?.abort(STOPPED);
     },
+    /**
+     * Continue under a new claim: its epoch, and the revision and provider sequence the production
+     * holds, so the next accepted read is above them. The next read is sent whole (the accepted
+     * text is forgotten); anything made under the old epoch is not offered again.
+     */
+    adopt: ({ ownerEpoch: next, acceptedRevision, providerSequence }) => {
+      epoch = next;
+      state = { acceptedRevision, providerSequence: providerSequence ?? null, acceptedText: null, acceptedRaw: null };
+      undelivered = null;
+      lastReceiptAt = -Infinity;
+    },
     get state() {
-      return { ...state, failures, nextDelayMs: nextDelay };
+      return { ...state, failures, nextDelayMs: nextDelay, ownerEpoch: epoch };
     },
     exportConfig: () => exportConnectorConfig(config),
     redact,
+  };
+}
+
+// ── To the production ─────────────────────────────────────────────────────────
+
+/** A refusal the sender keeps the revision for (offered again at the next read). */
+const RETRY = new Set(['paused', 'too_soon', 'budget']);
+/** A refusal that ends the claim: the next report claims again. */
+const RECLAIM = new Set(['moved', 'epoch', 'config', 'gone', 'unsupported', 'local_refused', 'registration']);
+/** A server that did not answer: the claim stays, and a kept revision is offered again. */
+const unanswered = (status) => status >= 500 || status === 429;
+
+/**
+ * The sender for /api/data/source. `connector` is told every new claim (`adopt`). Answers a `send`
+ * for the connector's seam, `claim()` and `release()`. A report made under an older epoch than the
+ * current claim is dropped, never sent. A send throws when the revision should be offered again.
+ */
+/** How long one request to the production may take, its answer's body included. */
+export const POST_TIMEOUT_MS = 10_000;
+
+export function createSourceSender({ address, key, config, fetchImpl = fetch, log = () => {}, clock = realClock, timeoutMs = POST_TIMEOUT_MS }) {
+  let fence = null;
+  let connector = null;
+  /** When the production last answered a report (which renewed the lease). */
+  let answeredAt = -Infinity;
+  /** Before this, a kept revision is not sent: the production asked to wait (Retry-After). */
+  let notBefore = -Infinity;
+  /** Requests in flight, so shutdown can end them. */
+  const inFlight = new Set();
+  // A production that stalls must not stall the reading: the request and its answer end within
+  // `timeoutMs` (an error, so a kept revision is offered again), and `abort()` ends them at shutdown.
+  const post = async (body) => {
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(new Error(`the production did not answer in ${timeoutMs / 1000} seconds`)), timeoutMs);
+    inFlight.add(controller);
+    try {
+      const response = await fetchImpl(address, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      let answer = {};
+      try {
+        answer = await response.json();
+      } catch (error) {
+        if (controller.signal.aborted) throw controller.signal.reason ?? error;
+        /* not JSON: the status says enough */
+      }
+      return { status: response.status, answer };
+    } finally {
+      clearTimeout(deadline);
+      inFlight.delete(controller);
+    }
+  };
+  const base = { v: EXTERNAL_SOURCE_VERSION, sourceId: config.sourceId, configRevision: config.configRevision };
+
+  async function claim() {
+    const { status, answer } = await post({ ...base, op: 'claim', claim: fence?.claim ?? null });
+    if (status === 200 && answer.ok) {
+      const renewed = fence?.claim === answer.claim && fence?.ownerEpoch === answer.ownerEpoch;
+      fence = { claim: answer.claim, ownerEpoch: answer.ownerEpoch };
+      if (!renewed) {
+        log(`${config.sourceId} claimed: epoch ${answer.ownerEpoch}, continuing after revision ${answer.acceptedRevision}`);
+        connector?.adopt({ ownerEpoch: answer.ownerEpoch, acceptedRevision: answer.acceptedRevision, providerSequence: answer.providerSequence });
+      }
+      return true;
+    }
+    // A server that did not answer keeps the claim this agent holds; a refusal ends it.
+    if (!unanswered(status)) fence = null;
+    log(`${config.sourceId} not claimed (${status}${answer.refused ? ` ${answer.refused}` : answer.held ? ' held by another agent' : ''})`);
+    return false;
+  }
+
+  async function send(acquisition) {
+    if (!fence && !(await claim())) return;
+    // Made before this claim: the adopted state sends the next read whole instead.
+    if (acquisition.ownerEpoch !== fence.ownerEpoch) return;
+    if (acquisition.status === 'changed' && clock.now() < notBefore) throw new Error('waiting as the production asked');
+    const { status, answer } = await post({ ...base, op: 'report', claim: fence.claim, acquisition });
+    if (status === 200) {
+      answeredAt = clock.now();
+      return;
+    }
+    const refused = answer.refused ?? (status === 401 || status === 403 ? 'denied' : null);
+    if (RECLAIM.has(refused)) fence = null;
+    if (Number.isFinite(answer.retryMs)) notBefore = clock.now() + answer.retryMs;
+    log(`${config.sourceId} ${acquisition.status} revision ${acquisition.acceptedRevision} not taken (${status}${refused ? ` ${refused}` : ''})`);
+    // Kept and offered again: a Pause, the 5 s gap, the shared budget, a fence to take again, or a
+    // server that did not answer. Not kept: a revision the production already holds, one that
+    // cannot fit (over 256 KiB, or a 64 KiB row), or an invalid report.
+    if (acquisition.status === 'changed' && (RETRY.has(refused) || RECLAIM.has(refused) || unanswered(status))) {
+      throw new Error(`not taken (${refused ?? status})`);
+    }
+  }
+
+  async function release() {
+    if (!fence) return;
+    const held = fence;
+    fence = null;
+    await post({ ...base, op: 'release', claim: held.claim }).catch(() => {});
+  }
+
+  /**
+   * Renew the claim every `ms` (a third of the lease) when no report was answered meanwhile, so a
+   * slow poll or a long backoff never lets the lease lapse under a live agent. Answers the stop.
+   */
+  function keepClaim(ms = SOURCE_LEASE_MS / 3) {
+    let timer = null;
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      // A report answered within `ms` renewed the lease already.
+      if (fence && clock.now() - answeredAt >= ms) await claim().catch((error) => log(`${config.sourceId} renewal failed: ${error?.message ?? error}`));
+      if (!stopped) timer = clock.setTimeout(tick, ms);
+    };
+    timer = clock.setTimeout(tick, ms);
+    return () => {
+      stopped = true;
+      if (timer !== null) clock.clearTimeout(timer);
+    };
+  }
+
+  return {
+    send,
+    claim,
+    release,
+    keepClaim,
+    /** End every request in flight (shutdown). */
+    abort: () => inFlight.forEach((c) => c.abort(new Error('stopped'))),
+    bind: (c) => void (connector = c),
+    get fence() {
+      return fence;
+    },
   };
 }
 
@@ -293,7 +454,7 @@ function argument(argv, name) {
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const file = argument(argv, '--config');
-  if (!file) throw new Error('usage: external-data-connector.mjs --config <file.json> [--minutes <n>] [--export]');
+  if (!file) throw new Error('usage: external-data-connector.mjs --config <file.json> [--minutes <n>] [--send <address>] [--export]');
   const parsed = parseConnectorConfig(JSON.parse(readFileSync(file, 'utf8')));
   if (!parsed.ok) throw new Error(`the configuration is refused: ${parsed.error}`);
   const { config } = parsed;
@@ -305,21 +466,45 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   // setTimeout's own limit is about 24 days; a run longer than a week is not a run of this.
   if (!Number.isFinite(minutes) || minutes < 0 || minutes > 7 * 24 * 60) throw new Error('--minutes must be a number of minutes, at most a week');
   assertBound(config);
+  const address = argument(argv, '--send');
+  let sender = null;
+  if (address !== undefined) {
+    // The data key travels in this request: https, or plain http to this machine only (a local stack).
+    let to;
+    try {
+      to = new URL(address);
+    } catch {
+      throw new Error('--send takes the address of /api/data/source');
+    }
+    if (to.protocol !== 'https:' && !(to.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(to.hostname))) {
+      throw new Error('--send must be https (plain http only to this machine)');
+    }
+    if (!env.NOACG_DATA_KEY) throw new Error('set NOACG_DATA_KEY to the production data key before --send');
+    sender = createSourceSender({ address, key: env.NOACG_DATA_KEY, config, log: (line) => process.stderr.write(`${line}\n`) });
+  }
   const connector = createConnector({
     config,
     credential: config.credentialRef ? (env[config.credentialRef] ?? null) : null,
     ca: config.caFile ? readFileSync(path.resolve(path.dirname(file), config.caFile)) : null,
     limits: readLimits({ timeoutMs: env.NOACG_CONNECTOR_TIMEOUT_MS, maxBytes: env.NOACG_CONNECTOR_MAX_BYTES }),
-    send: async (acquisition) => void process.stdout.write(`${JSON.stringify(acquisition)}\n`),
+    send: sender ? sender.send : async (acquisition) => void process.stdout.write(`${JSON.stringify(acquisition)}\n`),
     log: (line) => process.stderr.write(`${line}\n`),
   });
+  sender?.bind(connector);
+  // Claimed before the first read, so it is sent under the production's epoch; a claim refused
+  // now is tried again at every report.
+  await sender?.claim().catch((error) => process.stderr.write(`${config.sourceId} claim failed: ${error.message}\n`));
   const done = new Promise((resolve) => {
     for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, resolve);
     if (minutes > 0) setTimeout(resolve, minutes * 60_000);
   });
+  const stopRenewing = sender?.keepClaim();
   connector.start();
   await done;
   connector.stop();
+  stopRenewing?.();
+  sender?.abort();
+  await sender?.release();
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

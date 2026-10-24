@@ -85,7 +85,11 @@ const ACCEPTED_CLASSES = {
     'DEFINER functions or the service role, which is the stricter posture, not a gap. ' +
     'feed_cache (0099, data-sources C4) is the news feed reader\'s shared cache: public headlines ' +
     'and the addresses typed to read them, written and read only by the service role from the ' +
-    'feed route and the server tick, with every client privilege revoked.',
+    'feed route and the server tick, with every client privilege revoked. ' +
+    'production_source_snapshots (0101, a trusted JSON source\'s accepted revision, epoch and status, ' +
+    'docs/work-specs/playout-external-connectors/ E4.2) is read and written only by the three ' +
+    'service-role control_source_*_by_key functions behind /api/data/source, with every client ' +
+    'privilege revoked and the absence asserted by 0101\'s self-check.',
   anon_security_definer_function_executable:
     'The capability-URL model: an output/control slug is held by an unauthenticated playout ' +
     'client (CasparCG/OBS/vMix), so these RPCs must be anon-callable. docs/CLOUD_PLAYOUT.md. ' +

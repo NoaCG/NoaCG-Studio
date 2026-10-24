@@ -8,7 +8,7 @@
 import type { SpxTemplate, ProductionSounds } from './types';
 import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
-import { sourcePaths, withBindings, type BindingEntry, type JsonObject, type ProductionBindings } from './productionData';
+import { externalReadOnly, sourcePaths, withBindings, type BindingEntry, type JsonObject, type ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
@@ -280,14 +280,39 @@ export interface FeedShowSource {
   inbox?: undefined;
 }
 
-export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource;
+/**
+ * A CONNECTOR source (docs/work-specs/playout-external-connectors/spec.md, E4.2): typed JSON a
+ * trusted agent outside the browser reads from a provider and hands to `/api/data/source` with the
+ * production's data key. This record is its REGISTRATION: non-secret, read by the route through
+ * `control_shows.sources` (src/control/externalSource.ts `readExternalRegistration`, which refuses
+ * everything it cannot use). Its paths
+ * are `external.<id>.<leaf>`. No browser reads it. A `config.v` above 1 is a later build's: held
+ * read-only here (productionData `externalReadOnly`), never applied or edited.
+ */
+export interface ExternalShowSource {
+  id: string;
+  kind: 'external';
+  label: string;
+  /** src/control/externalSource.ts `ExternalRegistration`: the endpoint it was approved for, the
+   *  config revision its agent must present, and the list adapter each collection leaf goes through.
+   *  A later version's config is kept whatever it holds, and never read. */
+  config: { v: 1; configRevision: number; endpoint: string; lists?: Record<string, 'lines' | 'schedule' | 'credits'> } | { v: number; [later: string]: unknown };
+  /** Paused: the route applies nothing; the agent keeps its latest revision for Resume. */
+  paused?: boolean;
+  inbox?: undefined;
+}
+
+export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | ExternalShowSource;
+
+
 
 /** A source that fills fields (a Sheet tab or a feed); a YouTube source feeds Messages alone. */
 export type FieldShowSource = SheetShowSource | FeedShowSource;
 export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed';
 
 /** What a source is called on the surface. */
-export const sourceKindWord = (s: ShowSource): string => (s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : 'YouTube');
+export const sourceKindWord = (s: ShowSource): string =>
+  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'external' ? 'Connector' : 'YouTube';
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question
@@ -1908,7 +1933,7 @@ export function connectApiFields(showId: string, entries: BindingEntry[]): { sho
 function patchShowSource(showId: string, sourceId: string, edit: (source: ShowSource) => ShowSource | null): Show[] {
   return patchShowChecked(showId, (show) => {
     const at = show.sources?.findIndex((s) => s.id === sourceId) ?? -1;
-    const next = at < 0 ? null : edit(show.sources![at]);
+    const next = at < 0 || externalReadOnly(show.sources![at]) ? null : edit(show.sources![at]);
     if (!next) return false;
     show.sources = show.sources!.map((s, i) => (i === at ? next : s));
     return true;

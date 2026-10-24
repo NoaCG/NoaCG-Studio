@@ -38,6 +38,8 @@ import { parseDelimited } from '../model/csv.js';
 import { isSourcePath, mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.js';
 
 export { isSourcePath, sourceIdOf, sourcePaths, sourcePrefix } from '../model/productionData.js';
+// The one value a path writes for all its fields: the shared evaluator's rule (./sourceMapping.ts).
+export { connectedFields, pathValue } from './sourceMapping.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
@@ -293,41 +295,6 @@ export function sheetWrites(
  *  `valueFor`, which the data template's importer uses). Empty always clears. */
 export const fieldValue: (d: FieldDescriptor, text: string) => string | null = valueFor;
 
-/**
- * The one value a path writes for every field connected to it, or null. A path is one value in
- * the tree, so when its fields need different forms of the cell (a toggle's "1" and a caption's
- * "TRUE"), no single value is right for both and the cell is held and reported, never decided by
- * whichever field happens to come last.
- */
-/**
- * Every field connected to one path, across the production's graphics. `fieldsOf` answers a pool
- * graphic's fields as the editor draws them (its library version), or null when it has none. The
- * reader and the Connect review both ask this, so they agree on what a cell becomes.
- */
-export function connectedFields(
-  bindings: Record<string, Record<string, string>> | undefined,
-  path: string,
-  fieldsOf: (graphic: string) => FieldDescriptor[] | null,
-): FieldDescriptor[] {
-  const out: FieldDescriptor[] = [];
-  for (const [graphic, fields] of Object.entries(bindings ?? {})) {
-    const ids = Object.keys(fields).filter((fieldId) => fields[fieldId] === path);
-    if (ids.length === 0) continue;
-    const declared = fieldsOf(graphic) ?? [];
-    for (const id of ids) {
-      const d = declared.find((f) => f.key === id);
-      if (d) out.push(d);
-    }
-  }
-  return out;
-}
-
-export function pathValue(fields: FieldDescriptor[], text: string): string | null {
-  const forms = new Set(fields.map((d) => fieldValue(d, text)));
-  if (forms.has(null)) return null;
-  if (forms.size > 1) return null;
-  return forms.size === 1 ? [...forms][0] : text;
-}
 
 // ── The reader ────────────────────────────────────────────────────────────────
 
