@@ -283,6 +283,8 @@ describe('a recipe: each v1 operation', () => {
     assert.equal(written(board({ columns: [{ from: 'party_id' }, { from: 'share', format: fi }], limit: 2 })), 'KOK\t20,8\nSDP\t19,9');
     assert.equal(written(board({ columns: [{ from: 'votes', format: { kind: 'number', locale: 'fi-FI', decimals: 0 } }], limit: 1 })), `225${NBSP}000`);
     assert.equal(written(board({ columns: [{ from: 'votes', format: { kind: 'number', locale: 'en-GB', decimals: 2 } }], limit: 1 })), '225,000.00');
+    const signed = (v) => mapped({ v }, { B: { f0: 'external.e1.v' } }, recipe({ v: { from: 'v', format: { kind: 'number', locale: 'en-GB', decimals: 1 } } })).writes['external.e1.v'];
+    assert.deepEqual([signed(-0.01), signed(-0.05), signed(-0)], ['0.0', '-0.1', '0.0']);
   });
 
   test('format dates in an explicit locale and zone, whatever the machine\'s own zone', () => {
@@ -310,6 +312,8 @@ describe('a recipe: each v1 operation', () => {
     const one = (updated) => mapped({ updated }, { B: { f0: 'external.e1.at' } }, recipe({ at: { from: 'updated', format: utc } }));
     assert.equal(one('2026-10-24T21:30:00.5+03:00').writes['external.e1.at'], '24/10/2026, 18:30');
     assert.equal(one(Date.UTC(2026, 9, 24, 18, 30)).writes['external.e1.at'], '24/10/2026, 18:30');
+    assert.equal(one('0050-01-01T00:00Z').writes['external.e1.at'], '01/01/50, 00:00', 'a year below 100 is that year');
+    assert.equal(one(8.64e15).writes['external.e1.at'], '13/09/275760, 00:00', 'the last time there is');
   });
 
   test('a fallback for a missing or null value; zero, false and "" are values', () => {
@@ -370,7 +374,7 @@ describe('a recipe holds last good and names the correction, never a valid empty
     const one = (value, format) => mapped({ value }, { B: { f0: 'external.e1.out' } }, recipe({ out: { from: 'value', format } }));
     const num = { kind: 'number', locale: 'en-GB', decimals: 0 };
     const date = { kind: 'date', locale: 'en-GB', timeZone: 'UTC', show: 'date' };
-    for (const [value, format] of [['60', num], [true, num], ['2026-10-24T18:30:00', date], ['2026-02-30T00:00Z', date], ['2026-10-24T24:00Z', date], ['24.10.2026', date], ['2026-10-24T18:30+15:00', date], [false, date]]) {
+    for (const [value, format] of [[8.64e15 + 1, date], [-1e20, date], ['60', num], [true, num], ['2026-10-24T18:30:00', date], ['2026-02-30T00:00Z', date], ['2026-10-24T24:00Z', date], ['24.10.2026', date], ['2026-10-24T18:30+15:00', date], [false, date]]) {
       const out = one(value, format);
       assert.deepEqual([out.writes, out.unfit], [{}, ['out']], JSON.stringify(value));
     }
@@ -386,13 +390,20 @@ describe('a recipe holds last good and names the correction, never a valid empty
 
   test('the destination schema: every row must fit its native list, and the leaf needs one', () => {
     const three = list({ columns: [{ from: 'party_id' }, { from: 'votes' }, { from: 'seats' }] });
-    assert.match(held(mapped(results(), ticker, recipe(three), { lists: lines })), /row 1: Only the first two cells are used/);
+    assert.match(held(mapped(results(), ticker, recipe(three), { lists: lines })), /"KOK\\t225000": Only the first two cells are used/);
     const slots = { slots: [{ id: 1, time: '20:00', title: 'News' }, { id: 2, time: '21:00', title: '' }] };
     const schedule = recipe({ board: { from: 'slots', id: 'id', columns: [{ from: 'time' }, { from: 'title' }] } });
-    assert.match(held(mapped(slots, ticker, schedule, { lists: { board: 'schedule' } })), /row 2: Needs a time and a programme/);
+    assert.match(held(mapped(slots, ticker, schedule, { lists: { board: 'schedule' } })), /"21:00 \|": Needs a time and a programme/);
     slots.slots.pop();
     assert.equal(written(mapped(slots, ticker, schedule, { lists: { board: 'schedule' } })), '20:00 | News');
     assert.match(held(mapped(results(), ticker, recipe(list({})))), /no list adapter/);
+    // A cell holding the list's own separator would become another cell: a tab in a ticker line,
+    // a | in a schedule or credits row.
+    const tab = { parties: [{ party_id: 'KOK', votes: 'a\tb' }] };
+    assert.match(held(board({}, tab)), /votes holds a tab/);
+    assert.equal(written(board({}, { parties: [{ party_id: 'KOK', votes: 'a | b' }] })), 'KOK\ta | b');
+    const piped = { slots: [{ id: 1, time: '20:00', title: 'News | fake' }] };
+    for (const adapter of ['schedule', 'credits']) assert.match(held(mapped(piped, ticker, schedule, { lists: { board: adapter } })), /title holds \|/, adapter);
   });
 
   test('a genuinely empty list clears the native list through its adapter', () => {

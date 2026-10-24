@@ -402,10 +402,12 @@ async function source(req: Request): Promise<Response> {
       p_writes: projection?.writes ?? {},
     });
     if (typeof answer.refused === 'string') return refused(answer as { refused: string });
-    if (!projection || acquisition.status !== 'changed') return json(answer);
-    // What the agent reports back to whoever runs it: what held, what to correct, and from where.
+    if (!projection) return json(answer);
+    // What the agent reports back to whoever runs it: a recipe that holds the whole source on every
+    // report, and for a changed one what held, what to correct, and from where.
     const { missing, unfit, problems, held, provenance } = projection;
-    return json({ ...answer, missing, unfit, problems, ...(held ? { held } : {}), provenance });
+    const why = held ? { held } : {};
+    return json(acquisition.status === 'changed' ? { ...answer, missing, unfit, problems, ...why, provenance } : { ...answer, ...why });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('unknown data key')) return apiError('unauthorized', 'Unknown data key.', 401);

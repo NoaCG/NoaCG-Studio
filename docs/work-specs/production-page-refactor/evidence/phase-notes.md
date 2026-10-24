@@ -58,7 +58,10 @@ changes a spec's digest.
   - *The target-adapter boundary*: a list output goes through its leaf's registered native adapter
     (`lists`), and any row that adapter marks (`Only the first two cells are used`, `Needs a time
     and a programme`) holds the leaf; then every connected field must take the text
-    (`pathValue`). The identity projection keeps ignoring row marks, as it did.
+    (`pathValue`). A cell holding the list's own separator holds too (a tab in a ticker line, `|` in
+    a schedule or credits row), since it would become another cell. The identity projection keeps
+    ignoring row marks and separators, as it did (a tab in a connector cell splits a ticker line
+    there: an issue, not changed here, because that output must stay byte for byte).
   - *Bounds*, each pinned at its edge by a behavioural test: 32 outputs, 8 columns, a limit from 1
     to 500 (no limit: every row), 8 keys per path, 6 decimals, 200 characters of fallback or
     filter text. A 30 000-item collection filtered, sorted, limited and formatted, and one of 30 000
@@ -72,9 +75,20 @@ changes a spec's digest.
   recipe through the registration. `api/data/[...path].ts` passes it and answers what held.
 - **Not in this row**: any UI, `op: "sample"`, keyed selectors, SPX conversion, a migration.
   `productionDataSession` did not need to call the evaluator: no browser reads a connector.
-- **Mutation checks** (on the final code): 59 single mutations of the evaluator, the registration,
+- **Traps for E5.2** (from this row's review). *A new or corrected recipe and an unchanged
+  payload*: an unchanged report re-evaluates the accepted payload, but the database writes only
+  paths never written, so a recipe saved while the provider is quiet reaches air at the next
+  changed read. E5.2's explicit, revision-fenced replace must make that re-apply happen. *The
+  revision stamp*: a recipe holds the whole source once its `configRevision` is not the
+  registration's, so whatever bumps the revision must re-stamp or review the recipe in the same
+  write. Today nothing writes either.
+- **Review fixes in this row**: an epoch beyond a Date's range held instead of throwing out of the
+  route; years 0 to 99 are those years; a value rounding to zero is `0.0`, never `-0.0`; a problem
+  quotes the row's text rather than a number the adapter's trimming can shift; `held` is answered
+  on unchanged reports too.
+- **Mutation checks** (on the final code): 66 single mutations of the evaluator, the registration,
   the read-only gate and the route, each run against `scripts/source-mapping.test.mjs` (and
-  `scripts/show-fixture-compat.test.mjs` for the last three). 58 turned it red: every bound one
+  `scripts/show-fixture-compat.test.mjs` for the last three). 65 turned it red: every bound one
   either way, a filter by `==`, no tie-break, the tie-break applied in the sort's direction, no
   descending, kinds of id compared as values, mixed sort kinds allowed, duplicates allowed, `1`
   and `"1"` one id, a non-record item allowed, no limit, null not taking the fallback, falsy values
@@ -84,7 +98,9 @@ changes a spec's digest.
   source id, config revision or key checks dropped, a later version evaluated, an invalid recipe
   evaluating its valid parts, a held recipe reporting nothing unfit, a non-object payload read, a
   missing collection evaluated, a prototype key read as an output, any filter literal, no
-  provenance, the read-only gate, the registration or the route dropping the recipe. One survived
+  provenance, the read-only gate, the registration or the route dropping the recipe, the time
+  bound either way, the year fix, the separator check or its per-adapter separator, the zero sign
+  fix. One survived
   and is equivalent: a list output with a fallback, which the parser refuses before it is
   evaluated. A first run found five survivors; three gained tests and one (a fraction of a second
   no format shows) was removed from the code.

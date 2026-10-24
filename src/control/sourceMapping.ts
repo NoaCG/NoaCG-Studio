@@ -122,6 +122,7 @@ const RECIPE_PATH = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
 const LOCALE = /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?$/;
 const SHOWS = new Set(['date', 'time', 'datetime']);
 // A time that states its zone: a time without one would read in the machine's own zone.
+const MAX_TIME = 8.64e15;
 const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(?:Z|([+-])(\d{2}):(\d{2}))$/;
 
 export type RecipeRead =
@@ -248,7 +249,8 @@ function formatters(): (format: RecipeFormat) => (value: number) => string {
     if (!fn) {
       if (format.kind === 'number') {
         const nf = new Intl.NumberFormat(format.locale, { minimumFractionDigits: format.decimals, maximumFractionDigits: format.decimals });
-        fn = (n) => nf.format(n);
+        // A value that rounds to zero is zero: never "-0.0".
+        fn = (n) => nf.format(Number(n.toFixed(format.decimals)) === 0 ? 0 : n);
       } else {
         const date = format.show !== 'time' ? { year: 'numeric', month: '2-digit', day: '2-digit' } as const : {};
         const time = format.show !== 'date' ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const : {};
@@ -264,12 +266,14 @@ function formatters(): (format: RecipeFormat) => (value: number) => string {
 /** A time that states its zone, or epoch milliseconds, as epoch milliseconds; else NaN. A date
  *  that does not exist (30 February) is not a time: `Date.parse` would roll it into March. */
 function instant(value: JsonValue): number {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  // Beyond ±8.64e15 ms there is no Date, and a format would throw rather than hold.
+  if (typeof value === 'number') return Number.isFinite(value) && Math.abs(value) <= MAX_TIME ? value : NaN;
   const m = typeof value === 'string' ? INSTANT.exec(value) : null;
   if (!m) return NaN;
   const [y, mo, d, h, mi, s = 0] = [m[1], m[2], m[3], m[4], m[5], m[6]].map((part) => (part === undefined ? undefined : Number(part))) as number[];
   // Fractions of a second are read but not kept: no format shows them.
-  const at = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+  const at = new Date(Date.UTC(2000, mo - 1, d, h, mi, s));
+  at.setUTCFullYear(y, mo - 1, d); // Date.UTC alone reads years 0 to 99 as 1900 to 1999
   const exists =
     at.getUTCFullYear() === y && at.getUTCMonth() === mo - 1 && at.getUTCDate() === d && at.getUTCHours() === h && at.getUTCMinutes() === mi && at.getUTCSeconds() === s;
   const [oh, om] = m[8] === undefined ? [0, 0] : [Number(m[9]), Number(m[10])];
@@ -357,14 +361,16 @@ function outputText(
     for (const column of output.columns) {
       const cell = cellOf(column, atPath(item, column.from), format);
       if ('problem' in cell) return cell;
+      // A cell holding the list's own separator would split into another cell.
+      if (cell.text.includes(adapter === 'lines' ? '\t' : '|')) return { problem: `${column.from} holds ${adapter === 'lines' ? 'a tab' : '|'}, which the list reads as a new cell` };
       row.push(cell.text);
     }
     rows.push(row);
   }
   // The destination's own rules: a row the native list would mark is not written.
   const fill = fillList({ adapter, main: 'text' }, rows);
-  const bad = fill.rows.findIndex((r) => r.problem);
-  if (bad >= 0) return { problem: `row ${bad + 1}: ${fill.rows[bad].problem}` };
+  const bad = fill.rows.find((r) => r.problem);
+  if (bad) return { problem: `${JSON.stringify(bad.text)}: ${bad.problem}` };
   return { text: fill.values.text ?? '' };
 }
 
