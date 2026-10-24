@@ -141,12 +141,17 @@ export function settleSelection(air: SelectionAir, graphic: string, advanced: Ai
     if (inst.revision >= advanced.revision) return { ...air, [graphic]: { ...inst, confirmed } };
     return { ...air, [graphic]: { ...inst, confirmed, revision: confirmed.revision, seen: Math.max(inst.seen, confirmed.revision), values: confirmed.values, at: confirmed.at, held: inst.held?.unsent ? undefined : inst.held } };
   }
-  // Behind it already, or a newer send has landed over it: nothing of this failure is on show.
-  if (inst.revision < advanced.revision || inst.confirmed.revision >= advanced.revision) return air;
+  // Not the correction on show (behind it already, or a newer one is out and supersedes it), or a
+  // newer send has landed over it: nothing of this failure is on show.
+  if (inst.revision !== advanced.revision || inst.confirmed.revision >= advanced.revision) return air;
   const { confirmed } = inst;
+  const back = { revision: confirmed.revision, values: confirmed.values, at: confirmed.at };
+  // A newer revision was judged since (it holds the card, say a deletion): its bound and its hold
+  // stand, so an older revision can never cross them.
+  if (inst.seen > advanced.revision) return { ...air, [graphic]: { ...inst, ...back } };
+  // Nothing newer: the failed revision is sent again at its next read, so the bound comes back too.
   const held = { reason: `the correction to revision ${advanced.revision} was not sent`, since: inst.held?.since ?? now, revision: null, unsent: true as const };
-  // The failed revision is sent again at the next read of it, so the bound comes back to what landed.
-  return { ...air, [graphic]: { ...inst, revision: confirmed.revision, seen: confirmed.revision, values: confirmed.values, at: confirmed.at, held } };
+  return { ...air, [graphic]: { ...inst, ...back, seen: confirmed.revision, held } };
 }
 
 /** The layer no longer airs a captured selection (an Out, or a cue without one taken onto it). */

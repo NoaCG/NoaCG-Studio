@@ -409,6 +409,17 @@ describe('the aired instance', () => {
     assert.equal(air.settleSelection(pressed, 'Card', send.advanced, false, 3000), pressed, 'a later press stands');
   });
 
+  test('a correction that fails after a newer revision held the card keeps that bound and that hold', () => {
+    const six = follow(captured(), collection(6, people6()), 2000);
+    const deleted = follow(six.air, collection(9, BASE.slice(1)), 2100).air;
+    assert.equal(deleted.Card.held.revision, 9);
+    const failed = air.settleSelection(deleted, 'Card', six.sends[0].advanced, false, 2200);
+    assert.deepEqual([failed.Card.revision, failed.Card.seen, failed.Card.held.revision], [5, 9, 9], 'back to what landed; the deletion still bounds and holds');
+    const late = follow(failed, collection(8, BASE), 2300);
+    assert.deepEqual(late.sends, [], 'revision 8 is older than the deletion');
+    assert.equal(late.air, failed);
+  });
+
   test('two overlapping corrections: both failing go back to what landed; a later one landing after an earlier failure stands', () => {
     const state = captured();
     const six = follow(state, collection(6, people6()), 2000);
@@ -417,7 +428,7 @@ describe('the aired instance', () => {
     a = air.settleSelection(a, 'Card', seven.sends[0].advanced, false, 2300);
     assert.deepEqual([a.Card.revision, a.Card.values], [5, state.Card.values], 'revision 5 is what air shows');
     let b = air.settleSelection(seven.air, 'Card', six.sends[0].advanced, false, 2200);
-    assert.equal(b.Card.revision, 5);
+    assert.equal(b, seven.air, 'revision 7 is out and supersedes the failed 6');
     b = air.settleSelection(b, 'Card', seven.sends[0].advanced, true, 2300);
     assert.deepEqual([b.Card.revision, b.Card.values.f1, b.Card.confirmed.revision, b.Card.held], [7, '1700', 7, undefined]);
     const c = air.settleSelection(air.settleSelection(seven.air, 'Card', seven.sends[0].advanced, true, 2300), 'Card', six.sends[0].advanced, false, 2400);

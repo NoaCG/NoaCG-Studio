@@ -95,7 +95,7 @@ changes a spec's digest.
   `CueRundown.tsx`, `SelectionHolds.tsx`, `ProductionPage.tsx` (the wiring), and
   `scripts/graphic-verbs.test.mjs`, `scripts/production-data-session.test.mjs`,
   `e2e/configured/expected-run.json`.
-- **Mutation checks**: 75 Node mutations, all red (20 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
+- **Mutation checks**: 77 Node mutations, all red (22 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
   required field, the optional fallback, a valid empty list, an unknown B borrowing a record, typed
   keys, the field fit, the schema revision, a missing key part), the gate (a later selector, a later
   recipe, a shared binding, another graphic), every bound at its edge, the follow (newer only, the
@@ -129,7 +129,7 @@ changes a spec's digest.
   small parse cache. Left as reports: a per-cue "fixed fields" set to replace the `boundOf` marker
   in `unsentNow`, one shared read-only field row in the editor, a per-collection key index, and a
   reference fast path in `selectionFrozen`.
-- **The pull request's reviews.** Six rounds of the automated pull request review, every finding
+- **The pull request's reviews.** Seven rounds of the automated pull request review, every finding
   fixed and pinned:
   a press that lands (or fails) follows the newest tree at once, since a revision that arrived
   while it was pending was passed over and nothing else may come; the follow pass reads what is
@@ -141,7 +141,10 @@ changes a spec's digest.
   revision recorded as aired, and a capture restored after an overlapping failed press comes back
   settled (two failed presses go back to the last settled capture, not the first failed one); the
   newest revision judged (`seen`) bounds what is sent, and a read with no revision does not lower
-  it. The configured walk's "no Take, advance or reset" check first counted markers and status
+  it; a failed correction superseded by a newer one out changes nothing, and one failing after a
+  newer revision held the card keeps that bound and that hold. A failed correction is retried at
+  the next read, never at once, so a lasting outage cannot start a retry storm; the "not sent"
+  hold says so meanwhile. The configured walk's "no Take, advance or reset" check first counted markers and status
   rows (the output's own rows during the outage, reload and restart); it now counts the commands
   that move a card (`play`, `stop`, `next`, `snap`, `event`) and lists them on failure.
 - **Traps for E7.2a and E7.2b.** *The page re-reads a published tree only when a row says it
