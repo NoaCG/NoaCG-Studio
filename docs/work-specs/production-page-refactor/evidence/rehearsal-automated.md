@@ -68,18 +68,18 @@ candidate in the run named under "Runs"; a route nothing proves is "unverified",
 
 | Route | Proven by (as C7 cited, run again here) | Result on this candidate |
 | --- | --- | --- |
-| Pasted rows | `e2e/production-data.spec.ts` "Paste rows fills a ticker, a schedule, standings and credits…" | RESULT |
-| A Sheet ticker | `production-data` "Connect data previews the whole graphic…", "twelve Sheet rows reach a ticker on air…" | RESULT |
-| Schedule, standings and credits from a Sheet | `production-data` "Sheet tabs fill a schedule, standings and credits on air…" | RESULT |
-| A feed | `production-data` "a pasted news feed fills a ticker…"; `scripts/feed-source.test.mjs`; `e2e/configured/feed-route.spec.ts` | RESULT |
-| A pushed score | `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…" (quarantined on main, #1608; runs in a branch dispatch); `scripts/data-pause.test.mjs` | RESULT |
-| A guest row | `production-data` "a guest row loads into a lower third and airs on Take…" | RESULT |
-| Pasted messages | `e2e/production-audience.spec.ts` "a pasted message airs exactly as prepared…"; `e2e/configured/audience-live.spec.ts` | RESULT |
-| Sheet messages | `production-audience` "a message Sheet: rows arrive as candidates…"; `audience-live`; `scripts/sheet-messages.test.mjs` | RESULT |
-| YouTube comments | `scripts/youtube-comments.test.mjs`; `e2e/production-chat-intake.spec.ts` (quarantined, #1595: local run only) | RESULT |
-| YouTube live chat | `scripts/youtube-chat.test.mjs`; C7's live smoke (reused, above); `production-chat-intake` (quarantined, local run only) | RESULT |
-| Twitch chat (regression) | `scripts/twitch-chat.test.mjs` on recorded frames | RESULT |
-| A staged vote | `production-audience` "the vote reaches air the same way a question does…"; `audience-live` "the published walk…" | RESULT |
+| Pasted rows | `e2e/production-data.spec.ts` "Paste rows fills a ticker, a schedule, standings and credits…" | pass (full offline run) |
+| A Sheet ticker | `production-data` "Connect data previews the whole graphic…", "twelve Sheet rows reach a ticker on air…" | pass (full offline run) |
+| Schedule, standings and credits from a Sheet | `production-data` "Sheet tabs fill a schedule, standings and credits on air…" | pass (full offline run) |
+| A feed | `production-data` "a pasted news feed fills a ticker…"; `scripts/feed-source.test.mjs`; `e2e/configured/feed-route.spec.ts` | pass offline and in Node; configured: CONF |
+| A pushed score | `e2e/configured/production-data-key.spec.ts` "Another system: the card key pushes…" (quarantined on main, #1608; runs in a branch dispatch); `scripts/data-pause.test.mjs` | CONF; `data-pause` Node: pass |
+| A guest row | `production-data` "a guest row loads into a lower third and airs on Take…" | pass (full offline run) |
+| Pasted messages | `e2e/production-audience.spec.ts` "a pasted message airs exactly as prepared…"; `e2e/configured/audience-live.spec.ts` | pass offline; configured: CONF |
+| Sheet messages | `production-audience` "a message Sheet: rows arrive as candidates…"; `audience-live`; `scripts/sheet-messages.test.mjs` | pass offline and in Node; configured: CONF |
+| YouTube comments | `scripts/youtube-comments.test.mjs`; `e2e/production-chat-intake.spec.ts` (quarantined, #1595: local run only) | pass: Node, and the journey spec 9 of 9 on `5e83e44` in this worker (local; CI skips it while quarantined) |
+| YouTube live chat | `scripts/youtube-chat.test.mjs`; C7's live smoke (reused, above); `production-chat-intake` (quarantined, local run only) | pass: Node, the reused smoke, and the journey spec in the same local run |
+| Twitch chat (regression) | `scripts/twitch-chat.test.mjs` on recorded frames | pass (Node) |
+| A staged vote | `production-audience` "the vote reaches air the same way a question does…"; `audience-live` "the published walk…" | pass offline; configured: CONF |
 
 ### PROGRAM after each disturbance, overrides, readers, independence and confirmation
 
@@ -100,14 +100,14 @@ versus target) cite journeys in `production-data`, `production-audience`, `produ
 | AC-11 the guardrail stands | `contracts/rules/components/playout-behaviour-production-page-lands-verb.md`, compiled by `npm run learn` into `src/components/AGENTS.md`, `.claude/rules/src-components-home-productionpage.md` and `contracts/index.md`; no line count; `check:contracts` green | pass |
 | AC-12 the docs follow the code | `src/components/home/AGENTS.md` split section rewritten; `docs/ARCHITECTURE.md` §2 lists `playoutSession`; `docs/CLIP_PLAYBACK_PLAN.md` §10 and §17.2 carry the superseded note; covers and guards (below); #766 closed by this merge | pass, #766 at landing |
 | Covers and guards mappings | `node scripts/gates.mjs audit` (every Node test declares guards that match files) and the build's `auditSpecHeaders` (via `e2e-affected --list`) both clean; every new module is named by its specs and its Node test; 11 specs that press verbs on the page and 3 that drive the fake Bridge gained the moved modules (phase notes) | pass |
-| AC-9 render targets | phase 13b's `e2e/playout-air-contract.spec.ts` render counts, in the full offline run | RESULT |
-| The full offline suite on CI | `ci.yml` dispatched on the candidate with no base | RESULT |
+| AC-9 render targets | phase 13b's `e2e/playout-air-contract.spec.ts` render counts, in the full offline run | pass (in the full offline run) |
+| The full offline suite on CI | `ci.yml` dispatched on the candidate with no base | pass: 15 of 15 full shards, no retry |
 | The whole configured suite | `configured-suite.yml` dispatched on the candidate | RESULT |
 | Data-sources AC-16, software half | the route tables above | RESULT |
 | Node, refactor modules | the 17 Node files of phases 1 to 13b | 290 of 290 |
 | Node, readers | the 8 reader Node files C7 cited | 115 of 115 |
 | `npm run depcruise` | | no violations (1367 modules) |
-| Assessment A | a fresh read-only `/so` session on the final diff | RESULT |
+| Assessment A | a fresh read-only `/so` session on the final diff | PASS WITH NOTES on `5e83e44` (below) |
 
 ## What stays unverified (requested, not done)
 
