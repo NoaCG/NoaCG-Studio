@@ -285,14 +285,18 @@ otherwise (a bad `lists`, a local destination) is 422 too, and applies nothing.
 sourceId}`; while an agent holds the source the production keeps the ask and answers
 `{waiting: true, asked}`, and tells the agent `sample: true` beside its next claim or report. The
 agent then reads the provider once with its own credential and posts what it would send (its
-`sendPaths`, redacted) as `{v: 1, op: "sample", sourceId, configRevision, claim, sample}`, under
+`sendPaths`, redacted) as `{v: 1, op: "sample", sourceId, claim, sample}`, under
 its live claim and only to an ask (409 `not_asked` otherwise); the page reads it with `asked`. A
 sample is kept for the review only and never evaluated or applied; an ask waits at most a minute.
 With no agent holding the source (`agent: false`), the page reads a public endpoint through the
 feed reader's guard instead (`GET /api/data/feed?as=json&url=...`, 256 KiB, no credential).
 Once Connect saves the mapping, a newly connected field fills at the agent's next read (a receipt
 comes at least every 15 s); a changed mapping of a field already written reaches air with the
-provider's next changed revision.
+provider's next changed revision, which the review says beside that field.
+
+The registered `endpoint` is non-secret: it is stored in the production, synced, and sent to
+NoaCG's feed reader for a sample. A provider that takes its key in the address (a query string)
+is not supported: put the key in the agent's bearer credential (`credentialRef`).
 
 ## The graphic-addressed door: `POST /api/data/update`
 

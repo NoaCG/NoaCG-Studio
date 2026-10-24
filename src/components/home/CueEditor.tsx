@@ -306,6 +306,16 @@ function CueConnectReview({
       ? projectSource({ sourceId: id, payload: json!.sample, bindings: plan.bindings, fieldsOf: drawn, lists: plan.source.config.lists, mapping: plan.source.config.mapping, configRevision: plan.source.config.configRevision })
       : null;
   const leafOf = (path: string) => path.slice(`external.${id}.`.length);
+  /** A field already showing this source's value whose output the review changes: the database
+   *  writes it again only when the provider's answer changes (docs/DATA_API.md), so it says so. */
+  const storedOutputs = reusedConnector?.config.mapping?.outputs ?? {};
+  const plannedOutputs = plan && !('error' in plan) ? (plan.source.config.mapping?.outputs ?? {}) : {};
+  const waitsForChange = (fieldId: string, path: string | null): boolean =>
+    reusedConnector !== null &&
+    path !== null &&
+    path === bound[fieldId] &&
+    (values[fieldId] ?? '') !== '' &&
+    JSON.stringify(storedOutputs[leafOf(path)]) !== JSON.stringify(plannedOutputs[leafOf(path)]);
   const writes = (path: string): string | null =>
     projection ? (projection.writes[path] ?? null) : pathValue(connectedFields(proposed, path, drawn), sample.get(path) ?? '');
   /** Whether the read says anything for a path: a connector's whole sample, else its offered values. */
@@ -606,6 +616,9 @@ function CueConnectReview({
                           : row.status === 'unmatched'
                             ? 'no match'
                             : ''}
+                    {waitsForChange(row.fieldId, path) && (
+                      <span className="status-warn" data-testid={`cue-connect-next-change-${row.fieldId}`}> · on air at the provider’s next change</span>
+                    )}
                   </td>
                 </tr>,
                 list && (

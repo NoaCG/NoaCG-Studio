@@ -333,4 +333,23 @@ test('a ticker reads the sample\'s list: the record key kept, a column picked by
   expect(bindings['Index Strip']).toEqual({ f0: `external.${id}.panel` });
   expect(sources[0].config.lists).toEqual({ panel: 'lines' });
   expect((sources[0].config.mapping as { outputs: Record<string, unknown> }).outputs.panel).toEqual({ from: 'panel', id: 'id', columns: [{ from: 'seat' }] });
+
+  // Once the source has written the field, a changed column reaches air with the provider's next
+  // change, never at once and never from the sample: the review says so beside the field.
+  await page.evaluate(({ sid, src, key }) => {
+    const store = JSON.parse(localStorage.getItem(key) ?? '{}');
+    store[sid] = { external: { [src]: { panel: '1\n2' } } };
+    localStorage.setItem(key, JSON.stringify(store));
+  }, { sid: showId, src: id, key: PRODUCTION_DATA_KEY });
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId('cue-list').locator('.pd-cue').nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-bound-f0').locator('textarea')).toHaveValue('1\n2');
+  review = await reuseConnector(page);
+  await expect(review.getByTestId('cue-connect-column-f0-0')).toHaveValue('seat');
+  await expect(review.getByTestId('cue-connect-next-change-f0')).toHaveCount(0);
+  await review.getByTestId('cue-connect-column-f0-0').selectOption('name');
+  await expect(review.getByTestId('cue-connect-next-change-f0')).toHaveText(' · on air at the provider’s next change');
+  await review.getByTestId('cue-connect-cancel').click();
 });
