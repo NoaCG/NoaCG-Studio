@@ -1397,7 +1397,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The follow pass, as the effect below runs it; set every render so it reads this render's facts. */
   const followRef = useRef<() => void>(() => {});
   const selectionIo = useMemo<SelectionAirIo>(
-    () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current() }),
+    () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current(), alive: session.alive }),
     [session, keepSelections],
   );
   /** A Take or an Update put this cue's selection on the layer (control/selectionAir.ts). */

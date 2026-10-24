@@ -609,6 +609,44 @@ describe('the page\'s two doors onto the instances', () => {
     air.followAired(p, { liveCue: {}, seeded: true, facts: facts(collection(7, BASE)), send });
     assert.deepEqual(p.part.get(), {}, 'off air once the page knows: forgotten');
   });
+
+  test('a correction displaced by a Take that then fails is sent again: the layer goes back to what last landed', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const live = { Card: 'cue-a' };
+    let answer;
+    const sends = [];
+    const send = (graphic, values) => {
+      sends.push(values.f1);
+      return sends.length === 1 ? new Promise((r) => (answer = r)) : Promise.resolve({ skipped: [], superseded: [], pressedAgain: [] });
+    };
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    assert.equal(p.part.get().Card.revision, 6, 'the correction is out');
+    const b = air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7), 6));
+    answer(null);
+    await new Promise((r) => setImmediate(r));
+    b.undo();
+    const back = p.part.get().Card;
+    assert.deepEqual([back.cueId, back.revision, back.confirmed.revision], ['cue-a', 5, 5], 'neither send landed: revision 5 is what airs');
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual([sends, p.part.get().Card.revision], [['1500', '1500'], 6], 'and revision 6 goes again');
+  });
+
+  test('a disposed page writes no selection: a late answer cannot overwrite what a reopened page captured', async () => {
+    let alive = true;
+    const p = { ...io(), alive: () => alive };
+    const a = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
+    const captured = p.part.get();
+    alive = false;
+    a.landed();
+    a.undo();
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
+    air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(null) });
+    await new Promise((r) => setImmediate(r));
+    assert.equal(p.part.get(), captured, 'nothing written after disposal');
+    assert.equal(p.kept.length, 1);
+  });
 });
 
 test('an action carries field values when it reads or moves any: the hosted page holds those back while it cannot see the cue on air', () => {

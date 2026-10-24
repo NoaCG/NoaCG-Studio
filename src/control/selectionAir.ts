@@ -270,7 +270,14 @@ export interface SelectionAirIo {
   /** Follow the newest tree at once: a revision that arrived while a press was pending was passed
    *  over then, and nothing else may come to follow it. */
   followNow?: () => void;
+  /** False once the page's session is disposed: a late answer then writes nothing, so it cannot
+   *  overwrite what a reopened page of this production captured since (playoutSession.ts). */
+  alive?: () => boolean;
 }
+
+const put = (io: SelectionAirIo, air: SelectionAir): void => {
+  if (io.alive?.() !== false) io.keep(air);
+};
 
 /** A Take or an Update put this cue's selection on the layer (none drops what it followed). Only
  *  this layer's entry is written back by `undo`, and only while it is still the one this press
@@ -286,14 +293,14 @@ const replaced = new WeakMap<AiredSelection, AiredSelection | undefined>();
 export function pressSelection(io: SelectionAirIo, graphic: string, cueId: string, take: SelectionTake): { landed: () => void; undo: () => void } {
   const before = io.part.get()[graphic];
   const written = take.status === 'ok' ? captureSelection(io.part.get(), graphic, cueId, take, io.now()) : dropSelection(io.part.get(), graphic);
-  io.keep(written);
+  put(io, written);
   const inst = written[graphic];
   if (inst) replaced.set(inst, before);
   return {
     landed: () => {
       if (!inst) return;
       answered.add(inst);
-      io.keep(landedSelection(io.part.get(), graphic, inst));
+      put(io, landedSelection(io.part.get(), graphic, inst));
       io.followNow?.();
     },
     undo: () => {
@@ -301,7 +308,13 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
       let back: AiredSelection | undefined = before;
       while (back && failed.has(back)) back = replaced.get(back);
       if (back?.pending && answered.has(back)) back = (({ pending: _pending, ...rest }) => rest)(back);
-      io.keep(undoSelection(io.part.get(), graphic, inst, back));
+      // A correction still out when this press displaced it was never settled (its answer found
+      // another cue on the layer): back goes to what last landed, so the follow sends it again.
+      if (back && back.revision !== back.confirmed.revision) {
+        const { confirmed } = back;
+        back = { ...back, revision: confirmed.revision, values: confirmed.values, at: confirmed.at, seen: confirmed.revision };
+      }
+      put(io, undoSelection(io.part.get(), graphic, inst, back));
       // A revision passed over while this press was pending is followed now, as after a landing.
       io.followNow?.();
     },
@@ -322,10 +335,10 @@ export function followAired(
   const before = io.part.get();
   const reconciled = reconcileSelection(before, o.liveCue, o.seeded);
   const { air, sends } = o.facts.readable !== false ? followSelection(reconciled, o.liveCue, o.facts, io.now()) : { air: reconciled, sends: [] };
-  if (air !== before) io.keep(air);
+  if (air !== before) put(io, air);
   for (const one of sends) {
     void o.send(one.graphic, one.values).then((sent) => {
-      io.keep(settleSelection(io.part.get(), one.graphic, one.advanced, reachedOutput(sent, one.graphic), io.now()));
+      put(io, settleSelection(io.part.get(), one.graphic, one.advanced, reachedOutput(sent, one.graphic), io.now()));
     });
   }
 }
