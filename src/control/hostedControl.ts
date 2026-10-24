@@ -52,7 +52,7 @@ import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 import { SHEET_LEASE_MS, initialStatus, type SheetLeaseDoor, type SheetReadState, type SheetStatus } from './sheetSource';
-import type { JsonObject } from '../model/productionData';
+import { preparedCue, type JsonObject } from '../model/productionData';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
@@ -411,7 +411,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
   // A cue showing a live candidate is left out: the hosted page and an exported controller would
   // take it with its prepared values, and the output receives resolved values only (E7.1).
   const cues: OutputCue[] = (show.cues ?? [])
-    .filter((c) => byId.has(c.sourceId) && c.selection === undefined)
+    .filter((c) => byId.has(c.sourceId) && preparedCue(c))
     .map((c) => {
       const auto = readAuto(c);
       const next = auto && takesNext(auto.then) ? nextGraphicCue(show.cues ?? [], c.id) : null;

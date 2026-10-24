@@ -383,6 +383,13 @@ test.describe('live candidates', () => {
         bound: JSON.stringify(S.setFieldBinding(id, 'Hairline', 'f0', 'results.name').find((s) => s.id === id)!.bindings ?? {}),
         plain: S.updateShowCueChecked(id, cue('Plain').id, { label: 'Plain renamed' }).error,
         published: (await (await import('/src/control/hostedControl.ts')).buildOutputPayload(S.loadShows().find((s) => s.id === id)!)).cues.map((c) => c.label),
+        // The exported controller and the SPX rundown send a cue's prepared values the same way.
+        ...(await (async () => {
+          const E = await import('/src/export/showExport.ts');
+          const now = S.loadShows().find((s) => s.id === id)!;
+          const text = async (zip: Awaited<ReturnType<typeof E.buildShowZip>>, file: RegExp) => (await Promise.all(zip.file(file).map((f) => f.async('string')))).join('\n');
+          return { controller: await text(await E.buildShowZipFor(now, 'html-overlay'), /controller\.html$/), spx: await text(await E.buildShowZip(now), /\.json$/) };
+        })()),
       };
     }, showId);
     expect(refusals.noted).toMatch(/cannot change/);
@@ -394,6 +401,11 @@ test.describe('live candidates', () => {
     expect(refusals.published, 'no surface takes a candidate cue with its prepared values').toContain('Plain renamed');
     expect(refusals.published).not.toContain('Later card');
     expect(refusals.published).not.toContain('Card A');
+    for (const exported of [refusals.controller, refusals.spx]) {
+      expect(exported, 'an export keeps the prepared cue').toContain('Plain renamed');
+      expect(exported, 'and leaves the candidate cues out').not.toContain('Later card');
+      expect(exported).not.toContain('Card A');
+    }
     await page.evaluate(async () => (await import('/src/model/durableStore.ts')).commitDurableWrites());
     expect(await stored()).toEqual(kept);
     await page.reload();

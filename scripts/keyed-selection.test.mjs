@@ -338,6 +338,15 @@ describe('the aired instance', () => {
     assert.equal(newer.air.Card.held, undefined);
   });
 
+  test('a re-read of the aired revision under a newer hold, after a read with no revision, does not clear the warning', () => {
+    const gone = follow(captured(), collection(9, BASE.slice(1)), 4000).air;
+    const blind = follow(gone, '{broken', 4500).air;
+    assert.deepEqual([blind.Card.held.revision, blind.Card.seen], [null, 9]);
+    const reread = follow(blind, collection(5, BASE), 5000);
+    assert.deepEqual(reread.sends, []);
+    assert.equal(reread.air, blind, 'revision 9 said Aino is gone; revision 5 read well is no recovery');
+  });
+
   test('an older revision that would not resolve says nothing about the newer one on air', () => {
     const state = follow(captured(), collection(7, BASE)).air;
     assert.equal(follow(state, collection(6, [])).air, state);
@@ -660,4 +669,14 @@ test('an action carries field values when it reads or moves any: the hosted page
 test('a published page re-reads a live candidate collection every 5 s (E7.1)', () => {
   // A feed may change only the collection; nothing else tells the page, so the read is polled.
   assert.equal(air.CANDIDATE_READ_MS, 5000);
+});
+
+test('a candidate cue never goes out with its prepared values; the page reads on its cadence while one is authored or still aired', () => {
+  assert.equal(data.preparedCue({}), true);
+  assert.equal(data.preparedCue({ selection: selectionOf('D1', 7) }), false);
+  assert.equal(data.preparedCue({ selection: { v: 2 } }), false, 'a later version too');
+  assert.equal(air.followsCandidates([{}], {}), false);
+  assert.equal(air.followsCandidates([{}, { selection: selectionOf('D1', 7) }], {}), true);
+  const aired = air.captureSelection({}, 'Card', 'cue-gone', take(selectionOf('D1', 7), collection(5, BASE)), 1000);
+  assert.equal(air.followsCandidates([{}], aired), true, 'its cue deleted, the layer still airs the candidate');
 });

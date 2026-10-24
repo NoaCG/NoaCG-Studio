@@ -193,8 +193,9 @@ export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: S
         const advanced: AiredSelection = { ...inst, revision: take.revision, seen: take.revision, values: take.values, at: now, held: undefined };
         next = { ...next, [graphic]: advanced };
         sends.push({ graphic, values: take.values, advanced });
-      } else if (take.revision === inst.revision && inst.held && inst.held.revision === null && !inst.held.unsent) {
+      } else if (take.revision === floor && take.revision === inst.revision && inst.held && inst.held.revision === null && !inst.held.unsent) {
         // The aired revision reads well again (a malformed answer passed): nothing new to send.
+        // Only when nothing newer was judged: a re-read under a newer hold says no recovery.
         next = { ...next, [graphic]: { ...inst, held: undefined } };
       }
       // An older revision is a re-read of what was aired or held before: rejected, nothing changes.
@@ -215,6 +216,11 @@ export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: S
  *  binds moves it without a row to say so. The connector's own default read cadence, 5 s
  *  (docs/work-specs/playout-external-connectors/spec.md), so a revision waits at most one read. */
 export const CANDIDATE_READ_MS = 5000;
+
+/** Whether the page reads the tree on that cadence: a cue has a selection, or a captured instance
+ *  is still on air although its cue was deleted (the layer keeps airing it). */
+export const followsCandidates = (cues: readonly { selection?: unknown }[], air: SelectionAir): boolean =>
+  cues.some((c) => c.selection !== undefined) || Object.keys(air).length > 0;
 
 /** The format the instances are kept in, per production, in this browser. */
 const SELECTION_AIR_V = 1;

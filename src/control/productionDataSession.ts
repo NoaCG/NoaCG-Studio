@@ -65,10 +65,11 @@ export interface ProductionDataSession {
   holdServerTree: (slug: string, tree: JsonObject) => void;
   /** Pull the server's tree in: at the key's arrival, and whenever a feed row says it moved. */
   refresh: () => Promise<void>;
-  /** Read the published tree every `ms` while this lasts (answers the stop). A row says when a
-   *  bound value moved, but a value nothing binds moves silently: a live candidate's collection
-   *  (control/selectionAir.ts, E7.1) is read this way. Nothing while unpublished. */
-  poll: (ms: number) => () => void;
+  /** Read the published tree every `ms` while this lasts (answers the stop), at each tick only if
+   *  `wanted` answers true. A row says when a bound value moved, but a value nothing binds moves
+   *  silently: a live candidate's collection (control/selectionAir.ts, E7.1) is read this way.
+   *  Nothing while unpublished. */
+  poll: (ms: number, wanted?: () => boolean) => () => void;
   /** Put the bound fields' CHANGES on the wire, unpublished only. `resolved` is what `tree` resolves
    *  to; a tree the part no longer holds is passed over, since the render for the newer one follows. */
   dispatch: (resolved: ResolvedValues, tree: JsonObject, send: DataSend) => void;
@@ -300,7 +301,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
 
     refresh,
 
-    poll: (ms) => (io.every ? io.every(ms, () => void refresh()) : () => {}),
+    poll: (ms, wanted) => (io.every ? io.every(ms, () => void (!wanted || wanted() ? refresh() : undefined)) : () => {}),
 
     /**
      * The dispatch: put the CHANGES on the wire, and nothing else.

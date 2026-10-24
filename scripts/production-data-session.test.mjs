@@ -478,4 +478,11 @@ test('published, a poll reads the tree on its cadence until stopped; unpublished
   assert.equal(t.calls.fetched.length, before + 1);
   stop();
   assert.equal(timers[1].live, false);
+  let wanted = false;
+  t.data.poll(5000, () => wanted);
+  timers[2].run();
+  assert.equal(t.calls.fetched.length, before + 1, 'nothing to follow: no read');
+  wanted = true;
+  timers[2].run();
+  assert.equal(t.calls.fetched.length, before + 2);
 });
