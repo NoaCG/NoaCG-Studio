@@ -1390,7 +1390,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     [session, id],
   );
-  const selectionIo = useMemo<SelectionAirIo>(() => ({ part: session.selections, keep: keepSelections, now: () => Date.now() }), [session, keepSelections]);
+  /** The follow pass, as the effect below runs it; set every render so it reads this render's facts. */
+  const followRef = useRef<() => void>(() => {});
+  const selectionIo = useMemo<SelectionAirIo>(
+    () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current() }),
+    [session, keepSelections],
+  );
   /** A Take or an Update put this cue's selection on the layer (control/selectionAir.ts). */
   const selectionAired = useCallback((graphic: string, cueId: string, take: SelectionTake) => pressSelection(selectionIo, graphic, cueId, take), [selectionIo]);
   /** Every candidate cue's resolution in this render's tree, made once: the rundown, PREVIEW, the
@@ -1990,13 +1995,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  instance is forgotten when its layer airs another cue, or is off air once the page knows. */
   // A production not loaded yet (a team production before its first fetch) knows nothing of air.
   const selectionSeeded = !!show && (!hostedSlug || bootLive !== null);
-  useEffect(() => {
+  // What is live is read from the session's part, never the render's paced copy, which can trail a
+  // marker a Take has just moved and would forget the card it took.
+  followRef.current = () =>
     followAired(selectionIo, {
-      liveCue,
+      liveCue: session.air.get().liveCue,
       seeded: selectionSeeded,
       facts: selectionFacts(),
       send: (graphic, values) => runVerb([[{ graphic, msg: { t: 'update', data: values } }]], 'Live candidate'),
     });
+  useEffect(() => {
+    followRef.current();
   }, [selectionIo, liveData, treeRead, liveCue, selectionSeeded, show?.collections, bindings, selectionFacts, runVerb]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it

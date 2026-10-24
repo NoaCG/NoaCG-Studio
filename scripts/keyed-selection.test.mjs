@@ -473,11 +473,14 @@ describe('the page\'s two doors onto the instances', () => {
 
   test('a press captures pending and keeps it; landed ends pending; undo gives back only its own layer', () => {
     const p = io({ Bug: { cueId: 'bug', selection: selectionOf('D1', 8), entity: 'x', revision: 1, values: {}, at: 1 } });
+    let followed = 0;
+    p.followNow = () => (followed += 1);
     const a = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
     assert.equal(p.part.get().Card.pending, true);
     assert.equal(p.kept.length, 1, 'kept in this browser at the press');
     a.landed();
     assert.equal(p.part.get().Card.pending, undefined);
+    assert.equal(followed, 1, 'a revision passed over while it was pending is followed at once');
     const b = air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
     p.keep({ ...p.part.get(), Bug: { ...p.part.get().Bug, revision: 2 } });
     b.undo();

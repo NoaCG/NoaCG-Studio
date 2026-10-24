@@ -230,6 +230,9 @@ export interface SelectionAirIo {
   part: StorePart<SelectionAir>;
   keep: (air: SelectionAir) => void;
   now: () => number;
+  /** Follow the newest tree at once: a revision that arrived while a press was pending was passed
+   *  over then, and nothing else may come to follow it. */
+  followNow?: () => void;
 }
 
 /** A Take or an Update put this cue's selection on the layer (none drops what it followed). Only
@@ -242,7 +245,9 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
   const inst = written[graphic];
   return {
     landed: () => {
-      if (inst) io.keep(landedSelection(io.part.get(), graphic, inst));
+      if (!inst) return;
+      io.keep(landedSelection(io.part.get(), graphic, inst));
+      io.followNow?.();
     },
     undo: () => io.keep(undoSelection(io.part.get(), graphic, inst, before)),
   };

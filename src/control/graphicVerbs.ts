@@ -509,6 +509,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
 
   const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[]) => {
+    // An event may READ a live candidate's fields, never move one: that figure would be in no
+    // revision (E7.1).
+    const fixed = sel.airCue ? p.candidateFields(sel.airCue) : [];
+    const moving = movedList.filter((key) => fixed.includes(key));
+    if (moving.length > 0) {
+      s.note(`${moving.map((key) => key.toUpperCase()).join(', ')} shows a live candidate, so it comes from its source.`);
+      return;
+    }
     await p.flush();
     const values = airValues(p, sel);
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it.

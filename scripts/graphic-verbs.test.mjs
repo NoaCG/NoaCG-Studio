@@ -1093,3 +1093,17 @@ test('± on a live candidate\'s field sends nothing and writes nothing: it comes
   assert.equal(r.log.some(([k]) => k === 'writeCue'), false);
   assert.deepEqual(r.notes, ['F1 shows a live candidate, so it comes from its source.']);
 });
+
+test('an event that moves a live candidate\'s field sends nothing; one that only reads it goes (E7.1)', async () => {
+  const airCue = graphicCue('a', 'Strap', { f1: '1200' });
+  const view = sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue });
+  const r = rig({ liveCue: { Strap: 'a' }, candidates: { a: ['f1'] }, airedCandidates: { 'Strap:a': { f1: '1200' } } });
+  await r.verbs.event(view, { event: 'bump', adjust: { f1: 1 } });
+  assert.equal(r.sends.length, 0);
+  assert.deepEqual(r.notes, ['F1 shows a live candidate, so it comes from its source.']);
+  const reading = r.verbs.event(view, { event: 'show', payload: ['f1'] });
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'event', event: 'show', payload: { f1: '1200' } });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await reading;
+});
