@@ -73,6 +73,9 @@ export interface ConnectorConfig {
   revisionPath: string | null;
   /** Where the provider's own event time is in its JSON (dotted path). */
   eventTimePath: string | null;
+  /** What the agent sends of each accepted answer (dotted paths), so a 2 MiB answer projects to
+   *  the route's 256 KiB; null sends it whole. */
+  sendPaths: string[] | null;
 }
 
 const CONFIG_KEYS = new Set([
@@ -89,6 +92,7 @@ const CONFIG_KEYS = new Set([
   'providerMinPollMs',
   'revisionPath',
   'eventTimePath',
+  'sendPaths',
 ]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 /** A credential is an environment variable of its own family, so a configuration cannot name the
@@ -144,6 +148,10 @@ export function parseConnectorConfig(raw: unknown): { ok: true; config: Connecto
     const value = raw[key];
     if (!optionalString(value) || (value && !PATH.test(value))) return no(`${key} must be a dotted path`);
   }
+  const sendPaths = raw.sendPaths ?? null;
+  if (sendPaths !== null && (!Array.isArray(sendPaths) || sendPaths.length === 0 || sendPaths.length > 64 || !sendPaths.every((p) => typeof p === 'string' && PATH.test(p) && !p.split('.').includes('__proto__')))) {
+    return no('sendPaths must be a list of up to 64 dotted paths');
+  }
   return {
     ok: true,
     config: {
@@ -161,6 +169,7 @@ export function parseConnectorConfig(raw: unknown): { ok: true; config: Connecto
       providerMinPollMs,
       revisionPath: (raw.revisionPath as string | null | undefined) || null,
       eventTimePath: (raw.eventTimePath as string | null | undefined) || null,
+      sendPaths: sendPaths as string[] | null,
     },
   };
 }
@@ -249,7 +258,8 @@ function atPath(value: JsonValue, path: string | null): JsonValue | undefined {
   if (!path) return undefined;
   let at: JsonValue | undefined = value;
   for (const key of path.split('.')) {
-    if (at === null || typeof at !== 'object' || Array.isArray(at) || !(key in at)) return undefined;
+    // Own keys only: `constructor` or `__proto__` in a path never reaches a prototype.
+    if (at === null || typeof at !== 'object' || Array.isArray(at) || !Object.prototype.hasOwnProperty.call(at, key)) return undefined;
     at = at[key];
   }
   return at;
@@ -310,6 +320,25 @@ export function acceptRead(
   return { acquisition: { ...base, ...provider, acceptedRevision: next.acceptedRevision, status: 'changed', payload }, state: next };
 }
 
+/** The parts of an answer the agent sends (`sendPaths`), at the same paths; null keeps it whole.
+ *  A path the answer lacks is left out. */
+export function projectPayload(payload: JsonValue, paths: string[] | null): JsonValue {
+  if (!paths) return payload;
+  const out: { [key: string]: JsonValue } = {};
+  for (const path of paths) {
+    const value = atPath(payload, path);
+    if (value === undefined) continue;
+    const keys = path.split('.');
+    let at = out;
+    keys.slice(0, -1).forEach((key) => {
+      if (!isObject(at[key])) at[key] = {};
+      at = at[key] as { [key: string]: JsonValue };
+    });
+    at[keys[keys.length - 1]] = value;
+  }
+  return out;
+}
+
 // ── When to read next ─────────────────────────────────────────────────────────
 
 /** A Retry-After header in ms from `now`, or null. */
@@ -331,4 +360,98 @@ export function nextDelayMs(pollMs: number, failures: number, retryAfter: number
   const backoff = failures <= 0 ? pollMs : Math.min(BACKOFF_CAP_MS, pollMs * 2 ** failures) * (0.5 + 0.5 * random);
   const asked = retryAfter === null ? 0 : Math.min(RETRY_AFTER_CAP_MS, retryAfter);
   return Math.round(Math.max(backoff, asked, pollMs));
+}
+
+// ── The production's side (phase E4.2) ────────────────────────────────────────
+
+/** `/api/data/source`'s own ingress limits (spec, "Ingress limits"; owner, 2026-10-20, G). The
+ *  database enforces the revision gap, the row size, the receipt gap and the shared budget
+ *  (supabase/migrations/0101); the body cap is the route's. */
+export const SOURCE_BODY_BYTES = 256 * 1024;
+export const SOURCE_ROW_BYTES = 64 * 1024;
+export const SOURCE_REVISION_GAP_MS = 5_000;
+/** How long a claim holds the lease without a report (C2's lease takes at most 60 s). */
+export const SOURCE_LEASE_MS = 30_000;
+
+/** The list adapters a registered path may name (src/control/sourceMapping.ts). */
+const LIST_ADAPTERS = new Set(['lines', 'schedule', 'credits']);
+
+/**
+ * A connector source as the production registers it: the `Show.sources` entry
+ * `{id, kind: 'external', label, config, paused?}`, whose `config` is this. Non-secret: the
+ * endpoint it was approved for, the config revision the agent must present, and per leaf the list
+ * adapter a collection goes through. A local destination is the agent's own file's business, never
+ * the production's: `mode` and `caFile` here are refused.
+ */
+export interface ExternalRegistration {
+  v: 1;
+  configRevision: number;
+  endpoint: string;
+  lists?: Record<string, 'lines' | 'schedule' | 'credits'>;
+}
+
+export type RegistrationRead =
+  | { ok: true; registration: ExternalRegistration; paused: boolean }
+  /** `readOnly`: a later version, kept as it is and never applied or edited. */
+  | { ok: false; readOnly: boolean; error: string };
+
+/** Read a registered entry, or say why it cannot be used. Never throws. */
+export function readExternalRegistration(entry: unknown): RegistrationRead {
+  const no = (error: string, readOnly = false): RegistrationRead => ({ ok: false, readOnly, error });
+  if (!isObject(entry) || entry.kind !== 'external' || typeof entry.id !== 'string') return no('not a connector source');
+  const config = entry.config;
+  if (!isObject(config)) return no('the source has no configuration');
+  if (typeof config.v === 'number' && config.v > EXTERNAL_SOURCE_VERSION) return no(`the source is version ${config.v}; this build reads version ${EXTERNAL_SOURCE_VERSION}, so it is held read-only`, true);
+  if (config.v !== EXTERNAL_SOURCE_VERSION) return no('the source has no version');
+  if ('mode' in config || 'caFile' in config) return no('a local destination is set on the agent, never in the production');
+  const { configRevision, endpoint, lists } = config;
+  if (typeof configRevision !== 'number' || !Number.isInteger(configRevision) || configRevision < 1) return no('configRevision must be a whole number from 1');
+  if (typeof endpoint !== 'string') return no('the source has no endpoint');
+  if (lists !== undefined && (!isObject(lists) || Object.entries(lists).some(([leaf, adapter]) => !PATH.test(leaf) || typeof adapter !== 'string' || !LIST_ADAPTERS.has(adapter)))) {
+    return no('lists must name lines, schedule or credits for a dotted path');
+  }
+  return {
+    ok: true,
+    registration: { v: 1, configRevision, endpoint, ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}) },
+    paused: entry.paused === true,
+  };
+}
+
+/** What the agent sends `/api/data/source`: a claim, a report of one read, or a release. */
+export type SourceEnvelope =
+  | { v: 1; op: 'claim'; sourceId: string; configRevision: number; claim: string | null }
+  | { v: 1; op: 'release'; sourceId: string; configRevision: number; claim: string }
+  | { v: 1; op: 'report'; sourceId: string; claim: string; acquisition: ExternalAcquisition };
+
+const STATUSES = new Set<AcquisitionStatus>(['changed', 'unchanged', 'stale', 'invalid', 'denied', 'refused', 'failed']);
+const CLAIM = /^agent:[A-Za-z0-9_-]{1,32}$/;
+
+/** Parse an envelope, or say why not. A later `v` is refused as unsupported, never guessed at. */
+export function parseSourceEnvelope(body: unknown): { ok: true; envelope: SourceEnvelope } | { ok: false; error: string; unsupported?: true } {
+  const no = (error: string) => ({ ok: false as const, error });
+  if (!isObject(body)) return no('the body must be a JSON object');
+  if (typeof body.v === 'number' && body.v > EXTERNAL_SOURCE_VERSION) return { ok: false, error: `envelope version ${body.v} is not supported; this server reads version ${EXTERNAL_SOURCE_VERSION}`, unsupported: true };
+  if (body.v !== EXTERNAL_SOURCE_VERSION) return no('the envelope has no version');
+  if (typeof body.sourceId !== 'string' || !ID.test(body.sourceId)) return no('sourceId must be a short identifier');
+  const claim = body.claim ?? null;
+  if (claim !== null && (typeof claim !== 'string' || !CLAIM.test(claim))) return no('claim is not one this server handed out');
+  const revision = (value: unknown) => typeof value === 'number' && Number.isInteger(value) && value >= 0;
+  if (body.op === 'claim' || body.op === 'release') {
+    if (!revision(body.configRevision) || (body.configRevision as number) < 1) return no('configRevision must be a whole number from 1');
+    if (body.op === 'release' && claim === null) return no('a release needs its claim');
+    return { ok: true, envelope: { v: 1, op: body.op, sourceId: body.sourceId, configRevision: body.configRevision as number, claim } as SourceEnvelope };
+  }
+  if (body.op !== 'report') return no('op must be claim, report or release');
+  if (claim === null) return no('a report needs its claim');
+  const a = body.acquisition;
+  if (!isObject(a) || a.v !== EXTERNAL_SOURCE_VERSION) return no('the report carries no version 1 acquisition');
+  if (a.sourceId !== body.sourceId) return no('the acquisition is for another source');
+  if (!revision(a.configRevision) || !revision(a.ownerEpoch) || !revision(a.acceptedRevision)) return no('the acquisition needs its config revision, epoch and accepted revision');
+  if (typeof a.status !== 'string' || !STATUSES.has(a.status as AcquisitionStatus)) return no('the acquisition has no known status');
+  if (typeof a.checkedAt !== 'string' || Number.isNaN(Date.parse(a.checkedAt))) return no('checkedAt must be a time');
+  if (a.providerSequence !== undefined && (typeof a.providerSequence !== 'number' || !Number.isFinite(a.providerSequence))) return no('providerSequence must be a number');
+  if (a.providerEventTime !== undefined && typeof a.providerEventTime !== 'string') return no('providerEventTime must be text');
+  if (a.error !== undefined && typeof a.error !== 'string') return no('error must be text');
+  if ((a.status === 'changed') !== ('payload' in a)) return no(a.status === 'changed' ? 'a changed report carries its payload' : 'only a changed report carries a payload');
+  return { ok: true, envelope: { v: 1, op: 'report', sourceId: body.sourceId, claim, acquisition: a as unknown as ExternalAcquisition } };
 }

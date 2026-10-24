@@ -18,6 +18,8 @@
 // server tick (data-sources C2), the one-minute cron's target: vercel.json gives this function
 // `maxDuration` 30 for it. `/api/data/feed` is the public news feed reader (data-sources C4,
 // api/_lib/feedFetch.ts): no key, guarded by address, size, time and a per-client limit.
+// `/api/data/source` is the trusted JSON agent's door (docs/work-specs/playout-external-connectors,
+// E4.2): the data key, a versioned envelope, C2's lease and the fenced apply of migration 0101.
 
 import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
 import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit } from '../_lib/rateLimit.js';
@@ -35,7 +37,9 @@ import {
 } from '../_lib/dataIngest.js';
 import { adminConfigured, adminDb } from '../_lib/adminAuth.js';
 import { dataTickOn } from '../_lib/systemSettings.js';
-import { cappedFetch, cronAuthorized, runDataTick, TICK_OWNER, type DueSource } from '../_lib/dataTick.js';
+import { cappedFetch, cronAuthorized, descriptorsOf, runDataTick, TICK_OWNER, type DueSource, type PanelField } from '../_lib/dataTick.js';
+import { parseSourceEnvelope, readExternalRegistration, SOURCE_BODY_BYTES, SOURCE_LEASE_MS } from '../../src/control/externalSource.js';
+import { projectSource } from '../../src/control/sourceMapping.js';
 
 /** Field values, not uploads: a whole scoreboard of labels fits in a few hundred bytes. */
 const MAX_BODY_BYTES = 16_384;
@@ -295,6 +299,120 @@ async function feed(req: Request): Promise<Response> {
   }
 }
 
+/** A source refusal's HTTP status (migration 0101's codes). Everything is refused before writing. */
+const SOURCE_REFUSALS: Record<string, { status: number; message: string }> = {
+  gone: { status: 404, message: 'This production has no connector source with that id. Connect it first.' },
+  unsupported: { status: 422, message: 'This source is a later version than this server reads, so it is held read-only.' },
+  local_refused: { status: 422, message: 'A local destination is set in the agent\'s own configuration, never in the production.' },
+  config: { status: 409, message: 'The production holds another configuration revision for this source. Update the agent\'s configuration.' },
+  moved: { status: 409, message: 'This agent no longer holds the source. Claim it again.' },
+  epoch: { status: 409, message: 'This agent\'s claim is older than the current one. Claim it again.' },
+  old_revision: { status: 409, message: 'The production already holds this revision or a newer one.' },
+  paused: { status: 409, message: 'The source is paused in the production. Nothing is applied; Resume takes the latest revision.' },
+  too_soon: { status: 429, message: 'One revision per source every 5 seconds.' },
+  too_large: { status: 413, message: 'The payload is over 256 KiB. Send only the fields the graphics use.' },
+  row_too_large: { status: 413, message: 'One graphic\'s update would be over 64 KiB, so the revision is refused.' },
+  budget: { status: 429, message: "This production's data budget cannot take this revision now - the operator keeps priority." },
+};
+
+/**
+ * THE TRUSTED JSON AGENT'S DOOR: POST `/api/data/source` with the production data key and a
+ * versioned envelope (src/control/externalSource.ts `parseSourceEnvelope`): `claim` takes the
+ * registered source through C2's lease and answers the owner epoch and the revision to continue
+ * from; `report` hands over one read, a changed payload evaluated here by the shared evaluator
+ * (src/control/sourceMapping.ts) and applied, fenced, by the database (migration 0101); `release`
+ * lets the lease go. Not a second patch door: only the registered source's own paths move, and
+ * nothing here can take, continue, reset or clear a graphic.
+ */
+async function source(req: Request): Promise<Response> {
+  const guard = methodGuard(req, 'POST');
+  if (guard) return guard;
+  const ipGate = checkDataIpRateLimit(req);
+  if (ipGate) return apiError('rate_limited', 'Too many requests - slow down.', 429, {}, retryAfter(ipGate.retryAfterSec));
+  const key = bearerToken(req);
+  if (!key) return apiError('unauthorized', 'Send the production data key as a Bearer token.', 401);
+  if (!dataApiConfigured() || !adminConfigured()) return apiError('unavailable', 'The data API is not configured on this deployment.', 503);
+
+  let body: unknown;
+  try {
+    body = await readJson(req, SOURCE_BODY_BYTES);
+  } catch (error) {
+    const tooLarge = (error as { code?: string }).code === 'too_large';
+    return apiError(tooLarge ? 'too_large' : 'invalid', tooLarge ? 'Request body over 256 KiB.' : 'The body must be JSON.', tooLarge ? 413 : 400);
+  }
+  const parsed = parseSourceEnvelope(body);
+  if (!parsed.ok) return apiError('invalid', parsed.error, parsed.unsupported ? 422 : 400);
+  const envelope = parsed.envelope;
+
+  const db = await adminDb();
+  const rpc = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
+    const { data, error } = await db.rpc(name, args);
+    if (error) throw new Error(error.message);
+    return data as T;
+  };
+  const refused = (answer: { refused: string } & Record<string, unknown>): Response => {
+    const known = SOURCE_REFUSALS[answer.refused] ?? { status: 409, message: 'Refused.' };
+    const headers = answer.refused === 'too_soon' || answer.refused === 'budget' ? retryAfter(Math.max(1, Math.ceil(Number(answer.retryMs ?? 5000) / 1000))) : {};
+    return json({ ok: false, ...answer, message: known.message }, known.status, headers);
+  };
+
+  try {
+    if (envelope.op !== 'report') {
+      const answer = await rpc<Record<string, unknown>>('control_source_claim_by_key', {
+        p_key: key,
+        p_source: envelope.sourceId,
+        p_config_revision: envelope.configRevision,
+        p_claim: envelope.claim,
+        p_ttl_ms: envelope.op === 'release' ? 0 : SOURCE_LEASE_MS,
+      });
+      if (typeof answer.refused === 'string') return refused(answer as { refused: string });
+      if (answer.held) return json({ ok: false, held: true, owner: answer.owner, message: 'Another agent holds this source. Try again once its claim has lapsed.' }, 409);
+      return json(answer);
+    }
+
+    const { acquisition } = envelope;
+    let writes: Record<string, string> = {};
+    let missing: string[] = [];
+    let unfit: string[] = [];
+    if (acquisition.status === 'changed') {
+      const context = await rpc<{ id: string; entry: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
+        'control_source_context_by_key',
+        { p_key: key, p_source: envelope.sourceId },
+      );
+      if (!context) return apiError('unauthorized', 'Unknown data key.', 401);
+      const registration = readExternalRegistration(context.entry);
+      // The database refuses an unusable registration with its own code; this one only needs lists.
+      const lists = registration.ok ? registration.registration.lists : undefined;
+      const budget = checkDataIngestBudget(context.id);
+      if (budget) return refused({ refused: 'budget', retryMs: budget.retryAfterSec * 1000 });
+      ({ writes, missing, unfit } = projectSource({
+        sourceId: envelope.sourceId,
+        payload: acquisition.payload,
+        bindings: context.bindings,
+        fieldsOf: (graphic) => (context.fields[graphic] ? descriptorsOf(context.fields[graphic]) : null),
+        lists,
+      }));
+    }
+    const answer = await rpc<Record<string, unknown>>('control_source_report_by_key', {
+      p_key: key,
+      p_source: envelope.sourceId,
+      p_report: { ...acquisition, claim: envelope.claim },
+      p_writes: writes,
+    });
+    if (typeof answer.refused === 'string') return refused(answer as { refused: string });
+    return json({ ...answer, ...(acquisition.status === 'changed' ? { missing, unfit } : {}) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('unknown data key')) return apiError('unauthorized', 'Unknown data key.', 401);
+    if (message.includes('switched off')) return apiError('unauthorized', 'Hosted control is switched off for this production.', 403);
+    if (message.includes('too many commands')) return apiError('rate_limited', "The production's command log is saturated - slow down.", 429, {}, retryAfter(5));
+    if (message.includes('data budget')) return refused({ refused: 'budget' });
+    if (message.includes('not a source report')) return apiError('invalid', 'The report does not fit what the source registered.', 400);
+    console.error('Data source failed:', message);
+    return apiError('internal', 'The source could not be written.', 500);
+  }
+}
+
 interface Handler {
   fetch(req: Request): Promise<Response>;
 }
@@ -305,6 +423,7 @@ const ROUTES: Record<string, Handler> = {
   state: { fetch: state },
   tick: { fetch: tick },
   feed: { fetch: feed },
+  source: { fetch: source },
 };
 
 export default {

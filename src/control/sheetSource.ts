@@ -38,6 +38,8 @@ import { parseDelimited } from '../model/csv.js';
 import { isSourcePath, mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.js';
 
 export { isSourcePath, sourceIdOf, sourcePaths, sourcePrefix } from '../model/productionData.js';
+// The one value a path writes for all its fields: the shared evaluator's rule (./sourceMapping.ts).
+export { pathValue } from './sourceMapping.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
 /** How often the open page reads a Sheet (evidence/sheet-endurance.md). */
@@ -294,12 +296,6 @@ export function sheetWrites(
 export const fieldValue: (d: FieldDescriptor, text: string) => string | null = valueFor;
 
 /**
- * The one value a path writes for every field connected to it, or null. A path is one value in
- * the tree, so when its fields need different forms of the cell (a toggle's "1" and a caption's
- * "TRUE"), no single value is right for both and the cell is held and reported, never decided by
- * whichever field happens to come last.
- */
-/**
  * Every field connected to one path, across the production's graphics. `fieldsOf` answers a pool
  * graphic's fields as the editor draws them (its library version), or null when it has none. The
  * reader and the Connect review both ask this, so they agree on what a cell becomes.
@@ -322,12 +318,6 @@ export function connectedFields(
   return out;
 }
 
-export function pathValue(fields: FieldDescriptor[], text: string): string | null {
-  const forms = new Set(fields.map((d) => fieldValue(d, text)));
-  if (forms.has(null)) return null;
-  if (forms.size > 1) return null;
-  return forms.size === 1 ? [...forms][0] : text;
-}
 
 // ── The reader ────────────────────────────────────────────────────────────────
 

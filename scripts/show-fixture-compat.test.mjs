@@ -1,4 +1,4 @@
-// guards: src/model/shows.ts, src/model/productionData.ts, src/control/liveData.ts, src/control/contentFormats.ts, src/control/anotherSystem.ts
+// guards: src/model/shows.ts, src/model/productionData.ts, src/control/liveData.ts, src/control/contentFormats.ts, src/control/anotherSystem.ts, src/control/sourceMapping.ts, src/control/externalSource.ts
 //
 // A PRODUCTION SAVED BY AN EARLIER BUILD STILL LOADS AND PLAYS (docs/work-specs/data-sources/spec.md
 // AC-12: "a record saved by today's build loads and plays unchanged after every phase that adds a
@@ -24,7 +24,9 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import './lib/tsResolve.mjs';
 
-const { resolveBindings } = await import('../src/model/productionData.ts');
+const { externalReadOnly, resolveBindings, sourceIdOf, sourcePaths } = await import('../src/model/productionData.ts');
+const { projectSource } = await import('../src/control/sourceMapping.ts');
+const { readExternalRegistration } = await import('../src/control/externalSource.ts');
 const { hasLiveData } = await import('../src/control/liveData.ts');
 const { fillList, listFormatFor, starterRows } = await import('../src/control/contentFormats.ts');
 const { apiDestinations, apiOffers } = await import('../src/control/anotherSystem.ts');
@@ -169,4 +171,67 @@ test('the format adapters leave its saved list exactly as it is (C1a)', () => {
     }
   }
   assert.ok(listFormatFor(show.graphics.find((g) => g.name === 'News Strip'), 'f0'), 'the ticker field is recognised');
+});
+
+// E4.2 adds connector sources (`kind: 'external'`, paths `external.<id>.<leaf>`, a `config.v`).
+// A production as the pre-E4 build saved it, with every C0-C7 kind at once (the record above, a
+// connected Sheet, a message Sheet, both YouTube modes, a feed on the ticker and a graphic on
+// Another system; composed from the shapes those phases pinned above), loads and plays unchanged:
+// no source of it is a connector, nothing of it is read-only, and the evaluator moves none of its
+// paths. A record carrying a connector of a LATER version (v 2, with fields this build does not
+// know) still loads, keeps its last values on air, and is held read-only.
+const preE4 = () => {
+  const api = withApi();
+  return {
+    ...api,
+    sources: [
+      { id: 's1', kind: 'sheet', label: 'Guests', config: { sheetId: '1NoaCGStubSheet0000000001', gid: '0', shape: 'values' } },
+      ...withMessageSources.sources,
+      ...withFeed.sources,
+    ],
+    bindings: { ...api.bindings, 'News Strip': { f0: 'feed.f1.lines' }, Hairline: { f0: 'sheet.s1.values.name' } },
+  };
+};
+
+test('a production saved by the pre-E4 build, every C0-C7 kind at once, loads and plays unchanged (E4.2)', () => {
+  const record = preE4();
+  assert.deepEqual(showTypeErrors(record), []);
+  assert.deepEqual(record.sources.map((s) => externalReadOnly(s)), record.sources.map(() => false));
+  const live = { ...liveData, sheet: { s1: { values: { name: 'Bo Chen' } } }, feed: { f1: { lines: 'First' } } };
+  const before = resolveBindings(live, record.bindings);
+  // The evaluator writes only `external.` paths: an older production has none for it to move.
+  for (const source of record.sources) {
+    const projected = projectSource({ sourceId: source.id, payload: { name: 'X', lines: ['Y'] }, bindings: record.bindings, fieldsOf: () => null, lists: { lines: 'lines' } });
+    assert.deepEqual(projected.writes, {}, source.id);
+  }
+  assert.deepEqual(resolveBindings(live, record.bindings), before);
+  assert.equal(before.Hairline.f0, 'Bo Chen');
+  // Every connected path still names its own source, so Disconnect and pruning keep working.
+  assert.deepEqual(sourcePaths(record.bindings, 'f1').map((p) => p.path), ['feed.f1.lines']);
+  assert.equal(sourceIdOf('sheet.s1.values.name'), 's1');
+});
+
+const withConnector = (config) => ({
+  ...show,
+  sources: [{ id: 'e1', kind: 'external', label: 'Results', config }],
+  bindings: { ...show.bindings, 'News Strip': { f0: 'external.e1.parties' } },
+});
+
+test('a v 1 connector source reads as a Show and is usable; its fields follow `external.<id>.` paths (E4.2)', () => {
+  const record = withConnector({ v: 1, configRevision: 1, endpoint: 'https://results.example/r', lists: { parties: 'lines' } });
+  assert.deepEqual(showTypeErrors(record), []);
+  assert.equal(externalReadOnly(record.sources[0]), false);
+  assert.equal(readExternalRegistration(record.sources[0]).ok, true);
+  assert.deepEqual(sourcePaths(record.bindings, 'e1').map((p) => p.path), ['external.e1.parties']);
+});
+
+test('a connector source of a later version (v 2) loads, keeps its last values on air and is held read-only (E4.2)', () => {
+  const record = withConnector({ v: 2, configRevision: 4, endpoint: 'https://results.example/r', recipe: { keyed: 'candidate_id' } });
+  assert.deepEqual(showTypeErrors(record), [], 'a later version must still load');
+  assert.equal(externalReadOnly(record.sources[0]), true);
+  const read = readExternalRegistration(record.sources[0]);
+  assert.deepEqual([read.ok, read.readOnly], [false, true]);
+  const live = { ...liveData, external: { e1: { parties: 'KOK\t225000' } } };
+  assert.equal(resolveBindings(live, record.bindings)['News Strip'].f0, 'KOK\t225000', 'the last value stays on air');
+  assert.deepEqual(resolveBindings(live, record.bindings).Hairline, resolveBindings(liveData, show.bindings).Hairline);
 });

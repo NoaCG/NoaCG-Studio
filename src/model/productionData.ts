@@ -522,17 +522,25 @@ export function parseDataTree(text: string): { data: JsonObject | null; error: s
 // mapping for every field of one graphic, the operator reviews it, and one confirmation writes
 // it. Nothing here applies anything by itself: a source's arrival never binds a field.
 
-/** A data source's paths: everything under `sheet.<id>`, or `feed.<id>` for a news feed
- *  (control/sheetSource.ts and control/feedSource.ts write them). */
-export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed'): string => `${kind}.${sourceId}`;
+/** A data source's paths: everything under `sheet.<id>`, `feed.<id>` for a news feed, or
+ *  `external.<id>` for a connector (control/sheetSource.ts, control/feedSource.ts and the
+ *  `/api/data/source` route through control/sourceMapping.ts write them). */
+export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed' | 'external'): string => `${kind}.${sourceId}`;
+
+const SOURCE_KINDS = ['sheet', 'feed', 'external'] as const;
 
 /** Whether a connected path is one this source writes. Source ids are unique, so the id decides. */
-export const isSourcePath = (sourceId: string, path: string): boolean =>
-  path.startsWith(`${sourcePrefix(sourceId, 'sheet')}.`) || path.startsWith(`${sourcePrefix(sourceId, 'feed')}.`);
+export const isSourcePath = (sourceId: string, path: string): boolean => SOURCE_KINDS.some((kind) => path.startsWith(`${sourcePrefix(sourceId, kind)}.`));
 
 /** The source a connected path follows, or null for a path no source writes. */
 export const sourceIdOf = (path: string | undefined): string | null =>
-  path?.startsWith('sheet.') || path?.startsWith('feed.') ? path.split('.')[1] || null : null;
+  path !== undefined && SOURCE_KINDS.some((kind) => path.startsWith(`${kind}.`)) ? path.split('.')[1] || null : null;
+
+/** A connector source registered by a later build (`config.v` above 1): kept as it is, held
+ *  read-only, never applied or edited (src/model/shows.ts `sourceReadOnly`; the route refuses it
+ *  as unsupported). */
+export const externalReadOnly = (source: { kind: string; config?: unknown }): boolean =>
+  source.kind === 'external' && (source.config as { v?: unknown } | undefined)?.v !== 1;
 
 /** Every connected path that follows this source, across the production's graphics. */
 export function sourcePaths(bindings: ProductionBindings | undefined, sourceId: string): { graphic: string; fieldId: string; path: string }[] {
