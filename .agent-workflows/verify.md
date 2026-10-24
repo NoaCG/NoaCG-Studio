@@ -90,10 +90,11 @@ the verify leg's mode; this evidence goes in the commit or the pull request.
 Everything an agent can verify, it verifies. Something reaches the owner only when human judgment
 genuinely helps, and never as a note for him to read later. A look at the change (a quick one he
 can take on his phone, or a desktop or production check where product judgment matters) goes in
-the pull request comment: what to open, where, and what to judge.
+the pull request description as a review step anyone could take (what to open, where, and what to
+judge), and is said to him in the final message.
 
 A decision only he can make, or a step only he can take, is asked at once, never filed as a
-`needs owner` issue:
+`needs decision` issue:
 
 - **He is in the session**: ask him there, one question with your recommendation, and continue
   from his answer.

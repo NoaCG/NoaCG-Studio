@@ -46,7 +46,8 @@ migration on the branch is applied by the landing itself (`post-land.yml`).
 
 **Exactly one repair owner is required for every pull request, before the worker ends.**
 Record the owner, PR/branch, provider/session, wake or monitor receipt, and repair-attempt count in
-one PR comment. Reuse that comment on transfer; disable the old wake before the new owner writes.
+one PR comment, wholly inside a hidden `<!-- noacg:repair-owner ... -->` block so the rendered page
+shows nothing. Reuse that comment on transfer; disable the old wake before the new owner writes.
 An armed notification is not a fixer: prove that its wake can resume a coding session with the
 repository, failed-log access and push/check/queue capabilities. Environment variables, tool
 presence, or a successful scheduling call do not prove this.
@@ -74,14 +75,12 @@ and gates. Stay quiet while unchanged. Stop/pause the wake after closed, or afte
 post-landing results are recorded; report a post-land failure rather than calling the PR green.
 A second monitor may wake the same owner, but must never launch a competing fixer.
 
-**Then leave the next session its prompt**, because the chat is archived when the pull request
-closes: one comment on the pull request (`gh pr comment <n>`), repeated at the end of your final
-message. It says what is not done, each with its issue; for a visible change, which preview page to
-open; and last, the line `Nothing left.` or one code block a fresh session can be given alone (the
-goal, where things stand, the issue and pull request links, what to do first, and one closing line:
-the suggested model and effort, and whether it can run beside the live sessions, with why, from
-`node scripts/worktree-activity.mjs`). Plain and short: no chat language, nothing from
-`docs/private/`, no secrets.
+**Then leave the next session its prompt, in your final message only.** What is not done each has
+its issue; for a visible change, name the preview page to open; and last, the line `Nothing left.`
+or one code block a fresh session can be given alone (the goal, where things stand, the issue and
+pull request links, what to do first, and one closing line: the suggested model and effort, and
+whether it can run beside the live sessions, with why, from `node scripts/worktree-activity.mjs`).
+The issues carry anything that must outlive the chat; the prompt never goes on GitHub.
 
 **On a CI failure, repair it yourself, within the pull request's scope.** Read the failed job's
 whole log (`gh run view <run> --log-failed`; the failing step's summary is often not where the
@@ -146,7 +145,7 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    `added_to_merge_queue` timeline event. If green but absent, inspect required checks and
    mergeability, then toggle session-owned auto-merge off/on once. Still absent: record a failed
    landing for the repair owner, not success. A moved head needs a fresh `/check` and stamp.
-6. Before ending, satisfy the repair-owner paragraph and leave the next-session prompt. Record
+6. Before ending, satisfy the repair-owner paragraph and give the next-session prompt. Record
    `merged`, the actual merge SHA and the results of that SHA's CI, post-land, configured-suite
    and deployment verification when applicable. Pending or failed is explicit, not “landed green”.
 
