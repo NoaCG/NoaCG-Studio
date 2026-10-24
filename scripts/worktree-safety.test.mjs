@@ -1,3 +1,4 @@
+// guards: scripts/cleanup-archive.mjs, scripts/cleanup-worktrees.mjs
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
@@ -6,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -1535,4 +1537,57 @@ test('work that exists only on the local main is still refused - the direction t
   const entry = plan.worktrees.find((w) => w.branch === worktree.branch);
   assert.equal(entry.action, 'skip');
   assert.match(entry.why, /only contained in local main, not origin\/main/, entry.why);
+});
+
+
+test('same-size archive corruption prevents removal and an existing corrupt copy is refused', (t) => {
+  const { primary, archive } = makeRepo(t);
+  const source = join(primary, 'bench-out');
+  mkdirSync(source);
+  writeFileSync(join(source, 'round.json'), 'AAAA');
+  const plan = planArchive({ worktreePath: primary, entries: [{ path: 'bench-out/' }], root: archive });
+  const result = archiveAndVerify(plan, {
+    copy: (from, to) => { mkdirSync(to, { recursive: true }); writeFileSync(join(to, 'round.json'), 'BBBB'); },
+  });
+  assert.equal(result.ok, false, 'same length does not prove the same content');
+  assert.match(result.reason, /content|SHA-256/);
+  assert.equal(readFileSync(join(source, 'round.json'), 'utf8'), 'AAAA');
+
+  const retry = planArchive({ worktreePath: primary, entries: [{ path: 'bench-out/' }], root: archive });
+  assert.equal(archiveAndVerify(retry).ok, true);
+  writeFileSync(join(retry.destination, 'bench-out', 'round.json'), 'CCCC');
+  const corrupt = planArchive({ worktreePath: primary, entries: [{ path: 'bench-out/' }], root: archive });
+  assert.equal(corrupt.ok, false, 'existing copies must be proven by content too');
+});
+
+test('an archive cannot verify if the source changes during copying', (t) => {
+  const { primary, archive } = makeRepo(t);
+  const source = join(primary, 'bench-out');
+  mkdirSync(source);
+  writeFileSync(join(source, 'round.json'), 'AAAA');
+  const plan = planArchive({ worktreePath: primary, entries: [{ path: 'bench-out/' }], root: archive });
+  const result = archiveAndVerify(plan, {
+    copy: (from, to) => {
+      mkdirSync(to, { recursive: true });
+      writeFileSync(join(to, 'round.json'), 'AAAA');
+      writeFileSync(join(from, 'round.json'), 'BBBB');
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /source changed|content|SHA-256/);
+  assert.equal(readFileSync(join(source, 'round.json'), 'utf8'), 'BBBB');
+});
+
+
+test('different junction targets cannot pass archive verification', { skip: process.platform !== 'win32' }, (t) => {
+  const { primary, archive } = makeRepo(t);
+  const source = join(primary, 'bench-out');
+  const a = join(primary, 'target-a'); const b = join(primary, 'target-b');
+  mkdirSync(source); mkdirSync(a); mkdirSync(b);
+  symlinkSync(a, join(source, 'linked'), 'junction');
+  const plan = planArchive({ worktreePath: primary, entries: [{ path: 'bench-out/' }], root: archive });
+  const result = archiveAndVerify(plan, { copy: (from, to) => { mkdirSync(to, { recursive: true }); symlinkSync(b, join(to, 'linked'), 'junction'); } });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /link target/);
+  assert.equal(existsSync(join(source, 'linked')), true);
 });

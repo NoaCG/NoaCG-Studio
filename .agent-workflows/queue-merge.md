@@ -107,6 +107,18 @@ fix needs a product decision or a change well outside the pull request's scope.
   retried once automatically; a verdict the queue reached is never retried behind anyone's back.
 - `npm run jobs` shows each branch's state (`QUEUED`, `LANDED`, `LANDING FAILED` with the refusal).
 
+## Finish and release the feature worktree
+
+After the exact merge commit's CI and post-land checks have completed, record their results and
+the handoff above. Resolve failures within scope before ending repair ownership. When the
+session has no remaining work or queued jobs using its feature checkout, finish with the
+cleanup-worktrees workflow for that checkout, without asking for another routine approval.
+Use supported app archiving for an attached Codex-managed worktree after verified export of
+valuable ignored output; ordinary linked worktrees use `--self` dry run then apply. A cleanup
+refusal leaves the worktree in place and is reported for later review. Never remove the primary,
+a shared/permanent checkout, another chat's environment or an active follow-up. Continuing
+research/monitoring chats stay open. Report the cleanup outcome with the landing result.
+
 ## From Codex Cloud or Claude Code Cloud
 
 Use the existing prepared environment and subscription. Keep the procedure above; select each
