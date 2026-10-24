@@ -226,29 +226,49 @@ Phase 1 is built - manual, local, no API.
   ("Delete table?"); the column's and the row's swap ✕ for ✓ and carry the meaning in the amber
   and the tooltip, because both sit in tracks sized by that button and a word would widen the
   table under them (docs/PLAYOUT_DASHBOARD.md §2d, one surface over).
-- **ProductionPage is being SPLIT, read-only pieces first** ([issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)
-  carries the state map and the phases still to run). Out already: `home/ProductionLinks.tsx`
-  (Setup › Links…, the production's private and public addresses),
-  `home/PlayoutStatusControl.tsx` (the header's playout status and its panel shell; the words are
-  `control/playoutStatus.ts`, plain and tested in Node), `home/PlayoutPanel.tsx` (the panel's
-  sections: problems, outputs, the browser source, CasparCG and its Load/Unload),
-  `home/ActionLog.tsx` (the wire-log readout) and `home/CueOverflowNote.tsx` (the too-long
-  line, plus `cueOverflowKeys` - the pure
-  program-or-preview choice the page still needs for the field marks), which are pure READOUTS
-  that hold no state and send nothing. Then `home/CueRundown.tsx` (the rail, owning only its menus
-  and pickers), `home/PlayoutMonitors.tsx` (PREVIEW's frame and PROGRAM, with `programRef` handed
-  in by the page) and `home/ServerCueEditor.tsx` (props only). A server cue's verbs and what the
-  page believes is up on the server are `control/serverPlayout.ts`, plain functions that run in
-  Node, held in `control/serverPlayoutStore.ts`: an OWNERSHIP part the verbs read and a TIMING
-  part they never do, so a clock ticking twice a second cannot re-render the page.
-  **What may NOT move: `liveCue` and `selectedCueId`.** `liveCue` is a map keyed by graphic name
-  and Take airs the selected cue's LAYER out of it, so splitting either across two owners changes
-  what goes on air. That is why the Playout panel's MARKUP moved and its state did not: the
-  panel's Load and Publish run through the page's verbs, so the values stay where Take reads them.
-- **ProductionPage owns the tree**, not the workspace - the one sender (`runVerb`) lives there and
-  the Data tab unmounts the playout surface, so an edit made on Data would otherwise have no route
-  to air. It holds the state, resolves bindings, diffs against what was last sent, and dispatches
-  only the changes.
+- **ProductionPage is split, and its playout behaviour lives in `src/control/`** (the compiled rule
+  `components/playout-behaviour-production-page-lands-verb`; the plan and its evidence are
+  `docs/work-specs/production-page-refactor/`, which closed [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)).
+  The page keeps the selection (`selectedCueId` and the range), the session hook, the wires, the
+  derived view and the render. What decides what airs is a plain module that runs in Node, takes
+  the browser (the Bridge, the wire, storage, timers, the clock) through an `io` argument, and has
+  its test under `scripts/` (`// guards:` names the module):
+  `control/playoutSession.ts` is one session per production, over `control/storePart.ts` parts
+  (`data`, `bridge`, `arms`, `folders`, `air`, `log`, `draft`) changed together by one synchronous
+  `apply(fold)`; after `dispose()` (a route to another production) a fold changes nothing and a
+  verb refuses to send. Over it: `graphicVerbs.ts` (the one sender and Take, Out, All out, Update,
+  ±, Next, ⚡, Snap), `verbView.ts` and `verbDispatch.ts` (what the bar and the panel allow, and what
+  a key or button does), `takeBlockers.ts` (why a Take would not go), `serverVerbs.ts` (one server
+  verb and its fold), `bridgeWatch.ts` (the Bridge's polls as one lifecycle),
+  `productionDataSession.ts` (the tree, its key, the two write roads), `cueArmEngine.ts` (timed
+  cues), `folderPlayout.ts` (a folder's Take, Out, step and cancellation), `airState.ts` and
+  `sessionWire.ts` (what is on air, the resolve, seed and follow), `cueDraft.ts` (the cue being
+  typed), with `liveCue.ts` and `cueItems.ts` beneath them. In this folder the page's pieces are
+  props-only or readouts: `ProductionShell.tsx` (header and body chrome), `CueActions.tsx` (the ⚡
+  block and ± numbers), `CueEditor.tsx`, `CueRundown.tsx`, `PlayoutMonitors.tsx`,
+  `ServerCueEditor.tsx`, `ProductionLinks.tsx`, `PlayoutStatusControl.tsx` (its words are
+  `control/playoutStatus.ts`), `PlayoutPanel.tsx`, `ActionLog.tsx`, `CueOverflowNote.tsx`; and two
+  hooks that orchestrate dialogs and durable writes and decide nothing about air,
+  `useProductionPublish.ts` and `useRundownAuthoring.ts`. React reads a part through
+  `useStorePart.ts`.
+  **`liveCue` has ONE owner, the session's `air` part.** It is a map keyed by graphic name and Take
+  airs the selected cue's LAYER out of it, so a second copy that a verb acts on changes what goes
+  on air: the page only draws it (`usePacedPart`), and every verb and fold reads the part at the
+  call. `selectedCueId` stays React state in the page. `HostedControlPage.tsx` keeps its own
+  `liveCue`; a session constructs with no Bridge, tree or monitor, so that page could adopt it in a
+  spec of its own.
+  **Typing never renders the page.** The draft is the `draft` part; `CueEditor`, the rundown rows
+  and `PlayoutMonitors` subscribe to it, and the page subscribes only to whether something is
+  unsent (`useDrawnDraft`, compared by value). A verb awaits `cueDraft.flush` and then reads the
+  part, so a Take pressed between a keystroke and a render airs the keystroke.
+  `e2e/playout-air-contract.spec.ts` counts the renders.
+  The server's verbs and what the page believes is up on the server are `control/serverPlayout.ts`,
+  held in `control/serverPlayoutStore.ts`: an OWNERSHIP part the verbs read and a TIMING part they
+  never do, so a clock ticking twice a second cannot re-render the page.
+- **The tree is the page's session, not the workspace's** - `control/productionDataSession.ts`
+  holds it in the `data` part and dispatches only what changed since the last send, through the
+  graphic verbs' `run`. The Data tab unmounts the playout surface, so an edit made on Data would
+  otherwise have no route to air.
 - **PUBLISHED vs UNPUBLISHED is one fact: does the production have a data key?** Unpublished, the
   tree is localStorage and this page resolves + dispatches it. Published, `control_shows.data` is
   the authority: edits go out as `PATCH /api/data/patch` (`control/productionDataApi.ts`), the
