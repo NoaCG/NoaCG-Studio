@@ -95,7 +95,8 @@ try {
     const exportedFile = path.join(work, 'exported.json');
     writeFileSync(exportedFile, exported.stdout);
     const rebind = spawnSync(process.execPath, [AGENT, '--config', exportedFile, '--minutes', '0.01'], { env, encoding: 'utf8', windowsHide: true });
-    check('the export carries the credential name, unbound', exported.status === 0 && JSON.parse(exported.stdout).credentialBound === false && JSON.parse(exported.stdout).credentialRef === raw.credentialRef);
+    const exportedConfig = exported.status === 0 ? JSON.parse(exported.stdout) : null;
+    check('the export carries the credential name, unbound', exportedConfig?.credentialBound === false && exportedConfig?.credentialRef === raw.credentialRef);
     check('the agent refuses the export until it is rebound', rebind.status === 1 && /rebind/.test(rebind.stderr));
 
     const kept = {

@@ -399,7 +399,7 @@ describe('stopping and faults', () => {
     assert.deepEqual([sent.length, logs.length, c.state.failures], [0, 0, 0]);
   });
 
-  test('a fault inside the agent backs off and polling carries on', async () => {
+  test('a log that cannot be written does not stop the polling or count as a failure', async () => {
     const net = fakeNet(JSON_OK());
     let throws = 1;
     const { c, clock } = connector({
@@ -410,8 +410,16 @@ describe('stopping and faults', () => {
     });
     c.start();
     await clock.advance(10_000);
-    assert.equal(net.requests.length, 2);
+    assert.equal(net.requests.length, 3);
+    assert.equal(c.state.failures, 0);
     c.stop();
+  });
+
+  test('a provider that echoes the credential cannot pass it to the sender', async () => {
+    const net = fakeNet(() => response(200, JSON.stringify({ revision: 1, note: 'seen Bearer sekret-value here' })));
+    const { c, sent } = connector({ config: { credentialRef: 'TOKEN_A' }, credential: 'sekret-value', net });
+    await c.readOnce();
+    assert.equal(sent[0].payload.note, `seen Bearer ${REDACTED} here`);
   });
 });
 

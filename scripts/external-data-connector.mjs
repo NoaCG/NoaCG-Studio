@@ -49,6 +49,14 @@ const { UNCHANGED_RECEIPT_MS, acceptRead, exportConnectorConfig, initialSourceSt
 export const MAX_REDIRECTS = 5;
 const USER_AGENT = 'NoaCG-Studio-connector/1 (+https://noacg.studio)';
 export const REDACTED = '[redacted]';
+const TIMEOUT = 'timeout';
+const STOPPED = 'stopped';
+const DONE = 'done';
+
+/** Refuse an exported configuration until this machine binds its own credential. */
+export function assertBound(config) {
+  if (config.credentialRef && !config.credentialBound) throw new Error(`this configuration was exported: bind ${config.credentialRef} on this machine before it reads (rebind)`);
+}
 
 // ── The network ───────────────────────────────────────────────────────────────
 
@@ -101,8 +109,8 @@ const problem = (status, error, retryMs = null) => ({ kind: 'problem', status, e
  * `ReadOutcome` (src/control/externalSource.ts) plus the provider's Retry-After in ms.
  */
 export async function readSource({ config, credential, net, maxBytes, signal, now, ca = null }) {
-  const origin = new URL(config.endpoint).origin;
   let url = new URL(config.endpoint);
+  const { origin } = url;
   const headers = { accept: 'application/json', 'accept-encoding': 'identity', 'user-agent': USER_AGENT };
   for (let hop = 0; ; hop += 1) {
     const where = hop === 0 ? 'the endpoint' : 'it redirects to an address that';
@@ -162,11 +170,24 @@ export async function readSource({ config, credential, net, maxBytes, signal, no
  * variable the config names). Throws when the config is unbound or its credential is missing.
  */
 export function createConnector({ config, credential = null, net = nodeNet, clock = realClock, random = Math.random, send = async () => {}, log = () => {}, limits = readLimits(), ownerEpoch = 0, ca = null }) {
-  if (config.credentialRef && !config.credentialBound) throw new Error(`this configuration was exported: bind ${config.credentialRef} on this machine before it reads (rebind)`);
+  assertBound(config);
   if (config.credentialRef && !credential) throw new Error(`the credential ${config.credentialRef} is not set on this machine`);
   if (config.mode === 'local' && !ca) throw new Error('a local destination needs its certificate authority');
   const redact = (text) => (credential ? String(text).split(credential).join(REDACTED) : String(text));
-  const say = (text) => log(redact(text));
+  const say = (text) => {
+    // A log that cannot be written (its stream gone) must not stop the reading.
+    try {
+      log(redact(text));
+    } catch {
+      /* nothing to tell it with */
+    }
+  };
+  // Redacted once here, at the seam, so no sender has to remember: a provider that echoes the
+  // credential in its answer cannot pass it on.
+  const deliver = (acquisition) => {
+    const text = credential ? JSON.stringify(acquisition) : '';
+    return send(credential && text.includes(credential) ? JSON.parse(redact(text)) : acquisition);
+  };
 
   let state = initialSourceState();
   let failures = 0;
@@ -178,36 +199,37 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
   let nextDelay = config.pollMs;
 
   async function read() {
-    controller = new AbortController();
-    const { signal } = controller;
-    const abort = controller.abort.bind(controller);
-    const deadline = clock.setTimeout(abort, limits.timeoutMs);
-    // Aborted by the deadline or by stop(); a stopped read reports nothing (below).
-    const timedOut = new Promise((resolve) => signal.addEventListener('abort', () => resolve(problem('failed', `the provider did not answer in ${limits.timeoutMs / 1000} seconds`)), { once: true }));
+    const own = new AbortController();
+    controller = own;
+    const { signal } = own;
+    const deadline = clock.setTimeout(() => own.abort(TIMEOUT), limits.timeoutMs);
+    // The deadline is a failed read; stop() (any other reason) ends the read with no report.
+    const aborted = new Promise((resolve) =>
+      signal.addEventListener('abort', () => resolve(signal.reason === TIMEOUT ? problem('failed', `the provider did not answer in ${limits.timeoutMs / 1000} seconds`) : null), { once: true }),
+    );
     let outcome;
     try {
-      outcome = await Promise.race([readSource({ config, credential, net, maxBytes: limits.maxBytes, signal, now: clock.now, ca }), timedOut]);
+      outcome = await Promise.race([readSource({ config, credential, net, maxBytes: limits.maxBytes, signal, now: clock.now, ca }), aborted]);
     } catch (error) {
-      outcome = signal.aborted ? await timedOut : problem('failed', `the provider could not be reached (${error?.code ?? error?.message ?? 'error'})`);
+      outcome = signal.aborted ? await aborted : problem('failed', `the provider could not be reached (${error?.code ?? error?.message ?? 'error'})`);
     } finally {
       clock.clearTimeout(deadline);
-      if (!signal.aborted) abort();
+      own.abort(DONE);
     }
-    if (stopped) return null;
+    if (outcome === null) return null;
     const now = clock.now();
     const accepted = acceptRead(config, state, outcome, { checkedAt: new Date(now).toISOString(), ownerEpoch });
     state = accepted.state;
     const { acquisition } = accepted;
-    const transportFailed = acquisition.status === 'denied' || acquisition.status === 'refused' || acquisition.status === 'failed';
-    failures = transportFailed ? failures + 1 : 0;
+    // Only the transport's problems back off; a stale or invalid answer is still an answer.
+    failures = outcome.kind === 'problem' ? failures + 1 : 0;
     nextDelay = nextDelayMs(config.pollMs, failures, outcome.retryMs ?? null, random());
     say(`${acquisition.checkedAt} ${config.sourceId} ${acquisition.status} accepted=${acquisition.acceptedRevision}${acquisition.error ? ` ${acquisition.error}` : ''} next=${nextDelay}ms`);
     const report = acquisition.status !== 'unchanged' || now - lastReceiptAt >= UNCHANGED_RECEIPT_MS;
-    if (acquisition.status === 'unchanged' && report) lastReceiptAt = now;
-    if (acquisition.status === 'changed') lastReceiptAt = now;
+    if (report && (acquisition.status === 'unchanged' || acquisition.status === 'changed')) lastReceiptAt = now;
     if (report) {
       try {
-        await send(acquisition);
+        await deliver(acquisition);
       } catch (error) {
         say(`${config.sourceId} the sender failed: ${error?.message ?? error}`);
       }
@@ -224,14 +246,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
   async function loop() {
     timer = null;
     if (stopped) return;
-    try {
-      await readOnce();
-    } catch (error) {
-      // A fault of the agent's own (the log's stream gone, say) must not end the polling.
-      failures += 1;
-      nextDelay = nextDelayMs(config.pollMs, failures, null, random());
-      say(`${config.sourceId} the read failed inside the agent: ${error?.message ?? error}`);
-    }
+    await readOnce();
     if (!stopped) timer = clock.setTimeout(loop, nextDelay);
   }
 
@@ -243,7 +258,7 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
       stopped = true;
       if (timer !== null) clock.clearTimeout(timer);
       timer = null;
-      controller?.abort();
+      controller?.abort(STOPPED);
     },
     get state() {
       return { ...state, failures, nextDelayMs: nextDelay };
@@ -273,16 +288,13 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   const minutes = Number(argument(argv, '--minutes') ?? 0);
   // setTimeout's own limit is about 24 days; a run longer than a week is not a run of this.
   if (!Number.isFinite(minutes) || minutes < 0 || minutes > 7 * 24 * 60) throw new Error('--minutes must be a number of minutes, at most a week');
-  const credential = config.credentialRef ? (env[config.credentialRef] ?? null) : null;
-  const redact = (text) => (credential ? text.split(credential).join(REDACTED) : text);
+  assertBound(config);
   const connector = createConnector({
     config,
-    credential,
-    // An unbound export is refused by createConnector before its certificate is looked for.
-    ca: config.caFile && config.credentialBound ? readFileSync(path.resolve(path.dirname(file), config.caFile)) : null,
+    credential: config.credentialRef ? (env[config.credentialRef] ?? null) : null,
+    ca: config.caFile ? readFileSync(path.resolve(path.dirname(file), config.caFile)) : null,
     limits: readLimits({ timeoutMs: env.NOACG_CONNECTOR_TIMEOUT_MS, maxBytes: env.NOACG_CONNECTOR_MAX_BYTES }),
-    // A provider that echoes the credential in its body cannot put it on stdout either.
-    send: async (acquisition) => void process.stdout.write(`${redact(JSON.stringify(acquisition))}\n`),
+    send: async (acquisition) => void process.stdout.write(`${JSON.stringify(acquisition)}\n`),
     log: (line) => process.stderr.write(`${line}\n`),
   });
   const done = new Promise((resolve) => {

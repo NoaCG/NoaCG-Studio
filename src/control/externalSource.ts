@@ -165,21 +165,9 @@ export function parseConnectorConfig(raw: unknown): { ok: true; config: Connecto
 /** A configuration as it leaves this machine: the credential's name stays, the binding does not.
  *  Only known fields are copied. */
 export function exportConnectorConfig(config: ConnectorConfig): ConnectorConfig {
-  return {
-    v: 1,
-    sourceId: config.sourceId,
-    productionId: config.productionId,
-    endpoint: config.endpoint,
-    mode: config.mode,
-    caFile: config.caFile,
-    configRevision: config.configRevision,
-    credentialRef: config.credentialRef,
-    credentialBound: config.credentialRef === null,
-    pollMs: config.pollMs,
-    providerMinPollMs: config.providerMinPollMs,
-    revisionPath: config.revisionPath,
-    eventTimePath: config.eventTimePath,
-  };
+  const copy: Record<string, unknown> = {};
+  CONFIG_KEYS.forEach((key) => (copy[key] = (config as unknown as Record<string, unknown>)[key]));
+  return { ...(copy as unknown as ConnectorConfig), credentialBound: config.credentialRef === null };
 }
 
 /** Bind this machine's credential to a configuration (a new name, or the same one confirmed). */
@@ -236,9 +224,11 @@ export interface SourceState {
   providerSequence: number | null;
   /** The accepted payload as canonical JSON, to tell a repeat from a change. */
   acceptedText: string | null;
+  /** The latest answer's text whose content is the accepted payload, to skip the canonical form. */
+  acceptedRaw: string | null;
 }
 
-export const initialSourceState = (): SourceState => ({ acceptedRevision: 0, providerSequence: null, acceptedText: null });
+export const initialSourceState = (): SourceState => ({ acceptedRevision: 0, providerSequence: null, acceptedText: null, acceptedRaw: null });
 
 /** JSON with object keys sorted, so the same content compares equal however it was ordered. */
 export function canonicalJson(value: JsonValue): string {
@@ -288,13 +278,6 @@ export function acceptRead(
   } catch {
     return hold('invalid', 'the provider answered something that is not JSON');
   }
-  let text: string;
-  try {
-    text = canonicalJson(payload);
-  } catch {
-    // Nesting deep enough to exhaust the stack: JSON.parse took it, nothing downstream would.
-    return hold('invalid', 'the provider answered JSON nested too deeply');
-  }
   const sequenceValue = atPath(payload, config.revisionPath);
   let sequence: number | null = null;
   if (config.revisionPath) {
@@ -306,12 +289,21 @@ export function acceptRead(
     ...(typeof eventTime === 'string' ? { providerEventTime: eventTime } : {}),
     ...(sequence !== null ? { providerSequence: sequence } : {}),
   };
-  if (sequence !== null && state.providerSequence !== null) {
-    if (sequence < state.providerSequence) return hold('stale', `revision ${sequence} is older than the accepted ${state.providerSequence}`);
-    if (sequence === state.providerSequence && text !== state.acceptedText) return hold('stale', `revision ${sequence} came again with other content`);
+  const older = sequence !== null && state.providerSequence !== null && sequence < state.providerSequence;
+  if (older) return hold('stale', `revision ${sequence} is older than the accepted ${state.providerSequence}`);
+  const unchanged = { acquisition: { ...base, ...provider, acceptedRevision: state.acceptedRevision, status: 'unchanged' as const }, state };
+  // The same bytes as the accepted answer need no canonical form: most reads of a quiet source.
+  if (read.text === state.acceptedRaw) return unchanged;
+  let text: string;
+  try {
+    text = canonicalJson(payload);
+  } catch {
+    // Nesting deep enough to exhaust the stack: JSON.parse took it, nothing downstream would.
+    return hold('invalid', 'the provider answered JSON nested too deeply');
   }
-  if (text === state.acceptedText) return { acquisition: { ...base, ...provider, acceptedRevision: state.acceptedRevision, status: 'unchanged' }, state };
-  const next: SourceState = { acceptedRevision: state.acceptedRevision + 1, providerSequence: sequence, acceptedText: text };
+  if (sequence !== null && sequence === state.providerSequence && text !== state.acceptedText) return hold('stale', `revision ${sequence} came again with other content`);
+  if (text === state.acceptedText) return { ...unchanged, state: { ...state, acceptedRaw: read.text } };
+  const next: SourceState = { acceptedRevision: state.acceptedRevision + 1, providerSequence: sequence, acceptedText: text, acceptedRaw: read.text };
   return { acquisition: { ...base, ...provider, acceptedRevision: next.acceptedRevision, status: 'changed', payload }, state: next };
 }
 
