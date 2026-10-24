@@ -98,6 +98,8 @@ jobs:
       - name: Re-record
         env:
           SPEC: ${{ steps.spec.outputs.spec }}
+          # TMPDIR off the /tmp tmpfs, where Chromium's shared memory would otherwise live (ci.yml).
+          TMPDIR: ${{ runner.temp }}
         run: |
           FILTER="$(node -e 'import("./scripts/e2e-spec-names.mjs").then((m) => console.log(m.specFilterArg(process.argv[1])))' "$SPEC")"
           npm run test:e2e -- "$FILTER" --update-snapshots=changed

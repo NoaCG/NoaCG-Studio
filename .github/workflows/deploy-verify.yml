@@ -252,6 +252,9 @@ jobs:
 
       # PRODUCTION_URL is the workflow-level env above, which is what the config reads.
       - name: Open the printed link on the deployed app
+        env:
+          # TMPDIR off the /tmp tmpfs, where Chromium's shared memory would otherwise live (ci.yml).
+          TMPDIR: ${{ runner.temp }}
         run: npm run test:e2e:production
 
   drift:
