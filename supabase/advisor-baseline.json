@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-10-22",
-  "count": 186,
+  "count": 187,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -762,6 +762,11 @@
       "name": "rls_enabled_no_policy",
       "level": "INFO",
       "detail": "Table \\`public.plans\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_production_source_snapshots": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.production_source_snapshots\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_storage_quotas": {
       "name": "rls_enabled_no_policy",

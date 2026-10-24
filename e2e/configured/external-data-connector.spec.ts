@@ -51,9 +51,12 @@ interface Replay {
   close(): Promise<void>;
 }
 
-/** The provider, its certificate and its token, in one folder of their own. */
+/** The provider, its certificate and its token, in one folder of their own. Restarted on the same
+ *  port it keeps its certificate (the agent trusts that one) and takes a new token. */
+const certificates = new Map<string, { cert: Buffer; key: Buffer }>();
 async function provider(dir: string, port = 0): Promise<Replay & { token: string }> {
-  const { cert, key } = makeTestCertificate(path.join(dir, 'tls'));
+  if (!certificates.has(dir)) certificates.set(dir, makeTestCertificate(path.join(dir, 'tls')));
+  const { cert, key } = certificates.get(dir)!;
   const token = makeToken();
   // One step lasts a day: the walk moves the timeline by hand.
   const server = (await startReplayServer({ token, cert, key, stepMs: 86_400_000, port })) as Replay;
