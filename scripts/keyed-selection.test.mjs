@@ -323,6 +323,18 @@ describe('the aired instance', () => {
     assert.deepEqual([same.sends, same.air.Card.held], [[], undefined]);
   });
 
+  test('an older revision cannot undo a hold a newer one set: it neither sends nor clears the warning', () => {
+    const held = follow(captured(), collection(9, BASE.slice(1)), 4000).air;
+    assert.equal(held.Card.held.revision, 9);
+    const late = follow(held, collection(8, BASE), 5000);
+    assert.deepEqual(late.sends, []);
+    assert.equal(late.air, held, 'revision 8 is older than what said Aino is gone');
+    assert.equal(follow(held, collection(5, BASE), 5000).air, held, 'nor the aired revision read again');
+    const newer = follow(held, collection(10, BASE), 6000);
+    assert.equal(newer.sends.length, 1);
+    assert.equal(newer.air.Card.held, undefined);
+  });
+
   test('an older revision that would not resolve says nothing about the newer one on air', () => {
     const state = follow(captured(), collection(7, BASE)).air;
     assert.equal(follow(state, collection(6, [])).air, state);
@@ -373,7 +385,7 @@ describe('the aired instance', () => {
     const sent = follow(state, collection(6, people6()));
     const [send] = sent.sends;
     const unsent = air.unsentSelection(sent.air, 'Card', send.advanced, send.before, 3000);
-    assert.deepEqual([unsent.Card.revision, unsent.Card.values, unsent.Card.held], [5, state.Card.values, { reason: 'the correction to revision 6 was not sent', since: 3000, revision: 6 }]);
+    assert.deepEqual([unsent.Card.revision, unsent.Card.values, unsent.Card.held], [5, state.Card.values, { reason: 'the correction to revision 6 was not sent', since: 3000, revision: null }]);
     const retry = follow(unsent, collection(6, people6()), 4000);
     assert.deepEqual(retry.sends.map((s) => s.values.f1), ['1500']);
     assert.equal(retry.air.Card.held, undefined);
@@ -496,6 +508,22 @@ describe('the page\'s two doors onto the instances', () => {
     none.landed();
     none.undo();
     assert.equal(p.part.get().Card.cueId, 'cue-a');
+  });
+
+  test('two overlapping presses: the first answered, the second failed, the layer goes back to the first, settled, and follows again', () => {
+    const p = io();
+    const first = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
+    const second = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 8)));
+    first.landed();
+    second.undo();
+    assert.deepEqual([p.part.get().Card.selection, p.part.get().Card.pending], [selectionOf('D1', 7), undefined]);
+    assert.equal(air.followSelection(p.part.get(), { Card: 'cue-a' }, facts(collection(6, people6())), 2000).sends.length, 1, 'it follows the next revision');
+    const q = io();
+    const a = air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
+    air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 8))).undo();
+    assert.equal(q.part.get().Card.pending, true, 'a first press still unanswered stays pending');
+    a.landed();
+    assert.equal(q.part.get().Card.pending, undefined);
   });
 
   test('following sends each newer revision through the page, holds one whose send failed, and judges nothing before the tree is readable', async () => {
