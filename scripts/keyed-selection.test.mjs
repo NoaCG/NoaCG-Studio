@@ -672,6 +672,24 @@ describe('the page\'s two doors onto the instances', () => {
     assert.deepEqual(again.sends.map((x) => x.values.f1), ['1500'], 'revision 6 goes again');
   });
 
+  test('an Update still unanswered when the page went away comes back as what last landed', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const update = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
+    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.confirmed.revision], [6, 5], 'pending: 5 is what landed');
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()));
+    assert.deepEqual([restored.Card.revision, restored.Card.values.f1], [5, '1200']);
+    assert.deepEqual(air.followSelection(restored, { Card: 'cue-a' }, facts(collection(6, people6())), 9000).sends.map((x) => x.values.f1), ['1500'], 'revision 6 goes again');
+    update.landed();
+    assert.equal(p.part.get().Card.confirmed.revision, 6, 'landed, it is what airs');
+    assert.equal(air.readSelectionAir(air.writeSelectionAir(p.part.get())).Card.revision, 6);
+    const other = io();
+    air.pressSelection(other, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(other, 'Card', 'cue-a', take(selectionOf('D2', 7), collection(6, people6())));
+    const moved = air.readSelectionAir(air.writeSelectionAir(other.part.get())).Card;
+    assert.deepEqual([moved.entity, moved.values.f0], [other.part.get().Card.entity, other.part.get().Card.values.f0], 'another person: no earlier values of someone else come back');
+  });
+
   test('a disposed page writes no selection: a late answer cannot overwrite what a reopened page captured', async () => {
     let alive = true;
     const p = { ...io(), alive: () => alive };

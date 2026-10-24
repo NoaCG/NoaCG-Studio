@@ -95,7 +95,7 @@ changes a spec's digest.
   `CueRundown.tsx`, `SelectionHolds.tsx`, `ProductionPage.tsx` (the wiring), and
   `scripts/graphic-verbs.test.mjs`, `scripts/production-data-session.test.mjs`,
   `e2e/configured/expected-run.json`.
-- **Mutation checks**: 93 Node mutations, all red (38 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
+- **Mutation checks**: 96 Node mutations, all red (41 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
   required field, the optional fallback, a valid empty list, an unknown B borrowing a record, typed
   keys, the field fit, the schema revision, a missing key part), the gate (a later selector, a later
   recipe, a shared binding, another graphic), every bound at its edge, the follow (newer only, the
@@ -129,7 +129,7 @@ changes a spec's digest.
   small parse cache. Left as reports: a per-cue "fixed fields" set to replace the `boundOf` marker
   in `unsentNow`, one shared read-only field row in the editor, a per-collection key index, and a
   reference fast path in `selectionFrozen`.
-- **The pull request's reviews.** Twelve rounds of the automated pull request review, every finding
+- **The pull request's reviews.** Thirteen rounds of the automated pull request review, every finding
   fixed and pinned:
   a press that lands (or fails) follows the newest tree at once, since a revision that arrived
   while it was pending was passed over and nothing else may come; the follow pass reads what is
@@ -180,6 +180,11 @@ changes a spec's digest.
   after a reload, so the follow sends that correction again; a newer revision observed since
   keeps its bound, so an older one read out of order is still rejected. Mutations: the bound
   lowered regardless, the restore on reload skipped, and the undo skipping the helper, each red.
+  Round thirteen: an explicit Update of the candidate already aired keeps what last landed as
+  `confirmed` until it lands (`captureSelection`, `landedSelection`), so a page that went away
+  with it unanswered comes back as what the output shows and sends it again; an Update to another
+  person starts afresh. Mutations: the kept predecessor, its entity check, and the landing's
+  confirmation, each red.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

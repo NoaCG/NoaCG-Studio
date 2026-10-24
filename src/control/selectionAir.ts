@@ -106,7 +106,11 @@ export function selectionTake(cue: { selection?: unknown }, graphic: string | nu
 
 /** The layer now airs this cue's resolved selection, pending until its send is answered. */
 export function captureSelection(air: SelectionAir, graphic: string, cueId: string, take: Extract<SelectionTake, { status: 'ok' }>, now: number): SelectionAir {
-  const confirmed = { revision: take.revision, values: take.values, at: now };
+  // An Update of the candidate already aired keeps what last landed until it lands itself, so a
+  // page that goes away first comes back as what the output shows (`unsettledBack`).
+  const prior = air[graphic];
+  const same = prior && prior.cueId === cueId && prior.entity === take.entity && !prior.pending;
+  const confirmed = same ? prior.confirmed : { revision: take.revision, values: take.values, at: now };
   return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, seen: take.revision, values: take.values, at: now, confirmed, pending: true } };
 }
 
@@ -127,7 +131,7 @@ export function unsettledBack(inst: AiredSelection): AiredSelection {
 export function landedSelection(air: SelectionAir, graphic: string, inst: AiredSelection): SelectionAir {
   if (air[graphic] !== inst) return air;
   const { pending: _pending, ...landed } = inst;
-  return { ...air, [graphic]: landed };
+  return { ...air, [graphic]: { ...landed, confirmed: { revision: inst.revision, values: inst.values, at: inst.at } } };
 }
 
 /** The send that wrote `inst` failed: the layer gets back what it had, unless something else has
