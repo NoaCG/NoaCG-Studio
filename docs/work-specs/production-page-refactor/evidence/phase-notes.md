@@ -72,6 +72,18 @@ changes a spec's digest.
     takes one (`nextGraphicCue`), since the server fires those with prepared values.
   - *Unsent*: a candidate's mapped fields are never "unsent" (like a bound field), and its rundown
     row reads the candidate, not the prepared text.
+  - *Every other verb that sends a card's values*: Snap and a machine event send the aired
+    instance's values for a candidate's fields, or leave those fields out when this page holds no
+    instance; ± never moves a candidate's field; the hosted page's Snap goes without data when the
+    layer airs a cue it was not given (it used to fall back to the selected sibling's values).
+  - *The capture is pending until its send is answered*, so a marker that has not moved yet (the
+    slow road, a recovery) cannot make the page forget the card it just took; a failed send gives
+    back only its own layer, and only while nothing else wrote it since; a correction whose send
+    failed keeps the aired revision, held with "not sent", so the next read sends it again.
+  - *A candidate Take or Update waits for a published tree's first read*, and a production not
+    loaded yet (a team production before its fetch) forgets no kept instance.
+  - *Undo brings back a deleted candidate cue* with its selection: history slices are the
+    record's own bytes. Any other write still may not add a selection.
 - **Files beyond the phase's list, and why.** `src/control/selectionAir.ts` (the aired instance's
   pure folds, testable in Node; the page rule wants behaviour in `src/control/`),
   `src/control/playoutSession.ts` (its store part), `graphicVerbs.ts`, `takeBlockers.ts`,
@@ -83,14 +95,27 @@ changes a spec's digest.
   `CueRundown.tsx`, `SelectionHolds.tsx`, `ProductionPage.tsx` (the wiring), and
   `scripts/graphic-verbs.test.mjs`, `scripts/production-data-session.test.mjs`,
   `e2e/configured/expected-run.json`.
-- **Mutation checks**: 39 Node mutations, all red: every contract rule (duplicate keys, a missing
+- **Mutation checks**: 55 Node mutations, all red. The first 39: every contract rule (duplicate keys, a missing
   required field, the optional fallback, a valid empty list, an unknown B borrowing a record, typed
   keys, the field fit, the schema revision, a missing key part), the gate (a later selector, a later
   recipe, a shared binding, another graphic), every bound at its edge, the follow (newer only, the
   hold, its first time, an older revision's hold, the aired cue only), the reconcile, the kept
   format, the door predicate (collections, whole bytes, removal, gaining), the undo, the Take
   blocker, the timed end, the verbs (Take refusal, the overlay, the undo, Update's refusal) and the
-  read ordering.
+  read ordering. The 16 after Assessment A+: the pending capture (made, skipped by reconcile and
+  follow, landed only for its own instance, cleared on reload), the scoped undo, the unsent
+  correction, the undo that restores a deleted cue, the verbs (landed, Take and Update undo, ±,
+  Snap's overlay and omission) and the older arm. In the browser, the read-gate walk passes on
+  this machine with the door in `patchShowChecked` and goes red with it removed; the two published
+  walks need the configured stack and run in Actions.
+- **Check and Assessment A+.** A fresh read-only session mapped every air-path change and answered
+  AGREE WITH CORRECTIONS: Snap and events flattening an aired candidate into prepared values, ±
+  airing a figure no revision holds, a capture dropped before its marker moved, a cold open
+  forgetting kept instances, the undo and the follow's failure bookkeeping, the hosted Snap's
+  sibling fallback, an undo of a deleted candidate cue refused for good, an older arm taking a
+  candidate, a Take before the published tree's first read, and three faults in the configured
+  walk (an out-of-order read that was not one, a wait on the server rather than the page, a check
+  that hit the wrong refusal). All are fixed above and pinned.
 - **Traps for E7.2a and E7.2b.** *The page re-reads a published tree only when a row says it
   moved* (`sessionWire` on a `src` row): a revision that changes no bound field writes no row, so
   the page never hears it. The configured walk binds a count bug to `external.e1.status` for that
@@ -98,7 +123,11 @@ changes a spec's digest.
   signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything
   else), so E7.2b writes the collection as JSON text at a leaf, which the resolver reads, and needs
   that leaf to be written although no field binds it. *A published production's corrections are
-  sent by the page that took the card*: with that page closed, a correction waits for it. *A team
+  sent by the page that took the card*: with that page closed, a correction waits for it. *Two tabs
+  of one production in one browser* both follow the kept instances, so a correction is sent twice
+  (an absolute update, so harmless) and the last tab to write keeps its copy. *A one-part key*
+  (the candidate number alone) passes the reader: E7.2a's writer must require district plus
+  candidate. *A team
   production* goes through the same door predicate, but its server save is outside this row.
 
 ## Row 29, phase E5.2: Connect, sample, repair and reuse

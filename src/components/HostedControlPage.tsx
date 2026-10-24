@@ -933,10 +933,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const snapTo = (groupId: string | null, stateId: string) => {
     if (!selectedGraphic || !selectedLayerCueId || !selectedCue) return;
-    void sendVerb([
-      { graphic: selectedGraphic, msg: { t: 'snap', snap: groupId === null ? null : { [groupId]: stateId } } },
-      { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedLayerCue ?? selectedCue) } },
-    ]);
+    const snap = { graphic: selectedGraphic, msg: { t: 'snap' as const, snap: groupId === null ? null : { [groupId]: stateId } } };
+    // The layer airs a cue this page was not given (a live candidate, E7.1): it has no values here
+    // to send, so the snap goes alone and the layer keeps what it shows.
+    if (!selectedLayerCue) {
+      void sendVerb([snap]);
+      return;
+    }
+    void sendVerb([snap, { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedLayerCue) } }]);
   };
   /** Clear the screen as the production page does (playout-workflow-simplification D11): what this
    *  page has up, what the server's heads say is on, and on a quiet production every graphic they

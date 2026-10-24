@@ -28,7 +28,7 @@
 // - the third: a page meeting a selection of a later version shows the cue read-only, refuses
 //   Take and edit with the reason, and every write door keeps the record byte for byte.
 
-import { test, expect, type APIRequestContext, type BrowserContext, type Page, type Route } from '@playwright/test';
+import { test, expect, type APIRequestContext, type APIResponse, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { publishProduction } from '../_publish';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -187,26 +187,29 @@ test.describe('live candidates', () => {
 
     // OUT OF ORDER: the tree read for revision 2 is held while revision 3 (a lower count, reordered)
     // is read and aired; then the held, older read answers. A -> B -> A is selected meanwhile.
-    const held: Route[] = [];
+    // The first read is FETCHED at once (so it carries revision 2) and its answer kept back.
+    const held: { route: Route; response: APIResponse }[] = [];
     let first = true;
-    await page.route('**/api/data/state', (route) => {
-      if (first) {
-        first = false;
-        held.push(route);
-        return;
-      }
-      void route.continue();
+    await page.route('**/api/data/state', async (route) => {
+      if (!first) return route.continue();
+      first = false;
+      held.push({ route, response: await route.fetch() });
     });
     await revision(request, w, 2, collection(2, people(1500)));
     await expect.poll(() => held.length, WIRE).toBe(1);
+    expect(JSON.stringify(await held[0].response.json())).toContain('"revision":2');
     await revision(request, w, 3, collection(3, people(1400).reverse()));
     await expect(onAirLine(w)).toHaveText('1400', WIRE);
     for (const label of ['Card A', 'Card B', 'Card A']) await select(page, label);
-    await held[0].continue();
-    await expect(preview(page)).toHaveText(AINO);
+    // Now the older answer lands, after the newer one.
+    await held[0].route.fulfill({ response: held[0].response });
+    await page.waitForTimeout(1000);
+    await expect(preview(page), 'an older read never puts revision 2 back, on PREVIEW either').toHaveText(AINO);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
     const after = await updates(w.showId);
     expect(after.filter((d) => d?.f1 === '1500'), 'the older revision never airs').toEqual([]);
+    const previewLine = page.frameLocator('[data-testid="production-preview"] iframe').locator('#f1');
+    await expect(previewLine).toHaveText('1400');
     // One coherent update: every mapped field of one person, from one revision.
     expect(after.at(-1)).toEqual({ f0: AINO, f1: '1400' });
     await expect(onAir(w)).toHaveText(AINO);
@@ -253,12 +256,15 @@ test.describe('live candidates', () => {
     expect(corrected.slice(-2)).toEqual([{ f0: AINO, f1: '1500' }, { f0: AINO, f1: '1300' }]);
 
     // An older and a duplicate revision are rejected.
-    // Each is told apart by its status line, so the page is known to have read it.
-    const read = (text: string) => expect.poll(async () => (await rows(w.showId, 'Underline')).filter((r) => r.data?.f0 === text).length, WIRE).toBe(1);
+    // Each is told apart by its status line, which the count bug shows on PREVIEW from the tree
+    // this page holds: so the page is known to have read it before air is judged.
+    await select(page, 'Count');
+    const read = (text: string) => expect(preview(page)).toHaveText(text, WIRE);
     await revision(request, w, 2, collection(2, people(9999)), 'Late 2');
     await read('Late 2');
     await revision(request, w, 3, collection(3, people(7777)), 'Again 3');
     await read('Again 3');
+    await select(page, 'Card A');
     await expect(onAirLine(w)).toHaveText('1300');
     expect((await updates(w.showId)).length).toBe(corrected.length);
 
@@ -287,7 +293,8 @@ test.describe('live candidates', () => {
     await expect(hold).toHaveCount(0);
     expect((await updates(w.showId)).filter((d) => d?.f1 === '1340')).toEqual([]);
 
-    // A lost network: the revision written meanwhile airs once the page reads again.
+    // A lost network (the output shares the context, so it goes dark too): the revision written
+    // meanwhile airs once the page reads again.
     await page.context().setOffline(true);
     await revision(request, w, 9, collection(9, people(1360)));
     await page.waitForTimeout(2000);
@@ -350,14 +357,15 @@ test.describe('live candidates', () => {
     await expect(page.getByTestId('verb-take')).toBeDisabled();
     await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /later version of NoaCG/);
 
-    // Every door a page writes through: a typed value, a rename, a removal, an undo-sized rundown
-    // replace, a binding onto a mapped field. Each refuses, and the record keeps its bytes.
+    // Every door a page writes through: a note and a rename of the read-only cue, its removal, a
+    // typed value on a mapped field, a binding onto a mapped field. Each refuses, and the record
+    // keeps its bytes; another cue still edits.
     const refusals = await page.evaluate(async (id) => {
       const S = await import('/src/model/shows.ts');
       const show = S.loadShows().find((s) => s.id === id)!;
       const cue = (label: string) => show.cues!.find((c) => c.label === label)!;
       return {
-        typed: S.updateShowCueChecked(id, cue('Later card').id, { values: { f0: 'Typed' } }).error,
+        noted: S.updateShowCueChecked(id, cue('Later card').id, { note: 'Typed' }).error,
         renamed: S.updateShowCueChecked(id, cue('Later card').id, { label: 'Renamed' }).error,
         removed: S.removeShowCuesChecked(id, [cue('Later card').id]).error,
         mapped: S.updateShowCueChecked(id, cue('Card A').id, { values: { f0: 'Typed' } }).error,
@@ -367,7 +375,7 @@ test.describe('live candidates', () => {
         published: (await (await import('/src/control/hostedControl.ts')).buildOutputPayload(S.loadShows().find((s) => s.id === id)!)).cues.map((c) => c.label),
       };
     }, showId);
-    expect(refusals.typed).toMatch(/cannot/);
+    expect(refusals.noted).toMatch(/cannot change/);
     expect(refusals.renamed).toMatch(/cannot change/);
     expect(refusals.removed).toMatch(/cannot change/);
     expect(refusals.mapped).toMatch(/live candidate/);

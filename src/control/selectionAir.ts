@@ -40,10 +40,21 @@ export interface AiredSelection {
   at: number;
   /** Set while the entity cannot be resolved: why, since when, and the revision that said so. */
   held?: { reason: string; since: number; revision: number | null };
+  /** Captured at the press, its send not answered yet: the marker may not have moved, so the
+   *  instance is not forgotten for a marker that still names the cue it replaces. */
+  pending?: true;
 }
 
 /** Every aired instance, by graphic name (the wire key, which is the layer). */
 export type SelectionAir = Readonly<Record<string, AiredSelection>>;
+
+/** One correction to send: the values, and the instance before and after it (`unsentSelection`). */
+export interface SelectionSend {
+  graphic: string;
+  values: Record<string, string>;
+  advanced: AiredSelection;
+  before: AiredSelection;
+}
 
 /** What a Take or an Update of one cue may send for its selection. */
 export type SelectionTake =
@@ -82,9 +93,31 @@ export function selectionTake(cue: { selection?: unknown }, graphic: string | nu
   return take.status === 'ok' ? take : take.status === 'refused' ? { status: 'refused', reason: take.reason } : { status: 'none' };
 }
 
-/** The layer now airs this cue's resolved selection. */
+/** The layer now airs this cue's resolved selection, pending until its send is answered. */
 export function captureSelection(air: SelectionAir, graphic: string, cueId: string, take: Extract<SelectionTake, { status: 'ok' }>, now: number): SelectionAir {
-  return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, values: take.values, at: now } };
+  return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, values: take.values, at: now, pending: true } };
+}
+
+/** The send that captured `inst` was answered: it is followed and judged like any other now. */
+export function landedSelection(air: SelectionAir, graphic: string, inst: AiredSelection): SelectionAir {
+  if (air[graphic] !== inst) return air;
+  const { pending: _pending, ...landed } = inst;
+  return { ...air, [graphic]: landed };
+}
+
+/** The send that wrote `inst` failed: the layer gets back what it had, unless something else has
+ *  written it since (another press, a follow), which then stands. */
+export function undoSelection(air: SelectionAir, graphic: string, inst: AiredSelection | undefined, before: AiredSelection | undefined): SelectionAir {
+  if (air[graphic] !== inst) return air;
+  if (!before) return dropSelection(air, graphic);
+  return { ...air, [graphic]: before };
+}
+
+/** A correction's send failed: the instance keeps the revision that IS on air, held with the
+ *  reason, so the next read sends the newer one again. */
+export function unsentSelection(air: SelectionAir, graphic: string, advanced: AiredSelection, before: AiredSelection, now: number): SelectionAir {
+  if (air[graphic] !== advanced) return air;
+  return { ...air, [graphic]: { ...before, held: { reason: `the correction to revision ${advanced.revision} was not sent`, since: before.held?.since ?? now, revision: advanced.revision } } };
 }
 
 /** The layer no longer airs a captured selection (an Out, or a cue without one taken onto it). */
@@ -102,6 +135,7 @@ export function dropSelection(air: SelectionAir, graphic: string): SelectionAir 
 export function reconcileSelection(air: SelectionAir, liveCue: LiveCueMap, seeded: boolean): SelectionAir {
   let next = air;
   for (const [graphic, inst] of Object.entries(air)) {
+    if (inst.pending) continue;
     const live = liveCue[graphic];
     if ((live !== undefined && live !== inst.cueId) || (live === undefined && seeded)) next = dropSelection(next, graphic);
   }
@@ -113,16 +147,17 @@ export function reconcileSelection(air: SelectionAir, liveCue: LiveCueMap, seede
  * selector (never the cue's current one), send a newer revision whole, hold on anything else.
  * Returns the new instances and the updates to send, one per graphic.
  */
-export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: SelectionFacts, now: number): { air: SelectionAir; sends: { graphic: string; values: Record<string, string> }[] } {
+export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: SelectionFacts, now: number): { air: SelectionAir; sends: SelectionSend[] } {
   let next = air;
-  const sends: { graphic: string; values: Record<string, string> }[] = [];
+  const sends: SelectionSend[] = [];
   for (const [graphic, inst] of Object.entries(air)) {
-    if (liveCue[graphic] !== inst.cueId) continue;
+    if (inst.pending || liveCue[graphic] !== inst.cueId) continue;
     const take = resolveOn(inst.selection, graphic, facts);
     if (take.status === 'ok') {
       if (take.revision > inst.revision) {
-        next = { ...next, [graphic]: { ...inst, revision: take.revision, values: take.values, at: now, held: undefined } };
-        sends.push({ graphic, values: take.values });
+        const advanced: AiredSelection = { ...inst, revision: take.revision, values: take.values, at: now, held: undefined };
+        next = { ...next, [graphic]: advanced };
+        sends.push({ graphic, values: take.values, advanced, before: inst });
       } else if (take.revision === inst.revision && inst.held) {
         // The aired revision reads well again (a malformed answer passed): nothing new to send.
         next = { ...next, [graphic]: { ...inst, held: undefined } };
@@ -173,7 +208,11 @@ export function readSelectionAir(raw: string | null): SelectionAir {
       !!inst.values &&
       typeof inst.values === 'object' &&
       Object.values(inst.values).every((v) => typeof v === 'string');
-    if (sane) out[graphic] = inst as AiredSelection;
+    // A press still unanswered when the page went away is judged as landed: the marker decides.
+    if (sane) {
+      const { pending: _pending, ...kept } = inst as AiredSelection;
+      out[graphic] = kept;
+    }
   }
   return out;
 }

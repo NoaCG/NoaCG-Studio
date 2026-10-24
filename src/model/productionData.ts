@@ -810,7 +810,8 @@ export interface SelectionRecord {
  * live candidate selections and writes none, so a write that would change one is refused whole:
  * the collection recipes stay byte for byte, every surviving cue keeps its selection as it was, a
  * cue of a later version (`selectionReadOnly`) keeps every byte and is not removed, and no cue
- * gains a selection (a copy of one would need the writer, E7.2a). `before` is `selectionKeep`'s
+ * gains a selection (a copy of one would need the writer, E7.2a) except one an undo brings back
+ * from the history (`restored`), whose bytes are the record's own from before. `before` is `selectionKeep`'s
  * answer for the record before the write. Left to a surface, the first older page to save the
  * production would flatten a selection into the cue's prepared values.
  */
@@ -827,8 +828,8 @@ export function selectionKeep(show: SelectionRecord): { collections: string; cue
 
 const SELECTION_KEPT = 'This production has live candidate cues this version cannot change, so the edit was not saved.';
 
-export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after: SelectionRecord): string | null {
-  if (!before) return (after.collections !== undefined || (after.cues ?? []).some((c) => c.selection !== undefined)) ? SELECTION_KEPT : null;
+export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after: SelectionRecord, restored: ReadonlySet<string> = new Set()): string | null {
+  if (!before) return (after.collections !== undefined || (after.cues ?? []).some((c) => c.selection !== undefined && !restored.has(c.id))) ? SELECTION_KEPT : null;
   if (JSON.stringify(after.collections ?? null) !== before.collections) return SELECTION_KEPT;
   const now = new Map((after.cues ?? []).map((c) => [c.id, c] as const));
   for (const [id, kept] of before.cues) {
@@ -839,6 +840,6 @@ export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after:
     }
     if (JSON.stringify(kept.whole ? cue : cue.selection) !== kept.bytes) return SELECTION_KEPT;
   }
-  for (const cue of after.cues ?? []) if (cue.selection !== undefined && !before.cues.has(cue.id)) return SELECTION_KEPT;
+  for (const cue of after.cues ?? []) if (cue.selection !== undefined && !before.cues.has(cue.id) && !restored.has(cue.id)) return SELECTION_KEPT;
   return null;
 }

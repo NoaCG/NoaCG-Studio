@@ -151,7 +151,9 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
     // own view may trail; unpublished, this page's view is the only one.
     const out = playsOut(arm.then) && (p.published || p.liveCueOf()[graphic] === arm.cue);
     if (out) items.push(clearCueItems(graphic));
-    const next = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    // A live candidate cue is never taken by a timed end (./cueAuto.ts `nextGraphicCue`), whatever an
+    // older arm named: it would air with its prepared values (E7.1).
+    const next = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout' && c.selection === undefined) : undefined;
     const nextGraphic = next ? p.graphicOf(next) : null;
     if (next && nextGraphic) {
       // The draft already owns preparation. Its cloud acknowledgement must not delay the timer.

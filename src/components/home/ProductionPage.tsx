@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { captureSelection, dropSelection, followSelection, readSelectionAir, reconcileSelection, selectionTake, writeSelectionAir, type SelectionAir, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { captureSelection, dropSelection, followSelection, landedSelection, undoSelection, unsentSelection, readSelectionAir, reconcileSelection, selectionTake, writeSelectionAir, type SelectionAir, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -1370,6 +1370,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (): SelectionFacts => ({ collections: collectionsRef.current, bindings: bindingsRef.current, tree: session.data.get().liveData, fieldsOf }),
     [session, fieldsOf],
   );
+  /** What a Take or an Update may send for a cue's live candidate: refused while a published
+   *  tree is still unread, since the tree this page holds then may be older than the server's. */
+  const candidateTake = (cue: ShowCue, graphic: string | null): SelectionTake =>
+    cue.selection !== undefined && hostedSlug && !session.data.get().treeRead
+      ? { status: 'refused', reason: 'This production’s shared values are still loading.' }
+      : selectionTake(cue, graphic, selectionFacts());
   useEffect(() => session.selections.set(readSelectionAir(loadSelectionAir(id))), [session, id]);
   const keepSelections = useCallback(
     (next: SelectionAir) => {
@@ -1379,12 +1385,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [session, id],
   );
   const airedSelections = useStorePart(session.selections);
-  /** A Take or an Update put this cue's selection on the layer (none drops what it followed). */
+  /** A Take or an Update put this cue's selection on the layer (none drops what it followed). Only
+   *  this layer's entry is written back, and only while it is still the one this press wrote. */
   const selectionAired = useCallback(
     (graphic: string, cueId: string, take: SelectionTake) => {
-      const before = session.selections.get();
-      keepSelections(take.status === 'ok' ? captureSelection(before, graphic, cueId, take, Date.now()) : dropSelection(before, graphic));
-      return () => keepSelections(before);
+      const before = session.selections.get()[graphic];
+      const written = take.status === 'ok' ? captureSelection(session.selections.get(), graphic, cueId, take, Date.now()) : dropSelection(session.selections.get(), graphic);
+      keepSelections(written);
+      const inst = written[graphic];
+      return {
+        landed: () => inst && keepSelections(landedSelection(session.selections.get(), graphic, inst)),
+        undo: () => keepSelections(undoSelection(session.selections.get(), graphic, inst, before)),
+      };
     },
     [session, keepSelections],
   );
@@ -1979,12 +1991,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** LIVE CANDIDATES ON AIR follow their captured selector (control/selectionAir.ts): a newer
    *  revision goes out as one update of every mapped field, anything else holds the picture. An
    *  instance is forgotten when its layer airs another cue, or is off air once the page knows. */
-  const selectionSeeded = !hostedSlug || bootLive !== null;
+  // A production not loaded yet (a team production before its first fetch) knows nothing of air.
+  const selectionSeeded = !!show && (!hostedSlug || bootLive !== null);
   useEffect(() => {
     const before = session.selections.get();
     const { air, sends } = followSelection(reconcileSelection(before, liveCue, selectionSeeded), liveCue, selectionFacts(), Date.now());
     if (air !== before) keepSelections(air);
-    for (const send of sends) void runVerb([[{ graphic: send.graphic, msg: { t: 'update', data: send.values } }]], 'Live candidate');
+    for (const send of sends) {
+      void runVerb([[{ graphic: send.graphic, msg: { t: 'update', data: send.values } }]], 'Live candidate').then((sent) => {
+        if (!sent) keepSelections(unsentSelection(session.selections.get(), send.graphic, send.advanced, send.before, Date.now()));
+      });
+    }
   }, [session, liveData, liveCue, selectionSeeded, show?.collections, bindings, selectionFacts, keepSelections, runVerb]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
@@ -2139,7 +2156,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: graphicOfCue,
     slots: PLAYOUT_SLOTS,
     selectionBlocker: (cue) => {
-      const take = selectionTake(cue, cueGraphicName(cue), selectionFacts());
+      const take = candidateTake(cue, cueGraphicName(cue));
       return take.status === 'refused' ? take.reason : null;
     },
   };
@@ -2442,8 +2459,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       await flushDraft(); await history.closeGroup();
     },
     boundFields,
-    selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
+    selectionFor: (cue, graphic) => candidateTake(cue, graphic),
     selectionAired,
+    candidateFields: (cue) => selectedFields(cue, show.collections),
+    airedCandidate: (graphic, cueId) => {
+      const inst = session.selections.get()[graphic];
+      return inst && inst.cueId === cueId ? inst.values : null;
+    },
     boundNow,
     boundReady: boundPressReady,
     patchBound: patchBoundValues,
@@ -2584,7 +2606,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // meaning. Derived from the template alone, like everything else here: any graphic with a
   // number field gets the block, and no category is ever consulted.
   const eventPayloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
-  const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key));
+  /** A live candidate's fields come from its source, so they get no ± (E7.1). */
+  const candidateKeys = new Set(editingCue ? selectedFields(editingCue, show.collections) : []);
+  const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key) && !candidateKeys.has(d.key));
 
   /** Rows the edited cue can load (D3's binding) — the SHARED matcher, `control/cueData.ts`,
    *  so the hosted control page offers exactly the rows this page does. Live here (a dataset

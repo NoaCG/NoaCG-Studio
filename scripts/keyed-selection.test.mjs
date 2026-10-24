@@ -224,6 +224,15 @@ describe('the read gate', () => {
       assert.ok(frozen(show([a]), { cues: [a] }));
     });
 
+    test('an undo brings back a deleted candidate cue with its selection, byte for byte', () => {
+      const slice = (cues) => ({ cues, folders: [], graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [] });
+      const record = { id: 's', version: 2, name: 'S', graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [], folders: [], cues: [], collections: [RECIPE], updatedAt: 'x' };
+      const back = replaceRundown(record, slice([]), slice([a]));
+      assert.equal(back.refused, null);
+      assert.deepEqual(back.show.cues, [a]);
+      assert.ok(frozen(show([]), show([a])), 'any other write may not add one');
+    });
+
     test('an undo is refused when it would change a selection, and goes through when it would not', () => {
       const slice = (cues) => ({ cues, folders: [], graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [] });
       const record = { id: 's', version: 2, name: 'S', graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [], folders: [], cues: [later], collections: [RECIPE], updatedAt: 'x' };
@@ -237,19 +246,23 @@ describe('the read gate', () => {
   });
 });
 
+const people6 = () => [person('D1', 7, 'Aino Aalto', 1500, { party: 'Green' }), ...BASE.slice(1)];
+
 describe('the aired instance', () => {
   const live = { Card: 'cue-a' };
   const captured = (c = collection(5, BASE), sel = selectionOf('D1', 7)) => {
     const t = take(sel, c);
     assert.equal(t.status, 'ok');
-    return air.captureSelection({}, 'Card', 'cue-a', t, 1000);
+    const pending = air.captureSelection({}, 'Card', 'cue-a', t, 1000);
+    return air.landedSelection(pending, 'Card', pending.Card);
   };
   const follow = (state, c, now = 2000, liveCue = live) => air.followSelection(state, liveCue, facts(c), now);
 
   test('a count increase and a newer downward correction each go out once, whole', () => {
     let state = captured();
     const up = follow(state, collection(6, [person('D1', 7, 'Aino Aalto', 1500, { party: 'Green' }), ...BASE.slice(1)]));
-    assert.deepEqual(up.sends, [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1500', f2: 'Green' } }]);
+    assert.deepEqual(up.sends.map(({ graphic, values }) => ({ graphic, values })), [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1500', f2: 'Green' } }]);
+    assert.deepEqual([up.sends[0].before, up.sends[0].advanced], [state.Card, up.air.Card]);
     state = up.air;
     const down = follow(state, collection(7, [person('D1', 7, 'Aino Aalto', 1400, { party: 'Green' }), ...BASE.slice(1)]), 3000);
     assert.deepEqual(down.sends.map((s) => s.values.f1), ['1400']);
@@ -272,7 +285,7 @@ describe('the aired instance', () => {
     // The instance carries its own selector, so a preview of B, a draft or a changed record cannot
     // reach it: follow is handed no cue at all.
     const r = follow(air.readSelectionAir(air.writeSelectionAir(state)), collection(6, BASE.map((p) => ({ ...p, votes: p.votes + 1 }))));
-    assert.deepEqual(r.sends, [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1201', f2: 'Green' } }]);
+    assert.deepEqual(r.sends.map(({ graphic, values }) => ({ graphic, values })), [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1201', f2: 'Green' } }]);
     const b = take(selectionOf('D2', 7), collection(6, BASE));
     assert.equal(b.status, 'ok', 'B is ready on its own');
     assert.deepEqual(r.air.Card.selection, selectionOf('D1', 7));
@@ -327,6 +340,41 @@ describe('the aired instance', () => {
     assert.deepEqual(air.reconcileSelection(state, {}, true), {});
     assert.equal(air.reconcileSelection(state, live, true), state);
     assert.deepEqual(air.dropSelection(state, 'Card'), {});
+  });
+
+  test('a capture is pending until its send is answered: neither forgotten nor followed before', () => {
+    const t = take(selectionOf('D1', 7), collection(5, BASE));
+    const pending = air.captureSelection({}, 'Card', 'cue-a', t, 1000);
+    assert.equal(pending.Card.pending, true);
+    assert.equal(air.reconcileSelection(pending, { Card: 'cue-old' }, true), pending, 'the marker has not moved yet');
+    assert.equal(air.reconcileSelection(pending, {}, true), pending);
+    assert.deepEqual(follow(pending, collection(6, BASE)).sends, []);
+    const landed = air.landedSelection(pending, 'Card', pending.Card);
+    assert.equal(landed.Card.pending, undefined);
+    assert.equal(air.landedSelection(landed, 'Card', pending.Card), landed, 'only the instance that press wrote');
+    assert.equal(air.readSelectionAir(air.writeSelectionAir(pending)).Card.pending, undefined, 'a reload judges it by the marker');
+  });
+
+  test('a failed send gives back only its own layer, and only while nothing else wrote it', () => {
+    const a = captured();
+    const other = { ...a, Bug: { ...a.Card, cueId: 'cue-bug' } };
+    const t = take(selectionOf('D2', 7), collection(5, BASE));
+    const written = air.captureSelection(other, 'Card', 'cue-b', t, 2000);
+    assert.deepEqual(air.undoSelection(written, 'Card', written.Card, a.Card), other);
+    const moved = { ...written, Card: { ...written.Card, revision: 9 } };
+    assert.equal(air.undoSelection(moved, 'Card', written.Card, a.Card), moved, 'a later write stands');
+    assert.deepEqual(air.undoSelection(air.captureSelection({}, 'Card', 'cue-b', t, 2000), 'Card', air.captureSelection({}, 'Card', 'cue-b', t, 2000).Card, undefined), air.captureSelection({}, 'Card', 'cue-b', t, 2000), 'not the same instance: stands');
+  });
+
+  test('a correction whose send failed keeps the aired revision, held, so the next read sends it again', () => {
+    const state = captured();
+    const sent = follow(state, collection(6, people6()));
+    const [send] = sent.sends;
+    const unsent = air.unsentSelection(sent.air, 'Card', send.advanced, send.before, 3000);
+    assert.deepEqual([unsent.Card.revision, unsent.Card.values, unsent.Card.held], [5, state.Card.values, { reason: 'the correction to revision 6 was not sent', since: 3000, revision: 6 }]);
+    const retry = follow(unsent, collection(6, people6()), 4000);
+    assert.deepEqual(retry.sends.map((s) => s.values.f1), ['1500']);
+    assert.equal(retry.air.Card.held, undefined);
   });
 
   test('what is kept reads back; anything else is no instance', () => {

@@ -461,3 +461,15 @@ test('the arms part is set after data and bridge, and heard only when it moves',
   session.apply((parts) => parts);
   assert.deepEqual(heard, ['data', 'bridge', 'arms']);
 });
+
+test('a next cue that shows a live candidate is never taken by a timed end, whatever an older arm named (E7.1)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'next'), manual('b')] });
+  r.engine.onMarker(take('a'));
+  assert.equal(r.arms().A.next, 'b', 'armed before the cue had a selection');
+  r.page.cues = [timed('a', 2, 'next'), { ...manual('b'), selection: { v: 1, recipe: 'cands', key: ['D1', 7] } }];
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.equal(r.sent.length, 0);
+  assert.deepEqual(r.notes, ['The cue armed to be taken next is gone, so nothing was taken.']);
+  r.engine.stop();
+});

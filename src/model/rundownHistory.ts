@@ -83,8 +83,9 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
     folders: copy.folders.map(f => ({ ...f, ...(collapse.has(f.id) ? { collapsed: collapse.get(f.id) } : {}) })),
     updatedAt: new Date().toISOString(),
   };
-  // An undo is a write like any other: it never changes a live candidate selection (E7.1).
-  const frozen = selectionFrozen(selectionKeep(show), next);
+  // An undo is a write like any other, except that a cue it brings back keeps the selection the
+  // record had: history copies are the record's own bytes.
+  const frozen = selectionFrozen(selectionKeep(show), next, new Set(copy.cues.map((c) => c.id)));
   return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
 }
 

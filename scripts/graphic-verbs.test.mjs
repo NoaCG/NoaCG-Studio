@@ -42,7 +42,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {} } = {}) {
+function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -104,8 +104,10 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
     selectionFor: (cue) => selections[cue.id] ?? { status: 'none' },
     selectionAired: (graphic, cueId, take) => {
       log.push(['aired', graphic, cueId, take.status]);
-      return () => log.push(['unaired', graphic, cueId]);
+      return { landed: () => log.push(['landed', graphic, cueId]), undo: () => log.push(['unaired', graphic, cueId]) };
     },
+    candidateFields: (cue) => candidates[cue.id] ?? [],
+    airedCandidate: (graphic, cueId) => airedCandidates[`${graphic}:${cueId}`] ?? null,
     boundNow: (graphic) => ({ ...(tree[graphic] ?? {}) }),
     boundReady: () => true,
     patchBound: async (writes) => {
@@ -1016,9 +1018,13 @@ test('a Take of a live candidate airs its resolved values over the cue and the t
   await settle();
   assert.deepEqual(r.log.find(([k]) => k === 'aired'), ['aired', 'Strap', 'a', 'ok'], 'captured before the answer');
   assert.deepEqual(r.sends[0].batches[0][0].msg.data, { f0: 'Aino Aalto', f1: '1200', f2: 'tree', f3: 'own' });
+  assert.equal(r.log.some(([k]) => k === 'landed'), false, 'pending until the answer');
   r.sends[0].answer.resolve({ ...noneLeft });
   await taking;
   assert.equal(r.log.some(([k]) => k === 'unaired'), false);
+  const marked = r.log.findIndex(([k]) => k === 'landed');
+  assert.ok(marked > 0, 'landed once answered');
+  assert.equal(r.liveCue().Strap, 'a', 'the marker moved by then');
 });
 
 test('a Take of a candidate that is not ready sends nothing and says why; a failed send gives the capture back', async () => {
@@ -1045,10 +1051,45 @@ test('Update moves an aired cue to its new selection only once the whole replace
   assert.deepEqual(r.log.find(([k]) => k === 'aired'), ['aired', 'Strap', 'a', 'ok']);
   r.sends[0].answer.resolve({ ...noneLeft });
   await updating;
+  assert.deepEqual(r.log.find(([k]) => k === 'landed'), ['landed', 'Strap', 'a']);
+
+  const failed = rig({ ...live, selections: { a: candidate({ f0: 'Bertta Berg' }, 5) } });
+  const failing = failed.verbs.update(sel({ editingCue: graphicCue('a', 'Strap', {}), selectedGraphic: 'Strap', editingIsLive: true }));
+  await settle();
+  failed.sends[0].answer.reject(new Error('boom'));
+  await failing;
+  assert.deepEqual(failed.log.find(([k]) => k === 'unaired'), ['unaired', 'Strap', 'a'], 'a failed Update gives its capture back');
+  assert.equal(failed.log.some(([k]) => k === 'landed'), false);
 
   const refused = rig({ ...live, selections: { a: { status: 'refused', reason: 'Not ready: the collection is not JSON.' } } });
   await refused.verbs.update(sel({ editingCue: graphicCue('a', 'Strap', { f0: 'prepared' }), selectedGraphic: 'Strap', editingIsLive: true }));
   assert.equal(refused.sends.length, 0, 'the aired cue keeps what it airs');
   assert.equal(refused.log.some(([k]) => k === 'aired'), false);
   assert.deepEqual(refused.notes, ['A: Not ready: the collection is not JSON.']);
+});
+
+test('Snap and an event on an aired candidate send what its instance shows, never the prepared text; without an instance they leave those fields alone', async () => {
+  const airCue = graphicCue('a', 'Strap', { f0: 'prepared', f1: 'prepared', f2: 'own' });
+  const view = sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue });
+  const r = rig({ liveCue: { Strap: 'a' }, candidates: { a: ['f0', 'f1'] }, airedCandidates: { 'Strap:a': { f0: 'Aino Aalto', f1: '1200' } } });
+  const snapping = r.verbs.snap(view, null, 'enter');
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][1].msg.data, { f0: 'Aino Aalto', f1: '1200', f2: 'own' });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await snapping;
+
+  const bare = rig({ liveCue: { Strap: 'a' }, candidates: { a: ['f0', 'f1'] } });
+  const again = bare.verbs.snap(view, null, 'enter');
+  await settle();
+  assert.deepEqual(bare.sends[0].batches[0][1].msg.data, { f2: 'own' });
+  bare.sends[0].answer.resolve({ ...noneLeft });
+  await again;
+});
+
+test('± on a live candidate\'s field sends nothing and writes nothing: it comes from its source', async () => {
+  const r = rig({ liveCue: { Strap: 'a' }, candidates: { a: ['f1'] } });
+  await r.verbs.bump(sel({ editingCue: graphicCue('a', 'Strap', { f1: '5' }), selectedGraphic: 'Strap', editingIsLive: true }), 'f1', 1);
+  assert.equal(r.sends.length, 0);
+  assert.equal(r.log.some(([k]) => k === 'writeCue'), false);
+  assert.deepEqual(r.notes, ['F1 shows a live candidate, so it comes from its source.']);
 });
