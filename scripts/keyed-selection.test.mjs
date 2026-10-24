@@ -330,6 +330,9 @@ describe('the aired instance', () => {
     assert.deepEqual(late.sends, []);
     assert.equal(late.air, held, 'revision 8 is older than what said Aino is gone');
     assert.equal(follow(held, collection(5, BASE), 5000).air, held, 'nor the aired revision read again');
+    const blind = follow(held, undefined, 5100).air;
+    assert.equal(blind.Card.held.revision, null, 'the collection went missing');
+    assert.deepEqual(follow(blind, collection(8, BASE), 5200).sends, [], 'a read with no revision does not lower the bound revision 9 set');
     const newer = follow(held, collection(10, BASE), 6000);
     assert.equal(newer.sends.length, 1);
     assert.equal(newer.air.Card.held, undefined);
@@ -552,6 +555,14 @@ describe('the page\'s two doors onto the instances', () => {
     p.followNow = () => (followed += 1);
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 8))).undo();
     assert.equal(followed, 1, 'a failed press follows the newest tree too');
+    const r = io();
+    air.pressSelection(r, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const settled = r.part.get().Card;
+    const u6 = air.pressSelection(r, 'Card', 'cue-a', ok(selectionOf('D1', 8)));
+    const u7 = air.pressSelection(r, 'Card', 'cue-a', ok(selectionOf('D2', 7)));
+    u6.undo();
+    u7.undo();
+    assert.equal(r.part.get().Card, settled, 'both Updates failed, the first first: the settled capture is back, not the failed one');
     const q = io();
     const a = air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
     air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 8))).undo();

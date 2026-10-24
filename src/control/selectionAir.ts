@@ -39,6 +39,9 @@ export interface AiredSelection {
   values: Record<string, string>;
   /** When those values were sent, ms. */
   at: number;
+  /** The newest revision this instance has judged, whatever it said (aired, or holding it): an
+   *  older one is never sent, and a read with no revision (malformed, absent) does not lower it. */
+  seen: number;
   /** What a landed send last put on air: a correction whose send failed goes back to it, never to
    *  an earlier correction that may have failed too. */
   confirmed: { revision: number; values: Record<string, string>; at: number };
@@ -104,7 +107,7 @@ export function selectionTake(cue: { selection?: unknown }, graphic: string | nu
 /** The layer now airs this cue's resolved selection, pending until its send is answered. */
 export function captureSelection(air: SelectionAir, graphic: string, cueId: string, take: Extract<SelectionTake, { status: 'ok' }>, now: number): SelectionAir {
   const confirmed = { revision: take.revision, values: take.values, at: now };
-  return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, values: take.values, at: now, confirmed, pending: true } };
+  return { ...air, [graphic]: { cueId, selection: take.selection, entity: take.entity, revision: take.revision, seen: take.revision, values: take.values, at: now, confirmed, pending: true } };
 }
 
 /** The send that captured `inst` was answered: it is followed and judged like any other now. */
@@ -136,13 +139,14 @@ export function settleSelection(air: SelectionAir, graphic: string, advanced: Ai
     if (advanced.revision <= inst.confirmed.revision) return air;
     const confirmed = { revision: advanced.revision, values: advanced.values, at: advanced.at };
     if (inst.revision >= advanced.revision) return { ...air, [graphic]: { ...inst, confirmed } };
-    return { ...air, [graphic]: { ...inst, confirmed, revision: confirmed.revision, values: confirmed.values, at: confirmed.at, held: inst.held?.unsent ? undefined : inst.held } };
+    return { ...air, [graphic]: { ...inst, confirmed, revision: confirmed.revision, seen: Math.max(inst.seen, confirmed.revision), values: confirmed.values, at: confirmed.at, held: inst.held?.unsent ? undefined : inst.held } };
   }
   // Behind it already, or a newer send has landed over it: nothing of this failure is on show.
   if (inst.revision < advanced.revision || inst.confirmed.revision >= advanced.revision) return air;
   const { confirmed } = inst;
   const held = { reason: `the correction to revision ${advanced.revision} was not sent`, since: inst.held?.since ?? now, revision: null, unsent: true as const };
-  return { ...air, [graphic]: { ...inst, revision: confirmed.revision, values: confirmed.values, at: confirmed.at, held } };
+  // The failed revision is sent again at the next read of it, so the bound comes back to what landed.
+  return { ...air, [graphic]: { ...inst, revision: confirmed.revision, seen: confirmed.revision, values: confirmed.values, at: confirmed.at, held } };
 }
 
 /** The layer no longer airs a captured selection (an Out, or a cue without one taken onto it). */
@@ -178,11 +182,10 @@ export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: S
   for (const [graphic, inst] of Object.entries(air)) {
     if (inst.pending || liveCue[graphic] !== inst.cueId) continue;
     const take = resolveOn(inst.selection, graphic, facts);
-    // The newest revision this instance has judged: the one it airs, or a newer one that holds it.
-    const floor = Math.max(inst.revision, inst.held?.revision ?? -Infinity);
+    const floor = Math.max(inst.revision, inst.seen);
     if (take.status === 'ok') {
       if (take.revision > floor) {
-        const advanced: AiredSelection = { ...inst, revision: take.revision, values: take.values, at: now, held: undefined };
+        const advanced: AiredSelection = { ...inst, revision: take.revision, seen: take.revision, values: take.values, at: now, held: undefined };
         next = { ...next, [graphic]: advanced };
         sends.push({ graphic, values: take.values, advanced });
       } else if (take.revision === inst.revision && inst.held && inst.held.revision === null && !inst.held.unsent) {
@@ -198,7 +201,7 @@ export function followSelection(air: SelectionAir, liveCue: LiveCueMap, facts: S
     if (revision !== null && revision < floor) continue;
     const reason = take.hold?.status === 'hold' ? take.hold.reason : take.reason;
     if (inst.held && inst.held.reason === reason && inst.held.revision === revision) continue;
-    next = { ...next, [graphic]: { ...inst, held: { reason, since: inst.held?.since ?? now, revision } } };
+    next = { ...next, [graphic]: { ...inst, seen: Math.max(inst.seen, revision ?? inst.seen), held: { reason, since: inst.held?.since ?? now, revision } } };
   }
   return { air: next, sends };
 }
@@ -240,7 +243,8 @@ export function readSelectionAir(raw: string | null): SelectionAir {
     if (sane) {
       const { pending: _pending, ...kept } = inst as AiredSelection;
       const confirmed = kept.confirmed && Number.isInteger(kept.confirmed.revision) ? kept.confirmed : { revision: kept.revision, values: kept.values, at: kept.at };
-      out[graphic] = { ...kept, confirmed };
+      const seen = Number.isInteger(kept.seen) ? kept.seen : kept.revision;
+      out[graphic] = { ...kept, confirmed, seen };
     }
   }
   return out;
@@ -264,12 +268,17 @@ export interface SelectionAirIo {
 /** Captures whose press was answered, so an undo that brings one back does not bring it back
  *  pending: its own `landed` has already run, and nothing would end that state again. */
 const answered = new WeakSet<AiredSelection>();
+/** Captures whose press failed, and what each replaced: an undo never brings back a capture that
+ *  failed itself, but the one before it. */
+const failed = new WeakSet<AiredSelection>();
+const replaced = new WeakMap<AiredSelection, AiredSelection | undefined>();
 
 export function pressSelection(io: SelectionAirIo, graphic: string, cueId: string, take: SelectionTake): { landed: () => void; undo: () => void } {
   const before = io.part.get()[graphic];
   const written = take.status === 'ok' ? captureSelection(io.part.get(), graphic, cueId, take, io.now()) : dropSelection(io.part.get(), graphic);
   io.keep(written);
   const inst = written[graphic];
+  if (inst) replaced.set(inst, before);
   return {
     landed: () => {
       if (!inst) return;
@@ -278,7 +287,10 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
       io.followNow?.();
     },
     undo: () => {
-      const back = before?.pending && answered.has(before) ? (({ pending: _pending, ...rest }) => rest)(before) : before;
+      if (inst) failed.add(inst);
+      let back: AiredSelection | undefined = before;
+      while (back && failed.has(back)) back = replaced.get(back);
+      if (back?.pending && answered.has(back)) back = (({ pending: _pending, ...rest }) => rest)(back);
       io.keep(undoSelection(io.part.get(), graphic, inst, back));
       // A revision passed over while this press was pending is followed now, as after a landing.
       io.followNow?.();
