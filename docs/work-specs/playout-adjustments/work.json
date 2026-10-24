@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "1ae0ebd59037e73b866d0b0af99fb0a169117e010124fefb099addb1edc517b1",
+  "specSha256": "939beb4471db20ca83001c38eebede969e0964bc29ba6ba81d9299222c8d7c17",
   "authority": {
     "status": "draft",
     "source": "Owner, 2026-10-24: the research brief (an evidence-backed draft spec and recommendation for adjusting graphics from the playout page; no implementation), the three decisions of the same day recorded in the spec under Owner decisions, and the instruction to land the draft after the second opinion's corrections were applied. A draft: it authorizes no implementation and no run row; agreement on the design as a whole and the coordinator's admission come separately."

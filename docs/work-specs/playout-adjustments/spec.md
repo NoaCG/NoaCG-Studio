@@ -138,7 +138,8 @@ question-and-options board.
   timing, clip playback and `imageFit`; no visual data. Two cues of one graphic differ only in
   values. The pool entry `SavedGraphic` is a **copy** of the library template with a back-link
   (`src/model/packets.ts:39-68`); Publish refreshes the copy's template and `savedAt` from the
-  library (`refreshGraphicCopies`, `shows.ts:812-852`) and keeps other entry properties; re-adding
+  library (`refreshGraphicCopies`, `shows.ts:826-870`; the copy is taken by `addGraphicToShow`,
+  `shows.ts:703-741`) and keeps other entry properties; re-adding
   a graphic of the same name constructs a replacement entry that keeps `layer` and `soundConfig`
   explicitly. "Package" is retired: the one grouping is the production; a `.noacgpack.json`
   installs into one; rundown folders do not travel to the published payload or exports.
@@ -156,8 +157,10 @@ question-and-options board.
   relay receiver keeps a merged map and restores by calling the template's `update()` directly
   (`control/localReceiver.ts:59-67,132-153,244-252`). The hosted receiver baked into a published
   graphic harvests its report from the DOM text of declared fields (`hostedReceiver.ts:135-148`)
-  and resumes from the log head when its report is undated, so anything outside field data is
-  restored there only from log rows after its baseline. A foreign OGraf frame is handed the whole
+  and, when its report carries no event id, resumes from the log head (`receiverFollowFrom`,
+  `src/control/outputRecovery.ts:170-176`, emitted as ES5 at 181 and called at
+  `hostedReceiver.ts:298`), so anything outside field data is restored there only from log rows
+  after its baseline. A foreign OGraf frame is handed the whole
   data object (`output/foreignOgraf.ts:159` through `ografCallFor`), so an undeclared key would
   reach a stranger's package.
 - The draft is one record per selected cue, autosaved after 300 ms; selecting another cue flushes
@@ -175,7 +178,8 @@ question-and-options board.
 - Every catalog design declares the `:root` contract (`--accent`, `--text-color`, `--text-dim`,
   `--panel-bg`, `--font-heading`, `--scale`, optional `--type-scale`) plus the shape tokens it
   reads (`src/model/themeTokens.ts`: thirteen, among them `--display-weight`, the heading weight,
-  consumed by 26 template files, and `--font-label`). A brand is `ProjectBrand` (palette,
+  referenced by 319 files under `src/templates`, and `--font-label`; whether a given graphic
+  paints with a token is measured per graphic by `cssPaintsWith`, never read off a count). A brand is `ProjectBrand` (palette,
   typeface, tokens, logo). `applyLookToTemplate` (`src/model/packets.ts:372-439`) is a pure
   `(template, brand) => template` that writes only variables the receiving design declares, but
   it also swaps the first marked `@font-face` block and can write a logo into an allow-listed
@@ -504,7 +508,7 @@ By graphic source, on NoaCG's own output (the `/output` renderer, PROGRAM on bot
 
 | Source | Place and size | Type (family, weight) | Colour | Notes |
 |---|---|---|---|---|
-| Catalog design | yes | yes; weight where `--display-weight` is read (26 files), family always | yes for 97 %; 13 literal welds partial | tone change warned |
+| Catalog design | yes | yes; family always, weight where the design paints with `--display-weight` (most do; `cssPaintsWith` decides) | accent reaches about 95 % fully: 13 designs keep a literal accent somewhere (palette-freedom) and 11 declare an accent nothing paints (`cssVars.ts:162-166`) | tone change warned |
 | Imported SVG (svg01) | yes | no (artwork's own faces) | no (artwork's fills) | says "as designed" |
 | Imported raster (imp01) | yes | family yes, per line | text colour no (baked literal) | |
 | Agent-made, contract painted | yes | yes | yes | `cssPaintsWith` decides per variable |
