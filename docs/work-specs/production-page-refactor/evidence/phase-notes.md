@@ -23,22 +23,19 @@ changes a spec's digest.
     next marker write. Protocol 1 has no per-graphic order at all, and #1697 reworks it. Moving
     those writes into the sender would change those modules' contracts and test rigs, so it stays
     out of this fix.
-  - The page no longer moves the marker for this page load's own cue markers heard back, on either
-    road, on a graphic where a press of this sender has landed. `hearCommand` applies what
-    `verbs.heard` hands back, which uses `liveCue.ts` `withoutOwnMarkers`. On such a graphic the
-    sender writes the marker from its answers, and from the rows of presses that got none. An
-    own row there is then an older press's, or one the answers already wrote. The server skips a
-    press older than one it applied, so an older press can only have aired before. Before any
-    press of this sender lands on a graphic, own rows apply as they always did. That keeps a
-    press made before the production was left and reopened in the same tab, whose row comes after
-    reopening: nothing else would mark it. That holds even when the new sender's own press there
-    failed (a Codex finding). Before this, a slow-road press's own row heard late put its older cue
-    over a newer press that had landed. A send of several batches books each batch's markers on
-    their own, so one batch landing and the next failing leaves the first batch's cue.
-    A graphic that a batch which landed left alone still keeps its marker when a later batch fails
-    (the server skipped it under a newer press, an Update for instance). `sendControlVerbs` now
-    carries what the earlier batches skipped or superseded on its error (`hostedControl.ts`
-    `verbsSkipped`).
+  - The sender stamps each of its cue markers with an id (`mintOid`) at the press.
+    `hostedControl.ts` `sendControlVerb` keeps an id it is given. So the sender knows its own rows
+    exactly. `hearCommand` applies what `verbs.heard` hands back: every command except this
+    sender's own cue markers, which the sender writes from its answers and from the rows of
+    presses that got none. Every other cue row the page applies now becomes what a failed press
+    of this sender gives back (`foreignMarker`). That covers another screen's row, and a row from
+    an earlier mount of the page (a production left and reopened in the same tab, with a Take
+    still out). Before this, a slow-road press's own row heard late put its older cue over a
+    newer press that had landed. Two earlier ways of telling own rows apart were dropped. The
+    first was "this page load sent it", which also caught an earlier mount's row. The second was
+    "a press of this sender landed here", which lost the order between this sender's own rows and
+    its answers. A send of several batches books each batch's markers on their own, so one batch
+    landing and the next failing leaves the first batch's cue.
   - A press that landed names its cue unless a newer marker press of this page landed (a late older
     answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
     puts back the newest press that landed, or the marker from before the first press still out.
@@ -117,6 +114,10 @@ changes a spec's digest.
   heard late, moved the marker through `claimAndApply`. That is fixed by `withoutOwnMarkers`. It
   also found that a two-batch send booked only its last batch, which is now fixed and pinned. The
   protocol-1 folder Out case is noted above.
+- **Automated review on `52f4025`:** an earlier mount's row for c1, heard while the new sender's
+  own Take of c1 was out and then refused, was rolled back. That is fixed by the sender-stamped
+  ids above, and pinned. The press walk now delivers rows in commit order, as the durable road
+  does.
 - **Configured spec changed with #1710 merged in.** `e2e/configured/playout-resolve-race.spec.ts`
   checked the chip read "on air" while the page's first resolve was held, before releasing it.
   Since #1697 such a Take waits for that resolve within its resend window. When the wait runs

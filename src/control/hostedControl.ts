@@ -29,7 +29,7 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
@@ -1477,7 +1477,8 @@ export async function sendControlVerb(opts: {
   for (const item of opts.items) {
     // Who pressed, and when, ride beside the id (livePath.ts `withSender`), so an output can time
     // the command from the press to its screen.
-    const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(withOid(item.msg), now) };
+    // A command its sender gave an id keeps it (graphicVerbs.ts books its markers by it).
+    const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(oidOf(item.msg) ? item.msg : withOid(item.msg), now) };
     rememberSent(stamped.msg);
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a

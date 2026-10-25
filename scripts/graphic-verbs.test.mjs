@@ -169,6 +169,8 @@ function rig({ fast = false, published = 'slug-1', flushHeld = false, liveCue = 
     },
     nameList: (names) => names.join(' and '),
     now: () => 1234,
+    // A marker's id, by its number: rows and lost answers name it.
+    mintOid: (n) => `oid-${n}`,
     // The bound presses' fallback timer: held until the test fires it.
     setTimeout: (run, ms) => {
       log.push(['timer', ms]);
@@ -367,7 +369,7 @@ test('Take waits for the save, then reads the draft and the bound values as they
     [
       { graphic: 'Strap', msg: { t: 'update', data: { f0: 'bound wins', f1: 'kept', f2: '3-2' } } },
       { graphic: 'Strap', msg: { t: 'play' } },
-      { graphic: 'Strap', msg: { t: 'cue', cue: 'c1' } },
+      { graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-1' } },
     ],
   ]);
   // The marker moves on the answer, not before it.
@@ -472,7 +474,7 @@ test('a direct trigger carries `direct` and arms only its own timed end; a cue w
   const cue = graphicCue('c1', 'Strap', {}, { auto: { then: 'out', after: 3 } });
   const taking = r.verbs.takeGraphic(cue, 'Trigger C1', true);
   await settle();
-  assert.deepEqual(r.sends[0].batches[0][2].msg, { t: 'cue', cue: 'c1', direct: true, auto: { then: 'out', ms: 3000 } });
+  assert.deepEqual(r.sends[0].batches[0][2].msg, { t: 'cue', cue: 'c1', direct: true, auto: { then: 'out', ms: 3000 }, oid: 'oid-1' });
   r.sends[0].answer.resolve({ ...noneLeft });
   assert.deepEqual(await taking, { ok: true, note: '✓ Trigger C1: C1' });
   assert.equal(await r.verbs.takeGraphic({ id: 'x', label: 'X', values: {} }, 'Take'), null);
@@ -1296,7 +1298,8 @@ test('an event cannot move the aired candidate\'s field even when its cue is gon
 const pressTake = async (r, id, graphic = 'Strap') => {
   const taking = r.verbs.take(graphicCue(id, graphic));
   await settle();
-  return { taking, send: r.sends.at(-1) };
+  const send = r.sends.at(-1);
+  return { taking, send, oid: send.batches.flat().find((i) => i.msg.t === 'cue').msg.oid };
 };
 
 test('an earlier Take lands, a later one overtakes it and fails: the marker names the earlier cue, in either answer order (#1696)', async () => {
@@ -1363,7 +1366,7 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   const one = await pressTake(q, 'c1');
   const two = await pressTake(q, 'c2');
   const theirs = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'theirs' } }];
-  for (const item of q.verbs.heard(theirs, (msg) => msg.oid !== 'theirs')) q.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  for (const item of q.verbs.heard(theirs)) q.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
   assert.deepEqual(q.liveCue(), { Strap: 'c1' });
   one.send.answer.reject(new Error('refused'));
   two.send.answer.reject(new Error('refused'));
@@ -1373,7 +1376,7 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   const z = rig({ fast: true });
   z.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
   const first = await pressTake(z, 'c1');
-  for (const item of z.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }], () => false)) z.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  for (const item of z.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }])) z.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
   const second = await pressTake(z, 'c2');
   assert.deepEqual(z.liveCue(), { Strap: 'c2' });
   first.send.answer.reject(new Error('refused'));
@@ -1384,29 +1387,30 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   // A press that got no answer committed after another screen's x1 (an All out is never refused;
   // a Take can be based on a head learned from a refusal): rows come in log order, so its row after
   // x1's is the newer, and marks.
-  const noAnswer = (id) => Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: 'Strap', msg: { t: 'cue', cue: id, oid: `oid-${id}` } }] });
+  const noAnswer = () => Object.assign(new Error('the server did not answer'), { unanswered: true });
   const heardRows = (rig_, rows) => {
-    for (const item of rig_.verbs.heard(rows, (msg) => msg.oid.startsWith('oid-'), () => false)) rig_.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+    for (const item of rig_.verbs.heard(rows, () => false)) rig_.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
   };
   const allOut = rig({ fast: true });
   allOut.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
   const { clearCueItems } = await import('../src/control/cueItems.ts');
   const clearing = allOut.verbs.send([clearCueItems('Strap')], 'All out', true);
   await settle();
-  allOut.sends[0].answer.reject(Object.assign(noAnswer(null), { items: [{ graphic: 'Strap', msg: { t: 'cue', cue: null, oid: 'oid-out' } }] }));
+  const outOid = allOut.sends[0].batches.flat().find((i) => i.msg.t === 'cue').msg.oid;
+  allOut.sends[0].answer.reject(noAnswer());
   await clearing;
   heardRows(allOut, [{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }]);
-  heardRows(allOut, [{ graphic: 'Strap', msg: { t: 'cue', cue: null, oid: 'oid-out' } }]);
+  heardRows(allOut, [{ graphic: 'Strap', msg: { t: 'cue', cue: null, oid: outOid } }]);
   assert.deepEqual(allOut.liveCue(), {}, 'All out committed after x1');
   const based = rig({ fast: true });
   const refused = await pressTake(based, 'c1');
   refused.send.answer.reject(Object.assign(new Error('stale'), { stale: true }));
   await refused.taking;
   const lost = await pressTake(based, 'c2');
-  lost.send.answer.reject(noAnswer('c2'));
+  lost.send.answer.reject(noAnswer());
   await lost.taking;
   heardRows(based, [{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }]);
-  heardRows(based, [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c2', oid: 'oid-c2' } }]);
+  heardRows(based, [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c2', oid: lost.oid } }]);
   assert.deepEqual(based.liveCue(), { Strap: 'c2' }, 'a Take based on the learned head');
 
   // The second arrival of another screen's marker the page already applied moves nothing: this
@@ -1415,44 +1419,45 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   d.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
   const take = await pressTake(d, 'c1');
   const echo = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c0', oid: 'theirs' } }];
-  assert.deepEqual(d.verbs.heard(echo, () => false, () => true), echo);
+  assert.deepEqual(d.verbs.heard(echo, () => true), echo);
   take.send.answer.reject(new Error('refused'));
   await take.taking;
   assert.deepEqual(d.liveCue(), { Strap: 'c0' });
 });
 
 test('a Take that got no answer goes back off the marker, and its row heard later marks it while it is still the newest press (#1696)', async () => {
-  const noAnswer = (id) => Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: 'Strap', msg: { t: 'cue', cue: id, oid: `oid-${id}` } }] });
+  const noAnswer = () => Object.assign(new Error('the server did not answer'), { unanswered: true });
   const r = rig({ fast: true });
   const a = await pressTake(r, 'c1');
-  a.send.answer.reject(noAnswer('c1'));
+  a.send.answer.reject(noAnswer());
   await a.taking;
   assert.deepEqual(r.liveCue(), {});
-  r.verbs.heard([{ graphic: 'Score', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }, { graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'other' } }], () => true);
+  r.verbs.heard([{ graphic: 'Score', msg: { t: 'cue', cue: 'c1', oid: a.oid } }, { graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'other' } }], () => true);
   assert.deepEqual(r.liveCue(), {}, 'only its own row, on its own graphic');
-  r.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }], () => true);
+  r.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: a.oid } }], () => true);
   assert.deepEqual(r.liveCue(), { Strap: 'c1' });
 
   // A newer press since: the older row heard late moves nothing.
   const r2 = rig({ fast: true });
   const b = await pressTake(r2, 'c1');
-  b.send.answer.reject(noAnswer('c1'));
+  b.send.answer.reject(noAnswer());
   await b.taking;
   const c = await pressTake(r2, 'c2');
   c.send.answer.resolve({ ...noneLeft });
   await c.taking;
-  r2.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }], () => true);
+  r2.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: b.oid } }], () => true);
   assert.deepEqual(r2.liveCue(), { Strap: 'c2' });
 });
 
 test('a late row of an older press never marks over a newer one that landed; with every newer press failed, it marks (#1696)', async () => {
-  const noAnswer = (id) => Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: 'Strap', msg: { t: 'cue', cue: id, oid: `oid-${id}` } }] });
-  const row = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }];
+  const noAnswer = () => Object.assign(new Error('the server did not answer'), { unanswered: true });
+  // The first press of each rig below is the Take of c1, so its row carries the first marker's id.
+  const row = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-1' } }];
   // Committed, answer lost; a newer Take lands before its row arrives.
   const r = rig({ fast: true });
   const a = await pressTake(r, 'c1');
   const b = await pressTake(r, 'c2');
-  a.send.answer.reject(noAnswer('c1'));
+  a.send.answer.reject(noAnswer());
   b.send.answer.resolve({ ...noneLeft });
   await Promise.all([a.taking, b.taking]);
   r.verbs.heard(row, () => true);
@@ -1462,9 +1467,9 @@ test('a late row of an older press never marks over a newer one that landed; wit
   for (const order of ['answered first', 'pressed while out']) {
     const q = rig({ fast: true });
     const one = await pressTake(q, 'c1');
-    if (order === 'answered first') one.send.answer.reject(noAnswer('c1'));
+    if (order === 'answered first') one.send.answer.reject(noAnswer());
     const two = await pressTake(q, 'c2');
-    if (order !== 'answered first') one.send.answer.reject(noAnswer('c1'));
+    if (order !== 'answered first') one.send.answer.reject(noAnswer());
     two.send.answer.reject(new Error('refused'));
     await Promise.all([one.taking, two.taking]);
     assert.deepEqual(q.liveCue(), {}, order);
@@ -1475,7 +1480,7 @@ test('a late row of an older press never marks over a newer one that landed; wit
   // Heard while a newer Take is out: that Take's answer decides, and its failure leaves this one.
   const t = rig({ fast: true });
   const older = await pressTake(t, 'c1');
-  older.send.answer.reject(noAnswer('c1'));
+  older.send.answer.reject(noAnswer());
   await older.taking;
   const newer = await pressTake(t, 'c2');
   t.verbs.heard(row, () => true);
@@ -1503,15 +1508,14 @@ test("this page's own cue markers heard back are the sender's on a graphic it pr
   a.send.answer.resolve({ ...noneLeft });
   await a.taking;
   const rows = [
-    { graphic: 'Strap', msg: { t: 'cue', cue: 'c0', oid: 'mine' } },
-    { graphic: 'Strap', msg: { t: 'play', oid: 'mine' } },
+    { graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: a.oid } },
+    { graphic: 'Strap', msg: { t: 'play', oid: a.oid } },
     { graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } },
-    { graphic: 'Score', msg: { t: 'cue', cue: 's0', oid: 'mine' } },
+    { graphic: 'Score', msg: { t: 'cue', cue: 's0', oid: 'earlier' } },
   ];
-  const mine = (msg) => msg.oid === 'mine';
-  assert.deepEqual(r.verbs.heard(rows, mine), rows.slice(1));
-  // Reopened: a new sender has pressed nothing, so the page applies them all.
-  assert.deepEqual(rig().verbs.heard(rows, mine), rows);
+  assert.deepEqual(r.verbs.heard(rows), rows.slice(1));
+  // Reopened: the new sender sent none of them, so the page applies them all.
+  assert.deepEqual(rig().verbs.heard(rows), rows);
 
   // Reopened, a Take of the new sender on the graphic refused, or still out and then refused: the
   // earlier mount's committed Take, heard late, is applied, and stays.
@@ -1519,9 +1523,9 @@ test("this page's own cue markers heard back are the sender's on a graphic it pr
     const n = rig({ fast: true });
     n.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
     const take = await pressTake(n, 'c2');
-    const earlier = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'mine' } }];
+    const earlier = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'earlier' } }];
     const hearIt = () => {
-      for (const item of n.verbs.heard(earlier, mine)) n.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+      for (const item of n.verbs.heard(earlier)) n.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
     };
     if (when === 'while out') hearIt();
     take.send.answer.reject(new Error('refused'));
@@ -1529,6 +1533,16 @@ test("this page's own cue markers heard back are the sender's on a graphic it pr
     if (when === 'after') hearIt();
     assert.deepEqual(n.liveCue(), { Strap: 'c1' }, when);
   }
+
+  // Reopened, the new sender takes the same cue again while the earlier mount's Take of it is still
+  // out; the earlier one's row is heard, then the new Take is refused: c1 airs, and stays marked.
+  const same = rig({ fast: true });
+  same.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
+  const retake = await pressTake(same, 'c1');
+  for (const item of same.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'earlier' } }], () => false)) same.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  retake.send.answer.reject(new Error('refused'));
+  await retake.taking;
+  assert.deepEqual(same.liveCue(), { Strap: 'c1' }, 'same cue retaken');
 });
 
 test('a batch that landed but left a graphic alone, then a later batch failing: that graphic keeps its marker (#1696)', async () => {
@@ -1581,7 +1595,6 @@ async function markerWalk(seed, steps) {
   /** Per graphic, another screen's newest Take: the cue, and how many presses of this page came before it. */
   const foreign = {};
   let foreignRows = 0;
-  const mine = (msg) => msg.oid.startsWith('oid-');
   const check = (when) => {
     for (const g of graphics) {
       const open = presses.some((p) => p.graphic === g && !p.answered);
@@ -1596,12 +1609,22 @@ async function markerWalk(seed, steps) {
   };
   // The page applies what the sender hands back, as `claimAndApply` would a row never claimed (a
   // slow-road press of this page is claimed only by its row).
+  // Rows arrive in commit order (the durable road): hearing one hears every earlier one first.
   const hear = (p) => {
-    const rest = r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }], mine, () => false);
+    for (const q of presses.filter((o) => o !== p && o.graphic === p.graphic && o.reached && !o.heard && o.order < p.order).sort((a, b) => a.order - b.order)) {
+      q.heard = true;
+      hearOne(q);
+    }
+    hearOne(p);
+  };
+  const hearOne = (p) => {
+    const rest = r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }], () => false);
     for (const item of rest) r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
   };
+  let commits = 0;
   const commit = (p) => {
     p.committed = true;
+    p.order = commits += 1;
     p.reached = p.n > (applied[p.graphic] ?? 0);
     if (p.reached) {
       applied[p.graphic] = p.n;
@@ -1650,16 +1673,16 @@ async function markerWalk(seed, steps) {
       // the head (refused stale, or skipped), and its row is heard.
       const g = pick(calm);
       // The log is in commit order: rows of this page's presses there that committed come first.
-      for (const p of presses.filter((q) => q.graphic === g && q.lost && q.reached && !q.heard)) {
+      for (const p of presses.filter((q) => q.graphic === g && q.reached && !q.heard).sort((a, b) => a.order - b.order)) {
         p.heard = true;
-        hear(p);
+        hearOne(p);
       }
       const cue = pick(['x1', 'x2', null]);
       applied[g] = presses.length;
       output[g] = cue;
       foreign[g] = { cue, after: presses.length };
       acted = { n: `x${(foreignRows += 1)}`, graphic: g, cue };
-      const rest = r.verbs.heard([{ graphic: g, msg: { t: 'cue', cue, oid: `theirs-${foreignRows}` } }], mine, () => false);
+      const rest = r.verbs.heard([{ graphic: g, msg: { t: 'cue', cue, oid: `theirs-${foreignRows}` } }], () => false);
       for (const item of rest) r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
     } else {
       const p = (acted = pick(late));
@@ -1683,7 +1706,7 @@ async function markerWalk(seed, steps) {
   }
   await Promise.all(presses.map((p) => p.done));
   // Every row still to come arrives, in a random order.
-  for (const p of presses.filter((q) => q.reached && !q.heard).sort(() => random() - 0.5)) {
+  for (const p of presses.filter((q) => q.reached && !q.heard).sort((a, b) => a.order - b.order)) {
     p.heard = true;
     hear(p);
   }
@@ -1721,7 +1744,7 @@ async function batchWalk(seed, steps) {
   };
   const hear = (rec) => {
     rec.heard = true;
-    const rest = r.verbs.heard([{ graphic: rec.graphic, msg: { t: 'cue', cue: rec.cue, oid: `oid-${rec.n}` } }], () => true);
+    const rest = r.verbs.heard([{ graphic: rec.graphic, msg: { t: 'cue', cue: rec.cue, oid: `oid-${rec.n}` } }], () => false);
     for (const item of rest) r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
   };
   const check = (when) => {
