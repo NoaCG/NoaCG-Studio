@@ -154,7 +154,7 @@ export function staleSentence(e: Error): string {
 
 /** An Error for a stale refusal, carrying the plain sentence and the flag the pages word by. */
 export function staleError(graphics: readonly string[], epochChanged = false): Error {
-  return Object.assign(new Error(staleNotice(graphics, epochChanged)), { stale: true });
+  return Object.assign(new Error(staleNotice(graphics, epochChanged)), { stale: true, graphics: [...graphics] });
 }
 
 export function isStale(e: unknown): boolean {
@@ -175,7 +175,8 @@ export function settleAnswer(
   answer: SendAnswer | null,
   graphics: readonly string[],
 ): { outcome: 'landed' | 'superseded'; skipped: string[] } {
-  if (!answer) throw new Error('the server answered in a way this page cannot read');
+  // An answer this page cannot read came after the server may have applied the press: `unread`.
+  if (!answer) throw Object.assign(new Error('the server answered in a way this page cannot read'), { unread: true });
   learnHead(session, answer.epoch, answer.graphics);
   if (answer.ok) return { outcome: 'landed', skipped: answer.skipped };
   if (answer.refused === 'superseded') return { outcome: 'superseded', skipped: [] };

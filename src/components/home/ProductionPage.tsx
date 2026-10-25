@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, airedValues, nextSettle, followAired, followsCandidates, protectedFields, protectedSelections, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedValues, nextSettle, followAired, followsCandidates, protectedFields, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -1424,7 +1424,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [session, keepSelections],
   );
   /** A Take or an Update put this cue's selection on the layer (control/selectionAir.ts). */
-  const selectionAired = useCallback((graphic: string, cueId: string, take: SelectionTake) => pressSelection(selectionIo, graphic, cueId, take), [selectionIo]);
+  const selectionAired = useCallback(
+    (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => pressSelection(selectionIo, graphic, cueId, take, moves),
+    [selectionIo],
+  );
   /** Every candidate cue's resolution in this render's tree, made once: the rundown, PREVIEW, the
    *  editor and the Take refusals all read it. A press resolves again from the newest tree. */
   const candidates = useMemo(() => {
@@ -2511,6 +2514,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       ];
     },
     airedCandidate: (graphic, cueId) => airedValues(session.selections.get(), graphic, cueId),
+    selectionStale: (graphics) => staleSelection(selectionIo, graphics),
     boundNow,
     boundReady: boundPressReady,
     patchBound: patchBoundValues,

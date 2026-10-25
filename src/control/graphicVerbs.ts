@@ -128,7 +128,10 @@ export interface GraphicPage {
   selectionFor: (cue: ShowCue, graphic: string) => SelectionTake;
   /** The layer now airs this cue with this selection (none drops what it followed), captured at the
    *  press: `landed` when its send is answered, `undo` when it failed. */
-  selectionAired: (graphic: string, cueId: string, take: SelectionTake) => { landed: () => void; undo: (failed?: SendFailure) => void };
+  selectionAired: (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => { landed: () => void; undo: (failed?: SendFailure) => void };
+  /** A send was refused because another screen changed these graphics (control/selectionAir.ts
+   *  `staleSelection`). */
+  selectionStale: (graphics: readonly string[]) => void;
   /** The fields a cue's live candidate shows (none for a cue without one). */
   candidateFields: (cue: ShowCue) => readonly string[];
   /** What the layer's aired candidate shows, when the instance this page holds airs this cue. */
@@ -277,7 +280,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const landed = io.verbsLanded(e);
       p.debts().failed([...(io.verbSentItems(e) ?? marked[landed] ?? []), ...marked.slice(landed + 1).flat()], note);
       p.owed(true);
-      return { ok: false, note, ...(io.verbStale(e) ? { stale: true as const } : isUnanswered(e) ? { uncertain: true as const } : {}) };
+      // Refused as stale on any road, this page learned the head: a live candidate there must not
+      // then follow on its own over the other screen's change.
+      if (io.verbStale(e)) {
+        const named = (e as { graphics?: unknown }).graphics;
+        page().selectionStale(Array.isArray(named) ? (named as string[]) : [...new Set(marked.flat().map((item) => item.graphic))]);
+      }
+      const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
+      return { ok: false, note, ...(io.verbStale(e) ? { stale: true as const } : uncertain ? { uncertain: true as const } : {}) };
     } finally {
       p.sending(-1);
     }
@@ -340,7 +350,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // (plan §2.7): otherwise taking an old cue would re-air a stale score.
     const values = { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
     // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
-    const captured = p.selectionAired(graphic, cue.id, selection);
+    const captured = p.selectionAired(graphic, cue.id, selection, true);
     const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
     if (!sent.ok) {
       captured.undo(sent);
@@ -452,8 +462,17 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** One graphic off, and its marker with it unless a later press stands. */
   const clearOne = async (s: VerbSender, graphic: string) => {
-    const sent = await runWith(s, [clearCueItems(graphic)], 'Out');
-    if (sent && !leftAlone(sent).includes(graphic)) mark([graphic], null);
+    // The layer knows an Out is on its way, so no correction follows it out or overtakes it.
+    const captured = page().selectionAired(graphic, '', { status: 'none' }, true);
+    const sent = await sendWith(s, [clearCueItems(graphic)], 'Out');
+    if (!sent.ok) {
+      s.note(sent.note);
+      captured.undo(sent);
+      return;
+    }
+    if (!leftAlone(sent).includes(graphic)) mark([graphic], null);
+    if (reachedOutput(sent, graphic)) captured.landed();
+    else captured.undo();
   };
 
   const out = async (sel: VerbSelection) => {

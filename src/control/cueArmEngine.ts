@@ -95,7 +95,7 @@ export interface CueArmPage {
   /** A timed end takes `cueId` onto the graphic's layer: a live candidate that layer follows must
    *  know, or a correction sent while the Take is out would land on this cue's card
    *  (control/selectionAir.ts `pressSelection`, a cue with no selection). */
-  selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }) => { landed: () => void; undo: (failed?: { uncertain?: true; stale?: true }) => void };
+  selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }, moves?: boolean) => { landed: () => void; undo: (failed?: { uncertain?: true; stale?: true }) => void };
 }
 
 /** What the page's effects hand the engine. */
@@ -176,16 +176,24 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       if (gone) p.note('The cue armed to be taken next is gone, so nothing was taken.');
       return;
     }
-    const captured = next && nextGraphic ? p.selectionAired?.(nextGraphic, next.id, { status: 'none' }) : undefined;
+    // Both the Take and the Out are presses on their layers: a correction neither follows them nor
+    // overtakes them.
+    const captured = next && nextGraphic ? p.selectionAired?.(nextGraphic, next.id, { status: 'none' }, true) : undefined;
+    const cleared = out && graphic !== nextGraphic ? p.selectionAired?.(graphic, '', { status: 'none' }, true) : undefined;
     const sent = await p.send(items, words);
     if (!sent.ok) {
       captured?.undo(sent);
+      cleared?.undo(sent);
       p.note(sent.note);
       return;
     }
     if (captured) {
       if (nextGraphic && reachedOutput(sent, nextGraphic)) captured.landed();
       else captured.undo();
+    }
+    if (cleared) {
+      if (reachedOutput(sent, graphic)) cleared.landed();
+      else cleared.undo();
     }
     const stands = leftAlone(sent);
     p.setLiveCue((m) => {

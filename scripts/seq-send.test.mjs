@@ -104,6 +104,9 @@ test('stale throws the plain sentence and still teaches the page what is on air 
   assert.ok(isStale(thrown));
   assert.equal(thrown.message, 'A was changed from another screen, so air did not change.');
   assert.equal(s.revs.get('A'), 4, 'the next press is made on what is on air now, so it lands');
+  assert.deepEqual(thrown.graphics, ['A'], 'it names the graphics another screen changed (live candidates there stop following)');
+  const unreadable = staleThrown(s, null, ['A']);
+  assert.equal(unreadable.unread, true, 'an answer this page cannot read may follow a press the server applied');
   assert.doesNotMatch(staleSentence(thrown), /monitor/, 'a press that did not move this monitor says nothing about it');
   thrown.aired = true;
   assert.match(staleSentence(thrown), /on this monitor only\. Press again if you still want it\.$/);

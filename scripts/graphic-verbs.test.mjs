@@ -106,6 +106,7 @@ function rig({ published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}
       log.push(['aired', graphic, cueId, take.status]);
       return { landed: () => log.push(['landed', graphic, cueId]), undo: (failed) => log.push(['unaired', graphic, cueId, ...(failed?.uncertain ? ['uncertain'] : failed?.stale ? ['stale'] : [])]) };
     },
+    selectionStale: (graphics) => log.push(['stale', graphics.join(',')]),
     candidateFields: (cue) => candidates[cue.id] ?? [],
     airedCandidate: (graphic, cueId) => airedCandidates[`${graphic}:${cueId}`] ?? null,
     airedCandidateFields: (graphic) => airedFields[graphic] ?? [],
@@ -242,6 +243,41 @@ test('a failed send says which failure it was, owes the failed batch and those a
   r.sends[3].answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true }));
   assert.deepEqual(await unanswered, { ok: false, note: 'Take failed: the server did not answer', uncertain: true });
   assert.equal((await plain).uncertain, undefined, 'a refusal is a definite failure');
+});
+
+test('a refusal as stale on any send blocks the live candidates on the graphics it names; an answer this page cannot read may have landed (E7.1)', async () => {
+  const r = rig();
+  const batches = [[{ graphic: 'Strap', msg: { t: 'event', event: 'x' } }], [{ graphic: 'Score', msg: { t: 'update' } }]];
+  const named = r.verbs.send(batches, 'Event');
+  r.sends[0].answer.reject(Object.assign(new Error('stale'), { stale: true, graphics: ['Score'] }));
+  await named;
+  const bare = r.verbs.send(batches, 'Event');
+  r.sends[1].answer.reject(Object.assign(new Error('stale'), { stale: true }));
+  await bare;
+  assert.deepEqual(r.log.filter(([k]) => k === 'stale'), [['stale', 'Score'], ['stale', 'Strap,Score']], 'the graphics it names, else every graphic it carried');
+  const unread = r.verbs.send(batches, 'Event');
+  r.sends[2].answer.reject(Object.assign(new Error('the server answered in a way this page cannot read'), { unread: true }));
+  assert.equal((await unread).uncertain, true);
+});
+
+test('Take and Out tell the layer they move the marker; Out is a press on the layer, settled by its answer (E7.1)', async () => {
+  const r = rig({ liveCue: { Strap: 'c1' } });
+  const presses = [];
+  r.page.selectionAired = (graphic, cueId, take, moves) => {
+    presses.push([graphic, cueId, take.status, moves]);
+    return { landed: () => presses.push(['landed', graphic]), undo: (failed) => presses.push(['undo', graphic, failed?.uncertain ?? false]) };
+  };
+  const taking = r.verbs.take(graphicCue('c2', 'Strap'));
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  const out = r.verbs.takeOff('Strap');
+  await settle();
+  assert.deepEqual(presses.at(-1), ['Strap', '', 'none', true], 'registered before the Out goes');
+  r.sends[1].answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true }));
+  await out;
+  assert.deepEqual(presses, [['Strap', 'c2', 'none', true], ['landed', 'Strap'], ['Strap', '', 'none', true], ['undo', 'Strap', true]]);
+  assert.deepEqual(r.notes.at(-1), 'Out failed: the server did not answer');
 });
 
 test('a live candidate\'s correction says why it failed once, and answers how', async () => {

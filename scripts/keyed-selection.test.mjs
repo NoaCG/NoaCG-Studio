@@ -64,7 +64,7 @@ describe('identity is district plus candidate', () => {
   test('two cues of one card select different people, including one number in two districts', () => {
     const a = take(selectionOf('D1', 7), collection(1, BASE));
     const b = take(selectionOf('D2', 7), collection(1, BASE));
-    assert.deepEqual(a, { status: 'ok', selection: selectionOf('D1', 7), scope: '["cands","e1",3,"candidates"]', entity: '["D1",7]', revision: 1, values: { f0: 'Aino Aalto', f1: '1200', f2: 'Green' } });
+    assert.deepEqual(a, { status: 'ok', selection: selectionOf('D1', 7), scope: '["cands","e1",3,"candidates",["district","number"],[["f0",{"from":"name"}],["f1",{"from":"votes"}],["f2",{"from":"party","fallback":"-"}]]]', entity: '["D1",7]', revision: 1, values: { f0: 'Aino Aalto', f1: '1200', f2: 'Green' } });
     assert.deepEqual(b.values, { f0: 'Bertta Berg', f1: '900', f2: 'Blue' });
   });
 
@@ -669,45 +669,44 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual(p.part.get(), {}, 'off air once the page knows: forgotten');
   });
 
-  test('a Take that failed with no answer may still commit: nothing of the card it replaces is sent until the marker or a press decides', async () => {
-    const p = io();
-    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    const sends = [];
-    const send = (graphic, values) => (sends.push(values.f1), Promise.resolve(ANSWERED));
-    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7))).undo({ uncertain: true });
-    assert.deepEqual([card(p).known, card(p).held?.reason !== undefined], [false, true], 'which card airs is not known');
-    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
-    p.tick(air.SETTLE_MS + 1);
-    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
-    await settle();
-    assert.deepEqual(sends, ['1500'], 'once settled, the marker still naming cue-a decides: A follows');
-    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a')?.f1, '1500', 'landed and settled: Snap gets what airs');
-    // The late commit: the marker moves to cue-b, so B airs and nothing of A goes.
+  test('a Take that failed with no answer may still commit: nothing is sent on its own until an operator press lands, whatever the marker says', async () => {
+    // The marker cannot decide: this page moved it itself when it sent (airState.ts claimAndApply).
+    for (const marker of ['cue-a', 'cue-b']) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      const sends = [];
+      const send = (graphic, values) => (sends.push(values.f0), Promise.resolve(ANSWERED));
+      air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)), true).undo({ uncertain: true });
+      assert.deepEqual([card(p).known, card(p).held?.reason], [false, 'a send got no answer, so it is not known which candidate is on air: press Update to send it'], marker);
+      p.tick(air.SETTLE_MS + 1);
+      air.followAired(p, { liveCue: { Card: marker }, seeded: true, facts: facts(collection(6, people6())), send });
+      await settle();
+      assert.deepEqual([sends, card(p).known], [[], false], `${marker}: held, nothing sent`);
+      assert.equal(air.airedValues(p.part.get(), 'Card', marker), null, `${marker}: nothing for Snap`);
+      // The operator's Update of the card the marker names decides.
+      air.pressSelection(p, 'Card', marker, ok(marker === 'cue-a' ? selectionOf('D1', 7) : selectionOf('D2', 7), 6)).landed();
+      air.followAired(p, { liveCue: { Card: marker }, seeded: true, facts: facts(collection(7, people6().map((x) => ({ ...x })))), send });
+      assert.deepEqual([card(p).known, card(p).cueId, card(p).held], [true, marker, undefined], `${marker}: decided by the press`);
+    }
+    // A reload: the reopened page reads the marker from the server, so the marker decides again.
     const q = io();
     air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    air.pressSelection(q, 'Card', 'cue-b', ok(selectionOf('D2', 7))).undo({ uncertain: true });
+    air.pressSelection(q, 'Card', 'cue-b', ok(selectionOf('D2', 7)), true).undo({ uncertain: true });
+    const reopened = io(air.readSelectionAir(air.writeSelectionAir(q.part.get()), 1000));
+    reopened.tick(air.SETTLE_MS + 1);
     const late = [];
-    q.tick(air.SETTLE_MS + 1);
-    air.followAired(q, { liveCue: { Card: 'cue-b' }, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (late.push(v.f0), Promise.resolve(ANSWERED)) });
-    assert.deepEqual([card(q).cueId, late], ['cue-b', ['Bertta Berg']], 'B airs and follows; nothing of A goes');
-    // A plain Take with no answer: the candidate may be gone from the layer.
-    const r = io();
-    air.pressSelection(r, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    air.pressSelection(r, 'Card', 'plain', { status: 'none' }).undo({ uncertain: true });
-    r.tick(air.SETTLE_MS + 1);
-    const none = [];
-    air.followAired(r, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (none.push(v.f1), Promise.resolve(ANSWERED)) });
-    assert.deepEqual(none, ['1500'], 'the marker still on cue-a: the plain Take did not land');
+    air.followAired(reopened, { liveCue: { Card: 'cue-b' }, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (late.push(v.f0), Promise.resolve(ANSWERED)) });
+    assert.deepEqual([card(reopened).cueId, late], ['cue-b', ['Bertta Berg']], 'the server\'s marker decides B, and B follows');
     // A definite failure gives back what airs at once.
     const d = io();
     air.pressSelection(d, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     air.pressSelection(d, 'Card', 'cue-b', ok(selectionOf('D2', 7))).undo();
     assert.deepEqual([card(d).cueId, card(d).known], ['cue-a', true]);
     assert.equal(air.nextSettle(d.part.get()), null, 'nothing settling');
-    assert.equal(air.nextSettle(q.part.get()), null, 'settled by the follow');
+    assert.equal(air.nextSettle(reopened.part.get()), null, 'settled by the follow');
     const t = io();
     air.pressSelection(t, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    air.pressSelection(t, 'Card', 'cue-b', ok(selectionOf('D2', 7))).undo({ uncertain: true });
+    air.pressSelection(t, 'Card', 'cue-b', ok(selectionOf('D2', 7)), true).undo({ uncertain: true });
     assert.equal(air.nextSettle(t.part.get()), t.now() + air.SETTLE_MS, 'the page follows once more when it ends');
   });
 
@@ -757,13 +756,72 @@ describe('the page\'s two doors onto the layers', () => {
       await settle();
       assert.equal(sends.length, refused === 'correction' ? 1 : 0, `${refused}: no resend once the head is known`);
       const kept = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 9000);
-      assert.equal(typeof kept.Card.blocked, 'number', 'kept across a reload');
+      assert.equal(typeof kept.Card.blocked?.since, 'number', 'kept across a reload');
+      const raw = JSON.parse(air.writeSelectionAir(p.part.get()));
+      raw.graphics.Card.blocked = { since: 'soon' };
+      assert.deepEqual(air.readSelectionAir(JSON.stringify(raw), 9000), {}, 'a malformed block is not read');
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7), 7)).landed();
       assert.equal(card(p).held, undefined, `${refused}: the operator's Take lifts it`);
       air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(8, [person('D1', 7, 'Aino Aalto', 1700)])), send });
       await settle();
       assert.equal(sends[sends.length - 1], '1700', `${refused}: following again`);
     }
+  });
+
+  test('a Take or an Out that did not land leaves a marker this page moved: nothing goes on its own until a press lands; a reload reads the marker again', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const send = (graphic, values) => (sends.push(values.f1), Promise.resolve(ANSWERED));
+    // Another screen took Card; this page took cue-a again, which moved its marker back to cue-a.
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)), true).undo();
+    assert.match(card(p).held?.reason ?? '', /did not go through/);
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    await settle();
+    assert.deepEqual(sends, [], 'nothing on its own');
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null);
+    const reopened = io(air.readSelectionAir(air.writeSelectionAir(p.part.get()), 1000));
+    air.followAired(reopened, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    await settle();
+    assert.deepEqual(sends, ['1500'], 'a reopened page reads the marker from the server');
+    // An Update moves no marker: its failure gives back what airs, and following goes on.
+    const u = io();
+    air.pressSelection(u, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(u, 'Card', 'cue-a', ok(selectionOf('D1', 7))).undo();
+    assert.equal(card(u).held, undefined);
+    // An Out on its way: no correction follows it out or overtakes it; landed, the layer goes.
+    const o = io();
+    air.pressSelection(o, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const out = air.pressSelection(o, 'Card', '', { status: 'none' }, true);
+    const during = [];
+    air.followAired(o, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (during.push(v.f1), Promise.resolve(ANSWERED)) });
+    assert.deepEqual(during, [], 'no correction while the Out is out');
+    out.landed();
+    air.followAired(o, { liveCue: {}, seeded: true, facts: facts(collection(6, people6())), send });
+    assert.deepEqual(o.part.get(), {});
+  });
+
+  test('a refusal as stale on any road blocks the layers it names: the page learned the head, so a correction would pass', async () => {
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED));
+    for (const named of [['Card', 'Gone'], ['Other']]) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      air.staleSelection(p, named);
+      air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+      await settle();
+      assert.equal(p.part.get().Gone, undefined, 'a graphic with no layer gets none');
+    }
+    assert.deepEqual(sends, ['1500'], 'the named layer holds; one not named follows');
+  });
+
+  test('a recipe whose field map changed since the Take holds: a field dropped from it stays at its old count on air', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const dropped = [{ ...RECIPE, fields: { f0: RECIPE.fields.f0, f2: RECIPE.fields.f2 } }];
+    air.followAired(p, { liveCue: live, seeded: true, facts: { ...facts(collection(6, people6())), collections: dropped }, send: (g, v) => (sends.push(v), Promise.resolve(ANSWERED)) });
+    assert.deepEqual([sends, card(p).held?.reason], [[], 'its collection recipe changed since it was taken']);
   });
 
   test('a correction that failed with no answer may have aired: an older revision is not sent over it, and it goes once more', async () => {
@@ -1174,7 +1232,7 @@ describe('generated walks: the layer against the output', () => {
     return collection(rev, [person('D1', 7, 'Aino Aalto', rev * 10 + 1), person('D2', 7, 'Bertta Berg', rev * 10 + 2)]);
   };
 
-  const seen = { press: 0, landed: 0, failed: 0, skipped: 0, correction: 0, reload: 0, unknown: 0, decided: 0, held: 0, unsent: 0, plain: 0, uncertain: 0, stale: 0, other: 0 };
+  const seen = { press: 0, landed: 0, failed: 0, skipped: 0, correction: 0, reload: 0, unknown: 0, decided: 0, held: 0, unsent: 0, plain: 0, uncertain: 0, stale: 0, other: 0, blocked: 0 };
   async function walk(seed, steps) {
     const rnd = mulberry(seed);
     const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
@@ -1190,6 +1248,11 @@ describe('generated walks: the layer against the output', () => {
     let head = 0;
     let known = 0;
     let unheard = false;
+    // The marker this page moved itself and nobody has put back (#1696): a layer it made the page
+    // forget stays forgotten, which stops following but sends nothing wrong.
+    let moved = false;
+    let excused = false;
+    let pressedBefore = false;
     // What aired whenever another screen took over: a page that has not settled since may still
     // record it.
     let before = [];
@@ -1248,14 +1311,20 @@ describe('generated walks: the layer against the output', () => {
       // A restored layer that is still settling decides and sends nothing, so it may still show what
       // aired before another screen took the card, until it settles.
       const settlingOver = layer?.settling !== undefined && trueMarker === 'other';
-      if (layer && !layer.unknown && !settlingOver && layer.out.length === 0 && view && keyOf(view) !== keyOf(output)) fail(`${where}: I5 shows ${keyOf(view)}, output ${keyOf(output)}`);
+      // A blocked layer says it does not know what airs, and sends nothing on its own.
+      if (layer && !layer.unknown && !layer.blocked && !settlingOver && layer.out.length === 0 && view && keyOf(view) !== keyOf(output)) fail(`${where}: I5 shows ${keyOf(view)}, output ${keyOf(output)}`);
       // What Snap and events may send for the marker's cue is exactly what airs, or nothing.
       const offered = marker ? air.airedValues(part.get(), 'Card', marker) : null;
       if (offered && (!output || JSON.stringify(offered) !== JSON.stringify(output.values))) fail(`${where}: Snap would send ${JSON.stringify(offered)} while ${keyOf(output)} ${JSON.stringify(output?.values)} airs`);
       // A candidate this page put on air, on the cue the marker names, is never forgotten.
-      if (output && marker === output.cueId && !layer) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
+      if ((moved || pressedBefore) && !layer) excused = true;
+      if (output && marker === output.cueId && !layer && !excused) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
     };
     const followOnce = (t, lossy = false, ordered = true) => {
+      // A layer that did not know what airs after a press of this page got no answer is dropped
+      // when the marker names none of its candidates; a send folded into it may still land, and the
+      // layer then stops following (fail-safe, as #1696).
+      if (part.get().Card?.unknown?.pressed) pressedBefore = true;
       air.followAired(io(), {
         liveCue: marker === undefined ? {} : { Card: marker },
         seeded,
@@ -1290,14 +1359,26 @@ describe('generated walks: the layer against the output', () => {
       const lands = told_ === 'landed';
       log.push(`answer #${send.index} ${send.press ? 'press' : 'correction'} ${keyOf(send.target)} ${told_}`);
       seen[told_] += 1;
-      if (told_ === 'stale') known = head;
+      if (told_ === 'stale') {
+        known = head;
+        // As the page's one sender does for a refusal on any road (graphicVerbs.ts sendWith).
+        air.staleSelection(io(), ['Card']);
+      }
       // What the layer records may trail what airs until the next landed answer.
       if (told_ === 'uncertain') reloaded = true;
       if (lands && send.index > toldIndex) {
         if (waited) reloaded = false;
         toldIndex = send.index;
         told = send.target;
-        if (send.press) marker = send.target ? send.target.cueId : 'plain';
+        if (send.press) {
+          marker = send.target ? send.target.cueId : 'plain';
+          moved = false;
+          // Only an answer the layer still waited on brings it back to following.
+          if (waited) {
+            excused = false;
+            pressedBefore = false;
+          }
+        }
       }
       if (send.press) {
         if (lands) send.closure.landed();
@@ -1340,7 +1421,13 @@ describe('generated walks: the layer against the output', () => {
         seen.press += 1;
         if (!target) seen.plain += 1;
         const before = part.get().Card;
-        const closure = air.pressSelection(io(), 'Card', cueId, t);
+        const closure = air.pressSelection(io(), 'Card', cueId, t, true);
+        // On the fast road this page moves its own marker when it sends (airState.ts
+        // claimAndApply), whatever the server later does with the press.
+        if (rnd() < 0.5) {
+          marker = target ? cueId : 'plain';
+          moved = true;
+        }
         const layer = part.get().Card;
         if (layer !== before) out.push({ index: ++index, seq: layer?.out[layer.out.length - 1]?.seq, base: known, press: true, target, closure });
         else if (!layer && target === null) {
@@ -1403,6 +1490,7 @@ describe('generated walks: the layer against the output', () => {
       const v = air.airedOf(part.get(), 'Card');
       if (v?.held) seen.held += 1;
       if (v?.held?.unsent) seen.unsent += 1;
+      if (now?.blocked) seen.blocked += 1;
       check(`step ${step}`);
     }
     // Drain: what was on its way arrives, the page settles, every answer comes in, then the tree is
@@ -1419,7 +1507,8 @@ describe('generated walks: the layer against the output', () => {
     const view = air.airedOf(part.get(), 'Card');
     if (layer && layer.out.length > 0) fail('sends still out after every answer');
     if (view?.pending) fail('a press still out after every answer');
-    if (layer && !layer.unknown && view) {
+    // A blocked layer holds, says so, and waits for the operator: nothing to compare.
+    if (layer && !layer.unknown && !layer.blocked && view) {
       const t = air.selectionTake({ selection: view.selection }, 'Card', factsOf(tree));
       if (t.status === 'ok' && t.entity === view.entity && !view.held && view.revision !== t.revision) fail(`not following: shows r${view.revision}, tree r${t.revision}`);
       if (t.status !== 'ok' && !view.held) fail('the tree does not resolve what airs, and nothing holds');

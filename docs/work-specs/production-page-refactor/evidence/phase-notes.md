@@ -326,6 +326,27 @@ changes a spec's digest.
   walk presses it. From the automated review of 720de72: a reload decided by the marker dropped
   the candidate's hold, so a revision held for a missing field was never sent once the field came
   back; the decision now keeps the hold. Pinned, red without it.
+  *Fifth assessment on 76ba41f: FAIL*, five findings, all fixed. (1) A Take moves this page's
+  own marker when it is sent (airState.ts `claimAndApply`, on the fast road), and nothing puts it
+  back when the Take does not land (#1696), so the marker could not decide a layer left not
+  knowing by that Take: it named the failed card, whose values then went onto the card on air.
+  A Take or an Out now tells the layer it moves the marker; when one does not land, the layer
+  stops following on its own (`blocked`, shown as "press Update to send it") and an unknown it
+  leaves is never decided by the marker (`unknown.pressed`). Both end when a press lands, and a
+  reload ends them, since a reopened page reads the marker from the server. The same rule
+  covers a later failed Take on a layer a reload left unknown, which the walk found. (2) A
+  refusal as stale on any road (event, Snap, ±, Next, a timed end) taught the head without
+  blocking the layer: the page's one sender now blocks every live candidate on the graphics the
+  refusal names (`staleSelection`; `staleError` names them). (3) An answer the page cannot read
+  may follow a press the server applied: it now counts as no answer (`unread`). Rejections that
+  never left the page still count as no answer; with (1) that only holds what airs. (4) Out and
+  a timed end's Out are presses on their layer, so a correction neither follows them nor
+  overtakes them. (5) A recipe's field map and key are part of its identity (`scope`), so a field
+  dropped from the map holds the candidate rather than leaving that field at its old count. The
+  walk now moves the marker at the press half the time, as the fast road does, and its stale
+  refusals go through the same hook as the page's; a layer the page stops following because of
+  #1696 is excused there only while it sends nothing. 87 reducer, verb and timed-end mutations,
+  each red; 579 gate tests pass.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

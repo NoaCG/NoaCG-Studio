@@ -60,6 +60,9 @@ interface Sent {
   press: boolean;
   cueId: string;
   target: AiredTarget | null;
+  /** A Take or an Out: it moved this page's marker when it was sent (airState.ts
+   *  `claimAndApply`), and nothing puts the marker back if it does not land (#1696). */
+  moves?: true;
 }
 
 /** Why a layer is held, since when, and the revision that said so (`unsent`: a correction whose
@@ -92,15 +95,17 @@ export interface SelectionLayer {
   marks: Record<string, Marks>;
   /** Restored with a press to another cue or entity unanswered: one of these airs, or a cue
    *  without a selection taken onto the layer (`plains`), which is not known. Held, nothing sent,
-   *  until the marker or an operator press decides. */
-  unknown?: { since: number; candidates: AiredTarget[]; plains?: string[] };
+   *  until the marker or an operator press decides. `pressed`: a press of this page that got no
+   *  answer made it so; this page moved the marker itself when it sent (airState.ts
+   *  `claimAndApply`), so the marker says nothing, and only an operator press decides. */
+  unknown?: { since: number; candidates: AiredTarget[]; plains?: string[]; pressed?: true };
   /** Restored with sends whose answers were lost: until then one of them may still reach the
    *  server (a page left and reopened inside its resend window), so nothing is decided or sent. */
   settling?: number;
-  /** Since when a send to this layer was refused because another screen changed the graphic: what
-   *  airs is no longer this page's candidate alone, so nothing is sent on its own until an
-   *  operator press of this page lands. */
-  blocked?: number;
+  /** Since when nothing is sent on its own, until an operator press of this page lands: a send to
+   *  this layer was refused because another screen changed the graphic (`stale`), or a Take or an
+   *  Out did not land, so the marker it moved says nothing about what airs. */
+  blocked?: { since: number; stale?: true };
 }
 
 /** Every layer with a live candidate, by graphic name (the wire key, which is the layer). */
@@ -135,8 +140,11 @@ function resolveOn(selection: unknown, graphic: string, facts: SelectionFacts): 
   if (gate.status !== 'ok') return { status: 'refused', reason: gate.reason };
   const resolved = resolveSelection({ recipe: gate.recipe, tree: facts.tree, key: gate.selection.key, fields: facts.fieldsOf(graphic) });
   if (resolved.status !== 'ok') return { status: 'refused', reason: `Not ready: ${resolved.reason}.`, hold: resolved };
-  const { id, sourceId, schemaRevision, from } = gate.recipe;
-  return { status: 'ok', selection: gate.selection, scope: JSON.stringify([id, sourceId, schemaRevision, from]), entity: resolved.entity, revision: resolved.revision, values: resolved.values };
+  // The field map and key belong to the recipe's identity: a field dropped from the map since leaves
+  // that field on air at the old count, which only a Take or an Update may change.
+  const { id, sourceId, schemaRevision, from, key, fields } = gate.recipe;
+  const map = Object.entries(fields).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return { status: 'ok', selection: gate.selection, scope: JSON.stringify([id, sourceId, schemaRevision, from, key, map]), entity: resolved.entity, revision: resolved.revision, values: resolved.values };
 }
 
 /**
@@ -163,6 +171,8 @@ const believedOf = (l: SelectionLayer): AiredTarget | null => (l.out.length > 0 
 const pressOut = (l: SelectionLayer): boolean => l.out.some((s) => s.press);
 
 const UNKNOWN_REASON = 'it is not known which candidate is on air after the page reloaded';
+const MOVED_REASON = 'a Take or an Out did not go through, so this page does not know what airs: press Update to send it';
+const UNANSWERED_REASON = 'a send got no answer, so it is not known which candidate is on air: press Update to send it';
 const STALE_REASON = 'another screen changed this card, so a newer count is not sent on its own: press Update to send it';
 const UNORDERED_REASON = 'a newer count arrived, and this page cannot send it on its own (it sends without per-graphic order): press Update to send it';
 
@@ -195,7 +205,7 @@ const settledLayer = ({ unknown: _unknown, settling: _settling, blocked: _blocke
  * For the candidate on air, its revision is kept as a bound (`lostAt`); a press to another cue,
  * person or recipe makes the layer not know which airs (`unknown`).
  */
-function lost(l: SelectionLayer, sends: readonly Sent[], settling: number): SelectionLayer {
+function lost(l: SelectionLayer, sends: readonly Sent[], settling: number, pressed = false): SelectionLayer {
   if (sends.length === 0) return l;
   if (!l.unknown && l.onAir && sends.every((s) => sameEntity(s.target, l.onAir))) {
     const m = marksOf(l, l.onAir);
@@ -205,7 +215,8 @@ function lost(l: SelectionLayer, sends: readonly Sent[], settling: number): Sele
   const candidates = [...(l.unknown?.candidates ?? []), l.onAir, ...sends.map((s) => s.target)].filter((t): t is AiredTarget => t !== null);
   const plains = [...new Set([...(l.unknown?.plains ?? []), ...sends.flatMap((s) => (s.target === null ? [s.cueId] : []))])];
   if (candidates.length === 0) return l;
-  return { ...l, settling: Math.max(l.settling ?? 0, settling), unknown: { since: l.unknown?.since ?? settling - SETTLE_MS, candidates, ...(plains.length > 0 ? { plains } : {}) } };
+  const marked = pressed || l.unknown?.pressed === true;
+  return { ...l, settling: Math.max(l.settling ?? 0, settling), unknown: { since: l.unknown?.since ?? settling - SETTLE_MS, candidates, ...(plains.length > 0 ? { plains } : {}), ...(marked ? { pressed: true as const } : {}) } };
 }
 
 /** The newest revision sent for one entity: what airs and what is out for it (`t` itself counts
@@ -222,7 +233,9 @@ const boundOf = (l: SelectionLayer, t: AiredTarget): number => Math.max(marksOf(
 export type SelectionEvent =
   /** A Take or an Update put this cue's selection on the layer (`take` none: a cue without one),
    *  as send `seq`. */
-  | { t: 'press'; cueId: string; take: SelectionTake; seq: number; now: number }
+  | { t: 'press'; cueId: string; take: SelectionTake; seq: number; moves?: boolean; now: number }
+  /** A send on another road was refused because another screen changed the graphic. */
+  | { t: 'stale'; now: number }
   /** The send numbered `seq` was answered: it reached the output, or it did not. `uncertain`: it
    *  failed without the server saying no (no answer in time), so it may still commit; `stale`:
    *  the server refused it because another screen changed the graphic since. */
@@ -238,7 +251,7 @@ interface Step {
   send?: { seq: number; values: Record<string, string> };
 }
 
-function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTake, seq: number, now: number): Step {
+function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTake, seq: number, now: number, moves = false): Step {
   if (take.status === 'refused') return { layer: l0 };
   const target: AiredTarget | null = take.status === 'ok' ? { cueId, selection: take.selection, scope: take.scope, entity: take.entity, revision: take.revision, values: take.values, at: now } : null;
   // A cue without a selection onto a layer with none: nothing to follow.
@@ -246,7 +259,7 @@ function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTak
   const l = l0 ?? { onAir: null, out: [], marks: {} };
   // An explicit press is the operator's decision: the entity's hold ends with it (a later read
   // judges again), and its bound stays at least what airs, so an older read is still rejected.
-  let next: SelectionLayer = { ...l, out: [...l.out, { seq, press: true, cueId, target }] };
+  let next: SelectionLayer = { ...l, out: [...l.out, { seq, press: true, cueId, target, ...(moves ? { moves: true as const } : {}) }] };
   if (target) {
     const { held: _held, ...kept } = marksOf(l, target);
     next = withMarks(next, target, kept);
@@ -268,17 +281,20 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
     if (sent.target && m?.lostAt !== undefined && sent.target.revision >= m.lostAt) next = withMarks(next, sent.target, { ...m, lostAt: undefined });
     return { layer: pruned(sent.press ? settledLayer(next) : next) };
   }
-  const next: SelectionLayer = { ...l, out: l.out.filter((s) => s.seq !== seq) };
+  const left: SelectionLayer = { ...l, out: l.out.filter((s) => s.seq !== seq) };
+  // A Take or an Out that did not land left the marker where this page moved it when it sent, so
+  // the marker can no longer decide what airs; another screen's change means the same.
+  const moved = sent.press && sent.moves === true;
+  const block = moved || stale ? { blocked: { since: left.blocked?.since ?? now, ...(stale || left.blocked?.stale ? { stale: true as const } : {}) } } : {};
+  const next: SelectionLayer = { ...left, ...block, ...(moved && left.unknown ? { unknown: { ...left.unknown, pressed: true as const } } : {}) };
   // A press that failed with no answer may still commit: it is not known not to have aired, nor,
   // if it did, whether the sends before it (still out) aired first. Their answers no longer decide
   // (a later one landing may be overtaken by it); the marker or a newer press that lands does.
   if (!landed && uncertain && sent.press) {
     const before = next.out.filter((s) => s.seq < seq);
     const after = { ...next, out: next.out.filter((s) => s.seq > seq) };
-    return { layer: pruned(lost(after, [...before, sent], now + SETTLE_MS)) };
+    return { layer: pruned(lost(after, [...before, sent], now + SETTLE_MS, moved)) };
   }
-  // Another screen changed the graphic: nothing is followed on its own until this page presses.
-  if (!landed && stale) return failedCorrection({ ...next, blocked: next.blocked ?? now }, sent, landed, now);
   // A correction that failed with no answer may have aired: nothing older goes over it.
   const kept = !landed && uncertain && !sent.press && sent.target ? (() => {
     const m = marksOf(next, sent.target);
@@ -315,8 +331,9 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
     const matches = l.unknown.candidates.filter((c) => c.cueId === live);
     const plain = l.unknown.plains?.includes(live) ?? false;
     if (matches.length === 0) return { layer: undefined };
-    // The marker's cue was also taken without a selection: it cannot tell which airs.
-    if (plain) return { layer: l };
+    // The marker's cue was also taken without a selection, or this page moved the marker itself
+    // with a press that got no answer: it cannot tell which airs.
+    if (plain || l.unknown.pressed) return { layer: l };
     // The marker names a cue only one entity could be: that one airs, at its OLDEST revision any
     // send could have left (which of them landed is not known), so the follow sends anything newer
     // again and never takes a newer revision for aired when it was not.
@@ -388,7 +405,8 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
 
 /** One layer, one event. */
 export function reduceLayer(l: SelectionLayer | undefined, graphic: string, ev: SelectionEvent): Step {
-  if (ev.t === 'press') return press(l, ev.cueId, ev.take, ev.seq, ev.now);
+  if (ev.t === 'press') return press(l, ev.cueId, ev.take, ev.seq, ev.now, ev.moves);
+  if (ev.t === 'stale') return { layer: l && { ...l, blocked: { since: l.blocked?.since ?? ev.now, stale: true } } };
   if (ev.t === 'answer') return answer(l, ev.seq, ev.landed, ev.now, ev.uncertain, ev.stale);
   return l ? follow(l, graphic, ev.live, ev.seeded, ev.facts, ev.mint, ev.now) : { layer: undefined };
 }
@@ -449,11 +467,11 @@ export function airedOf(air: SelectionAir, graphic: string): AiredView | null {
   if (!l) return null;
   if (l.unknown) {
     const last = l.unknown.candidates[l.unknown.candidates.length - 1];
-    return { ...last, held: { reason: UNKNOWN_REASON, since: l.unknown.since, revision: null }, pending: pressOut(l), known: false };
+    return { ...last, held: { reason: l.unknown.pressed ? UNANSWERED_REASON : UNKNOWN_REASON, since: l.unknown.since, revision: null }, pending: pressOut(l), known: false };
   }
   const believed = believedOf(l);
   if (!believed) return null;
-  const held = l.blocked !== undefined ? { reason: STALE_REASON, since: l.blocked, revision: null } : l.marks[markKey(believed)]?.held;
+  const held = l.blocked ? { reason: l.blocked.stale ? STALE_REASON : MOVED_REASON, since: l.blocked.since, revision: null } : l.marks[markKey(believed)]?.held;
   const showing = l.onAir && sameEntity(l.onAir, believed) ? { revision: l.onAir.revision, at: l.onAir.at } : undefined;
   return { ...believed, held, pending: pressOut(l), known: true, ...(showing ? { showing } : {}) };
 }
@@ -551,7 +569,12 @@ const isMarks = (m: unknown): m is Marks => {
  * bound back to what a hold judged. A press to another cue or entity was out: which one airs is
  * not known, and the layer holds.
  */
-function restored(l: SelectionLayer, now: number): SelectionLayer {
+function restored(raw: SelectionLayer, now: number): SelectionLayer {
+  // A reopened page reads the marker from the server, so it decides again, and a marker this page
+  // moved no longer blocks it; another screen's change still does.
+  const { pressed: _pressed, ...unknown } = raw.unknown ?? {};
+  const { blocked, ...rest } = raw;
+  const l: SelectionLayer = { ...rest, ...(blocked?.stale ? { blocked } : {}), ...(raw.unknown ? { unknown: unknown as NonNullable<SelectionLayer['unknown']> } : {}) };
   if (l.out.length === 0) return l;
   // Already not known (a reload before this one): every candidate it had still may air. A layer
   // that showed nothing and had only a cue without a selection out has nothing to follow.
@@ -597,7 +620,7 @@ export function readSelectionAir(raw: string | null, now: number = Date.now()): 
       typeof l.marks === 'object' &&
       Object.values(l.marks).every(isMarks) &&
       (l.settling === undefined || typeof l.settling === 'number') &&
-      (l.blocked === undefined || typeof l.blocked === 'number') &&
+      (l.blocked === undefined || (!!l.blocked && typeof l.blocked.since === 'number' && (l.blocked.stale === undefined || l.blocked.stale === true))) &&
       (l.unknown === undefined ||
         (typeof l.unknown.since === 'number' &&
           Array.isArray(l.unknown.candidates) &&
@@ -642,11 +665,11 @@ export interface SendFailure {
   stale?: true;
 }
 
-/** A Take or an Update put this cue's selection on the layer (none: a cue without one). Its
- *  answer is `landed` or `undo` (with how it failed, if it did), once; each follows the newest
- *  tree after. */
-export function pressSelection(io: SelectionAirIo, graphic: string, cueId: string, take: SelectionTake): { landed: () => void; undo: (failed?: SendFailure) => void } {
-  const { air, seq } = reduceSelection(io.part.get(), { t: 'press', graphic, cueId, take, seq: mintSend(), now: io.now() });
+/** A Take, an Out or an Update put this cue's selection on the layer (none: a cue without one, or
+ *  nothing). Its answer is `landed` or `undo` (with how it failed, if it did), once; each follows
+ *  the newest tree after. `moves`: a Take or an Out, which moves this page's marker as it sends. */
+export function pressSelection(io: SelectionAirIo, graphic: string, cueId: string, take: SelectionTake, moves = false): { landed: () => void; undo: (failed?: SendFailure) => void } {
+  const { air, seq } = reduceSelection(io.part.get(), { t: 'press', graphic, cueId, take, seq: mintSend(), moves, now: io.now() });
   keepIn(io, air);
   let answered = false;
   const settle = (landed: boolean, failed?: SendFailure) => {
@@ -680,6 +703,15 @@ export function followAired(
       keepIn(io, reduceSelection(io.part.get(), { t: 'answer', graphic: one.graphic, seq: one.seq, landed: sent.ok && reachedOutput(sent, one.graphic), ...failed, now: io.now() }).air);
     });
   }
+}
+
+/** A send on any road was refused because another screen changed these graphics: this page
+ *  learned their head, so a correction would pass the server's check; nothing goes on its own
+ *  there until an operator press of this page lands. */
+export function staleSelection(io: SelectionAirIo, graphics: readonly string[]): void {
+  let air = io.part.get();
+  for (const graphic of graphics) air = reduceSelection(air, { t: 'stale', graphic, now: io.now() }).air;
+  keepIn(io, air);
 }
 
 /** Whether an action carries field values (it reads some into its payload, or moves some): such
