@@ -291,7 +291,7 @@ changes a spec's digest.
   (`askSeqRoad`) it would make that risk happen with nobody pressing anything. The follow now
   sends only on the ordered road (`hostedControl.ts` `sendsInOrder`: a sequence session exists
   for the slug, an extra export); otherwise the layer holds what airs, says off air that a
-  newer count arrived and the card must be taken again, and the operator's own presses still go.
+  newer count arrived and Update sends it, and the operator's own presses still go.
   Pinned in Node, in the walk (a read on protocol 1 must send nothing), and by a fourth
   configured walk that forces the fallback (the resolve answered PGRST202): no correction on
   its own, the hold shown, the operator's Update still airs the newer count (`minTests` 123 to 124).
@@ -300,6 +300,32 @@ changes a spec's digest.
   marker still named could overwrite a candidate whose Take had reached the output but not been
   answered; `airValues` (graphicVerbs.ts) now leaves out every field the layer protects as well
   as the cue's own candidate fields. Pinned in `scripts/graphic-verbs.test.mjs`, red without it.
+  *Fourth assessment on 2dd893d: FAIL*, four findings, all fixed in 76ba41f. (F1) A Take that
+  failed with no answer could still commit late, while the layer took it back and sent the old
+  card's correction onto the new one. A failed send now says how it failed (graphicVerbs.ts
+  `Sent`: `uncertain` when the server did not answer, `stale` when it refused because another
+  screen changed the graphic). A press with no answer is treated like a send lost in a reload:
+  with the sends before it, it makes the layer settle and, for another card, not know which
+  airs, until the marker or a newer press that lands decides. A correction with no answer raises
+  the lost-revision bound. The page now follows once more whenever a layer stops settling, not
+  only after a load. (F3) A send refused as stale stops the automatic follow for that layer
+  (`blocked`, kept across a reload, shown as a hold, no Snap values) until an operator press of
+  this page lands: the page then knows the head, and a resend would pass the server's check.
+  (F2) ± refused only the edited cue's candidate fields: it now refuses the layer's protected
+  fields too, and ± and events ask again after the save wait. (F4) Protection now also comes from
+  the field keys captured with each candidate (`protectedFields`), so a recipe changed or removed
+  since cannot empty it. The hold line names the revision the output shows (`showing`), not one
+  still on its way. The walk now also answers sends with no answer (they may land later) and has
+  another screen take a plain card, which the server's per-sender base check refuses for any
+  send based before it; it found three of the cases above. 64 reducer and 9 verb mutations, each
+  red. The settle timer in ProductionPage has no Node test (it is a timer over `nextSettle`,
+  which has one).
+  On 063028f: the configured protocol-1 walk failed on CI twice on one commit (a real failure,
+  not a flake). It pressed Take on the card already live, and Take on a live card takes it off.
+  The hold lines told the operator the same wrong thing; they now say to press Update, and the
+  walk presses it. From the automated review of 720de72: a reload decided by the marker dropped
+  the candidate's hold, so a revision held for a missing field was never sent once the field came
+  back; the decision now keeps the hold. Pinned, red without it.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything
