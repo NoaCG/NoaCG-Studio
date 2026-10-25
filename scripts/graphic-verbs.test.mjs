@@ -1471,6 +1471,23 @@ test("this page's own cue markers heard back are the sender's on a graphic it pr
   assert.deepEqual(r.verbs.heard(rows, mine), rows.slice(1));
   // Reopened: a new sender has pressed nothing, so the page applies them all.
   assert.deepEqual(rig().verbs.heard(rows, mine), rows);
+
+  // Reopened, a Take of the new sender on the graphic refused, or still out and then refused: the
+  // earlier mount's committed Take, heard late, is applied, and stays.
+  for (const when of ['after', 'while out']) {
+    const n = rig({ fast: true });
+    n.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
+    const take = await pressTake(n, 'c2');
+    const earlier = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'mine' } }];
+    const hearIt = () => {
+      for (const item of n.verbs.heard(earlier, mine)) n.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+    };
+    if (when === 'while out') hearIt();
+    take.send.answer.reject(new Error('refused'));
+    await take.taking;
+    if (when === 'after') hearIt();
+    assert.deepEqual(n.liveCue(), { Strap: 'c1' }, when);
+  }
 });
 
 test('a send that throws before it goes leaves no marker press out (#1696)', async () => {

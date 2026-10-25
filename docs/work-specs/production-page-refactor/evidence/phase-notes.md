@@ -23,15 +23,18 @@ changes a spec's digest.
     next marker write. Protocol 1 has no per-graphic order at all, and #1697 reworks it. Moving
     those writes into the sender would change those modules' contracts and test rigs, so it stays
     out of this fix.
-  - The page no longer moves the marker for this page's own cue markers heard back, on either
-    road, on a graphic this sender pressed. `hearCommand` applies what `verbs.heard` hands back,
-    which uses `liveCue.ts` `withoutOwnMarkers`. The sender writes those markers from its answers,
-    and from the rows of presses that got none. A marker sent by an earlier mount of the page is
-    still applied: a production left and reopened in the same tab gets a new sender, which has
-    pressed nothing there yet. Before this, a slow-road press's own row heard
-    late put its older cue over a newer press that had landed. A send of several batches books
-    each batch's markers on their own, so one batch landing and the next failing leaves the
-    first batch's cue.
+  - The page no longer moves the marker for this page load's own cue markers heard back, on either
+    road, on a graphic where a press of this sender has landed. `hearCommand` applies what
+    `verbs.heard` hands back, which uses `liveCue.ts` `withoutOwnMarkers`. On such a graphic the
+    sender writes the marker from its answers, and from the rows of presses that got none. An
+    own row there is then an older press's, or one the answers already wrote. The server skips a
+    press older than one it applied, so an older press can only have aired before. Before any
+    press of this sender lands on a graphic, own rows apply as they always did. That keeps a
+    press made before the production was left and reopened in the same tab, whose row comes after
+    reopening: nothing else would mark it. That holds even when the new sender's own press there
+    failed (a Codex finding). Before this, a slow-road press's own row heard late put its older cue
+    over a newer press that had landed. A send of several batches books each batch's markers on
+    their own, so one batch landing and the next failing leaves the first batch's cue.
   - A press that landed names its cue unless a newer marker press of this page landed (a late older
     answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
     puts back the newest press that landed, or the marker from before the first press still out.
