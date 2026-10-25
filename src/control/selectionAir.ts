@@ -77,8 +77,6 @@ interface Marks {
 export interface SelectionLayer {
   /** What the output shows, by the landed send with the highest number; null: nothing captured. */
   onAir: AiredTarget | null;
-  /** The number of the last send made. */
-  seq: number;
   /** The sends not answered yet, in send order. */
   out: Sent[];
   /** Per entity the layer may show (`markKey`). */
@@ -170,12 +168,14 @@ function boundOf(l: SelectionLayer, t: AiredTarget): number {
 
 /** The events one layer changes by. */
 export type SelectionEvent =
-  /** A Take or an Update put this cue's selection on the layer (`take` none: a cue without one). */
-  | { t: 'press'; cueId: string; take: SelectionTake; now: number }
+  /** A Take or an Update put this cue's selection on the layer (`take` none: a cue without one),
+   *  as send `seq`. */
+  | { t: 'press'; cueId: string; take: SelectionTake; seq: number; now: number }
   /** The send numbered `seq` was answered: it reached the output, or it did not. */
   | { t: 'answer'; seq: number; landed: boolean; now: number }
-  /** One read of the tree, with what the layer's graphic airs now and whether that is known yet. */
-  | { t: 'follow'; live: string | undefined; seeded: boolean; facts: SelectionFacts; now: number };
+  /** One read of the tree, with what the layer's graphic airs now and whether that is known yet;
+   *  `mint` numbers a correction it sends. */
+  | { t: 'follow'; live: string | undefined; seeded: boolean; facts: SelectionFacts; mint: () => number; now: number };
 
 /** What one event did: the layer (undefined: gone), the number of a press, a correction to send. */
 interface Step {
@@ -184,16 +184,15 @@ interface Step {
   send?: { seq: number; values: Record<string, string> };
 }
 
-function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTake, now: number): Step {
+function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTake, seq: number, now: number): Step {
   if (take.status === 'refused') return { layer: l0 };
   const target: AiredTarget | null = take.status === 'ok' ? { cueId, selection: take.selection, entity: take.entity, revision: take.revision, values: take.values, at: now } : null;
   // A cue without a selection onto a layer with none: nothing to follow.
   if (!l0 && !target) return { layer: undefined };
-  const l = l0 ?? { onAir: null, seq: 0, out: [], marks: {} };
-  const seq = l.seq + 1;
+  const l = l0 ?? { onAir: null, out: [], marks: {} };
   // An explicit press is the operator's decision: the entity's hold ends with it (a later read
   // judges again), and its bound stays at least what airs, so an older read is still rejected.
-  let next: SelectionLayer = { ...l, seq, out: [...l.out, { seq, press: true, target }] };
+  let next: SelectionLayer = { ...l, out: [...l.out, { seq, press: true, target }] };
   if (target) next = withMarks(next, target, { heldAt: marksOf(l, target).heldAt });
   return { layer: next, seq };
 }
@@ -221,7 +220,7 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
   return { layer: pruned(next) };
 }
 
-function follow(l: SelectionLayer, graphic: string, live: string | undefined, seeded: boolean, facts: SelectionFacts, now: number): Step {
+function follow(l: SelectionLayer, graphic: string, live: string | undefined, seeded: boolean, facts: SelectionFacts, mint: () => number, now: number): Step {
   // A press is out: the marker has not moved yet and the page does not know what airs; its own
   // answer settles the layer, and the follow runs again then.
   if (pressOut(l)) return { layer: l };
@@ -247,9 +246,9 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
   const floor = boundOf(l, believed);
   if (take.status === 'ok') {
     if (take.revision > floor && take.entity === believed.entity) {
-      const seq = l.seq + 1;
+      const seq = mint();
       const target: AiredTarget = { ...believed, revision: take.revision, values: take.values, at: now };
-      const next = withMarks({ ...l, seq, out: [...l.out, { seq, press: false, target }] }, believed, { heldAt: m.heldAt });
+      const next = withMarks({ ...l, out: [...l.out, { seq, press: false, target }] }, believed, { heldAt: m.heldAt });
       return { layer: next, send: { seq, values: take.values } };
     }
     // The newest revision judged reads well again (a malformed read passed, or the graphic's
@@ -272,15 +271,16 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
 
 /** One layer, one event. */
 export function reduceLayer(l: SelectionLayer | undefined, graphic: string, ev: SelectionEvent): Step {
-  if (ev.t === 'press') return press(l, ev.cueId, ev.take, ev.now);
+  if (ev.t === 'press') return press(l, ev.cueId, ev.take, ev.seq, ev.now);
   if (ev.t === 'answer') return answer(l, ev.seq, ev.landed, ev.now);
-  return l ? follow(l, graphic, ev.live, ev.seeded, ev.facts, ev.now) : { layer: undefined };
+  return l ? follow(l, graphic, ev.live, ev.seeded, ev.facts, ev.mint, ev.now) : { layer: undefined };
 }
 
 /**
  * THE reducer: a press or an answer changes one layer; a follow reads every layer against what
  * its graphic airs now (`liveCue`) and returns the corrections to send. The same object comes
- * back when nothing changed.
+ * back when nothing changed. Send numbers come from the caller, in send order and never reused
+ * (`mintSend`), so an answer to a send of a layer since removed can never settle a later one.
  */
 export function reduceSelection(
   air: SelectionAir,
@@ -288,11 +288,11 @@ export function reduceSelection(
 ): { air: SelectionAir; seq?: number };
 export function reduceSelection(
   air: SelectionAir,
-  ev: { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; now: number },
+  ev: { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; mint: () => number; now: number },
 ): { air: SelectionAir; sends: { graphic: string; seq: number; values: Record<string, string> }[] };
 export function reduceSelection(
   air: SelectionAir,
-  ev: (Exclude<SelectionEvent, { t: 'follow' }> & { graphic: string }) | { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; now: number },
+  ev: (Exclude<SelectionEvent, { t: 'follow' }> & { graphic: string }) | { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; mint: () => number; now: number },
 ): { air: SelectionAir; seq?: number; sends?: { graphic: string; seq: number; values: Record<string, string> }[] } {
   const put = (a: SelectionAir, graphic: string, layer: SelectionLayer | undefined): SelectionAir => {
     if (a[graphic] === layer) return a;
@@ -308,7 +308,7 @@ export function reduceSelection(
   let next = air;
   const sends: { graphic: string; seq: number; values: Record<string, string> }[] = [];
   for (const [graphic, layer] of Object.entries(air)) {
-    const step = follow(layer, graphic, ev.liveCue[graphic], ev.seeded, ev.facts, ev.now);
+    const step = follow(layer, graphic, ev.liveCue[graphic], ev.seeded, ev.facts, ev.mint, ev.now);
     next = put(next, graphic, step.layer);
     if (step.send) sends.push({ graphic, ...step.send });
   }
@@ -411,7 +411,6 @@ export function readSelectionAir(raw: string | null, now: number = Date.now()): 
     const sane =
       !!l &&
       (l.onAir === null || isTarget(l.onAir)) &&
-      Number.isInteger(l.seq) &&
       Array.isArray(l.out) &&
       l.out.every((s) => !!s && Number.isInteger(s.seq) && typeof s.press === 'boolean' && (s.target === null || isTarget(s.target))) &&
       !!l.marks &&
@@ -440,6 +439,11 @@ export interface SelectionAirIo {
   alive?: () => boolean;
 }
 
+/** Send numbers for this page: increasing, never reused while it lives. A restored page's layers
+ *  have no send out, so numbering afresh after a reload meets no old send. */
+let minted = 0;
+export const mintSend = (): number => ++minted;
+
 const keepIn = (io: SelectionAirIo, air: SelectionAir): void => {
   if (io.alive?.() !== false && air !== io.part.get()) io.keep(air);
 };
@@ -447,7 +451,7 @@ const keepIn = (io: SelectionAirIo, air: SelectionAir): void => {
 /** A Take or an Update put this cue's selection on the layer (none: a cue without one). Its
  *  answer is `landed` or `undo`, once; each follows the newest tree after. */
 export function pressSelection(io: SelectionAirIo, graphic: string, cueId: string, take: SelectionTake): { landed: () => void; undo: () => void } {
-  const { air, seq } = reduceSelection(io.part.get(), { t: 'press', graphic, cueId, take, now: io.now() });
+  const { air, seq } = reduceSelection(io.part.get(), { t: 'press', graphic, cueId, take, seq: mintSend(), now: io.now() });
   keepIn(io, air);
   let answered = false;
   const settle = (landed: boolean) => {
@@ -469,7 +473,7 @@ export function followAired(
   io: SelectionAirIo,
   o: { liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; send: (graphic: string, values: Record<string, string>) => Promise<{ skipped: readonly string[]; superseded: readonly string[] } | null> },
 ): void {
-  const { air, sends } = reduceSelection(io.part.get(), { t: 'follow', liveCue: o.liveCue, seeded: o.seeded, facts: o.facts, now: io.now() });
+  const { air, sends } = reduceSelection(io.part.get(), { t: 'follow', liveCue: o.liveCue, seeded: o.seeded, facts: o.facts, mint: mintSend, now: io.now() });
   keepIn(io, air);
   for (const one of sends) {
     void o.send(one.graphic, one.values).then((sent) => {

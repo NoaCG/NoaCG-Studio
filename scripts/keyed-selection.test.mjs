@@ -251,7 +251,7 @@ describe('the read gate', () => {
 const people6 = () => [person('D1', 7, 'Aino Aalto', 1500, { party: 'Green' }), ...BASE.slice(1)];
 
 // One layer through the reducer: a press, its answer, a follow (one read against what airs).
-const pressed = (state, cueId, t, now = 1000) => air.reduceSelection(state, { t: 'press', graphic: 'Card', cueId, take: t, now });
+const pressed = (state, cueId, t, now = 1000) => air.reduceSelection(state, { t: 'press', graphic: 'Card', cueId, take: t, seq: air.mintSend(), now });
 const answered = (state, seq, landed, now = 1100) => air.reduceSelection(state, { t: 'answer', graphic: 'Card', seq, landed, now }).air;
 const shown = (state) => air.airedOf(state, 'Card');
 const marks = (state) => Object.values(state.Card.marks)[0];
@@ -264,8 +264,8 @@ describe('the aired instance', () => {
     const p = pressed({}, 'cue-a', t);
     return answered(p.air, p.seq, true);
   };
-  const follow = (state, c, now = 2000, liveCue = live) => air.reduceSelection(state, { t: 'follow', liveCue, seeded: true, facts: facts(c), now });
-  const reconcile = (state, liveCue, seeded) => air.reduceSelection(state, { t: 'follow', liveCue, seeded, facts: facts(collection(5, BASE), { readable: false }), now: 0 }).air;
+  const follow = (state, c, now = 2000, liveCue = live) => air.reduceSelection(state, { t: 'follow', liveCue, seeded: true, facts: facts(c), mint: air.mintSend, now });
+  const reconcile = (state, liveCue, seeded) => air.reduceSelection(state, { t: 'follow', liveCue, seeded, facts: facts(collection(5, BASE), { readable: false }), mint: air.mintSend, now: 0 }).air;
 
   test('a count increase and a newer downward correction each go out once, whole', () => {
     let state = captured();
@@ -330,7 +330,7 @@ describe('the aired instance', () => {
     assert.deepEqual([same.sends, shown(same.air).held], [[], undefined]);
     // A hold the aired revision itself set (the graphic lost a mapped field) ends when that
     // revision reads well again: nothing newer is needed (/so D5).
-    const lost = air.reduceSelection(captured(), { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(5, BASE), { fieldsOf: () => [text('f0')] }), now: 4000 }).air;
+    const lost = air.reduceSelection(captured(), { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(5, BASE), { fieldsOf: () => [text('f0')] }), mint: air.mintSend, now: 4000 }).air;
     assert.equal(shown(lost).held?.revision, 5);
     assert.equal(shown(follow(lost, collection(5, BASE), 5000).air).held, undefined);
   });
@@ -406,7 +406,7 @@ describe('the aired instance', () => {
 
   test('a failed press gives back only its own layer: what the output shows, with every later press standing', () => {
     const a = captured();
-    const bug = air.reduceSelection(a, { t: 'press', graphic: 'Bug', cueId: 'cue-bug', take: take(selectionOf('D1', 8), collection(5, BASE)), now: 1500 });
+    const bug = air.reduceSelection(a, { t: 'press', graphic: 'Bug', cueId: 'cue-bug', take: take(selectionOf('D1', 8), collection(5, BASE)), seq: air.mintSend(), now: 1500 });
     const b = pressed(bug.air, 'cue-b', take(selectionOf('D2', 7), collection(5, BASE)), 2000);
     const undone = answered(b.air, b.seq, false);
     assert.equal(shown(undone).cueId, 'cue-a');
@@ -469,7 +469,7 @@ describe('the aired instance', () => {
     const state = captured();
     assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state)), state);
     const bad = (layer) => JSON.stringify({ v: 2, graphics: { Card: layer } });
-    for (const raw of [null, '', '{', 'null', '7', JSON.stringify({ v: 1, graphics: state }), bad({ ...state.Card, seq: 'x' }), bad({ ...state.Card, onAir: { ...state.Card.onAir, revision: 'x' } }), bad({ ...state.Card, marks: { k: { bound: null } } })]) {
+    for (const raw of [null, '', '{', 'null', '7', JSON.stringify({ v: 1, graphics: state }), bad({ ...state.Card, out: [{ seq: 'x', press: true, target: null }] }), bad({ ...state.Card, onAir: { ...state.Card.onAir, revision: 'x' } }), bad({ ...state.Card, marks: { k: { bound: null } } })]) {
       assert.deepEqual(air.readSelectionAir(raw), {}, String(raw));
     }
   });
@@ -710,7 +710,7 @@ describe('the page\'s two doors onto the layers', () => {
     assert.equal(card(p).revision, 6, 'out, not answered');
     const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()));
     assert.deepEqual([air.airedOf(restored, 'Card').revision, air.airedOf(restored, 'Card').values.f1], [5, '1200']);
-    const again = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(6, people6())), now: 9000 });
+    const again = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(6, people6())), mint: air.mintSend, now: 9000 });
     assert.deepEqual(again.sends.map((x) => x.values.f1), ['1500'], 'revision 6 goes again');
     const u = io();
     air.pressSelection(u, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -718,7 +718,7 @@ describe('the page\'s two doors onto the layers', () => {
     air.pressSelection(u, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(7, [person('D1', 7, 'Aino Aalto', 1600)])));
     const back = air.readSelectionAir(air.writeSelectionAir(u.part.get()));
     assert.deepEqual([air.airedOf(back, 'Card').revision, air.airedOf(back, 'Card').known], [5, true], 'neither Update is known to have landed: 5 is what airs');
-    const sent = air.reduceSelection(back, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), now: 9000 });
+    const sent = air.reduceSelection(back, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), mint: air.mintSend, now: 9000 });
     assert.deepEqual(sent.sends.map((x) => x.values.f1), ['1600'], 'and the newest revision goes');
   });
 
@@ -729,7 +729,7 @@ describe('the page\'s two doors onto the layers', () => {
     const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
     const view = air.airedOf(restored, 'Card');
     assert.deepEqual([view.known, view.held?.reason, view.held?.since], [false, 'it is not known which candidate is on air after the page reloaded', 8000]);
-    const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, BASE)), now: 9000 });
+    const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, BASE)), mint: air.mintSend, now: 9000 });
     assert.deepEqual(read.sends, [], 'the marker names the cue both share: still not known, nothing sent');
     const q = { ...io(restored) };
     air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D2', 7), 7)).landed();
@@ -774,6 +774,23 @@ describe('the page\'s two doors onto the layers', () => {
     }
   });
 
+  test('an answer to a send of a layer since removed never settles a later press: send numbers are never reused', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    let answer;
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: () => new Promise((r) => (answer = r)) });
+    air.followAired(p, { liveCue: {}, seeded: true, facts: facts(collection(6, people6())), send: () => new Promise(() => {}) });
+    assert.deepEqual(p.part.get(), {}, 'off air: the layer is gone, its correction still out');
+    const b = air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7), 6));
+    const c = air.pressSelection(p, 'Card', 'cue-c', ok(selectionOf('D1', 8), 6));
+    answer(null);
+    await settle();
+    assert.deepEqual([card(p).cueId, p.part.get().Card.out.length], ['cue-c', 2], 'the old answer found nothing of this layer');
+    b.landed();
+    c.landed();
+    assert.deepEqual([card(p).cueId, card(p).pending], ['cue-c', false]);
+  });
+
   test('a disposed page writes no selection: a late answer cannot overwrite what a reopened page captured', async () => {
     let alive = true;
     const p = { ...io(), alive: () => alive };
@@ -809,7 +826,7 @@ test('a candidate cue never goes out with its prepared values; the page reads on
   assert.equal(data.preparedCue({ selection: { v: 2 } }), false, 'a later version too');
   assert.equal(air.followsCandidates([{}], {}), false);
   assert.equal(air.followsCandidates([{}, { selection: selectionOf('D1', 7) }], {}), true);
-  const aired = air.reduceSelection({}, { t: 'press', graphic: 'Card', cueId: 'cue-gone', take: take(selectionOf('D1', 7), collection(5, BASE)), now: 1000 }).air;
+  const aired = air.reduceSelection({}, { t: 'press', graphic: 'Card', cueId: 'cue-gone', take: take(selectionOf('D1', 7), collection(5, BASE)), seq: air.mintSend(), now: 1000 }).air;
   assert.equal(air.followsCandidates([{}], aired), true, 'its cue deleted, the layer still airs the candidate');
 });
 
@@ -950,9 +967,10 @@ describe('generated walks: the layer against the output', () => {
         log.push(`press ${cueId} ${keyOf(target)} r${target?.revision ?? '-'}`);
         seen.press += 1;
         if (!target) seen.plain += 1;
+        const before = part.get().Card;
         const closure = air.pressSelection(io(), 'Card', cueId, t);
         const layer = part.get().Card;
-        if (layer && layer.out.some((s) => s.press && s.seq === layer.seq)) out.push({ index: ++index, press: true, target, closure });
+        if (layer !== before) out.push({ index: ++index, press: true, target, closure });
         else if (!layer && target === null) {
           // A cue without a selection onto a layer with none: the server still applies it.
           out.push({ index: ++index, press: true, target, closure });
