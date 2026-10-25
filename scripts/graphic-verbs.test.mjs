@@ -2336,6 +2336,10 @@ test('a +1 pressed while a Re-take is out counts from the Re-take\'s figure, not
   await settle();
   const plus = r.verbs.bump(view(), 'home', 1);
   await settle();
+  // The press waits behind this page's own Re-take; the fallback lets it go while that is still out.
+  assert.equal(r.sends.length, 2);
+  r.timers.at(-1)();
+  await settle();
   assert.equal(homeSent(r, 2), '1');
   r.sends[1].answer.resolve({ ...noneLeft });
   await retaking;
@@ -2566,6 +2570,10 @@ test('a landed Take\'s figure stands again once the newer Re-take and a +1 on it
   r.sends[0].answer.resolve({ ...noneLeft });
   await taking;
   const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  // The press waits behind this page's own Re-take; the fallback lets it go while that is still out.
+  assert.equal(r.sends.length, 2);
+  r.timers.at(-1)();
   await settle();
   assert.equal(homeSent(r, 2), '1');
   // A blip: the Re-take and the +1 both fail. s3 is what airs.
