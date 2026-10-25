@@ -357,21 +357,21 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     else if (landed && key in landed.figures) return landed.figures[key];
     return record?.[key] ?? fallback;
   };
-  /** Hold these figures as sent until the send settles; one that landed stays the base while air's
-   *  record is the one the press read and its cue still holds the layer. */
+  /** Hold these figures as sent until the send settles; one that landed and is not yet in air's
+   *  record stays the base while that record stands and its cue still holds the layer. */
   const holdSent = (graphic: string, figures: Record<string, string>) => {
-    const record = session.air.get().aired[graphic];
     const cue = onLayer(graphic);
     const held = { ...(sentFigures.get(graphic) ?? {}), ...figures };
     sentFigures.set(graphic, held);
     return (landed: boolean) => {
       if (sentFigures.get(graphic) === held) sentFigures.delete(graphic);
       if (!landed) return;
-      // Air's record moved during the send (the fast road applied it here): it has the figure.
-      if (session.air.get().aired[graphic] !== record) return;
+      // Air's record already shows the figures (the fast road applied them here): nothing to book.
+      const now = session.air.get().aired[graphic];
+      if (now && Object.entries(figures).every(([key, figure]) => now[key] === figure)) return;
       const before = landedFigures.get(graphic);
-      const kept = before && before.record === record && before.cue === cue ? before.figures : {};
-      landedFigures.set(graphic, { record, cue, figures: { ...kept, ...figures } });
+      const kept = before && before.record === now && before.cue === cue ? before.figures : {};
+      landedFigures.set(graphic, { record: now, cue, figures: { ...kept, ...figures } });
     };
   };
 

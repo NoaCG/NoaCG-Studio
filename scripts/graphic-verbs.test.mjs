@@ -2062,3 +2062,20 @@ test('a landed figure is not the base on the next cue, nor after air\'s record m
   r.sends[2].answer.resolve({ ...noneLeft });
   await three;
 });
+
+test('an unrelated write to air\'s record during a slow send does not lose the figure that landed (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7', name: 'Katri' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7', name: 'Katri' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  // Another page's name Update lands while the +1 is out; its own row is not back.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '7', name: 'K.' } } } }));
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+});
