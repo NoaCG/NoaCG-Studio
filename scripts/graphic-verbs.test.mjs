@@ -2100,3 +2100,20 @@ test('an unrelated write to air\'s record during a slow send does not lose the f
   r.sends[1].answer.resolve({ ...noneLeft });
   await second;
 });
+
+test('a correction heard while a +1 is out stands over it: the next press counts from the correction (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  // Another screen corrects the score to 0 while the +1 is out.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '0' } } } }));
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '1' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+});

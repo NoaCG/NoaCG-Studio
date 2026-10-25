@@ -363,6 +363,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  record stays the base while that record stands and its cue still holds the layer. */
   const holdSent = (graphic: string, figures: Record<string, string>) => {
     const cue = onLayer(graphic);
+    // What air's record showed for these fields at the press: a field moved since by a newer
+    // command (another screen's correction) keeps that command's figure, and nothing is booked.
+    const atPress = session.air.get().aired[graphic] ?? {};
+    const was = Object.fromEntries(Object.keys(figures).map((key) => [key, atPress[key]]));
     const held = { ...(sentFigures.get(graphic) ?? {}), ...figures };
     sentFigures.set(graphic, held);
     return (landed: boolean) => {
@@ -372,8 +376,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const book = { ...(landedFigures.get(graphic) ?? {}) };
       // A field air's record already shows (the fast road applied it here) needs no booking.
       for (const [key, figure] of Object.entries(figures)) {
-        if (now[key] === figure) delete book[key];
-        else book[key] = { figure, over: now[key], cue };
+        if (now[key] === was[key] && now[key] !== figure) book[key] = { figure, over: now[key], cue };
+        else delete book[key];
       }
       landedFigures.set(graphic, book);
     };
