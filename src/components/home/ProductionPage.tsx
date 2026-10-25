@@ -2766,7 +2766,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  graphic the rule is not confident about. */
   /** A one-press pick's field leaves the boxes for ▸ Advanced, where it stays editable for the
    *  hidden-choice flow (pinned live controls D8); its pick group is in LIVE. */
-  const pickKeys = pickFields(events, descriptors, poolMachines.get(selectedGraphic ?? '')?.path ?? new Set<string>());
+  // A field bound to production data or shown by a live candidate keeps its read-out in the bands.
+  const pickKeys = new Set(
+    [...pickFields(events, descriptors, poolMachines.get(selectedGraphic ?? '')?.path ?? new Set<string>())].filter(
+      (key) => !(selectedGraphic && boundFields(selectedGraphic)[key]) && !(editingCue && candidateFields(editingCue).includes(key)),
+    ),
+  );
   const fieldGroups = groupCueFields(descriptors)
     .map((group) => ({ ...group, keys: group.keys.filter((key) => !pickKeys.has(key)) }))
     .filter((group) => group.keys.length > 0);
@@ -3067,7 +3072,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const blockViews: LiveBlockView[] = liveOrder.flatMap((b) => {
     const actions =
-      b.selected
+      // A pinned block always presses its graphic's on-air cue, even while another cue of it is
+      // selected for preparing; only an unpinned selected block uses the page's selection.
+      b.selected && !b.pinned
         ? {
             ...shared,
             events,

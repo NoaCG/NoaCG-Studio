@@ -1052,7 +1052,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       if (sent) stageShared(cue, data);
     });
   };
-  const pinnedBlock = (graphic: string) => {
+  const pinnedBlock = (graphic: string, selected = false) => {
     const cueId = liveCue[graphic] ?? null;
     const cue = cues.find((c) => c.id === cueId) ?? null;
     return (
@@ -1064,6 +1064,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         liveState={machineState[graphic] ?? null}
         layerLive={!!cueId}
         heading={{ graphic, cue: cue?.label ?? null }}
+        selected={selected}
         pinned
         numbersLive={!!cue}
         numbersTitle={(label) => (cue ? `Changes "${label}" on air immediately` : 'The graphic is not on air. Take the cue first.')}
@@ -1086,7 +1087,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       ? (own: ReactNode) => (
           <div className="pd-live-stack" data-testid="hosted-live-stack">
             {liveBlocks(pins, [...specByName.keys()], own ? selectedGraphic : null).blocks.map((b) =>
-              b.selected ? <Fragment key={b.graphic}>{own}</Fragment> : pinnedBlock(b.graphic),
+              // A pinned block presses its graphic's on-air cue even while another cue of it is
+              // selected; only an unpinned selected graphic's block is the editor's own.
+              b.selected && !b.pinned ? <Fragment key={b.graphic}>{own}</Fragment> : pinnedBlock(b.graphic, b.selected),
             )}
           </div>
         )
