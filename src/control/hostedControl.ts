@@ -993,6 +993,12 @@ async function askSeqRoad(
  *  exists for its slug. */
 const seqSessions = new Map<string, SeqSession>();
 
+/** Whether this page's sends for `slug` go in order per graphic (protocol 2: each press numbered,
+ *  an older one skipped once a later one applied). Not before the first resolve, and never on a
+ *  page that fell back to protocol 1: there a send that commits late can air over a later one, so
+ *  nothing may send on its own (control/selectionAir.ts holds instead). */
+export const sendsInOrder = (slug: string): boolean => seqSessions.has(slug);
+
 function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {
   const epoch = typeof row.epoch === 'string' ? row.epoch : null;
   const graphics = row.graphics && typeof row.graphics === 'object' ? (row.graphics as Record<string, HeadSummary>) : {};

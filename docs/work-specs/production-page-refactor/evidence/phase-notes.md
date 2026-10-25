@@ -286,6 +286,16 @@ changes a spec's digest.
   for its life has no per-graphic queue: reported to the coordinator. The SETTLE_MS comment now
   says the server-side tail is closed by the stale and superseded refusals. 47 mutations, each
   red.
+  *Protocol 1 (coordinator's ruling):* the general fallback risk predates this PR and is filed
+  separately, but the follow sends on its own, so on a page that fell back to protocol 1
+  (`askSeqRoad`) it would make that risk happen with nobody pressing anything. The follow now
+  sends only on the ordered road (`hostedControl.ts` `sendsInOrder`: a sequence session exists
+  for the slug, an extra export); otherwise the layer holds what airs, says off air that a
+  newer count arrived and the card must be taken again, and the operator's own presses still go.
+  Pinned in Node, in the walk (a read on protocol 1 must send nothing), and by a fourth
+  configured walk that forces the fallback (the resolve answered PGRST202): no correction on
+  its own, the hold shown, the operator's Take still airs the newer count (`minTests` 123 to 124).
+  48 mutations, each red.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

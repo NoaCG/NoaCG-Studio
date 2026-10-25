@@ -27,7 +27,9 @@
 //   values; a lost network recovers; a reload, another production and an app restart follow the
 //   AIRED selector, not the cue's current one; a collection-only write still airs; none of it
 //   takes, advances or resets the graphic.
-// - the third: a page meeting a selection of a later version shows the cue read-only, refuses
+// - a page that fell back to protocol 1 (its resolve answered PGRST202) never sends a correction
+//   on its own: what airs is held, said off air, and the operator's Take still goes.
+// - the last: a page meeting a selection of a later version shows the cue read-only, refuses
 //   Take and edit with the reason, and every write door keeps the record byte for byte.
 
 import { test, expect, type APIRequestContext, type APIResponse, type BrowserContext, type Page, type Route } from '@playwright/test';
@@ -335,6 +337,36 @@ test.describe('live candidates', () => {
     expect((await updates(w.showId)).filter((d) => d?.f0 === BERTTA), 'the current selection never reached air').toEqual([]);
     expect(await transport(w.showId), 'nothing took, advanced or reset the card').toEqual(transported);
     await clearPublishedShows(restarted).catch(() => {});
+  });
+
+  test('a page that fell back to protocol 1 never sends a correction on its own: it holds what airs, and the operator\'s Take still goes', async ({ page, context, request }) => {
+    test.setTimeout(120_000);
+    const w = await production(page, context, ['Card A', 'Card B']);
+    // A server without the sequence road answers its resolve PGRST202: this page then sends by row
+    // id, with no per-graphic order, for the rest of its life (hostedControl.ts `askSeqRoad`).
+    await page.route('**/rest/v1/rpc/control_show_resolve', (route) =>
+      route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', message: 'Could not find the function public.control_show_resolve', details: null, hint: null }) }),
+    );
+    await page.reload();
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    await revision(request, w, 1, collection(1, people(1200)));
+    await take(page, 'Card A');
+    await expect(onAirLine(w)).toHaveText('1200', WIRE);
+    expect(await page.evaluate(async (slug) => (await import('/src/control/hostedControl.ts')).sendsInOrder(slug), w.slug), 'the page is on protocol 1').toBe(false);
+    const before = (await updates(w.showId)).length;
+
+    await revision(request, w, 2, collection(2, people(1500)));
+    await select(page, 'Count');
+    await expect(preview(page)).toHaveText('Counted 2', WIRE);
+    await expect(page.getByTestId('selection-hold')).toContainText('cannot send it on its own', WIRE);
+    await page.waitForTimeout(6000);
+    await expect(onAirLine(w), 'what airs is held').toHaveText('1200');
+    expect((await updates(w.showId)).length, 'no correction went on its own').toBe(before);
+
+    await take(page, 'Card A');
+    await expect(onAirLine(w), 'the operator\'s Take goes').toHaveText('1500', WIRE);
+    await expect(page.getByTestId('selection-hold')).toHaveCount(0);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
   });
 
   test('a later version of a selection is read-only: no Take, no edit, every byte kept at both write doors', async ({ page }) => {

@@ -118,6 +118,10 @@ export interface SelectionFacts {
   /** False while a published tree is still unread: the tree held then may be older than the
    *  server's, so nothing is taken, updated or judged from it. Absent: readable. */
   readable?: boolean;
+  /** False when this page's sends are not ordered per graphic (a page on protocol 1,
+   *  hostedControl.ts `sendsInOrder`): a correction is then never sent on its own, the layer
+   *  holds what airs, and the operator's own presses still go. Absent: ordered. */
+  ordered?: boolean;
 }
 
 /** Resolve one selector on one graphic, with its gate. */
@@ -155,6 +159,7 @@ const believedOf = (l: SelectionLayer): AiredTarget | null => (l.out.length > 0 
 const pressOut = (l: SelectionLayer): boolean => l.out.some((s) => s.press);
 
 const UNKNOWN_REASON = 'it is not known which candidate is on air after the page reloaded';
+const UNORDERED_REASON = 'a newer count arrived, and this page cannot send it on its own (it sends without per-graphic order): take the card again to update it';
 
 /** Keep only the marks of the entities the layer may still show. */
 function pruned(l: SelectionLayer): SelectionLayer {
@@ -300,6 +305,11 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
     // A revision whose send was lost may not have aired: it goes once more, nothing older does.
     // So does one held "not sent", at the revision that bounds it.
     const newer = take.revision > floor || (take.revision === floor && take.revision > sent && (lifts || !!m.held?.unsent || take.revision === m.lostAt));
+    if (newer && take.entity === believed.entity && facts.ordered === false) {
+      // Nothing may send on its own: what airs is held, said off air, for the operator to take.
+      if (m.held?.reason === UNORDERED_REASON) return { layer: l };
+      return { layer: withMarks(l, believed, { ...m, held: { reason: UNORDERED_REASON, since: m.held?.since ?? now, revision: null } }) };
+    }
     if (newer && take.entity === believed.entity) {
       const seq = mint();
       const target: AiredTarget = { ...believed, revision: take.revision, values: take.values, at: now };

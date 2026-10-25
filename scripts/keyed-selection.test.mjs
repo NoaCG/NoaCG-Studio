@@ -931,6 +931,20 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, p.part.get()], [[], {}], 'it landed: the layer is gone, nothing sent');
   });
 
+  test('a page whose sends are not ordered per graphic (protocol 1) never sends a correction on its own: it holds, and presses still go', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), new Promise(() => {}));
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6()), { ordered: false }), send });
+    assert.deepEqual(sends, [], 'nothing on its own');
+    assert.match(card(p).held?.reason ?? '', /cannot send it on its own/);
+    assert.deepEqual([card(p).revision, card(p).values.f1], [5, '1200'], 'what airs is held');
+    const update = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
+    update.landed();
+    assert.deepEqual([card(p).revision, card(p).held], [6, undefined], 'the operator\'s own Update goes, and ends the hold');
+  });
+
   test('an answer to a send of a layer since removed never settles a later press: send numbers are never reused', async () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -1087,12 +1101,13 @@ describe('generated walks: the layer against the output', () => {
       // A candidate this page put on air, on the cue the marker names, is never forgotten.
       if (output && marker === output.cueId && !layer) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
     };
-    const followOnce = (t, lossy = false) => {
+    const followOnce = (t, lossy = false, ordered = true) => {
       air.followAired(io(), {
         liveCue: marker === undefined ? {} : { Card: marker },
         seeded,
-        facts: factsOf(t, lossy),
+        facts: { ...factsOf(t, lossy), ordered },
         send: (graphic, values) => {
+          if (!ordered) fail('a correction was sent on its own on a page without per-graphic order');
           const layer = part.get().Card;
           if (layer.out.some((s) => s.press)) fail('I4 a correction while a press is out');
           if (keyOf(air.airedOf(part.get(), 'Card')) !== keyOf(output)) fail(`I4 correction for ${keyOf(air.airedOf(part.get(), 'Card'))} while output shows ${keyOf(output)}`);
@@ -1170,8 +1185,9 @@ describe('generated walks: the layer against the output', () => {
         tree = treeAt(rnd, rev);
         trees.push(tree);
         const lossy = rnd() < 0.1;
-        log.push(`read r${rev}${lossy ? ' (a field missing)' : ''}`);
-        followOnce(tree, lossy);
+        const ordered = rnd() >= 0.08;
+        log.push(`read r${rev}${lossy ? ' (a field missing)' : ''}${ordered ? '' : ' (on protocol 1)'}`);
+        followOnce(tree, lossy, ordered);
       } else if (r < 0.9) {
         const old = pick(trees);
         log.push('read an older tree');

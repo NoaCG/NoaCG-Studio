@@ -167,6 +167,7 @@ import {
   firstPublishedSources,
   sendControlVerbs,
   untilAnswered,
+  sendsInOrder,
   verbAired,
   verbStale,
   verbsLanded,
@@ -1372,12 +1373,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   collectionsRef.current = show?.collections;
   const publishedRef = useRef(!!hostedSlug);
   publishedRef.current = !!hostedSlug;
+  const hostedSlugRef = useRef(hostedSlug);
+  hostedSlugRef.current = hostedSlug;
   /** The newest tree and records a selection resolves against; a published tree still unread is
    *  not one to take or judge from (control/selectionAir.ts `readable`). */
   const selectionFacts = useCallback(
     (): SelectionFacts => {
       const data = session.data.get();
-      return { collections: collectionsRef.current, bindings: bindingsRef.current, tree: data.liveData, fieldsOf, readable: !publishedRef.current || data.treeRead };
+      const slug = publishedRef.current ? hostedSlugRef.current : null;
+      return { collections: collectionsRef.current, bindings: bindingsRef.current, tree: data.liveData, fieldsOf, readable: !publishedRef.current || data.treeRead, ordered: !slug || sendsInOrder(slug) };
     },
     [session, fieldsOf],
   );
