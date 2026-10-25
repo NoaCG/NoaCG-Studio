@@ -31,7 +31,7 @@ import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
-import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -951,25 +951,23 @@ export async function unpublishControlShow(id: string): Promise<void> {
 
 /**
  * DOES THIS SERVER HAVE THE SEQUENCE ROAD (migration 0071)? Asked once per page load, by the first
- * resolve: the new resolve answers, or PostgREST says it has no such function (PGRST202) - or any
- * other answer that is not "unanswered" - and then this page runs today's protocol for the rest of
- * its life. A page is not switched mid-session: a live-path migration can land while it is open
- * (D7), and a page that changed protocol under an operator would have two cursors for one log.
- * "Unanswered" (the network, a 5xx gateway, 57014) decides nothing: the caller asks again.
+ * resolve: the new resolve answers, or the server proves it has none (`seqRoadVerdict` says what
+ * proves it, for a page that sends and for one that only follows), and then this page runs today's
+ * protocol for the rest of its life. A page is not switched mid-session: a live-path migration can
+ * land while it is open (D7), and a page that changed protocol under an operator would have two
+ * cursors for one log. Anything else decides nothing: the caller asks again.
  */
 let seqRoad: 'unknown' | 'present' | 'absent' = 'unknown';
 /** Statement timeouts (57014) the protocol-2 resolve has answered in a row. */
 let seqTimeouts = 0;
 
 /** Ask a protocol-2 resolve. `undefined` means use today's RPC (this server has no sequence road,
- *  learned now or before); a failure means the server did not answer and nothing was decided.
- *  `timeoutsBeforeAbsent`: after that many statement timeouts in a row, give up on the new road
- *  for this page's life, as if the server had none. */
+ *  learned now or before); a failure means nothing was decided and the caller asks again. */
 async function askSeqRoad(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   rpc: string,
   args: Record<string, unknown>,
-  timeoutsBeforeAbsent = Infinity,
+  asker: SeqRoadAsker,
 ): Promise<RpcAnswer<Record<string, unknown> | null> | undefined> {
   if (seqRoad === 'absent') return undefined;
   const { data, error, status } = await sb.rpc(rpc, args);
@@ -978,7 +976,9 @@ async function askSeqRoad(
     seqRoad = 'present';
     return { ok: true, value: data && typeof data === 'object' ? (data as Record<string, unknown>) : null };
   }
-  if (unansweredStatus(status, error.code) && seqTimeouts < timeoutsBeforeAbsent) return { ok: false, error: error.message };
+  if (seqRoadVerdict(status, error.code, seqTimeouts, asker, seqRoad === 'present') === 'ask-again') {
+    return { ok: false, error: error.message };
+  }
   seqRoad = 'absent';
   console.info(
     `[control] ${rpc}: ${error.code ?? ''} ${error.message.slice(0, 160)} - ` +
@@ -995,7 +995,7 @@ const seqSessions = new Map<string, SeqSession>();
 
 /** Whether this page's sends for `slug` go in order per graphic (protocol 2: each press numbered,
  *  an older one skipped once a later one applied). Not before the first resolve, and never on a
- *  page that fell back to protocol 1: there a send that commits late can air over a later one, so
+ *  page on protocol 1 (a server with no sequence road): there a send that commits late can air over a later one, so
  *  nothing may send on its own (control/selectionAir.ts holds instead). */
 export const sendsInOrder = (slug: string): boolean => seqSessions.has(slug);
 
@@ -1023,7 +1023,7 @@ export async function controlShowBySlug(slug: string): Promise<RpcAnswer<Resolve
   if (!sb) return { ok: false, error: 'no backend client' };
   // PROTOCOL 2 FIRST, today's resolve when the server has no sequence road (`seqRoad`). A resolve
   // nobody answered is a failure on either road, and the caller asks again.
-  const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug });
+  const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug }, { sends: true });
   if (next) {
     if (!next.ok) return next;
     return { ok: true, value: next.value ? readResolvedShow(next.value, seqPlanFor(slug, next.value)) : null };
@@ -1137,7 +1137,7 @@ export async function controlOutputResolve(outputSlug: string): Promise<RpcAnswe
   // reports' seq baselines, the legacy check), and if that keeps running out of statement time
   // the renderer boots on today's resolve and follows by row id for this session (review
   // oldclients:F2). An operator page has a person to tell and keeps asking.
-  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug }, OUTPUT_RESOLVE_TIMEOUTS);
+  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug }, { sends: false, timeoutsBeforeAbsent: OUTPUT_RESOLVE_TIMEOUTS });
   if (next) return next.ok ? { ok: true, value: next.value ? readResolvedOutput(next.value, true) : null } : next;
   return controlOutputBySlug(outputSlug);
 }
