@@ -14,7 +14,9 @@ on 2026-10-25 and whose three further rows the same day after the owner agreed i
 whole; C1's split makes the baseline 24 phases), expanded below into **52 execution phases** (rows
 32a, 32b, 32c, 32d and 38a are the ones added on those dates; every other row keeps the number
 the project record and the parent's counts of 47 already use) so each fits one builder session
-and contract, implementation and real-device acceptance have explicit boundaries. The extra
+and contract, implementation and real-device acceptance have explicit boundaries. Row IDs are
+stable labels; the table order is the admission order, so 32a and 32b run between rows 31 and 32
+(reordered 2026-10-25, `evidence/owner-decisions-2026-10-25-order.md`). The extra
 phases are not extra product scope. Friday 23 October is a progress checkpoint, never a
 completion deadline.
 
@@ -71,9 +73,9 @@ is the phase's gate; the child's full AC text is the eventual whole, met across 
 | 29 | E5.2 | [Sample-based API mapping](../playout-api-mapping/spec.md) | E5 AC-1, AC-3, AC-4 | CA | - |
 | 30 | E7.1 | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-2, AC-3 (read-only gate and resolver) | CA | - |
 | 31 | E7.2a | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-1; the selection writer | CA | - |
-| 32 | E7.2b | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-4 software/replay grade | CA | laptop: scratch CasparCG/Bridge + OBS |
 | 32a | L1 | [Pinned live controls](../pinned-live-controls/spec.md) | L1 AC-1 to AC-7, AC-9, AC-10; the press-safety contract of its "What a press does" settled here, never deferred to E6 | CA | kit: the two-graphic task (AC-11) joins E8.2's kit |
 | 32b | L2.1 | [Playout adjustments](../playout-adjustments/spec.md) | L2 AC-1 to AC-4, AC-8, AC-9's renderer half (the `/output` renderer's and both PROGRAM stages' restart and reconnect), AC-10's unchanged-production part, and the export dialog's disclosure that adjustments are not carried; phase 1 only: place and size on the surfaces NoaCG owns outright, no style, no ghost view, no tween, and no receiver, overlay or bake (those are phase 1b, proposed as row 32c and not admitted) | CA | kit: the adjustment task (AC-11) joins E8.2's kit |
+| 32 | E7.2b | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-4 software/replay grade | CA | laptop: scratch CasparCG/Bridge + OBS |
 | 32c | L2.1b | [Playout adjustments](../playout-adjustments/spec.md) | first the catalog sweep over `100vw`, `100vh`, `vw` and `vh` designs that decides the transform's host in a document that is the page; then L2 AC-9's receiver and export half (the hosted and relay receivers' apply and boot restoration, the exported controller's emitted records and relay rows, the html-overlay, CasparCG, SPX and OGraf bakes with a rendered parity check per target) and AC-10's unchanged-behaviour part for those targets; place and size only | CA | laptop: scratch CasparCG/Bridge + OBS walk of one exported overlay |
 | 32d | L2.2 | [Playout adjustments](../playout-adjustments/spec.md) | L2 AC-5, AC-6's per-graphic and per-cue half (the Type and Colour rows, "As designed", fonts by identity and the asset road, the composed document's handler with refit and the latest-request guard, `bakeAppearance` for style), AC-10's imported-SVG and agent-made lines; depends on phase 0 items 1 and 2 (latin-ext faces, real weights) landed through the ordinary merge flow | CA | - |
 | 33 | E1.1 | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-1; AC-3 and AC-4 model and read-gate parts; a pinned native block never carries a typed envelope (L1); the `update` message's optional `appearance` field is a native wire member outside E1's typed envelope and the read gate preserves it (L2.1) | CA | - |
@@ -130,7 +132,7 @@ never authorizes substituting simulated evidence there.
 - **Pinned live controls (L1, admitted 2026-10-24):** a production pins pool graphics in its
   control profile and every operator surface draws a LIVE region of one live block per pinned
   graphic, each pressing through the one dispatcher with a selection built for its own graphic
-  (`docs/work-specs/pinned-live-controls/spec.md`). L1 runs after E7.2b and before E1.1 and
+  (`docs/work-specs/pinned-live-controls/spec.md`). L1 runs after E7.2a and before E7.2b (reordered 2026-10-25) and
   settles native press safety itself: the on-air cue captured at the press and checked after
   every wait, increments serialized per graphic from the last sent figure, the cue written on
   acceptance. E1 keeps the native/typed boundary; E2 tests pinned program-instance controls and
@@ -144,7 +146,7 @@ never authorizes substituting simulated evidence there.
   appearance, Take and Update carry it as an optional versioned `appearance` field on the
   existing `update` message, the output applies it as a transform on the NoaCG-owned per-graphic
   frame, and every receiver restores the last applied appearance
-  (`docs/work-specs/playout-adjustments/spec.md`). L2.1 runs after L1 and before E1.1 and owns
+  (`docs/work-specs/playout-adjustments/spec.md`). L2.1 runs after L1 and before E7.2b (reordered 2026-10-25) and owns
   that one phase on the surfaces NoaCG owns outright (the `/output` stage, PROGRAM on both
   pages, hosted staging and the hosted page applying): no style variables, no production look,
   no ghost view, no tween, and no change to a document that is the page (the hosted and relay
