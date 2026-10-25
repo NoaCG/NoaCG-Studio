@@ -5,6 +5,79 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32a last repair: one ledger for the sent-figure base
+
+- **Previous verified `main` sha:** the first repair landed as `8da6005` (PR #1730) and failed
+  check 2 (https://github.com/NoaCG/NoaCG-Studio/pull/1730#issuecomment-6402935653, F1 to F4);
+  the diagnoser asked for this scoped repair
+  (https://github.com/NoaCG/NoaCG-Studio/pull/1730#issuecomment-6403006781). This branch began
+  on `8da6005`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated and nothing on the wire
+  changes. A revert brings back F1 to F3.
+- **Defect.** The base came from about eight structures kept in step by hand (`sentFigures`,
+  `landedFigures`, `parkedBooks`, `atPresses`, `replacedAt`, `stampOf` and the `applyHere`
+  wrapper's booking), and each round opened an interleaving where two of them disagreed. F1: a
+  fast-road +1 that failed was booked into its own send's parked book by the wrapper and given
+  back on failure, so the next press counted from a point never scored. F2: a give-back merged
+  `{ ...back, ...current }` without press order, so two failures lost a landed figure. F3: the
+  instance check compared only `onLayer`, which prefers this page's Re-take still out, so a press
+  went onto another screen's cue.
+- **Design (`src/control/graphicVerbs.ts`).**
+  - *One ledger per graphic* (`ledger`), in press order: one entry per batch and graphic of each
+    own send that carries figures (a live press with its moved figures, a Take, Re-take, Update or
+    Snap with its update data). An entry is pending until its answer, then landed; a send that did
+    not reach the output leaves the ledger at once, so it is never a base and gives nothing back.
+  - *The base* (`baseOf`): the newest entry, by press number, that carries the field on the cue
+    the layer holds (`layerCue`); its figure while pending, or once landed until air's record took
+    that field past it; otherwise air's record, then the fallback.
+  - *Taken past* (`past`): a row heard takes its fields past every entry pressed no later than it
+    (this page's own row, by its id: its own send and older ones; another screen's row: all). A
+    move of air's record with no row (a reseed) is caught by comparing with the record the ledger
+    last accounted for (`seen`, `accounted`) and takes past all. This page's own apply here (the
+    fast road, or unpublished) is accounted as its own and takes nothing past (`applyOwn`).
+  - *A late answer* writes into the cue only figures no landed send pressed after it carries
+    (`unreplaced`, over the ledger). Write-on-acceptance, `savedAt` and `pressWrote` are unchanged.
+  - *Waits:* a live press also waits behind this page's own Take, Re-take, Update, Out and All out
+    of its graphic (`behind`, into the same `presses` map `afterPress` waits on, with the same
+    fallback bound). The Take itself waits for nothing new.
+  - *Instance:* a live press goes only while the live marker and this page's newest marker press
+    out both name its cue (`holding`), at the press and after every wait.
+  - Deleted: `sentFigures`/`holdFigures`, `Landed`/`landedFigures`, `parkedBooks`, `AtPress`/
+    `atPresses`/`pressedAt`/`unmoved`, `replacedAt`, `stampOf`, `bookLanded`, `holdSent`,
+    `heardFigures` and the parked give-back in `sendWith`. The file went from 1056 to WC lines
+    (DIFFSTAT).
+- **Departures from the diagnoser's wording, and why.**
+  - *No separate `heard` state:* an own row heard takes its own entry (and older ones) past, which
+    is the same thing; an entry whose send failed is gone, so a late row of an unanswered send that
+    did commit takes the older landed figures past and air's record counts (its own test).
+  - *A small own-apply hook stays:* the five existing tests that move air's record with no row
+    (a reseed, another page's write) need the ledger to notice such a move, and with that check in
+    place the fast road's own apply must be marked as this page's, or it would take its own landed
+    figures past (the hockey scorebug on the fast road: 8, 9, 10). It books nothing.
+  - *Two existing tests now release their press with the fallback timer*: "a +1 pressed while a
+    Re-take is out counts from the Re-take's figure" and "a landed Take's figure stands again once
+    the newer Re-take and a +1 on it both fail". Their press now waits behind the Re-take (scope
+    item 2); each adds `assert.equal(r.sends.length, 2)` (the press waits) and fires the fallback.
+    No assertion changed or was removed.
+- **Tests (`scripts/graphic-verbs.test.mjs`, new, red on `8da6005` unless said):** F1 (9),
+  R14 restated (a fast +1 applied here and failed never becomes a base: 9, then 10), the hockey
+  scorebug on the fast road (green on `8da6005`; guards the own-apply hook), F2 (10, cue writes
+  8, 9, 10), F3 (nothing sent, the note), a press refused when this page's own Take of another cue
+  goes out during its save (green on `8da6005`; guards the `onLayer` half), a press waits behind
+  this page's Update, R7 (0, 1, 2, 3; green on `8da6005`, it guards "pending never beats a newer
+  landed send"), and an unanswered +1 whose row is heard later (green on `8da6005`).
+- **Independent walk (`scripts/graphic-verbs-walk.test.mjs`).** WALK
+- **Mutation check.** MUT
+- **Traps.**
+  - A test rig whose `applyHere` moves `aired` must also be read as this page's own apply: wrap
+    it as `sendWith` does, or the ledger reads the move as a reseed.
+  - Rows are heard one at a time in log order on the page (`onRow`); a test that hears several
+    of this page's rows in one call still works, since each row takes past only entries pressed no
+    later than it.
+  - The barrier (`behind`) means a test that presses during this page's own Take, Update or Out
+    must answer that send or fire the fallback (`r.timers`) before the press sends.
+
 ## Row 32a repair: the sent-figure base on the slow road
 
 - **Previous verified `main` sha:** row 32a landed as `fc65f5a` (PR #1728) and failed its
