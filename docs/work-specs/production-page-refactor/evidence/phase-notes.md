@@ -270,6 +270,22 @@ changes a spec's digest.
   the settling window too), drops a field now and then, and its server fails on a correction
   applied over another person or over a newer revision. 41 mutations, each red; the walk alone
   catches each of this round's defect classes.
+  From the automated review of 335dd51: a revision held for a missing field, then sent once it
+  read well, kept the hold's bound at that revision, so a failed send left no "not sent" hold and
+  was never retried; fixed (a failure is "not sent" unless a hold at a newer revision stands).
+  *Third assessment on 335dd51: FAIL*, every earlier fix confirmed, two send paths outside the
+  reducer could still air another person's values. (F1, F3) Snap and events read the candidate
+  the page believes (the newest send out) or, restored, a revision that may trail air: they now
+  get a candidate's values only from what airs and only while that is certain (`airedValues`:
+  nothing out, not unknown, no lost send above it), else they leave those fields alone; the walk
+  now checks that what it offers is exactly what the server's output shows (it found the
+  lost-send case at once). (F2) A timed end took the next plain cue on a layer without the layer
+  knowing, so a correction sent meanwhile could land on that cue's card: `cueArmEngine.ts` now
+  registers that Take through `selectionAired` (an extra file), and the follow waits for its
+  answer. (F4) The ordering model holds on protocol 2 only; a page that fell back to protocol 1
+  for its life has no per-graphic queue: reported to the coordinator. The SETTLE_MS comment now
+  says the server-side tail is closed by the stale and superseded refusals. 47 mutations, each
+  red.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

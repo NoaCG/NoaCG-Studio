@@ -905,6 +905,32 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual(air.protectedSelections(q.part.get(), 'Card', 'plain'), [], 'settled, the marker on another cue: that cue\'s fields are its own');
   });
 
+  test('Snap and events get a candidate\'s values only while what airs is known for certain (assessment 3: F1, F3)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a').f0, 'Aino Aalto', 'settled: what airs');
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-b'), null, 'another cue: none');
+    const b = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D2', 7)));
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null, 'an Update to B is out: neither A nor B for certain');
+    b.undo();
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: () => new Promise(() => {}) });
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null, 'a correction is out');
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
+    assert.equal(air.airedValues(restored, 'Card', 'cue-a'), null, 'restored with a lost send: it may trail what airs');
+  });
+
+  test('a cue without a selection taken onto the layer by something else (a timed end) holds every correction until it is answered (assessment 3: F2)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const timed = air.pressSelection(p, 'Card', 'cue-n', { status: 'none' });
+    const sends = [];
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (sends.push(v.f1), new Promise(() => {})) });
+    assert.deepEqual(sends, [], 'the Take of cue-n is out: nothing goes onto its card');
+    timed.landed();
+    air.followAired(p, { liveCue: { Card: 'cue-n' }, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (sends.push(v.f1), new Promise(() => {})) });
+    assert.deepEqual([sends, p.part.get()], [[], {}], 'it landed: the layer is gone, nothing sent');
+  });
+
   test('an answer to a send of a layer since removed never settles a later press: send numbers are never reused', async () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -1055,6 +1081,9 @@ describe('generated walks: the layer against the output', () => {
       const same = (x, y) => keyOf(x) === keyOf(y) && (reloaded || (x?.revision ?? null) === (y?.revision ?? null));
       if (layer && !layer.unknown && layer.onAir && !same(layer.onAir, told) && !same(layer.onAir, output)) fail(`${where}: I1 on air ${keyOf(layer.onAir)} r${layer.onAir.revision}, told ${keyOf(told)} r${told?.revision}, output ${keyOf(output)} r${output?.revision}`);
       if (layer && !layer.unknown && layer.out.length === 0 && view && keyOf(view) !== keyOf(output)) fail(`${where}: I5 shows ${keyOf(view)}, output ${keyOf(output)}`);
+      // What Snap and events may send for the marker's cue is exactly what airs, or nothing.
+      const offered = marker ? air.airedValues(part.get(), 'Card', marker) : null;
+      if (offered && (!output || JSON.stringify(offered) !== JSON.stringify(output.values))) fail(`${where}: Snap would send ${JSON.stringify(offered)} while ${keyOf(output)} ${JSON.stringify(output?.values)} airs`);
       // A candidate this page put on air, on the cue the marker names, is never forgotten.
       if (output && marker === output.cueId && !layer) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
     };

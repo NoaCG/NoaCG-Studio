@@ -393,6 +393,23 @@ export function airedOf(air: SelectionAir, graphic: string): AiredView | null {
 }
 
 /**
+ * The values a Snap or an event may send for a candidate's fields on `cueId`: what the output
+ * shows, and only while that is known for certain (nothing out, not unknown, no lost send above
+ * it).
+ * Otherwise none, and the verbs leave those fields alone: the newest send still out may never
+ * land, and a restored layer may trail what airs.
+ */
+export function airedValues(air: SelectionAir, graphic: string, cueId: string): Record<string, string> | null {
+  const l = air[graphic];
+  if (!l || l.unknown || l.out.length > 0 || !l.onAir || l.onAir.cueId !== cueId) return null;
+  // A send whose answer was lost may have put a newer revision on air (a restored layer that is
+  // settling and not unknown lost sends for the candidate on air; at its own revision they carry
+  // its own values).
+  const lostAt = l.marks[markKey(l.onAir)]?.lostAt;
+  return lostAt !== undefined && lostAt > l.onAir.revision ? null : l.onAir.values;
+}
+
+/**
  * The selectors whose fields nothing typed or pressed may move on a layer: a candidate's values
  * there are its source's, never an operator's. While a press is out, not known or settling, every
  * candidate the layer may show, whatever cue the marker names; otherwise the one shown, when the
@@ -473,7 +490,10 @@ function restored(l: SelectionLayer, now: number): SelectionLayer {
 }
 
 /** How long a restored layer whose sends' answers were lost waits before it decides or sends: a
- *  send of the page that went away can still reach the server inside its resend window. */
+ *  send of the page that went away is attempted no later than its resend window after its press,
+ *  and every attempt ends by the attempt timeout. A request the server took before that and
+ *  commits later is closed off by the server itself: any later send of this page supersedes it,
+ *  and a new page's sends make it stale (seqSend.ts). */
 export const SETTLE_MS = 2 * (RESEND_WINDOW_MS + ATTEMPT_TIMEOUT_MS);
 
 /** The kept layers, or none: anything this build did not write reads as no layer, so a restored

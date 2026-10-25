@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, SETTLE_MS, airedOf as airedCandidateOf, followAired, followsCandidates, protectedSelections, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, SETTLE_MS, airedValues, followAired, followsCandidates, protectedSelections, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -2383,6 +2383,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     log: logAuto,
     note: setNote,
     wire: () => armWire.current,
+    selectionAired,
   };
   /** H, or a chip: hold a counting lane, or resume a held one. */
   const toggleHold = (graphic: string | null) => armEngine.current?.hold(graphic);
@@ -2486,11 +2487,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     airedCandidateFields: (graphic) => [
       ...new Set(protectedSelections(session.selections.get(), graphic, session.air.get().liveCue[graphic]).flatMap((selection) => selectedFields({ selection }, show.collections))),
     ],
-    // Not known which candidate airs (restored mid-press): its fields are nobody's values to send.
-    airedCandidate: (graphic, cueId) => {
-      const aired = airedCandidateOf(session.selections.get(), graphic);
-      return aired && aired.known && aired.cueId === cueId ? aired.values : null;
-    },
+    airedCandidate: (graphic, cueId) => airedValues(session.selections.get(), graphic, cueId),
     boundNow,
     boundReady: boundPressReady,
     patchBound: patchBoundValues,

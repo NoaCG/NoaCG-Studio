@@ -53,7 +53,7 @@ import {
   type LaneArm,
 } from './cueAuto.ts';
 import { clearCueItems, takeCueItems } from './cueItems.ts';
-import { leftAlone, withLiveCue } from './liveCue.ts';
+import { leftAlone, reachedOutput, withLiveCue } from './liveCue.ts';
 
 /** The shortest timer the engine sets, in ms. */
 const MIN_TIMER_MS = 15;
@@ -92,6 +92,10 @@ export interface CueArmPage {
   note: (text: string) => void;
   /** Published: the arm wire, while there is one. */
   wire: () => CueArmWire | null;
+  /** A timed end takes `cueId` onto the graphic's layer: a live candidate that layer follows must
+   *  know, or a correction sent while the Take is out would land on this cue's card
+   *  (control/selectionAir.ts `pressSelection`, a cue with no selection). */
+  selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }) => { landed: () => void; undo: () => void };
 }
 
 /** What the page's effects hand the engine. */
@@ -172,10 +176,16 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       if (gone) p.note('The cue armed to be taken next is gone, so nothing was taken.');
       return;
     }
+    const captured = next && nextGraphic ? p.selectionAired?.(nextGraphic, next.id, { status: 'none' }) : undefined;
     const sent = await p.send(items, words);
     if (!sent.ok) {
+      captured?.undo();
       p.note(sent.note);
       return;
+    }
+    if (captured) {
+      if (nextGraphic && reachedOutput(sent, nextGraphic)) captured.landed();
+      else captured.undo();
     }
     const stands = leftAlone(sent);
     p.setLiveCue((m) => {

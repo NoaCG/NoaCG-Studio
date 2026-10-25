@@ -473,3 +473,25 @@ test('a next cue that shows a live candidate is never taken by a timed end, what
   assert.deepEqual(r.notes, ['b shows a live candidate, so a timed end does not take it.']);
   r.engine.stop();
 });
+
+test('a timed end\'s Take of the next cue is a press on that layer: a live candidate it follows waits for its answer (E7.1)', async () => {
+  for (const [answer, outcome] of [
+    [OK, 'landed'],
+    [{ ok: false, note: 'no route' }, 'undo'],
+    [{ ...OK, skipped: ['B'] }, 'undo'],
+  ]) {
+    const r = rig({ cues: [timed('a', 2, 'next'), manual('b')] });
+    const presses = [];
+    r.page.selectionAired = (graphic, cueId, take) => {
+      presses.push(['press', graphic, cueId, take.status]);
+      return { landed: () => presses.push(['landed']), undo: () => presses.push(['undo']) };
+    };
+    r.page.answer = answer;
+    r.engine.onMarker(take('a'));
+    r.setLive({ A: 'a' });
+    r.engine.onProgramState('A');
+    await r.advance(2000);
+    assert.deepEqual(presses, [['press', 'B', 'b', 'none'], [outcome]], JSON.stringify(answer));
+    r.engine.stop();
+  }
+});
