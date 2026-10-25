@@ -2884,3 +2884,52 @@ test('a +1 that got no answer and whose row is heard later stands over the older
   r.sends[2].answer.resolve({ ...noneLeft });
   await c;
 });
+
+test('a +1 pressed between the rows of another screen\'s Take stays the base once that Take\'s cue row is heard', async () => {
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } }, ioWith: { pressSend: paysMoved } });
+  const view = () => liveSelection('Score', [s1, s2], r.liveCue());
+  // Another screen takes s2: its update row is heard, its play and cue rows not yet.
+  hearRows(r, [{ graphic: 'Score', msg: { t: 'update', data: { home: '0' }, oid: 'other-u' } }]);
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await plus;
+  hearRows(r, [
+    { graphic: 'Score', msg: { t: 'play', oid: 'other-p' } },
+    { graphic: 'Score', msg: { t: 'cue', cue: 's2', oid: 'other-c' } },
+  ]);
+  assert.equal(r.liveCue().Score, 's2');
+  const goal = r.verbs.event(view(), goalA);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['1', '2']);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await goal;
+});
+
+test('an Update applied here that got no answer, whose row arrives already applied, committed: older figures stand no more', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } }, ioWith: { pressSend: paysMoved } });
+  const road = roads(r);
+  road.fast = true;
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await plus;
+  // The cue as stored (7) is sent again; this monitor shows it at once; the server does not answer.
+  const updating = r.verbs.update(view());
+  await settle();
+  r.sends[1].answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true }));
+  await updating;
+  assert.equal(homeAired(r), '7');
+  // Both rows arrive, each already applied here: the Update committed after the +1.
+  r.verbs.heard(r.sends[0].batches[0], () => true);
+  r.verbs.heard(r.sends[1].batches[0], () => true);
+  const goal = r.verbs.event(view(), goalA);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '7', '8']);
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await goal;
+});
