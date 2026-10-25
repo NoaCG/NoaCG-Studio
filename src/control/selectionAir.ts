@@ -506,7 +506,8 @@ export function reduceSelection(
   const sends: { graphic: string; seq: number; values: Record<string, string> }[] = [];
   for (const [graphic, layer] of Object.entries(air)) {
     // A marker press of this page is out on the graphic: the marker names that press, not what airs,
-    // so it decides nothing until the press is answered (#1696).
+    // so it decides nothing until the press is answered (#1696). Its capture's answer follows again
+    // (`pressSelection`); a press that captured nothing waits for the next follow, a delay only.
     if (ev.markersOut?.includes(graphic)) continue;
     const step = follow(layer, graphic, ev.liveCue[graphic], ev.seeded, ev.facts, ev.mint, ev.now);
     next = put(next, graphic, step.layer);

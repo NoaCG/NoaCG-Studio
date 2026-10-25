@@ -70,9 +70,17 @@ changes a spec's digest.
   model. The model covers answers lost before or after a commit, and rows heard at any time, each
   passed through `verbs.heard` with what it hands back applied. The
   walk and four of the tests are red on `cad2f01`. In `scripts/keyed-selection.test.mjs`, the
-  checker's N1 repro is red on `cad2f01`. Twenty mutants of the folds and the wiring are each
+  checker's N1 repro is red on `cad2f01`. A second walk, `batchWalk`, covers sends of several
+  batches and graphics. Twenty mutants of the folds and the wiring are each
   killed. Browser: `e2e/playout-air-contract.spec.ts` and `e2e/playout-drills.spec.ts`, 12
   passed.
+- **Fourth assessment (/so) on `fb87a5b`: A, PASS.** Its own walk ran 20,000 runs with sends of
+  one or two batches over three graphics, and found no counterexample. As it suggested, the repo
+  now has the same send shapes in a second walk (`batchWalk`: batches commit one at a time, a
+  send is refused or loses its answer at the batch it reached, rows come after). It passed
+  20,000 runs and kills the per-batch mutants. One mutant survives because it is equivalent: a
+  graphic appears once per send. The follow's wait while a marker press is out is commented
+  beside the guard.
 - **Third assessment (/so) on `1878636`: A-, PASS.** It found one non-blocking case: a press made
   before the page was left and reopened, whose row arrived after reopening, was dropped as this
   page's own. That is now scoped to the sender that pressed the graphic. It also found that the

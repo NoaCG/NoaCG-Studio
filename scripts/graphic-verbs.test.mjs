@@ -1575,3 +1575,115 @@ async function markerWalk(seed, steps) {
 test(`${MARKER_WALKS} seeded walks of presses and answers on two graphics: the marker names this page's newest landed press (#1696)`, async () => {
   for (let seed = 1; seed <= MARKER_WALKS; seed++) await markerWalk(seed, 30);
 });
+
+/**
+ * The same against sends of one or two batches, each carrying one or two graphics of three (an Out
+ * of several graphics, All out's waves, a timed cue's Out and Next): each batch commits on its own,
+ * the send is refused or loses its answer at the batch it reached, and the batches after it never
+ * go (hostedControl.ts `sendControlVerbs`). Rows come after the answers.
+ */
+async function batchWalk(seed, steps) {
+  const { clearCueItems, takeCueItems } = await import('../src/control/cueItems.ts');
+  const random = rng(seed);
+  const pick = (list) => list[Math.floor(random() * list.length)];
+  const r = rig({ fast: random() < 0.5 });
+  const graphics = ['Strap', 'Score', 'Clock'];
+  const applied = {};
+  const output = {};
+  const sends = [];
+  const recs = [];
+  const trace = [];
+  const commit = (rec) => {
+    rec.committed = true;
+    rec.reached = rec.n > (applied[rec.graphic] ?? 0);
+    if (rec.reached) {
+      applied[rec.graphic] = rec.n;
+      output[rec.graphic] = rec.cue;
+    }
+  };
+  const hear = (rec) => {
+    rec.heard = true;
+    const rest = r.verbs.heard([{ graphic: rec.graphic, msg: { t: 'cue', cue: rec.cue, oid: `oid-${rec.n}` } }], () => true);
+    for (const item of rest) r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  };
+  const check = (when) => {
+    for (const g of graphics) {
+      const out = sends.some((s) => !s.answered && s.recs.some((rec) => rec.graphic === g));
+      assert.equal(r.verbs.markersOut().includes(g), out, `seed ${seed} ${when}: markersOut ${g}\n${trace.join('\n')}`);
+      if (out || recs.some((rec) => rec.graphic === g && rec.lost && rec.reached && !rec.heard)) continue;
+      assert.equal(r.liveCue()[g] ?? null, output[g] ?? null, `seed ${seed} ${when}: marker on ${g}\n${trace.join('\n')}`);
+    }
+  };
+  /** Answer a send: `fate` landed (every batch committed), refused or lost at the batch it reached. */
+  const answer = (s, fate) => {
+    s.answered = true;
+    const k = s.done;
+    if (fate === 'landed') {
+      const skipped = s.recs.filter((rec) => !rec.reached).map((rec) => rec.graphic);
+      s.answer.resolve({ ...noneLeft, skipped });
+    } else if (fate === 'refused') s.answer.reject(Object.assign(new Error('refused'), { landed: k }));
+    else {
+      const lost = s.recs.filter((rec) => rec.batch === k);
+      for (const rec of lost) rec.lost = true;
+      if (random() < 0.5) lost.forEach(commit);
+      s.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, landed: k, items: lost.map((rec) => ({ graphic: rec.graphic, msg: { t: 'cue', cue: rec.cue, oid: `oid-${rec.n}` } })) }));
+    }
+  };
+  for (let step = 0; step < steps; step++) {
+    const open = sends.filter((s) => !s.answered);
+    const committing = open.filter((s) => s.done < s.batches);
+    const rows = recs.filter((rec) => !rec.heard && rec.send.answered && (rec.lost || rec.reached));
+    const kinds = ['press', 'press', ...(committing.length ? ['commit', 'commit'] : []), ...(open.some((s) => s.done === s.batches) ? ['answer', 'answer'] : []), ...(committing.length ? ['refuse', 'lose'] : []), ...(rows.length ? ['row', 'row'] : [])];
+    const kind = pick(kinds);
+    if (kind === 'press') {
+      const free = [...graphics].sort(() => random() - 0.5);
+      const shape = pick([[1], [2], [1, 1], [1, 2], [2, 1]]);
+      const batches = shape.map((size) => free.splice(0, size).map((graphic) => ({ graphic, cue: random() < 0.3 ? null : pick(['c1', 'c2', 'c3']) })));
+      const s = { batches: batches.length, done: 0, recs: [] };
+      for (const [batch, list] of batches.entries()) for (const { graphic, cue } of list) s.recs.push({ n: recs.length + s.recs.length + 1, graphic, cue, batch, send: s });
+      recs.push(...s.recs);
+      s.sending = r.verbs.send(batches.map((list) => list.flatMap(({ graphic, cue }) => (cue ? takeCueItems({ id: cue, graphic, values: {} }) : clearCueItems(graphic)))), 'Walk');
+      await settle();
+      s.answer = r.sends.at(-1).answer;
+      sends.push(s);
+      trace.push(`press ${JSON.stringify(batches)}`);
+    } else if (kind === 'commit') {
+      const s = pick(committing);
+      s.recs.filter((rec) => rec.batch === s.done).forEach(commit);
+      s.done += 1;
+      trace.push(`commit batch ${s.done - 1} of send ${sends.indexOf(s)}`);
+    } else if (kind === 'answer') {
+      const s = pick(open.filter((one) => one.done === one.batches));
+      answer(s, 'landed');
+      trace.push(`answer send ${sends.indexOf(s)}`);
+    } else if (kind === 'refuse' || kind === 'lose') {
+      const s = pick(committing);
+      answer(s, kind === 'refuse' ? 'refused' : 'lost');
+      trace.push(`${kind} send ${sends.indexOf(s)} at batch ${s.done}`);
+    } else {
+      const rec = pick(rows);
+      if (!rec.committed) commit(rec);
+      if (rec.reached) hear(rec);
+      else rec.heard = true;
+      trace.push(`row ${rec.n} ${rec.graphic} ${rec.cue} reached ${!!rec.reached}`);
+    }
+    trace.push(`  marker ${JSON.stringify(r.liveCue())} output ${JSON.stringify(output)}`);
+    await settle();
+    await settle();
+    check(`step ${step} ${kind}`);
+  }
+  for (const s of sends.filter((one) => !one.answered)) {
+    if (random() < 0.5) {
+      while (s.done < s.batches) s.recs.filter((rec) => rec.batch === s.done++).forEach(commit);
+      answer(s, 'landed');
+    } else answer(s, 'refused');
+    await settle();
+  }
+  await Promise.all(sends.map((s) => s.sending));
+  for (const rec of recs.filter((one) => one.reached && !one.heard)) hear(rec);
+  check('at the end');
+}
+
+test(`${MARKER_WALKS} seeded walks of sends of several batches and graphics: the marker names this page's newest landed press on each (#1696)`, async () => {
+  for (let seed = 1; seed <= MARKER_WALKS; seed++) await batchWalk(seed, 30);
+});
