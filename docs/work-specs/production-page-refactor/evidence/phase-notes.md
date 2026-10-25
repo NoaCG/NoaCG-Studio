@@ -397,6 +397,13 @@ changes a spec's digest.
   stay protected, whatever the marker names, and needs no exception for #1696 any more. The
   `unknown.pressed` flag became redundant with the moved block and is gone. 15 new mutations,
   each red; 589 gate tests pass.
+  From the automated review of 97f502e: a Take that did not land while a later one was out left a
+  block the later Take could not end once it landed, since it was sent before the failure. The
+  two causes now end by their own rule: `moved` holds the newest failed Take's number and any
+  later press of this page that lands ends it; `stale` holds when this page last learned of
+  another screen's change (refusal or heard command, the latest of them) and only a press sent
+  after it ends it. That made the separate `after` time redundant; it is gone. Pinned, each part
+  red without it.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

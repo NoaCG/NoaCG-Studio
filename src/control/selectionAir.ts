@@ -102,12 +102,12 @@ export interface SelectionLayer {
   /** Restored with sends whose answers were lost: until then one of them may still reach the
    *  server (a page left and reopened inside its resend window), so nothing is decided or sent. */
   settling?: number;
-  /** Since when nothing is sent on its own, until an operator press of this page lands: a send to
-   *  this layer was refused because another screen changed the graphic (`stale`), or a Take or an
-   *  Out did not land, so the marker it moved says nothing about what airs (`moved`; both may
-   *  hold). `after`: when this page heard the newest command from another screen; only a press of
-   *  this page sent after that (and after `since`) ends the block. All on this page's clock. */
-  blocked?: { since: number; stale?: true; moved?: true; after?: number };
+  /** Since when nothing is sent on its own, until an operator press of this page lands: another
+   *  screen changed the graphic (`stale`: when this page last learned so, a refusal or a command
+   *  heard, on this page's clock), or a Take or an Out did not land, so the marker it moved says
+   *  nothing about what airs (`moved`: the newest such press's number); both may hold. A later
+   *  press of this page that lands ends `moved`; only one sent after `stale` ends `stale`. */
+  blocked?: { since: number; stale?: number; moved?: number };
 }
 
 /** Every layer with a live candidate, by graphic name (the wire key, which is the layer). */
@@ -242,9 +242,8 @@ export type SelectionEvent =
    *  as send `seq`. */
   | { t: 'press'; cueId: string; take: SelectionTake; seq: number; moves?: boolean; now: number }
   /** A send on another road was refused because another screen changed the graphic, or this page
-   *  heard another screen's command on it pressed at `after` (only one after this page's capture
-   *  counts). */
-  | { t: 'stale'; now: number; after?: number }
+   *  heard another screen's command on it. */
+  | { t: 'stale'; now: number }
   /** The send numbered `seq` was answered: it reached the output, or it did not. `uncertain`: it
    *  failed without the server saying no (no answer in time), so it may still commit; `stale`:
    *  the server refused it because another screen changed the graphic since. */
@@ -292,7 +291,15 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
     }
     // A press sent before the block began (or before another screen's change it was told of) does
     // not supersede that change: the block stays.
-    const block = l.blocked && (sent.at ?? NONE) < Math.max(l.blocked.since, l.blocked.after ?? NONE) ? { blocked: l.blocked } : {};
+    // A Take or an Out that did not land is superseded by any later press of this page that lands
+    // (its marker move came after); another screen's change only by a press sent after it.
+    const b = l.blocked;
+    const keepMoved = b?.moved !== undefined && seq <= b.moved;
+    const keepStale = b?.stale !== undefined && (sent.at ?? NONE) < b.stale;
+    const block =
+      b && (keepMoved || keepStale)
+        ? { blocked: { since: b.since, ...(keepStale ? { stale: b.stale } : {}), ...(keepMoved ? { moved: b.moved } : {}) } }
+        : {};
     return { layer: pruned(sent.press ? { ...settledLayer(next), ...block } : next) };
   }
   const left: SelectionLayer = { ...l, out: l.out.filter((s) => s.seq !== seq) };
@@ -301,7 +308,7 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
   const moved = sent.press && sent.moves === true;
   const block =
     moved || stale
-      ? { blocked: { ...left.blocked, since: left.blocked?.since ?? now, ...(stale ? { stale: true as const } : {}), ...(moved ? { moved: true as const } : {}) } }
+      ? { blocked: { ...left.blocked, since: left.blocked?.since ?? now, ...(stale ? { stale: Math.max(left.blocked?.stale ?? NONE, now) } : {}), ...(moved ? { moved: Math.max(left.blocked?.moved ?? 0, seq) } : {}) } }
       : {};
   const next: SelectionLayer = { ...left, ...block };
   // A press that failed with no answer may still commit: it is not known not to have aired, nor,
@@ -427,8 +434,7 @@ export function reduceLayer(l: SelectionLayer | undefined, graphic: string, ev: 
   if (ev.t === 'press') return press(l, ev.cueId, ev.take, ev.seq, ev.now, ev.moves);
   if (ev.t === 'stale') {
     if (!l) return { layer: l };
-    const after = ev.after === undefined ? l.blocked?.after : Math.max(l.blocked?.after ?? NONE, ev.after);
-    return { layer: { ...l, blocked: { ...l.blocked, since: l.blocked?.since ?? ev.now, stale: true, ...(after !== undefined ? { after } : {}) } } };
+    return { layer: { ...l, blocked: { ...l.blocked, since: l.blocked?.since ?? ev.now, stale: Math.max(l.blocked?.stale ?? NONE, ev.now) } } };
   }
   if (ev.t === 'answer') return answer(l, ev.seq, ev.landed, ev.now, ev.uncertain, ev.stale);
   return l ? follow(l, graphic, ev.live, ev.seeded, ev.facts, ev.mint, ev.now) : { layer: undefined };
@@ -596,8 +602,10 @@ function restored(raw: SelectionLayer, now: number): SelectionLayer {
   // A reopened page reads the marker from the server, so it decides again, and a marker this page
   // moved no longer blocks it; another screen's change still does.
   const { blocked, ...rest } = raw;
-  const { moved: _moved, ...stale } = blocked ?? { since: 0 };
-  const l: SelectionLayer = { ...rest, ...(blocked?.stale ? { blocked: stale } : {}) };
+  const l: SelectionLayer = {
+    ...rest,
+    ...(blocked?.stale !== undefined ? { blocked: { since: blocked.stale, stale: blocked.stale } } : {}),
+  };
   // Sends this layer folded into what it does not know may still arrive from the page that went
   // away: it settles again from the reload.
   if (l.out.length === 0) return l.unknown ? { ...l, settling: Math.max(l.settling ?? 0, now + SETTLE_MS) } : l;
@@ -678,7 +686,7 @@ export function readSelectionAir(raw: string | null, now: number = Date.now()): 
       typeof l.marks === 'object' &&
       Object.values(l.marks).every(isMarks) &&
       (l.settling === undefined || typeof l.settling === 'number') &&
-      (l.blocked === undefined || (!!l.blocked && typeof l.blocked.since === 'number' && (l.blocked.stale === undefined || l.blocked.stale === true) && (l.blocked.moved === undefined || l.blocked.moved === true) && (l.blocked.after === undefined || typeof l.blocked.after === 'number'))) &&
+      (l.blocked === undefined || (!!l.blocked && typeof l.blocked.since === 'number' && (l.blocked.stale === undefined || typeof l.blocked.stale === 'number') && (l.blocked.moved === undefined || typeof l.blocked.moved === 'number'))) &&
       (l.unknown === undefined ||
         (typeof l.unknown.since === 'number' &&
           Array.isArray(l.unknown.candidates) &&
@@ -786,7 +794,7 @@ export function foreignSelection(io: SelectionAirIo, items: readonly { graphic: 
     const data = (msg as { data?: unknown }).data;
     const fields = new Set([l.onAir, ...l.out.map((s) => s.target), ...(l.unknown?.candidates ?? [])].flatMap((t) => (t ? Object.keys(t.values) : [])));
     if (!data || typeof data !== 'object' || !Object.keys(data).some((key) => fields.has(key))) continue;
-    air = reduceSelection(air, { t: 'stale', graphic, now: io.now(), after: io.now() }).air;
+    air = reduceSelection(air, { t: 'stale', graphic, now: io.now() }).air;
   }
   keepIn(io, air);
 }
