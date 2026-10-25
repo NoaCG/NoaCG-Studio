@@ -168,8 +168,8 @@ export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string
   return write === now ? { book: next } : { book: next, write };
 }
 
-/** Press `n`, which got no answer, was heard landing after all while it is this page's newest marker
- *  press on `graphic`: an older press still out no longer marks over it when it lands. */
+/** Press `n`, which got no answer, was heard landing after all: an older press still out no longer
+ *  marks over it when it lands, and a newer one that fails puts it back. */
 export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null): MarkerBook {
   const t = book[graphic];
   if (!t || (t.landed !== null && t.landed.n > n)) return book;
