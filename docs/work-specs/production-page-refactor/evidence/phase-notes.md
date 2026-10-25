@@ -194,6 +194,42 @@ changes a spec's digest.
   longer found it and the layer stayed pending. An unanswered capture now comes back as itself;
   only an answered or settled one is rolled back. Mutation: the undo rolling back a pending
   capture, red.
+- **The rewrite of `selectionAir.ts` (after round sixteen).** The coordinator asked for a fresh
+  read-only `/so` on `selectionAir.ts` alone before any further patch. Verdict: AGREE WITH
+  CORRECTIONS, REWRITE. The module never stored what the output shows; it rebuilt it from
+  press-time snapshots, object identity and three module-level sets, and every round was a case
+  where that rebuild went wrong. It found D1 (two overlapping Updates and a reload trusted the
+  newer one as aired, the open round-16 finding), D2 (a reload with an unanswered Update to
+  another person restored that person as aired), D3 (a send that landed under a failed press was
+  thrown away), D4 (a press could lower the bound), D5 (a hold the aired revision set never ended
+  when it read well again) and D6 (send order assumed, not stated).
+  *The new shape:* a layer records `onAir`, the landed send with the highest number (every send
+  is numbered in press order and seqSend.ts skips a press older than one applied, so the highest
+  landed is what airs), and `out`, the unanswered sends in order. What the page believes is the
+  newest send out, or `onAir`; an entity's bound is derived from what airs, what is out and the
+  newest revision a hold judged (`heldAt`), so a failed send gives back exactly what it raised.
+  One reducer (`reduceSelection`) takes a press, an answer or a follow. A reload with a press to
+  another cue or person unanswered is `unknown`: held, nothing sent, until the marker names a cue
+  only one candidate could be (at its oldest revision, so the follow resends anything newer) or
+  an operator press lands. The kept format is v2 (v1 never left this branch). The page's doors
+  are unchanged; three reads moved to `airedOf` (`ProductionPage.tsx` `airedCandidate`,
+  `airedCandidateFields`; `SelectionHolds.tsx`). Two pinned behaviours changed on purpose: D2
+  (now held as unknown) and D3 (the landed send is what airs).
+  *Evidence:* every earlier scenario ported to the event API and passing; 4000 seeded walks of
+  20 events (Takes, Updates to the same or another person, a cue without a selection, answers
+  landing, failing or skipped in any order, new and out-of-order reads, reloads whose sends the
+  server may or may not have applied), checked after every step against a model of the server
+  (I1 what is recorded as on air is what the page was told landed, or after a reload what truly
+  airs; I4 a correction only for the entity the output shows, never while a press is out; I5 with
+  nothing out, the output's entity), ending settled, with every kind of event and state reached
+  at least 50 times. The walks found two defects in the first draft, both fixed: a second reload
+  while unknown dropped the earlier candidates, and the marker deciding among sends for one
+  person took the newest revision rather than the oldest. 24 mutations of the reducer, each red;
+  three that first survived were a redundant check and a wrong hold-clearing (both removed) and
+  an untested case (pinned: a press that fails after a hold keeps what the hold judged).
+  *Known limit:* after a reload that lost a correction's answer, while the tree does not
+  resolve, the hold names the last revision known to have landed although the output may show a
+  newer one of the same person; the picture is held either way, and the first good read resends.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything
