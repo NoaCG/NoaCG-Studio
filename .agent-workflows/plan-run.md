@@ -45,7 +45,7 @@
 
 `node scripts/plan-run.mjs next <wave file>` names the next step (a project: `run-supervisor.mjs next <db> <id>`). For projects the only phase admission is
 `node scripts/run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <current-block.json>`; `<phase>` is the 1-based row of `## Phases`.
-The supervisor's local transaction and ledger admission lock serialize claims; direct project `plan-run record` is refused.
+The supervisor's local transaction and ledger admission lock serialize claims; direct project `plan-run record` is refused. Phases the owner admits later enter only by `run-supervisor.mjs admit <db> <id> <admission.json> --authority <current-block.json>`, `{receipts: [paths on main], commit, insert: [{after: <phase id>, phases: [...]}]}`: inserts only after the last phase with a ledger event, renumbers the rest and logs `admitted`.
 Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the intent before any external launch; reconcile uncertain acceptance before replay.
 Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a continued store's adapter answers unknown).
 
