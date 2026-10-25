@@ -2617,6 +2617,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     boundReady: boundPressReady,
     patchBound: patchBoundValues,
     writeCue: (cueId, values) => setShows(updateShowCueChecked(id, cueId, { values }).shows),
+    savedValues: (cueId) => cuesRef.current.find((c) => c.id === cueId)?.values,
     writeLive: (cueId, values) => {
       if (canAuthorAccount()) setShows(updateShowCue(id, cueId, { values }));
     },

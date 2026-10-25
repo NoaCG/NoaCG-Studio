@@ -156,6 +156,8 @@ export interface GraphicPage {
   patchBound: (writes: TreeWrite[]) => Promise<void>;
   /** Write a cue's values as an edit (the ± bump on an unbound field). */
   writeCue: (cueId: string, values: Record<string, string>) => void;
+  /** A cue's values as saved now (the draft's last save included), read when a press settles. */
+  savedValues: (cueId: string) => Readonly<Record<string, string>> | undefined;
   /** Persist values a live event accepted, outside preparation history (when authoring is allowed). */
   writeLive: (cueId: string, values: Record<string, string>) => void;
   /** A server cue's verb, its outcome said on the note line; true when it went. */
@@ -255,6 +257,20 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const replacedAt = new Map<string, { all: number; keys: Record<string, number> }>();
   /** Each landed send's press number, by the answer it returned. */
   const stampOf = new WeakMap<object, number>();
+  /** Per cue and field, the figure a press last wrote into the cue. */
+  const pressWrote = new Map<string, string>();
+  /** What a press reads of the cue's saved fields when it starts, and the fields still as they were
+   *  when it is accepted: an edit saved meanwhile (a correction typed while the send was out) is
+   *  newer preparation, which an accepted press never writes over. */
+  const savedAt = (p: GraphicPage, cueId: string, keys: readonly string[]) => {
+    const before = Object.fromEntries(keys.map((key) => [key, p.savedValues(cueId)?.[key]]));
+    return (figures: Record<string, string>) => {
+      const now = p.savedValues(cueId);
+      const kept = Object.fromEntries(Object.entries(figures).filter(([key]) => now?.[key] === before[key] || now?.[key] === pressWrote.get(`${cueId}:${key}`)));
+      for (const [key, figure] of Object.entries(kept)) pressWrote.set(`${cueId}:${key}`, figure);
+      return kept;
+    };
+  };
   /** The figures no send newer than `sent` replaced: what a late answer may still write. */
   const unreplaced = (graphic: string, figures: Record<string, string>, sent: object) => {
     const stamp = stampOf.get(sent) ?? 0;
@@ -688,14 +704,16 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         return;
       }
       const next = io.adjustedValue(baseOf(graphic, fieldKey, editingCue.values[fieldKey] ?? '0'), delta);
+      const unedited = savedAt(p, editingCue.id, [fieldKey]);
       const settle = holdSent(graphic, { [fieldKey]: next });
       let landed = false;
       try {
         const sent = await runWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
         landed = !!sent && reachedOutput(sent, graphic);
         // Written only once accepted: a refused or failed send writes nothing (the note says why),
-        // and a late answer writes nothing over a newer send's figure.
-        if (landed && sent && Object.keys(unreplaced(graphic, { [fieldKey]: next }, sent)).length > 0) p.writeCue(editingCue.id, { [fieldKey]: next });
+        // and a late answer writes nothing over a newer send's figure or a newer saved edit.
+        const write = landed && sent ? unedited(unreplaced(graphic, { [fieldKey]: next }, sent)) : {};
+        if (Object.keys(write).length > 0) p.writeCue(editingCue.id, write);
       } finally {
         settle(landed);
       }
@@ -837,6 +855,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const msg = payload ? { t: 'event' as const, event: button.event, payload } : { t: 'event' as const, event: button.event };
     // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT: the tree write is a separate row, so nothing
     // but this order keeps the two in step.
+    const unedited = sel.airCue ? savedAt(p, sel.airCue.id, Object.keys(adjusted)) : null;
     const settle = holdSent(graphic, adjusted);
     let went = false;
     let kept: Record<string, string> = {};
@@ -844,7 +863,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`);
       // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
       went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
-      if (went && sent) kept = unreplaced(graphic, adjusted, sent);
+      if (went && sent && unedited) kept = unedited(unreplaced(graphic, adjusted, sent));
     } finally {
       settle(went);
     }

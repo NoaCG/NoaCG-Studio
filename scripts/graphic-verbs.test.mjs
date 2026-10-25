@@ -43,7 +43,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {} } = {}) {
+function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -120,6 +120,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
       log.push(['patch', writes.map((w) => `${w.path}=${w.text}`).join(',')]);
     },
     writeCue: (cueId, values) => log.push(['writeCue', cueId, JSON.stringify(values)]),
+    savedValues: (cueId) => saved[cueId],
     writeLive: (cueId, values) => log.push(['writeLive', cueId, JSON.stringify(values)]),
     playoutVerb: async (cue, verb, label, options) => {
       log.push(['playoutVerb', cue.id, verb, label, JSON.stringify(options ?? {})]);
@@ -195,7 +196,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     return press(view, ...rest);
   };
   const verbs = { ...created, event: seeded(created.event), bump: seeded(created.bump), snap: seeded(created.snap) };
-  return { setOwed: (n) => (owedCount = n), timers, inFlight, state, session, verbs, log, sends, flushes, draft, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
+  return { setOwed: (n) => (owedCount = n), timers, inFlight, state, session, verbs, log, sends, flushes, draft, saved, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
 }
 
 // ── The sender ──────────────────────────────────────────────────────────────────────────────────
@@ -2204,4 +2205,35 @@ test('a late older answer writes nothing into the cue over a figure a newer send
     await older;
     assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive'), [], press);
   }
+});
+
+test('an accepted press writes nothing over an edit to its field saved while it was out (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  for (const press of ['bump', 'event']) {
+    const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } }, saved: { b1: { home: '7' } } });
+    const view = () => liveSelection('Score', [banner], r.liveCue());
+    const pressing = press === 'bump' ? r.verbs.bump(view(), 'home', 1) : r.verbs.event(view(), goal);
+    await settle();
+    // A correction to 20 is typed and its debounce saves it while the press is out.
+    r.saved.b1 = { home: '20' };
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await pressing;
+    assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive'), [], press);
+  }
+  // A second press released before the first one wrote still writes its figure after it.
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } }, saved: { b1: { home: '7' } } });
+  r.page.writeCue = (cueId, values) => {
+    r.log.push(['writeCue', cueId, JSON.stringify(values)]);
+    r.saved[cueId] = { ...r.saved[cueId], ...values };
+  };
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const one = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await one;
+  const two = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await two;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'b1', '{"home":"8"}'], ['writeCue', 'b1', '{"home":"9"}']]);
 });
