@@ -77,12 +77,12 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   // ── Tab A runs the quiz: key C, pick B, take, select, lock. ──
   await hostedSelect(a, 'Quiz board');
   await a.getByTestId('hosted-field-f5-opt-C').click();
-  await a.getByTestId('hosted-field-f6-opt-B').click();
   await a.getByTestId('hosted-take-cue').click();
   await expect(a.getByTestId('hosted-live-chip')).toContainText('Quiz board', WIRE);
   await expect(b.getByTestId('hosted-live-chip')).toContainText('Quiz board', WIRE);
   await expect(page.getByTestId('live-cue-chip')).toContainText('Quiz board', WIRE);
-  await a.getByRole('button', { name: /Select answer/ }).click();
+  // The pick is one press on the LIVE block (pinned live controls AC-4).
+  await a.getByTestId('hosted-pick-select-B').click();
   await a.getByRole('button', { name: /Lock it in/ }).click();
   // NO RENDERER IS OPEN YET, which is a class rehearsing before OBS is up. The chip reads the
   // page's own PROGRAM monitor then; it used to read renderer reports alone and stayed empty.

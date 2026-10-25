@@ -6,12 +6,13 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/control/liveControls.ts, src/components/home/LiveControls.tsx, src/model/profile.ts
 // focus
 
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor } from './_create';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
 
@@ -82,7 +83,7 @@ test('a Take pressed a moment after the page opens still airs - and stays aired'
   // disappears is the same defect wearing a delay.
   await page.waitForTimeout(3_000);
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
-  await expect(page.getByTestId('cue-action-select')).toBeEnabled();
+  await expect(page.getByTestId('cue-pick-select-B')).toBeEnabled();
 });
 
 // ── WHAT IS KNOWN OF A COMMAND (data-sources C6, AC-16) ───────────────────────────────────────
@@ -480,7 +481,8 @@ test('quiz actions on the production page: greying, select/lock, live update kee
 
   const actions = page.getByTestId('cue-actions');
   const chip = page.getByTestId('machine-state-chip');
-  const select = page.getByTestId('cue-action-select');
+  // Select answer is a one-press pick (pinned live controls AC-4): its letters grey together.
+  const select = page.getByTestId('cue-pick-select-B');
   const lock = page.getByTestId('cue-action-lock');
   const judge = page.getByTestId('cue-action-judge');
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
@@ -506,9 +508,7 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   await expect(lock).toBeEnabled();
   await expect(page.getByTestId('cue-action-revealChoice')).toBeDisabled();
 
-  // The Selected-answer dropdown renders as SEGMENTED buttons (short constrained choice).
-  // Pick B in the cue editor, then fire Select — the value rides as the event's payload.
-  await page.getByTestId('cue-field-f6-opt-B').click();
+  // Pick B: one press sets Selected answer and fires Select in one send.
   await select.click();
   await expect(chip).toHaveText('Answer selected');
   await expect(lock).toBeEnabled();
@@ -2173,4 +2173,107 @@ test('the EXPORTED controller draws a pinned graphic above the editor and presse
   // …and the selection never moved.
   await expect(ctl.locator('#ed-name')).toHaveText('Podiums up');
   await ctl.close();
+});
+
+// ── PINNED LIVE CONTROLS (docs/work-specs/pinned-live-controls/spec.md) ───────────────────────────
+// A quiz board and a score in one production, as the 2026-10-23 game show ran them: the score's
+// block is pinned, so its controls stay on screen and act on ITS on-air cue whatever is selected.
+
+/** Every PROGRAM layer's text at `selector`. */
+async function programTexts(page: Page, selector: string): Promise<string[]> {
+  const frames = page.locator('[data-testid="program-stage"] iframe');
+  const texts: string[] = [];
+  for (let i = 0; i < (await frames.count()); i++) {
+    const node = frames.nth(i).contentFrame().locator(selector);
+    if ((await node.count()) > 0) texts.push(((await node.first().textContent()) ?? '').trim());
+  }
+  return texts;
+}
+
+test('pinned live controls: the pinned score stays on screen, presses its own on-air cue, travels with a reload, and leaves with its graphic (AC-1, AC-2, AC-6, AC-10)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  const showId = await openProductionWithCurrent(page, 'Game Show');
+  await addCatalogGraphic(page, showId, 'House Podiums');
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(rows).toHaveCount(2);
+  const blocks = page.getByTestId('live-block');
+  const podium = page.locator('[data-testid="live-block"][data-graphic="House Podiums"]');
+  const quiz = page.locator('[data-testid="live-block"][data-graphic="Arena Quiz"]');
+
+  // Pin the score from its block head. Off air it stays, greyed, and says so.
+  await rows.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('live-stack')).toHaveCount(0);
+  await page.getByTestId('live-pin').click();
+  await expect(podium.getByTestId('live-pin')).toHaveAttribute('aria-pressed', 'true');
+  await rows.nth(0).locator('.pd-cue-label').click();
+  // Pinned first, then the selected quiz, never twice.
+  await expect(blocks).toHaveCount(2);
+  await expect(blocks.nth(0)).toHaveAttribute('data-graphic', 'House Podiums');
+  await expect(blocks.nth(1)).toHaveAttribute('data-graphic', 'Arena Quiz');
+  await expect(quiz).toHaveAttribute('data-selected', 'true');
+  await expect(podium.getByTestId('machine-state-chip')).toHaveText('not on air');
+  await expect(podium.getByTestId('live-number-f2-up')).toBeDisabled();
+
+  // Both on air, the quiz selected.
+  await rows.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await rows.nth(0).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('cue-editor')).toContainText('Arena Quiz');
+  await expect(podium.getByTestId('live-number-f2-up')).toBeEnabled();
+  await expect.poll(() => programTexts(page, '#f2')).toContain('0');
+  const plays = Number(await page.getByTestId('program-stage').getAttribute('data-plays'));
+
+  // +1 twice on the PINNED score: two partial updates to the score's layer, counted 1 then 2, no
+  // entrance replayed, and the selected quiz cue untouched.
+  await podium.getByTestId('live-number-f2-up').click();
+  await podium.getByTestId('live-number-f2-up').click();
+  await expect.poll(() => programTexts(page, '#f2')).toContain('2');
+  expect(Number(await page.getByTestId('program-stage').getAttribute('data-plays'))).toBe(plays);
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Mars');
+  // The quiz's one-press pick on its own block.
+  await quiz.getByTestId('cue-pick-select-B').click();
+  await expect(quiz.getByTestId('cue-pick-select-B')).toHaveAttribute('aria-pressed', 'true');
+  // The score's cue kept the figure it aired.
+  await rows.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('2');
+  await rows.nth(0).locator('.pd-cue-label').click();
+
+  // The row's menu is the second gesture: it unpins, and pins again.
+  const menuOf = async (i: number) => {
+    await rows.nth(i).getByTestId('cue-menu').click();
+    return page.getByTestId('cue-pin-live');
+  };
+  await expect(await menuOf(1)).toHaveText('Unpin live controls');
+  await page.getByTestId('cue-pin-live').click();
+  await expect(page.getByTestId('live-stack')).toHaveCount(0);
+  await expect(await menuOf(1)).toHaveText('Pin live controls');
+  await page.getByTestId('cue-pin-live').click();
+  await expect(blocks).toHaveCount(2);
+
+  // The pin is the production's: a reload keeps it.
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(podium).toHaveCount(1);
+
+  // On a phone the stack scrolls in the one column: every live button a finger's height, no
+  // sideways scroll, and the verb bar stays.
+  await page.setViewportSize({ width: 375, height: 812 });
+  const heights = await page.getByTestId('live-stack').locator('button:visible').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThan(5);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(40);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(page.getByTestId('verb-take')).toBeInViewport();
+  await page.setViewportSize({ width: 1600, height: 900 });
+
+  // Removing the pinned graphic draws no block and raises nothing; the selected block is today's.
+  await rows.nth(1).getByTestId('cue-menu').click();
+  await page.getByTestId('delete-cue').click();
+  await expect(rows).toHaveCount(1);
+  await expect(podium).toHaveCount(0);
+  await expect(page.getByTestId('live-stack')).toHaveCount(0);
+  await expect(page.getByTestId('cue-actions')).toBeVisible();
 });
