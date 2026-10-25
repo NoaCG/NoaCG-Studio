@@ -253,6 +253,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  replaced, and a late older answer that landed books none over it. */
   let sendSeq = 0;
   const replacedAt = new Map<string, { all: number; keys: Record<string, number> }>();
+  /** Each landed send's press number, by the answer it returned. */
+  const stampOf = new WeakMap<object, number>();
+  /** The figures no send newer than `sent` replaced: what a late answer may still write. */
+  const unreplaced = (graphic: string, figures: Record<string, string>, sent: object) => {
+    const stamp = stampOf.get(sent) ?? 0;
+    const r = replacedAt.get(graphic);
+    return r ? Object.fromEntries(Object.entries(figures).filter(([key]) => r.all <= stamp && (r.keys[key] ?? 0) <= stamp)) : figures;
+  };
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
@@ -449,7 +457,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       pressMarkers(local.pressed);
       answerMarkers(local.pressed, () => true);
       unpark(() => true);
-      return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
+      const done = { ok: true as const, skipped: [], superseded: [], pressedAgain: [] };
+      stampOf.set(done, stamp);
+      return done;
     }
     // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the same
     // countdown from the Take's own row (control/cueArmWire.ts). Every Take leaves here, whichever
@@ -485,7 +495,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // A graphic went up with nothing reporting that could air it: the status says "No output" in
       // red until something connects (playout-workflow-simplification AC-2). Never blocked.
       if (!allOut && !p.outputUsable() && marked.some((batch) => batch.some((item) => item.msg.t === 'play'))) p.noOutput();
-      return { ok: true, ...sent };
+      const done = { ok: true as const, ...sent };
+      stampOf.set(done, stamp);
+      return done;
     } catch (e) {
       // A verb whose picture MOVED HERE and then failed to send is a different sentence from one
       // that never happened: this monitor applied the commands before the round trip. A press
@@ -681,8 +693,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       try {
         const sent = await runWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
         landed = !!sent && reachedOutput(sent, graphic);
-        // Written only once accepted: a refused or failed send writes nothing (the note says why).
-        if (landed) p.writeCue(editingCue.id, { [fieldKey]: next });
+        // Written only once accepted: a refused or failed send writes nothing (the note says why),
+        // and a late answer writes nothing over a newer send's figure.
+        if (landed && sent && Object.keys(unreplaced(graphic, { [fieldKey]: next }, sent)).length > 0) p.writeCue(editingCue.id, { [fieldKey]: next });
       } finally {
         settle(landed);
       }
@@ -826,16 +839,18 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // but this order keeps the two in step.
     const settle = holdSent(graphic, adjusted);
     let went = false;
+    let kept: Record<string, string> = {};
     try {
       const sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`);
       // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
       went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
+      if (went && sent) kept = unreplaced(graphic, adjusted, sent);
     } finally {
       settle(went);
     }
     // Accepted live values are persisted only now, outside preparation history: a refused or
-    // failed press writes nothing into the cue.
-    if (went && Object.keys(adjusted).length > 0 && sel.airCue) p.writeLive(sel.airCue.id, adjusted);
+    // failed press writes nothing into the cue, and a late answer nothing a newer send replaced.
+    if (went && Object.keys(kept).length > 0 && sel.airCue) p.writeLive(sel.airCue.id, kept);
     if (went) await p.patchBound(tree);
   };
 

@@ -2186,3 +2186,22 @@ test('a late older answer that landed books nothing over a figure a newer send l
   r.sends[2].answer.resolve({ ...noneLeft });
   await next;
 });
+
+test('a late older answer writes nothing into the cue over a figure a newer send landed (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '0' });
+  for (const press of ['bump', 'event']) {
+    const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+    const view = () => liveSelection('Score', [banner], r.liveCue());
+    const older = press === 'bump' ? r.verbs.bump(view(), 'home', 1) : r.verbs.event(view(), goal);
+    await settle();
+    // The cue, staged at 0, is sent again and lands while the older press is still out.
+    const updating = r.verbs.update(view());
+    await settle();
+    assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '0' }, press);
+    r.sends[1].answer.resolve({ ...noneLeft });
+    await updating;
+    r.sends[0].answer.resolve({ ...noneLeft, pressedAgain: ['Score'] });
+    await older;
+    assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive'), [], press);
+  }
+});
