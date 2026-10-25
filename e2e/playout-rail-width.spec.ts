@@ -351,7 +351,7 @@ test('the clash badge opens the layer repair, and a graphic keeps its layer unde
 
   // No clash on the quiz: its layer is under Advanced, closed, with the number in the summary.
   await rows.nth(2).getByTestId('select-cue').click();
-  await expect(page.getByTestId('cue-advanced-summary')).toHaveText('Layer 22');
+  await expect(page.getByTestId('cue-advanced-summary')).toHaveText('Selected answer · Layer 22');
   await expect(page.getByTestId('cue-advanced-toggle')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByTestId('graphic-layer')).toHaveCount(0);
   await page.getByTestId('cue-advanced-toggle').click();
