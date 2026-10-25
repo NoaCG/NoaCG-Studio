@@ -437,7 +437,17 @@ changes a spec's digest.
   orders by this page's send numbers, never by the clock: `stale` is the newest number minted when
   the page learned of the change (a fresh one for a heard command or another road's refusal, the
   refused send's own for a layer send), and a press ends it only with a higher number. A reopened
-  page starts its numbers afresh, so its hold is set below any of them. Pinned, red without it.
+  page's hold is set at 0, below any of its numbers. Pinned, red without it.
+  From the clearing assessment of 1886adb (pass with notes, two findings, both fixed): the Update a
+  reopen hold asks for takes the cue's current selection, which may be another candidate, and the
+  line named neither. The hold line now names the aired key and, when the cue now selects another,
+  says "Update would take <key>" (the AC-3 walk asserts both, and that the warning goes once the
+  selection is back). It reads the saved cue, so a selection typed but not yet saved is not seen.
+  A duplicate answer's head is the current one and may hold another screen's write since: learnt,
+  the next press passed as having seen it. A duplicate now teaches the epoch only; the server lets
+  this page's later press over its own earlier one (0071 step 6). Pinned in seq-send, red without
+  it. A layer refusal's block keeps the refused send's number; sendWith's stale hook also mints a
+  fresh one through `staleSelection`, so a press between the two cannot end it.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

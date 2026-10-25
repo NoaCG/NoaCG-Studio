@@ -333,9 +333,13 @@ test.describe('live candidates', () => {
     // RELOAD with the cue's selection changed under it: the hold keeps the AIRED selector.
     await withSelections(page, w.showId, { 'Card A': pick('D2', 7), 'Card B': pick('D2', 7) });
     await reopened(page, 11, 1380, '1370');
+    // The hold names what airs, and says the Update it asks for would now take another candidate.
+    await expect(page.getByTestId('selection-hold')).toContainText('(D1 · 7) on air');
+    await expect(page.getByTestId('selection-hold')).toContainText('Update would take D2 · 7.');
     // The cue's selection back to the aired person (another reload), so Update takes her again.
     await withSelections(page, w.showId, { 'Card A': pick('D1', 7), 'Card B': pick('D2', 7) });
     await expect(page.getByTestId('selection-hold')).toContainText('the page reopened', WIRE);
+    await expect(page.getByTestId('selection-hold')).not.toContainText('Update would take');
     await update(page, '1380');
 
     // ANOTHER PRODUCTION and back, then an app restart (a new page): each holds, then follows.

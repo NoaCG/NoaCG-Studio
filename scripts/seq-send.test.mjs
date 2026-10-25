@@ -75,6 +75,13 @@ test('landed and duplicate both land, and teach the page the new revision', () =
   assert.equal(settleAnswer(s, readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: {} } }), ['A']).outcome, 'landed');
 });
 
+test('a duplicate answer does not teach the page a revision another screen wrote since', () => {
+  const s = createSeqSession('E1', { A: { rev: 3 } });
+  const answer = readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: { A: { rev: 5, by: 'other', press: 1 } } } });
+  assert.equal(settleAnswer(s, answer, ['A']).outcome, 'landed');
+  assert.equal(s.revs.get('A'), 3);
+});
+
 test('an All out hands back what it left alone, so a page does not mark those graphics off', () => {
   const s = createSeqSession('E1', {});
   const answer = readSendAnswer({ ok: true, epoch: 'E1', head: { graphics: {} }, skipped: ['X'] });

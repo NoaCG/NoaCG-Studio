@@ -14,7 +14,15 @@ const age = (ms: number): string => {
   return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
 };
 
-export default function SelectionHolds({ part, labelOf }: { part: StorePart<SelectionAir>; labelOf: (cueId: string) => string | null }) {
+const keyText = (key: readonly (string | number)[]) => key.join(' · ');
+
+/** `nextOf`: the key an Update of that cue would air now, when it resolves: an Update takes the
+ *  cue's current selection, which may no longer be the one held. */
+export default function SelectionHolds({ part, labelOf, nextOf }: {
+  part: StorePart<SelectionAir>;
+  labelOf: (cueId: string) => string | null;
+  nextOf: (cueId: string, graphic: string) => readonly (string | number)[] | null;
+}) {
   const aired = useStorePart(part);
   const held = Object.keys(aired).flatMap((graphic) => {
     const inst = airedOf(aired, graphic);
@@ -25,12 +33,18 @@ export default function SelectionHolds({ part, labelOf }: { part: StorePart<Sele
   if (!holding) return null;
   return (
     <div className="pd-unsent-note" role="status" data-testid="selection-holds">
-      {held.map(({ graphic, inst, held: h }) => (
-        <p key={graphic} data-testid="selection-hold" data-graphic={graphic}>
-          Holding {(inst.known && labelOf(inst.cueId)) || graphic} on air: {h.reason}.
-          {inst.showing ? ` Showing revision ${inst.showing.revision}, ${age(now - inst.showing.at)} old.` : ` For ${age(now - h.since)}.`}
-        </p>
-      ))}
+      {held.map(({ graphic, inst, held: h }) => {
+        const next = inst.known ? nextOf(inst.cueId, graphic) : null;
+        const moves = next && keyText(next) !== keyText(inst.selection.key);
+        return (
+          <p key={graphic} data-testid="selection-hold" data-graphic={graphic}>
+            Holding {(inst.known && labelOf(inst.cueId)) || graphic}
+            {inst.known ? ` (${keyText(inst.selection.key)})` : ''} on air: {h.reason}.
+            {inst.showing ? ` Showing revision ${inst.showing.revision}, ${age(now - inst.showing.at)} old.` : ` For ${age(now - h.since)}.`}
+            {moves ? ` Update would take ${keyText(next)}.` : ''}
+          </p>
+        );
+      })}
     </div>
   );
 }

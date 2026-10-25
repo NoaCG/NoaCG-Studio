@@ -606,7 +606,7 @@ function restored(raw: SelectionLayer, now: number): SelectionLayer {
   // (nothing read at boot can say so for certain), so it holds what airs until an operator press
   // of this page lands (AC-3: nothing is taken, advanced or reset, and the hold is shown).
   const { blocked: _blocked, ...rest } = raw;
-  // Send numbers start afresh with the new page: any press of it that lands ends the hold.
+  // Stale 0: any press of this page that lands ends the hold.
   const l: SelectionLayer = { ...rest, blocked: { since: now, stale: 0, reopened: true } };
   // Sends this layer folded into what it does not know may still arrive from the page that went
   // away: it settles again from the reload.

@@ -3200,7 +3200,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             any more than the pictures may. And above 1366px the bar moves
             into the empty column beside PROGRAM, which spends that width and gives the monitors
             back the height the bar was using. Below it, the bar returns underneath. */}
-        <SelectionHolds part={session.selections} labelOf={(cueId) => cues.find((c) => c.id === cueId)?.label ?? null} />
+        <SelectionHolds
+          part={session.selections}
+          labelOf={(cueId) => cues.find((c) => c.id === cueId)?.label ?? null}
+          nextOf={(cueId, graphic) => {
+            const cue = cues.find((c) => c.id === cueId);
+            const take = cue ? selectionTake(cue, graphic, selectionFacts()) : null;
+            return take?.status === 'ok' ? take.selection.key : null;
+          }}
+        />
         <div className="pd-stagehead">
         <PlayoutMonitors
           // Server media goes through NoaCG Bridge whether or not the production is started, so

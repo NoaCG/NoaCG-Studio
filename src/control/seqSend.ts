@@ -177,7 +177,11 @@ export function settleAnswer(
 ): { outcome: 'landed' | 'superseded'; skipped: string[] } {
   // An answer this page cannot read came after the server may have applied the press: `unread`.
   if (!answer) throw Object.assign(new Error('the server answered in a way this page cannot read'), { unread: true });
-  learnHead(session, answer.epoch, answer.graphics);
+  // A duplicate's head is the current one, which may hold another screen's write made since this
+  // press applied: learnt here, the next press would carry it as seen and pass without this page
+  // ever hearing that change. Its own revision needs no learning: the server lets this page's
+  // later press over its own earlier one.
+  learnHead(session, answer.epoch, answer.ok && answer.duplicate ? {} : answer.graphics);
   if (answer.ok) return { outcome: 'landed', skipped: answer.skipped };
   if (answer.refused === 'superseded') return { outcome: 'superseded', skipped: [] };
   throw staleError(answer.stale.length > 0 ? answer.stale : graphics, answer.epochChanged);
