@@ -289,10 +289,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   // Snap), each pending until its answer, then landed or gone. It is the one source of an unbound
   // field's base (`baseOf`). A send that did not reach the output leaves it at once: it is never a
   // base and gives nothing back. Order is the press number's, never an answer's or a row's. ──
-  /** One batch of one send on one graphic: its press number, its figures, whether it replaces
-   *  every field (a Take, Snap or Out), the cue it went on (`layerCue`), and the fields air's record
-   *  took past it: its own row or a newer one heard, another screen's, or a move with no row. */
-  type Entry = { stamp: number; figures: Record<string, string>; whole: boolean; layer: Layer; landed: boolean; past: Set<string> };
+  /** One batch of one send on one graphic: its press number, its figures, the cue it went on
+   *  (`layerCue`), and the fields air's record took past it: its own row or a newer one heard,
+   *  another screen's, or a move with no row. */
+  type Entry = { stamp: number; figures: Record<string, string>; layer: Layer; landed: boolean; past: Set<string> };
   const ledger = new Map<string, Entry[]>();
   let sendSeq = 0;
   /** This page's figure-carrying commands (an update, an event), by the id they were sent with, and
@@ -321,7 +321,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  write into the cue. */
   const unreplaced = (graphic: string, figures: Record<string, string>, stamp: number) => {
     const newer = (ledger.get(graphic) ?? []).filter((e) => e.landed && e.stamp > stamp);
-    return Object.fromEntries(Object.entries(figures).filter(([key]) => !newer.some((e) => e.whole || key in e.figures)));
+    return Object.fromEntries(Object.entries(figures).filter(([key]) => !newer.some((e) => key in e.figures)));
   };
   /** Per cue and field, the figure a press last wrote into the cue. */
   const pressWrote = new Map<string, string>();
@@ -461,15 +461,15 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return still;
   };
   /** What an unbound field counts from: the newest entry of the ledger, by press, that carries it
-   *  or replaces every field on the cue the layer holds, while it is out, or once landed until air's
-   *  record took it past; else what air was last sent, else `fallback`. Never the cue as typed, so
-   *  a correction staged in PREP is not a base until Update airs it. */
+   *  on the cue the layer holds, while it is out, or once landed until air's record took it past;
+   *  else what air was last sent, else `fallback`. Never the cue as typed, so a correction staged
+   *  in PREP is not a base until Update airs it. */
   const baseOf = (graphic: string, key: string, fallback: string | undefined) => {
     accounted(graphic);
     const cue = onLayer(graphic);
-    const carrying = (ledger.get(graphic) ?? []).filter((e) => (e.whole || key in e.figures) && layerCue(e.layer) === cue);
+    const carrying = (ledger.get(graphic) ?? []).filter((e) => key in e.figures && layerCue(e.layer) === cue);
     const last = carrying[carrying.length - 1];
-    if (last && key in last.figures && !(last.landed && last.past.has(key))) return last.figures[key];
+    if (last && !(last.landed && last.past.has(key))) return last.figures[key];
     return session.air.get().aired[graphic]?.[key] ?? fallback;
   };
 
@@ -481,8 +481,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
     // pressed before the end still takes off what it named, since a clear can air nothing stale.
     if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };
-    // Into the ledger, one entry per batch and graphic, pending until the answer: what a Take or an
-    // Update sends counts as a press's figure does, and a Take, Snap or Out replaces every field.
+    // Into the ledger, one entry per batch and graphic that carries figures, pending until the
+    // answer: what a Take, an Update or a Snap sends counts as a press's figure does.
     const layerOf = (graphic: string): Layer => {
       const takes = batches.flat().filter((item) => item.graphic === graphic && item.msg.t === 'cue');
       return layerAt(graphic, takes.length > 0 ? ((takes[takes.length - 1].msg as { cue?: string | null }).cue ?? null) : undefined);
@@ -491,10 +491,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       [...new Set(batch.map((item) => item.graphic))].flatMap((graphic) => {
         const items = batch.filter((item) => item.graphic === graphic);
         const figures: Record<string, string> = Object.assign({}, ...items.map((item) => figuresOf(item.msg) ?? {}), moved ?? {});
-        const whole = items.some((item) => !['update', 'event', 'next'].includes(item.msg.t));
-        if (!whole && Object.keys(figures).length === 0) return [];
+        if (Object.keys(figures).length === 0) return [];
         accounted(graphic);
-        const entry: Entry = { stamp, figures, whole, layer: layerOf(graphic), landed: false, past: new Set() };
+        const entry: Entry = { stamp, figures, layer: layerOf(graphic), landed: false, past: new Set() };
         // Bounded: an entry this old has long been replaced by newer ones on its graphic.
         ledger.set(graphic, [...(ledger.get(graphic) ?? []), entry].slice(-64));
         return [{ graphic, batch: index, entry }];

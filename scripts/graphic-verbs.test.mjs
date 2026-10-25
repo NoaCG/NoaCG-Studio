@@ -2617,3 +2617,266 @@ test('an Update sent while a failed Take was out counts on the cue an older land
   r.sends[3].answer.resolve({ ...noneLeft });
   await plus;
 });
+
+// ── THE LEDGER (row 32a's last repair, check 2 F1 to F4). One ledger of this page's own sends,
+// by press number, is the only source of an unbound field's base: pending, landed until air's
+// record takes it past, or gone when it did not reach the output. A live press also waits behind
+// this page's own Take, Re-take, Update and Out of its graphic, and goes only while the live
+// marker and this page's newest marker press both name its cue. ──
+
+/** As controlModel.ts `pressSend` says it: an event's moved figure rides in its payload. */
+const paysMoved = (button, boundMap, valueOf) => {
+  const fields = Object.fromEntries(Object.entries(button.adjust ?? {}).map(([key, delta]) => [key, String(Number(valueOf(key) ?? 0) + delta)]));
+  return { payload: fields, fields, tree: [] };
+};
+const goalA = { event: 'goalA', adjust: { home: 1 } };
+/** The fast road, switched by the test: this page's monitor and air's record take the page's own
+ *  commands at the press (airState.ts `claimAndApply`). */
+function roads(r) {
+  const road = { fast: false };
+  r.state.sender = {
+    ...r.sender,
+    applyHere: (items) =>
+      road.fast &&
+      r.session.apply((parts) => ({
+        ...parts,
+        air: {
+          ...parts.air,
+          aired: items.reduce((aired, item) => airedAfter(aired, item.graphic, item.msg), parts.air.aired),
+          liveCue: items.reduce((map, item) => (item.msg.t === 'cue' ? withLiveCue(map, item.graphic, item.msg.cue ?? null) : map), parts.air.liveCue),
+        },
+      })),
+  };
+  return road;
+}
+const homeAired = (r) => r.session.air.get().aired.Score?.home;
+const sentHomes = (r) => r.sends.map((send) => send.batches[0].find((item) => item.msg.t === 'update' || item.msg.t === 'event')?.msg).map((msg) => msg?.data?.home ?? msg?.payload?.home);
+
+test('a +1 that failed on the fast road is never the base, though an older slow row is heard after it (F1)', async () => {
+  const scorebug = graphicCue('h1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'h1' }, aired: { Score: { home: '7' } }, ioWith: { pressSend: paysMoved } });
+  const road = roads(r);
+  const view = () => liveSelection('Score', [scorebug], r.liveCue());
+  // A ⚡ goal on a graphic with a clock rides the slow road: it lands, its row is not heard yet.
+  const goal = r.verbs.event(view(), goalA);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await goal;
+  // Past the slow window the +1 rides the fast road: this monitor shows its 9 at the press. It fails.
+  road.fast = true;
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '9']);
+  assert.equal(homeAired(r), '9');
+  r.sends[1].answer.reject(Object.assign(new Error('down'), { aired: true }));
+  await plus;
+  // The goal's row is heard: air's record, and this monitor, show 8.
+  hearRows(r, r.sends[0].batches[0]);
+  assert.equal(homeAired(r), '8');
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(sentHomes(r)[2], '9');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await next;
+});
+
+test('a fast-road +1 applied here and then failed never becomes the base: the landed figure before it stands (R14)', async () => {
+  const scorebug = graphicCue('h1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'h1' }, aired: { Score: { home: '7' } }, ioWith: { pressSend: paysMoved } });
+  const road = roads(r);
+  const view = () => liveSelection('Score', [scorebug], r.liveCue());
+  const goal = r.verbs.event(view(), goalA);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await goal;
+  road.fast = true;
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[1].answer.reject(new Error('down'));
+  await plus;
+  // No row heard: the goal's 8 landed, the 9 did not.
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(sentHomes(r)[2], '9');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await next;
+  // And a fast +1 that lands counts on: its own apply here took no figure past.
+  const again = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '9', '9', '10']);
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await again;
+});
+
+test('the hockey scorebug on the fast road: the goal\'s slow row heard after a fast +1 landed leaves that +1 the base', async () => {
+  const scorebug = graphicCue('h1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'h1' }, aired: { Score: { home: '7' } }, ioWith: { pressSend: paysMoved } });
+  const road = roads(r);
+  const view = () => liveSelection('Score', [scorebug], r.liveCue());
+  const goal = r.verbs.event(view(), goalA);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await goal;
+  road.fast = true;
+  const one = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await one;
+  // The goal's slow row arrives after the fast +1 applied here: this monitor goes back to 8.
+  hearRows(r, r.sends[0].batches[0]);
+  const two = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '9', '10']);
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await two;
+});
+
+test('two overlapping sends that both fail around a landed ⚡ goal lose no figure (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } }, ioWith: { pressSend: paysMoved } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await plus;
+  const goal = r.verbs.event(view(), goalA);
+  await settle();
+  // An Update goes out while the goal is out; the goal lands; a second Update goes out.
+  const first = r.verbs.update(view());
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await goal;
+  const second = r.verbs.update(view());
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '9', '7', '7']);
+  // Both Updates fail: air shows the goal's 9.
+  r.sends[2].answer.reject(new Error('down'));
+  await first;
+  r.sends[3].answer.reject(new Error('down'));
+  await second;
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(sentHomes(r)[4], '10');
+  r.sends[4].answer.resolve({ ...noneLeft });
+  await next;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive').map(([, , v]) => v), ['{"home":"8"}', '{"home":"9"}', '{"home":"10"}']);
+});
+
+test('a press is refused when another screen takes another cue while this page\'s Re-take is out (F3)', async () => {
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const s2 = graphicCue('s2', 'Score', { home: '3' });
+  const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 's2' }, aired: { Score: { home: '3' } } });
+  const view = () => liveSelection('Score', [s1, s2], r.liveCue());
+  const retake = r.verbs.take(s2);
+  await settle();
+  r.flushes[0].resolve();
+  await settle();
+  assert.equal(r.sends.length, 1);
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  // Another screen takes s1 (Katri's 7), and its rows are heard: the live marker names s1.
+  hearRows(r, [
+    { graphic: 'Score', msg: { t: 'update', data: { home: '7' }, oid: 'other-u' } },
+    { graphic: 'Score', msg: { t: 'play', oid: 'other-p' } },
+    { graphic: 'Score', msg: { t: 'cue', cue: 's1', oid: 'other-c' } },
+  ]);
+  assert.equal(r.liveCue().Score, 's1');
+  // Whatever the press waits on, the Re-take or its save, it ends.
+  for (const fire of r.timers) fire();
+  await settle();
+  for (const flush of r.flushes) flush.resolve();
+  await settle();
+  assert.equal(r.sends.length, 1);
+  assert.deepEqual(r.notes, ['Nothing sent: the cue on Score changed.']);
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive'), []);
+  r.sends[0].answer.reject(Object.assign(new Error('changed'), { stale: true }));
+  await retake;
+  await plus;
+});
+
+test('a press is refused when this page\'s own Take of another cue goes out while it waits on its save', async () => {
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
+  const plus = r.verbs.bump(liveSelection('Score', [s1, s2], r.liveCue()), 'home', 1);
+  await settle();
+  const taking = r.verbs.take(s2);
+  await settle();
+  // The Take's save ends first and it goes; the live marker still names s1 until its answer.
+  r.flushes[1].resolve();
+  await settle();
+  assert.equal(r.sends.length, 1);
+  assert.equal(r.liveCue().Score, 's1');
+  r.flushes[0].resolve();
+  await plus;
+  assert.equal(r.sends.length, 1);
+  assert.deepEqual(r.notes, ['Nothing sent: the cue on Score changed.']);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+});
+
+test('a live press waits behind this page\'s own Update of its graphic, then counts from what it sent', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  r.draft.b1 = { home: '20' };
+  const updating = r.verbs.update(view());
+  await settle();
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(r.sends.length, 1);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await updating;
+  await settle();
+  assert.deepEqual(sentHomes(r), ['20', '21']);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await plus;
+});
+
+test('a Re-take that stalls past the fallback: the +1 it let go lands, and no figure is sent twice (R7)', async () => {
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 's2' }, aired: { Score: { home: '0' } } });
+  const view = () => liveSelection('Score', [s2], r.liveCue());
+  const retake = r.verbs.take(s2);
+  await settle();
+  const one = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.timers.at(-1)?.();
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await one;
+  const two = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await two;
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await retake;
+  const three = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await three;
+  assert.deepEqual(sentHomes(r), ['0', '1', '2', '3']);
+});
+
+test('a +1 that got no answer and whose row is heard later stands over the older landed figure', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const a = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await a;
+  const b = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[1].answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true }));
+  await b;
+  // It committed after all: both rows are heard, in the log's order.
+  hearRows(r, r.sends[0].batches[0]);
+  hearRows(r, r.sends[1].batches[0]);
+  assert.equal(homeAired(r), '9');
+  const c = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '9', '10']);
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await c;
+});
