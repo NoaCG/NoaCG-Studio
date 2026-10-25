@@ -99,7 +99,39 @@ changes a spec's digest.
     and 6.5% (fast) of committed ± figures did not move true air by exactly their step (8da6005:
     6.4% and 7.6%). The usual cause is a send that got no answer but committed: the rule counts
     it as gone, so the next press counts from air again.
-- **Mutation check.** MUT
+- **Mutation check.** Each rule removed in turn in a scratch copy of `src`, with
+  `graphic-verbs`, `live-controls` and the walk at its default count; the named test that turns red
+  (the PR lists every one):
+  - a failed send kept as landed, or kept pending: "a landed figure stays the base when the send
+    that would replace it fails", F1, F2, both walks;
+  - ordered by answer, not press number: "a late older answer that landed books nothing…", R7,
+    both walks;
+  - a pending send not a base: "a press released by the fallback… counts from the figure this page
+    sent", both walks; a landed send not a base: "a press after one that landed on the slow road…";
+  - a pending send taken past no longer a base: the repo's slow-road walk, both walks;
+  - pending beats a newer landed send: R7;
+  - an own row takes every entry past: "three quick +1 presses…", the hockey scorebug; takes none
+    past: "an unanswered +1 whose row is heard later…"; another screen's row takes none past: "a
+    correction from another screen… same figure…";
+  - an own row applied here takes none past: "an Update applied here that… committed"; takes its own
+    entry past: the fast-road walk;
+  - an own stop row read as another screen's: "All out stops the folders first…" (its id) and the
+    walks before this branch's fix;
+  - a move of air's record with no row ignored: "a press after one that landed… until air's record
+    moves"; a marker move with no row ignored: "a landed figure is not the base on the next cue…";
+    another screen's cue row read as a move with no row: "a +1 pressed between the rows of another
+    screen's Take…"; this page's marker from an answer read so: "the Take of a new round…";
+  - the fast road's own apply here not accounted: R14, the hockey scorebug on the fast road;
+  - a late answer writes over a newer landed send: "a late older answer writes nothing into the cue…";
+  - instance without the live marker: F3; without this page's marker press out: "a press refuses a
+    cue this page's own Take is still taking off the layer", "a press is refused when this page's
+    own Take of another cue goes out while it waits on its save"; not asked after the wait: "a Take
+    of another cue… during a held save…";
+  - no wait behind this page's own sends: "a live press waits behind this page's own Update…";
+    waiting only for the newest own send: both walks.
+  - One mutant is equivalent and survives: letting an older entry stand when the newest is taken
+    past. Every rule that takes a field past an entry also takes it past every older one, so no
+    older entry can stand.
 - **Traps.**
   - Rows reach the page by two roads, so the page cannot know where another screen's row sits in
     the log against its own unheard sends; the ledger follows the diagnoser's rule (another
