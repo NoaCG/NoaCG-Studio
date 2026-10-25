@@ -95,7 +95,7 @@ changes a spec's digest.
   `CueRundown.tsx`, `SelectionHolds.tsx`, `ProductionPage.tsx` (the wiring), and
   `scripts/graphic-verbs.test.mjs`, `scripts/production-data-session.test.mjs`,
   `e2e/configured/expected-run.json`.
-- **Mutation checks**: 97 Node mutations, all red (42 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
+- **Mutation checks**: 98 Node mutations, all red (43 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
   required field, the optional fallback, a valid empty list, an unknown B borrowing a record, typed
   keys, the field fit, the schema revision, a missing key part), the gate (a later selector, a later
   recipe, a shared binding, another graphic), every bound at its edge, the follow (newer only, the
@@ -129,7 +129,7 @@ changes a spec's digest.
   small parse cache. Left as reports: a per-cue "fixed fields" set to replace the `boundOf` marker
   in `unsentNow`, one shared read-only field row in the editor, a per-collection key index, and a
   reference fast path in `selectionFrozen`.
-- **The pull request's reviews.** Fourteen rounds of the automated pull request review, every finding
+- **The pull request's reviews.** Fifteen rounds of the automated pull request review, every finding
   fixed and pinned:
   a press that lands (or fails) follows the newest tree at once, since a revision that arrived
   while it was pending was passed over and nothing else may come; the follow pass reads what is
@@ -189,6 +189,11 @@ changes a spec's digest.
   that instance alone (`settleSelection`), so the press's own answer still finds it, ends pending
   and confirms what landed; undone, it goes back to what last landed and the follow sends the
   newest revision again. Mutation: settling over a pending press, red.
+  Round fifteen (a regression of round thirteen): a later Update failing while an earlier one is
+  out brought the earlier capture back through `unsettledBack` as a copy, so its own answer no
+  longer found it and the layer stayed pending. An unanswered capture now comes back as itself;
+  only an answered or settled one is rolled back. Mutation: the undo rolling back a pending
+  capture, red.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

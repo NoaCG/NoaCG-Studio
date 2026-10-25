@@ -336,8 +336,9 @@ export function pressSelection(io: SelectionAirIo, graphic: string, cueId: strin
       while (back && failed.has(back)) back = replaced.get(back);
       if (back?.pending && answered.has(back)) back = (({ pending: _pending, ...rest }) => rest)(back);
       // A correction still out when this press displaced it was never settled (its answer found
-      // another cue on the layer).
-      if (back) back = unsettledBack(back);
+      // another cue on the layer). A press still unanswered comes back as itself, so its own answer
+      // still finds it and settles it.
+      if (back && !back.pending) back = unsettledBack(back);
       put(io, undoSelection(io.part.get(), graphic, inst, back));
       // A revision passed over while this press was pending is followed now, as after a landing.
       io.followNow?.();

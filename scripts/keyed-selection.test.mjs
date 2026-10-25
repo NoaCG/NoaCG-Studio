@@ -717,6 +717,21 @@ describe('the page\'s two doors onto the instances', () => {
     }
   });
 
+  test('a later Update failing while an earlier one is out brings the earlier capture back as itself, for its own answer to settle', () => {
+    for (const outcome of ['landed', 'undo']) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      const first = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
+      const out = p.part.get().Card;
+      air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(7, [person('D1', 7, 'Aino Aalto', 1600)]))).undo();
+      assert.equal(p.part.get().Card, out, `${outcome}: the first Update, still out, is back unchanged`);
+      first[outcome]();
+      const card = p.part.get().Card;
+      assert.equal(card.pending, undefined, `${outcome}: its answer settles it`);
+      assert.deepEqual([card.revision, card.confirmed.revision], outcome === 'landed' ? [6, 6] : [5, 5]);
+    }
+  });
+
   test('a disposed page writes no selection: a late answer cannot overwrite what a reopened page captured', async () => {
     let alive = true;
     const p = { ...io(), alive: () => alive };
