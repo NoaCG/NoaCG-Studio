@@ -57,7 +57,12 @@ changes a spec's digest.
     The one case this misses is a broadcast that overtakes the durable rows. Another screen's Take
     commits after this page's lost press, and its broadcast arrives before this page's own row.
     Telling those apart needs the log's `seq` on every heard command, which broadcasts do not
-    carry. A rule that dropped such rows was tried and reverted: it broke the ordered cases.
+    carry. A rule that dropped such rows was tried and reverted: it broke the ordered cases. Two
+    more limits, both from the review. Another screen's row can be heard after this page's press
+    was answered as landed, even though that press committed after it, on a head learned from a
+    refusal. That row resets the baseline, so a later failure gives back the other screen's cue.
+    This was wrong before this change too. A cue row from an old writer carries no id. It never
+    counts as applied, so a second arrival of it rebases the track again.
   - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
     sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
     old skip now make a real later press.
