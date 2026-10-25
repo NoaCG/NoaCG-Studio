@@ -453,9 +453,12 @@ var relayOk = false;
 var cursor = 0;
 function send(items) {
   if (!relayOk) return;
-  noteSent(items);
+  var noted = noteSent(items);
+  // A send that never reached the relay holds nothing: its figures stop being the base, unless a
+  // newer send has held the field since.
+  var release = function () { releaseSent(noted); };
   fetch('/relay/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items: items }) }).catch(function () {});
+    body: JSON.stringify({ items: items }) }).then(function (r) { if (!r.ok) release(); }, release);
 }
 
 ${MATCH_CLOCK_PAGE_JS}
@@ -597,14 +600,36 @@ var airedVals = {};  // graphic -> field -> value, from the program rows of the 
 var sentVals = {};   // graphic -> field -> value this page sent that the log has not shown yet
 var sentAt = {};     // graphic -> field -> when it was sent: a send the log never shows stops counting
 var SENT_HOLD_MS = 7000; // a send's whole window and an attempt's time, as graphicVerbs.ts waits
+var sentTok = {};    // graphic -> field -> the send that holds it, so a failed send releases only its own
+var sentSeq = 0;
 function programData(m) { return m.t === 'update' ? m.data : m.t === 'event' ? m.payload : null; }
 function noteSent(items) {
+  var noted = [];
   items.forEach(function (it) {
     var data = it.stream !== 'preview' && it.msg ? programData(it.msg) : null;
     if (!data) return;
     var held = sentVals[it.graphic] || (sentVals[it.graphic] = {});
     var at = sentAt[it.graphic] || (sentAt[it.graphic] = {});
-    for (var k in data) { held[k] = String(data[k]); at[k] = Date.now(); }
+    var tok = sentTok[it.graphic] || (sentTok[it.graphic] = {});
+    for (var k in data) {
+      var had = Object.prototype.hasOwnProperty.call(held, k);
+      noted.push({ graphic: it.graphic, key: k, tok: ++sentSeq, before: had ? { value: held[k], at: at[k], tok: tok[k] } : null });
+      held[k] = String(data[k]);
+      at[k] = Date.now();
+      tok[k] = sentSeq;
+    }
+  });
+  return noted;
+}
+// What a failed send held goes back to what was held before it (an earlier send still out).
+function releaseSent(noted) {
+  noted.slice().reverse().forEach(function (n) {
+    var tok = sentTok[n.graphic] || {};
+    if (tok[n.key] !== n.tok) return;
+    var held = sentVals[n.graphic] || {};
+    var at = sentAt[n.graphic] || {};
+    if (n.before) { held[n.key] = n.before.value; at[n.key] = n.before.at; tok[n.key] = n.before.tok; }
+    else { delete held[n.key]; delete at[n.key]; delete tok[n.key]; }
   });
 }
 function noteAired(row) {
