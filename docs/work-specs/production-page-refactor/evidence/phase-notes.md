@@ -36,8 +36,13 @@ changes a spec's digest.
     answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
     puts back the newest press that landed, or the marker from before the first press still out.
     It does not fall back to an older press that is still out: the marker names a press once it
-    lands. Before a restore, the marker must still name a cue that these presses or that earlier
-    marker named. Otherwise another screen moved it, and it stays.
+    lands. A restore is skipped when another screen moved the marker since. That shows two ways:
+    another screen's cue marker was heard fresh while the press was out (`foreignMarker`, from
+    `verbs.heard`), or the marker names a cue that none of these presses, nor the earlier marker,
+    named. Then the marker stays. Only a marker the page has not applied yet counts. A second
+    arrival of one it already applied (its broadcast, then its durable row) moves nothing. Both
+    rules come from the review of the PR. Without them, another screen taking a cue that a press
+    of this page also named was mistaken for this page's own, and so was a duplicate echo.
   - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
     sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
     old skip now make a real later press.
