@@ -1,7 +1,10 @@
 /* Election - ticker. SPX lifecycle; ES5 only (CasparCG 2.3's Chromium 71). The crawl is the
-   headlines laid out as often as the window needs, moved left at a constant speed and wrapped at one copy's width, so
-   it never jumps. New headlines on air take over at the next wrap, never mid-sentence. The crawl
-   runs on GSAP's frame clock, so a renderer that pauses frames pauses it too. */
+   headlines laid out as often as the window needs, moved left at a constant speed and wrapped
+   at one copy's width, so it never jumps. New headlines on air take over at the next wrap,
+   never mid-sentence. The crawl runs on GSAP's frame clock, so a renderer that pauses frames
+   pauses it too.
+   Every entrance tween names its end state, so a play() that interrupts another never
+   ends hidden. */
 
 (function () {
   var SPEED = 120; // px per second
@@ -87,7 +90,7 @@
     entrance = gsap.timeline();
     entrance.set('#tk-root', { autoAlpha: 1 });
     entrance.fromTo('.tk-bar', { y: 90 }, { y: 0, duration: 0.55, ease: 'power3.out' }, 0);
-    entrance.from('.tk-label', { autoAlpha: 0, duration: 0.35 }, 0.25);
+    entrance.fromTo('.tk-label', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35 }, 0.25);
     run();
   };
 

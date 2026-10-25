@@ -1,6 +1,8 @@
 /* Election - candidate card. SPX lifecycle; ES5 only (CasparCG 2.3's Chromium 71). The
    portrait is an <img id="f4">: empty shows the bundled silhouette. The party colour is a
-   field whose element only carries it, so it paints the rule and is never printed. */
+   field whose element only carries it, so it paints the rule and is never printed.
+   Every entrance tween names its end state, so a play() that interrupts another never
+   ends hidden. */
 
 (function () {
   var entrance = null;
@@ -41,9 +43,9 @@
     entrance = gsap.timeline();
     entrance.set('#cc-root', { autoAlpha: 1 });
     entrance.fromTo('.cc-card', { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 0.6, ease: 'power3.inOut' }, 0);
-    entrance.from('.cc-portrait img', { scale: 1.12, duration: 0.9, ease: 'power2.out' }, 0);
-    entrance.from(['.cc-name', '.cc-sub'], { x: -24, autoAlpha: 0, duration: 0.45, ease: 'power3.out', stagger: 0.08 }, 0.3);
-    entrance.from('.cc-figure > *', { y: 14, autoAlpha: 0, duration: 0.4, ease: 'power2.out', stagger: 0.06 }, 0.42);
+    entrance.fromTo('.cc-portrait img', { scale: 1.12 }, { scale: 1, duration: 0.9, ease: 'power2.out' }, 0);
+    entrance.fromTo(['.cc-name', '.cc-sub'], { x: -24, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.45, ease: 'power3.out', stagger: 0.08 }, 0.3);
+    entrance.fromTo('.cc-figure > *', { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.4, ease: 'power2.out', stagger: 0.06 }, 0.42);
   };
 
   window.stop = function () {

@@ -1285,9 +1285,9 @@ export default function CueEditor({
                           </span>
                         </div>
                         {format ? (
-                          <textarea value={shown} placeholder="not ready" rows={3} readOnly tabIndex={-1} />
+                          <textarea value={shown} placeholder={candidate.notReady ? 'not ready' : ''} rows={3} readOnly tabIndex={-1} />
                         ) : (
-                          <input value={shown} placeholder="not ready" readOnly tabIndex={-1} />
+                          <input value={shown} placeholder={candidate.notReady ? 'not ready' : ''} readOnly tabIndex={-1} />
                         )}
                       </div>
                     );

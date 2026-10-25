@@ -1,6 +1,8 @@
 /* Election - count bug. SPX lifecycle; ES5 only (CasparCG 2.3's Chromium 71). The meter is
    drawn from the counted share ("61%"), which the results source sends beside the counted line
-   so a figure and its meter never disagree. */
+   so a figure and its meter never disagree.
+   Every entrance tween names its end state, so a play() that interrupts another never
+   ends hidden. */
 
 (function () {
   var entrance = null;
@@ -32,7 +34,7 @@
     entrance = gsap.timeline();
     entrance.set('#cb-root', { autoAlpha: 1 });
     entrance.fromTo('.cb-bug', { x: 30, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' }, 0);
-    entrance.from(['.cb-top', '.cb-line', '.cb-source'], { y: 8, autoAlpha: 0, duration: 0.35, ease: 'power2.out', stagger: 0.06 }, 0.15);
+    entrance.fromTo(['.cb-top', '.cb-line', '.cb-source'], { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.35, ease: 'power2.out', stagger: 0.06 }, 0.15);
     entrance.fromTo('.cb-fill', { width: '0%' }, { width: shareOf() + '%', duration: 0.9, ease: 'power3.out' }, 0.3);
   };
 

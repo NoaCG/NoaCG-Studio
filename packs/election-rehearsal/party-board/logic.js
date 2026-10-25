@@ -1,6 +1,8 @@
 /* Election - party totals. SPX lifecycle; ES5 only (CasparCG 2.3's Chromium 71). A share
    arrives as text ("22.7%"); the bars are drawn against the largest share on the board, so the
-   leader fills the track and every other bar keeps its true proportion to it. */
+   leader fills the track and every other bar keeps its true proportion to it.
+   Every entrance tween names its end state, so a play() that interrupts another never
+   ends hidden. */
 
 (function () {
   var entrance = null;
@@ -77,13 +79,13 @@
     entrance = gsap.timeline();
     entrance.set('#pb-root', { autoAlpha: 1 });
     entrance.fromTo('.pb-panel', { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out' }, 0);
-    entrance.from('.pb-head > *', { y: 12, autoAlpha: 0, duration: 0.45, ease: 'power2.out', stagger: 0.08 }, 0.15);
-    entrance.from('.pb-row', { x: -18, autoAlpha: 0, duration: 0.4, ease: 'power2.out', stagger: 0.04 }, 0.25);
+    entrance.fromTo('.pb-head > *', { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, ease: 'power2.out', stagger: 0.08 }, 0.15);
+    entrance.fromTo('.pb-row', { x: -18, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.4, ease: 'power2.out', stagger: 0.04 }, 0.25);
     var list = rows();
     for (var i = 0; i < list.length; i++) {
       entrance.fromTo(list[i].querySelector('.pb-bar'), { width: '0%' }, { width: widths[i] + '%', duration: 0.9, ease: 'power3.out' }, 0.45 + i * 0.04);
     }
-    entrance.from('.pb-foot', { autoAlpha: 0, duration: 0.4 }, 0.8);
+    entrance.fromTo('.pb-foot', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4 }, 0.8);
   };
 
   window.stop = function () {
