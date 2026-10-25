@@ -1020,8 +1020,11 @@ function roadDecided(slug: string, deadline: number): Promise<void> {
   if (!wait) {
     wait = (async () => {
       if (!(await getSupabase().catch(() => null))) return;
-      // A re-ask nobody answered decides nothing: the production may exist by now.
-      if (unknownSlugs.has(slug) && !(await controlShowBySlug(slug).catch(() => null))?.ok) unknownSlugs.delete(slug);
+      // A re-ask nobody answered by the deadline decides nothing: the production may exist by now.
+      if (unknownSlugs.has(slug)) {
+        const late = new Promise<null>((resolve) => setTimeout(() => resolve(null), Math.max(0, deadline - Date.now())));
+        if (!(await Promise.race([controlShowBySlug(slug).catch(() => null), late]))?.ok) unknownSlugs.delete(slug);
+      }
       while (!decided(slug) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
     })().finally(() => roadWaits.delete(slug));
     roadWaits.set(slug, wait);

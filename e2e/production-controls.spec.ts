@@ -345,6 +345,26 @@ test('a Take whose resolve answers after its resend window is not sent late (#16
   expect(sendsById()).toBe(0);
 });
 
+test('a stalled re-ask of a production called missing does not hold the press past its window (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let stall = false;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve' ? (stall ? { delay: 30_000 } : { status: 200, body: null }) : null,
+  );
+  stall = true;
+  const showId = page.url().split('/production/')[1];
+  const settledIn = await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const started = Date.now();
+    await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] }).catch(() => null);
+    return Date.now() - started;
+  }, showId);
+  expect(settledIn, 'the press ended within its resend window').toBeLessThan(6_000);
+  expect(sendsSeq()).toBe(0);
+  expect(sendsById(), 'nothing went by row id').toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   await publishedPage(page, (rpc, fixture) =>

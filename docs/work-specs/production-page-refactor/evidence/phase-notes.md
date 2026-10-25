@@ -22,7 +22,7 @@ changes a spec's digest.
   presses resume and take their numbers in the order they were made; a press made while it runs
   joins it, and All out waits before numbering its batches. A press on a production the resolve
   answered as missing asks the resolve once more; still missing, the send is the server's to
-  refuse, as before; a re-ask nobody answered decides nothing. The slow-event hold-back runs from
+  refuse, as before; a re-ask nobody answers by the deadline decides nothing. The slow-event hold-back runs from
   when the send leaves, after any wait, while a press's resend window still runs from the press,
   so a Take whose resolve answers after that window never airs late. A page on protocol 1 shows
   "order not guaranteed" under the on-air chip (both operator pages, `UnorderedSends`), and its
