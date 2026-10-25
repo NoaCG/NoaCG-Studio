@@ -795,11 +795,13 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
   // file carries no connector, address or credential and an import rebinds explicitly.
   const pooled = new Set(show.graphics.map((g) => g.name));
   const bindings = Object.entries(structuredClone(show.bindings ?? {})).filter(([graphic, fields]) => pooled.has(graphic) && Object.keys(fields).length > 0);
+  const collections = structuredClone(show.collections ?? []).filter((r) => pooled.has((r as { graphic?: unknown }).graphic as string));
   const data = {
     ...(show.data && Object.keys(show.data).length ? { data: structuredClone(show.data) } : {}),
     // Bindings of a graphic no longer in the pool bind nothing, and would make the file refused.
     ...(bindings.length ? { bindings: Object.fromEntries(bindings) } : {}),
-    ...(show.collections?.length ? { collections: structuredClone(show.collections) } : {}),
+    // Likewise a recipe whose graphic has gone (its cues went with it).
+    ...(collections.length ? { collections } : {}),
   };
   return {
     format: PACK_FORMAT,

@@ -350,6 +350,18 @@ test('the election production exports and imports again with its fonts, picture,
     collections: s.collections,
   });
   expect(shape(again)).toEqual(shape(first));
+
+  // A production whose card was removed still exports a file that imports: the recipe and the
+  // bindings of a graphic no longer in the pool stay behind.
+  const reduced = await page.evaluate(async (id) => {
+    const S = await import('/src/model/shows.ts');
+    const P = await import('/src/packs/graphicsPack.ts');
+    const show = S.loadShows().find((s) => s.id === id)!;
+    S.removeShowGraphicChecked(id, show.graphics.find((g) => g.name === 'Candidate card')!.id);
+    const pack = await P.buildPack(S.loadShows().find((s) => s.id === id)!);
+    return { collections: pack.collections ?? null, error: P.parsePack(JSON.stringify(pack)).error };
+  }, first.id);
+  expect(reduced).toEqual({ collections: null, error: null });
   await takeCue(page, 'Aino Example');
   await expect(program(page, 'Candidate card').locator('#f2')).toHaveText('3,500');
 });
