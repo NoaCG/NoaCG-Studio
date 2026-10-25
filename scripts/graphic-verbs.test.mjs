@@ -2164,3 +2164,25 @@ test('a failed older send gives back no landed figure a newer send replaced (F2)
   r.sends[3].answer.resolve({ ...noneLeft });
   await third;
 });
+
+test('a late older answer that landed books nothing over a figure a newer send landed (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const older = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][0].msg.data, { home: '8' });
+  // The cue, staged at 0, is sent again and lands while the +1 is still out.
+  const updating = r.verbs.update(view());
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '0' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await updating;
+  r.sends[0].answer.resolve({ ...noneLeft, pressedAgain: ['Score'] });
+  await older;
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '1' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await next;
+});

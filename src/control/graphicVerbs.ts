@@ -250,7 +250,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const landedFigures = new Map<string, Record<string, { figure: string; over: string | undefined; cue: string | null }>>();
   /** Per graphic, the press number of the newest send that reached the output and replaced its
    *  fields (`all`) or one field (`keys`): a failed older send gives back no figure a newer one
-   *  replaced. */
+   *  replaced, and a late older answer that landed books none over it. */
   let sendSeq = 0;
   const replacedAt = new Map<string, { all: number; keys: Record<string, number> }>();
 
@@ -374,13 +374,18 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const was = Object.fromEntries(Object.keys(figures).map((key) => [key, atPress[key]]));
     const held = { ...(sentFigures.get(graphic) ?? {}), ...figures };
     sentFigures.set(graphic, held);
+    const from = sendSeq;
     return (landed: boolean) => {
       if (sentFigures.get(graphic) === held) sentFigures.delete(graphic);
       if (!landed) return;
       const now = session.air.get().aired[graphic] ?? {};
       const book = { ...(landedFigures.get(graphic) ?? {}) };
-      // A field air's record already shows (the fast road applied it here) needs no booking.
+      const r = replacedAt.get(graphic);
+      // A field air's record already shows (the fast road applied it here) needs no booking. One a
+      // send since the press replaced keeps what that send booked: a press's own update booked
+      // its figure there, and a newer one stands over a late older answer.
       for (const [key, figure] of Object.entries(figures)) {
+        if (r && (r.all > from || (r.keys[key] ?? 0) > from)) continue;
         if (now[key] === was[key] && now[key] !== figure) book[key] = { figure, over: now[key], cue };
         else delete book[key];
       }
@@ -415,7 +420,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
           const now = session.air.get().aired[item.graphic] ?? {};
           const book = { ...(landedFigures.get(item.graphic) ?? {}) };
           for (const [key, figure] of Object.entries(item.msg.data ?? {})) {
-            r.keys[key] = Math.max(r.keys[key] ?? 0, stamp);
+            // A newer send already replaced it: a late older answer books nothing over that.
+            if (r.all > stamp || (r.keys[key] ?? 0) > stamp) continue;
+            r.keys[key] = stamp;
             if (now[key] === was[key] && now[key] !== figure) book[key] = { figure, over: now[key], cue: onLayer(item.graphic) };
             else delete book[key];
           }
