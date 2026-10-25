@@ -96,9 +96,14 @@ test('withoutOwnMarkers drops only the cue markers it is told are owned (#1696)'
   assert.deepEqual(withoutOwnMarkers(items, (item) => item.msg.oid === 'mine'), items.slice(1));
 });
 
-test("another screen's cue marker heard while a press is out stands over that press failing, whatever cue it names (#1696)", () => {
+test("another screen's cue marker heard while a press is out is what a failure gives back, whatever cue or later press (#1696)", () => {
   let book = pressMarker({}, { Bug: 'c0' }, 'Bug', 1, 'c1');
-  book = foreignMarker(book, 'Bug');
+  book = foreignMarker(book, 'Bug', 'c1');
   assert.deepEqual(answerMarker(book, { Bug: 'c1' }, 'Bug', 1, false), { book: {} });
-  assert.equal(foreignMarker({}, 'Bug').Bug, undefined, 'no press out: nothing to note');
+  // Heard x1, then a later press of this page moved the marker to c2; both fail: x1.
+  book = foreignMarker(pressMarker({}, { Bug: 'c0' }, 'Bug', 2, 'c1'), 'Bug', 'x1');
+  book = pressMarker(book, { Bug: 'x1' }, 'Bug', 3, 'c2');
+  book = answerMarker(book, { Bug: 'c2' }, 'Bug', 2, false).book;
+  assert.deepEqual(answerMarker(book, { Bug: 'c2' }, 'Bug', 3, false), { book: {}, write: 'x1' });
+  assert.equal(foreignMarker({}, 'Bug', 'x1').Bug, undefined, 'no press out: nothing to note');
 });

@@ -275,7 +275,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
   const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean, applied?: (msg: unknown) => boolean): T[] => {
     for (const item of items) {
-      if (item.msg.t === 'cue' && !mine(item.msg) && !applied?.(item.msg)) markers = foreignMarker(markers, item.graphic);
+      if (item.msg.t === 'cue' && !mine(item.msg) && !applied?.(item.msg)) markers = foreignMarker(markers, item.graphic, (item.msg as { cue?: string | null }).cue ?? null);
       const oid = oidOf(item.msg);
       const u = oid ? unanswered.get(oid) : undefined;
       if (!oid || !u || u.graphic !== item.graphic) continue;

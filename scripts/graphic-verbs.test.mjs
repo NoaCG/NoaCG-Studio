@@ -1369,6 +1369,18 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   two.send.answer.reject(new Error('refused'));
   await Promise.all([one.taking, two.taking]);
   assert.deepEqual(q.liveCue(), { Strap: 'c1' });
+  // Another screen's x1 heard, then a later press of this page over it; both fail: x1 again.
+  const z = rig({ fast: true });
+  z.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
+  const first = await pressTake(z, 'c1');
+  for (const item of z.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }], () => false)) z.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  const second = await pressTake(z, 'c2');
+  assert.deepEqual(z.liveCue(), { Strap: 'c2' });
+  first.send.answer.reject(new Error('refused'));
+  second.send.answer.reject(new Error('refused'));
+  await Promise.all([first.taking, second.taking]);
+  assert.deepEqual(z.liveCue(), { Strap: 'x1' });
+
   // The second arrival of another screen's marker the page already applied moves nothing: this
   // page's refused press still gives back what stood.
   const d = rig({ fast: true });
@@ -1538,6 +1550,10 @@ async function markerWalk(seed, steps) {
   const output = {};
   const presses = [];
   const trace = [];
+  /** Per graphic, another screen's newest Take: the cue, and how many presses of this page came before it. */
+  const foreign = {};
+  let foreignRows = 0;
+  const mine = (msg) => msg.oid.startsWith('oid-');
   const check = (when) => {
     for (const g of graphics) {
       const open = presses.some((p) => p.graphic === g && !p.answered);
@@ -1545,14 +1561,15 @@ async function markerWalk(seed, steps) {
       // Out, or landed with its answer lost and its row not heard yet: nothing here can know.
       if (open || presses.some((p) => p.graphic === g && p.lost && p.reached && !p.heard)) continue;
       const landed = presses.filter((p) => p.graphic === g && p.reached).at(-1);
-      assert.equal(landed ? landed.cue : null, output[g] ?? null, `seed ${seed}: the model`);
+      const theirs = foreign[g] && (!landed || landed.n <= foreign[g].after) ? foreign[g] : null;
+      assert.equal(theirs ? theirs.cue : landed ? landed.cue : null, output[g] ?? null, `seed ${seed}: the model`);
       assert.equal(r.liveCue()[g] ?? null, output[g] ?? null, `seed ${seed} ${when}: marker on ${g}\n${trace.join('\n')}`);
     }
   };
   // The page applies what the sender hands back, as `claimAndApply` would a row never claimed (a
   // slow-road press of this page is claimed only by its row).
   const hear = (p) => {
-    const rest = r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }], () => true);
+    const rest = r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }], mine, () => false);
     for (const item of rest) r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
   };
   const commit = (p) => {
@@ -1568,7 +1585,10 @@ async function markerWalk(seed, steps) {
     const uncommitted = open.filter((p) => !p.committed);
     // A row still to come: of a press whose answer was lost, or of any press that landed.
     const late = presses.filter((p) => !p.heard && (p.lost || p.reached));
-    const kinds = ['press', 'press', ...(uncommitted.length ? ['commit', 'commit', 'refuse'] : []), ...(open.length ? ['lose'] : []), ...(open.some((p) => p.committed) ? ['answer', 'answer'] : []), ...(late.length ? ['late', 'late'] : [])];
+    // Another screen's Take, on a graphic where no press of this page has committed with its answer
+    // or row still to come (one that did is the documented trap: its late answer marks over it).
+    const calm = graphics.filter((g) => !presses.some((p) => p.graphic === g && p.committed && p.reached && (!p.answered || (p.lost && !p.heard))));
+    const kinds = ['press', 'press', ...(uncommitted.length ? ['commit', 'commit', 'refuse'] : []), ...(open.length ? ['lose'] : []), ...(open.some((p) => p.committed) ? ['answer', 'answer'] : []), ...(late.length ? ['late', 'late'] : []), ...(calm.length ? ['foreign'] : [])];
     const kind = pick(kinds);
     let acted;
     if (kind === 'press') {
@@ -1597,6 +1617,17 @@ async function markerWalk(seed, steps) {
         p.lost = true;
         p.send.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }] }));
       }
+    } else if (kind === 'foreign') {
+      // It applies at once: every press of this page before it on that graphic is then older than
+      // the head (refused stale, or skipped), and its row is heard.
+      const g = pick(calm);
+      const cue = pick(['x1', 'x2', null]);
+      applied[g] = presses.length;
+      output[g] = cue;
+      foreign[g] = { cue, after: presses.length };
+      acted = { n: `x${(foreignRows += 1)}`, graphic: g, cue };
+      const rest = r.verbs.heard([{ graphic: g, msg: { t: 'cue', cue, oid: `theirs-${foreignRows}` } }], mine, () => false);
+      for (const item of rest) r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
     } else {
       const p = (acted = pick(late));
       p.heard = true;

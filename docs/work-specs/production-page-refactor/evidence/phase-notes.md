@@ -43,13 +43,15 @@ changes a spec's digest.
     answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
     puts back the newest press that landed, or the marker from before the first press still out.
     It does not fall back to an older press that is still out: the marker names a press once it
-    lands. A restore is skipped when another screen moved the marker since. That shows two ways:
-    another screen's cue marker was heard fresh while the press was out (`foreignMarker`, from
-    `verbs.heard`), or the marker names a cue that none of these presses, nor the earlier marker,
-    named. Then the marker stays. Only a marker the page has not applied yet counts. A second
-    arrival of one it already applied (its broadcast, then its durable row) moves nothing. Both
-    rules come from the review of the PR. Without them, another screen taking a cue that a press
-    of this page also named was mistaken for this page's own, and so was a duplicate echo.
+    lands. A fresh cue marker from another screen, heard while a press is out, becomes what stood
+    before (`foreignMarker`, from `verbs.heard`). Any later failure gives that marker back, even
+    after a later press of this page moved the marker over it. A restore is skipped when the
+    marker names a cue that none of these presses, nor that earlier marker, named. Then another
+    screen moved it in a way the page did not hear, and it stays. Only a marker the page has not
+    applied yet counts. A second arrival of one it already applied (its broadcast, then its
+    durable row) moves nothing. These rules come from the review of the PR: another screen taking
+    a cue that a press of this page also named, a duplicate echo, and a later local press over
+    another screen's marker.
   - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
     sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
     old skip now make a real later press.
@@ -79,7 +81,9 @@ changes a spec's digest.
   or Out restoring; another screen's marker kept; late rows, older and newer, against newer
   presses that land, fail or are still out; a send that throws before it goes). A seeded walk of
   2000 runs (`MARKER_WALKS`, also run at 20,000) checks the marker against a protocol-2 server
-  model. The model covers answers lost before or after a commit, and rows heard at any time, each
+  model. The first walk also has other screens' Takes: one applies at once, and this page's
+  earlier presses there are refused or skipped. Such a Take is generated only while no press of
+  this page there has committed with its answer still to come, which is the documented trap. The model covers answers lost before or after a commit, and rows heard at any time, each
   passed through `verbs.heard` with what it hands back applied. The
   walk and four of the tests are red on `cad2f01`. In `scripts/keyed-selection.test.mjs`, the
   checker's N1 repro is red on `cad2f01`. A second walk, `batchWalk`, covers sends of several
