@@ -1017,6 +1017,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const pins = pinnedGraphicsOf(resolved?.profile).filter((graphic) => specByName.has(graphic));
   /** The cue on a graphic's layer as this page knows it, or null for a cue it was not given. */
   const layerCueOf = (graphic: string) => cues.find((c) => c.id === liveCueRef.current[graphic]) ?? null;
+  /** A graphic's bound values from the newest tree, read when a queued press runs: the press
+   *  before it may have moved the shared value since this render. */
+  const boundNow = (graphic: string) => resolveBindings(dataTreeRef.current, bindings)[graphic] ?? {};
   const pinnedEvent = (graphic: string, button: ControlButton) => {
     if (!liveCueRef.current[graphic]) return;
     const cue = layerCueOf(graphic);
@@ -1024,16 +1027,18 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     figures.press(graphic, async () => {
       const values = cue ? cueValues(cue) : {};
       const bound = boundFields(graphic);
+      const tree0 = boundNow(graphic);
       const moving = new Set(movedKeys(button));
       const { payload, fields, tree } = pressSend(button, bound, (key) =>
-        moving.has(key) && !bound[key] ? figures.base(graphic, key, cue?.values[key]) : values[key],
+        bound[key] ? tree0[key] : moving.has(key) ? figures.base(graphic, key, cue?.values[key]) : values[key],
       );
       const settle = figures.hold(graphic, fields);
       const sent = await sendVerb([{ graphic, msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event } }]);
       settle(sent);
       if (!sent) return;
       if (cue && Object.keys(fields).length > 0) stageShared(cue, fields);
-      void patchBound(tree);
+      // The next press on this graphic waits for the shared value it moved.
+      await patchBound(tree);
     });
   };
   const pinnedBump = (graphic: string, key: string, delta: number) => {
@@ -1041,7 +1046,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     if (!cue) return;
     const path = boundFields(graphic)[key];
     if (path) {
-      void patchBound([{ path, text: adjustedValue(boundValues[graphic]?.[key], delta), verb: 'adjust' }]);
+      figures.press(graphic, () => patchBound([{ path, text: adjustedValue(boundNow(graphic)[key], delta), verb: 'adjust' }]));
       return;
     }
     figures.press(graphic, async () => {
