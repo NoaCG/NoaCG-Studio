@@ -85,6 +85,12 @@ changes a spec's digest.
   reconnect; export with assets (fonts, the portrait) byte for byte and reimport to the same
   production. Configured `election-selection.spec.ts` AC-1 walk (Actions): publish, the starter
   count through `/api/data/patch`, all four on a browser output, the pick moving air at Update.
+- **Independent assessment.** A fresh read-only `/so` graded `c803696` A- (a failed install left
+  a half-made production; the v3 refusals untested; the v3 reach understated), all fixed in
+  `6e39e1f`; its re-read graded `ecbb419` A (the export dropping a recipe whose graphic has gone,
+  also raised by the automated review). Left as is: a failed install removes its production but not
+  the graphics already saved to the library (as every failed pack install before it); a retry's
+  `installOverlap` asks about the same-named copies.
 - **Traps.** `pkill -f "vite --port …"` kills the shell that runs it (its own command line
   matches). The job queue admits one broader job per commit: a failed run (here the #1647
   headless shell missing) needs a new commit. A graphic whose entrance uses GSAP `.from()` ends

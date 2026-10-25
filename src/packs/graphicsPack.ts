@@ -795,7 +795,8 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
   // file carries no connector, address or credential and an import rebinds explicitly.
   const pooled = new Set(show.graphics.map((g) => g.name));
   const bindings = Object.entries(structuredClone(show.bindings ?? {})).filter(([graphic, fields]) => pooled.has(graphic) && Object.keys(fields).length > 0);
-  const collections = structuredClone(show.collections ?? []).filter((r) => pooled.has((r as { graphic?: unknown }).graphic as string));
+  // A recipe of a later version always travels, so the file is refused on import, never flattened.
+  const collections = structuredClone(show.collections ?? []).filter((r) => readCollectionRecipe(r).status === 'read-only' || pooled.has((r as { graphic?: unknown }).graphic as string));
   const data = {
     ...(show.data && Object.keys(show.data).length ? { data: structuredClone(show.data) } : {}),
     // Bindings of a graphic no longer in the pool bind nothing, and would make the file refused.
