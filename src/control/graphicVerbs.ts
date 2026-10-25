@@ -243,9 +243,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** Per graphic, the unbound figures this page sent that are not answered yet: the base the next
    *  press counts from while they are out (`baseOf`). */
   const sentFigures = new Map<string, Record<string, string>>();
-  /** Per graphic, figures whose send landed while air's record still showed what stood before it
-   *  (a slow-road row not heard back yet): the base until air's record moves. */
-  const landedFigures = new Map<string, Record<string, { figure: string; over: string | undefined }>>();
+  /** Per graphic, figures whose send landed while air's record had not taken them yet (a slow-road
+   *  row not heard back): the base while that same record stands and the same cue holds the layer.
+   *  Any later write to air's record (the row coming back, an Update, a Take) is a new object. */
+  const landedFigures = new Map<string, { record: unknown; cue: string | null; figures: Record<string, string> }>();
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
@@ -350,25 +351,27 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const baseOf = (graphic: string, key: string, fallback: string | undefined) => {
     const pending = sentFigures.get(graphic)?.[key];
     if (pending !== undefined) return pending;
-    const aired = session.air.get().aired[graphic]?.[key];
-    const landed = landedFigures.get(graphic)?.[key];
-    if (landed && aired === landed.over) return landed.figure;
-    if (landed) delete landedFigures.get(graphic)![key];
-    return aired ?? fallback;
+    const record = session.air.get().aired[graphic];
+    const landed = landedFigures.get(graphic);
+    if (landed && (landed.record !== record || landed.cue !== onLayer(graphic))) landedFigures.delete(graphic);
+    else if (landed && key in landed.figures) return landed.figures[key];
+    return record?.[key] ?? fallback;
   };
-  /** Hold these figures as sent until the send settles; one that landed stays the base until air's
-   *  record moves off what it showed at the press. */
+  /** Hold these figures as sent until the send settles; one that landed stays the base while air's
+   *  record is the one the press read and its cue still holds the layer. */
   const holdSent = (graphic: string, figures: Record<string, string>) => {
-    const air = session.air.get().aired[graphic] ?? {};
-    const over = Object.fromEntries(Object.keys(figures).map((key) => [key, air[key]]));
+    const record = session.air.get().aired[graphic];
+    const cue = onLayer(graphic);
     const held = { ...(sentFigures.get(graphic) ?? {}), ...figures };
     sentFigures.set(graphic, held);
     return (landed: boolean) => {
       if (sentFigures.get(graphic) === held) sentFigures.delete(graphic);
       if (!landed) return;
-      const book = { ...(landedFigures.get(graphic) ?? {}) };
-      for (const [key, figure] of Object.entries(figures)) book[key] = { figure, over: over[key] };
-      landedFigures.set(graphic, book);
+      // Air's record moved during the send (the fast road applied it here): it has the figure.
+      if (session.air.get().aired[graphic] !== record) return;
+      const before = landedFigures.get(graphic);
+      const kept = before && before.record === record && before.cue === cue ? before.figures : {};
+      landedFigures.set(graphic, { record, cue, figures: { ...kept, ...figures } });
     };
   };
 

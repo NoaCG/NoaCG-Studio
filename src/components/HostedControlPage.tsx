@@ -963,11 +963,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     const snap = { graphic, msg: { t: 'snap' as const, snap: groupId === null ? null : { [groupId]: stateId } } };
     // The layer airs a cue this page was not given (a live candidate, E7.1): it has no values here
     // to send, so the snap goes alone and the layer keeps what it shows.
-    if (!layerCue) {
-      void sendVerb([snap]);
-      return;
-    }
-    void sendVerb([snap, { graphic, msg: { t: 'update', data: cueValues(layerCue) } }]);
+    // A live press like the others: after the one before it on its graphic, on the same cue.
+    figures.press(graphic, async () => {
+      await sendVerb(layerCue ? [snap, { graphic, msg: { t: 'update', data: cueValues(layerCue) } }] : [snap]);
+    });
   };
   const snapTo = (groupId: string | null, stateId: string) => {
     if (selectedGraphic && selectedCue) snapOn(selectedGraphic, groupId, stateId);

@@ -2038,3 +2038,27 @@ test('a press after one that landed on the slow road counts from that figure unt
   r.sends[2].answer.resolve({ ...noneLeft });
   await third;
 });
+
+test('a landed figure is not the base on the next cue, nor after air\'s record moved back to it (F2)', async () => {
+  const a = graphicCue('a1', 'Score', { home: '0' });
+  const b = graphicCue('b1', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 'a1' }, aired: { Score: { home: '0' } } });
+  const one = r.verbs.bump(liveSelection('Score', [a, b], r.liveCue()), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await one;
+  // Cue B is taken with home 0: a new cue and a new record of what air was sent.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'b1' }, aired: { Score: { home: '0' } } } }));
+  const two = r.verbs.bump(liveSelection('Score', [a, b], r.liveCue()), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '1' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await two;
+  // On B, an Update puts the figure back to what stood before the press: air's record is the base.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '0' } } } }));
+  const three = r.verbs.bump(liveSelection('Score', [a, b], r.liveCue()), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '1' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await three;
+});

@@ -42,7 +42,21 @@ changes a spec's digest.
     descriptors, default path, legality and state names per pool graphic) and mounts the stack;
     `CueRundown.tsx` row menu "Pin live controls" / "Unpin live controls"; `CueEditor.tsx` puts a
     pick group's field under ▸ Advanced (D8) and names it in the summary; `IconPin`.
-  - *Hosted page and exported controller:* see the AC-5 entry below in this row.
+  - *Hosted page (AC-5):* `HostedControlPage.tsx` draws the LIVE stack (`hosted-live-stack`) from
+    the published profile's pins above its cue editor, in `liveBlocks` order, with one shared
+    `HostedLiveBlock` for the editor's block and every pinned one; a pinned press acts on the cue on
+    that graphic's layer through the page's own send and log. Every live press there (event, pick,
+    ±, snap) runs after the one before it on its graphic and only while the same cue holds the layer
+    (`figures.press`); a moved figure counts from what the page sent, then what air was sent, never
+    the staging buffer, and is staged only once the send landed. Pinning is not authored there, and
+    its PREP keeps the pick field as a box (D8 is the production page's editor).
+  - *Exported controller (AC-5):* `showExport.ts` bakes `pinned` (after the read gate, orphans
+    dropped; omitted when nothing is pinned) and pick groups into `arranged`
+    (`controlPanelHtml.ts` `pick`, only for the controller); `productionControllerHtml.ts` draws
+    the pinned blocks above its editor and counts a pinned press from what it sent (held at most a
+    send's window) or what the log aired. Its relay gives no answer to wait for, so a pinned press
+    stages into its drafts at the send; its editor's presses keep today's base, so their payloads
+    are unchanged (AC-7). Both are recorded in #1727.
   - *Agent road (AC-9):* the skill's contract rule (§5b), SKILL.md step 4, `noacg inspect` prints
     LIVE and PREP with one advisory line (`src/control/livePanel.ts`, `src/bridge/bridgeApi.ts`
     `inspect().panel`), `noacg validate` reports `controls-missing-live` as a warning only for an
@@ -74,6 +88,29 @@ changes a spec's digest.
     refusals do); the activity log carries the note.
   - *Stack placement:* with pins the LIVE region always sits under the monitors (the live-first
     order), as the spec's picture has it; without pins the old rule stands.
+- **AC-7 evidence (behaviour, payloads, geometry; not bytes).** `pressSend`, `eventPayload` and
+  every verb's payload are unchanged; `scripts/live-controls-catalog.test.mjs` arranges every
+  catalog graphic with and without the pick rule and asserts that no control's event, label,
+  section, order or bucket moves (only a pick group's control gains `options`, on exactly the
+  listed boards). The ⚡ block's measured heights (`e2e/live-actions-first.spec.ts`: duel score,
+  hockey scorebug, answer board) and the render counts (`e2e/playout-air-contract.spec.ts`) pass on
+  this tree. Chrome that differs with no pins: the pin toggle in the ⚡ head (or at the end of the
+  ± row); the exported controller's empty, hidden stack container; the cue editor's Advanced
+  summary naming a pick field on a board that has one.
+- **Verification run here (cloud worker, bounded).** Node: `scripts/graphic-verbs.test.mjs`,
+  `live-controls.test.mjs`, `control-profile.test.mjs`, `live-controls-catalog.test.mjs`,
+  `cli/test/unit.test.mjs`, `cli/scripts/build-skill.mjs --check`, `npm run gates -- run
+  --changed origin/main`, tsc (app and api), eslint, depcruise: all pass. Browser (queue, two
+  workers): production-controls, live-actions-first, quiz-live-consistency, playout-air-contract,
+  hosted-control, cross-tab: passed; the specs the pick change touched (production-data,
+  quiz-pilot, svg-examples, student-rehearsal, playout-rundown-feedback, dashboard-operator-walk,
+  and the edited import-svg-behaviour cases): passed. The configured cases
+  (`e2e/configured/hosted-control-profile.spec.ts` pinned and two-operator cases, and the
+  configured specs edited for the pick) need a backend and run in the configured suite only.
+  Mutation checks: `PICK_CAP` 8 to 9, the default-path exclusion, the set-field exclusion, the
+  instance check, the marker-out half of `onLayer`, the per-graphic queue, the sent-figure base,
+  the landed-figure binding to its record and cue, write-on-acceptance for `writeCue` and
+  `writeLive`, and the orphan drop each turn their Node test red.
 - **Traps.**
   - A test rig whose session `air` part is empty makes every press look like a replacement: the
     verbs rig now seeds `air` from its `liveCue` and `aired` options, and a press's drawn cue onto

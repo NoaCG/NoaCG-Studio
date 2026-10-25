@@ -541,7 +541,34 @@ test('a pinned graphic stays in the hosted LIVE stack and presses its own on-air
   expect(heights.length).toBeGreaterThan(0);
   expect(Math.min(...heights), 'every live button is at least 40px tall').toBeGreaterThanOrEqual(40);
   await expect(op.getByTestId('hosted-take-cue')).toBeInViewport();
+  await op.setViewportSize({ width: 1280, height: 900 });
 
+  // TWO OPERATOR PAGES on the same pinned board (AC-2): each press counts from what the other's
+  // press left, on the shared path (f5, bound: the tree's own patch road) and on the unbound
+  // figure (f6: what air was sent, read back off the log), so no press is lost between pages.
+  const op2Context = await browser.newContext();
+  const op2 = await op2Context.newPage();
+  await op2.goto(`/app?control=${encodeURIComponent(slug)}`);
+  await expect(op2.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  const totals2 = op2.locator(`[data-testid="hosted-live-block"][data-graphic="${TOTALS}"]`);
+  await expect(totals2.getByTestId('hosted-live-number-f6-up')).toBeEnabled({ timeout: 30_000 });
+  let head = await wireHead(op, slug);
+  const press = async (block: typeof totals, field: string) => {
+    await block.getByTestId(`hosted-live-number-${field}-up`).click();
+    const [row] = await wireAfter(op, slug, head, 1);
+    head = row.id;
+    return row;
+  };
+  expect((await press(totals2, 'f6')).data).toEqual({ f6: '4' });
+  // The first page counts on from what the second page's press aired, once its follow of the log
+  // has heard that row (realtime; no surface reads it out, so the wait is a bound, not a sleep
+  // for an animation).
+  await op.waitForTimeout(2_000);
+  expect((await press(totals, 'f6')).data).toEqual({ f6: '5' });
+  expect((await press(totals, 'f5')).data.f5).toBe('1');
+  expect((await press(totals2, 'f5')).data.f5).toBe('2');
+
+  await op2Context.close();
   await opContext.close();
 });
 
