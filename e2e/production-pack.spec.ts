@@ -176,6 +176,41 @@ test('a broken or too-new pack is refused with a readable message', async ({ pag
     buffer: Buffer.from(JSON.stringify({ format: 'noacg-pack', version: 99, name: 'X', graphics: [] })),
   });
   await expect(card.locator('.status-bad')).toContainText('newer version of NoaCG Studio');
+
+  // A v3 file's production data is judged before anything installs (E7.2a): each case refused
+  // with its reason, by the same parser the door uses.
+  const shipped = JSON.parse(readFileSync(ELECTION, 'utf8'));
+  const variants: [string, unknown][] = [
+    ['needs a version 3 pack', { ...shipped, version: 1 }],
+    ['not a graphic in this pack', { ...shipped, bindings: { ...shipped.bindings, Nowhere: { f0: 'x' } } }],
+    ['not a graphic in this pack', { ...shipped, collections: [{ ...shipped.collections[0], graphic: 'Nowhere' }] }],
+    ['share an id', { ...shipped, collections: [shipped.collections[0], shipped.collections[0]] }],
+    ['newer version of NoaCG Studio', { ...shipped, collections: [{ ...shipped.collections[0], v: 2 }] }],
+    ['district and its candidate number', { ...shipped, collections: [{ ...shipped.collections[0], key: ['candidate'] }], cues: shipped.cues.map((c: { selection?: { key: unknown[] } }) => (c.selection ? { ...c, selection: { ...c.selection, key: [101] } } : c)) }],
+    ['bound to a shared value', { ...shipped, bindings: { ...shipped.bindings, 'Candidate card': { f0: 'external.election.x' } } }],
+    ['does not have', { ...shipped, collections: undefined }],
+  ];
+  const refusals = await page.evaluate(async (texts) => {
+    const { parsePack } = await import('/src/packs/graphicsPack.ts');
+    return texts.map((t) => parsePack(t).error);
+  }, variants.map(([, v]) => JSON.stringify(v)));
+  variants.forEach(([reason], i) => expect(refusals[i], reason).toContain(reason));
+
+  // A step that fails after the production exists takes it back out: a graphic that still reads
+  // a Sheet in its own code takes no binding, so this install fails at its bindings.
+  const before = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().length);
+  const readsOwn = { ...shipped, graphics: shipped.graphics.map((g: { name: string; js: string }) => (g.name === 'Count bug' ? { ...g, js: `${g.js}\n/* == LIVE DATA (published CSV → update) — edit or delete this whole block == */\n` } : g)) };
+  await card.getByTestId('import-pack-file').setInputFiles({ name: 'reads-own.noacgpack.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(readsOwn)) });
+  await expect(card.locator('.status-bad')).toContainText('data connections could not all be made');
+  expect(await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().length)).toBe(before);
+  // And a pack carrying production data never installs over an existing production.
+  const over = await page.evaluate(async (text) => {
+    const P = await import('/src/packs/graphicsPack.ts');
+    const S = await import('/src/model/shows.ts');
+    const { show } = S.createShowNamedChecked('Already here');
+    return P.installPack(P.parsePack(text).pack!, { kind: 'existing', id: show.id }).then(() => null, (e: Error) => e.message);
+  }, JSON.stringify(shipped));
+  expect(over).toMatch(/installs as a new production/);
 });
 
 // THE ELECTION REHEARSAL PACKAGE (docs/work-specs/playout-election-package/spec.md, E7.2a, AC-1):

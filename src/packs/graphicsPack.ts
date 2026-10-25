@@ -28,6 +28,7 @@ import {
   setShowCues,
   setShowSeedData,
   setShowSelections,
+  deleteShow,
   setShowGraphicLayer,
   updateShowCue,
   setGraphicSounds,
@@ -56,7 +57,7 @@ import {
 import { publishGate } from '../validation/publishGate';
 import { readCollectionRecipe, selectionCheck, selectionWriteError } from '../control/sourceMapping';
 import type { CollectionRecipe, CueSelection, JsonObject, ProductionBindings } from '../model/productionData';
-import { saveLiveData } from '../model/productionState';
+import { clearLiveData, saveLiveData } from '../model/productionState';
 
 /** A prepared cue shipped with a pack graphic — label + field values, ready to Take. */
 export interface PackCue {
@@ -422,6 +423,11 @@ function packData(
     }
     if (new Set(raw.collections.map((r) => (r as { id: string }).id)).size !== raw.collections.length) return { error: 'Two collections of the pack share an id.' };
     out.collections = raw.collections as CollectionRecipe[];
+    // A field a collection maps never also follows a shared value (the read gate's rule).
+    for (const recipe of out.collections) {
+      const bound = Object.keys(recipe.fields).find((f) => out.bindings?.[recipe.graphic]?.[f] !== undefined);
+      if (bound) return { error: `“${recipe.graphic}” field ${bound} is both a live candidate's and bound to a shared value.` };
+    }
   }
   for (const [i, cue] of rundown.entries()) {
     if (cue.selection === undefined) continue;
@@ -631,23 +637,15 @@ export async function installPack(
     if (error) throw new Error(error);
   }
 
-  // The production's data (v3): the seed, which the live tree starts from as Reset to seed would
-  // make it, the shared bindings, then the recipes with the candidate cues that select from them.
-  if (pack.data) {
-    setShowSeedData(show.id, pack.data);
-    saveLiveData(show.id, pack.data);
-  }
-  if (pack.bindings) {
-    const entries = Object.entries(pack.bindings).flatMap(([graphic, fields]) => Object.entries(fields).map(([fieldId, path]) => ({ graphic, fieldId, path })));
-    const stored = setFieldBindings(show.id, entries).find((s) => s.id === show.id)?.bindings ?? {};
-    if (entries.some((e) => stored[e.graphic]?.[e.fieldId] !== e.path)) throw new Error('The pack’s data connections could not all be made.');
-  }
-  if (pack.collections?.length) {
-    const cues = loadShows().find((s) => s.id === show.id)?.cues ?? [];
-    // `setShowCues` wrote the rundown in order, so the pack's row i is the production's cue i.
-    const selections = new Map((pack.rundown ?? []).flatMap((c, i) => (c.selection && cues[i] ? [[cues[i].id, c.selection] as const] : [])));
-    const { error } = setShowSelections(show.id, pack.collections, selections, selectionCheck);
-    if (error) throw new Error(error);
+  // The production's data (v3). Its production is new (refused above otherwise), so a step that
+  // fails takes the production back out: never one whose candidate cues landed as plain cues.
+  try {
+    installData(pack, show.id);
+  } catch (error) {
+    deleteShow(show.id);
+    clearLiveData(show.id);
+    await commitDurableWrites();
+    throw error;
   }
 
   for (const g of pack.graphics) {
@@ -689,6 +687,28 @@ export async function installPack(
 
   const final = loadShows().find((s) => s.id === show.id);
   return final ?? show;
+}
+
+/** A v3 pack's production data onto its new production: the seed, which the live tree starts from
+ *  as Reset to seed would make it, the shared bindings, then the recipes with the candidate cues
+ *  that select from them (one write). Throws a sentence on the first refusal. */
+function installData(pack: GraphicsPack, showId: string): void {
+  if (pack.data) {
+    setShowSeedData(showId, pack.data);
+    saveLiveData(showId, pack.data);
+  }
+  if (pack.bindings) {
+    const entries = Object.entries(pack.bindings).flatMap(([graphic, fields]) => Object.entries(fields).map(([fieldId, path]) => ({ graphic, fieldId, path })));
+    const stored = setFieldBindings(showId, entries).find((s) => s.id === showId)?.bindings ?? {};
+    if (entries.some((e) => stored[e.graphic]?.[e.fieldId] !== e.path)) throw new Error('The pack’s data connections could not all be made.');
+  }
+  if (pack.collections?.length) {
+    const cues = loadShows().find((s) => s.id === showId)?.cues ?? [];
+    // `setShowCues` wrote the rundown in order, so the pack's row i is the production's cue i.
+    const selections = new Map((pack.rundown ?? []).flatMap((c, i) => (c.selection && cues[i] ? [[cues[i].id, c.selection] as const] : [])));
+    const { error } = setShowSelections(showId, pack.collections, selections, selectionCheck);
+    if (error) throw new Error(error);
+  }
 }
 
 /** An asset stored as a Blob has no JSON form — embed it, the way every export does. */

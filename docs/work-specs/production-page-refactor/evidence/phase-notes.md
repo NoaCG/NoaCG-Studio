@@ -28,7 +28,9 @@ changes a spec's digest.
   the instructions and starter files beside it; tests.
 - **The contract, old and new.** Persisted records unchanged (E7.1's `Show.collections` and
   `ShowCue.selection`, now written). Pack file: version 3, additive keys; an older build refuses
-  it. No wire, route or output change: outputs receive resolved values only.
+  it. This reaches every production with a seed or bindings, not only candidate ones: its export
+  is now v3 (carrying the data an older export silently dropped), so an older build refuses that
+  file too. No wire, route or output change: outputs receive resolved values only.
 - **Decisions.**
   - *The package's home* is the graphics pack (`src/packs/graphicsPack.ts`, `.noacgpack.json`)
     from a file-based source under `packs/`, as Fight Night and the community shelf are: it is
