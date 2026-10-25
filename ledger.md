@@ -241,3 +241,4 @@ Recorded 2026-10-20T21:05Z by coordinator session_01G2tYJMYPHvnLs4cUDdVALb (clou
 - 2026-10-25T18:48:21.630Z phase 32 fail product: slow-road increment base loses a figure (3 quick +1 send 8,9,9; +1 after Take of a new round counts from old cue). Checker checker-p32-pp-p32c-aeea session_01MNkvVvW8i1m6NLhy4R4fzq. https://github.com/NoaCG/NoaCG-Studio/pull/1728#issuecomment-6401685600
 - 2026-10-25T18:48:29.364Z phase 32 repair {"actor":"repairer-p32-pp-p32r-f797","nonce":"pp-p32r-f797","source":"d8dd1304910736437486d6f9f9cd9e401ac65589"}
 - 2026-10-25T20:04:16.909Z phase 32 landed {"mergeSha":"8da60058b50721ed37f159c0740884401a6e84a9","pr":1730}
+- 2026-10-25T20:04:20.065Z phase 32 check {"actor":"checker-p32-pp-p32c2-aa0f","nonce":"pp-p32c2-aa0f","mergeSha":"8da60058b50721ed37f159c0740884401a6e84a9"}
