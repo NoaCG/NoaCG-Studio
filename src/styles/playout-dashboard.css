@@ -1378,6 +1378,28 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   padding: 3px 0;
 }
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
+/* A ONE-PRESS PICK (control/liveControls.ts): the control's label, then one button per option. The
+   option the layer was last sent reads active, so the block answers "which did they choose". */
+.pd-pick { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+.pd-pick-label { font-size: 12px; color: var(--text-dim, #9aa1ad); margin-right: 2px; white-space: nowrap; }
+.pd-pick-option { min-width: 2.6em; }
+.pd-pick-option.active { border-color: var(--accent); color: var(--accent); }
+
+/* PINNED LIVE CONTROLS (home/LiveControls.tsx): one block per pinned graphic, then the selected
+   cue's graphic. Each block names its graphic and the cue on its layer; the selected one carries
+   the accent edge, so the block that changes with the selection is the one marked. */
+.pd-live-stack { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; }
+.pd-live-block { display: flex; flex-direction: column; gap: 6px; }
+.pd-live-block.selected > .pd-actions { box-shadow: inset 3px 0 0 var(--accent); }
+.pd-live-name { font-size: 12.5px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-live-cue { font-weight: 400; color: var(--text-dim, #9aa1ad); }
+.pd-pin-toggle { font-size: 12px; padding: 3px 8px; color: var(--text-dim, #9aa1ad); filter: grayscale(1); opacity: 0.7; }
+.pd-pin-toggle.on { filter: none; opacity: 1; border-color: var(--accent); }
+.pd-live-numbers .pd-pin-toggle { margin-left: auto; }
+@media (max-width: 900px) {
+  /* A finger's height on a phone (AC-10). */
+  .pd-live-stack .pd-action, .pd-live-stack .pd-live-number button, .pd-live-stack .pd-pin-toggle { min-height: 40px; }
+}
 
 /* RECOVERY - the snap picker, folded closed in the ⚡ block's head beside Arrange: the summary
    alone at rest, the picker inline once open. It wears the drawer look of "More" because it is

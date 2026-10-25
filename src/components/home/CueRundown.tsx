@@ -122,6 +122,8 @@ interface Aim {
  * where; a drop a Play-through folder refuses says why while it hovers.
  */
 export default function CueRundown({
+  pinnedGraphics,
+  onPin,
   candidateValues,
   accentPreview,
   onAccentPreview,
@@ -243,6 +245,10 @@ export default function CueRundown({
    *  operator types without the page (control/cueDraft.ts; production-page refactor D12). */
   draft: Pick<CueDraft, 'part'>;
   cueGraphicName: (cue: ShowCue) => string | null;
+  /** The graphics whose live controls stay on screen (pinned live controls), and the one write
+   *  that pins or unpins a graphic, shared with the block head's pin. */
+  pinnedGraphics: readonly string[];
+  onPin: (graphic: string, pinned: boolean) => void;
   playoutItemFor: (cue: ShowCue) => PlayoutItem | null;
   /** Where a Play-through folder plays, `2-10`. */
   folderSlotOf: (folder: ShowFolder) => string;
@@ -940,6 +946,17 @@ export default function CueRundown({
                   testid="cue-actions-menu"
                 >
                   <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} onPreview={color => onAccentPreview(cue.id, color)} />
+                  {(() => {
+                    // The row pins its GRAPHIC, never the cue: a quiz with twenty questions has one Reveal.
+                    const graphic = cue.source === 'playout' ? null : cueGraphicName(cue);
+                    if (!graphic) return null;
+                    const isPinned = pinnedGraphics.includes(graphic);
+                    return (
+                      <button role="menuitem" data-testid="cue-pin-live" onClick={() => { setMenuRowId(null); onPin(graphic, !isPinned); }}>
+                        {isPinned ? 'Unpin live controls' : 'Pin live controls'}
+                      </button>
+                    );
+                  })()}
                   <button role="menuitem" data-testid="cue-shortcut" onClick={() => { setMenuRowId(null); setShortcutCue(cue.id); }}>Keyboard shortcut…</button>
                   <button
                     role="menuitem"

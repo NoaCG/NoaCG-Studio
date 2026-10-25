@@ -111,7 +111,7 @@ import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
 import { cueDataRows, hasSideFields, rowsForSide } from '../../control/cueData';
 import { groupCueFields } from '../../control/cueFieldGroups';
-import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
+import { pinnedGraphicsOf, profileIsEmpty, readPublishedProfile, readShowProfile, withGraphicArrange, withPinnedGraphic, type ArrangeEntry, type ShowProfile } from '../../model/profile';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import SourcesLine, { ownSheetReader, ownSheetReaders } from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
@@ -126,10 +126,8 @@ import { setCueSelection, setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
-  adjustWords,
-  controlName,
-  labelCarriesDelta,
   arrangeControls,
+  continueEvents,
   arrangeFor,
   eventButtons,
   advanceLabel,
@@ -138,7 +136,6 @@ import {
   eventLegality,
   fieldDescriptors,
   formatMachineState,
-  illegalEventTitle,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
@@ -146,7 +143,6 @@ import {
   adjustedValue,
   movedKeys,
   pressSend,
-  type ArrangedControl,
   type ControlButton,
 } from '../../control/controlModel';
 import { withLiveLabels } from '../../blocks/controlLabels';
@@ -220,7 +216,9 @@ import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../.
 import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import CueEditor, { useCueView, type CandidatePicker, type CueCandidate, type OwnReader } from './CueEditor';
-import CueActions from './CueActions';
+import { actionButtonFor } from './CueActions';
+import LiveControls, { type LiveBlockView } from './LiveControls';
+import { liveBlocks, liveNumberFields as liveNumbersOf, liveSelection, pickFields, pickOptions } from '../../control/liveControls';
 import ProductionShell from './ProductionShell';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
@@ -456,6 +454,19 @@ function writeSheetLease(key: string, lease: SheetLease): boolean {
 }
 
 /** A source's reader as the page builds it: its id, kind and config, and whether it feeds Messages. */
+/** One pool graphic's machine and fields, parsed once per pool resolution: what the activity feed
+ *  names, what Next asks, and what a pinned block draws and greys by. */
+interface PoolMachine {
+  buttons: ControlButton[];
+  js: string;
+  descriptors: FieldDescriptor[];
+  /** The events Continue walks: a payload riding one of these is preparation, never a pick. */
+  path: Set<string>;
+  legality: Record<string, Record<string, string[]>>;
+  stateGroups: ReturnType<typeof machineStateGroups>;
+  stateNames: Record<string, Record<string, string>>;
+}
+
 type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'>, boolean];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
@@ -1934,12 +1945,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * a Map because a pool graphic's name is somebody's typed text.
    */
   const poolMachines = useMemo(() => {
-    const out = new Map<string, { buttons: ControlButton[]; js: string }>();
+    const out = new Map<string, PoolMachine>();
     for (const g of pool ?? []) {
       const tpl = templateForSavedGraphic(g, library);
       // `js` rides along for the Next verb, which asks the same machine whether a press would
-      // move anything (`canAdvance`).
-      out.set(g.name, { buttons: eventButtons(tpl.js), js: tpl.js });
+      // move anything (`canAdvance`). The rest is what a PINNED block of this graphic draws and
+      // greys by (home/LiveControls.tsx), read from the same template the editor reads.
+      out.set(g.name, {
+        buttons: eventButtons(tpl.js),
+        js: tpl.js,
+        descriptors: fieldDescriptors(tpl.fields),
+        path: continueEvents(tpl.js),
+        legality: eventLegality(tpl.js),
+        stateGroups: machineStateGroups(tpl.js),
+        stateNames: machineStateNames(tpl.js),
+      });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2734,10 +2754,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // its own action — a second road to it would air a value without the state that gives it
   // meaning. Derived from the template alone, like everything else here: any graphic with a
   // number field gets the block, and no category is ever consulted.
-  const eventPayloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
-  /** A live candidate's fields come from its source, so they get no ± (E7.1). */
-  const candidateKeys = new Set(editingCue ? candidateFields(editingCue) : []);
-  const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key) && !candidateKeys.has(d.key));
+  // A live candidate's fields come from its source, so they get no ± (E7.1).
+  const liveNumberFields = liveNumbersOf(descriptors, events, editingCue ? candidateFields(editingCue) : []);
 
   /** Rows the edited cue can load (D3's binding) — the SHARED matcher, `control/cueData.ts`,
    *  so the hosted control page offers exactly the rows this page does. Live here (a dataset
@@ -2747,7 +2765,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The editor's BANDS (control/cueFieldGroups.ts): one per side on a two-sided board, one for
    *  everything both sides share, and a single unlabelled band - today's flat flow - on every
    *  graphic the rule is not confident about. */
-  const fieldGroups = groupCueFields(descriptors);
+  /** A one-press pick's field leaves the boxes for ▸ Advanced, where it stays editable for the
+   *  hidden-choice flow (pinned live controls D8); its pick group is in LIVE. */
+  const pickKeys = pickFields(events, descriptors, poolMachines.get(selectedGraphic ?? '')?.path ?? new Set<string>());
+  const fieldGroups = groupCueFields(descriptors)
+    .map((group) => ({ ...group, keys: group.keys.filter((key) => !pickKeys.has(key)) }))
+    .filter((group) => group.keys.length > 0);
+  const pickedFields = descriptors.filter((d) => pickKeys.has(d.key));
   const descriptorByKey = new Map(descriptors.map((d) => [d.key, d]));
   /** Which of the edited cue's values the monitors say do not fit — see CueOverflowNote. */
   const overflowKeys = cueOverflowKeys({
@@ -2800,12 +2824,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (refused) setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
     else setShows(next);
   };
-  const writeArrange = (graphic: string, entries: Record<string, ArrangeEntry>) => {
-    const profile = withGraphicArrange(show.profile, graphic, entries);
-    // The LAST arrangement cleared removes the key rather than storing an empty profile, so "no
-    // profile" stays one state: a production that never had one and one whose every arrangement
-    // was cleared are byte-identical, and every surface downstream recognises a single "none".
-    profileWritten(Object.keys(profile.arrange).length === 0 ? deleteShowProfile(id) : setShowProfile(id, profile));
+  const poolNames = show.graphics.map((g) => g.name);
+  /** The LAST arrangement or pin cleared removes the key rather than storing an empty profile, so
+   *  "no profile" stays one state: a production that never had one and one whose every
+   *  arrangement was cleared are byte-identical, and every surface downstream recognises a single
+   *  "none". Both writes drop a pin whose graphic left the pool (pinned live controls D7). */
+  const writeProfile = (profile: ShowProfile) => profileWritten(profileIsEmpty(profile) ? deleteShowProfile(id) : setShowProfile(id, profile));
+  const writeArrange = (graphic: string, entries: Record<string, ArrangeEntry>) => writeProfile(withGraphicArrange(show.profile, graphic, entries, poolNames));
+  /** Pin or unpin one graphic's live controls, from its block head or its rundown row. */
+  const writePin = (graphic: string, pinned: boolean) => {
+    if (readOnlyProfile) {
+      setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
+      return;
+    }
+    writeProfile(withPinnedGraphic(show.profile, graphic, pinned, poolNames));
   };
   /** Every graphic's arrangement at once, including one for a graphic no longer in the pool,
    *  which no block can reach any more. The profile key goes, as it does for the last reset. */
@@ -2817,9 +2849,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // byte for byte as it was before ARRANGE existed.
   // A label naming a field ("+1 {f0|P1}") reads it from what the layer was last SENT, never from
   // the editor: the press acts on air, so the button names the player the audience sees.
+  const selectedPath = poolMachines.get(selectedGraphic ?? '')?.path ?? new Set<string>();
   const arranged = arrangeControls(
     withLiveLabels(events, selectedGraphic && selectedLayerLive ? (airedData[selectedGraphic] ?? null) : null),
     arrangeFor(show.profile, selectedGraphic),
+    (b) => pickOptions(b, descriptors, selectedPath, events),
   );
   /** What » Next will do, in words, on the button itself: the declared control it is ("Reveal
    *  correct") or the state it enters, and "last step" when it would do nothing. Only while the
@@ -2839,58 +2873,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const fireEvent = (button: ControlButton): Promise<void> => verbs.event(view, button);
   const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
 
-  /** One ⚡ button. Written once because the block draws the same button in three places now —
-   *  pinned above the fold, inside its section, and under the collapsed "More" — and three copies
-   *  of a tooltip this careful would drift apart by the second edit. The DECLARATION decides
-   *  everything the press does; the arrangement decides only the word and where it sits.
-   *
-   *  `section` is the heading DRAWN over this button, and only the middle of those three places
-   *  has one. It names the button in the hover (`controlName`), so five presses all labelled
-   *  "+1" are told apart by the word the operator can already see above them. */
-  const actionButton = ({ button: b, label, named }: ArrangedControl, section?: string) => {
-    const legal = isEventLegal(legality, b.event, machineState);
-    const name = controlName(label, section);
-    // Empty when everything the press moves is a hidden holder, which is the reported-field
-    // pattern: the hint then falls through to the payload. The delta is dropped when the BUTTON
-    // already carries it, so a "+1" press reads "moves Points 3 with it" rather than saying one
-    // twice.
-    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label, {
-      delta: !labelCarriesDelta(b, label),
-    });
-    return (
-      <button
-        key={b.event}
-        // A label that names a player holds a FIXED slot, so a name sent mid-show never moves the
-        // buttons under the operator's finger; a long one truncates and the hover has it whole.
-        className={`pd-action${b.destructive ? ' destructive' : ''}${named ? ' named' : ''}`}
-        disabled={!selectedLayerLive || !legal}
-        title={
-          !selectedLayerLive
-            ? 'The graphic is not on air. Take the cue first.'
-            : !legal
-              ? illegalEventTitle(label)
-              : moved
-                ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
-                  // what air shows; a `set` press puts one back to a declared figure (a reset);
-                  // an `add` press puts a line on a list - the hint says which, and to what.
-                  `Fires ${name} on the live graphic and moves ${moved} with it.`
-                : b.payload?.length
-                  ? // The payload in the OPERATOR'S words, not as `f7`. This is what makes an
-                    // action self-explanatory: the acceptance pass could not tell what "Show
-                    // audience result" would do, and the answer is "it shows the Audience results
-                    // field, which you type above" — a field id says none of that.
-                    `Fires ${name} on the live graphic, carrying this cue's ${b.payload
-                      .map((key) => descriptors.find((d) => d.key === key)?.label ?? key)
-                      .join(', ')}.`
-                  : `Fires ${name} on the live graphic.`
-        }
-        onClick={() => void fireEvent(b)}
-        data-testid={`cue-action-${b.event}`}
-      >
-        ⚡ {label}
-      </button>
-    );
-  };
+  /** The selected graphic's ⚡ button (home/CueActions.tsx `actionButtonFor`), greyed against
+   *  the machine state PROGRAM reports for it and pressed with the page's own selection. */
+  const actionButton = actionButtonFor({
+    live: selectedLayerLive,
+    legal: (event) => isEventLegal(legality, event, machineState),
+    labelOf: (key) => descriptors.find((d) => d.key === key)?.label,
+    aired: selectedGraphic ? (airedData[selectedGraphic] ?? null) : null,
+    fire: (b) => void fireEvent(b),
+  });
 
   /**
    * ONE dispatcher for the verbs, from a key or from the button that wears the key.
@@ -3031,31 +3022,70 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  through them - a scorebug's clock and goals, a quiz's beats - so they sit straight under the
    *  monitors, and the setup fields come after them and can fold away. A graphic with no actions
    *  keeps the order it always had, because its fields are the whole panel. */
-  const liveFirst = events.length > 0 && !!selectedGraphic;
-  const fieldsFolded = liveFirst && !!poolGraphic && foldedFields.has(poolGraphic.id) && !layerClash;
   const readOnlyProfile = profileRead.status === 'read-only';
+  /** PINNED LIVE CONTROLS (docs/work-specs/pinned-live-controls/spec.md): one block per pinned pool
+   *  graphic, then the selected cue's graphic. A pinned block presses with a selection built for
+   *  its own graphic's on-air cue (control/liveControls.ts `liveSelection`), never the page's. */
+  const pinned = pinnedGraphicsOf(show.profile);
+  const { blocks: liveOrder } = liveBlocks(pinned, poolNames, selectedGraphic);
+  const stacked = pinned.length > 0 && liveOrder.some((b) => b.pinned);
+  const liveFirst = (events.length > 0 && !!selectedGraphic) || stacked;
+  const fieldsFolded = liveFirst && !!poolGraphic && foldedFields.has(poolGraphic.id) && !layerClash;
   const arranging = !!selectedGraphic && arrangingFor === selectedGraphic;
-  const liveBlock = selectedGraphic && (
-    <CueActions
-      events={events}
-      arranging={arranging}
-      stateLabel={stateLabel}
-      selectedLayerLive={selectedLayerLive}
-      stateGroups={stateGroups}
-      snapTo={snapTo}
-      readOnlyProfile={readOnlyProfile}
-      setArrangingFor={setArrangingFor}
-      selectedGraphic={selectedGraphic}
-      renderProfile={renderProfile}
-      writeArrange={writeArrange}
-      clearAllArrangements={clearAllArrangements}
-      arranged={arranged}
-      actionButton={actionButton}
-      liveNumberFields={liveNumberFields}
-      editingIsLive={editingIsLive}
-      bumpLive={bumpLive}
-    />
-  );
+  const shared = { readOnlyProfile, setArrangingFor, renderProfile, writeArrange, clearAllArrangements };
+  const pinnedBlock = (graphic: string): LiveBlockView['actions'] | null => {
+    const m = poolMachines.get(graphic);
+    if (!m) return null;
+    const sel = liveSelection(graphic, cues, liveCue);
+    const live = sel.selectedLayerLive;
+    const state = machineStates[graphic] ?? null;
+    const aired = live ? (airedData[graphic] ?? null) : null;
+    return {
+      ...shared,
+      events: m.buttons,
+      arranging: arrangingFor === graphic,
+      stateLabel: formatMachineState(m.stateNames, state),
+      selectedLayerLive: live,
+      stateGroups: m.stateGroups,
+      snapTo: (groupId, stateId) => verbs.snap(sel, groupId, stateId),
+      selectedGraphic: graphic,
+      arranged: arrangeControls(withLiveLabels(m.buttons, aired), arrangeFor(show.profile, graphic), (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
+      actionButton: actionButtonFor({
+        live,
+        legal: (event) => isEventLegal(m.legality, event, state),
+        labelOf: (key) => m.descriptors.find((d) => d.key === key)?.label,
+        aired,
+        fire: (b) => void verbs.event(sel, b),
+      }),
+      liveNumberFields: liveNumbersOf(m.descriptors, m.buttons, sel.editingCue ? candidateFields(sel.editingCue) : []),
+      editingIsLive: sel.editingIsLive,
+      bumpLive: (key, delta) => verbs.bump(sel, key, delta),
+    };
+  };
+  const blockViews: LiveBlockView[] = liveOrder.flatMap((b) => {
+    const actions =
+      b.selected
+        ? {
+            ...shared,
+            events,
+            arranging,
+            stateLabel,
+            selectedLayerLive,
+            stateGroups,
+            snapTo,
+            selectedGraphic: b.graphic,
+            arranged,
+            actionButton,
+            liveNumberFields,
+            editingIsLive,
+            bumpLive,
+          }
+        : pinnedBlock(b.graphic);
+    if (!actions) return [];
+    const cueId = liveCue[b.graphic];
+    return [{ graphic: b.graphic, pinned: b.pinned, selected: b.selected, cue: cueId ? (cues.find((c) => c.id === cueId)?.label ?? null) : null, actions }];
+  });
+  const liveBlock = blockViews.length > 0 && <LiveControls blocks={blockViews} onPin={writePin} readOnly={readOnlyProfile} />;
 
   /** THE ONE PLAYOUT STATUS (control/playoutStatus.ts): whether this production can air, worst
    *  first, from what this page already knows - published or not, changed since, the Bridge and the
@@ -3573,6 +3603,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             descriptors={descriptors}
             descriptorByKey={descriptorByKey}
             fieldGroups={fieldGroups}
+            pickedFields={pickedFields}
             boundFields={boundFields}
             resolved={resolved}
             cueImages={cueImages}
@@ -3686,6 +3717,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       </section>
 
       <CueRundown
+        pinnedGraphics={pinned}
+        onPin={writePin}
         candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}
         accentPreview={accentPreview?.productionId === show.id ? accentPreview : null}
         onAccentPreview={(cueId, color) => setAccentPreview(color ? { productionId: show.id, cueId, color } : null)}

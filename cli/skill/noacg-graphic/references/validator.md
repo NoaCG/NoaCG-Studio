@@ -21,6 +21,7 @@ playout will).
 | `syntax` | error | `template.js` does not compile | fix the JS (and keep it ES5) |
 | `step-target` | warn | a `stepGroups` selector matches nothing | the selector, or drop the step |
 | `machine` | error | the NOACG_ANIM machine is off-shape, or machine data sits under an interpreter that predates it | take the machine from a type scaffold; never hand-edit the interpreter |
+| `controls-missing-live` | warn | a declared live operation left unmet: an operator arrow with no `machine.controls` entry, or a `set`/`adjust` naming a field the graphic does not have. Never a field merely without a control | add the `controls` entry, or fix the field id (`references/contract.md` §5b) |
 | `anim-data` | warn | a `NOACG_ANIM` block exists but does not parse | regenerate from a scaffold, or let validate re-convert the authoring shape |
 | `anim-data-target` | warn | a keyframe layer / reveal selector matches nothing | the selector matches an element of your markup (the spine's classes) |
 | `anim-data-call` | warn | a step `calls` a function the JS does not define | define it in the runtime outside the markers, or remove the call |
