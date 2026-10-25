@@ -124,7 +124,10 @@ changes a spec's digest.
   the chip naming a Take that went nowhere (this issue), so the spec passed there. Here the
   marker goes back, and the spec failed on `7516570` (configured run 40181100721). It now
   releases the resolve while the Take waits, then checks the same things: on air here, staying
-  on air after the older answer, Out enabled, one entrance. Nothing is checked less.
+  on air after the older answer, Out enabled, one entrance. Nothing is checked less. The old
+  scenario keeps its own test there, now with the right outcome. The resolve is held past the
+  Take's resend window, the Take is never sent, and the chip reads "nothing on air", before and
+  after the answer. `minTests` in `e2e/configured/expected-run.json` goes up by one for it.
 - **Independent assessment (/so) on `6312a90`: B.** It found two blocking holes in the late-row
   path. First, a late row of an older press marked over a newer landed one. That is fixed with
   the per-graphic newest-landed number. Second, a row heard before the timeout was lost. That
