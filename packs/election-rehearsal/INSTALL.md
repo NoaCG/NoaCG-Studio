@@ -64,5 +64,5 @@ source or a key, so you connect it again in each production that uses it.
 
 **Setup → Export… → Graphics pack** writes the whole production into one file: the graphics
 with their fonts and the portrait silhouette, the rundown, each candidate cue's pick, the
-bindings and the starting data. Importing that file builds the same production again. No source address,
-key or password is ever in the file.
+bindings and the starting data. Importing that file builds the same production again. No
+source address, key or password is ever in the file.

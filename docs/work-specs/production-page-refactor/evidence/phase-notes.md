@@ -76,23 +76,29 @@ changes a spec's digest.
 - **Verification.** Node `scripts/keyed-selection.test.mjs`: the writer's gate, the doors'
   allowance (a pick, a move, a detach, an install; other bytes, another cue, a later version, a
   vanished cue, the recipes), storage round trip, the menu's order and refusals, and the aired
-  cue keeping its person until an Update that sends one whole record (118 pass). Mutations, each
+  cue keeping its person until an Update that sends one whole record (119 pass). Mutations, each
   red: a one-part key allowed, the bytes not compared, a later version rewritable, a vanished cue
   accepted, an install's recipe bytes ignored, a gained selection refused despite the write, the
   kept loop ignoring the write, the menu unsorted, duplicates listed. Browser
-  `e2e/production-pack.spec.ts` (5 pass here): install, preview and Take all four on the program
+  `e2e/production-pack.spec.ts` (6 pass here): install, preview and Take all four on the program
   monitor, two people with one number, the pick on air held until Update, Fixed values and
   reconnect; export with assets (fonts, the portrait) byte for byte and reimport to the same
-  production. Configured `election-selection.spec.ts` AC-1 walk (Actions): publish, the starter
+  production; every v3 refusal and the failed-install cleanup; and, on a bare page, each graphic
+  taken again during its Out and an empty ticker starting when headlines arrive (red on the
+  graphics before `5a14e16`). Configured `election-selection.spec.ts` AC-1 walk (Actions): publish, the starter
   count through `/api/data/patch`, all four on a browser output, the pick moving air at Update.
 - **Independent assessment.** A fresh read-only `/so` graded `c803696` A- (a failed install left
   a half-made production; the v3 refusals untested; the v3 reach understated), all fixed in
   `6e39e1f`; its re-read graded `ecbb419` A (the export dropping a recipe whose graphic has gone,
-  also raised by the automated review). Left as is: a failed install removes its production but not
+  also raised by the automated review). The automated review then found the ticker stuck when taken
+  empty and a Take during an Out ending hidden, fixed in `5a14e16`; a final fresh read of
+  `5a14e16` graded it A (AGREE). Left as is: a failed install removes its production but not
   the graphics already saved to the library (as every failed pack install before it); a retry's
   `installOverlap` asks about the same-named copies.
 - **Traps.** `pkill -f "vite --port …"` kills the shell that runs it (its own command line
-  matches). The job queue admits one broader job per commit: a failed run (here the #1647
+  matches). A graphic whose Out is loose `gsap.to` tweens beside its entrance timeline ends hidden
+  when taken again mid-Out, since Play kills only the entrance: keep one timeline per graphic for
+  the entrance or the exit, and kill it on both. The job queue admits one broader job per commit: a failed run (here the #1647
   headless shell missing) needs a new commit. A graphic whose entrance uses GSAP `.from()` ends
   hidden when PREVIEW plays it twice in quick succession: name the end state (`fromTo`).
 
