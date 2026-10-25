@@ -10,6 +10,7 @@ import test from 'node:test';
 import { admitRun, continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
+import { admitPhases } from './project-control.mjs';
 import { nextStep, readPhases, readSteps, recordStep } from './plan-run.mjs';
 
 // Defense in depth: every child git process is restricted to the temporary file remote.
@@ -731,14 +732,15 @@ test('a ledger above git\'s old 2 MiB output buffer still merges on adoption', (
 
 /** A three-phase project with phase 1 passed and phase 2 in flight, and owner receipts on the
  * remote's main. `admit` runs the supervisor operation under the current block. */
+const phaseOf = (id, dependsOn = []) => ({ id, title: `Phase ${id}`, dependsOn, acceptance: [`${id} verified`], environment: 'controlled-fixture' });
+const pick = ({ action, phase, step }) => ({ action, phase, step });
 function admissionFixture(t) {
   let owner;
   const f = fixture(t, ['-e', ''], ({ manifest, wave, now, root, remote }) => {
     manifest.id = 'plan-fixture-2030-01-01';
     manifest.authorization.deadline = new Date(now + 72 * HOUR).toISOString();
-    const phase = (id, dependsOn = []) => ({ id, title: `Phase ${id}`, dependsOn, acceptance: [`${id} verified`], environment: 'controlled-fixture' });
     const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
-      status: 'paused', reason: 'admission fixture only', phases: [phase('a'), phase('b', ['a']), phase('c', ['b'])] };
+      status: 'paused', reason: 'admission fixture only', phases: [phaseOf('a'), phaseOf('b', ['a']), phaseOf('c', ['b'])] };
     writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline}`)
       .replace(/^1\. .+$/m, '1. Phase a\n2. Phase b\n3. Phase c'), project));
     const repo = path.join(root, 'owner');
@@ -755,11 +757,10 @@ function admissionFixture(t) {
   const pass = (id) => ({ actor: 'checker', mergeSha: merge.mergeSha, mergeChecks: 'all green', evidence: [{ criterion: `${id} verified`, evidence: 'fixture', environment: 'controlled-fixture' }] });
   record(1, 'build', { actor: 'builder' }); record(1, 'landed', merge); record(1, 'check', { actor: 'checker' }); record(1, 'pass', pass('a'));
   record(2, 'build', { actor: 'builder' });
-  const phase = (id, dependsOn) => ({ id, title: `Phase ${id}`, dependsOn, acceptance: [`${id} verified`], environment: 'controlled-fixture' });
   const admission = (patch = {}) => ({ receipts: ['evidence/owner-decision.md'], commit: owner,
-    insert: [{ after: 'b', phases: [phase('b2', ['b'])] }, { after: 'c', phases: [phase('c2', ['c'])] }], ...patch });
+    insert: [{ after: 'b', phases: [phaseOf('b2', ['b'])] }, { after: 'c', phases: [phaseOf('c2', ['c'])] }], ...patch });
   const admit = (value, authority = blockOf(wave)) => admitRun(f.db, f.manifest.id, value, { now: at, authority });
-  return { ...f, wave, at, owner, record, merge, pass, phase, admission, admit };
+  return { ...f, wave, at, owner, record, merge, pass, admission, admit };
 }
 
 test('an owner-receipted admission inserts phases after the last recorded one, and next names the inserted phase', (t) => {
@@ -784,7 +785,6 @@ test('an owner-receipted admission inserts phases after the last recorded one, a
   f.record(3, 'build', { actor: 'builder' });
   assert.match(readFileSync(f.wave, 'utf8'), /phase 3 build/);
 });
-const pick = ({ action, phase, step }) => ({ action, phase, step });
 
 test('a checkpoint restored after an admission reproduces the same project, ledger and next step', (t) => {
   const f = admissionFixture(t);
@@ -803,16 +803,17 @@ test('admission is refused without receipts, off main, at or before a recorded p
   const refusals = [
     [f.admission({ receipts: [] }), /receipt paths/],
     [f.admission({ commit: undefined }), /receipt paths/],
-    [f.admission({ receipts: ['evidence/missing.md'] }), /not at/],
+    [f.admission({ receipts: ['evidence/owner-decision-missing.md'] }), /not a file at/],
+    [f.admission({ receipts: ['evidence/notes.md'] }), /receipt paths/],
     [f.admission({ commit: f.manifest.packet.recovery.revision }), /not on main/],
-    [f.admission({ insert: [{ after: 'a', phases: [f.phase('a2', ['a'])] }] }), /only after phase 2/],
-    [f.admission({ insert: [{ after: 'missing', phases: [f.phase('x', [])] }] }), /only after phase 2/],
+    [f.admission({ insert: [{ after: 'a', phases: [phaseOf('a2', ['a'])] }] }), /only after phase 2/],
+    [f.admission({ insert: [{ after: 'missing', phases: [phaseOf('x', [])] }] }), /"missing" is none/],
     // Retitling, removing or reordering an admitted phase, or changing the deadline or objective, is not an insertion.
-    [f.admission({ insert: [{ after: 'c', phases: [{ ...f.phase('c', ['b']), title: 'Retitled' }] }] }), /Preserve phase order/],
-    [f.admission({ insert: [{ after: 'c', phases: [f.phase('d', ['e']), f.phase('e', [])] }] }), /Preserve phase order/],
+    [f.admission({ insert: [{ after: 'c', phases: [{ ...phaseOf('c', ['b']), title: 'Retitled' }] }] }), /Preserve phase order/],
+    [f.admission({ insert: [{ after: 'c', phases: [phaseOf('d', ['e']), phaseOf('e', [])] }] }), /Preserve phase order/],
     [f.admission({ phases: [] }), /only inserts new phases/],
     [f.admission({ deadline: new Date(f.at + 99 * HOUR).toISOString() }), /only inserts new phases/],
-    [f.admission({ insert: [{ after: 'c', phases: [f.phase('d', ['c'])], position: 1 }] }), /only inserts new phases/],
+    [f.admission({ insert: [{ after: 'c', phases: [phaseOf('d', ['c'])], position: 1 }] }), /only inserts new phases/],
     [f.admission({ insert: [] }), /only inserts new phases/],
   ];
   for (const [admission, why] of refusals) assert.throws(() => f.admit(admission), why);
@@ -829,7 +830,7 @@ test('an unadmitted edit of the phase list is still refused by the ledger, the s
   assert.throws(() => f.record(2, 'landed', f.merge), /phase set or order changed/);
   // Both the list and the project line edited consistently: the digests the admission wrote refuse it.
   const project = readProject(text);
-  project.phases.push({ ...f.phase('smuggled', []), title: 'Phase smuggled' });
+  project.phases.push({ ...phaseOf('smuggled', []), title: 'Phase smuggled' });
   writeFileSync(f.wave, writeProject(text.replace('5. Phase c2', '5. Phase c2\n6. Phase smuggled'), project));
   assert.throws(() => f.record(2, 'landed', f.merge), /Project\/control state differs/);
   assert.throws(() => publishRun(f.db, f.manifest.id), /Restored project authorization or state differs/);
@@ -840,4 +841,14 @@ test('admit runs from the command line with the block authority file', async (t)
   writeFileSync(files, JSON.stringify(f.admission())); writeFileSync(block, JSON.stringify(blockOf(f.wave)));
   assert.equal(await main(['admit', path.join(f.root, 'control.sqlite'), f.manifest.id, files, '--authority', block], { recoveryGit: f.transport }), 0);
   assert.equal(readProject(ledgerAt(f)).phases.length, 5);
+});
+
+test('admission renumbers only the phase list readPhases reads, keeping its line endings', () => {
+  const at = Date.parse('2030-01-01T00:00:00Z'), authorization = { source: 'fixture', scope: 'fixture', permissionPolicy: 'fixture',
+    startedAt: new Date(at).toISOString(), deadline: new Date(at + 72 * HOUR).toISOString() };
+  const project = { version: 1, id: 'p', ownership: 'local-single-owner', authorization, status: 'active', phases: [phaseOf('a'), phaseOf('b', ['a'])] };
+  const text = writeProject(`Window starts: ${authorization.startedAt}\r\nWindow ends: ${authorization.deadline}\r\n\r\n## Phases\r\n1. Phase a\r\n2. Phase b\r\n\r\n## Phases notes\r\n1. not a phase\r\n`, project);
+  const admitted = admitPhases(project, text, { receipts: [], commit: 'c'.repeat(40), insert: [{ after: 'a', phases: [phaseOf('a2', ['a'])] }] }, [], at).text;
+  assert.match(admitted, /## Phases\r\n1\. Phase a\r\n2\. Phase a2\r\n3\. Phase b\r\n\r\n## Phases notes\r\n1\. not a phase\n/);
+  assert.deepEqual(readProject(admitted, at).phases.map((p) => p.id), ['a', 'a2', 'b']);
 });

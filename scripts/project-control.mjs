@@ -70,20 +70,27 @@ export function checkpointReceipt(doc, receipt, text) {
   return true;
 }
 
+const only = (value, keys) => value && typeof value === 'object' && Object.keys(value).every((key) => keys.includes(key));
+
+/** An admission only inserts new phases; anything else it names is refused before any read. */
+export function checkAdmission(admission) {
+  if (!only(admission, ['receipts', 'commit', 'insert']) || !Array.isArray(admission.insert) || !admission.insert.length
+      || admission.insert.some((at) => !only(at, ['after', 'phases']) || !Array.isArray(at.phases) || !at.phases.length)) {
+    throw Error('Admission only inserts new phases: {receipts, commit, insert: [{after, phases}]}');
+  }
+}
+
 /** Insert owner-admitted phases, only after the last phase with any ledger event. Phases up to
  * it keep their numbers, so every recorded line stays valid; later phases have no events yet and
  * move by position. The admission line records the receipts and that mapping. The caller checked
  * the block authority, which also refuses a cancelled, finished or expired project. */
 export function admitPhases(project, text, admission, receipts, now) {
-  const only = (value, keys) => value && typeof value === 'object' && Object.keys(value).every((key) => keys.includes(key));
-  if (!only(admission, ['receipts', 'commit', 'insert']) || !Array.isArray(admission.insert) || !admission.insert.length
-      || admission.insert.some((at) => !only(at, ['after', 'phases']) || !Array.isArray(at.phases) || !at.phases.length)) {
-    throw Error('Admission only inserts new phases: {receipts, commit, insert: [{after, phases}]}');
-  }
+  checkAdmission(admission);
   const recorded = Math.max(1, ...readSteps(text).map((step) => step.phase));
   const ids = project.phases.map((phase) => phase.id), added = new Map();
   for (const { after, phases } of admission.insert) {
-    if (ids.indexOf(after) + 1 < recorded) throw Error(`Admission inserts only after phase ${recorded}, the last with a ledger event; "${after}" is not`);
+    if (!ids.includes(after)) throw Error(`Admission inserts after an admitted phase id; "${after}" is none`);
+    if (ids.indexOf(after) + 1 < recorded) throw Error(`Admission inserts only after phase ${recorded}, the last with a ledger event; "${after}" is phase ${ids.indexOf(after) + 1}`);
     added.set(after, [...(added.get(after) ?? []), ...phases]);
   }
   const admitted = { ...project, phases: project.phases.flatMap((phase) => [phase, ...(added.get(phase.id) ?? [])]) };
@@ -91,15 +98,14 @@ export function admitPhases(project, text, admission, receipts, now) {
   const position = (id) => admitted.phases.findIndex((phase) => phase.id === id) + 1;
   const inserted = [...added.values()].flat().map(({ id }) => ({ id, position: position(id) }));
   const moved = ids.map((id, i) => ({ id, from: i + 1, to: position(id) })).filter((m) => m.from !== m.to);
-  // Renumber the `## Phases` list in place; any other text in the section stays as written.
-  let n = 0, inPhases = false;
-  const lines = text.split('\n').flatMap((line) => {
-    if (/^## /.test(line)) inPhases = /^## Phases/.test(line);
-    if (!inPhases || !/^\d+\.\s+/.test(line)) return [line];
-    const phase = project.phases[n++];
-    return [phase, ...(added.get(phase.id) ?? [])].map(({ id, title }) => `${position(id)}. ${title}`);
-  });
+  // Renumber the `## Phases` list (the section readPhases reads); its other text stays as written.
+  let n = 0;
+  const renumbered = text.replace(/^(## Phases[^\n]*\n)([\s\S]*?)(?=^## |(?![\s\S]))/m, (_, heading, body) => heading
+    + body.replace(/^\d+\.\s+.+?(\r?)$/gm, (__, cr) => {
+      const phase = project.phases[n++];
+      return [phase, ...(added.get(phase.id) ?? [])].map(({ id, title }) => `${position(id)}. ${title}${cr}`).join('\n');
+    }));
   const line = `- ${new Date(now).toISOString()} admitted ${JSON.stringify({ commit: admission.commit, receipts, inserted, moved })}`;
-  const written = writeProject(lines.join('\n'), admitted);
+  const written = writeProject(renumbered, admitted);
   return { project: admitted, text: `${written}${written.endsWith('\n') ? '' : '\n'}${line}\n` };
 }

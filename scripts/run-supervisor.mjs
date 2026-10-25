@@ -13,7 +13,7 @@ import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredR
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
-import { admitPhases, changeProject, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
+import { admitPhases, changeProject, checkAdmission, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
 const LEASE_MS = 60_000;
@@ -196,7 +196,10 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
 /** Admit owner-receipted phases into an active project: the phase list, `## Phases`, both
  * project digests and one `admitted` ledger line change together, then the checkpoint publishes. */
 export function admitRun(db, id, admission, { now = Date.now(), authority } = {}) {
+  checkAdmission(admission);
   adoptAccepted(db, id);
+  // The receipts' network read happens before the store's write lock is taken.
+  const receipts = ownerReceipts(db, rowFor(db, id).doc, admission);
   return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
     const { doc } = rowFor(db, id);
     assertCurrent(db, id, doc);
@@ -204,7 +207,6 @@ export function admitRun(db, id, admission, { now = Date.now(), authority } = {}
     const project = checkedProject(doc, text, now);
     if (!project) throw Error('Only a continuing project admits phases');
     checkBlock(project, authority, now);
-    const receipts = ownerReceipts(db, doc, admission);
     const locked = withLedgerLock(doc.manifest.wave, () => {
       if (readFileSync(doc.manifest.wave, 'utf8') !== text) throw Error('Ledger changed; reconcile before admitting phases');
       const admitted = admitPhases(project, text, admission, receipts, now);
