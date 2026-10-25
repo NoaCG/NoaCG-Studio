@@ -12,6 +12,9 @@ import type { ControlButton } from './controlModel';
 import type { LiveCueMap } from './liveCue';
 import type { VerbSelection } from './graphicVerbs';
 
+/** Every surface's refusal of a live press that another cue took the layer from, before it sent. */
+export const changedNote = (graphic: string) => `Nothing sent: the cue on ${graphic} changed.`;
+
 /** D5: a pick group draws at most this many option buttons; above it the control stays one
  *  button reading the field. */
 export const PICK_CAP = 8;

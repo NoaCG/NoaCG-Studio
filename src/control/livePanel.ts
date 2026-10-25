@@ -6,7 +6,7 @@
 
 import type { FieldDescriptor } from '../model/fieldModel';
 import type { ControlButton } from './controlModel';
-import { liveNumberFields, pickFields, pickOptions, type PickGroup } from './liveControls.ts';
+import { liveNumberFields, pickOptions, type PickGroup } from './liveControls.ts';
 
 export interface LivePanel {
   /** Every declared control, a pick group drawn as its option buttons. */
@@ -18,12 +18,13 @@ export interface LivePanel {
 }
 
 export function livePanel(descriptors: readonly FieldDescriptor[], buttons: readonly ControlButton[], pathEvents: ReadonlySet<string>): LivePanel {
-  const picked = pickFields(buttons, descriptors, pathEvents);
+  const controls = buttons.map((b) => {
+    const pick = pickOptions(b, descriptors, pathEvents, buttons);
+    return pick ? { event: b.event, label: b.label, pick } : { event: b.event, label: b.label };
+  });
+  const picked = new Set(controls.flatMap((c) => (c.pick ? [c.pick.field] : [])));
   return {
-    controls: buttons.map((b) => {
-      const pick = pickOptions(b, descriptors, pathEvents, buttons);
-      return pick ? { event: b.event, label: b.label, pick } : { event: b.event, label: b.label };
-    }),
+    controls,
     steppers: liveNumberFields(descriptors, buttons).map((d) => d.key),
     prep: descriptors.filter((d) => !picked.has(d.key)).map((d) => d.key),
   };

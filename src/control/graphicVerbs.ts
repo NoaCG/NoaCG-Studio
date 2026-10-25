@@ -58,6 +58,7 @@ import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
+import { changedNote } from './liveControls.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
  *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
@@ -119,8 +120,6 @@ export interface GraphicPage {
   graphics: readonly { name: string }[];
   /** The live map this render drew (the page's render copy of the `air` part). */
   liveCue: LiveCueMap;
-  /** What each graphic was last sent, as this render drew it. */
-  aired: Record<string, Record<string, string>>;
   /** The graphic layers that are up, and the server cues this page put up. */
   liveLayers: readonly { graphic: string }[];
   livePlayoutLayers: readonly { cue: ShowCue }[];
@@ -223,9 +222,6 @@ export interface GraphicVerbs {
 
 /** Refused at the session's end: nothing more is sent for a production that is closed (§4.1 R3). */
 const ENDED_NOTE = 'This production is closed, so nothing was sent.';
-
-/** Refused because another cue took the layer between a live press and its send. */
-export const changedNote = (graphic: string) => `Nothing sent: the cue on ${graphic} changed.`;
 
 export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, sender: () => VerbSender, readPage: () => GraphicPage): GraphicVerbs {
   /** The page as a press reads it. Once the production closed, its writes move nothing: no cue,
@@ -764,14 +760,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT: the tree write is a separate row, so nothing
     // but this order keeps the two in step.
     const settle = holdSent(graphic, adjusted);
-    let sent: VerbSent | null = null;
+    let went = false;
     try {
-      sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`);
-    } finally {
+      const sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`);
       // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
-      settle(!!sent && ![...sent.skipped, ...sent.superseded].includes(graphic));
+      went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
+    } finally {
+      settle(went);
     }
-    const went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
     // Accepted live values are persisted only now, outside preparation history: a refused or
     // failed press writes nothing into the cue.
     if (went && Object.keys(adjusted).length > 0 && sel.airCue) p.writeLive(sel.airCue.id, adjusted);

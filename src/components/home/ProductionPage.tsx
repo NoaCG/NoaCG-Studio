@@ -111,7 +111,7 @@ import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
 import { cueDataRows, hasSideFields, rowsForSide } from '../../control/cueData';
 import { groupCueFields } from '../../control/cueFieldGroups';
-import { pinnedGraphicsOf, profileIsEmpty, readPublishedProfile, readShowProfile, withGraphicArrange, withPinnedGraphic, type ArrangeEntry, type ShowProfile } from '../../model/profile';
+import { PROFILE_VERSION, pinnedGraphicsOf, profileIsEmpty, readPublishedProfile, readShowProfile, serializeShowProfile, withGraphicArrange, withPinnedGraphic, type ArrangeEntry, type ShowProfile } from '../../model/profile';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import SourcesLine, { ownSheetReader, ownSheetReaders } from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
@@ -2590,7 +2590,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   verbPage.current = {
     graphics: show.graphics,
     liveCue,
-    aired: airedData,
     liveLayers,
     livePlayoutLayers,
     graphicOf: cueGraphicName,
@@ -2843,8 +2842,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  which no block can reach any more. Pins are not arrangements and stay; with none, the profile
    *  key goes, as it does for the last reset. */
   const clearAllArrangements = () => {
-    const pins = pinnedGraphicsOf(show.profile).filter((name) => poolNames.includes(name));
-    writeProfile({ v: 1, arrange: {}, ...(pins.length > 0 ? { pinnedGraphics: pins } : {}) });
+    writeProfile(serializeShowProfile({ v: PROFILE_VERSION, arrange: {}, pinnedGraphics: pinnedGraphicsOf(show.profile) }, poolNames));
   };
 
   // Grouped and ordered by the SHARED helper (controlModel `arrangeControls`), so the hosted
@@ -3032,7 +3030,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  its own graphic's on-air cue (control/liveControls.ts `liveSelection`), never the page's. */
   const pinned = pinnedGraphicsOf(show.profile);
   const { blocks: liveOrder } = liveBlocks(pinned, poolNames, selectedGraphic);
-  const stacked = pinned.length > 0 && liveOrder.some((b) => b.pinned);
+  const stacked = liveOrder.some((b) => b.pinned);
   const liveFirst = (events.length > 0 && !!selectedGraphic) || stacked;
   const fieldsFolded = liveFirst && !!poolGraphic && foldedFields.has(poolGraphic.id) && !layerClash;
   const arranging = !!selectedGraphic && arrangingFor === selectedGraphic;

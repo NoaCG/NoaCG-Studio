@@ -29,7 +29,7 @@ import {
   type ControlButton,
 } from '../control/controlModel';
 import { withLiveLabels } from '../blocks/controlLabels';
-import { liveNumberFields, pickButton, pickOptions } from '../control/liveControls';
+import { changedNote, liveBlocks, liveNumberFields, pickButton, pickOptions } from '../control/liveControls';
 import { pinnedGraphicsOf } from '../model/profile';
 import { fetchProductionDataBySlug, patchProductionDataBySlug } from '../control/productionDataApi';
 import { accentColor, routeColor, outputSetupLabel } from '../model/outputSetup';
@@ -983,7 +983,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const waited = before ? Promise.race([before, new Promise<void>((resolve) => setTimeout(resolve, RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS))]) : Promise.resolve();
       const ran = waited.then(() => {
         if ((liveCueRef.current[graphic] ?? null) === at) return run();
-        setError(`Nothing sent: the cue on ${graphic} changed.`);
+        setError(changedNote(graphic));
       });
       const settled = ran.catch(() => {});
       livePresses.current.set(graphic, settled);
@@ -1086,10 +1086,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     pins.length > 0
       ? (own: ReactNode) => (
           <div className="pd-live-stack" data-testid="hosted-live-stack">
-            {pins.map((graphic) =>
-              graphic === selectedGraphic && own ? <Fragment key={graphic}>{own}</Fragment> : pinnedBlock(graphic),
+            {liveBlocks(pins, [...specByName.keys()], own ? selectedGraphic : null).blocks.map((b) =>
+              b.selected ? <Fragment key={b.graphic}>{own}</Fragment> : pinnedBlock(b.graphic),
             )}
-            {selectedGraphic && !pins.includes(selectedGraphic) && own}
           </div>
         )
       : undefined;
