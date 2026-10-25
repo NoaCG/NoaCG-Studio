@@ -331,6 +331,20 @@ test('a press on a production the resolve called missing asks again, and goes nu
   expect(sendsById()).toBe(0);
 });
 
+test('a Take whose resolve answers after its resend window is not sent late (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 6_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toBeVisible({ timeout: 15_000 });
+  // Past the resolve's answer: nothing left, numbered or not.
+  await page.waitForTimeout(4_000);
+  expect(sendsSeq(), 'the press did not air seconds after its window').toBe(0);
+  expect(sendsById()).toBe(0);
+});
+
 test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   await publishedPage(page, (rpc, fixture) =>

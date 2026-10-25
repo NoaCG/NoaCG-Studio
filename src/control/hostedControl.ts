@@ -1020,7 +1020,8 @@ function roadDecided(slug: string, deadline: number): Promise<void> {
   if (!wait) {
     wait = (async () => {
       if (!(await getSupabase().catch(() => null))) return;
-      if (unknownSlugs.has(slug)) await controlShowBySlug(slug).catch(() => null);
+      // A re-ask nobody answered decides nothing: the production may exist by now.
+      if (unknownSlugs.has(slug) && !(await controlShowBySlug(slug).catch(() => null))?.ok) unknownSlugs.delete(slug);
       while (!decided(slug) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
     })().finally(() => roadWaits.delete(slug));
     roadWaits.set(slug, wait);
@@ -1435,8 +1436,11 @@ export async function sendControlVerb(opts: {
   /** Protocol 2: this batch's number and base, taken at the press of a verb that leaves as several
    *  batches (`sendControlVerbs`). Absent, they are taken now. */
   sender?: SenderBody | null;
+  /** When the press was made, if before this call (`sendControlVerbs` may have waited for the road):
+   *  its resend window and its stamp run from the press. Absent, now. */
+  pressedAt?: number;
 }): Promise<VerbSent> {
-  const now = Date.now();
+  const now = opts.pressedAt ?? Date.now();
   const { showId } = opts;
   // A press made before this production's resolve has decided the road waits for it, within its own
   // resend window: sent by row id instead, it would have no per-graphic order (#1697). One made
@@ -1584,11 +1588,13 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
  * batches landed before it. Protocol 1 numbers nothing and sends exactly as one call per batch.
  */
 export async function sendControlVerbs(
-  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender'> & { batches: ControlSendItem[][] },
+  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
-  // Every batch is numbered here, so the wait for the road comes first, as for one batch.
-  if (!settled(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, Date.now() + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
+  // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
+  // batch's resend window still runs from the press; a later one's from when it leaves, as before.
+  const pressedAt = Date.now();
+  if (!settled(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, pressedAt + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
   const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
@@ -1611,7 +1617,9 @@ export async function sendControlVerbs(
         if (session && base) items = batch.filter((item) => (session.revs.get(item.graphic) ?? 0) <= (base[item.graphic] ?? 0));
         sent.skipped.push(...new Set(batch.filter((item) => !items.includes(item)).map((item) => item.graphic)));
       }
-      const each = items.length ? await sendControlVerb({ ...one, items, sender: senders[index] }) : { skipped: [], superseded: [], pressedAgain: [] };
+      const each = items.length
+        ? await sendControlVerb({ ...one, items, sender: senders[index], ...(index === 0 ? { pressedAt } : {}) })
+        : { skipped: [], superseded: [], pressedAgain: [] };
       waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
       sent.superseded.push(...each.superseded);
