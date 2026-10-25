@@ -72,7 +72,7 @@ is the phase's gate; the child's full AC text is the eventual whole, met across 
 | 31 | E7.2a | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-1; the selection writer | CA | - |
 | 32 | E7.2b | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-4 software/replay grade | CA | laptop: scratch CasparCG/Bridge + OBS |
 | 32a | L1 | [Pinned live controls](../pinned-live-controls/spec.md) | L1 AC-1 to AC-7, AC-9, AC-10; the press-safety contract of its "What a press does" settled here, never deferred to E6 | CA | kit: the two-graphic task (AC-11) joins E8.2's kit |
-| 32b | L2.1 | [Playout adjustments](../playout-adjustments/spec.md) | L2 AC-1 to AC-4, AC-8, AC-9's frame half (restart and reconnect on every surface, the exported controller and the html-overlay and CasparCG bake), AC-10's unchanged-production part; phase 1 only: place and size, no style, no ghost view, no tween | CA | kit: the adjustment task (AC-11) joins E8.2's kit |
+| 32b | L2.1 | [Playout adjustments](../playout-adjustments/spec.md) | L2 AC-1 to AC-4, AC-8, AC-9's renderer half (the `/output` renderer's and both PROGRAM stages' restart and reconnect), AC-10's unchanged-production part, and the export dialog's disclosure that adjustments are not carried; phase 1 only: place and size on the surfaces NoaCG owns outright, no style, no ghost view, no tween, and no receiver, overlay or bake (those are phase 1b, proposed as row 32c and not admitted) | CA | kit: the adjustment task (AC-11) joins E8.2's kit |
 | 33 | E1.1 | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-1; AC-3 and AC-4 model and read-gate parts; a pinned native block never carries a typed envelope (L1); the `update` message's optional `appearance` field is a native wire member outside E1's typed envelope and the read gate preserves it (L2.1) | CA | - |
 | 34 | E6.1 | [Declared actions through Companion](../playout-companion-actions/spec.md) | E6 AC-1, AC-2, AC-3 for native actions and typed foreign descriptors; a native action's target kind is the pool graphic resolved by L1's `liveSelection`, with E6's snapshot, lease and capability checks retained (L1 AC-8) | CA | - |
 | 35 | E1.2a | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-2 persistence/binding/command-log part; AC-3 wire; AC-4 runtime | CA | - |
@@ -141,8 +141,13 @@ never authorizes substituting simulated evidence there.
   existing `update` message, the output applies it as a transform on the NoaCG-owned per-graphic
   frame, and every receiver restores the last applied appearance
   (`docs/work-specs/playout-adjustments/spec.md`). L2.1 runs after L1 and before E1.1 and owns
-  that one phase: no style variables, no production look, no ghost view, no tween; those are
-  later phases with their own admission. Its four rules bind the wire: a partial update without
+  that one phase on the surfaces NoaCG owns outright (the `/output` stage, PROGRAM on both
+  pages, hosted staging and the hosted page applying): no style variables, no production look,
+  no ghost view, no tween, and no change to a document that is the page (the hosted and relay
+  receivers, the exported controller's overlays, the html-overlay, CasparCG, SPX and OGraf
+  bakes), whose transform host a catalog sweep over `vw`/`vh` designs decides first; those are
+  later phases with their own admission (gate narrowed 2026-10-25,
+  `evidence/owner-decisions-2026-10-25-l2-gate.md`). Its four rules bind the wire: a partial update without
   the field retains the applied appearance; Take and a full Update carry the complete effective
   appearance including an explicit identity; applying replaces, never multiplies; recovery
   restores the last applied, never newer preparation. File ownership is sequential: L1 owns the
