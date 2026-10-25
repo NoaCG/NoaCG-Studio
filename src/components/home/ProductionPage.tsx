@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, airedOf as airedCandidateOf, followAired, followsCandidates, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, SETTLE_MS, airedOf as airedCandidateOf, followAired, followsCandidates, protectedSelections, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -1396,6 +1396,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
   /** The follow pass, as the effect below runs it; set every render so it reads this render's facts. */
   const followRef = useRef<() => void>(() => {});
+  // Restored layers whose sends were lost wait out SETTLE_MS before they decide or send: one
+  // follow pass when it ends, so a quiet tree still gets one.
+  useEffect(() => {
+    const settled = window.setTimeout(() => followRef.current(), SETTLE_MS + 100);
+    return () => window.clearTimeout(settled);
+  }, [session, id]);
   const selectionIo = useMemo<SelectionAirIo>(
     () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current(), alive: session.alive }),
     [session, keepSelections],
@@ -2477,13 +2483,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     selectionAired,
     candidateFields,
-    airedCandidateFields: (graphic) => {
-      const aired = airedCandidateOf(session.selections.get(), graphic);
-      // Unknown which candidate airs: every candidate's fields are protected, whichever cue the
-      // marker names.
-      if (!aired || (aired.known && session.air.get().liveCue[graphic] !== aired.cueId)) return [];
-      return [...new Set(aired.selections.flatMap((selection) => selectedFields({ selection }, show.collections)))];
-    },
+    airedCandidateFields: (graphic) => [
+      ...new Set(protectedSelections(session.selections.get(), graphic, session.air.get().liveCue[graphic]).flatMap((selection) => selectedFields({ selection }, show.collections))),
+    ],
     // Not known which candidate airs (restored mid-press): its fields are nobody's values to send.
     airedCandidate: (graphic, cueId) => {
       const aired = airedCandidateOf(session.selections.get(), graphic);

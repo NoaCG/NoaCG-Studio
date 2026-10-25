@@ -36,6 +36,7 @@ import { resolveSelection, selectionGate, type SelectionResolve } from './source
 import type { CueSelection } from '../model/productionData';
 import type { FieldDescriptor } from '../model/fieldModel';
 import { reachedOutput, type LiveCueMap } from './liveCue.ts';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS } from './failedSends.ts';
 import type { StorePart } from './storePart';
 
 /** One candidate a layer may show: the cue, its captured selector and entity, and the values of
@@ -75,6 +76,9 @@ export interface SelectionHold {
  *  judged, below which nothing is sent, is derived (`boundOf`), never stored. */
 interface Marks {
   heldAt: number;
+  /** The newest revision of a send whose answer was lost with a reload: it may air, so nothing
+   *  older is sent, and it is sent once more (it may not). */
+  lostAt?: number;
   held?: SelectionHold;
 }
 
@@ -90,6 +94,9 @@ export interface SelectionLayer {
    *  without a selection taken onto the layer (`plains`), which is not known. Held, nothing sent,
    *  until the marker or an operator press decides. */
   unknown?: { since: number; candidates: AiredTarget[]; plains?: string[] };
+  /** Restored with sends whose answers were lost: until then one of them may still reach the
+   *  server (a page left and reopened inside its resend window), so nothing is decided or sent. */
+  settling?: number;
 }
 
 /** Every layer with a live candidate, by graphic name (the wire key, which is the layer). */
@@ -162,7 +169,12 @@ function pruned(l: SelectionLayer): SelectionLayer {
 const NONE = Number.MIN_SAFE_INTEGER;
 const marksOf = (l: SelectionLayer, t: AiredTarget): Marks => l.marks[markKey(t)] ?? { heldAt: NONE };
 /** Kept as JSON reads back as it was: no key holds undefined. */
-const withMarks = (l: SelectionLayer, t: AiredTarget, m: Marks): SelectionLayer => ({ ...l, marks: { ...l.marks, [markKey(t)]: m.held ? m : { heldAt: m.heldAt } } });
+const withMarks = (l: SelectionLayer, t: AiredTarget, m: Marks): SelectionLayer => {
+  const kept: Marks = { heldAt: m.heldAt };
+  if (m.lostAt !== undefined) kept.lostAt = m.lostAt;
+  if (m.held) kept.held = m.held;
+  return { ...l, marks: { ...l.marks, [markKey(t)]: kept } };
+};
 const settledLayer = ({ unknown: _unknown, ...l }: SelectionLayer): SelectionLayer => l;
 
 /** The newest revision sent for one entity: what airs and what is out for it (`t` itself counts
@@ -202,7 +214,10 @@ function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTak
   // An explicit press is the operator's decision: the entity's hold ends with it (a later read
   // judges again), and its bound stays at least what airs, so an older read is still rejected.
   let next: SelectionLayer = { ...l, out: [...l.out, { seq, press: true, cueId, target }] };
-  if (target) next = withMarks(next, target, { heldAt: marksOf(l, target).heldAt });
+  if (target) {
+    const { held: _held, ...kept } = marksOf(l, target);
+    next = withMarks(next, target, kept);
+  }
   return { layer: next, seq };
 }
 
@@ -214,7 +229,10 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
   if (landed) {
     // Every older send still out was made before it and can no longer show (the server skips a
     // press older than one it applied).
-    const next: SelectionLayer = { ...l, onAir: sent.target, out: l.out.filter((s) => s.seq > seq) };
+    let next: SelectionLayer = { ...l, onAir: sent.target, out: l.out.filter((s) => s.seq > seq) };
+    // What airs now is at or above a revision whose answer was lost: that bound is spent.
+    const m = sent.target ? next.marks[markKey(sent.target)] : undefined;
+    if (sent.target && m?.lostAt !== undefined && sent.target.revision >= m.lostAt) next = withMarks(next, sent.target, { ...m, lostAt: undefined });
     return { layer: pruned(sent.press ? settledLayer(next) : next) };
   }
   const next: SelectionLayer = { ...l, out: l.out.filter((s) => s.seq !== seq) };
@@ -233,6 +251,11 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
   // A press is out: the marker has not moved yet and the page does not know what airs; its own
   // answer settles the layer, and the follow runs again then.
   if (pressOut(l)) return { layer: l };
+  if (l.settling !== undefined) {
+    if (now < l.settling) return { layer: l };
+    const { settling: _settling, ...settled } = l;
+    return follow(settled, graphic, live, seeded, facts, mint, now);
+  }
   if (l.unknown) {
     if (live === undefined) return { layer: seeded ? undefined : l };
     const matches = l.unknown.candidates.filter((c) => c.cueId === live);
@@ -245,7 +268,10 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
     // again and never takes a newer revision for aired when it was not.
     if (matches.every((c) => sameEntity(c, matches[0]))) {
       const onAir = matches.reduce((a, b) => (b.revision < a.revision ? b : a));
-      const decided = pruned(withMarks(settledLayer({ ...l, onAir }), onAir, { heldAt: marksOf(l, onAir).heldAt }));
+      const newest = Math.max(...matches.map((c) => c.revision));
+      const m = marksOf(l, onAir);
+      const lostAt = Math.max(m.lostAt ?? NONE, newest);
+      const decided = pruned(withMarks(settledLayer({ ...l, onAir }), onAir, { heldAt: m.heldAt, ...(lostAt > onAir.revision ? { lostAt } : {}) }));
       return follow(decided, graphic, live, seeded, facts, mint, now);
     }
     return { layer: l };
@@ -256,30 +282,32 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
   if (facts.readable === false || live !== believed.cueId) return { layer: l };
   const take = resolveOn(believed.selection, graphic, facts);
   const m = marksOf(l, believed);
-  const floor = boundOf(l, believed);
+  const floor = Math.max(boundOf(l, believed), m.lostAt ?? NONE);
   if (take.status === 'ok' && take.scope !== believed.scope) {
     // The recipe the captured selector names was changed under it: another source's or schema's
     // values are not this candidate's. Held until the operator takes it again.
     const reason = 'its collection recipe changed since it was taken';
     if (m.held?.reason === reason) return { layer: l };
-    return { layer: withMarks(l, believed, { heldAt: m.heldAt, held: { reason, since: m.held?.since ?? now, revision: null } }) };
+    return { layer: withMarks(l, believed, { ...m, held: { reason, since: m.held?.since ?? now, revision: null } }) };
   }
   if (take.status === 'ok') {
     const sent = sentOf(l, believed);
     // A hold that this very revision set (the graphic's fields were missing, say) or that no
     // revision set ends when it reads well; a "not sent" hold ends only by sending.
     const lifts = !!m.held && !m.held.unsent && (m.held.revision === null || m.held.revision === take.revision);
-    const newer = take.revision > floor || (take.revision === floor && take.revision > sent && lifts);
+    // A revision whose send was lost may not have aired: it goes once more, nothing older does.
+    const newer = take.revision > floor || (take.revision === floor && take.revision > sent && (lifts || take.revision === m.lostAt));
     if (newer && take.entity === believed.entity) {
       const seq = mint();
       const target: AiredTarget = { ...believed, revision: take.revision, values: take.values, at: now };
-      const next = withMarks({ ...l, out: [...l.out, { seq, press: false, cueId: believed.cueId, target }] }, believed, { heldAt: m.heldAt });
+      // Its hold ends; a lost revision still bounds until a send at or above it has landed.
+      const next = withMarks({ ...l, out: [...l.out, { seq, press: false, cueId: believed.cueId, target }] }, believed, { ...m, held: undefined });
       return { layer: next, send: { seq, values: take.values } };
     }
     // The aired revision, newest judged, reads well again (a malformed read passed, or the
     // graphic's fields came back): the hold ends. An older revision is a re-read: nothing changes.
     if (take.revision === floor && take.revision === believed.revision && lifts) {
-      return { layer: withMarks(l, believed, { heldAt: m.heldAt }) };
+      return { layer: withMarks(l, believed, { ...m, held: undefined }) };
     }
     return { layer: l };
   }
@@ -291,7 +319,7 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
   if (m.held && m.held.reason === reason && m.held.revision === revision) return { layer: l };
   const held: SelectionHold = { reason, since: m.held?.since ?? now, revision };
   const raised = revision ?? NONE;
-  return { layer: withMarks(l, believed, { heldAt: Math.max(m.heldAt, raised), held }) };
+  return { layer: withMarks(l, believed, { ...m, heldAt: Math.max(m.heldAt, raised), held }) };
 }
 
 /** One layer, one event. */
@@ -347,8 +375,6 @@ export interface AiredView extends AiredTarget {
   held?: SelectionHold;
   pending: boolean;
   known: boolean;
-  /** Every selector whose fields may be on air: the one shown, or, not known, each candidate's. */
-  selections: CueSelection[];
 }
 
 export function airedOf(air: SelectionAir, graphic: string): AiredView | null {
@@ -356,12 +382,28 @@ export function airedOf(air: SelectionAir, graphic: string): AiredView | null {
   if (!l) return null;
   if (l.unknown) {
     const last = l.unknown.candidates[l.unknown.candidates.length - 1];
-    const selections = [...l.unknown.candidates, ...l.out.flatMap((s) => (s.target ? [s.target] : []))].map((c) => c.selection);
-    return { ...last, held: { reason: UNKNOWN_REASON, since: l.unknown.since, revision: null }, pending: pressOut(l), known: false, selections };
+    return { ...last, held: { reason: UNKNOWN_REASON, since: l.unknown.since, revision: null }, pending: pressOut(l), known: false };
   }
   const believed = believedOf(l);
   if (!believed) return null;
-  return { ...believed, held: l.marks[markKey(believed)]?.held, pending: pressOut(l), known: true, selections: [believed.selection] };
+  return { ...believed, held: l.marks[markKey(believed)]?.held, pending: pressOut(l), known: true };
+}
+
+/**
+ * The selectors whose fields nothing typed or pressed may move on a layer: a candidate's values
+ * there are its source's, never an operator's. While a press is out, not known or settling, every
+ * candidate the layer may show, whatever cue the marker names; otherwise the one shown, when the
+ * marker names its cue.
+ */
+export function protectedSelections(air: SelectionAir, graphic: string, live: string | undefined): CueSelection[] {
+  const l = air[graphic];
+  if (!l) return [];
+  if (pressOut(l) || l.unknown || l.settling !== undefined) {
+    const all = [l.onAir, ...l.out.map((s) => s.target), ...(l.unknown?.candidates ?? [])].filter((t): t is AiredTarget => t !== null);
+    return [...new Map(all.map((t) => [JSON.stringify(t.selection), t.selection])).values()];
+  }
+  const believed = believedOf(l);
+  return believed && live === believed.cueId ? [believed.selection] : [];
 }
 
 /** How often a published production with live candidates reads its tree: a collection nothing
@@ -400,7 +442,7 @@ const isTarget = (t: unknown): t is AiredTarget => {
 };
 const isMarks = (m: unknown): m is Marks => {
   const x = m as Partial<Marks> | null;
-  return !!x && typeof x.heldAt === 'number' && (x.held === undefined || (typeof x.held.reason === 'string' && typeof x.held.since === 'number'));
+  return !!x && typeof x.heldAt === 'number' && (x.lostAt === undefined || typeof x.lostAt === 'number') && (x.held === undefined || (typeof x.held.reason === 'string' && typeof x.held.since === 'number'));
 };
 
 /**
@@ -412,15 +454,24 @@ const isMarks = (m: unknown): m is Marks => {
  */
 function restored(l: SelectionLayer, now: number): SelectionLayer {
   if (l.out.length === 0) return l;
+  const settling = now + SETTLE_MS;
   const sameAsAir = !l.unknown && l.onAir !== null && l.out.every((s) => sameEntity(s.target, l.onAir));
-  if (sameAsAir) return pruned({ ...l, out: [] });
+  if (sameAsAir && l.onAir) {
+    const m = marksOf(l, l.onAir);
+    const lostAt = Math.max(m.lostAt ?? NONE, ...l.out.map((s) => s.target?.revision ?? NONE));
+    return pruned(withMarks({ ...l, out: [], settling }, l.onAir, { ...m, ...(lostAt > l.onAir.revision ? { lostAt } : {}) }));
+  }
   // Already not known (a reload before this one): every candidate it had still may air.
   const candidates = [...(l.unknown?.candidates ?? []), l.onAir, ...l.out.map((s) => s.target)].filter((t): t is AiredTarget => t !== null);
   const plains = [...new Set([...(l.unknown?.plains ?? []), ...l.out.flatMap((s) => (s.target === null ? [s.cueId] : []))])];
   // A layer that showed nothing and had only a cue without a selection out: nothing to follow.
   if (candidates.length === 0) return { ...l, out: [] };
-  return pruned({ ...l, out: [], unknown: { since: l.unknown?.since ?? now, candidates, ...(plains.length > 0 ? { plains } : {}) } });
+  return pruned({ ...l, out: [], settling, unknown: { since: l.unknown?.since ?? now, candidates, ...(plains.length > 0 ? { plains } : {}) } });
 }
+
+/** How long a restored layer whose sends' answers were lost waits before it decides or sends: a
+ *  send of the page that went away can still reach the server inside its resend window. */
+export const SETTLE_MS = 2 * (RESEND_WINDOW_MS + ATTEMPT_TIMEOUT_MS);
 
 /** The kept layers, or none: anything this build did not write reads as no layer, so a restored
  *  page holds rather than follows what it cannot read. */
@@ -446,6 +497,7 @@ export function readSelectionAir(raw: string | null, now: number = Date.now()): 
       !!l.marks &&
       typeof l.marks === 'object' &&
       Object.values(l.marks).every(isMarks) &&
+      (l.settling === undefined || typeof l.settling === 'number') &&
       (l.unknown === undefined ||
         (typeof l.unknown.since === 'number' &&
           Array.isArray(l.unknown.candidates) &&

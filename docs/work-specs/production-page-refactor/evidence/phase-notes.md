@@ -252,6 +252,24 @@ changes a spec's digest.
   wrong). Reported to the coordinator with a proposed patch; not widened into this PR.
   Mutations of the reducer: 33, each red, including the two the assessment showed the earlier
   walk missed (a follow forgetting a layer, a reload forgetting a known layer).
+  *Re-assessment on 127a69b: FAIL*, every earlier fix confirmed, three new findings fixed:
+  (1) a reload dropped the sends still out for the candidate on air, so the bound fell back and
+  an older revision could go out over one that had aired; such a send's revision is now kept
+  (`lostAt`): nothing older is sent, it is sent once more, and it stays until a send at or above
+  it lands (the walk then found the first draft dropped it on the next correction, and on a
+  press). The same holds for a marker decision. (2) After an in-app reopen a send of the page
+  that went away can still reach the server inside its resend window; a restored layer with
+  lost sends now waits `SETTLE_MS` (twice the resend window plus the attempt timeout) before it
+  decides or sends anything, and the page runs one follow when that ends. (3) Field protection
+  missed a press still out while the marker named the previous cue; the rule moved into the
+  module (`protectedSelections`) and protects every candidate the layer may show while a press
+  is out, unknown or settling. (4) On the published fast road the marker moves at the press and
+  nothing moves it back when the Take fails, so the layer stops following the candidate that
+  still airs: the same fail-safe class as #1696, reported to the coordinator. The walk now leaves
+  sends in flight across a reload and lets them reach the server later, lets time pass (past
+  the settling window too), drops a field now and then, and its server fails on a correction
+  applied over another person or over a newer revision. 41 mutations, each red; the walk alone
+  catches each of this round's defect classes.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything
