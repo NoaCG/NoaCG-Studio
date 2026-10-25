@@ -705,3 +705,26 @@ test('a version 2 checkpoint whose ledger blob was altered is refused', (t) => {
   assert.throws(() => recordRun(g.db, g.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: g.now, authority: block }), /Recovery ledger blob differs from its checkpoint hash/);
   assert.equal(readFileSync(g.manifest.wave, 'utf8'), before);
 });
+
+test('a version 2 checkpoint without its ledger blob, or of an unknown version, is refused', (t) => {
+  const f = fixture(t), raw = JSON.parse(git(f.remote, 'show', `${refOf(f)}:checkpoint.json`)), ledger = ledgerAt(f);
+  replaceHead(f, { 'checkpoint.json': JSON.stringify(raw), 'vercel.json': NO_DEPLOY });
+  assert.throws(() => f.restore(), /ledger\.md/);
+  replaceHead(f, { 'checkpoint.json': JSON.stringify({ ...raw, version: 3 }), 'ledger.md': ledger, 'vercel.json': NO_DEPLOY });
+  assert.throws(() => f.restore(), /Unknown recovery checkpoint version/);
+});
+
+test('a ledger above git\'s old 2 MiB output buffer still merges on adoption', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave);
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}${'- a long checker receipt line\n'.repeat(100_000)}`);
+  recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block });
+  lostPush(f);
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /Could not resolve host/);
+  f.inject(null);
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}- paused for the night\n`);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /refuses work: paused/);
+  const ledger = readFileSync(f.manifest.wave, 'utf8');
+  assert.ok(Buffer.byteLength(ledger) > 2 * 1024 * 1024);
+  assert.equal(readProject(ledger, f.now).status, 'paused');
+  assert.match(ledger, /- paused for the night\n$/);
+});

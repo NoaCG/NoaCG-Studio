@@ -159,7 +159,8 @@ checkpoint commit holds only `checkpoint.json`, the wave ledger as its own blob
 `ledger.md`, and a `vercel.json` that turns Vercel deployments off, so no preview is
 built and no workflow runs. `checkpoint.json` (at most 256 KiB) names the ledger's
 sha256, and a reader refuses a ledger that differs; the ledger may grow to 8 MiB.
-Older checkpoints with the ledger inline are still read. A publication
+Older checkpoints with the ledger inline are still read, but code from before this
+format cannot read the new one, so every host that may restore runs current `main`. A publication
 is a `--force-with-lease` push of a commit on top of the previous checkpoint, so a
 stale host is refused. Worktree cleanup never deletes these branches, and wave-tick,
 merge-order and the jobs view do not list them as unlanded work. In any session,

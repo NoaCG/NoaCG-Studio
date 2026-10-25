@@ -29,8 +29,14 @@ const COMMIT_IDENTITY = {
   GIT_AUTHOR_NAME: 'NoaCG Recovery', GIT_AUTHOR_EMAIL: 'noacg-recovery@users.noreply.github.com',
   GIT_COMMITTER_NAME: 'NoaCG Recovery', GIT_COMMITTER_EMAIL: 'noacg-recovery@users.noreply.github.com',
 };
+// Version 2 keeps the wave ledger, the part that grows with every recorded step, as its own blob
+// beside checkpoint.json, which names its sha256. 256 KiB bounds the document; 8 MiB bounds the
+// ledger, about twenty times a finished 47-phase plan's, and still a cheap fetch and read.
+// Version 1 checkpoints (ledger inline) are still read; code without this reader cannot read version 2.
+const DOCUMENT_LIMIT = 256 * 1024, LEDGER_LIMIT = 8 * 1024 * 1024, LEDGER_FILE = 'ledger.md';
+// Room for a merged ledger (merge-file output) at its bound.
 export const recoveryGit = (cwd, args, input) => execFileSync('git', args, {
-  cwd, input, encoding: 'utf8', timeout: 30_000, maxBuffer: 2 * 1024 * 1024,
+  cwd, input, encoding: 'utf8', timeout: 30_000, maxBuffer: 2 * LEDGER_LIMIT,
   stdio: ['pipe', 'pipe', 'pipe'],
   ...(args[0] === 'commit-tree' ? { env: { ...process.env, ...COMMIT_IDENTITY } } : {}),
   windowsHide: true,
@@ -45,11 +51,6 @@ const canonicalPath = (file) => {
 // and holds no app source, so its tree turns Vercel deployments off and has no workflows to run.
 const RECOVERY_REFS = `refs/heads/${RECOVERY_BRANCH_PREFIX}`;
 const NO_DEPLOY = `${JSON.stringify({ git: { deploymentEnabled: false } })}\n`;
-// Version 2 keeps the wave ledger, the part that grows with every recorded step, as its own blob
-// beside checkpoint.json, which names its sha256. 256 KiB bounds the document; 8 MiB bounds the
-// ledger, about twenty times a finished 47-phase plan's, and still a cheap fetch and read.
-// Version 1 checkpoints (ledger inline) are still read.
-const DOCUMENT_LIMIT = 256 * 1024, LEDGER_LIMIT = 8 * 1024 * 1024, LEDGER_FILE = 'ledger.md';
 const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
   return `${RECOVERY_REFS}${id}`;
