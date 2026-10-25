@@ -51,6 +51,10 @@ changes a spec's digest.
     (`presses`), with the same fallback bound. The live chain itself and the Take are unchanged.
   - *Instance:* a live press goes only while the live marker and this page's newest marker press
     out both name its cue (`holding`), at the press and after every wait.
+  - *Pruning* (`settled`, at each new entry): a landed entry goes once air's record took every
+    field past it or a newer landed entry carries it, unless an older entry is still pending.
+  - *Rows heard together:* `heard` accounts once for the batch, takes fields past row by row, and
+    books what the batch will leave on air's record only after its unanswered markers moved.
   - Deleted: `sentFigures`/`holdFigures`, `Landed`/`landedFigures`, `parkedBooks`, `AtPress`/
     `atPresses`/`pressedAt`/`unmoved`, `replacedAt`, `stampOf`, `bookLanded`, `holdSent`,
     `heardFigures`, the parked give-back in `sendWith`, and `Layer`/`layerAt`/`layerCue` with
@@ -136,12 +140,18 @@ changes a spec's digest.
     of another cue… during a held save…";
   - no wait behind this page's own sends: "a live press waits behind this page's own Update…";
     waiting only for the newest own send: both walks.
-  - accounting row by row inside one `heard` call: "two of this page's rows heard in one call…";
-    a size cap that drops pending entries: "a send still out stays the base however many sends
-    follow it…" (both found by this branch's review).
-  - One mutant is equivalent and survives: letting an older entry stand when the newest is taken
-    past. Every rule that takes a field past an entry also takes it past every older one, so no
-    older entry can stand.
+  - accounting row by row inside one `heard` call: "two of this page's rows heard in one call…"
+    (found by this branch's review);
+  - pruning (`settled`) dropping every landed entry: "a landed figure stays the base when the send
+    that would replace it fails", both walks; dropping one while an older send is pending: "a
+    landed figure heard back is not dropped while an older send is still out…";
+  - a heard batch's figures booked before its unanswered markers move: "a Re-take that got no
+    answer, heard back whole with its marker later…" (this and the pruning rule answer the PR
+    review: a fixed cap of 64 dropped a landed entry still giving a field its base, "a landed
+    figure stays the base however many sends of other fields follow it unheard").
+  - Equivalent mutants, which survive: letting an older entry stand when the newest is taken past
+    (every rule that takes a field past an entry takes it past every older one too), and keeping
+    more entries than `settled` keeps (pruning only drops entries nothing can read).
 - **Gaps left, both as on `8da6005` and both only after the fallback timer let a press overtake
   this page's own send (found by the second opinion):**
   - On the fast road, this page's Take of s2 is applied here, a +1 is released by the fallback, and

@@ -3019,3 +3019,32 @@ test('a Re-take that got no answer, heard back whole with its marker later, take
   r.sends[2].answer.resolve({ ...noneLeft });
   await next;
 });
+
+test('a landed figure heard back is not dropped while an older send is still out, so that send never comes back as the base', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  void r.verbs.bump(view(), 'home', 1);
+  await settle();
+  // The first never answers; the fallback lets the second go, counting from it.
+  const second = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.timers.at(-1)();
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+  hearRows(r, r.sends[1].batches[0]);
+  assert.equal(homeAired(r), '9');
+  // A send of another field goes and lands meanwhile.
+  const name = r.verbs.send([[{ graphic: 'Score', msg: { t: 'update', data: { name: 'K.' } } }]], 'Update');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await name;
+  const third = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.timers.at(-1)?.();
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '9', undefined, '10']);
+  r.sends[3].answer.resolve({ ...noneLeft });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await third;
+});
