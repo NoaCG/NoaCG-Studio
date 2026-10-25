@@ -24,13 +24,13 @@ function held() {
 /** Let every settled promise run its continuations. */
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-/** What was sent, each figure command's own id checked and set aside: an update or an event with a
- *  payload goes with this page's id, so its row heard back is known for this page's own
+/** What was sent, each figure command's own id checked and set aside: an update, an event with a
+ *  payload or a stop goes with this page's id, so its row heard back is known for this page's own
  *  (graphicVerbs.ts `heard`). */
 function sentAs(sent) {
   if (Array.isArray(sent)) return sent.map(sentAs);
   if (sent && typeof sent === 'object' && 'msg' in sent) return { ...sent, msg: sentAs(sent.msg) };
-  if ((sent.t === 'update' && sent.data) || (sent.t === 'event' && sent.payload)) {
+  if ((sent.t === 'update' && sent.data) || (sent.t === 'event' && sent.payload) || sent.t === 'stop') {
     assert.equal(typeof sent.oid, 'string', `a ${sent.t} goes with this page's id`);
     const rest = { ...sent };
     delete rest.oid;
@@ -612,7 +612,7 @@ test('All out stops the folders first, cuts each server cue in turn, clears the 
   assert.deepEqual(r.log, [['outUnnamed'], ['headsSay', 'slug-1'], ['clearing', true], ['aired', 'Strap', '', 'none'], ['aired', 'Score', '', 'none'], ['send', 'Strap:stop+Strap:cue+Score:stop+Score:cue']]);
   assert.equal(r.sends[0].allOut, true);
   // A clear sounds nothing.
-  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'stop', sound: false });
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'stop', sound: false });
   // Clearing… holds until the answer; the marker moves only on it.
   assert.deepEqual(r.liveCue(), { Strap: 'c1', Score: 's1' });
   r.sends[0].answer.resolve({ ...noneLeft });

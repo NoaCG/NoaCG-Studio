@@ -279,8 +279,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   type Entry = { stamp: number; figures: Record<string, string>; landed: boolean; past: Set<string> };
   const ledger = new Map<string, Entry[]>();
   let sendSeq = 0;
-  /** This page's figure-carrying commands (an update, an event), by the id they were sent with, and
-   *  their press number: a row heard back is told from another screen's by it, not by its figure. */
+  /** This page's commands that move air's record (an update, an event, a stop), by the id they were
+   *  sent with, and their press number: a row heard back is told from another screen's by it, not by its figure. */
   const ownFigures = new Map<string, { graphic: string; stamp: number }>();
   /** Air's record and the live marker as the ledger last accounted for them. A field that differs
    *  when next read moved with no row heard (a reseed): it stands over every entry, as another
@@ -387,14 +387,15 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // later than it: this page's own row past its own send and older ones, another screen's row
       // (or one with no id this page knows) past all. One this page already applied here moves
       // nothing, and says only that it committed: older own sends are past it.
+      // A stop clears the record, every field.
       const fields = figuresOf(item.msg);
       const mine = ownFigures.get(oidOf(item.msg) ?? '');
       const own = mine?.graphic === item.graphic ? mine.stamp : null;
       const claimed = !!applied?.(item.msg);
-      if (!fields || (claimed && own === null)) continue;
+      if ((!fields && item.msg.t !== 'stop') || (claimed && own === null)) continue;
       accounted(item.graphic);
-      passed(item.graphic, Object.keys(fields), own === null ? Infinity : claimed ? own - 1 : own);
-      if (!claimed) seen.set(item.graphic, { ...seen.get(item.graphic)!, aired: { ...seen.get(item.graphic)!.aired, ...fields } });
+      passed(item.graphic, fields ? Object.keys(fields) : null, own === null ? Infinity : claimed ? own - 1 : own);
+      if (!claimed) seen.set(item.graphic, { ...seen.get(item.graphic)!, aired: fields ? { ...seen.get(item.graphic)!.aired, ...fields } : {} });
     }
     for (const item of items) {
       const oid = oidOf(item.msg);
@@ -513,9 +514,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       ({ batches: stamped, pressed } = stampMarkers(batches));
       marked = stamped.map((batch) =>
         batch.map((item) => {
-          // A figure's command goes with this page's id, so its row heard back is known for this
-          // press's own (`heard`), never read as another screen's correction.
-          if (figuresOf(item.msg) && !oidOf(item.msg)) {
+          // A figure's command, or a stop, goes with this page's id, so its row heard back is known
+          // for this press's own (`heard`), never read as another screen's correction.
+          if ((figuresOf(item.msg) || item.msg.t === 'stop') && !oidOf(item.msg)) {
             const oid = mintOid();
             ownFigures.set(oid, { graphic: item.graphic, stamp });
             for (const old of ownFigures.keys()) if (ownFigures.size > 1024) ownFigures.delete(old);
