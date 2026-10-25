@@ -1229,6 +1229,9 @@ test.describe('the control area is the one scroller', () => {
       await productionFor(page, 'Quiz Night');
       const editor = page.getByTestId('cue-editor');
       await expect(editor).toBeVisible();
+      // Selected answer is the LIVE block's pick now, its box under Advanced (pinned live controls
+      // D8): opened, all eight fields are in the editor again.
+      await page.getByTestId('cue-advanced-toggle').click();
       expect(await editor.locator('.field-row').count()).toBeGreaterThanOrEqual(8);
 
       // The editor shows all of itself — the reported defect, gone.
@@ -2221,7 +2224,7 @@ test('pinned live controls: the pinned score stays on screen, presses its own on
   await page.getByTestId('verb-take').click();
   await rows.nth(0).locator('.pd-cue-label').click();
   await page.getByTestId('verb-take').click();
-  await expect(page.getByTestId('cue-editor')).toContainText('Arena Quiz');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue(/Red Planet/);
   await expect(podium.getByTestId('live-number-f2-up')).toBeEnabled();
   await expect.poll(() => programTexts(page, '#f2')).toContain('0');
   const plays = Number(await page.getByTestId('program-stage').getAttribute('data-plays'));
