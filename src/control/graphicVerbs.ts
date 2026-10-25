@@ -202,8 +202,8 @@ export interface GraphicVerbs {
   /** Commands the server sent back, on either road: one of a marker press that got no answer may
    *  have landed after all. Returns the ones the page still applies: all but this page's own cue
    *  markers on graphics this sender pressed, which it writes from its answers (`mine`: this page
-   *  load sent it). */
-  heard: <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean) => T[];
+   *  load sent it; `applied`: the page already applied it, so a second arrival moves nothing). */
+  heard: <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean, applied?: (msg: unknown) => boolean) => T[];
   /** The graphics whose marker a press of this page moved and whose answer is not back yet: the
    *  marker says nothing yet about what airs there. */
   markersOut: () => string[];
@@ -277,9 +277,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       if (step.write !== undefined) mark([m.graphic], step.write);
     }
   };
-  const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean): T[] => {
+  const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean, applied?: (msg: unknown) => boolean): T[] => {
     for (const item of items) {
-      if (item.msg.t === 'cue' && !mine(item.msg)) markers = foreignMarker(markers, item.graphic);
+      if (item.msg.t === 'cue' && !mine(item.msg) && !applied?.(item.msg)) markers = foreignMarker(markers, item.graphic);
       const oid = oidOf(item.msg);
       const u = oid ? unanswered.get(oid) : undefined;
       if (!oid || !u || u.graphic !== item.graphic) continue;

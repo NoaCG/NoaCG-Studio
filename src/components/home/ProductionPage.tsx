@@ -1098,7 +1098,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** What the sender makes of commands heard back (control/graphicVerbs.ts `heard`): a marker press
    *  that got no answer landing after all, and this page's own markers left to it. Set below, once
    *  the verbs exist. */
-  const heardMarkers = useRef<(items: { graphic: string; msg: ControlEventRow['msg'] }[], mine: (msg: unknown) => boolean) => { graphic: string; msg: ControlEventRow['msg'] }[]>((items) => items);
+  const heardMarkers = useRef<
+    (items: { graphic: string; msg: ControlEventRow['msg'] }[], mine: (msg: unknown) => boolean, applied: (msg: unknown) => boolean) => { graphic: string; msg: ControlEventRow['msg'] }[]
+  >((items) => items);
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback(
@@ -1115,7 +1117,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Each command once, on whichever road came first.
       heardFromOthers.current(items.filter((item) => !session.applied.has(item.msg)));
       // This page's own markers are the sender's to write (control/graphicVerbs.ts `heard`).
-      applyCommand(heardMarkers.current(items, sentHere));
+      applyCommand(heardMarkers.current(items, sentHere, (msg) => session.applied.has(msg)));
     },
     [applyCommand, folderPlayout, session],
   );
@@ -2017,7 +2019,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const verbPage = useRef<GraphicPage | null>(null);
   const verbs = useMemo(() => createGraphicVerbs(session, GRAPHIC_VERB_IO, () => verbSender.current!, () => verbPage.current!), [session]);
-  heardMarkers.current = (items, mine) => verbs.heard(items, mine);
+  heardMarkers.current = (items, mine, applied) => verbs.heard(items, mine, applied);
   const { send: sendVerb, run: runVerb, runSent } = verbs;
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,

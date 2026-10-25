@@ -1368,6 +1368,16 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   two.send.answer.reject(new Error('refused'));
   await Promise.all([one.taking, two.taking]);
   assert.deepEqual(q.liveCue(), { Strap: 'c1' });
+  // The second arrival of another screen's marker the page already applied moves nothing: this
+  // page's refused press still gives back what stood.
+  const d = rig({ fast: true });
+  d.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
+  const take = await pressTake(d, 'c1');
+  const echo = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c0', oid: 'theirs' } }];
+  assert.deepEqual(d.verbs.heard(echo, () => false, () => true), echo);
+  take.send.answer.reject(new Error('refused'));
+  await take.taking;
+  assert.deepEqual(d.liveCue(), { Strap: 'c0' });
 });
 
 test('a Take that got no answer goes back off the marker, and its row heard later marks it while it is still the newest press (#1696)', async () => {
