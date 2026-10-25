@@ -1381,6 +1381,55 @@ test('a Take that got no answer goes back off the marker, and its row heard late
   assert.deepEqual(r2.liveCue(), { Strap: 'c2' });
 });
 
+test('a late row of an older press never marks over a newer one that landed; with every newer press failed, it marks (#1696)', async () => {
+  const noAnswer = (id) => Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: 'Strap', msg: { t: 'cue', cue: id, oid: `oid-${id}` } }] });
+  const row = [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }];
+  // Committed, answer lost; a newer Take lands before its row arrives.
+  const r = rig({ fast: true });
+  const a = await pressTake(r, 'c1');
+  const b = await pressTake(r, 'c2');
+  a.send.answer.reject(noAnswer('c1'));
+  b.send.answer.resolve({ ...noneLeft });
+  await Promise.all([a.taking, b.taking]);
+  r.verbs.heard(row);
+  assert.deepEqual(r.liveCue(), { Strap: 'c2' });
+
+  // No answer, then a newer Take is refused: the row heard later marks the older cue.
+  for (const order of ['answered first', 'pressed while out']) {
+    const q = rig({ fast: true });
+    const one = await pressTake(q, 'c1');
+    if (order === 'answered first') one.send.answer.reject(noAnswer('c1'));
+    const two = await pressTake(q, 'c2');
+    if (order !== 'answered first') one.send.answer.reject(noAnswer('c1'));
+    two.send.answer.reject(new Error('refused'));
+    await Promise.all([one.taking, two.taking]);
+    assert.deepEqual(q.liveCue(), {}, order);
+    q.verbs.heard(row);
+    assert.deepEqual(q.liveCue(), { Strap: 'c1' }, order);
+  }
+
+  // Heard while a newer Take is out: that Take's answer decides, and its failure leaves this one.
+  const t = rig({ fast: true });
+  const older = await pressTake(t, 'c1');
+  older.send.answer.reject(noAnswer('c1'));
+  await older.taking;
+  const newer = await pressTake(t, 'c2');
+  t.verbs.heard(row);
+  assert.deepEqual(t.liveCue(), { Strap: 'c2' }, 'not under the newer press still out');
+  newer.send.answer.reject(new Error('refused'));
+  await newer.taking;
+  assert.deepEqual(t.liveCue(), { Strap: 'c1' });
+});
+
+test('a send that throws before it goes leaves no marker press out (#1696)', async () => {
+  const r = rig();
+  r.sender.armSpecFor = () => {
+    throw new Error('bad spec');
+  };
+  await assert.rejects(r.verbs.take(graphicCue('c1', 'Strap')), /bad spec/);
+  assert.deepEqual(r.verbs.markersOut(), []);
+});
+
 /** A seeded generator (mulberry32), so a failing walk can be replayed by its seed. */
 const rng = (seed) => () => {
   seed = (seed + 0x6d2b79f5) | 0;
@@ -1393,7 +1442,7 @@ const MARKER_WALKS = Number(process.env.MARKER_WALKS ?? 2000);
 /**
  * One walk: Takes and Outs on two graphics, each committed by a model server (protocol 2: a press
  * older than one it applied is skipped), answered late and out of order, refused, or never answered
- * (and then perhaps committed late, its row heard while it is still the newest press). Whenever no
+ * (committed or not, and then perhaps committed late, its row heard whenever it comes). Whenever no
  * marker press is out on a graphic, the marker names what its output shows, which is the cue of
  * this page's newest press that landed there.
  */
@@ -1410,7 +1459,8 @@ async function markerWalk(seed, steps) {
     for (const g of graphics) {
       const open = presses.some((p) => p.graphic === g && !p.answered);
       assert.equal(r.verbs.markersOut().includes(g), open, `seed ${seed} ${when}: markersOut ${g}\n${trace.join('\n')}`);
-      if (open) continue;
+      // Out, or landed with its answer lost and its row not heard yet: nothing here can know.
+      if (open || presses.some((p) => p.graphic === g && p.lost && p.reached && !p.heard)) continue;
       const landed = presses.filter((p) => p.graphic === g && p.reached).at(-1);
       assert.equal(landed ? landed.cue : null, output[g] ?? null, `seed ${seed}: the model`);
       assert.equal(r.liveCue()[g] ?? null, output[g] ?? null, `seed ${seed} ${when}: marker on ${g}\n${trace.join('\n')}`);
@@ -1427,8 +1477,8 @@ async function markerWalk(seed, steps) {
   for (let step = 0; step < steps; step++) {
     const open = presses.filter((p) => !p.answered);
     const uncommitted = open.filter((p) => !p.committed);
-    const late = presses.filter((p) => p.lost && !p.committed && presses.filter((q) => q.graphic === p.graphic).at(-1) === p);
-    const kinds = ['press', 'press', ...(uncommitted.length ? ['commit', 'commit', 'refuse', 'lose'] : []), ...(open.some((p) => p.committed) ? ['answer', 'answer'] : []), ...(late.length ? ['late'] : [])];
+    const late = presses.filter((p) => p.lost && !p.heard);
+    const kinds = ['press', 'press', ...(uncommitted.length ? ['commit', 'commit', 'refuse'] : []), ...(open.length ? ['lose'] : []), ...(open.some((p) => p.committed) ? ['answer', 'answer'] : []), ...(late.length ? ['late', 'late'] : [])];
     const kind = pick(kinds);
     let acted;
     if (kind === 'press') {
@@ -1448,12 +1498,15 @@ async function markerWalk(seed, steps) {
       p.answered = true;
       p.send.answer.reject(new Error('refused'));
     } else if (kind === 'lose') {
-      const p = (acted = pick(uncommitted));
+      // Committed or not, its answer is lost; a row heard before the send gave up would have made it
+      // a landing (hostedControl.ts `heard`), so its row, if any, comes after.
+      const p = (acted = pick(open));
       p.answered = p.lost = true;
       p.send.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }] }));
     } else {
       const p = (acted = pick(late));
-      commit(p);
+      p.heard = true;
+      if (!p.committed) commit(p);
       if (p.reached) r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }]);
     }
     trace.push(`${kind} ${JSON.stringify([acted.n, acted.graphic, acted.cue, !!acted.reached])} marker ${JSON.stringify(r.liveCue())}`);
@@ -1471,6 +1524,11 @@ async function markerWalk(seed, steps) {
     await settle();
   }
   await Promise.all(presses.map((p) => p.done));
+  // Every row still to come arrives, in a random order.
+  for (const p of presses.filter((q) => q.lost && q.reached && !q.heard).sort(() => random() - 0.5)) {
+    p.heard = true;
+    r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }]);
+  }
   check('at the end');
 }
 

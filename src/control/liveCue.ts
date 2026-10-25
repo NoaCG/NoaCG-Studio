@@ -173,5 +173,5 @@ export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string
 export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null): MarkerBook {
   const t = book[graphic];
   if (!t || (t.landed !== null && t.landed.n > n)) return book;
-  return { ...book, [graphic]: { ...t, landed: { n, cue } } };
+  return { ...book, [graphic]: { ...t, landed: { n, cue }, named: [...t.named, cue] } };
 }

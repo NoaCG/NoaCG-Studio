@@ -44,6 +44,7 @@ import type { PlayoutSession } from './playoutSession';
 import type { createSendDebts } from './failedSends';
 import { ALL_OUT_CONFIRM_MS, allOutTargets } from './allOut.ts';
 import { moveLiveCue } from './airState.ts';
+import { oidOf } from './commandRoads.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
@@ -234,12 +235,16 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   // marker, so the sender numbers them at the press and writes the marker from their answers:
   // a press that overtook another and then failed leaves the earlier one's cue, a failed press
   // gives back what stood before it, and a late older answer never marks over a newer one. ──
+  type MarkerSent = { graphic: string; n: number; cue: string | null; batch: number };
   let markers: MarkerBook = {};
   let markerPresses = 0;
-  /** Marker presses that got no answer, by the id their marker was minted with, while each is the
-   *  newest of its graphic: heard later, it landed after all. */
-  const unanswered = new Map<string, { graphic: string; n: number; cue: string | null }>();
-  type MarkerSent = { graphic: string; n: number; cue: string | null; batch: number };
+  /** Per graphic, the number of this page's newest marker press known to have landed. */
+  const newestLanded = new Map<string, number>();
+  /** Marker presses that got no answer, by the id their marker was minted with: heard later, one
+   *  newer than every press known to have landed on its graphic landed after all. A row heard
+   *  before the send gave up already made it a landing (hostedControl.ts `heard`). */
+  const unanswered = new Map<string, MarkerSent>();
+  const landedOn = (graphic: string, n: number) => newestLanded.set(graphic, Math.max(newestLanded.get(graphic) ?? 0, n));
 
   /** Number a send's markers at its press: per graphic, the last one it carries. */
   const pressMarkers = (batches: ControlSendItem[][]): MarkerSent[] => {
@@ -251,26 +256,31 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return [...named].map(([graphic, { cue, batch }]) => {
       const n = (markerPresses += 1);
       markers = pressMarker(markers, live, graphic, n, cue);
-      for (const [oid, u] of unanswered) if (u.graphic === graphic) unanswered.delete(oid);
       return { graphic, n, cue, batch };
     });
   };
   /** Settle them with what the send came to, and move the marker where the answers leave it. */
   const answerMarkers = (sent: readonly MarkerSent[], landed: (m: MarkerSent) => boolean) => {
     for (const m of sent) {
-      const step = answerMarker(markers, session.air.get().liveCue, m.graphic, m.n, landed(m));
+      const reached = landed(m);
+      if (reached) landedOn(m.graphic, m.n);
+      const step = answerMarker(markers, session.air.get().liveCue, m.graphic, m.n, reached);
       markers = step.book;
       if (step.write !== undefined) mark([m.graphic], step.write);
     }
   };
   const heard = (items: readonly { graphic: string; msg?: unknown }[]) => {
     for (const item of items) {
-      const oid = (item.msg as { oid?: unknown } | null | undefined)?.oid;
-      const u = typeof oid === 'string' ? unanswered.get(oid) : undefined;
-      if (!u || u.graphic !== item.graphic) continue;
-      unanswered.delete(oid as string);
+      const oid = oidOf(item.msg);
+      const u = oid ? unanswered.get(oid) : undefined;
+      if (!oid || !u || u.graphic !== item.graphic) continue;
+      unanswered.delete(oid);
+      // A newer press of this page landed: it stands over this one, on air and on the marker.
+      if ((newestLanded.get(u.graphic) ?? 0) > u.n) continue;
+      landedOn(u.graphic, u.n);
       markers = landedLate(markers, u.graphic, u.n, u.cue);
-      mark([u.graphic], u.cue);
+      // A newer press still out decides with its own answer, and puts this one back if it fails.
+      if (!markers[u.graphic]?.out.some((p) => p.n > u.n)) mark([u.graphic], u.cue);
     }
   };
 
@@ -280,13 +290,12 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
     // pressed before the end still takes off what it named, since a clear can air nothing stale.
     if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };
-    const pressed = pressMarkers(batches);
     if (!p.published) {
       // Not published: the verbs still drive the local PROGRAM monitor, which is what makes the
       // whole surface usable (and provable) offline. Nothing leaves the machine.
       for (const batch of batches) p.here(batch);
       p.logSent(batches.flat());
-      answerMarkers(pressed, () => true);
+      answerMarkers(pressMarkers(batches), () => true);
       return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
     }
     // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the same
@@ -300,6 +309,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       }),
     );
     p.sending(1);
+    // Numbered here, with nothing left that could throw before the answer settles them.
+    const pressed = pressMarkers(batches);
     try {
       // BOTH ROADS, from this one press (control/commandRoads.ts): `applyHere` moves this page's own
       // monitor in zero hops, and the minted id is what makes doing both safe. Several batches are
@@ -324,7 +335,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // A verb whose picture MOVED HERE and then failed to send is a different sentence from one
       // that never happened: this monitor applied the commands before the round trip. A press
       // another screen had already overtaken was refused by the server (protocol 2, migration 0071).
-      const note = io.verbStale(e)
+      const stale = io.verbStale(e);
+      const note = stale
         ? staleSentence(e as Error)
         : io.verbAired(e)
           ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
@@ -336,21 +348,23 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
       answerMarkers(pressed, (m) => m.batch < landed);
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
-      if (uncertain && !io.verbStale(e)) {
+      if (uncertain && !stale) {
         for (const item of failedItems) {
-          const oid = (item.msg as { oid?: unknown }).oid;
+          const oid = oidOf(item.msg);
           const m = pressed.find((one) => one.graphic === item.graphic && one.batch === landed);
-          if (item.msg.t === 'cue' && m && typeof oid === 'string') unanswered.set(oid, m);
+          if (item.msg.t === 'cue' && m && oid) unanswered.set(oid, m);
         }
+        // Bounded: the oldest go first, as with every remembered id (commandRoads.ts).
+        for (const oid of unanswered.keys()) if (unanswered.size > 256) unanswered.delete(oid);
       }
       p.owed(true);
       // Refused as stale on any road, this page learned the head: a live candidate there must not
       // then follow on its own over the other screen's change.
-      if (io.verbStale(e)) {
+      if (stale) {
         const named = (e as { graphics?: unknown }).graphics;
         page().selectionStale(Array.isArray(named) ? (named as string[]) : [...new Set(marked.flat().map((item) => item.graphic))]);
       }
-      return { ok: false, note, ...(io.verbStale(e) ? { stale: true as const } : uncertain ? { uncertain: true as const } : {}) };
+      return { ok: false, note, ...(stale ? { stale: true as const } : uncertain ? { uncertain: true as const } : {}) };
     } finally {
       p.sending(-1);
     }

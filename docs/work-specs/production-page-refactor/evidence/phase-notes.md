@@ -16,8 +16,11 @@ changes a spec's digest.
     leaves through it with a cue marker, so it numbers each marker press at the press and writes
     the marker from the answers through pure folds in `src/control/liveCue.ts` (`pressMarker`,
     `answerMarker`, `landedLate`). Take, Out and All out no longer mark after the send. Folder
-    runs and timed cues still write the marker after their answer as before; they write the same
-    value the sender already wrote.
+    runs (`folderPlayout.ts`) and timed cues (`cueArmEngine.ts`) still write the marker after
+    their answers, with the old `leftAlone` rule. On protocol 2 they write only what the sender
+    already wrote. On protocol 1 a write can land briefly under a newer press that is still out,
+    and that press's answer then decides. Moving those writes into the sender would change their
+    modules' contracts and test rigs, so it stays out of this fix.
   - A press that landed names its cue unless a newer marker press of this page landed (a late older
     answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
     puts back the newest press that landed, or the marker from before the first press still out.
@@ -27,27 +30,42 @@ changes a spec's digest.
   - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
     sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
     old skip now make a real later press.
-  - A press with no answer goes back off the marker. If its row is heard later while it is still
-    this page's newest marker press on that graphic, it is marked (`verbs.heard`, from the page's
-    `hearCommand`).
+  - A press with no answer goes back off the marker. If its row is heard later (`verbs.heard`,
+    from the page's `hearCommand`), it counts as landed when no newer press of this page has
+    landed on that graphic. It is marked unless a newer press is still out, and that newer press
+    puts it back if it fails. A row heard before the send gave up is already a landing
+    (`hostedControl.ts` `heard`, filled from the same row streams), so the sender does not repeat
+    that check.
   - N1 (`selectionAir.ts`): the follow skips a graphic while this page has a marker press out
     there (`markersOut`). That marker names the press, not what airs, so an unknown layer is not
     decided from it, and `airedValues` cannot offer a Take that has no answer yet.
 - **Traps.**
-  - A late commit of a press with no answer is marked only while it is still the newest marker
-    press on its graphic. An older one that commits late after a newer press failed is not
-    followed. The server applies it then, so the marker can trail the output until the next
-    press. This is not worse than before.
+  - A press with no answer that committed leaves the marker unsure until its row arrives. The
+    walk checks the marker only when no row is still to come.
+  - A landed answer or a late row writes its cue without the other-screen check. If another
+    screen's newer row was heard first, the older cue wins until the next row. This was the same
+    before.
+  - A failed All out puts the marker back on the log's layers while the Bridge fallback clears
+    its slot. The marker names what the log says airs.
   - On the slow road the marker does not move at the press, so it can lag while a newer press is
     out. The answers still settle it.
   - F2 from row 30 (a layer dropped while its candidate airs after a press with no answer commits
     late) is not fixed here. It fails safe: the layer stops following.
 - **Evidence.** Held-answer tests in `scripts/graphic-verbs.test.mjs` (earlier lands, later
   overtakes and fails, in both answer orders and on both roads; a late older answer; a failed Take
-  or Out restoring; another screen's marker kept; a row heard late). A seeded walk of 2000 runs
-  (`MARKER_WALKS`) checks the marker against a protocol-2 server model. The walk and four of the
-  tests are red on `cad2f01`. In `scripts/keyed-selection.test.mjs`, the checker's N1 repro is red
-  on `cad2f01`. Fifteen mutants of the folds and the wiring are each killed.
+  or Out restoring; another screen's marker kept; late rows, older and newer, against newer
+  presses that land, fail or are still out; a send that throws before it goes). A seeded walk of
+  2000 runs (`MARKER_WALKS`, also run at 20,000) checks the marker against a protocol-2 server
+  model. The model covers answers lost before or after a commit and rows heard at any time. The
+  walk and four of the tests are red on `cad2f01`. In `scripts/keyed-selection.test.mjs`, the
+  checker's N1 repro is red on `cad2f01`. Twenty mutants of the folds and the wiring are each
+  killed. Browser: `e2e/playout-air-contract.spec.ts` and `e2e/playout-drills.spec.ts`, 12
+  passed.
+- **Independent assessment (/so) on `6312a90`: B.** It found two blocking holes in the late-row
+  path. First, a late row of an older press marked over a newer landed one. That is fixed with
+  the per-graphic newest-landed number. Second, a row heard before the timeout was lost. That
+  case is already a landing in `hostedControl.ts`. A further non-blocking case was also fixed:
+  a late row after a newer press failed is now marked. The sequences are pinned as tests.
 
 ## Row 30, phase E7.1: election read gate, keyed selectors and resolver
 
