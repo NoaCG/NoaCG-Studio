@@ -317,6 +317,20 @@ test('All out pressed as the resolve lands is numbered after an older waiting Ta
   expect(take!.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
 });
 
+test('a press on a production the resolve called missing asks again, and goes numbered once it exists (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let exists = false;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' && !exists ? { status: 200, body: null } : null));
+  exists = true;
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
+  }, showId);
+  expect(sendsSeq(), 'it went numbered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+});
+
 test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   await publishedPage(page, (rpc, fixture) =>

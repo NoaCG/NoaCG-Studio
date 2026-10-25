@@ -20,8 +20,9 @@ changes a spec's digest.
   no press goes by row id: a press waits for the production's resolve within its resend window,
   then goes numbered, or counts as unanswered like the resolve. The wait is one per production, so
   presses resume and take their numbers in the order they were made; a press made while it runs
-  joins it, and All out waits before numbering its batches. A production the resolve answers as
-  missing counts as decided: a send there is the server's to refuse, as before. A page on protocol 1 shows
+  joins it, and All out waits before numbering its batches. A press on a production the resolve
+  answered as missing asks the resolve once more; still missing, the send is the server's to
+  refuse, as before. The slow-event hold-back runs from when the send leaves, after any wait. A page on protocol 1 shows
   "order not guaranteed" under the on-air chip (both operator pages, `UnorderedSends`), and its
   automatic sends already hold (`sendsInOrder`, selectionAir.ts). The renderer's rule is unchanged:
   it sends nothing.
