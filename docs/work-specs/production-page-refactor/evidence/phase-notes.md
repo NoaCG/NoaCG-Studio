@@ -110,13 +110,14 @@ changes a spec's digest.
   own Takes, Re-takes, Updates, Outs and Snaps, another screen's Takes and corrections, held
   saves, the fallback timer, rows heard one at a time in log order. Checks: INSTANCE, REFUSAL,
   QUEUE-LIVE, QUEUE-OWN, STUCK, BASE, WRITE. Default 150 walks per road (about 2 s); run here at
-  2,000 and 10,000 per road: green on both roads (10,000: 269,703 and 263,487 presses, 1 min
-  19 s). On `8da6005` at 2,000 per road it fails INSTANCE (227 slow, 155 fast walks), QUEUE-OWN
+  2,000 and 10,000 per road: green on both roads (10,000: 266,075 and 261,558 presses, 1 min
+  16 s). Its cues include one without a field, and this page's Out is often followed by a Take
+  (added after the second opinion's Out case; on `35e8397` it fails 8 of 2,000 fast walks). On `8da6005` at 2,000 per road it fails INSTANCE (227 slow, 155 fast walks), QUEUE-OWN
   (947, 1413), BASE (3, 5) and BASE-FROM-FAILED (1, 95). The repo's own slow-road walk also
   passes at `BASE_WALKS=20000`.
-  - *What the rule costs, printed by the walk (not checked):* on this adversarial mix 6.3% (slow)
-    and 6.5% (fast) of committed ± figures did not move true air by exactly their step (8da6005:
-    6.4% and 7.6%). The usual cause is a send that got no answer but committed: the rule counts
+  - *What the rule costs, printed by the walk (not checked):* on this adversarial mix 5.7% (slow)
+    and 6.3% (fast) of committed ± figures did not move true air by exactly their step, at 2,000
+    walks per road (on the walk's earlier mix: 6.3% and 6.5% here, 6.4% and 7.6% on `8da6005`). The usual cause is a send that got no answer but committed: the rule counts
     it as gone, so the next press counts from air again.
 - **Mutation check.** Each rule removed in turn in a scratch copy of `src`, with
   `graphic-verbs`, `live-controls` and the walk at its default count; the named test that turns red
