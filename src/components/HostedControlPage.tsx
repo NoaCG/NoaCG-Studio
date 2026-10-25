@@ -240,9 +240,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   airedRef.current = airedData;
   /** Per graphic, the figures this page's presses sent that are not answered yet (`figures`). */
   const sentFigures = useRef<Record<string, Record<string, string>>>({});
-  /** Per graphic, the fields this page's live presses moved: a queued snap re-sends their figure as
-   *  air has it, not as the render that pressed it had it. */
-  const livePressed = useRef<Record<string, Set<string>>>({});
   /** Per graphic, the last live press, which the next one waits for (`figures.press`). */
   const livePresses = useRef(new Map<string, Promise<void>>());
   /**
@@ -967,12 +964,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // The layer airs a cue this page was not given (a live candidate, E7.1): it has no values here
     // to send, so the snap goes alone and the layer keeps what it shows.
     // A live press like the others: after the one before it on its graphic, on the same cue.
+    // What air showed at the press: a figure that moves before the snap runs (a live press queued
+    // ahead of it) is re-sent as air then has it, not as this render staged it.
+    const atPress = { ...(airedRef.current[graphic] ?? {}) };
     figures.press(graphic, async () => {
-      // Read when it runs: a live press queued before it may have moved a figure since this render,
-      // and air's record has that figure before any staging round trip does.
-      const moved = Object.fromEntries(
-        [...(livePressed.current[graphic] ?? [])].flatMap((key) => (airedRef.current[graphic]?.[key] !== undefined ? [[key, airedRef.current[graphic][key]]] : [])),
-      );
+      const now = airedRef.current[graphic] ?? {};
+      const moved = Object.fromEntries(Object.entries(now).filter(([key, value]) => value !== atPress[key]));
       await sendVerb(layerCue ? [snap, { graphic, msg: { t: 'update', data: { ...cueValues(layerCue), ...moved } } }] : [snap]);
     });
   };
@@ -1016,7 +1013,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         // field a newer command already moved (a Take, another page) keeps that newer figure.
         const taken = Object.fromEntries(Object.entries(sent).filter(([key]) => airedRef.current[graphic]?.[key] === over[key]));
         if (Object.keys(taken).length === 0) return;
-        livePressed.current = { ...livePressed.current, [graphic]: new Set([...(livePressed.current[graphic] ?? []), ...Object.keys(taken)]) };
         airedRef.current = { ...airedRef.current, [graphic]: { ...airedRef.current[graphic], ...taken } };
         setAiredData((prev) => ({ ...prev, [graphic]: { ...prev[graphic], ...taken } }));
       };
