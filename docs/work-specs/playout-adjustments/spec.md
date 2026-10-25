@@ -5,8 +5,10 @@ scope, a reversible production look, the Google-font fix as its own change) take
 revised the same day after a first independent second opinion (`/so`); revised again on
 2026-10-25 after two further independent second opinions, whose amendments are folded in below.
 Phase 1 is admitted to the production-page run as row 32b (pull request 1699); its gate was
-narrowed on 2026-10-25 to match this revision. Agreement on the design as a whole is not yet given,
-so the work ledger stays a draft and phases 1b, 2 and 3 await their own admission.** Research and
+narrowed on 2026-10-25 to match this revision. The owner agreed the design as a whole on
+2026-10-25 ("I agree the playout-adjustments design as a whole as revised"), so the work ledger is
+agreed; phases 1b, 2 and 3 are proposed as rows 32c, 32d and 38a and await the coordinator's
+admission.** Research and
 planning only: no product change. Where this document says "verified", the code or an isolated
 experiment was read or run on main `ad3c7238b` (the reviews re-read it on `be0cea068`,
 `8ebb429b4` and `bb7890068`, by source review only); "inferred" is a reading not yet exercised;
@@ -315,25 +317,30 @@ SVG text fit does not follow it. It remains the right knob for a designer and ma
   effective values and style it was taken for, and the stage revision. A reply that does not
   match the current identity is rejected, and cached geometry is invalidated when any of those
   change: typing a longer name, a source-driven value, a font or template refresh, a Publish.
-- **What is measured, honestly.** The box is the union of the document's **safe information**:
-  text ranges and images, each clipped to every overflow-clipping ancestor and to the frame
-  (a Range rectangle is not clipped by `overflow: hidden`, and every ticker is a window over a
-  wider track). Decoration that bleeds to the frame edge by design (`docs/DESIGN_LANGUAGE.md` §6:
-  a band, a rule, a scrim) is not information and does not move the box's horizontal extent, so a
-  full-width band is never translated to a safe inset as though its background were text. The
-  smallest rendered text size rides with the box. The box is **qualified** only when the document
-  has a deterministic settled pose: the settle completed, no timeline is still running, and two
-  measurements 250 ms apart agree. A document whose motion has no finite end (a marquee, a loop,
-  a staggered reveal that never parks) reports its **painted band** (the clipping window's
-  rectangle) and no text box; a document that answers nothing (a foreign package, a broken
-  template) has no measurement.
+- **What is measured, honestly.** The reply carries **two rectangles**, both clipped to every
+  overflow-clipping ancestor and to the frame (a Range rectangle is not clipped by
+  `overflow: hidden`, and every ticker is a window over a wider track). The **information box**
+  is the union of the document's safe information: text ranges and images; presets position it,
+  and the smallest rendered text size rides with it. The **painted extent** is the union of
+  everything the document paints, decoration included (a band, a rule, a scrim that bleeds to the
+  frame edge by design, `docs/DESIGN_LANGUAGE.md` §6). Decoration never moves the information
+  box, so a full-width band is never translated to a safe inset as though its background were
+  text; and "full width" is read off the painted extent, never the information box, because a
+  band's text sits well inside its edges (lt63 keeps its words 120 and 128 px in while its
+  background reaches both frame edges, `src/templates/lowerThirds/lt63.ts`). Both rectangles are
+  **qualified** only when the document has a deterministic settled pose: the settle completed, no
+  timeline is still running, and two measurements 250 ms apart agree. A document whose motion has
+  no finite end (a marquee, a loop, a staggered reveal that never parks) reports its painted
+  extent (the clipping window's rectangle) and no information box; a document that answers
+  nothing (a foreign package, a broken template) has no measurement.
 - **The pivot and the anchor.** The anchor is a nine-point zone, derived **once** when a record
   is first written, from the zone the qualified box's centre falls in by thirds of the frame, and
   stored on the record, so a longer name never moves the anchor. A hugging design anchors at its
-  box corner or edge in that zone; a full-width band (a box touching both horizontal frame edges)
-  has its pivot at its horizontal midpoint and its anchored vertical edge, **Size and the
-  horizontal presets are disabled for it**, and only vertical nudge remains, because a uniform
-  shrink would open its side edges. Measured bands with no text box get the same treatment.
+  information box's corner or edge in that zone; a full-width band (a **painted extent** touching
+  both horizontal frame edges within 1 px) has its pivot at its horizontal midpoint and its
+  anchored vertical edge, **Size and the horizontal presets are disabled for it**, and only
+  vertical nudge remains, because a uniform shrink would open its side edges. Painted extents with
+  no information box get the same treatment.
 - **What travels.** The record stores intent (a place preset, nudges, a scale, the anchor). At
   send, the page folds the record with the qualified box into the **applied appearance**: `dx`,
   `dy`, `s`, the pivot in px, the style variables and the font declarations by name. A place
@@ -651,7 +658,7 @@ By graphic source, on NoaCG's own output (the `/output` renderer, PROGRAM on bot
 | Imported raster (imp01) | yes | family yes, per line | text colour no (baked literal) | |
 | Agent-made, contract painted | yes | yes | yes | `cssPaintsWith` decides per variable |
 | Agent-made, contract unpainted | yes | no | no | validator finding, see below |
-| Looping or endless-motion design (tickers) | nudge and size about the painted band; no presets | as above | as above | no text box |
+| Looping or endless-motion design (tickers) | nudge and size about the painted extent; no presets | as above | as above | no information box |
 | Foreign OGraf package | frame only, once E3 hosts it in the workflow; no measurement, so nudge and size only | no | no | no style hook in the standard |
 | Server clip or still | no (`imageFit` exists) | n/a | n/a | out of scope |
 
@@ -713,7 +720,7 @@ frame transform outside, contract variables inside, explicit Update, one shared 
 | `src/control/cueAdjust.ts` (new, pure) | `effectiveAdjust(show, cue)` fold with defaults after; `measurementId`; `resolveAppearance(effective, measurement, res)`; `presetOffset`, `pivotFor` (hugging and full-width); `floorEstimate(minText, scale, category)`; `styleReach(template, vars)` over `cssPaintsWith`; `fontDeclarations(appearance, production)` with collision refusal; `appearanceEquals` for the unsent comparison |
 | `src/control/playoutSession.ts`, `cueDraft.ts`, `graphicVerbs.ts`, `cueItems.ts`, `airState.ts` | the draft part carries the record and the session-owned measurements with their identities; Take and Update fold, resolve and send `appearance`; `aired` keeps the last appearance per graphic; the ± road sends none; "Send to on-air graphics" as a verb with press-time capture and rechecks; the measurement and font lifecycles behind the session's `io` |
 | `src/control/controlModel.ts`, `hostedControl.ts` | `update.appearance?` on the message type; `OutputCue.adjust` and `box`, the pool defaults and the activated look in the payload (additive) |
-| `src/preview/settleGraphic.ts`, `previewProtocol.ts`, `composeDocument.ts` | the extended, identified `measure` reply (clipped safe-information box, painted band, smallest text, settled-pose qualification); the live-control appearance handler (variables on `documentElement`, the named faces' declarations, numeric stack, load with the latest-request guard, refit, remeasure) |
+| `src/preview/settleGraphic.ts`, `previewProtocol.ts`, `composeDocument.ts` | the extended, identified `measure` reply (the clipped information box and painted extent, smallest text, settled-pose qualification); the live-control appearance handler (variables on `documentElement`, the named faces' declarations, numeric stack, load with the latest-request guard, refit, remeasure) |
 | `src/output/stage.ts`, `main.ts`, `outputRecovery.ts` | apply the frame transform and `data-appearance`; last appearance in the report; re-apply on boot, replay, swap, rebuild |
 | `src/components/home/PlayoutMonitors.tsx` | PREVIEW in stage coordinates; the guides |
 | `src/control/hostedReceiver.ts`, `localReceiver.ts`, `cueStaging.ts` | apply on dispatch and on boot restoration; report the appearance; stage the record per cue (1b for the receivers) |
@@ -777,9 +784,12 @@ narrowed on 2026-10-25 to this revision's phase 1: L2 AC-1 to AC-4, AC-8, AC-9's
 export dialog's disclosure and no overlay or bake. The receipt is
 `../production-page-refactor/evidence/owner-decisions-2026-10-25-l2-gate.md`.
 
-Proposals, not admissions: **row 32c (L2.1b, phase 1b)** after 32b, touching receivers and
-export targets only; **rows L2.2 and L2.3 (phases 2 and 3)** after E2.2 and before E3.1 for the
-native surfaces, their foreign-frame acceptance after E3.2b. The file overlaps are real and
+Proposed on 2026-10-25 with the owner's agreement, admitted separately: **row 32c (L2.1b, phase
+1b)** after 32b, touching receivers and export targets only; **row 32d (L2.2, phase 2)** after
+32c and before E1.1, since it adds no wire member (the appearance field exists from phase 1) and
+touches the composed document, the fonts, the editor's rows and the bake; **row 38a (L2.3, phase
+3)** after E2.2 and before E3.1, because the bulk send and the hosted page's controls sit on the
+dispatch and control seams E2 settles, its foreign-frame acceptance after E3.2b. The file overlaps are real and
 sequential ownership is what makes them safe: L1 owns the cue editor, the verbs and the exported
 controller; E1 owns the show record's typed envelope, the wire and recovery; E2 owns controls and
 dispatch; E3 owns `foreignOgraf.ts`, the stage's foreign frames and recovery; E7 owns cue
@@ -789,7 +799,7 @@ receiver that does not know it; no migration, no new message kind.
 
 ## Risks, unresolved questions, experiments
 
-- **Measurement.** The clipped safe-information box, the painted band and the settled-pose
+- **Measurement.** The clipped information box, the painted extent and the settled-pose
   qualification are new; the receipt's scratch measurement worked on nine documents with no
   clipping and is only the sketch. A sweep over the catalog (masks, staggered reveals, tickers,
   loops, bleeding decoration, 9:16 and 720p designs) before phase 1's box reply is trusted.
@@ -835,11 +845,13 @@ Size − once on lt01 (bottom-left), on a centred board, on a 720p graphic and o
 inside a 1080p production: the strap keeps its left and bottom edges within 1 px and shrinks 5 %;
 the board keeps its centre within 1 px; the 720p and portrait graphics' pivots are their own
 measured boxes at the stage origin, and PREVIEW and PROGRAM compose them to the same production
-px. lt63 (full width) offers no Size and no horizontal preset, and a vertical nudge moves it.
-Scenario: a blank-page browser spec over emitted templates driving the real apply path (the
-stage's frame and the PREVIEW monitor, not a hand-written transform), asserting composed boxes
-after the measurement-complete signal; a Node test of `resolveAppearance` for each of the nine
-anchors and the full-width pivot.
+px. lt63 (full width) measures an information box inset from both edges and a painted extent
+touching both, is classified full-width from the painted extent, offers no Size and no
+horizontal preset, and a vertical nudge moves it. Scenario: a blank-page browser spec over
+emitted templates driving the real apply path (the stage's frame and the PREVIEW monitor, not a
+hand-written transform), asserting composed boxes after the measurement-complete signal and the
+two rectangles for lt63; a Node test of `resolveAppearance` for each of the nine anchors and of
+the full-width classification and pivot.
 
 ### AC-3: The oversized quiz is assessed per board, and the remedy is named
 Two separate proofs. Arithmetic: `floorEstimate` over the receipt's boxes and the category floors
@@ -923,7 +935,7 @@ overlays (1b).
 
 ### AC-10: Unsupported graphics say so in one line, and nothing else changes for them
 An imported SVG shows Place and Size and "Type and colour: as designed (imported artwork)"; a
-ticker shows nudge and size about its painted band and no presets; a full-width band shows
+ticker shows nudge and size about its painted extent and no presets; a full-width band shows
 vertical nudge only with "spans the frame"; a foreign OGraf package (after E3) shows nudge and
 size and "not available for this package"; a production with no adjust records sends no
 `appearance`, the stage sets no transform, the render counts of
@@ -962,8 +974,10 @@ gate. A task of a trial kit (kits never gate) and the dress rehearsal's case in 
 
 ## Open decisions for the owner
 
-One: **agreement of the design as a whole**, which moves the work ledger to "agreed" and lets
-rows 32c, L2.2 and L2.3 be proposed for admission. Everything else is decided or delegated.
+None open. The owner agreed the design as a whole on 2026-10-25, after the three decisions of
+2026-10-24 and the three independent second opinions; the agreement authorizes the design and
+its proposed placement (rows 32c, 32d and 38a), not implementation, which waits for the
+coordinator to admit each row.
 
 ## Evidence
 
