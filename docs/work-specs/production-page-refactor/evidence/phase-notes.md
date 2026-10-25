@@ -38,11 +38,15 @@ changes a spec's digest.
     at its press. A failed send gives back only parked figures no newer send replaced, judged by
     each figure's own press number.
   - A throw before the send (a timed cue's bad spec) gives back what the press parked and held.
+  - Each batch of a send settles by its own answer, as its markers already did: a folder Take
+    whose first batch landed and a later one failed books the landed batch's figures instead of
+    giving the replaced ones back (found by this branch's review; the old code had the same gap).
 - **Fast-road case the checker called arguable (a Take or Update overlapping an older press).**
   Settled by the same change: the Take or Update still out is the newest sent figure, so the next
   press counts from it, and an older press landing after it books nothing over it.
 - **Tests (`scripts/graphic-verbs.test.mjs`).** The checker's three repros, an equal-figure
-  correction from another screen, a Take that throws before it is sent, and the hockey scorebug
+  correction from another screen, a Take that throws before it is sent, a two-batch send whose
+  second batch fails, and the hockey scorebug
   (a ⚡ goal whose slow row is heard while the first +1 is out, then +1 twice: 8, 9, 10); each red
   on `fc65f5a` except the equal-figure case, which guards the id rule. A randomized walk
   (`BASE_WALKS`, default 3000, about 17,500 checked presses) on the slow road: +1, Takes, Re-takes,
@@ -56,7 +60,8 @@ changes a spec's digest.
   2, walk); no hold for a Take or Update out (repro 3, walk); an older own row not moving the bar
   (repros 1, 2, walk); booking only when air does not show the figure yet (walk); ignoring failed
   markers in the cue a figure went on (walk); the old give-back rule by the failing send's number
-  (walk); no give-back on a throw before the send (its test).
+  (walk); no give-back on a throw before the send (its test); a failed multi-batch send settling
+  every batch as failed (its test).
 - **Traps.**
   - The walk's assertion runs inside the wire stub, which the sender catches as a send failure:
     record mismatches and assert after each step, or a wrong figure passes silently.
