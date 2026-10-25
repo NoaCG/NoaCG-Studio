@@ -384,7 +384,7 @@ test.describe('live candidates', () => {
     await revision(request, w, 2, collection(2, people(1500)));
     await select(page, 'Count');
     await expect(preview(page)).toHaveText('Counted 2', WIRE);
-    await expect(page.getByTestId('selection-hold')).toContainText('cannot send it on its own', WIRE);
+    await expect(page.getByTestId('selection-hold')).toContainText('a newer count arrived: press Update', WIRE);
     await page.waitForTimeout(6000);
     await expect(onAirLine(w), 'what airs is held').toHaveText('1200');
     expect((await updates(w.showId)).length, 'no correction went on its own').toBe(before);

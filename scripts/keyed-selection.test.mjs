@@ -142,6 +142,11 @@ describe('the selection contract', () => {
     assert.match(resolve(['D1', 7], collection(1, BASE, { schemaRevision: 4 })).reason, /schema revision 4, and its fields were mapped for 3/);
   });
 
+  test('a negative revision is no revision: the collection holds', () => {
+    const r = resolve(['D1', 7], collection(-1, BASE));
+    assert.deepEqual([r.status, r.why, r.revision], ['hold', 'collection', null]);
+  });
+
   test('a collection written as JSON text reads as the same collection', () => {
     assert.deepEqual(resolve(['D1', 7], JSON.stringify(collection(5, BASE))), resolve(['D1', 7], collection(5, BASE)));
   });
@@ -1083,6 +1088,72 @@ describe('the page\'s two doors onto the layers', () => {
     assert.equal(p.part.get().Card.marks[Object.keys(p.part.get().Card.marks)[0]].lostAt, undefined, 'spent once 7 landed');
   });
 
+  test('a correction with no answer goes again only with its own values: its revision read with others is a duplicate, held, never sent (checker F1)', () => {
+    const read = (state, c) => air.reduceSelection(state, { t: 'follow', liveCue: live, seeded: true, facts: facts(c), mint: air.mintSend, now: 2000 });
+    const r3 = (votes) => collection(3, [person('D2', 7, 'Bertta Berg', votes)]);
+    const p = air.reduceSelection({}, { t: 'press', graphic: 'Card', cueId: 'cue-a', take: take(selectionOf('D2', 7), collection(2, BASE)), seq: air.mintSend(), now: 1000 });
+    let state = air.reduceSelection(p.air, { t: 'answer', graphic: 'Card', seq: p.seq, landed: true, now: 1100 }).air;
+    const first = read(state, r3(284));
+    assert.deepEqual(first.sends.map((s) => s.values.f1), ['284']);
+    state = air.reduceSelection(first.air, { t: 'answer', graphic: 'Card', seq: first.sends[0].seq, landed: false, uncertain: true, now: 2100 }).air;
+    assert.equal(air.airedValues(state, 'Card', 'cue-a'), null, 'r3 with 284 may air');
+    const dup = read(state, r3(291));
+    assert.deepEqual(dup.sends, [], 'r3 with other values is never sent');
+    assert.match(air.airedOf(dup.air, 'Card').held?.reason ?? '', /this revision again with other values/);
+    assert.equal(air.airedValues(dup.air, 'Card', 'cue-a'), null, 'nor offered');
+    assert.equal(read(dup.air, r3(291)).air, dup.air, 'read again, nothing changes');
+    const again = read(dup.air, r3(284));
+    assert.deepEqual(again.sends.map((s) => s.values.f1), ['284'], 'its own values go once more');
+    assert.equal(air.airedOf(again.air, 'Card').held, undefined, 'and the hold ends');
+  });
+
+  test('an Update with no answer at the aired revision with other values: Snap gets nothing, and neither read of that revision sends (checker F1)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(5, [person('D1', 7, 'Aino Aalto', 1300)]))).undo({ uncertain: true });
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null, 'r5 with 1200 or 1300 may air');
+    p.tick(air.SETTLE_MS + 1);
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), new Promise(() => {}));
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(5, BASE)), send });
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(5, [person('D1', 7, 'Aino Aalto', 1300)])), send });
+    assert.deepEqual(sends, []);
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null);
+  });
+
+  test('two sends with no answer at one revision with different values: neither goes again, and Snap gets nothing (checker F1)', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    let fate = { ok: false, uncertain: true };
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(fate));
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    await settle();
+    fate = new Promise(() => {});
+    const r6 = collection(6, [person('D1', 7, 'Aino Aalto', 1600)]);
+    air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), r6)).undo({ uncertain: true });
+    p.tick(air.SETTLE_MS + 1);
+    for (const c of [collection(6, people6()), r6]) air.followAired(p, { liveCue: live, seeded: true, facts: facts(c), send });
+    assert.deepEqual(sends, ['1500'], 'r6 with 1500 or 1600 may air: neither is sent again');
+    assert.match(card(p).held?.reason ?? '', /this revision again with other values/);
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null);
+  });
+
+  test('a layer not known after a press with no answer, decided by the marker, airs its OLDEST revision: the newer one goes again (checker F4)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), new Promise(() => {}));
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    assert.deepEqual(sends, ['1500']);
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7))).undo({ uncertain: true });
+    assert.equal(card(p).known, false);
+    p.tick(air.SETTLE_MS + 1);
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    assert.equal(card(p).showing?.revision, 5, 'r5 or r6 may air: r5 is what is known');
+    assert.deepEqual(sends, ['1500', '1500'], 'r6 goes once more');
+  });
+
   test('a correction out when a Take displaces it: failed, then the Take failing, revision 6 goes again; landed, then the Take failing, 6 is what airs', async () => {
     for (const correction of ['failed', 'landed']) {
       const p = io();
@@ -1386,7 +1457,7 @@ describe('the page\'s two doors onto the layers', () => {
     const send = (g, v) => (sends.push(v.f1), new Promise(() => {}));
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6()), { ordered: false }), send });
     assert.deepEqual(sends, [], 'nothing on its own');
-    assert.match(card(p).held?.reason ?? '', /cannot send it on its own/);
+    assert.match(card(p).held?.reason ?? '', /a newer count arrived: press Update/);
     assert.deepEqual([card(p).revision, card(p).values.f1], [5, '1200'], 'what airs is held');
     const update = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
     update.landed();
@@ -1491,7 +1562,7 @@ describe('generated walks: the layer against the output', () => {
     return collection(rev, [person('D1', 7, 'Aino Aalto', rev * 10 + 1), person('D2', 7, 'Bertta Berg', rev * 10 + 2)]);
   };
 
-  const seen = { press: 0, landed: 0, failed: 0, skipped: 0, correction: 0, reload: 0, unknown: 0, decided: 0, held: 0, unsent: 0, plain: 0, uncertain: 0, stale: 0, other: 0, otherUpdate: 0, blocked: 0 };
+  const seen = { duplicate: 0, duplicateHeld: 0, press: 0, landed: 0, failed: 0, skipped: 0, correction: 0, reload: 0, unknown: 0, decided: 0, held: 0, unsent: 0, plain: 0, uncertain: 0, stale: 0, other: 0, otherUpdate: 0, blocked: 0 };
   async function walk(seed, steps) {
     const rnd = mulberry(seed);
     const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
@@ -1579,7 +1650,12 @@ describe('generated walks: the layer against the output', () => {
       if (output && !unheard && air.protectedFields(part.get(), 'Card', marker).length === 0) fail(`${where}: ${keyOf(output)} airs and none of its fields is protected (marker ${marker})`);
       if (output && marker === output.cueId && !layer) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
     };
+    // Every correction sent that may air, by entity and revision: one revision never goes with two
+    // contents. One the server refused or skipped never aired, and its revision may go again.
+    const corrected = new Map();
+    const atOf = (send) => `${keyOf(send.target)} r${send.target.revision}`;
     const followOnce = (t, lossy = false, ordered = true) => {
+      const sentBefore = out.length;
       air.followAired(io(), {
         liveCue: marker === undefined ? {} : { Card: marker },
         seeded,
@@ -1603,6 +1679,14 @@ describe('generated walks: the layer against the output', () => {
         last.target = { ...last.target, revision: layer.out[layer.out.length - 1].target.revision };
         last.seq ??= layer.out[layer.out.length - 1].seq;
       }
+      for (const send of out.slice(sentBefore)) {
+        if (send.press) continue;
+        const sent = corrected.get(atOf(send)) ?? [];
+        const values = JSON.stringify(send.target.values);
+        const other = sent.find((x) => JSON.stringify(x.target.values) !== values);
+        if (other) fail(`a correction sent ${atOf(send)} with ${values} while ${JSON.stringify(other.target.values)} may air`);
+        corrected.set(atOf(send), [...sent, send]);
+      }
     };
     const answerOne = async (i, fate) => {
       const [send] = out.splice(i, 1);
@@ -1613,6 +1697,7 @@ describe('generated walks: the layer against the output', () => {
       const told_ = fate === 'uncertain' ? 'uncertain' : serve(send, fate);
       const lands = told_ === 'landed';
       log.push(`answer #${send.index} ${send.press ? 'press' : 'correction'} ${keyOf(send.target)} ${told_}`);
+      if (!send.press && (told_ === 'failed' || told_ === 'skipped' || told_ === 'stale')) corrected.set(atOf(send), (corrected.get(atOf(send)) ?? []).filter((x) => x !== send));
       seen[told_] += 1;
       if (told_ === 'stale') {
         known = head;
@@ -1634,6 +1719,16 @@ describe('generated walks: the layer against the output', () => {
         else send.closure.undo(told_ === 'uncertain' ? { uncertain: true } : told_ === 'stale' ? { stale: true } : undefined);
       } else send.answer(told_);
       await settle();
+      // Most often just after a correction got no answer: the case a duplicate is held in.
+      if (!send.press && told_ === 'uncertain' && rnd() < 0.8) rewrite();
+    };
+    // The source writes the same revision again with other counts.
+    const rewrite = () => {
+      tree = collection(rev, [person('D1', 7, 'Aino Aalto', rev * 10 + 5 + trees.length), person('D2', 7, 'Bertta Berg', rev * 10 + 6 + trees.length)]);
+      trees.push(tree);
+      log.push(`read r${rev} again with other values`);
+      seen.duplicate += 1;
+      followOnce(tree);
     };
     // Sends of a page that went away, still on their way to the server.
     const flying = [];
@@ -1692,6 +1787,8 @@ describe('generated walks: the layer against the output', () => {
         const ordered = rnd() >= 0.08;
         log.push(`read r${rev}${lossy ? ' (a field missing)' : ''}${ordered ? '' : ' (on protocol 1)'}`);
         followOnce(tree, lossy, ordered);
+      } else if (r < 0.84) {
+        rewrite();
       } else if (r < 0.9) {
         const old = pick(trees);
         log.push('read an older tree');
@@ -1748,6 +1845,7 @@ describe('generated walks: the layer against the output', () => {
       const v = air.airedOf(part.get(), 'Card');
       if (v?.held) seen.held += 1;
       if (v?.held?.unsent) seen.unsent += 1;
+      if (v?.held?.reason.includes('other values')) seen.duplicateHeld += 1;
       if (now?.blocked) seen.blocked += 1;
       check(`step ${step}`);
     }
@@ -1776,8 +1874,10 @@ describe('generated walks: the layer against the output', () => {
     }
   }
 
-  test('4000 seeded walks of 20 events hold I1, I4 and I5 at every step and end settled', async () => {
-    for (let seed = 1; seed <= 4000; seed++) await walk(seed, 20);
+  // SELECTION_WALKS runs more, as a checker does.
+  const WALKS = Number(process.env.SELECTION_WALKS) || 4000;
+  test(`${WALKS} seeded walks of 20 events hold I1, I4 and I5 at every step and end settled`, async () => {
+    for (let seed = 1; seed <= WALKS; seed++) await walk(seed, 20);
     // Every kind of event and every state was reached, many times over: the walks are not vacuous.
     for (const [kind, n] of Object.entries(seen)) assert.ok(n >= 50, `${kind} reached ${n} times`);
   });

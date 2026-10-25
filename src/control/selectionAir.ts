@@ -82,6 +82,9 @@ interface Marks {
   /** The newest revision of a send whose answer was lost with a reload: it may air, so nothing
    *  older is sent, and it is sent once more (it may not). */
   lostAt?: number;
+  /** The values that send carried: only these go again at `lostAt`, and a read of that revision
+   *  with other values is a duplicate, held. Absent (kept by an earlier build): not known. */
+  lostValues?: Record<string, string>;
   held?: SelectionHold;
 }
 
@@ -184,7 +187,8 @@ const REOPENED_REASON = 'the page reopened: press Update to follow again';
 const MOVED_REASON = 'a Take or an Out did not go through, so this page does not know what airs: take or update the card to send it';
 const UNANSWERED_REASON = 'a send got no answer, so it is not known which candidate is on air: press Update to send it';
 const STALE_REASON = 'another screen changed this card, so a newer count is not sent on its own: press Update to send it';
-const UNORDERED_REASON = 'a newer count arrived, and this page cannot send it on its own (it sends without per-graphic order): press Update to send it';
+const UNORDERED_REASON = 'a newer count arrived: press Update to send it';
+const DUPLICATE_REASON = 'the source sent this revision again with other values';
 
 /** Keep only the marks of the entities the layer may still show. */
 function pruned(l: SelectionLayer): SelectionLayer {
@@ -201,13 +205,36 @@ const marksOf = (l: SelectionLayer, t: AiredTarget): Marks => l.marks[markKey(t)
 /** Kept as JSON reads back as it was: no key holds undefined. */
 const withMarks = (l: SelectionLayer, t: AiredTarget, m: Marks): SelectionLayer => {
   const kept: Marks = { heldAt: m.heldAt };
-  if (m.lostAt !== undefined) kept.lostAt = m.lostAt;
+  if (m.lostAt !== undefined) {
+    kept.lostAt = m.lostAt;
+    if (m.lostValues) kept.lostValues = m.lostValues;
+  }
   if (m.held) kept.held = m.held;
   return { ...l, marks: { ...l.marks, [markKey(t)]: kept } };
 };
 /** An operator press landed: it decides what airs, and nothing older can still arrive over it
  *  (the server skips an older press once a later one applied). */
 const settledLayer = ({ unknown: _unknown, settling: _settling, blocked: _blocked, ...l }: SelectionLayer): SelectionLayer => l;
+
+const sameValues = (a: Record<string, string> | undefined, b: Record<string, string>): boolean =>
+  !!a && Object.keys(a).length === Object.keys(b).length && Object.keys(b).every((k) => a[k] === b[k]);
+
+/** One more send whose outcome is not known, folded into the lost bound: a newer revision raises
+ *  it with its values; another send at that revision with other values leaves them not known. */
+function addLost(m: Marks, t: AiredTarget): Marks {
+  if (m.lostAt === undefined || t.revision > m.lostAt) return { ...m, lostAt: t.revision, lostValues: t.values };
+  if (t.revision === m.lostAt && !sameValues(m.lostValues, t.values)) return { ...m, lostValues: undefined };
+  return m;
+}
+
+/** The lost bound over what airs after these sends, unless it is what airs. One at the aired
+ *  revision with other values is kept too: the output may show either. */
+function lostOver(onAir: AiredTarget, m0: Marks, lostSends: readonly AiredTarget[]): Marks {
+  const m = lostSends.reduce(addLost, m0);
+  if (m.lostAt === undefined || m.lostAt > onAir.revision || (m.lostAt === onAir.revision && !sameValues(m.lostValues, onAir.values))) return m;
+  const { lostAt: _lostAt, lostValues: _lostValues, ...kept } = m;
+  return kept;
+}
 
 /**
  * A send whose outcome is not known (lost with a reload, or failed with no answer: it may still
@@ -218,9 +245,8 @@ const settledLayer = ({ unknown: _unknown, settling: _settling, blocked: _blocke
 function lost(l: SelectionLayer, sends: readonly Sent[], settling: number): SelectionLayer {
   if (sends.length === 0) return l;
   if (!l.unknown && l.onAir && sends.every((s) => sameEntity(s.target, l.onAir))) {
-    const m = marksOf(l, l.onAir);
-    const lostAt = Math.max(m.lostAt ?? NONE, ...sends.map((s) => s.target?.revision ?? NONE));
-    return withMarks({ ...l, settling: Math.max(l.settling ?? 0, settling) }, l.onAir, { ...m, ...(lostAt > l.onAir.revision ? { lostAt } : {}) });
+    const targets = sends.map((s) => s.target).filter((t): t is AiredTarget => t !== null);
+    return withMarks({ ...l, settling: Math.max(l.settling ?? 0, settling) }, l.onAir, lostOver(l.onAir, marksOf(l, l.onAir), targets));
   }
   const candidates = [...(l.unknown?.candidates ?? []), l.onAir, ...sends.map((s) => s.target)].filter((t): t is AiredTarget => t !== null);
   const plains = [...new Set([...(l.unknown?.plains ?? []), ...sends.flatMap((s) => (s.target === null ? [s.cueId] : []))])];
@@ -322,10 +348,8 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
     return { layer: pruned(lost(after, [...before, sent], now + SETTLE_MS)) };
   }
   // A correction that failed with no answer may have aired: nothing older goes over it.
-  const kept = !landed && uncertain && !sent.press && sent.target ? (() => {
-    const m = marksOf(next, sent.target);
-    return withMarks(next, sent.target, { ...m, lostAt: Math.max(m.lostAt ?? NONE, sent.target.revision) });
-  })() : next;
+  // Its own values are the only ones that go again at its revision.
+  const kept = !landed && uncertain && !sent.press && sent.target ? withMarks(next, sent.target, addLost(marksOf(next, sent.target), sent.target)) : next;
   return failedCorrection(kept, sent, landed, now);
 }
 
@@ -367,13 +391,9 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
     // again and never takes a newer revision for aired when it was not.
     if (matches.every((c) => sameEntity(c, matches[0]))) {
       const onAir = matches.reduce((a, b) => (b.revision < a.revision ? b : a));
-      const newest = Math.max(...matches.map((c) => c.revision));
-      const m = marksOf(l, onAir);
-      const lostAt = Math.max(m.lostAt ?? NONE, newest);
       const { unknown: _unknown, ...known } = l;
       // Its hold stays: a revision held for a field that comes back is still sent then.
-      const { lostAt: _lost, ...kept } = m;
-      const decided = pruned(withMarks({ ...known, onAir }, onAir, { ...kept, ...(lostAt > onAir.revision ? { lostAt } : {}) }));
+      const decided = pruned(withMarks({ ...known, onAir }, onAir, lostOver(onAir, marksOf(l, onAir), matches)));
       return follow(decided, graphic, live, seeded, facts, mint, now);
     }
     return { layer: l };
@@ -398,6 +418,12 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
     // A hold that this very revision set (the graphic's fields were missing, say) or that no
     // revision set ends when it reads well; a "not sent" hold ends only by sending.
     const lifts = !!m.held && !m.held.unsent && (m.held.revision === null || m.held.revision === take.revision);
+    // A read of the revision whose send was lost, with other values than that send carried: one
+    // revision with two contents is a duplicate. Refused and held; only the lost values go again.
+    if (take.revision === floor && take.revision === m.lostAt && take.entity === believed.entity && !sameValues(m.lostValues, take.values)) {
+      if (m.held?.reason === DUPLICATE_REASON && m.held.revision === take.revision) return { layer: l };
+      return { layer: withMarks(l, believed, { ...m, held: { reason: DUPLICATE_REASON, since: m.held?.since ?? now, revision: take.revision } }) };
+    }
     // A revision whose send was lost may not have aired: it goes once more, nothing older does.
     // So does one held "not sent", at the revision that bounds it.
     const newer = take.revision > floor || (take.revision === floor && take.revision > sent && (lifts || !!m.held?.unsent || take.revision === m.lostAt));
@@ -521,8 +547,10 @@ export function airedValues(air: SelectionAir, graphic: string, cueId: string): 
   // A send whose answer was lost may have put a newer revision on air (a restored layer that is
   // settling and not unknown lost sends for the candidate on air; at its own revision they carry
   // its own values).
-  const lostAt = l.marks[markKey(l.onAir)]?.lostAt;
-  return lostAt !== undefined && lostAt > l.onAir.revision ? null : l.onAir.values;
+  // One at the aired revision may carry other values.
+  const m = l.marks[markKey(l.onAir)];
+  if (m?.lostAt !== undefined && (m.lostAt > l.onAir.revision || (m.lostAt === l.onAir.revision && !sameValues(m.lostValues, l.onAir.values)))) return null;
+  return l.onAir.values;
 }
 
 /**
@@ -590,7 +618,7 @@ const isTarget = (t: unknown): t is AiredTarget => {
 };
 const isMarks = (m: unknown): m is Marks => {
   const x = m as Partial<Marks> | null;
-  return !!x && typeof x.heldAt === 'number' && (x.lostAt === undefined || typeof x.lostAt === 'number') && (x.held === undefined || (typeof x.held.reason === 'string' && typeof x.held.since === 'number'));
+  return !!x && typeof x.heldAt === 'number' && (x.lostAt === undefined || typeof x.lostAt === 'number') && (x.lostValues === undefined || (!!x.lostValues && typeof x.lostValues === 'object' && Object.values(x.lostValues).every((v) => typeof v === 'string'))) && (x.held === undefined || (typeof x.held.reason === 'string' && typeof x.held.since === 'number'));
 };
 
 /**
